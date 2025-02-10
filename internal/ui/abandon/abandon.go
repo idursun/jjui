@@ -1,8 +1,8 @@
 package abandon
 
 import (
-	"jjui/internal/ui/common"
-	"jjui/internal/ui/confirmation"
+	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/confirmation"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

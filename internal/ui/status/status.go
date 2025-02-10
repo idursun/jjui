@@ -2,7 +2,7 @@ package status
 
 import (
 	"github.com/charmbracelet/lipgloss"
-	"jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/common"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -16,8 +16,10 @@ type Model struct {
 	error   error
 }
 
-var successStyle = lipgloss.NewStyle().Foreground(common.Green)
-var errorStyle = lipgloss.NewStyle().Foreground(common.Red)
+var (
+	successStyle = lipgloss.NewStyle().Foreground(common.Green)
+	errorStyle   = lipgloss.NewStyle().Foreground(common.Red)
+)
 
 func (m Model) Init() tea.Cmd {
 	return nil
@@ -30,7 +32,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.running = true
 		return m, m.spinner.Tick
 	case common.CommandCompletedMsg:
-		//m.command = ""
+		// m.command = ""
 		m.running = false
 		m.output = msg.Output
 		m.error = msg.Err

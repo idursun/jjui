@@ -2,13 +2,15 @@ package describe
 
 import (
 	"bytes"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/exp/teatest"
-	"github.com/stretchr/testify/assert"
-	"jjui/internal/ui/common"
-	"jjui/test"
 	"testing"
 	"time"
+
+	"github.com/idursun/jjui/test"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/exp/teatest"
+	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCancel(t *testing.T) {

@@ -1,9 +1,10 @@
 package common
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
-	"jjui/internal/jj"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/jj"
 )
 
 type (
@@ -98,7 +99,7 @@ func RunCommand(c jj.Command, continuations ...tea.Cmd) tea.Cmd {
 		func() tea.Msg {
 			_, err := c.CombinedOutput()
 			return CommandCompletedMsg{
-				//Output: string(output),
+				// Output: string(output),
 				Err: err,
 			}
 		})

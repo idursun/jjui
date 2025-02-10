@@ -2,9 +2,10 @@ package revisions
 
 import (
 	"fmt"
-	"jjui/internal/jj"
-	"jjui/internal/ui/common"
 	"strings"
+
+	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/common"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

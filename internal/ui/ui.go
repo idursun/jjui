@@ -1,13 +1,14 @@
 package ui
 
 import (
-	"jjui/internal/jj"
 	"strings"
 
-	"jjui/internal/ui/common"
-	"jjui/internal/ui/diff"
-	"jjui/internal/ui/revisions"
-	"jjui/internal/ui/status"
+	"github.com/idursun/jjui/internal/jj"
+
+	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/diff"
+	"github.com/idursun/jjui/internal/ui/revisions"
+	"github.com/idursun/jjui/internal/ui/status"
 
 	"github.com/charmbracelet/bubbles/help"
 	tea "github.com/charmbracelet/bubbletea"

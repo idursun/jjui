@@ -1,7 +1,7 @@
 package diff
 
 import (
-	"jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/common"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"

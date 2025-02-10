@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	tea "github.com/charmbracelet/bubbletea"
-	"jjui/internal/jj"
-	"jjui/internal/ui"
 	"os"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui"
 )
 
 var Version = "unknown"

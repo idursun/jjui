@@ -1,9 +1,10 @@
 package common
 
 import (
-	"github.com/charmbracelet/bubbletea"
-	"jjui/internal/jj"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/jj"
 )
 
 type UICommands struct {
@@ -63,7 +64,7 @@ func (c UICommands) FetchRevisions(revset string) tea.Cmd {
 func (c UICommands) FetchBookmarks(revision string) tea.Cmd {
 	return func() tea.Msg {
 		cmd := c.jj.ListBookmark(revision)
-		//TODO: handle error
+		// TODO: handle error
 		output, _ := cmd.CombinedOutput()
 		var bookmarks []string
 		lines := strings.Split(string(output), "\n")

@@ -1,10 +1,11 @@
 package confirmation
 
 import (
-	"github.com/charmbracelet/lipgloss"
 	"strings"
 
-	"jjui/internal/ui/common"
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/idursun/jjui/internal/ui/common"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -22,11 +23,14 @@ type Model struct {
 	selected int
 }
 
-var textStyle = lipgloss.NewStyle().Bold(true).Foreground(common.Magenta)
-var normalStyle = lipgloss.NewStyle().
-	Foreground(common.White).
-	PaddingLeft(2).
-	PaddingRight(2)
+var (
+	textStyle   = lipgloss.NewStyle().Bold(true).Foreground(common.Magenta)
+	normalStyle = lipgloss.NewStyle().
+			Foreground(common.White).
+			PaddingLeft(2).
+			PaddingRight(2)
+)
+
 var selectedStyle = lipgloss.NewStyle().
 	Foreground(common.DarkWhite).
 	Background(common.Blue).

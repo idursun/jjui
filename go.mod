@@ -1,4 +1,4 @@
-module jjui
+module github.com/idursun/jjui
 
 go 1.22
 

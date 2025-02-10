@@ -2,14 +2,15 @@ package revset
 
 import (
 	"fmt"
+	"strings"
+	"unicode"
+
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"jjui/internal/ui/common"
-	"strings"
-	"unicode"
+	"github.com/idursun/jjui/internal/ui/common"
 )
 
 var allowedFunctions = []string{
@@ -95,8 +96,10 @@ type Model struct {
 	keymap        keymap
 }
 
-var promptStyle = common.DefaultPalette.CommitShortStyle
-var cursorStyle = common.DefaultPalette.Empty
+var (
+	promptStyle = common.DefaultPalette.CommitShortStyle
+	cursorStyle = common.DefaultPalette.Empty
+)
 
 type keymap struct{}
 
@@ -109,6 +112,7 @@ func (k keymap) ShortHelp() []key.Binding {
 		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "quit")),
 	}
 }
+
 func (k keymap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{k.ShortHelp()}
 }

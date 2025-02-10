@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/common"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"

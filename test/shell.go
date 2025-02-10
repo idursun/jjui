@@ -2,7 +2,7 @@ package test
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/common"
 )
 
 type model struct {

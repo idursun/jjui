@@ -1,9 +1,10 @@
 package revset
 
 import (
+	"testing"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestSignatureHelp(t *testing.T) {
@@ -21,7 +22,6 @@ func TestSignatureHelp(t *testing.T) {
 			model.textInput.SetValue(test.input)
 			m, _ := model.Update(tea.KeyLeft)
 			assert.Contains(t, m.signatureHelp, test.expected)
-
 		})
 	}
 }

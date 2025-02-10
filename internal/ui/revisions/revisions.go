@@ -2,16 +2,17 @@ package revisions
 
 import (
 	"fmt"
-	"jjui/internal/ui/confirmation"
 	"slices"
 
-	"jjui/internal/jj"
-	"jjui/internal/ui/abandon"
-	"jjui/internal/ui/bookmark"
-	"jjui/internal/ui/common"
-	"jjui/internal/ui/describe"
-	"jjui/internal/ui/revisions/details"
-	"jjui/internal/ui/revisions/revset"
+	"github.com/idursun/jjui/internal/ui/confirmation"
+
+	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/abandon"
+	"github.com/idursun/jjui/internal/ui/bookmark"
+	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/describe"
+	"github.com/idursun/jjui/internal/ui/revisions/details"
+	"github.com/idursun/jjui/internal/ui/revisions/revset"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
