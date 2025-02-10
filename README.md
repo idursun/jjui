@@ -89,7 +89,12 @@ You can build `jjui` from source.
 ```
 git clone https://github.com/idursun/jjui.git
 cd jjui
-go install cmd/jjui.go
+go install cmd/jjui/main.go
+```
+
+### From go install
+```
+go install github.com/idursun/jjui/cmd/jjui@latest
 ```
 
 ### From pre-built binaries
