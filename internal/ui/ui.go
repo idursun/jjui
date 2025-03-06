@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -72,31 +73,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 	}
 
+	revisionsModel, ok := m.revisions.(*revisions.Model)
+	inOverlayEditing := ok && revisionsModel.InOverlayEditing()
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
-			m.state = common.Ready
-			m.error = nil
-		case key.Matches(msg, m.keyMap.Cancel) && m.helpPage != nil:
-			m.helpPage = nil
-			m.error = nil
-		case key.Matches(msg, m.keyMap.Revset):
-			m.revsetModel, _ = m.revsetModel.Update(revset.EditRevSetMsg{})
-		case key.Matches(msg, m.keyMap.Help):
-			cmds = append(cmds, common.ToggleHelp)
-			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Preview.Mode):
-			m.previewVisible = !m.previewVisible
-			cmds = append(cmds, common.SelectionChanged)
-			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Preview.ToggleFocus):
-			if !m.previewVisible {
+		if !inOverlayEditing {
+			switch {
+			case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
+				m.state = common.Ready
+				m.error = nil
+			case key.Matches(msg, m.keyMap.Cancel) && m.helpPage != nil:
+				m.helpPage = nil
+				m.error = nil
+			case key.Matches(msg, m.keyMap.Revset):
+				m.revsetModel, _ = m.revsetModel.Update(revset.EditRevSetMsg{})
+			case key.Matches(msg, m.keyMap.Help):
+				cmds = append(cmds, common.ToggleHelp)
+				return m, tea.Batch(cmds...)
+			case key.Matches(msg, m.keyMap.Preview.Mode):
+				m.previewVisible = !m.previewVisible
 				cmds = append(cmds, common.SelectionChanged)
+				return m, tea.Batch(cmds...)
+			case key.Matches(msg, m.keyMap.Preview.ToggleFocus):
+				if !m.previewVisible {
+					cmds = append(cmds, common.SelectionChanged)
+				}
+				m.previewVisible = true
+				cmds = append(cmds, preview.Focus)
+				return m, tea.Batch(cmds...)
 			}
-			m.previewVisible = true
-			cmds = append(cmds, preview.Focus)
-			return m, tea.Batch(cmds...)
 		}
 	case common.ToggleHelpMsg:
 		if m.helpPage == nil {

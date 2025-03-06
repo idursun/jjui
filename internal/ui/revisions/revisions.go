@@ -2,6 +2,8 @@ package revisions
 
 import (
 	"bytes"
+	"slices"
+
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,7 +22,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/squash"
 	"github.com/idursun/jjui/internal/ui/operations/undo"
 	"github.com/idursun/jjui/internal/ui/revset"
-	"slices"
 )
 
 type viewRange struct {
@@ -315,4 +316,9 @@ func New(c context.AppContext) Model {
 		width:     20,
 		height:    10,
 	}
+}
+
+func (m *Model) InOverlayEditing() bool {
+	overlayEditingOpNames := []string{"bookmark"}
+	return slices.Contains(overlayEditingOpNames, m.op.Name())
 }
