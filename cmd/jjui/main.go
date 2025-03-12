@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"runtime/debug"
+	"strings"
 
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -32,11 +34,14 @@ func main() {
 			os.Exit(exitCode)
 		}
 	}
-	location := os.Getenv("PWD")
+	location, err := getJJRootDir()
+	if err != nil {
+		location = os.Getenv("PWD")
+	}
 	if len(os.Args) > 1 {
 		location = os.Args[1]
 	}
-	if _, err := os.Stat(location + "/.jj"); os.IsNotExist(err) {
+	if _, err = os.Stat(location + "/.jj"); os.IsNotExist(err) {
 		fmt.Fprintf(os.Stderr, "Error: There is no jj repo in \"%s\".\n", location)
 		os.Exit(1)
 	}
@@ -48,4 +53,13 @@ func main() {
 		fmt.Printf("Error running program: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func getJJRootDir() (string, error) {
+	cmd := exec.Command("jj", "root")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
 }
