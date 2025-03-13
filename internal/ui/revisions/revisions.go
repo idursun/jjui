@@ -119,6 +119,21 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case revset.UpdateRevSetMsg:
 		m.revsetValue = string(msg)
 		return m, common.Refresh
+		if selectedRevision := m.SelectedRevision(); selectedRevision != nil {
+			cmds = append(cmds, common.Refresh)
+		} else {
+			cmds = append(cmds, common.Refresh)
+		}
+	case common.SelectRevisionsMsg:
+		for _, rev := range msg {
+			for i := 0; i < len(m.rows); i++ {
+				row := &m.rows[i]
+				if row.Commit.ChangeIdShort == rev {
+					row.IsSelected = true
+					break
+				}
+			}
+		}
 	case common.RefreshMsg:
 		return m, m.load(m.revsetValue, msg.SelectedRevision)
 	case updateRevisionsMsg:

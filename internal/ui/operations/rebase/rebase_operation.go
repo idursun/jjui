@@ -70,6 +70,12 @@ func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	case key.Matches(msg, r.keyMap.Cancel):
 		return common.Close
 	}
+
+	if s, ok := r.context.SelectedItem().(context.SelectedRevision); ok && r.Source == SourceBranch {
+		bytes, _ := r.context.RunCommandImmediate(jj.SelectRelativeBranch(r.From, s.ChangeId))
+		revisions := jj.ParseRevisions(string(bytes))
+		return common.SelectRevisions(revisions)
+	}
 	return nil
 }
 

@@ -1,5 +1,10 @@
 package jj
 
+import (
+	"fmt"
+	"strings"
+)
+
 const (
 	RootChangeId = "zzzzzzzz"
 )
@@ -29,4 +34,18 @@ func (c Commit) GetChangeId() string {
 		return c.CommitId
 	}
 	return c.ChangeId
+}
+
+func SelectRelativeBranch(from string, to string) []string {
+	const template = "separate(';', change_id.shortest(1)) ++ '\n'"
+	return []string{"log", "-r", fmt.Sprintf("(%s..%s)::", to, from), "--color", "never", "--no-graph", "--template", template}
+}
+
+func ParseRevisions(output string) []string {
+	var revisions []string
+	lines := strings.Split(output, "\n")
+	for _, rev := range lines {
+		revisions = append(revisions, rev)
+	}
+	return revisions
 }

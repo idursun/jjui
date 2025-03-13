@@ -26,6 +26,7 @@ type (
 		Err    error
 	}
 	SelectionChangedMsg struct{}
+	SelectRevisionsMsg  []string
 )
 
 type State int
@@ -56,6 +57,12 @@ func Refresh() tea.Msg {
 
 func ToggleHelp() tea.Msg {
 	return ToggleHelpMsg{}
+}
+
+func SelectRevisions(revisions []string) tea.Cmd {
+	return func() tea.Msg {
+		return SelectRevisionsMsg(revisions)
+	}
 }
 
 func CommandRunning(args []string) tea.Cmd {
