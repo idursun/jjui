@@ -158,3 +158,7 @@ func Evolog(revision string) CommandArgs {
 func Args(args ...string) CommandArgs {
 	return args
 }
+
+func Absorb(changeId string) []string {
+	return []string{"absorb", "--from", changeId}
+}

@@ -16,6 +16,7 @@ type DefaultRowRenderer struct {
 	HighlightBackground lipgloss.AdaptiveColor
 	IsHighlighted       bool
 	IsSelected          bool
+	IsAbsorbedInto      bool
 	Op                  operations.Operation
 }
 
@@ -109,7 +110,11 @@ func (s *DefaultRowRenderer) RenderCommitId(commit *jj.Commit) string {
 		commitIdStyle = commitIdStyle.Background(s.HighlightBackground)
 		restStyle = restStyle.Background(s.HighlightBackground)
 	}
-	return commitIdStyle.Render("", commit.CommitIdShort) + restStyle.Render(commit.CommitId[len(commit.ChangeIdShort):])
+	commitId := commitIdStyle.Render("", commit.CommitIdShort) + restStyle.Render(commit.CommitId[len(commit.ChangeIdShort):])
+	if s.IsAbsorbedInto {
+		commitId += restStyle.Render(" (absorbed changes)")
+	}
+	return commitId
 }
 
 func (s *DefaultRowRenderer) RenderAuthor(commit *jj.Commit) string {

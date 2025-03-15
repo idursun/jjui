@@ -20,6 +20,7 @@ var DefaultKeyMappings = KeyMappings[keys]{
 	Edit:         []string{"e"},
 	Diff:         []string{"d"},
 	Diffedit:     []string{"E"},
+	Absorb:       []string{"A"},
 	Split:        []string{"s"},
 	Squash:       []string{"S"},
 	Evolog:       []string{"O"},
@@ -82,6 +83,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Abandon:      key.NewBinding(key.WithKeys(m.Abandon...), key.WithHelp(join(m.Abandon), "abandon")),
 		Edit:         key.NewBinding(key.WithKeys(m.Edit...), key.WithHelp(join(m.Edit), "edit")),
 		Diffedit:     key.NewBinding(key.WithKeys(m.Diffedit...), key.WithHelp(join(m.Diffedit), "diff edit")),
+		Absorb:       key.NewBinding(key.WithKeys(m.Absorb...), key.WithHelp(join(m.Absorb), "diff edit")),
 		Split:        key.NewBinding(key.WithKeys(m.Split...), key.WithHelp(join(m.Split), "split")),
 		Squash:       key.NewBinding(key.WithKeys(m.Squash...), key.WithHelp(join(m.Squash), "squash")),
 		Help:         key.NewBinding(key.WithKeys(m.Help...), key.WithHelp(join(m.Help), "help")),
@@ -165,6 +167,7 @@ type KeyMappings[T any] struct {
 	Describe     T                   `toml:"describe"`
 	Edit         T                   `toml:"edit"`
 	Diffedit     T                   `toml:"diffedit"`
+	Absorb       T                   `toml:"absorb"`
 	Split        T                   `toml:"split"`
 	Squash       T                   `toml:"squash"`
 	Undo         T                   `toml:"undo"`

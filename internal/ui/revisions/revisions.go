@@ -20,6 +20,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/squash"
 	"github.com/idursun/jjui/internal/ui/revset"
 	"slices"
+	"strings"
 )
 
 type viewRange struct {
@@ -39,6 +40,8 @@ type Model struct {
 	height      int
 	context     context.AppContext
 	keymap      config.KeyMappings[key.Binding]
+	output      string
+	err         error
 }
 
 type updateRevisionsMsg struct {
@@ -119,10 +122,15 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case revset.UpdateRevSetMsg:
 		m.revsetValue = string(msg)
 		return m, common.Refresh
+	case common.CommandCompletedMsg:
+		m.output = msg.Output
+		m.err = msg.Err
+		return m, nil
 	case common.RefreshMsg:
 		return m, m.load(m.revsetValue, msg.SelectedRevision)
 	case updateRevisionsMsg:
 		m.updateGraphRows(msg.rows, msg.selectedRevision)
+		return m, m.highlightChanges
 	}
 
 	if op, ok := m.op.(operations.OperationWithOverlay); ok {
@@ -169,6 +177,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.Diffedit):
 				changeId := m.SelectedRevision().GetChangeId()
 				cmd = m.context.RunInteractiveCommand(jj.DiffEdit(changeId), common.Refresh)
+			case key.Matches(msg, m.keymap.Absorb):
+				changeId := m.SelectedRevision().GetChangeId()
+				cmd = m.context.RunCommand(jj.Absorb(changeId), common.Refresh)
 			case key.Matches(msg, m.keymap.Abandon):
 				selections := m.SelectedRevisions()
 				var changeIds []string
@@ -216,6 +227,34 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 	}
 	return m, cmd
+}
+
+func (m *Model) highlightChanges() tea.Msg {
+	if m.err != nil || m.output == "" {
+		return nil
+	}
+
+	changes := strings.Split(m.output, "\n")
+	for _, change := range changes {
+		if !strings.HasPrefix(change, " ") {
+			continue
+		}
+		line := strings.Trim(change, "\n ")
+		if line == "" {
+			continue
+		}
+		parts := strings.Split(line, " ")
+		if len(parts) > 0 {
+			for i := 0; i < len(m.rows); i++ {
+				row := &m.rows[i]
+				if row.Commit.GetChangeId() == parts[0] {
+					row.IsAffected = true
+					break
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (m *Model) updateGraphRows(rows []jj.GraphRow, selectedRevision string) {
@@ -273,6 +312,7 @@ func (m *Model) View() string {
 			Op:                  m.op,
 			IsHighlighted:       i == m.cursor,
 			IsSelected:          row.IsSelected,
+			IsAbsorbedInto:      row.IsAffected,
 		}
 
 		w.RenderRow(row, nodeRenderer)

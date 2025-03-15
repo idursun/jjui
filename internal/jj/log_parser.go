@@ -41,6 +41,7 @@ type GraphRow struct {
 	Connections [][]ConnectionType
 	Commit      *Commit
 	IsSelected  bool
+	IsAffected  bool
 }
 
 func NewParser(reader io.Reader) *Parser {
