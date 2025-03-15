@@ -1,6 +1,7 @@
 package screen
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -39,9 +40,9 @@ func (s Segment) StyleEqual(other Segment) bool {
 	return true
 }
 
-func Parse(raw string) []Segment {
+func Parse(raw []byte) []Segment {
 	var segments []Segment
-	var buffer strings.Builder
+	var buffer bytes.Buffer
 	var params []int
 	pos := 0
 
@@ -58,7 +59,7 @@ func Parse(raw string) []Segment {
 			}
 
 			// Extract full escape sequence
-			end := strings.IndexByte(raw[pos:], 'm')
+			end := bytes.IndexByte(raw[pos:], 'm')
 			if end == -1 {
 				pos++
 				continue
@@ -67,12 +68,16 @@ func Parse(raw string) []Segment {
 
 			// Parse parameters
 			seq := raw[pos+2 : end]
-			for _, param := range strings.Split(seq, ";") {
-				if param == "" {
-					continue
-				}
-				if num, err := strconv.Atoi(param); err == nil {
-					params = append(params, num)
+			start := 0
+			for i := 0; i <= len(seq); i++ {
+				if i == len(seq) || seq[i] == ';' {
+					if start < i {
+						paramBytes := seq[start:i]
+						if num, err := strconv.Atoi(string(paramBytes)); err == nil {
+							params = append(params, num)
+						}
+					}
+					start = i + 1
 				}
 			}
 

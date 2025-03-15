@@ -358,7 +358,7 @@ func (m *Model) load(revset string, selectedRevision string) tea.Cmd {
 				Output: string(output),
 			}
 		}
-		p := jj.NewParser(bytes.NewReader(output))
+		p := jj.NewNoTemplateParser(bytes.NewReader(output))
 		graphLines := p.Parse()
 		return updateRevisionsMsg{graphLines, selectedRevision}
 	}

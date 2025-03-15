@@ -16,7 +16,7 @@ func ConfigGet(key string) CommandArgs {
 }
 
 func Log(revset string) CommandArgs {
-	args := []string{"log", "--color", "never", "--config", "ui.graph.style=curved", "--template", TEMPLATE}
+	args := []string{"log", "--color", "always", "--quiet"}
 	if revset != "" {
 		args = append(args, "-r", revset)
 	}

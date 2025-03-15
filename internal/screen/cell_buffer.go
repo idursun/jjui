@@ -19,13 +19,13 @@ func Stacked(view1, view2 string, x, y int) string {
 	buf := &cellBuffer{}
 
 	// Parse and apply base view
-	buf.applyANSI(view1, 0, 0)
-	buf.applyANSI(view2, x, y)
+	buf.applyANSI([]byte(view1), 0, 0)
+	buf.applyANSI([]byte(view2), x, y)
 
 	return buf.String()
 }
 
-func (b *cellBuffer) applyANSI(input string, offsetX, offsetY int) {
+func (b *cellBuffer) applyANSI(input []byte, offsetX, offsetY int) {
 	parsed := Parse(input)
 
 	currentLine := offsetY
