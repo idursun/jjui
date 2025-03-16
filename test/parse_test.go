@@ -70,7 +70,7 @@ func Test_Parse_File(t *testing.T) {
 			rows := p.Parse()
 			var w graph.GraphWriter
 			for _, row := range rows {
-				w.RenderRow(row, TestRenderer{highlighted: row.Commit.ChangeIdShort == test.highlighted})
+				w.RenderRow(row, TestRenderer{highlighted: row.Commit.ChangeIdShort == test.highlighted}, false)
 			}
 			actual := w.String(0, w.LineCount())
 			renderedFileName := strings.Replace(test.logFile, ".log", ".expected", 1)

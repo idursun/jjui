@@ -323,7 +323,7 @@ func (m *Model) View() string {
 			IsAffected:          row.IsAffected,
 		}
 
-		w.RenderRow(row, nodeRenderer)
+		w.RenderRow(row, nodeRenderer, nodeRenderer.IsHighlighted)
 		if i == m.cursor {
 			selectedLineEnd = w.LineCount()
 		}

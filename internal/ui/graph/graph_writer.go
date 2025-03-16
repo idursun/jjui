@@ -55,7 +55,7 @@ func (w *GraphWriter) Reset() {
 	w.lineCount = 0
 }
 
-func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer) {
+func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer, highlighted bool) {
 	w.connectionPos = 0
 	w.connectionsWritten = false
 	w.row = row
@@ -69,20 +69,25 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer) {
 	}
 	w.connectionsWritten = false
 	w.connections = row.Connections[0]
-	lw := strings.Builder{}
 	prefix := len(w.connections)*2 + 1
 	renderer.BeginSection(RowSectionRevision)
-	for _, segment := range row.Segments {
-		fmt.Fprint(&lw, segment.String())
-	}
-
-	line := lw.String()
-	fmt.Fprint(w, line)
-
-	width := lipgloss.Width(line)
-	gap := w.Width - prefix - width
-	if gap > 0 {
-		//fmt.Fprint(w, renderer.RenderNormal(strings.Repeat(" ", gap)))
+	for _, segmentedLine := range row.SegmentLines {
+		lw := strings.Builder{}
+		for _, segment := range segmentedLine.Segments {
+			if highlighted {
+				fmt.Fprint(&lw, segment.WithBackground(40))
+			} else {
+				fmt.Fprint(&lw, segment.String())
+			}
+		}
+		line := lw.String()
+		fmt.Fprint(w, line)
+		width := lipgloss.Width(line)
+		gap := w.Width - prefix - width
+		if gap > 0 {
+			fmt.Fprint(w, renderer.RenderNormal(strings.Repeat(" ", gap)))
+		}
+		fmt.Fprint(w, "\n")
 	}
 
 	if row.Commit.IsRoot() {

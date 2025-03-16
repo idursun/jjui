@@ -96,7 +96,7 @@ func (o Operation) Render() string {
 		if i == o.cursor {
 			selectedLineStart = w.LineCount()
 		}
-		w.RenderRow(row, nodeRenderer)
+		w.RenderRow(row, nodeRenderer, nodeRenderer.IsHighlighted)
 		if i == o.cursor {
 			selectedLineEnd = w.LineCount()
 		}

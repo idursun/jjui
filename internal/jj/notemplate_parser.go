@@ -4,22 +4,37 @@ import (
 	"bufio"
 	"github.com/idursun/jjui/internal/screen"
 	"io"
+	"log"
 	"strings"
 )
 
 type NoTemplateParser struct {
-	reader         *bufio.Reader
-	segments       []screen.Segment
-	segmentIndex   int
-	lineEndIndex   int
-	lineStartIndex int
-	current        screen.Segment
+	reader *bufio.Reader
+}
+
+type SegmentedLine struct {
+	Segments []*screen.Segment
+}
+
+func (sl SegmentedLine) getPair(start int) int {
+	for i := start; i < len(sl.Segments); i++ {
+		cur := sl.Segments[i].Text
+		if cur != "" && !strings.Contains(cur, " ") {
+			n := i + 1
+			if n < len(sl.Segments) {
+				cur = sl.Segments[n].Text
+				if cur != "" && !strings.Contains(cur, " ") {
+					return i
+				}
+			}
+		}
+	}
+	return -1
 }
 
 func NewNoTemplateParser(reader io.Reader) *NoTemplateParser {
 	return &NoTemplateParser{
-		reader:       bufio.NewReader(reader),
-		segmentIndex: -1,
+		reader: bufio.NewReader(reader),
 	}
 }
 
@@ -27,44 +42,60 @@ func (p *NoTemplateParser) Parse() []GraphRow {
 	var rows []GraphRow
 	bytesData, _ := io.ReadAll(p.reader)
 	rawSegments := screen.Parse(bytesData)
-	// break segments from new lines
-	for _, rawSegment := range rawSegments {
-		for {
+	// group segments into lines by breaking segments at new lines
+	var segmentedLines []SegmentedLine
+	i := 0
+	for i < len(rawSegments) {
+		currentLine := SegmentedLine{}
+		for i < len(rawSegments) {
+			rawSegment := &rawSegments[i]
 			idx := strings.IndexByte(rawSegment.Text, '\n')
 			if idx == -1 {
-				break
-			}
-			text := rawSegment.Text[:idx+1]
-			if text != "" {
-				p.segments = append(p.segments, screen.Segment{
+				currentLine.Segments = append(currentLine.Segments, rawSegment)
+				i++
+			} else {
+				text := rawSegment.Text[:idx]
+				currentLine.Segments = append(currentLine.Segments, &screen.Segment{
 					Text:   text,
 					Params: rawSegment.Params,
 				})
+				rawSegment.Text = rawSegment.Text[idx+1:]
+				break
 			}
-			rawSegment.Text = rawSegment.Text[idx+1:]
 		}
-		if rawSegment.Text != "" {
-			p.segments = append(p.segments, rawSegment)
-		}
+		segmentedLines = append(segmentedLines, currentLine)
 	}
 
-	for p.advance() {
+	i = 0
+	for i < len(segmentedLines) {
 		row := GraphRow{}
-		cur := p.lineStartIndex
 		row.Commit = &Commit{}
-		if p.advanceToIdRestPair() {
-			row.Commit.ChangeIdShort = p.segments[p.segmentIndex-1].Text
-			row.Commit.ChangeId = row.Commit.ChangeIdShort + p.segments[p.segmentIndex].Text
-			if p.advanceToIdRestPair() {
-				row.Commit.CommitIdShort = p.segments[p.segmentIndex-1].Text
-				row.Commit.CommitId = row.Commit.CommitIdShort + p.segments[p.segmentIndex].Text
+		segmentedLine := segmentedLines[i]
+		row.SegmentLines = append(row.SegmentLines, segmentedLine)
+		changeIdIdx := segmentedLine.getPair(0)
+		if changeIdIdx != -1 {
+			row.Commit.ChangeIdShort = segmentedLine.Segments[changeIdIdx].Text
+			row.Commit.ChangeId = row.Commit.ChangeIdShort + segmentedLine.Segments[changeIdIdx+1].Text
+			commitIdIdx := segmentedLine.getPair(changeIdIdx + 2)
+			if commitIdIdx != -1 {
+				row.Commit.CommitIdShort = segmentedLine.Segments[commitIdIdx].Text
+				row.Commit.CommitId = row.Commit.CommitIdShort + segmentedLine.Segments[commitIdIdx+1].Text
+			} else {
+				log.Fatalln("commit id not found")
 			}
 		}
-		if p.advanceToIdRestPair() {
-			p.segmentIndex = p.lineStartIndex
+		i++
+		for i < len(segmentedLines) {
+			segmentedLine = segmentedLines[i]
+			changeIdIdx := segmentedLine.getPair(0)
+			if changeIdIdx == -1 {
+				row.SegmentLines = append(row.SegmentLines, segmentedLine)
+				i++
+				continue
+			}
+			break
 		}
 
-		row.Segments = p.segments[cur : p.lineEndIndex+1]
 		row.Connections = make([][]ConnectionType, 1)
 		row.Connections[0] = make([]ConnectionType, 1)
 		row.Connections[0][0] = GLYPH
@@ -72,30 +103,4 @@ func (p *NoTemplateParser) Parse() []GraphRow {
 	}
 
 	return rows
-}
-
-func (p *NoTemplateParser) advance() bool {
-	p.segmentIndex++
-	if p.segmentIndex >= len(p.segments) {
-		return false
-	}
-	p.current = p.segments[p.segmentIndex]
-	if strings.Contains(p.current.Text, "\n") {
-		p.lineEndIndex = p.segmentIndex
-		p.lineStartIndex = p.segmentIndex + 1
-	}
-	return true
-}
-
-func (p *NoTemplateParser) advanceToIdRestPair() bool {
-	for p.advance() {
-		if !strings.Contains(p.current.Text, " ") {
-			if p.advance() {
-				if !strings.Contains(p.current.Text, " ") {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }

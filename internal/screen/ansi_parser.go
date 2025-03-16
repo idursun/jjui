@@ -31,6 +31,22 @@ func (s Segment) String() string {
 	)
 }
 
+func (s Segment) WithBackground(bg int) string {
+	newParams := make([]int, 0, len(s.Params)+1)
+	for _, p := range s.Params {
+		if (p >= 40 && p <= 49) || (p >= 100 && p <= 109) {
+			continue
+		}
+		newParams = append(newParams, p)
+	}
+	newParams = append(newParams, bg)
+	newSegment := Segment{
+		Text:   s.Text,
+		Params: newParams,
+	}
+	return newSegment.String()
+}
+
 func (s Segment) StyleEqual(other Segment) bool {
 	if len(other.Params) != len(s.Params) {
 		return false
