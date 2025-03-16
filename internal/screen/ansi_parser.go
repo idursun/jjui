@@ -13,6 +13,9 @@ type Segment struct {
 }
 
 func (s Segment) String() string {
+	if s.Text == "\n" {
+		return s.Text
+	}
 	if len(s.Params) == 0 {
 		return s.Text
 	}

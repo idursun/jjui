@@ -12,5 +12,5 @@ func TestParser_Parse(t *testing.T) {
 
 	parser := jj.NewNoTemplateParser(file)
 	parse := parser.Parse()
-	assert.Len(t, parse, 1)
+	assert.Len(t, parse, 11)
 }

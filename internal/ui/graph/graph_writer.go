@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"slices"
@@ -26,29 +25,8 @@ func (w *GraphWriter) Write(p []byte) (n int, err error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
-
-	if !w.connectionsWritten {
-		w.renderConnections()
-	}
-
-	if !bytes.Contains(p, []byte("\n")) {
-		return w.buffer.Write(p)
-	}
-	scanner := bufio.NewScanner(bytes.NewReader(p))
-	for scanner.Scan() {
-		line := scanner.Text()
-		if !w.connectionsWritten {
-			w.renderConnections()
-		}
-		w.buffer.Write([]byte(" "))
-		w.buffer.WriteString(line)
-		w.buffer.Write([]byte("\n"))
-		w.lineCount++
-		w.connectionsWritten = false
-		w.connections = extendConnections(w.connections)
-	}
-
-	return n, nil
+	w.lineCount += bytes.Count(p, []byte("\n"))
+	return w.buffer.Write(p)
 }
 
 func (w *GraphWriter) LineCount() int {
@@ -94,21 +72,18 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer) {
 	lw := strings.Builder{}
 	prefix := len(w.connections)*2 + 1
 	renderer.BeginSection(RowSectionRevision)
-	fmt.Fprint(&lw, renderer.RenderChangeId(row.Commit))
-	fmt.Fprint(&lw, renderer.RenderAuthor(row.Commit))
-	fmt.Fprint(&lw, renderer.RenderDate(row.Commit))
-	fmt.Fprint(&lw, renderer.RenderBookmarks(row.Commit))
-	fmt.Fprint(&lw, renderer.RenderMarkers(row.Commit))
-	fmt.Fprint(&lw, renderer.RenderCommitId(row.Commit))
+	for _, segment := range row.Segments {
+		fmt.Fprint(&lw, segment.String())
+	}
+
 	line := lw.String()
-	width := lipgloss.Width(line)
 	fmt.Fprint(w, line)
 
+	width := lipgloss.Width(line)
 	gap := w.Width - prefix - width
 	if gap > 0 {
-		fmt.Fprint(w, renderer.RenderNormal(strings.Repeat(" ", gap)))
+		//fmt.Fprint(w, renderer.RenderNormal(strings.Repeat(" ", gap)))
 	}
-	fmt.Fprintln(w)
 
 	if row.Commit.IsRoot() {
 		return
@@ -117,26 +92,6 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer) {
 	if len(row.Connections) > 1 && !slices.Contains(row.Connections[1], jj.TERMINATION) {
 		w.connectionPos = 1
 		lastLineConnection = row.Connections[1]
-	}
-
-	if description := renderer.RenderDescription(row.Commit); description != "" {
-		lines := strings.Split(description, "\n")
-		n := len(lines)
-		for i, line := range lines {
-			if i == n-1 {
-				w.connections = lastLineConnection
-			} else {
-				w.connections = extendConnections(row.Connections[0])
-			}
-			prefix = len(w.connections)*2 + 1
-			width = lipgloss.Width(line)
-			fmt.Fprint(w, line)
-			gap = w.Width - prefix - width
-			if gap > 0 {
-				fmt.Fprint(w, renderer.RenderNormal(strings.Repeat(" ", gap)))
-			}
-			fmt.Fprintln(w)
-		}
 	}
 
 	renderer.BeginSection(RowSectionAfter)
@@ -160,30 +115,31 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer) {
 }
 
 func (w *GraphWriter) renderConnections() {
-	if w.connections == nil {
-		w.connectionsWritten = true
-		return
-	}
-	maxPadding := 0
-	for _, c := range w.row.Connections {
-		if len(c) > maxPadding {
-			maxPadding = len(c)
-		}
-	}
-
-	for _, c := range w.connections {
-		if c == jj.GLYPH || c == jj.GLYPH_IMMUTABLE || c == jj.GLYPH_WORKING_COPY || c == jj.GLYPH_CONFLICT {
-			w.buffer.WriteString(w.renderer.RenderGlyph(c, w.row.Commit))
-		} else if c == jj.TERMINATION {
-			w.buffer.WriteString(w.renderer.RenderTermination(c))
-		} else {
-			w.buffer.WriteString(w.renderer.RenderConnection(c))
-		}
-	}
-	if len(w.connections) < maxPadding {
-		w.buffer.WriteString(strings.Repeat(jj.SPACE, maxPadding-len(w.connections)))
-	}
-	w.connectionsWritten = true
+	return
+	//if w.connections == nil {
+	//	w.connectionsWritten = true
+	//	return
+	//}
+	//maxPadding := 0
+	//for _, c := range w.row.Connections {
+	//	if len(c) > maxPadding {
+	//		maxPadding = len(c)
+	//	}
+	//}
+	//
+	//for _, c := range w.connections {
+	//	if c == jj.GLYPH || c == jj.GLYPH_IMMUTABLE || c == jj.GLYPH_WORKING_COPY || c == jj.GLYPH_CONFLICT {
+	//		w.buffer.WriteString(w.renderer.RenderGlyph(c, w.row.Commit))
+	//	} else if c == jj.TERMINATION {
+	//		w.buffer.WriteString(w.renderer.RenderTermination(c))
+	//	} else {
+	//		w.buffer.WriteString(w.renderer.RenderConnection(c))
+	//	}
+	//}
+	//if len(w.connections) < maxPadding {
+	//	w.buffer.WriteString(strings.Repeat(jj.SPACE, maxPadding-len(w.connections)))
+	//}
+	//w.connectionsWritten = true
 }
 
 func extendConnections(connections []jj.ConnectionType) []jj.ConnectionType {
