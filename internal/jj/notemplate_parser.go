@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"strings"
+	"unicode/utf8"
 )
 
 type NoTemplateParser struct {
@@ -14,6 +15,40 @@ type NoTemplateParser struct {
 
 type SegmentedLine struct {
 	Segments []*screen.Segment
+}
+
+func (sl SegmentedLine) Extend(indent int) SegmentedLine {
+	ret := SegmentedLine{}
+	for _, s := range sl.Segments {
+		extended := screen.Segment{
+			Params: s.Params,
+		}
+		text := ""
+		for _, p := range s.Text {
+			if p == '│' || p == '╭' || p == '├' || p == '┐' || p == '┤' || p == '┌' { // curved, square style
+				p = '│'
+			} else if p == '|' { //ascii style
+				p = '|'
+			} else {
+				p = ' '
+			}
+			indent--
+			text += string(p)
+			if indent <= 0 {
+				break
+			}
+		}
+		extended.Text = text
+		ret.Segments = append(ret.Segments, &extended)
+		if indent <= 0 {
+			break
+		}
+	}
+	for indent > 0 {
+		ret.Segments[len(ret.Segments)-1].Text += " "
+		indent--
+	}
+	return ret
 }
 
 func (sl SegmentedLine) getPair(start int) int {
@@ -71,8 +106,11 @@ func (p *NoTemplateParser) Parse() []GraphRow {
 		row := GraphRow{}
 		row.Commit = &Commit{}
 		segmentedLine := segmentedLines[i]
-		row.SegmentLines = append(row.SegmentLines, segmentedLine)
 		changeIdIdx := segmentedLine.getPair(0)
+		segmentedLine.Indent = 0
+		for j := 0; j < changeIdIdx; j++ {
+			segmentedLine.Indent += utf8.RuneCountInString(segmentedLine.Segments[j].Text)
+		}
 		if changeIdIdx != -1 {
 			row.Commit.ChangeIdShort = segmentedLine.Segments[changeIdIdx].Text
 			row.Commit.ChangeId = row.Commit.ChangeIdShort + segmentedLine.Segments[changeIdIdx+1].Text
@@ -84,21 +122,20 @@ func (p *NoTemplateParser) Parse() []GraphRow {
 				log.Fatalln("commit id not found")
 			}
 		}
+		row.SegmentLines = append(row.SegmentLines, segmentedLine)
 		i++
+		indent := segmentedLine.Indent
 		for i < len(segmentedLines) {
 			segmentedLine = segmentedLines[i]
 			changeIdIdx := segmentedLine.getPair(0)
 			if changeIdIdx == -1 {
+				segmentedLine.Indent = indent
 				row.SegmentLines = append(row.SegmentLines, segmentedLine)
 				i++
 				continue
 			}
 			break
 		}
-
-		row.Connections = make([][]ConnectionType, 1)
-		row.Connections[0] = make([]ConnectionType, 1)
-		row.Connections[0][0] = GLYPH
 		rows = append(rows, row)
 	}
 
