@@ -77,41 +77,14 @@ func (p *NoTemplateParser) Parse() []GraphRow {
 	var rows []GraphRow
 	bytesData, _ := io.ReadAll(p.reader)
 	rawSegments := screen.Parse(bytesData)
-	// group segments into lines by breaking segments at new lines
-	var segmentedLines []SegmentedLine
-	i := 0
-	for i < len(rawSegments) {
-		currentLine := SegmentedLine{}
-		for i < len(rawSegments) {
-			rawSegment := &rawSegments[i]
-			idx := strings.IndexByte(rawSegment.Text, '\n')
-			if idx == -1 {
-				currentLine.Segments = append(currentLine.Segments, rawSegment)
-				i++
-			} else {
-				text := rawSegment.Text[:idx]
-				currentLine.Segments = append(currentLine.Segments, &screen.Segment{
-					Text:   text,
-					Params: rawSegment.Params,
-				})
-				rawSegment.Text = rawSegment.Text[idx+1:]
-				break
-			}
-		}
-		segmentedLines = append(segmentedLines, currentLine)
-	}
 
-	i = 0
-	for i < len(segmentedLines) {
-		row := GraphRow{}
-		row.Commit = &Commit{}
-		segmentedLine := segmentedLines[i]
-		changeIdIdx := segmentedLine.getPair(0)
-		segmentedLine.Indent = 0
-		for j := 0; j < changeIdIdx; j++ {
-			segmentedLine.Indent += utf8.RuneCountInString(segmentedLine.Segments[j].Text)
-		}
-		if changeIdIdx != -1 {
+	for segmentedLine := range breakNewLinesIter(rawSegments) {
+		if changeIdIdx := segmentedLine.getPair(0); changeIdIdx != -1 {
+			row := GraphRow{}
+			row.Commit = &Commit{}
+			for j := 0; j < changeIdIdx; j++ {
+				row.Indent += utf8.RuneCountInString(segmentedLine.Segments[j].Text)
+			}
 			row.Commit.ChangeIdShort = segmentedLine.Segments[changeIdIdx].Text
 			row.Commit.ChangeId = row.Commit.ChangeIdShort + segmentedLine.Segments[changeIdIdx+1].Text
 			commitIdIdx := segmentedLine.getPair(changeIdIdx + 2)
@@ -138,6 +111,33 @@ func (p *NoTemplateParser) Parse() []GraphRow {
 		}
 		rows = append(rows, row)
 	}
-
 	return rows
+}
+
+// group segments into lines by breaking segments at new lines
+func breakNewLinesIter(rawSegments []screen.Segment) func(yield func(line SegmentedLine) bool) {
+	return func(yield func(line SegmentedLine) bool) {
+		i := 0
+		currentLine := SegmentedLine{
+			Segments: make([]*screen.Segment, 0),
+		}
+		for i < len(rawSegments) {
+			rawSegment := &rawSegments[i]
+			if idx := strings.IndexByte(rawSegment.Text, '\n'); idx != -1 {
+				text := rawSegment.Text[:idx]
+				currentLine.Segments = append(currentLine.Segments, &screen.Segment{
+					Text:   text,
+					Params: rawSegment.Params,
+				})
+				if !yield(currentLine) {
+					return
+				}
+				currentLine = SegmentedLine{}
+				rawSegment.Text = rawSegment.Text[idx+1:]
+			} else {
+				currentLine.Segments = append(currentLine.Segments, rawSegment)
+				i++
+			}
+		}
+	}
 }
