@@ -94,22 +94,12 @@ func (p *NoTemplateParser) Parse() []GraphRow {
 			} else {
 				log.Fatalln("commit id not found")
 			}
+			row.SegmentLines = append(row.SegmentLines, segmentedLine)
+			rows = append(rows, row)
+		} else {
+			lastRow := &rows[len(rows)-1]
+			lastRow.SegmentLines = append(lastRow.SegmentLines, segmentedLine)
 		}
-		row.SegmentLines = append(row.SegmentLines, segmentedLine)
-		i++
-		indent := segmentedLine.Indent
-		for i < len(segmentedLines) {
-			segmentedLine = segmentedLines[i]
-			changeIdIdx := segmentedLine.getPair(0)
-			if changeIdIdx == -1 {
-				segmentedLine.Indent = indent
-				row.SegmentLines = append(row.SegmentLines, segmentedLine)
-				i++
-				continue
-			}
-			break
-		}
-		rows = append(rows, row)
 	}
 	return rows
 }
