@@ -74,10 +74,12 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer, highlight
 		}
 		line := lw.String()
 		fmt.Fprint(w, line)
-		width := lipgloss.Width(line)
-		gap := w.Width - width
-		if gap > 0 {
-			fmt.Fprint(w, renderer.RenderNormal(strings.Repeat(" ", gap)))
+		if highlighted {
+			width := lipgloss.Width(line)
+			gap := w.Width - width
+			if gap > 0 {
+				fmt.Fprintf(w, "\033[%sm%s\033[0m", highlightSeq, strings.Repeat(" ", gap))
+			}
 		}
 		fmt.Fprint(w, "\n")
 	}
