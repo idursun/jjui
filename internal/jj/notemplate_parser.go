@@ -96,10 +96,12 @@ func (p *NoTemplateParser) Parse() []GraphRow {
 	var row GraphRow
 	for segmentedLine := range breakNewLinesIter(rawSegments) {
 		if changeIdIdx := segmentedLine.getPair(0); changeIdIdx != -1 {
-			if row.Commit != nil {
-				rows = append(rows, row)
-			}
+			previousRow := row
 			row = NewGraphRow()
+			if previousRow.Commit != nil {
+				rows = append(rows, previousRow)
+				row.Previous = &previousRow
+			}
 			for j := 0; j < changeIdIdx; j++ {
 				row.Indent += utf8.RuneCountInString(segmentedLine.Segments[j].Text)
 			}

@@ -7,6 +7,7 @@ type GraphRow struct {
 	IsAffected   bool
 	SegmentLines []SegmentedLine
 	Indent       int
+	Previous     *GraphRow
 }
 
 func NewGraphRow() GraphRow {
@@ -29,4 +30,46 @@ func (r *GraphRow) AddLine(line SegmentedLine) {
 		}
 	}
 	r.SegmentLines = append(r.SegmentLines, line)
+}
+
+func (r *GraphRow) Last(flag SegmentedLineFlag) *SegmentedLine {
+	for i := len(r.SegmentLines) - 1; i >= 0; i-- {
+		if r.SegmentLines[i].Flags&flag == flag {
+			return &r.SegmentLines[i]
+		}
+	}
+	var lastLine *SegmentedLine
+	for i := range r.SegmentLines {
+		line := &r.SegmentLines[i]
+		if line.CanHighlight {
+			lastLine = line
+		}
+	}
+	return lastLine
+}
+
+func (r *GraphRow) HighlightableSegmentLines() func(yield func(line *SegmentedLine) bool) {
+	return func(yield func(line *SegmentedLine) bool) {
+		for i := range r.SegmentLines {
+			line := &r.SegmentLines[i]
+			if line.CanHighlight {
+				if !yield(line) {
+					return
+				}
+			}
+		}
+	}
+}
+
+func (r *GraphRow) RemainingSegmentLines() func(yield func(line *SegmentedLine) bool) {
+	return func(yield func(line *SegmentedLine) bool) {
+		for i := range r.SegmentLines {
+			line := &r.SegmentLines[i]
+			if !line.CanHighlight {
+				if !yield(line) {
+					return
+				}
+			}
+		}
+	}
 }

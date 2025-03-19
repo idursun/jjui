@@ -3,9 +3,9 @@ package graph
 import (
 	"bytes"
 	"fmt"
+	"github.com/charmbracelet/lipgloss"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/jj"
 )
 
@@ -57,13 +57,25 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer, highlight
 	renderer.BeginSection(RowSectionBefore)
 
 	// will render by extending the previous connections
-	written, _ := w.Write([]byte(renderer.RenderBefore(row.Commit)))
-	if written > 0 {
-		w.Write([]byte("\n"))
+	before := renderer.RenderBefore(row.Commit)
+	if before != "" {
+		extended := jj.SegmentedLine{}
+		if row.Previous != nil {
+			extended = row.Previous.Last(jj.Highlightable).Extend(row.Indent)
+		}
+		lines := strings.Split(before, "\n")
+		for _, line := range lines {
+			for _, segment := range extended.Segments {
+				fmt.Fprint(&w.buffer, segment.String())
+			}
+			fmt.Fprintln(&w.buffer, line)
+		}
 	}
 
 	renderer.BeginSection(RowSectionRevision)
-	for _, segmentedLine := range row.SegmentLines {
+	var lastLine *jj.SegmentedLine
+	for segmentedLine := range row.HighlightableSegmentLines() {
+		lastLine = segmentedLine
 		lw := strings.Builder{}
 		for _, segment := range segmentedLine.Segments {
 			if highlighted {
@@ -90,15 +102,21 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer, highlight
 
 	renderer.BeginSection(RowSectionAfter)
 	afterSection := renderer.RenderAfter(row.Commit)
-	if afterSection != "" {
-		extended := row.SegmentLines[len(row.SegmentLines)-1].Extend(row.Indent)
+	if afterSection != "" && lastLine != nil {
+		extended := lastLine.Extend(row.Indent)
 		lines := strings.Split(afterSection, "\n")
 		for _, line := range lines {
 			for _, segment := range extended.Segments {
 				fmt.Fprint(w, segment.String())
 			}
-			//fmt.Fprint(w, extended.Indent)
 			fmt.Fprintln(w, line)
 		}
+	}
+
+	for segmentedLine := range row.RemainingSegmentLines() {
+		for _, segment := range segmentedLine.Segments {
+			fmt.Fprint(w, segment.String())
+		}
+		fmt.Fprint(w, "\n")
 	}
 }
