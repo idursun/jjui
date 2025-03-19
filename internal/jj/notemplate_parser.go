@@ -14,7 +14,8 @@ type NoTemplateParser struct {
 }
 
 type SegmentedLine struct {
-	Segments []*screen.Segment
+	Segments     []*screen.Segment
+	CanHighlight bool
 }
 
 func (sl SegmentedLine) Extend(indent int) SegmentedLine {
@@ -67,6 +68,20 @@ func (sl SegmentedLine) getPair(start int) int {
 	return -1
 }
 
+func (sl SegmentedLine) ContainsRune(r rune, indent int) bool {
+	for _, segment := range sl.Segments {
+		text := segment.Text
+		if len(segment.Text) > indent {
+			text = segment.Text[:indent]
+		}
+		indent -= len(text)
+		if strings.ContainsRune(text, r) {
+			return true
+		}
+	}
+	return false
+}
+
 func NewNoTemplateParser(reader io.Reader) *NoTemplateParser {
 	return &NoTemplateParser{
 		reader: bufio.NewReader(reader),
@@ -74,14 +89,17 @@ func NewNoTemplateParser(reader io.Reader) *NoTemplateParser {
 }
 
 func (p *NoTemplateParser) Parse() []GraphRow {
-	var rows []GraphRow
 	bytesData, _ := io.ReadAll(p.reader)
 	rawSegments := screen.Parse(bytesData)
 
+	var rows []GraphRow
+	var row GraphRow
 	for segmentedLine := range breakNewLinesIter(rawSegments) {
 		if changeIdIdx := segmentedLine.getPair(0); changeIdIdx != -1 {
-			row := GraphRow{}
-			row.Commit = &Commit{}
+			if row.Commit != nil {
+				rows = append(rows, row)
+			}
+			row = NewGraphRow()
 			for j := 0; j < changeIdIdx; j++ {
 				row.Indent += utf8.RuneCountInString(segmentedLine.Segments[j].Text)
 			}
@@ -94,12 +112,8 @@ func (p *NoTemplateParser) Parse() []GraphRow {
 			} else {
 				log.Fatalln("commit id not found")
 			}
-			row.SegmentLines = append(row.SegmentLines, segmentedLine)
-			rows = append(rows, row)
-		} else {
-			lastRow := &rows[len(rows)-1]
-			lastRow.SegmentLines = append(lastRow.SegmentLines, segmentedLine)
 		}
+		row.AddLine(segmentedLine)
 	}
 	return rows
 }
