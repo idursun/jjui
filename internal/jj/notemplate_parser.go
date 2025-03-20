@@ -13,11 +13,19 @@ type NoTemplateParser struct {
 	reader *bufio.Reader
 }
 
+type SegmentedLineFlag int
+
+const (
+	Revision SegmentedLineFlag = 1 << iota
+	Highlightable
+	Elided
+)
+
 type SegmentedLine struct {
-	Segments     []*screen.Segment
-	CanHighlight bool
-	ChangeIdIdx  int
-	CommitIdIdx  int
+	Segments    []*screen.Segment
+	Flags       SegmentedLineFlag
+	ChangeIdIdx int
+	CommitIdIdx int
 }
 
 func NewSegmentedLine() SegmentedLine {
@@ -106,6 +114,7 @@ func (p *NoTemplateParser) Parse() []GraphRow {
 	var row GraphRow
 	for segmentedLine := range breakNewLinesIter(rawSegments) {
 		if changeIdIdx := segmentedLine.getPair(0); changeIdIdx != -1 {
+			segmentedLine.Flags = Revision | Highlightable
 			previousRow := row
 			row = NewGraphRow()
 			if previousRow.Commit != nil {
