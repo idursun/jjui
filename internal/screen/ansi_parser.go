@@ -11,89 +11,70 @@ import (
 
 type Segment struct {
 	Text   string
-	Params []int
+	Params string
 }
 
 func (s Segment) String() string {
 	if s.Text == "\n" {
 		return s.Text
 	}
-	if len(s.Params) == 0 {
+	if s.Params == "" {
 		return s.Text
 	}
-
-	params := make([]string, len(s.Params))
-	for i, p := range s.Params {
-		params[i] = strconv.Itoa(p)
-	}
-	return fmt.Sprintf(
-		"\x1b[%sm%s\x1b[0m",
-		strings.Join(params, ";"),
-		s.Text,
-	)
+	return fmt.Sprintf("\x1b[%sm%s\x1b[0m", s.Params, s.Text)
 }
 
 func (s Segment) WithBackground(bg string) string {
-	newParams := make([]int, 0, len(s.Params)+5)
+	var newParts []string
+	parts := strings.Split(s.Params, ";")
+
 	i := 0
-	for i < len(s.Params) {
-		p := s.Params[i]
-		if (p >= 40 && p <= 49) || (p >= 100 && p <= 109) {
-			if p == 48 {
-				if i+1 < len(s.Params) {
-					next := s.Params[i+1]
-					if next == 5 {
-						if i+2 < len(s.Params) {
-							i += 3
-						} else {
-							i = len(s.Params)
-						}
-						continue
-					} else if next == 2 {
-						if i+4 < len(s.Params) {
-							i += 5
-						} else {
-							i = len(s.Params)
-						}
-						continue
-					}
-				}
-			}
+	for i < len(parts) {
+		part := parts[i]
+		num, err := strconv.Atoi(part)
+		if err != nil {
 			i++
 			continue
 		}
-		newParams = append(newParams, p)
+		p := num
+
+		isBg := false
+		if (p >= 40 && p <= 49) || (p >= 100 && p <= 109) {
+			isBg = true
+		} else if p == 48 && i+1 < len(parts) {
+			next, err := strconv.Atoi(parts[i+1])
+			if err == nil {
+				if next == 5 && i+2 < len(parts) {
+					i += 3
+					isBg = true
+				} else if next == 2 && i+4 < len(parts) {
+					i += 5
+					isBg = true
+				}
+			}
+		}
+
+		if !isBg {
+			newParts = append(newParts, part)
+		}
 		i++
 	}
 
-	parts := strings.Split(bg, ";")
-	bgParams := make([]int, 0, len(parts))
-	for _, part := range parts {
-		num, err := strconv.Atoi(part)
-		if err != nil {
+	for _, part := range strings.Split(bg, ";") {
+		if _, err := strconv.Atoi(part); err != nil {
 			panic(fmt.Sprintf("invalid background parameter %q", part))
 		}
-		bgParams = append(bgParams, num)
+		newParts = append(newParts, part)
 	}
-	newParams = append(newParams, bgParams...)
 
-	newSegment := Segment{
+	return Segment{
 		Text:   s.Text,
-		Params: newParams,
-	}
-	return newSegment.String()
+		Params: strings.Join(newParts, ";"),
+	}.String()
 }
 
 func (s Segment) StyleEqual(other Segment) bool {
-	if len(other.Params) != len(s.Params) {
-		return false
-	}
-	for i, p := range s.Params {
-		if p != other.Params[i] {
-			return false
-		}
-	}
-	return true
+	return s.Params == other.Params
 }
 
 func Parse(raw []byte) []Segment {
@@ -109,7 +90,7 @@ func ParseFromReader(r io.Reader) <-chan *Segment {
 	go func() {
 		defer close(ch)
 		var buffer bytes.Buffer
-		var currentParams []int
+		currentParams := ""
 		reader := bufio.NewReader(r)
 
 		for {
@@ -118,7 +99,7 @@ func ParseFromReader(r io.Reader) <-chan *Segment {
 				break
 			}
 			if err != nil {
-				break // Handle error as needed
+				break
 			}
 
 			if b == 0x1B {
@@ -138,7 +119,6 @@ func ParseFromReader(r io.Reader) <-chan *Segment {
 						buffer.Reset()
 					}
 
-					// Read until 'm'
 					var seq bytes.Buffer
 					for {
 						c, err := reader.ReadByte()
@@ -148,25 +128,11 @@ func ParseFromReader(r io.Reader) <-chan *Segment {
 						seq.WriteByte(c)
 					}
 
-					// Parse parameters
-					var newParams []int
-					s := seq.String()
-					start := 0
-					for i := 0; i <= len(s); i++ {
-						if i == len(s) || s[i] == ';' {
-							if start < i {
-								num, _ := strconv.Atoi(s[start:i])
-								newParams = append(newParams, num)
-							}
-							start = i + 1
-						}
-					}
-
-					// Update parameters
-					if len(newParams) == 1 && newParams[0] == 0 {
-						currentParams = nil
+					paramStr := seq.String()
+					if paramStr == "0" {
+						currentParams = ""
 					} else {
-						currentParams = newParams
+						currentParams = paramStr
 					}
 				} else {
 					buffer.WriteByte(b)
@@ -180,7 +146,6 @@ func ParseFromReader(r io.Reader) <-chan *Segment {
 			}
 		}
 
-		// Add final segment
 		if buffer.Len() > 0 {
 			ch <- &Segment{
 				Text:   buffer.String(),
