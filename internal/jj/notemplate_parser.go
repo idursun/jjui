@@ -137,6 +137,9 @@ func (p *NoTemplateParser) Parse() []GraphRow {
 		}
 		row.AddLine(segmentedLine)
 	}
+	if row.Commit != nil {
+		rows = append(rows, row)
+	}
 	return rows
 }
 
