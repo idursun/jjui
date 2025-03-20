@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/config"
 	"strings"
 
 	"github.com/idursun/jjui/internal/jj"
@@ -72,6 +73,11 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer, highlight
 		}
 	}
 
+	highlightColor := lipgloss.AdaptiveColor{
+		Light: config.Current.UI.HighlightLight,
+		Dark:  config.Current.UI.HighlightDark,
+	}
+	highlightSeq := lipgloss.ColorProfile().FromColor(highlightColor).Sequence(true)
 	renderer.BeginSection(RowSectionRevision)
 	var lastLine *jj.SegmentedLine
 	for segmentedLine := range row.HighlightableSegmentLines() {
@@ -79,7 +85,7 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer, highlight
 		lw := strings.Builder{}
 		for _, segment := range segmentedLine.Segments {
 			if highlighted {
-				fmt.Fprint(&lw, segment.WithBackground(40))
+				fmt.Fprint(&lw, segment.WithBackground(highlightSeq))
 			} else {
 				fmt.Fprint(&lw, segment.String())
 			}

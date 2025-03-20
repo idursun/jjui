@@ -31,15 +31,50 @@ func (s Segment) String() string {
 	)
 }
 
-func (s Segment) WithBackground(bg int) string {
-	newParams := make([]int, 0, len(s.Params)+1)
-	for _, p := range s.Params {
+func (s Segment) WithBackground(bg string) string {
+	newParams := make([]int, 0, len(s.Params)+5)
+	i := 0
+	for i < len(s.Params) {
+		p := s.Params[i]
 		if (p >= 40 && p <= 49) || (p >= 100 && p <= 109) {
+			if p == 48 {
+				if i+1 < len(s.Params) {
+					next := s.Params[i+1]
+					if next == 5 {
+						if i+2 < len(s.Params) {
+							i += 3
+						} else {
+							i = len(s.Params)
+						}
+						continue
+					} else if next == 2 {
+						if i+4 < len(s.Params) {
+							i += 5
+						} else {
+							i = len(s.Params)
+						}
+						continue
+					}
+				}
+			}
+			i++
 			continue
 		}
 		newParams = append(newParams, p)
+		i++
 	}
-	newParams = append(newParams, bg)
+
+	parts := strings.Split(bg, ";")
+	bgParams := make([]int, 0, len(parts))
+	for _, part := range parts {
+		num, err := strconv.Atoi(part)
+		if err != nil {
+			panic(fmt.Sprintf("invalid background parameter %q", part))
+		}
+		bgParams = append(bgParams, num)
+	}
+	newParams = append(newParams, bgParams...)
+
 	newSegment := Segment{
 		Text:   s.Text,
 		Params: newParams,
