@@ -107,11 +107,10 @@ func NewNoTemplateParser(reader io.Reader) *NoTemplateParser {
 }
 
 func (p *NoTemplateParser) Parse() []GraphRow {
-	bytesData, _ := io.ReadAll(p.reader)
-	rawSegments := screen.Parse(bytesData)
-
 	var rows []GraphRow
 	var row GraphRow
+	rawSegments := screen.ParseFromReader(p.reader)
+
 	for segmentedLine := range breakNewLinesIter(rawSegments) {
 		if changeIdIdx := segmentedLine.getPair(0); changeIdIdx != -1 {
 			segmentedLine.Flags = Revision | Highlightable
@@ -142,27 +141,29 @@ func (p *NoTemplateParser) Parse() []GraphRow {
 }
 
 // group segments into lines by breaking segments at new lines
-func breakNewLinesIter(rawSegments []screen.Segment) func(yield func(line SegmentedLine) bool) {
-	return func(yield func(line SegmentedLine) bool) {
-		i := 0
+func breakNewLinesIter(rawSegments <-chan *screen.Segment) <-chan SegmentedLine {
+	output := make(chan SegmentedLine)
+	go func() {
+		defer close(output)
 		currentLine := NewSegmentedLine()
-		for i < len(rawSegments) {
-			rawSegment := &rawSegments[i]
-			if idx := strings.IndexByte(rawSegment.Text, '\n'); idx != -1 {
+		for rawSegment := range rawSegments {
+			idx := strings.IndexByte(rawSegment.Text, '\n')
+			for idx != -1 {
 				text := rawSegment.Text[:idx]
 				currentLine.Segments = append(currentLine.Segments, &screen.Segment{
 					Text:   text,
 					Params: rawSegment.Params,
 				})
-				if !yield(currentLine) {
-					return
-				}
+				output <- currentLine
 				currentLine = NewSegmentedLine()
 				rawSegment.Text = rawSegment.Text[idx+1:]
-			} else {
+				idx = strings.IndexByte(rawSegment.Text, '\n')
+			}
+			if len(rawSegment.Text) > 0 {
 				currentLine.Segments = append(currentLine.Segments, rawSegment)
-				i++
 			}
 		}
-	}
+		output <- currentLine
+	}()
+	return output
 }

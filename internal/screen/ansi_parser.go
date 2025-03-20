@@ -1,8 +1,10 @@
 package screen
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 )
@@ -96,64 +98,95 @@ func (s Segment) StyleEqual(other Segment) bool {
 
 func Parse(raw []byte) []Segment {
 	var segments []Segment
-	var buffer bytes.Buffer
-	var params []int
-	pos := 0
+	for segment := range ParseFromReader(bytes.NewReader(raw)) {
+		segments = append(segments, *segment)
+	}
+	return segments
+}
 
-	for pos < len(raw) {
-		if raw[pos] == 0x1B && pos+1 < len(raw) && raw[pos+1] == '[' {
-			// Save current buffer
-			if buffer.Len() > 0 {
-				segments = append(segments, Segment{
-					Text:   buffer.String(),
-					Params: params,
-				})
-				params = nil
-				buffer.Reset()
+func ParseFromReader(r io.Reader) <-chan *Segment {
+	ch := make(chan *Segment)
+	go func() {
+		defer close(ch)
+		var buffer bytes.Buffer
+		var currentParams []int
+		reader := bufio.NewReader(r)
+
+		for {
+			b, err := reader.ReadByte()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				break // Handle error as needed
 			}
 
-			// Extract full escape sequence
-			end := bytes.IndexByte(raw[pos:], 'm')
-			if end == -1 {
-				pos++
-				continue
-			}
-			end += pos
+			if b == 0x1B {
+				peekBytes, err := reader.Peek(1)
+				if err != nil {
+					buffer.WriteByte(b)
+					break
+				}
 
-			// Parse parameters
-			seq := raw[pos+2 : end]
-			start := 0
-			for i := 0; i <= len(seq); i++ {
-				if i == len(seq) || seq[i] == ';' {
-					if start < i {
-						paramBytes := seq[start:i]
-						if num, err := strconv.Atoi(string(paramBytes)); err == nil {
-							params = append(params, num)
+				if len(peekBytes) >= 1 && peekBytes[0] == '[' {
+					_, _ = reader.Discard(1)
+					if buffer.Len() > 0 {
+						ch <- &Segment{
+							Text:   buffer.String(),
+							Params: currentParams,
+						}
+						buffer.Reset()
+					}
+
+					// Read until 'm'
+					var seq bytes.Buffer
+					for {
+						c, err := reader.ReadByte()
+						if err != nil || c == 'm' {
+							break
+						}
+						seq.WriteByte(c)
+					}
+
+					// Parse parameters
+					var newParams []int
+					s := seq.String()
+					start := 0
+					for i := 0; i <= len(s); i++ {
+						if i == len(s) || s[i] == ';' {
+							if start < i {
+								num, _ := strconv.Atoi(s[start:i])
+								newParams = append(newParams, num)
+							}
+							start = i + 1
 						}
 					}
-					start = i + 1
+
+					// Update parameters
+					if len(newParams) == 1 && newParams[0] == 0 {
+						currentParams = nil
+					} else {
+						currentParams = newParams
+					}
+				} else {
+					buffer.WriteByte(b)
+					if len(peekBytes) >= 1 {
+						nextByte, _ := reader.ReadByte()
+						buffer.WriteByte(nextByte)
+					}
 				}
+			} else {
+				buffer.WriteByte(b)
 			}
-
-			// Handle reset
-			if len(params) == 1 && params[0] == 0 {
-				params = nil
-			}
-
-			pos = end + 1
-		} else {
-			buffer.WriteByte(raw[pos])
-			pos++
 		}
-	}
 
-	// Add remaining text
-	if buffer.Len() > 0 {
-		segments = append(segments, Segment{
-			Text:   buffer.String(),
-			Params: params,
-		})
-	}
-
-	return segments
+		// Add final segment
+		if buffer.Len() > 0 {
+			ch <- &Segment{
+				Text:   buffer.String(),
+				Params: currentParams,
+			}
+		}
+	}()
+	return ch
 }
