@@ -16,10 +16,20 @@ type NoTemplateParser struct {
 type SegmentedLine struct {
 	Segments     []*screen.Segment
 	CanHighlight bool
+	ChangeIdIdx  int
+	CommitIdIdx  int
+}
+
+func NewSegmentedLine() SegmentedLine {
+	return SegmentedLine{
+		Segments:    make([]*screen.Segment, 0),
+		ChangeIdIdx: -1,
+		CommitIdIdx: -1,
+	}
 }
 
 func (sl SegmentedLine) Extend(indent int) SegmentedLine {
-	ret := SegmentedLine{}
+	ret := NewSegmentedLine()
 	for _, s := range sl.Segments {
 		extended := screen.Segment{
 			Params: s.Params,
@@ -105,10 +115,12 @@ func (p *NoTemplateParser) Parse() []GraphRow {
 			for j := 0; j < changeIdIdx; j++ {
 				row.Indent += utf8.RuneCountInString(segmentedLine.Segments[j].Text)
 			}
+			segmentedLine.ChangeIdIdx = changeIdIdx
 			row.Commit.ChangeIdShort = segmentedLine.Segments[changeIdIdx].Text
 			row.Commit.ChangeId = row.Commit.ChangeIdShort + segmentedLine.Segments[changeIdIdx+1].Text
 			commitIdIdx := segmentedLine.getPair(changeIdIdx + 2)
 			if commitIdIdx != -1 {
+				segmentedLine.CommitIdIdx = commitIdIdx
 				row.Commit.CommitIdShort = segmentedLine.Segments[commitIdIdx].Text
 				row.Commit.CommitId = row.Commit.CommitIdShort + segmentedLine.Segments[commitIdIdx+1].Text
 			} else {
@@ -124,9 +136,7 @@ func (p *NoTemplateParser) Parse() []GraphRow {
 func breakNewLinesIter(rawSegments []screen.Segment) func(yield func(line SegmentedLine) bool) {
 	return func(yield func(line SegmentedLine) bool) {
 		i := 0
-		currentLine := SegmentedLine{
-			Segments: make([]*screen.Segment, 0),
-		}
+		currentLine := NewSegmentedLine()
 		for i < len(rawSegments) {
 			rawSegment := &rawSegments[i]
 			if idx := strings.IndexByte(rawSegment.Text, '\n'); idx != -1 {
@@ -138,7 +148,7 @@ func breakNewLinesIter(rawSegments []screen.Segment) func(yield func(line Segmen
 				if !yield(currentLine) {
 					return
 				}
-				currentLine = SegmentedLine{}
+				currentLine = NewSegmentedLine()
 				rawSegment.Text = rawSegment.Text[idx+1:]
 			} else {
 				currentLine.Segments = append(currentLine.Segments, rawSegment)

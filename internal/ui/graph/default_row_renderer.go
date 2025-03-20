@@ -55,18 +55,8 @@ func (s *DefaultRowRenderer) RenderAfter(*jj.Commit) string {
 }
 
 func (s *DefaultRowRenderer) RenderGlyph(connection jj.ConnectionType, commit *jj.Commit) string {
-	var style lipgloss.Style
-	switch connection {
-	case jj.GLYPH_IMMUTABLE:
-		style = s.Palette.ImmutableNode
-	case jj.GLYPH_WORKING_COPY:
-		style = s.Palette.WorkingCopyNode
-	default:
-		style = s.Palette.Normal
-	}
 	opMarker := ""
 	if s.IsHighlighted {
-		style = s.Palette.Selected.Background(s.HighlightBackground)
 		if s.Op.RenderPosition() == operations.RenderPositionGlyph {
 			opMarker = s.Op.Render()
 		}
@@ -75,7 +65,7 @@ func (s *DefaultRowRenderer) RenderGlyph(connection jj.ConnectionType, commit *j
 	if s.IsSelected {
 		selectedMarker = s.Palette.Added.Render("✓")
 	}
-	return style.Render(string(connection) + opMarker + selectedMarker)
+	return opMarker + selectedMarker
 }
 
 func (s *DefaultRowRenderer) RenderTermination(connection jj.ConnectionType) string {

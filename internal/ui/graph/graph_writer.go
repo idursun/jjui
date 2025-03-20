@@ -83,7 +83,12 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer, highlight
 	for segmentedLine := range row.HighlightableSegmentLines() {
 		lastLine = segmentedLine
 		lw := strings.Builder{}
-		for _, segment := range segmentedLine.Segments {
+		for i, segment := range segmentedLine.Segments {
+			if i == segmentedLine.ChangeIdIdx {
+				if decoration := renderer.RenderGlyph("", row.Commit); decoration != "" {
+					fmt.Fprint(&lw, decoration, " ")
+				}
+			}
 			if highlighted {
 				fmt.Fprint(&lw, segment.WithBackground(highlightSeq))
 			} else {
