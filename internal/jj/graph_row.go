@@ -37,14 +37,7 @@ func (r *GraphRow) Last(flag SegmentedLineFlag) *SegmentedLine {
 			return &r.SegmentLines[i]
 		}
 	}
-	var lastLine *SegmentedLine
-	for i := range r.SegmentLines {
-		line := &r.SegmentLines[i]
-		if line.Flags&Highlightable != 0 {
-			lastLine = line
-		}
-	}
-	return lastLine
+	return &SegmentedLine{}
 }
 
 type SegmentedLineIteratorPredicate func(f SegmentedLineFlag) bool
