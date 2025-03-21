@@ -58,7 +58,7 @@ func (h *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 var (
 	keyStyle  = common.DefaultPalette.ChangeId
-	descStyle = common.DefaultPalette.Rest
+	descStyle = common.DefaultPalette.Dimmed
 )
 
 func printHelp(k key.Binding) string {

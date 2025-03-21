@@ -123,7 +123,7 @@ func New(context context.AppContext) Model {
 	s.Spinner = spinner.Dot
 	h := help.New()
 	h.Styles.ShortKey = common.DefaultPalette.ChangeId
-	h.Styles.ShortDesc = common.DefaultPalette.Rest
+	h.Styles.ShortDesc = common.DefaultPalette.Dimmed
 	h.ShortSeparator = " "
 	return Model{
 		context: context,

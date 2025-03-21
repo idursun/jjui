@@ -14,7 +14,7 @@ import (
 
 func TestParser_Parse(t *testing.T) {
 	file, _ := os.Open("testdata/output.log")
-	parser := jj.NewNoTemplateParser(file)
+	parser := jj.NewLogParser(file)
 	rows := parser.Parse()
 	assert.Len(t, rows, 11)
 }
@@ -27,7 +27,7 @@ func TestParser_Parse_Disconnected(t *testing.T) {
 	lb.write("*   id=abcde author=some@author id=xyrq")
 	lb.write("│   another commit")
 	lb.write("~\n")
-	parser := jj.NewNoTemplateParser(strings.NewReader(lb.String()))
+	parser := jj.NewLogParser(strings.NewReader(lb.String()))
 	rows := parser.Parse()
 	assert.Len(t, rows, 2)
 }
@@ -37,7 +37,7 @@ func TestParser_Parse_Extend(t *testing.T) {
 	lb.write("*   id=abcde author=some@author id=xyrq")
 	lb.write("│   some documentation")
 
-	parser := jj.NewNoTemplateParser(strings.NewReader(lb.String()))
+	parser := jj.NewLogParser(strings.NewReader(lb.String()))
 	rows := parser.Parse()
 	assert.Len(t, rows, 1)
 	row := rows[0]

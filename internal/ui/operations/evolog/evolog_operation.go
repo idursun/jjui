@@ -87,7 +87,7 @@ func (o Operation) Render() string {
 	selectedLineStart := -1
 	selectedLineEnd := -1
 	for i, row := range o.rows {
-		nodeRenderer := &graph.DefaultRowRenderer{
+		nodeRenderer := &graph.DefaultRowDecorator{
 			Palette:       common.DefaultPalette,
 			Op:            &operations.Noop{},
 			IsHighlighted: i == o.cursor,
@@ -124,7 +124,7 @@ func (o Operation) Name() string {
 
 func (o Operation) load() tea.Msg {
 	output, _ := o.context.RunCommandImmediate(jj.Evolog(o.revision))
-	parser := jj.NewNoTemplateParser(bytes.NewReader(output))
+	parser := jj.NewLogParser(bytes.NewReader(output))
 	rows := parser.Parse()
 	return updateEvologMsg{
 		rows: rows,

@@ -306,21 +306,15 @@ func (m *Model) View() string {
 	w.Width = m.width
 	selectedLineStart := -1
 	selectedLineEnd := -1
-	highlightColor := lipgloss.AdaptiveColor{
-		Light: config.Current.UI.HighlightLight,
-		Dark:  config.Current.UI.HighlightDark,
-	}
 	for i, row := range m.rows {
 		if i == m.cursor {
 			selectedLineStart = w.LineCount()
 		}
-		nodeRenderer := &graph.DefaultRowRenderer{
-			Palette:             common.DefaultPalette,
-			HighlightBackground: highlightColor,
-			Op:                  m.op,
-			IsHighlighted:       i == m.cursor,
-			IsSelected:          row.IsSelected,
-			IsAffected:          row.IsAffected,
+		nodeRenderer := &graph.DefaultRowDecorator{
+			Palette:       common.DefaultPalette,
+			Op:            m.op,
+			IsHighlighted: i == m.cursor,
+			IsSelected:    row.IsSelected,
 		}
 
 		w.RenderRow(row, nodeRenderer, nodeRenderer.IsHighlighted)
@@ -358,7 +352,7 @@ func (m *Model) load(revset string, selectedRevision string) tea.Cmd {
 				Output: string(output),
 			}
 		}
-		p := jj.NewNoTemplateParser(bytes.NewReader(output))
+		p := jj.NewLogParser(bytes.NewReader(output))
 		graphLines := p.Parse()
 		return updateRevisionsMsg{graphLines, selectedRevision}
 	}

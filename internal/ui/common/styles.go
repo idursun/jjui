@@ -32,7 +32,7 @@ var DefaultPalette = Palette{
 	Normal:           lipgloss.NewStyle(),
 	ChangeId:         lipgloss.NewStyle().Foreground(Magenta).Bold(true),
 	CommitId:         lipgloss.NewStyle().Foreground(Blue).Bold(true),
-	Rest:             lipgloss.NewStyle().Foreground(IntenseBlack),
+	Dimmed:           lipgloss.NewStyle().Foreground(IntenseBlack),
 	EmptyPlaceholder: lipgloss.NewStyle().Foreground(Green).Bold(true),
 	ConfirmationText: lipgloss.NewStyle().Foreground(Magenta).Bold(true),
 	Button:           lipgloss.NewStyle().Foreground(White).PaddingLeft(2).PaddingRight(2),
@@ -51,7 +51,7 @@ type Palette struct {
 	Normal           lipgloss.Style
 	ChangeId         lipgloss.Style
 	CommitId         lipgloss.Style
-	Rest             lipgloss.Style
+	Dimmed           lipgloss.Style
 	EmptyPlaceholder lipgloss.Style
 	ConfirmationText lipgloss.Style
 	Button           lipgloss.Style

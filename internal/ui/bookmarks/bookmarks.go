@@ -253,7 +253,7 @@ func renderKey(k key.Binding) string {
 	if !k.Enabled() {
 		return ""
 	}
-	return lipgloss.JoinHorizontal(0, common.DefaultPalette.ChangeId.Render(k.Help().Key, ""), common.DefaultPalette.Rest.Render(k.Help().Desc, ""))
+	return lipgloss.JoinHorizontal(0, common.DefaultPalette.ChangeId.Render(k.Help().Key, ""), common.DefaultPalette.Dimmed.Render(k.Help().Desc, ""))
 }
 
 func (m *Model) helpView() string {

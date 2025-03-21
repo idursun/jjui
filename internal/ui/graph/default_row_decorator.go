@@ -8,30 +8,29 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations"
 )
 
-type DefaultRowRenderer struct {
+type DefaultRowDecorator struct {
 	Palette             common.Palette
 	HighlightBackground lipgloss.AdaptiveColor
 	IsHighlighted       bool
 	IsSelected          bool
-	IsAffected          bool
 	Op                  operations.Operation
 }
 
-func (s *DefaultRowRenderer) RenderBefore(*jj.Commit) string {
+func (s *DefaultRowDecorator) RenderBefore(*jj.Commit) string {
 	if s.IsHighlighted && s.Op.RenderPosition() == operations.RenderPositionBefore {
 		return s.Op.Render()
 	}
 	return ""
 }
 
-func (s *DefaultRowRenderer) RenderAfter(*jj.Commit) string {
+func (s *DefaultRowDecorator) RenderAfter(*jj.Commit) string {
 	if s.IsHighlighted && s.Op.RenderPosition() == operations.RenderPositionAfter {
 		return s.Op.Render()
 	}
 	return ""
 }
 
-func (s *DefaultRowRenderer) RenderBeforeChangeId() string {
+func (s *DefaultRowDecorator) RenderBeforeChangeId() string {
 	opMarker := ""
 	if s.IsHighlighted {
 		if s.Op.RenderPosition() == operations.RenderPositionGlyph {
@@ -45,7 +44,7 @@ func (s *DefaultRowRenderer) RenderBeforeChangeId() string {
 	return opMarker + selectedMarker
 }
 
-func (s *DefaultRowRenderer) RenderBeforeCommitId() string {
+func (s *DefaultRowDecorator) RenderBeforeCommitId() string {
 	if s.Op.RenderPosition() == operations.RenderPositionBookmark {
 		return s.Op.Render()
 	}

@@ -134,7 +134,7 @@ func New(defaultRevSet string) Model {
 
 	h := help.New()
 	h.Styles.ShortKey = common.DefaultPalette.ChangeId
-	h.Styles.ShortDesc = common.DefaultPalette.Rest
+	h.Styles.ShortDesc = common.DefaultPalette.Dimmed
 	return Model{
 		Editing:       false,
 		Value:         defaultRevSet,

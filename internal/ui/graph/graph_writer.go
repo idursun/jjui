@@ -14,8 +14,6 @@ import (
 type GraphWriter struct {
 	buffer    bytes.Buffer
 	lineCount int
-	renderer  RowRenderer
-	row       jj.GraphRow
 	Width     int
 }
 
@@ -53,10 +51,7 @@ func (w *GraphWriter) Reset() {
 	w.lineCount = 0
 }
 
-func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer, highlighted bool) {
-	w.row = row
-	w.renderer = renderer
-
+func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowDecorator, highlighted bool) {
 	// will render by extending the previous connections
 	before := renderer.RenderBefore(row.Commit)
 	if before != "" {
@@ -77,6 +72,7 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer, highlight
 		Light: config.Current.UI.HighlightLight,
 		Dark:  config.Current.UI.HighlightDark,
 	}
+
 	highlightSeq := lipgloss.ColorProfile().FromColor(highlightColor).Sequence(true)
 	var lastLine *jj.SegmentedLine
 	for segmentedLine := range row.SegmentLinesIter(jj.Including(jj.Highlightable)) {
@@ -100,9 +96,9 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer, highlight
 			}
 		}
 		if segmentedLine.Flags&jj.Revision == jj.Revision && row.IsAffected {
-			style := common.DefaultPalette.Rest
+			style := common.DefaultPalette.Dimmed
 			if highlighted {
-				style = common.DefaultPalette.Rest.Background(highlightColor)
+				style = common.DefaultPalette.Dimmed.Background(highlightColor)
 			}
 			fmt.Fprint(&lw, style.Render(" (affected by last operation)"))
 		}
