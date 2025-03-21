@@ -89,9 +89,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
-	s := common.DefaultPalette.StatusNormal.Render(" ")
+	s := common.DefaultPalette.Normal.Render(" ")
 	if m.running {
-		s = common.DefaultPalette.StatusNormal.Render(m.spinner.View())
+		s = common.DefaultPalette.Normal.Render(m.spinner.View())
 	} else if m.error != nil {
 		s = common.DefaultPalette.StatusError.Render("✗ ")
 	} else if m.command != "" {
@@ -101,7 +101,7 @@ func (m *Model) View() string {
 			s = m.help.View(o)
 		}
 	}
-	ret := common.DefaultPalette.StatusNormal.Render(m.command)
+	ret := common.DefaultPalette.Normal.Render(m.command)
 	mode := common.DefaultPalette.StatusMode.Width(10).Render("", m.currentOperation.Name())
 	ret = lipgloss.JoinHorizontal(lipgloss.Left, mode, " ", s, ret)
 	if m.error != nil {

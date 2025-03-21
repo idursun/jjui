@@ -56,7 +56,6 @@ func (w *GraphWriter) Reset() {
 func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer, highlighted bool) {
 	w.row = row
 	w.renderer = renderer
-	renderer.BeginSection(RowSectionBefore)
 
 	// will render by extending the previous connections
 	before := renderer.RenderBefore(row.Commit)
@@ -79,15 +78,19 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer, highlight
 		Dark:  config.Current.UI.HighlightDark,
 	}
 	highlightSeq := lipgloss.ColorProfile().FromColor(highlightColor).Sequence(true)
-	renderer.BeginSection(RowSectionRevision)
 	var lastLine *jj.SegmentedLine
 	for segmentedLine := range row.SegmentLinesIter(jj.Including(jj.Highlightable)) {
 		lastLine = segmentedLine
 		lw := strings.Builder{}
 		for i, segment := range segmentedLine.Segments {
 			if i == segmentedLine.ChangeIdIdx {
-				if decoration := renderer.RenderGlyph("", row.Commit); decoration != "" {
+				if decoration := renderer.RenderBeforeChangeId(); decoration != "" {
 					fmt.Fprint(&lw, decoration, " ")
+				}
+			}
+			if highlighted && i == segmentedLine.CommitIdIdx {
+				if decoration := renderer.RenderBeforeCommitId(); decoration != "" {
+					fmt.Fprint(&lw, decoration)
 				}
 			}
 			if highlighted {
@@ -119,7 +122,6 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer, highlight
 		return
 	}
 
-	renderer.BeginSection(RowSectionAfter)
 	afterSection := renderer.RenderAfter(row.Commit)
 	if afterSection != "" && lastLine != nil {
 		extended := lastLine.Extend(row.Indent)

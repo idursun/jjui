@@ -9,6 +9,9 @@ import (
 	"unicode/utf8"
 )
 
+// ConnectionType defines the types of connections in the input
+type ConnectionType string
+
 type NoTemplateParser struct {
 	reader *bufio.Reader
 }
