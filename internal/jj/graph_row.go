@@ -20,6 +20,7 @@ func (r *GraphRow) AddLine(line SegmentedLine) {
 	switch len(r.SegmentLines) {
 	case 0:
 		line.Flags = Revision | Highlightable
+		r.Commit.IsWorkingCopy = line.ContainsRune('@', r.Indent)
 	default:
 		if line.ContainsRune('~', r.Indent) {
 			line.Flags = Elided

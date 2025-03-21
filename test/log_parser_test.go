@@ -46,6 +46,21 @@ func TestParser_Parse_Extend(t *testing.T) {
 	assert.Len(t, extended.Segments, 1)
 }
 
+func TestParser_Parse_WorkingCopy(t *testing.T) {
+	var lb logBuilder
+	lb.write("*   id=abcde author=some@author id=xyrq")
+	lb.write("│   some documentation")
+	lb.write("@   id=12cd author=some@author id=kdys")
+	lb.write("│   some documentation")
+
+	parser := jj.NewLogParser(strings.NewReader(lb.String()))
+	rows := parser.Parse()
+	assert.Len(t, rows, 2)
+	row := rows[1]
+
+	assert.True(t, row.Commit.IsWorkingCopy)
+}
+
 type part int
 
 const (
