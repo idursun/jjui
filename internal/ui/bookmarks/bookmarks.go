@@ -101,7 +101,7 @@ func (m *Model) filtered(filter string) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) loadMovables() tea.Msg {
-	output, _ := m.context.RunCommandImmediate(jj.BookmarkList(m.current.ChangeId))
+	output, _ := m.context.RunCommandImmediate(jj.BookmarkListMovable(m.current.ChangeId))
 	var bookmarkItems []list.Item
 	bookmarks := jj.ParseBookmarkListOutput(string(output))
 	for _, b := range bookmarks {

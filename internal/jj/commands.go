@@ -111,7 +111,11 @@ func Squash(from string, destination string) CommandArgs {
 	return []string{"squash", "--from", from, "--into", destination}
 }
 
-func BookmarkList(revision string) CommandArgs {
+func BookmarkList(revset string) CommandArgs {
+	return []string{"bookmark", "list", "-r", revset, "--template", allBookmarkTemplate, "--color", "never"}
+}
+
+func BookmarkListMovable(revision string) CommandArgs {
 	revsetBefore := fmt.Sprintf("::%s", revision)
 	revsetAfter := fmt.Sprintf("%s::", revision)
 	revset := fmt.Sprintf("%s | %s", revsetBefore, revsetAfter)

@@ -142,13 +142,15 @@ func (m *Model) filtered(filter string) (tea.Model, tea.Cmd) {
 
 func NewModel(c context.AppContext, commit *jj.Commit, width int, height int) *Model {
 	var items []list.Item
-	if commit != nil && commit.Bookmarks != nil {
-		for _, b := range commit.Bookmarks {
-			b = strings.TrimSuffix(b, "*")
+	if commit != nil {
+		bytes, _ := c.RunCommandImmediate(jj.BookmarkList(commit.ChangeId))
+		bookmarks := jj.ParseBookmarkListOutput(string(bytes))
+		for _, b := range bookmarks {
+			b.Name = strings.TrimSuffix(b.Name, "*")
 			items = append(items, item{
-				name:    fmt.Sprintf("git push --bookmark %s", b),
-				desc:    "Git push bookmark " + b,
-				command: jj.GitPush("--bookmark", b),
+				name:    fmt.Sprintf("git push --bookmark %s", b.Name),
+				desc:    "Git push bookmark " + b.Name,
+				command: jj.GitPush("--bookmark", b.Name),
 			})
 		}
 	}
