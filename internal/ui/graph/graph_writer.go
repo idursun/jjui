@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/common"
 	"strings"
 
 	"github.com/idursun/jjui/internal/jj"
@@ -94,6 +95,13 @@ func (w *GraphWriter) RenderRow(row jj.GraphRow, renderer RowRenderer, highlight
 			} else {
 				fmt.Fprint(&lw, segment.String())
 			}
+		}
+		if segmentedLine.Flags&jj.Revision == jj.Revision && row.IsAffected {
+			style := common.DefaultPalette.Rest
+			if highlighted {
+				style = common.DefaultPalette.Rest.Background(highlightColor)
+			}
+			fmt.Fprint(&lw, style.Render(" (affected by last operation)"))
 		}
 		line := lw.String()
 		fmt.Fprint(w, line)
