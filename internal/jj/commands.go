@@ -152,7 +152,7 @@ func Rebase(from string, to string, source string, target string) CommandArgs {
 }
 
 func Evolog(revision string) CommandArgs {
-	return []string{"evolog", "-r", revision, "--color", "never", "--template", TEMPLATE, "--config", "ui.graph.style=curved"}
+	return []string{"evolog", "-r", revision, "--color", "always", "--quiet"}
 }
 
 func Args(args ...string) CommandArgs {

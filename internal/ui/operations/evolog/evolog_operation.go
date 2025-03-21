@@ -124,7 +124,7 @@ func (o Operation) Name() string {
 
 func (o Operation) load() tea.Msg {
 	output, _ := o.context.RunCommandImmediate(jj.Evolog(o.revision))
-	parser := jj.NewParser(bytes.NewReader(output))
+	parser := jj.NewNoTemplateParser(bytes.NewReader(output))
 	rows := parser.Parse()
 	return updateEvologMsg{
 		rows: rows,
