@@ -26,6 +26,7 @@ type (
 		Err    error
 	}
 	SelectionChangedMsg struct{}
+	QuickSearchMsg      string
 )
 
 type State int

@@ -2,6 +2,7 @@ package status
 
 import (
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textinput"
 	"strings"
 	"time"
 
@@ -14,10 +15,12 @@ import (
 )
 
 var cancel = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "dismiss"))
+var accept = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "accept"))
 
 type Model struct {
 	context context.AppContext
 	spinner spinner.Model
+	input   textinput.Model
 	help    help.Model
 	keyMap  help.KeyMap
 	command string
@@ -26,6 +29,11 @@ type Model struct {
 	error   error
 	width   int
 	mode    string
+	editing bool
+}
+
+func (m *Model) IsFocused() bool {
+	return m.editing
 }
 
 const CommandClearDuration = 3 * time.Second
@@ -50,6 +58,7 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+	km := m.context.KeyMap()
 	switch msg := msg.(type) {
 	case clearMsg:
 		if m.command == string(msg) {
@@ -75,10 +84,36 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, cancel) && m.error != nil:
+		case key.Matches(msg, km.Cancel) && m.error != nil:
 			m.error = nil
 			m.output = ""
 			m.command = ""
+			m.editing = false
+			m.mode = ""
+		case key.Matches(msg, km.Cancel) && m.editing:
+			m.editing = false
+			m.input.Reset()
+		case key.Matches(msg, accept) && m.editing:
+			m.error = nil
+			m.output = ""
+			m.command = ""
+			m.editing = false
+			m.mode = ""
+			query := m.input.Value()
+			m.input.Reset()
+			return m, func() tea.Msg {
+				return common.QuickSearchMsg(query)
+			}
+		case key.Matches(msg, km.QuickSearch) && !m.editing:
+			m.editing = true
+			m.mode = "search"
+			return m, m.input.Focus()
+		default:
+			if m.editing {
+				var cmd tea.Cmd
+				m.input, cmd = m.input.Update(msg)
+				return m, cmd
+			}
 		}
 		return m, nil
 	default:
@@ -90,7 +125,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 func (m *Model) View() string {
 	s := common.DefaultPalette.Normal.Render(" ")
-	if m.running {
+	if m.editing {
+		s = m.input.View()
+	} else if m.running {
 		s = common.DefaultPalette.Normal.Render(m.spinner.View())
 	} else if m.error != nil {
 		s = common.DefaultPalette.StatusError.Render("✗ ")
@@ -117,15 +154,24 @@ func (m *Model) SetHelp(keyMap help.KeyMap) {
 }
 
 func (m *Model) SetMode(mode string) {
-	m.mode = mode
+	if m.editing {
+		m.mode = "search"
+	} else {
+		m.mode = mode
+	}
 }
 
 func New(context context.AppContext) Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
+
 	h := help.New()
 	h.Styles.ShortKey = common.DefaultPalette.ChangeId
 	h.Styles.ShortDesc = common.DefaultPalette.Dimmed
+
+	t := textinput.New()
+	t.Width = 50
+
 	return Model{
 		context: context,
 		spinner: s,
@@ -133,6 +179,7 @@ func New(context context.AppContext) Model {
 		command: "",
 		running: false,
 		output:  "",
+		input:   t,
 		keyMap:  nil,
 	}
 }

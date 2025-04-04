@@ -27,6 +27,7 @@ var DefaultKeyMappings = KeyMappings[keys]{
 	Evolog:       []string{"v"},
 	Help:         []string{"?"},
 	Revset:       []string{"L"},
+	QuickSearch:  []string{"/"},
 	Rebase: rebaseModeKeys[keys]{
 		Mode:     []string{"r"},
 		Revision: []string{"r"},
@@ -93,6 +94,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Help:         key.NewBinding(key.WithKeys(m.Help...), key.WithHelp(join(m.Help), "help")),
 		Evolog:       key.NewBinding(key.WithKeys(m.Evolog...), key.WithHelp(join(m.Evolog), "evolog")),
 		Revset:       key.NewBinding(key.WithKeys(m.Revset...), key.WithHelp(join(m.Revset), "revset")),
+		QuickSearch:  key.NewBinding(key.WithKeys(m.QuickSearch...), key.WithHelp(join(m.QuickSearch), "quick search")),
 		Rebase: rebaseModeKeys[key.Binding]{
 			Mode:     key.NewBinding(key.WithKeys(m.Rebase.Mode...), key.WithHelp(join(m.Rebase.Mode), "rebase")),
 			Revision: key.NewBinding(key.WithKeys(m.Rebase.Revision...), key.WithHelp(join(m.Rebase.Revision), "change source to revision")),
@@ -182,6 +184,7 @@ type KeyMappings[T any] struct {
 	Undo         T                   `toml:"undo"`
 	Evolog       T                   `toml:"evolog"`
 	Revset       T                   `toml:"revset"`
+	QuickSearch  T                   `toml:"quick_search"`
 	Rebase       rebaseModeKeys[T]   `toml:"rebase"`
 	Details      detailsModeKeys[T]  `toml:"details"`
 	Preview      previewModeKeys[T]  `toml:"preview"`

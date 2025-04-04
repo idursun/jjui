@@ -74,6 +74,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
+		if m.status.IsFocused() {
+			m.status, cmd = m.status.Update(msg)
+			return m, cmd
+		}
+
 		if m.revisions.IsFocused() {
 			m.revisions, cmd = m.revisions.Update(msg)
 			return m, cmd

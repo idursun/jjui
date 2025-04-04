@@ -126,6 +126,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case revset.UpdateRevSetMsg:
 		m.revsetValue = string(msg)
 		return m, common.Refresh
+	case common.QuickSearchMsg:
+		m.cursor = m.search(string(msg))
+		m.op = operations.NewDefault(m.context)
+		m.viewRange = &viewRange{start: 0, end: 0}
+		return m, nil
 	case common.CommandCompletedMsg:
 		m.output = msg.Output
 		m.err = msg.Err
@@ -368,6 +373,27 @@ func (m *Model) selectRevision(revision string) int {
 		return row.Commit.GetChangeId() == revision || row.Commit.ChangeId == revision
 	})
 	return idx
+}
+
+func (m *Model) search(query string) int {
+	if query == "" {
+		return m.cursor
+	}
+
+	idx := slices.IndexFunc(m.rows, func(row graph.Row) bool {
+		for _, line := range row.Lines {
+			for _, segment := range line.Segments {
+				if segment.Text != "" && strings.Contains(segment.Text, query) {
+					return true
+				}
+			}
+		}
+		return false
+	})
+	if idx != -1 {
+		return idx
+	}
+	return m.cursor
 }
 
 func (m *Model) CurrentOperation() operations.Operation {
