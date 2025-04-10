@@ -84,6 +84,7 @@ You can install `jjui` using nix from the unstable channel.
 
 ```shell
 nix-env -iA nixpkgs.jjui
+```
 
 If you need to use a particular branch/revision that
 has not yet landed into nixpkgs. You can install it via
