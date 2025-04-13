@@ -2,28 +2,28 @@ package ui
 
 import (
 	"fmt"
-
 	"github.com/charmbracelet/bubbles/key"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/bookmarks"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	customcommands "github.com/idursun/jjui/internal/ui/custom_commands"
+	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/helppage"
 	"github.com/idursun/jjui/internal/ui/oplog"
 	"github.com/idursun/jjui/internal/ui/preview"
-	"github.com/idursun/jjui/internal/ui/revset"
-	"github.com/idursun/jjui/internal/ui/undo"
-
-	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/revisions"
+	"github.com/idursun/jjui/internal/ui/revset"
 	"github.com/idursun/jjui/internal/ui/status"
-
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/ui/undo"
 )
+
+var customCommandsKey = key.NewBinding(key.WithKeys("x"))
 
 type Model struct {
 	revisions               *revisions.Model
@@ -122,9 +122,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.previewWindowPercentage += config.Current.Preview.WidthIncrementPercentage
 		case key.Matches(msg, m.keyMap.Preview.Shrink):
 			m.previewWindowPercentage -= config.Current.Preview.WidthIncrementPercentage
+		case key.Matches(msg, customCommandsKey):
+			m.stacked = customcommands.NewModel(m.context, m.width, m.height)
+			cmds = append(cmds, m.stacked.Init())
 		case key.Matches(msg, m.keyMap.QuickSearch) && m.oplog != nil:
 			//HACK: prevents quick search from activating in op log view
 			return m, nil
+		default:
+			if matched := customcommands.Matches(msg); matched != nil {
+				command := *matched
+				cmd = command.Prepare(m.context).Invoke(m.context)
+				cmds = append(cmds, cmd)
+				return m, cmd
+			}
 		}
 	case common.ToggleHelpMsg:
 		if m.stacked == nil {

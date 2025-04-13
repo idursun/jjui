@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -25,13 +26,15 @@ var Current = &Config{
 	OpLog: OpLogConfig{
 		Limit: 200,
 	},
+	CustomCommands: map[string]CustomCommandDefinition{},
 }
 
 type Config struct {
-	Keys    KeyMappings[keys] `toml:"keys"`
-	UI      UIConfig          `toml:"ui"`
-	Preview PreviewConfig     `toml:"preview"`
-	OpLog   OpLogConfig       `toml:"oplog"`
+	Keys           KeyMappings[keys]                  `toml:"keys"`
+	UI             UIConfig                           `toml:"ui"`
+	Preview        PreviewConfig                      `toml:"preview"`
+	OpLog          OpLogConfig                        `toml:"oplog"`
+	CustomCommands map[string]CustomCommandDefinition `toml:"custom_commands"`
 }
 
 type UIConfig struct {
@@ -48,6 +51,31 @@ type PreviewConfig struct {
 
 type OpLogConfig struct {
 	Limit int `toml:"limit"`
+}
+
+type ShowOption string
+
+const (
+	ShowOptionDiff        ShowOption = "diff"
+	ShowOptionInteractive ShowOption = "interactive"
+)
+
+type CustomCommandDefinition struct {
+	Key  []string   `toml:"key"`
+	Args []string   `toml:"args"`
+	Show ShowOption `toml:"show"`
+}
+
+func (s *ShowOption) UnmarshalText(text []byte) error {
+	val := string(text)
+	switch val {
+	case string(ShowOptionDiff),
+		string(ShowOptionInteractive):
+		*s = ShowOption(val)
+		return nil
+	default:
+		return fmt.Errorf("invalid value for 'show': %q. Allowed: none, interactive, and diff", val)
+	}
 }
 
 func getConfigFilePath() string {
@@ -78,17 +106,21 @@ func getDefaultEditor() string {
 	return editor
 }
 
+func load(data string) *Config {
+	if _, err := toml.Decode(data, &Current); err != nil {
+		return Current
+	}
+	return Current
+}
+
 func Load() *Config {
 	configFile := getConfigFilePath()
 	_, err := os.Stat(configFile)
 	if err != nil {
 		return Current
 	}
-	_, err = toml.DecodeFile(configFile, &Current)
-	if err != nil {
-		return Current
-	}
-	return Current
+	data, _ := os.ReadFile(configFile)
+	return load(string(data))
 }
 
 func Edit() int {
