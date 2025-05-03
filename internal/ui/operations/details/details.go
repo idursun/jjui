@@ -2,7 +2,6 @@ package details
 
 import (
 	"fmt"
-	"github.com/idursun/jjui/internal/ui/revset"
 	"io"
 	"path"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/revset"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -150,9 +150,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keyMap.Cancel), key.Matches(msg, m.keyMap.Details.Close):
 			return m, common.Close
 		case key.Matches(msg, m.keyMap.Details.Diff):
-			v := m.files.SelectedItem().(item).fileName
+			selected, ok := m.files.SelectedItem().(item)
+			if !ok {
+				return m, nil
+			}
 			return m, func() tea.Msg {
-				output, _ := m.context.RunCommandImmediate(jj.Diff(m.revision, v))
+				output, _ := m.context.RunCommandImmediate(jj.Diff(m.revision, selected.fileName))
 				return common.ShowDiffMsg(output)
 			}
 		case key.Matches(msg, m.keyMap.Details.Split):
