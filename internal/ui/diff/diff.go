@@ -34,7 +34,11 @@ func (m Model) View() string {
 
 func New(output string, width int, height int) tea.Model {
 	view := viewport.New(width, height)
-	view.SetContent(output)
+	content := output
+	if content == "" {
+		content = "(empty)"
+	}
+	view.SetContent(content)
 	return Model{
 		view: view,
 	}
