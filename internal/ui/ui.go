@@ -206,7 +206,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	if m.diff != nil {
-		return m.diff.View()
+		m.status.SetMode("diff")
+		m.status.SetHelp(m.diff)
+		footer := m.status.View()
+		footerHeight := lipgloss.Height(footer)
+		m.diff.SetHeight(m.height - footerHeight)
+		return lipgloss.JoinVertical(0, m.diff.View(), footer)
 	}
 
 	topView := m.revsetModel.View()
