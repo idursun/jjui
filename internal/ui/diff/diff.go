@@ -1,14 +1,29 @@
 package diff
 
 import (
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/context"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type Model struct {
-	view viewport.Model
+	view   viewport.Model
+	keymap config.KeyMappings[key.Binding]
+}
+
+func (m *Model) ShortHelp() []key.Binding {
+	vkm := m.view.KeyMap
+	return []key.Binding{
+		vkm.Up, vkm.Down, vkm.HalfPageDown, vkm.HalfPageUp, vkm.PageDown, vkm.PageUp,
+		m.keymap.Cancel}
+}
+
+func (m *Model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{m.ShortHelp()}
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -18,8 +33,8 @@ func (m *Model) Init() tea.Cmd {
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
+		switch {
+		case key.Matches(msg, m.keymap.Cancel):
 			return m, common.Close
 		}
 	}
@@ -32,7 +47,7 @@ func (m *Model) View() string {
 	return m.view.View()
 }
 
-func New(output string, width int, height int) *Model {
+func New(context context.AppContext, output string, width int, height int) *Model {
 	view := viewport.New(width, height)
 	content := output
 	if content == "" {
@@ -40,6 +55,7 @@ func New(output string, width int, height int) *Model {
 	}
 	view.SetContent(content)
 	return &Model{
-		view: view,
+		view:   view,
+		keymap: context.KeyMap(),
 	}
 }

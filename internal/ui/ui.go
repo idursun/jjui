@@ -157,7 +157,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case common.ShowDiffMsg:
-		m.diff = diff.New(string(msg), m.width, m.height)
+		m.diff = diff.New(m.context, string(msg), m.width, m.height)
 		return m, m.diff.Init()
 	case common.CommandCompletedMsg:
 		m.output = msg.Output
