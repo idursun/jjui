@@ -32,7 +32,7 @@ type Model struct {
 	previewModel            *preview.Model
 	previewVisible          bool
 	previewWindowPercentage float64
-	diff                    tea.Model
+	diff                    *diff.Model
 	state                   common.State
 	error                   error
 	status                  *status.Model

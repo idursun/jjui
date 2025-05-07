@@ -11,11 +11,11 @@ type Model struct {
 	view viewport.Model
 }
 
-func (m Model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -28,18 +28,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m Model) View() string {
+func (m *Model) View() string {
 	return m.view.View()
 }
 
-func New(output string, width int, height int) tea.Model {
+func New(output string, width int, height int) *Model {
 	view := viewport.New(width, height)
 	content := output
 	if content == "" {
 		content = "(empty)"
 	}
 	view.SetContent(content)
-	return Model{
+	return &Model{
 		view: view,
 	}
 }
