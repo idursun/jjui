@@ -15,13 +15,18 @@ import (
 	"github.com/idursun/jjui/internal/ui"
 )
 
-var Version = "unknown"
+var Version string
 
 func getVersion() string {
+	if Version != "" {
+		// set explicitly from build flags
+		return Version
+	}
 	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" {
+		// obtained by go build, usually from VCS
 		return info.Main.Version
 	}
-	return Version
+	return "unknown"
 }
 
 var (
