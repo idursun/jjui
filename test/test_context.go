@@ -1,9 +1,11 @@
 package test
 
 import (
+	"bytes"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/context"
+	"io"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -62,6 +64,11 @@ func (t *TestContext) RunCommandImmediate(args []string) ([]byte, error) {
 	}
 	assert.Fail(t, "unexpected command", subCommand)
 	return nil, nil
+}
+
+func (t *TestContext) RunCommandStreaming(args []string) (io.Reader, error) {
+	reader, err := t.RunCommandImmediate(args)
+	return bytes.NewBuffer(reader), err
 }
 
 func (t *TestContext) RunCommand(args []string, continuations ...tea.Cmd) tea.Cmd {

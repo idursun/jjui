@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
+	"io"
 	"os/exec"
 )
 
@@ -81,6 +82,14 @@ func (a *MainContext) RunCommandImmediate(args []string) ([]byte, error) {
 	c.Dir = a.location
 	output, err := c.CombinedOutput()
 	return bytes.Trim(output, "\n"), err
+}
+
+func (a *MainContext) RunCommandStreaming(args []string) (io.Reader, error) {
+	c := exec.Command("jj", args...)
+	c.Dir = a.location
+	pipe, _ := c.StdoutPipe()
+	err := c.Start()
+	return pipe, err
 }
 
 func (a *MainContext) RunCommand(args []string, continuations ...tea.Cmd) tea.Cmd {

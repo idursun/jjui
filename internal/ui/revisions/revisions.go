@@ -1,7 +1,7 @@
 package revisions
 
 import (
-	"bytes"
+	"bufio"
 	"slices"
 	"strings"
 
@@ -25,30 +25,52 @@ import (
 )
 
 type viewRange struct {
-	start int
-	end   int
+	start        int
+	end          int
+	lastRowIndex int
+}
+
+func (v *viewRange) reset() {
+	v.start = 0
+	v.end = 0
+	v.lastRowIndex = -1
 }
 
 var normalStyle = lipgloss.NewStyle()
 
 type Model struct {
-	rows        []graph.Row
-	op          operations.Operation
-	revsetValue string
-	viewRange   *viewRange
-	cursor      int
-	width       int
-	height      int
-	context     context.AppContext
-	keymap      config.KeyMappings[key.Binding]
-	output      string
-	err         error
-	quickSearch string
+	rows             []graph.Row
+	revisionToSelect string
+	offScreenRows    []graph.Row
+	rowsChan         <-chan graph.RowBatch
+	controlChan      chan graph.ControlMsg
+	hasMore          bool
+	op               operations.Operation
+	revsetValue      string
+	viewRange        *viewRange
+	cursor           int
+	width            int
+	height           int
+	context          context.AppContext
+	keymap           config.KeyMappings[key.Binding]
+	output           string
+	err              error
+	quickSearch      string
 }
 
 type updateRevisionsMsg struct {
 	rows             []graph.Row
 	selectedRevision string
+}
+
+type startRowsStreamingMsg struct {
+	rowsChan         <-chan graph.RowBatch
+	selectedRevision string
+}
+
+type appendRowsBatchMsg struct {
+	rows    []graph.Row
+	hasMore bool
 }
 
 func (m *Model) IsFocused() bool {
@@ -96,7 +118,7 @@ func (m *Model) FullHelp() [][]key.Binding {
 }
 
 func (m *Model) SelectedRevision() *jj.Commit {
-	if m.cursor >= len(m.rows) {
+	if m.cursor >= len(m.rows) || m.cursor < 0 {
 		return nil
 	}
 	return m.rows[m.cursor].Commit
@@ -116,7 +138,7 @@ func (m *Model) SelectedRevisions() []*jj.Commit {
 }
 
 func (m *Model) Init() tea.Cmd {
-	return common.Refresh
+	return common.RefreshAndSelect("@")
 }
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
@@ -131,7 +153,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		m.quickSearch = string(msg)
 		m.cursor = m.search(0)
 		m.op = operations.NewDefault(m.context)
-		m.viewRange = &viewRange{start: 0, end: 0}
+		m.viewRange.reset()
 		return m, nil
 	case common.CommandCompletedMsg:
 		m.output = msg.Output
@@ -141,6 +163,37 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		return m, m.load(m.revsetValue, msg.SelectedRevision)
 	case updateRevisionsMsg:
 		m.updateGraphRows(msg.rows, msg.selectedRevision)
+		return m, m.highlightChanges
+	case startRowsStreamingMsg:
+		m.offScreenRows = nil
+		m.revisionToSelect = msg.selectedRevision
+		m.rowsChan = msg.rowsChan
+		return m, m.requestMoreRows(m.rowsChan)
+	case appendRowsBatchMsg:
+		m.offScreenRows = append(m.offScreenRows, msg.rows...)
+		m.hasMore = msg.hasMore
+
+		if m.hasMore {
+			// keep requesting rows until we reach the initial load count or the current cursor position
+			if len(m.offScreenRows) < m.cursor+1 || len(m.offScreenRows) < m.viewRange.lastRowIndex+1 {
+				return m, m.requestMoreRows(m.rowsChan)
+			}
+		} else {
+			close(m.controlChan)
+			m.rowsChan = nil
+		}
+
+		currentSelectedRevision := m.SelectedRevision()
+		m.rows = m.offScreenRows
+		if m.revisionToSelect != "" {
+			m.cursor = m.selectRevision(m.revisionToSelect)
+			m.revisionToSelect = ""
+		} else if m.cursor == -1 && len(m.rows) > 0 {
+			m.cursor = 0
+		} else if currentSelectedRevision != nil {
+			m.cursor = m.selectRevision(currentSelectedRevision.GetChangeId())
+		}
+
 		return m, m.highlightChanges
 	}
 
@@ -162,6 +215,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if m.cursor < len(m.rows)-1 {
 				m.cursor++
 			}
+
+			if m.cursor+1 >= len(m.rows) && m.hasMore {
+				return m, m.requestMoreRows(m.rowsChan)
+			}
 		default:
 			if op, ok := m.op.(operations.HandleKey); ok {
 				cmd = op.HandleKey(msg)
@@ -175,7 +232,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				m.op = operations.NewDefault(m.context)
 			case key.Matches(msg, m.keymap.QuickSearchCycle):
 				m.cursor = m.search(m.cursor + 1)
-				m.viewRange = &viewRange{start: 0, end: 0}
+				m.viewRange.reset()
 				return m, nil
 			case key.Matches(msg, m.keymap.Details.Mode):
 				m.op, cmd = details.NewOperation(m.context, m.SelectedRevision())
@@ -299,12 +356,11 @@ func (m *Model) updateGraphRows(rows []graph.Row, selectedRevision string) {
 	if m.cursor == -1 {
 		m.cursor = 0
 	}
-	m.viewRange.start = 0
-	m.viewRange.end = 0
+	m.viewRange.reset()
 }
 
 func (m *Model) View() string {
-	if m.rows == nil {
+	if len(m.rows) == 0 {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, "loading")
 	}
 
@@ -322,6 +378,7 @@ func (m *Model) View() string {
 	var w graph.Renderer
 	selectedLineStart := -1
 	selectedLineEnd := -1
+	lastRenderedRowIndex := -1
 	for i, row := range m.rows {
 		if i == m.cursor {
 			selectedLineStart = w.LineCount()
@@ -347,10 +404,15 @@ func (m *Model) View() string {
 			selectedLineEnd = w.LineCount()
 		}
 		if selectedLineEnd > 0 && w.LineCount() > h && w.LineCount() > m.viewRange.end {
+			lastRenderedRowIndex = i
 			break
 		}
 	}
+	if lastRenderedRowIndex == -1 {
+		lastRenderedRowIndex = len(m.rows) - 1
+	}
 
+	m.viewRange.lastRowIndex = lastRenderedRowIndex
 	if selectedLineStart <= m.viewRange.start {
 		m.viewRange.start = selectedLineStart
 		m.viewRange.end = selectedLineStart + h
@@ -366,16 +428,32 @@ func (m *Model) View() string {
 }
 
 func (m *Model) load(revset string, selectedRevision string) tea.Cmd {
+	if m.hasMore {
+		m.rowsChan = nil
+		m.controlChan <- graph.Close
+		close(m.controlChan)
+	}
+	m.hasMore = false
 	return func() tea.Msg {
-		output, err := m.context.RunCommandImmediate(jj.Log(revset))
+		output, err := m.context.RunCommandStreaming(jj.Log(revset))
 		if err != nil {
 			return common.UpdateRevisionsFailedMsg{
-				Err:    err,
-				Output: string(output),
+				Err: err,
+				//TODO: change this to the actual error output
+				Output: "failed",
 			}
 		}
-		rows := graph.ParseRows(bytes.NewReader(output))
-		return updateRevisionsMsg{rows, selectedRevision}
+		m.controlChan = make(chan graph.ControlMsg, 1)
+		rowsChan, _ := graph.ParseRowsStreaming(bufio.NewReader(output), m.controlChan)
+		return startRowsStreamingMsg{rowsChan, selectedRevision}
+	}
+}
+
+func (m *Model) requestMoreRows(rowsChan <-chan graph.RowBatch) tea.Cmd {
+	return func() tea.Msg {
+		m.controlChan <- graph.RequestMore
+		batch := <-rowsChan
+		return appendRowsBatchMsg{batch.Rows, batch.HasMore}
 	}
 }
 
@@ -422,16 +500,17 @@ func (m *Model) GetCommitIds() []string {
 }
 
 func New(c context.AppContext, revset string) Model {
-	v := viewRange{start: 0, end: 0}
+	v := viewRange{start: 0, end: 0, lastRowIndex: -1}
 	keymap := c.KeyMap()
 	return Model{context: c,
-		keymap:      keymap,
-		revsetValue: revset,
-		rows:        nil,
-		viewRange:   &v,
-		op:          operations.NewDefault(c),
-		cursor:      0,
-		width:       20,
-		height:      10,
+		keymap:        keymap,
+		revsetValue:   revset,
+		rows:          nil,
+		offScreenRows: nil,
+		viewRange:     &v,
+		op:            operations.NewDefault(c),
+		cursor:        0,
+		width:         20,
+		height:        10,
 	}
 }
