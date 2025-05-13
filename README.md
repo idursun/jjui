@@ -50,11 +50,11 @@ You can switch to op log view by pressing `o`. Pressing `r` restores the selecte
 ![GIF](https://github.com/idursun/jjui/wiki/gifs/jjui_oplog.gif)
 
 ### Preview
-You can open the preview window by pressing `p`. If the selected item is a revision, then the output of `jj show` command is displayed. Similarly, `jj diff` output is displayed for selected files,  and `jj op show` output is displayed for selected operations. 
+You can open the preview window by pressing `p`. If the selected item is a revision, then the output of `jj show` command is displayed. Similarly, `jj diff` output is displayed for selected files,  and `jj op show` output is displayed for selected operations.
 
-While the preview window is showing, you can press; `ctrl+n` to scroll one line down, `ctrl+p` to scroll one line up, `ctrl+d` to scroll half a page down, `ctrl+u` to scroll half a page up. 
+While the preview window is showing, you can press; `ctrl+n` to scroll one line down, `ctrl+p` to scroll one line up, `ctrl+d` to scroll half a page down, `ctrl+u` to scroll half a page up.
 
-Additionally, you can press `d` to show the contents of preview in diff view. 
+Additionally, you can press `d` to show the contents of preview in diff view.
 
 For detailed information, see [Preview](https://github.com/idursun/jjui/wiki/Preview) wiki page.
 
@@ -68,7 +68,7 @@ Additionally,
 * Abandon a revision by pressing `a`.
 * Absorb a revision by pressing `A`.
 * _Edit_ a revision by pressing `e`
-* Git _push_/_fetch_ by pressing `g` 
+* Git _push_/_fetch_ by pressing `g`
 * Undo the last change by pressing `u`
 * Show evolog of a revision by pressing `v`
 
@@ -77,6 +77,14 @@ Additionally,
 See [configuration](https://github.com/idursun/jjui/wiki/Configuration) section in the wiki.
 
 ## Installation
+
+### Homebrew
+
+The latest release of `jjui` is available on Homebrew core:
+
+```shell
+brew install jjui
+```
 
 ### Nix
 
