@@ -86,6 +86,16 @@ The latest release of `jjui` is available on Homebrew core:
 brew install jjui
 ```
 
+### Archlinux
+
+The built `jjui` binary from latest release is available on the AUR:
+
+```shell
+paru -S jjui-bin
+# OR
+yay -S jjui-bin
+```
+
 ### Nix
 
 You can install `jjui` using nix from the unstable channel.
