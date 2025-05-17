@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 
 	"github.com/BurntSushi/toml"
 )
@@ -82,11 +83,32 @@ func (s *ShowOption) UnmarshalText(text []byte) error {
 }
 
 func getConfigFilePath() string {
+	var configDirs []string
+
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(configDir, "jjui", "config.toml")
+	configDirs = append(configDirs, configDir)
+
+	// os.UserConfigDir() already does this for linux leaving darwin to handle
+	if runtime.GOOS == "darwin" {
+		configDirs = append(configDirs, path.Join(os.Getenv("HOME"), ".config"))
+		xdgConfigDir := os.Getenv("XDG_CONFIG_HOME")
+		if xdgConfigDir != "" {
+			configDirs = append(configDirs, xdgConfigDir)
+		}
+	}
+
+	var resolvedConfigPath string
+	for _, dir := range configDirs {
+		configPath := filepath.Join(dir, "jjui", "config.toml")
+		if _, err := os.Stat(configPath); err == nil {
+			resolvedConfigPath = configPath
+		}
+	}
+
+	return resolvedConfigPath
 }
 
 func getDefaultEditor() string {
