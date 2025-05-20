@@ -158,11 +158,17 @@ func NewModel(c context.AppContext, commit *jj.Commit, width int, height int) *M
 				continue
 			}
 			b.Name = strings.TrimSuffix(b.Name, "*")
-			items = append(items, item{
+			bookmarkItem := item{
 				name:    fmt.Sprintf("git push --bookmark %s", b.Name),
 				desc:    "Git push bookmark " + b.Name,
 				command: jj.GitPush("--bookmark", b.Name),
-			})
+			}
+			if b.Tracked == false {
+				bookmarkItem.name = fmt.Sprintf("git push --bookmark %s --allow-new", b.Name)
+				bookmarkItem.desc = "Git push new bookmark " + b.Name
+				bookmarkItem.command = append(bookmarkItem.command, "--allow-new")
+			}
+			items = append(items, bookmarkItem)
 		}
 	}
 	items = append(items,
