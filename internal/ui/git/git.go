@@ -148,22 +148,26 @@ func (m *Model) filtered(filter string) (tea.Model, tea.Cmd) {
 	return m, m.list.SetItems(filtered)
 }
 
+func loadBookmarks(c context.AppContext, changeId string) []jj.Bookmark {
+	bytes, _ := c.RunCommandImmediate(jj.BookmarkList(changeId))
+	bookmarks := jj.ParseBookmarkListOutput(string(bytes))
+	return bookmarks
+}
+
 func NewModel(c context.AppContext, commit *jj.Commit, width int, height int) *Model {
 	var items []list.Item
 	if commit != nil {
-		bytes, _ := c.RunCommandImmediate(jj.BookmarkList(commit.GetChangeId()))
-		bookmarks := jj.ParseBookmarkListOutput(string(bytes))
+		bookmarks := loadBookmarks(c, commit.GetChangeId())
 		for _, b := range bookmarks {
-			if b.Remote {
+			if b.Conflict {
 				continue
 			}
-			b.Name = strings.TrimSuffix(b.Name, "*")
 			bookmarkItem := item{
 				name:    fmt.Sprintf("git push --bookmark %s", b.Name),
 				desc:    "Git push bookmark " + b.Name,
 				command: jj.GitPush("--bookmark", b.Name),
 			}
-			if b.Tracked == false {
+			if b.IsLocal() {
 				bookmarkItem.name = fmt.Sprintf("git push --bookmark %s --allow-new", b.Name)
 				bookmarkItem.desc = "Git push new bookmark " + b.Name
 				bookmarkItem.command = append(bookmarkItem.command, "--allow-new")

@@ -106,7 +106,7 @@ func (m *Model) loadMovables() tea.Msg {
 	var bookmarkItems []list.Item
 	bookmarks := jj.ParseBookmarkListOutput(string(output))
 	for _, b := range bookmarks {
-		if b.Remote || (!b.Conflict && b.CommitId == m.current.CommitId) {
+		if !b.Conflict && b.CommitId == m.current.CommitId {
 			continue
 		}
 
@@ -138,7 +138,7 @@ func (m *Model) loadAll() tea.Msg {
 		items := make([]list.Item, 0)
 		for _, b := range bookmarks {
 			weight := m.distance(b.CommitId)
-			if !b.Remote {
+			if b.IsLocal() {
 				items = append(items, item{
 					name:     fmt.Sprintf("delete '%s'", b.Name),
 					priority: deleteCommand,
@@ -154,23 +154,25 @@ func (m *Model) loadAll() tea.Msg {
 				args:     jj.BookmarkForget(b.Name),
 			})
 
-			if !b.Tracked && b.Remote {
-				items = append(items, item{
-					name:     fmt.Sprintf("track '%s'", b.Name),
-					priority: trackCommand,
-					dist:     weight,
-					args:     jj.BookmarkTrack(b.Name),
-				})
+			for _, remote := range b.Remotes {
+				nameWithRemote := fmt.Sprintf("%s@%s", b.Name, remote.Remote)
+				if remote.Tracked {
+					items = append(items, item{
+						name:     fmt.Sprintf("untrack '%s'", nameWithRemote),
+						priority: untrackCommand,
+						dist:     weight,
+						args:     jj.BookmarkUntrack(nameWithRemote),
+					})
+				} else {
+					items = append(items, item{
+						name:     fmt.Sprintf("track '%s'", nameWithRemote),
+						priority: trackCommand,
+						dist:     weight,
+						args:     jj.BookmarkTrack(nameWithRemote),
+					})
+				}
 			}
 
-			if b.Tracked {
-				items = append(items, item{
-					name:     fmt.Sprintf("untrack '%s'", b.Name),
-					priority: untrackCommand,
-					dist:     weight,
-					args:     jj.BookmarkUntrack(b.Name),
-				})
-			}
 		}
 		return updateItemsMsg{items: items}
 	}

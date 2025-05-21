@@ -4,16 +4,25 @@ import (
 	"strings"
 )
 
-const moveBookmarkTemplate = `separate(";", if(remote, name ++ "@" ++ remote, name), if(remote, "true", "false"), tracked, conflict, normal_target.contained_in("%s"), normal_target.commit_id().shortest(1)) ++ "\n"`
-const allBookmarkTemplate = `separate(";", if(remote, name ++ "@" ++ remote, name), if(remote, "true", "false"), tracked, conflict, 'false', normal_target.commit_id().shortest(1)) ++ "\n"`
+const moveBookmarkTemplate = `separate(";", name, if(remote, "remote", "."), tracked, conflict, normal_target.contained_in("%s"), normal_target.commit_id().shortest(1)) ++ "\n"`
+const allBookmarkTemplate = `separate(";", name, if(remote, remote, "."), tracked, conflict, 'false', normal_target.commit_id().shortest(1)) ++ "\n"`
+
+type BookmarkRemote struct {
+	Remote   string
+	CommitId string
+	Tracked  bool
+}
 
 type Bookmark struct {
 	Name      string
-	Tracked   bool
-	Remote    bool
+	Remotes   []BookmarkRemote
 	Conflict  bool
 	Backwards bool
 	CommitId  string
+}
+
+func (b Bookmark) IsLocal() bool {
+	return len(b.Remotes) == 0
 }
 
 func ParseBookmarkListOutput(output string) []Bookmark {
@@ -24,15 +33,29 @@ func ParseBookmarkListOutput(output string) []Bookmark {
 		if len(parts) < 5 {
 			continue
 		} else {
-			bookmark := Bookmark{
-				Name:      parts[0],
-				Remote:    parts[1] == "true",
-				Tracked:   parts[2] == "true",
-				Conflict:  parts[3] == "true",
-				Backwards: parts[4] == "true",
-				CommitId:  parts[5],
+			name := parts[0]
+			remote := parts[1]
+			tracked := parts[2] == "true"
+			conflict := parts[3] == "true"
+			backwards := parts[4] == "true"
+			commitId := parts[5]
+			if remote == "." {
+				bookmark := Bookmark{
+					Name:      name,
+					Conflict:  conflict,
+					Backwards: backwards,
+					CommitId:  commitId,
+				}
+				result = append(result, bookmark)
+			} else if len(result) > 0 {
+				previous := &result[len(result)-1]
+				remote := BookmarkRemote{
+					Remote:   remote,
+					Tracked:  tracked,
+					CommitId: commitId,
+				}
+				previous.Remotes = append(previous.Remotes, remote)
 			}
-			result = append(result, bookmark)
 		}
 	}
 	return result

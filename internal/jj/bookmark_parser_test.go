@@ -24,13 +24,12 @@ func TestParseBookmarkListOutput(t *testing.T) {
 		{
 			name: "single",
 			args: args{
-				output: "feat-1;false;false;false;false;9",
+				output: "feat-1;.;false;false;false;9",
 			},
 			want: []Bookmark{
 				{
 					Name:      "feat-1",
-					Tracked:   false,
-					Remote:    false,
+					Remotes:   nil,
 					Conflict:  false,
 					Backwards: false,
 					CommitId:  "9",
@@ -40,13 +39,15 @@ func TestParseBookmarkListOutput(t *testing.T) {
 		{
 			name: "remote",
 			args: args{
-				output: "feature@origin;true;true;false;false;b",
+				output: `feature;.;false;false;false;b
+feature;origin;true;false;false;b`,
 			},
 			want: []Bookmark{
 				{
-					Name:      "feature@origin",
-					Tracked:   true,
-					Remote:    true,
+					Name: "feature",
+					Remotes: []BookmarkRemote{
+						{"origin", "b", true},
+					},
 					Conflict:  false,
 					Backwards: false,
 					CommitId:  "b",

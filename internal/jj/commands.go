@@ -115,7 +115,8 @@ func Squash(from string, destination string) CommandArgs {
 }
 
 func BookmarkList(revset string) CommandArgs {
-	return []string{"bookmark", "list", "-r", revset, "--template", allBookmarkTemplate, "--color", "never"}
+	const template = `separate(";", name, if(remote, remote, "."), tracked, conflict, 'false', normal_target.commit_id().shortest(1)) ++ "\n"`
+	return []string{"bookmark", "list", "-a", "-r", revset, "--template", template, "--color", "never"}
 }
 
 func BookmarkListMovable(revision string) CommandArgs {
