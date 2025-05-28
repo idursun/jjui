@@ -18,6 +18,7 @@ var DefaultKeyMappings = KeyMappings[keys]{
 	Quit:             []string{"q"},
 	Undo:             []string{"u"},
 	Describe:         []string{"D"},
+	QuickDescribe:    []string{"enter"},
 	Abandon:          []string{"a"},
 	Edit:             []string{"e"},
 	Diff:             []string{"d"},
@@ -92,6 +93,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Quit:             key.NewBinding(key.WithKeys(m.Quit...), key.WithHelp(JoinKeys(m.Quit), "quit")),
 		Diff:             key.NewBinding(key.WithKeys(m.Diff...), key.WithHelp(JoinKeys(m.Diff), "diff")),
 		Describe:         key.NewBinding(key.WithKeys(m.Describe...), key.WithHelp(JoinKeys(m.Describe), "describe")),
+		QuickDescribe:    key.NewBinding(key.WithKeys(m.QuickDescribe...), key.WithHelp(JoinKeys(m.QuickDescribe), "quick describe")),
 		Undo:             key.NewBinding(key.WithKeys(m.Undo...), key.WithHelp(JoinKeys(m.Undo), "undo")),
 		Abandon:          key.NewBinding(key.WithKeys(m.Abandon...), key.WithHelp(JoinKeys(m.Abandon), "abandon")),
 		Edit:             key.NewBinding(key.WithKeys(m.Edit...), key.WithHelp(JoinKeys(m.Edit), "edit")),
@@ -191,6 +193,7 @@ type KeyMappings[T any] struct {
 	Quit             T                   `toml:"quit"`
 	Help             T                   `toml:"help"`
 	Describe         T                   `toml:"describe"`
+	QuickDescribe    T                   `toml:"quick_describe"`
 	Edit             T                   `toml:"edit"`
 	Diffedit         T                   `toml:"diffedit"`
 	Absorb           T                   `toml:"absorb"`

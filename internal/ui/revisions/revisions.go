@@ -20,6 +20,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/internal/ui/operations/details"
 	"github.com/idursun/jjui/internal/ui/operations/evolog"
+	"github.com/idursun/jjui/internal/ui/operations/quick_describe"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/operations/squash"
 	"github.com/idursun/jjui/internal/ui/revset"
@@ -277,6 +278,8 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.Describe):
 				currentRevision := m.SelectedRevision().GetChangeId()
 				return m, m.context.RunInteractiveCommand(jj.Describe(currentRevision), common.Refresh)
+			case key.Matches(msg, m.keymap.QuickDescribe):
+				m.op, cmd = quick_describe.NewQuickDescribeOperation(m.context, m.SelectedRevision().GetChangeId())
 			case key.Matches(msg, m.keymap.Evolog):
 				m.op, cmd = evolog.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.width, m.height)
 			case key.Matches(msg, m.keymap.Diff):
