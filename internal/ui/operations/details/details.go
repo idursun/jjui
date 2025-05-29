@@ -293,11 +293,14 @@ func (m Model) View() string {
 }
 
 func (m Model) load(revision string) tea.Cmd {
-	output, err := m.context.RunCommandImmediate(jj.Status(revision))
+	output, err := m.context.RunCommandImmediate(jj.Snapshot())
 	if err == nil {
-		return func() tea.Msg {
-			summary := strings.Split(strings.TrimSpace(string(output)), "\n")
-			return updateCommitStatusMsg(summary)
+		output, err = m.context.RunCommandImmediate(jj.Status(revision))
+		if err == nil {
+			return func() tea.Msg {
+				summary := strings.Split(strings.TrimSpace(string(output)), "\n")
+				return updateCommitStatusMsg(summary)
+			}
 		}
 	}
 	return func() tea.Msg {

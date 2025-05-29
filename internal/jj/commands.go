@@ -78,8 +78,12 @@ func Undo() CommandArgs {
 	return []string{"undo"}
 }
 
+func Snapshot() CommandArgs {
+	return []string{"debug", "snapshot"}
+}
+
 func Status(revision string) CommandArgs {
-	return []string{"log", "-r", revision, "--summary", "--no-graph", "--color", "never", "--quiet", "--template", ""}
+	return []string{"log", "-r", revision, "--summary", "--no-graph", "--color", "never", "--quiet", "--template", "", "--ignore-working-copy"}
 }
 
 func BookmarkSet(revision string, name string) CommandArgs {
@@ -176,7 +180,7 @@ func Absorb(changeId string) CommandArgs {
 }
 
 func OpLog(limit int) CommandArgs {
-	args := []string{"op", "log", "--color", "always", "--quiet"}
+	args := []string{"op", "log", "--color", "always", "--quiet", "--ignore-working-copy"}
 	if limit > 0 {
 		args = append(args, "--limit", strconv.Itoa(limit))
 	}
