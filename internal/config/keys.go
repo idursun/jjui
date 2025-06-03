@@ -69,9 +69,12 @@ var DefaultKeyMappings = KeyMappings[keys]{
 		Untrack: []string{"u"},
 	},
 	Git: gitModeKeys[keys]{
-		Mode:  []string{"g"},
-		Push:  []string{"p"},
-		Fetch: []string{"f"},
+		Mode:        []string{"g"},
+		PushFilter:  []string{"p"},
+		PushRevset:  []string{"p", "r"},
+		PushAll:     []string{"p", "a"},
+		FetchFilter: []string{"f"},
+		Fetch:       []string{"f", "f"},
 	},
 	OpLog: opLogModeKeys[keys]{
 		Mode:    []string{"o"},
@@ -143,9 +146,12 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Shrink:       key.NewBinding(key.WithKeys(m.Preview.Shrink...), key.WithHelp(JoinKeys(m.Preview.Shrink), "shrink width")),
 		},
 		Git: gitModeKeys[key.Binding]{
-			Mode:  key.NewBinding(key.WithKeys(m.Git.Mode...), key.WithHelp(JoinKeys(m.Git.Mode), "git")),
-			Push:  key.NewBinding(key.WithKeys(m.Git.Push...), key.WithHelp(JoinKeys(m.Git.Push), "git push")),
-			Fetch: key.NewBinding(key.WithKeys(m.Git.Fetch...), key.WithHelp(JoinKeys(m.Git.Fetch), "git fetch")),
+			Mode:        key.NewBinding(key.WithKeys(m.Git.Mode...), key.WithHelp(JoinKeys(m.Git.Mode), "git")),
+			PushFilter:  key.NewBinding(key.WithKeys(m.Git.PushFilter...), key.WithHelp(JoinKeys(m.Git.PushFilter), "git push (filter)")),
+			PushRevset:  key.NewBinding(key.WithKeys(m.Git.PushRevset...), key.WithHelp(JoinKeys(m.Git.PushRevset), "git push")),
+			PushAll:     key.NewBinding(key.WithKeys(m.Git.PushAll...), key.WithHelp(JoinKeys(m.Git.PushAll), "git push --all")),
+			FetchFilter: key.NewBinding(key.WithKeys(m.Git.FetchFilter...), key.WithHelp(JoinKeys(m.Git.FetchFilter), "git fetch (filter)")),
+			Fetch:       key.NewBinding(key.WithKeys(m.Git.Fetch...), key.WithHelp(JoinKeys(m.Git.Fetch), "git fetch")),
 		},
 		OpLog: opLogModeKeys[key.Binding]{
 			Mode:    key.NewBinding(key.WithKeys(m.OpLog.Mode...), key.WithHelp(JoinKeys(m.OpLog.Mode), "oplog")),
@@ -242,9 +248,12 @@ type detailsModeKeys[T any] struct {
 }
 
 type gitModeKeys[T any] struct {
-	Mode  T `toml:"mode"`
-	Push  T `toml:"push"`
-	Fetch T `toml:"fetch"`
+	Mode        T `toml:"mode"`
+	PushFilter  T `toml:"push_filter"`
+	PushRevset  T `toml:"push_revset"`
+	PushAll     T `toml:"push_all"`
+	FetchFilter T `toml:"fetch_filter"`
+	Fetch       T `toml:"fetch"`
 }
 
 type previewModeKeys[T any] struct {

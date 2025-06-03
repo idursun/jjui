@@ -85,10 +85,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.filtered("")
 			}
 			return m, common.Close
-		case key.Matches(msg, m.keymap.Git.Push):
+		case key.Matches(msg, m.keymap.Git.PushFilter):
 			return m.filtered("push")
-		case key.Matches(msg, m.keymap.Git.Fetch):
+		case key.Matches(msg, m.keymap.Git.FetchFilter):
 			return m.filtered("fetch")
+		case key.Matches(msg, m.keymap.Git.PushRevset):
+			return m, m.context.RunCommand(jj.GitPush(), common.Refresh, common.Close)
+		case key.Matches(msg, m.keymap.Git.PushAll):
+			return m, m.context.RunCommand(jj.GitPush("--all"), common.Refresh, common.Close)
+		case key.Matches(msg, m.keymap.Git.Fetch):
+			return m, m.context.RunCommand(jj.GitFetch(), common.Refresh, common.Close)
 		}
 	}
 	var cmd tea.Cmd
@@ -121,7 +127,10 @@ func (m *Model) helpView() string {
 		return ""
 	}
 	bindings := []string{
-		renderKey(m.keymap.Git.Push),
+		renderKey(m.keymap.Git.PushFilter),
+		renderKey(m.keymap.Git.FetchFilter),
+		renderKey(m.keymap.Git.PushRevset),
+		renderKey(m.keymap.Git.PushAll),
 		renderKey(m.keymap.Git.Fetch),
 	}
 	if m.list.IsFiltered() {
