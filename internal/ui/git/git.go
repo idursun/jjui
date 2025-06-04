@@ -162,17 +162,22 @@ func NewModel(c context.AppContext, commit *jj.Commit, width int, height int) *M
 			if b.Conflict {
 				continue
 			}
-			bookmarkItem := item{
-				name:    fmt.Sprintf("git push --bookmark %s", b.Name),
-				desc:    "Git push bookmark " + b.Name,
-				command: jj.GitPush("--bookmark", b.Name),
+			for _, remote := range b.Remotes {
+				bookmarkItem := item{
+					name:    fmt.Sprintf("git push --bookmark %s --remote %s", b.Name, remote.Remote),
+					desc:    fmt.Sprintf("Git push bookmark %s to remote %s", b.Name, remote.Remote),
+					command: jj.GitPush("--bookmark", b.Name, "--remote", remote.Remote),
+				}
+				items = append(items, bookmarkItem)
 			}
 			if b.IsLocal() {
-				bookmarkItem.name = fmt.Sprintf("git push --bookmark %s --allow-new", b.Name)
-				bookmarkItem.desc = "Git push new bookmark " + b.Name
-				bookmarkItem.command = append(bookmarkItem.command, "--allow-new")
+				bookmarkItem := item{
+					name:    fmt.Sprintf("git push --bookmark %s --allow-new", b.Name),
+					desc:    fmt.Sprintf("Git push new bookmark %s", b.Name),
+					command: jj.GitPush("--bookmark", b.Name, "--allow-new"),
+				}
+				items = append(items, bookmarkItem)
 			}
-			items = append(items, bookmarkItem)
 		}
 	}
 	items = append(items,
