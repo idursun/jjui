@@ -170,7 +170,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 	case updateRevisionsMsg:
 		m.updateGraphRows(msg.rows, msg.selectedRevision)
-		return m, m.highlightChanges
+		return m, tea.Batch(m.highlightChanges, m.updateSelection())
 	case startRowsStreamingMsg:
 		m.offScreenRows = nil
 		m.revisionToSelect = msg.selectedRevision
@@ -205,7 +205,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.cursor = 0
 		}
 
-		return m, m.highlightChanges
+		return m, tea.Batch(m.highlightChanges, m.updateSelection())
 	}
 
 	if op, ok := m.op.(operations.OperationWithOverlay); ok {
