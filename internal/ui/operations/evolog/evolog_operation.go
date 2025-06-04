@@ -87,15 +87,20 @@ func (o Operation) Render() string {
 		return "loading"
 	}
 	h := min(o.height-5, len(o.rows)*2)
+	highlightBackground := lipgloss.AdaptiveColor{
+		Light: config.Current.UI.HighlightLight,
+		Dark:  config.Current.UI.HighlightDark,
+	}
 	var w graph.Renderer
 	selectedLineStart := -1
 	selectedLineEnd := -1
 	for i, row := range o.rows {
 		nodeRenderer := graph.DefaultRowDecorator{
-			Palette:       common.DefaultPalette,
-			Op:            &operations.Default{},
-			IsHighlighted: i == o.cursor,
-			Width:         o.width,
+			Palette:             common.DefaultPalette,
+			HighlightBackground: highlightBackground,
+			Op:                  &operations.Default{},
+			IsHighlighted:       i == o.cursor,
+			Width:               o.width,
 		}
 
 		if i == o.cursor {
