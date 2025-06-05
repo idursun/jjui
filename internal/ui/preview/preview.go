@@ -32,7 +32,7 @@ type Model struct {
 	keyMap           config.KeyMappings[key.Binding]
 }
 
-const DebounceTime = 200 * time.Millisecond
+const DebounceTime = 50 * time.Millisecond
 
 var border = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 
