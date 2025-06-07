@@ -49,6 +49,10 @@ func Describe(revision string) CommandArgs {
 	return []string{"describe", "-r", revision, "--edit"}
 }
 
+func QuickDescribe(revision string, message string) CommandArgs {
+	return []string{"describe", "-r", revision, "--message", message}
+}
+
 func Abandon(revision ...string) CommandArgs {
 	args := []string{"abandon"}
 	for _, rev := range revision {
