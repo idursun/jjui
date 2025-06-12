@@ -153,4 +153,4 @@ Minimum supported `jj` version is **v0.21**+.
 
 Feel free to submit a pull request.
 
-You can compile `jjui` by running `go build ./...` in the root of the repo.
+You can compile `jjui` by running `go build ./cmd/jjui in the root of the repo.
