@@ -1,6 +1,8 @@
 package rebase
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -43,7 +45,7 @@ var (
 
 type Operation struct {
 	context     context.AppContext
-	From        string
+	From        jj.SelectedRevisions
 	InsertStart *jj.Commit
 	To          *jj.Commit
 	Source      Source
@@ -70,11 +72,11 @@ func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		r.InsertStart = r.To
 	case key.Matches(msg, r.keyMap.Apply):
 		if r.Target == TargetInsert {
-			return r.context.RunCommand(jj.RebaseInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId()), common.RefreshAndSelect(r.From), common.Close)
+			return r.context.RunCommand(jj.RebaseInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId()), common.RefreshAndSelect(r.From.Last()), common.Close)
 		} else {
 			source := sourceToFlags[r.Source]
 			target := targetToFlags[r.Target]
-			return r.context.RunCommand(jj.Rebase(r.From, r.To.GetChangeId(), source, target), common.RefreshAndSelect(r.From), common.Close)
+			return r.context.RunCommand(jj.Rebase(r.From, r.To.GetChangeId(), source, target), common.RefreshAndSelect(r.From.Last()), common.Close)
 		}
 	case key.Matches(msg, r.keyMap.Cancel):
 		return common.Close
@@ -114,14 +116,20 @@ func (r *Operation) RenderPosition() operations.RenderPosition {
 
 func (r *Operation) Render() string {
 	var source string
-	if r.Source == SourceBranch {
+	isMany := len(r.From.Revisions) > 0
+	switch {
+	case r.Source == SourceBranch && isMany:
+		source = "branches of "
+	case r.Source == SourceBranch:
 		source = "branch of "
-	}
-	if r.Source == SourceDescendants {
+	case r.Source == SourceDescendants && isMany:
+		source = "itself and descendants of each "
+	case r.Source == SourceDescendants:
 		source = "itself and descendants of "
-	}
-	if r.Source == SourceRevision {
-		source = "only "
+	case r.Source == SourceRevision && isMany:
+		source = "revisions "
+	case r.Source == SourceRevision:
+		source = "revision "
 	}
 	var ret string
 	if r.Target == TargetDestination {
@@ -143,7 +151,7 @@ func (r *Operation) Render() string {
 			common.DefaultPalette.Drop.Render("<< insert >>"),
 			" ",
 			common.DefaultPalette.Dimmed.Render(source),
-			common.DefaultPalette.ChangeId.Render(r.From),
+			common.DefaultPalette.ChangeId.Render(strings.Join(r.From.GetIds(), " ")),
 			common.DefaultPalette.Dimmed.Render(" between "),
 			common.DefaultPalette.ChangeId.Render(r.InsertStart.GetChangeId()),
 			common.DefaultPalette.Dimmed.Render(" and "),
@@ -158,7 +166,7 @@ func (r *Operation) Render() string {
 		common.DefaultPalette.Dimmed.Render("rebase"),
 		" ",
 		common.DefaultPalette.Dimmed.Render(source),
-		common.DefaultPalette.ChangeId.Render(r.From),
+		common.DefaultPalette.ChangeId.Render(strings.Join(r.From.GetIds(), " ")),
 		" ",
 		common.DefaultPalette.Dimmed.Render(ret),
 		" ",
@@ -170,7 +178,7 @@ func (r *Operation) Name() string {
 	return "rebase"
 }
 
-func NewOperation(context context.AppContext, from string, source Source, target Target) *Operation {
+func NewOperation(context context.AppContext, from jj.SelectedRevisions, source Source, target Target) *Operation {
 	return &Operation{
 		context: context,
 		keyMap:  context.KeyMap(),

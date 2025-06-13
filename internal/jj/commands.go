@@ -19,11 +19,9 @@ func Log(revset string) CommandArgs {
 	return args
 }
 
-func New(revisions ...string) CommandArgs {
+func New(revisions SelectedRevisions) CommandArgs {
 	args := []string{"new"}
-	for _, revision := range revisions {
-		args = append(args, "-r", revision)
-	}
+	args = append(args, revisions.AsArgs()...)
 	return args
 }
 
@@ -49,11 +47,9 @@ func Describe(revision string) CommandArgs {
 	return []string{"describe", "-r", revision, "--edit"}
 }
 
-func Abandon(revision ...string) CommandArgs {
+func Abandon(revision SelectedRevisions) CommandArgs {
 	args := []string{"abandon", "--retain-bookmarks"}
-	for _, rev := range revision {
-		args = append(args, "-r", rev)
-	}
+	args = append(args, revision.AsArgs()...)
 	return args
 }
 
@@ -114,8 +110,11 @@ func BookmarkUntrack(name string) CommandArgs {
 	return []string{"bookmark", "untrack", name}
 }
 
-func Squash(from string, destination string) CommandArgs {
-	return []string{"squash", "--from", from, "--into", destination}
+func Squash(from SelectedRevisions, destination string) CommandArgs {
+	args := []string{"squash"}
+	args = append(args, from.AsPrefixedArgs("--from")...)
+	args = append(args, "--into", destination)
+	return args
 }
 
 func BookmarkList(revset string) CommandArgs {
@@ -159,12 +158,19 @@ func Show(revision string, extraArgs ...string) CommandArgs {
 	return args
 }
 
-func Rebase(from string, to string, source string, target string) CommandArgs {
-	return []string{"rebase", source, from, target, to}
+func Rebase(from SelectedRevisions, to string, source string, target string) CommandArgs {
+	args := []string{"rebase"}
+	args = append(args, from.AsPrefixedArgs(source)...)
+	args = append(args, target, to)
+	return args
 }
 
-func RebaseInsert(from string, insertAfter string, insertBefore string) CommandArgs {
-	return []string{"rebase", "--revisions", from, "--insert-before", insertBefore, "--insert-after", insertAfter}
+func RebaseInsert(from SelectedRevisions, insertAfter string, insertBefore string) CommandArgs {
+	args := []string{"rebase"}
+	args = append(args, from.AsArgs()...)
+	args = append(args, "--insert-before", insertBefore)
+	args = append(args, "--insert-after", insertAfter)
+	return args
 }
 
 func Evolog(revision string) CommandArgs {

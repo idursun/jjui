@@ -125,7 +125,7 @@ func (m *Model) SelectedRevision() *jj.Commit {
 	return m.rows[m.cursor].Commit
 }
 
-func (m *Model) SelectedRevisions() []*jj.Commit {
+func (m *Model) SelectedRevisions() jj.SelectedRevisions {
 	var selected []*jj.Commit
 	for _, row := range m.rows {
 		if row.IsSelected {
@@ -133,9 +133,9 @@ func (m *Model) SelectedRevisions() []*jj.Commit {
 		}
 	}
 	if len(selected) == 0 {
-		return []*jj.Commit{m.SelectedRevision()}
+		return jj.NewSelectedRevisions(m.SelectedRevision())
 	}
-	return selected
+	return jj.NewSelectedRevisions(selected...)
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -256,12 +256,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.Details.Mode):
 				m.op, cmd = details.NewOperation(m.context, m.SelectedRevision())
 			case key.Matches(msg, m.keymap.New):
-				selections := m.SelectedRevisions()
-				var changeIds []string
-				for _, s := range selections {
-					changeIds = append(changeIds, s.GetChangeId())
-				}
-				cmd = m.context.RunCommand(jj.New(changeIds...), common.RefreshAndSelect("@"))
+				cmd = m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
 			case key.Matches(msg, m.keymap.Commit):
 				cmd = m.context.RunInteractiveCommand(jj.CommitWorkingCopy(), common.Refresh)
 			case key.Matches(msg, m.keymap.Edit):
@@ -295,7 +290,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				cmd = common.Refresh
 			case key.Matches(msg, m.keymap.Squash):
 				parent, _ := m.context.RunCommandImmediate(jj.GetParent(m.SelectedRevision().GetChangeId()))
-				m.op = squash.NewOperation(m.context, m.SelectedRevision().ChangeId)
+				m.op = squash.NewOperation(m.context, m.SelectedRevisions())
 				parentIdx := m.selectRevision(string(parent))
 				if parentIdx != -1 {
 					m.cursor = parentIdx
@@ -303,7 +298,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 					m.cursor++
 				}
 			case key.Matches(msg, m.keymap.Rebase.Mode):
-				m.op = rebase.NewOperation(m.context, m.SelectedRevision().ChangeId, rebase.SourceRevision, rebase.TargetDestination)
+				m.op = rebase.NewOperation(m.context, m.SelectedRevisions(), rebase.SourceRevision, rebase.TargetDestination)
 			case key.Matches(msg, m.keymap.Quit):
 				return m, tea.Quit
 			}
@@ -469,7 +464,7 @@ func (m *Model) loadStreaming(revset string, selectedRevision string) tea.Cmd {
 		if err != nil {
 			return common.UpdateRevisionsFailedMsg{
 				Err: err,
-				//TODO: change this to the actual error output
+				// TODO: change this to the actual error output
 				Output: "failed",
 			}
 		}
@@ -532,7 +527,8 @@ func (m *Model) GetCommitIds() []string {
 func New(c context.AppContext, revset string) Model {
 	v := viewRange{start: 0, end: 0, lastRowIndex: -1}
 	keymap := c.KeyMap()
-	return Model{context: c,
+	return Model{
+		context:       c,
 		keymap:        keymap,
 		revsetValue:   revset,
 		rows:          nil,
