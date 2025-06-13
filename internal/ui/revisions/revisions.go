@@ -227,7 +227,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				return m, m.requestMoreRows(m.rowsChan)
 			}
 		case key.Matches(msg, m.keymap.JumpToParent):
-			immediate, _ := m.context.RunCommandImmediate(jj.GetParent(m.SelectedRevision().GetChangeId()))
+			immediate, _ := m.context.RunCommandImmediate(jj.GetParent(m.SelectedRevisions()))
 			parentIndex := m.selectRevision(string(immediate))
 			if parentIndex != -1 {
 				m.cursor = parentIndex
@@ -289,14 +289,15 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.Refresh):
 				cmd = common.Refresh
 			case key.Matches(msg, m.keymap.Squash):
-				parent, _ := m.context.RunCommandImmediate(jj.GetParent(m.SelectedRevision().GetChangeId()))
-				m.op = squash.NewOperation(m.context, m.SelectedRevisions())
+				selectedRevisions := m.SelectedRevisions()
+				parent, _ := m.context.RunCommandImmediate(jj.GetParent(selectedRevisions))
 				parentIdx := m.selectRevision(string(parent))
 				if parentIdx != -1 {
 					m.cursor = parentIdx
 				} else if m.cursor < len(m.rows)-1 {
 					m.cursor++
 				}
+				m.op = squash.NewOperation(m.context, selectedRevisions)
 			case key.Matches(msg, m.keymap.Rebase.Mode):
 				m.op = rebase.NewOperation(m.context, m.SelectedRevisions(), rebase.SourceRevision, rebase.TargetDestination)
 			case key.Matches(msg, m.keymap.Quit):

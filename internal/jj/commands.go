@@ -3,6 +3,7 @@ package jj
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 type CommandArgs []string
@@ -201,6 +202,13 @@ func OpRestore(operationId string) CommandArgs {
 	return []string{"op", "restore", operationId}
 }
 
-func GetParent(revision string) CommandArgs {
-	return []string{"log", "-r", fmt.Sprintf("parents(%s)", revision), "-n", "1", "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", "commit_id.shortest()"}
+func GetParent(revisions SelectedRevisions) CommandArgs {
+	args := []string{"log", "-r"}
+	if len(revisions.Revisions) > 1 {
+		args = append(args, fmt.Sprintf("fork_point(%s)", strings.Join(revisions.GetIds(), "|")))
+	} else {
+		args = append(args, fmt.Sprintf("%s-", revisions.Last()))
+	}
+	args = append(args, "-n", "1", "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", "commit_id.shortest()")
+	return args
 }
