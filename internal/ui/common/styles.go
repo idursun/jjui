@@ -1,7 +1,10 @@
 package common
 
 import (
+	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/lipgloss"
+	"log"
+	"strconv"
 )
 
 var (
@@ -22,6 +25,63 @@ var (
 	BrightCyan   = lipgloss.Color("14")
 	BrightWhite  = lipgloss.Color("15")
 )
+
+type Color struct {
+	Fg        string `toml:"fg"`
+	Bg        string `toml:"bg"`
+	Bold      bool   `toml:"bold"`
+	Underline bool   `toml:"underline"`
+}
+
+func parseColor(color string) lipgloss.Color {
+	// if it's a hex color, return it directly
+	if len(color) == 7 && color[0] == '#' {
+		return lipgloss.Color(color)
+	}
+	// if it's an ANSI256 color, return it directly
+	if v, err := strconv.Atoi(color); err == nil {
+		if v >= 0 && v <= 255 {
+			return lipgloss.Color(color)
+		}
+	}
+	// otherwise, try to parse it as a named color
+	switch color {
+	case "black":
+		return "0"
+	case "red":
+		return "1"
+	case "green":
+		return "2"
+	case "yellow":
+		return "3"
+	case "blue":
+		return "4"
+	case "magenta":
+		return "5"
+	case "cyan":
+		return "6"
+	case "white":
+		return "7"
+	case "bright black":
+		return "8"
+	case "bright red":
+		return "9"
+	case "bright green":
+		return "10"
+	case "bright yellow":
+		return "11"
+	case "bright blue":
+		return "12"
+	case "bright magenta":
+		return "13"
+	case "bright cyan":
+		return "14"
+	case "bright white":
+		return "15"
+	default:
+		return ""
+	}
+}
 
 var DefaultPalette = Palette{
 	Normal:           lipgloss.NewStyle(),
@@ -59,4 +119,59 @@ type Palette struct {
 	StatusSuccess    lipgloss.Style
 	StatusError      lipgloss.Style
 	Drop             lipgloss.Style
+	jjColors         map[string]Color
+}
+
+func (p *Palette) SetColors(jjColorList string) {
+	p.jjColors = ParseColorMap(jjColorList)
+	p.ChangeId = p.Get("change_id")
+	p.Dimmed = p.Get("rest")
+	p.Renamed = p.Get("diff renamed")
+	p.Modified = p.Get("diff modified")
+	p.Added = p.Get("diff added")
+	p.Deleted = p.Get("diff removed")
+}
+
+func (p *Palette) Get(name string) lipgloss.Style {
+	if color, ok := p.jjColors[name]; ok {
+		style := lipgloss.NewStyle()
+		if color.Fg != "" {
+			style = style.Foreground(parseColor(color.Fg))
+		}
+		if color.Bg != "" {
+			style = style.Background(parseColor(color.Bg))
+		}
+		if color.Bold {
+			style = style.Bold(true)
+		}
+		if color.Underline {
+			style = style.Underline(true)
+		}
+		return style
+	}
+	return lipgloss.NewStyle()
+}
+
+func ParseColorMap(jjColorList string) map[string]Color {
+	type Palette struct {
+		Colors map[string]toml.Primitive `toml:"colors"`
+	}
+
+	var colorTable Palette
+	md, err := toml.Decode(jjColorList, &colorTable)
+	if err != nil {
+		log.Fatalf("failed to parse: %v", err)
+	}
+	colorMap := make(map[string]Color)
+	for name, prim := range colorTable.Colors {
+		var c Color
+		if err := md.PrimitiveDecode(prim, &c); err != nil {
+			var fg string
+			if err := md.PrimitiveDecode(prim, &fg); err == nil {
+				c.Fg = fg
+			}
+		}
+		colorMap[name] = c
+	}
+	return colorMap
 }
