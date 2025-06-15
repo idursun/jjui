@@ -314,6 +314,9 @@ func New(c context.AppContext, initialRevset string) tea.Model {
 		defaultRevset, _ := c.RunCommandImmediate(jj.ConfigGet("revsets.log"))
 		initialRevset = string(defaultRevset)
 	}
+	if colorList, err := c.RunCommandImmediate(jj.ConfigList("colors")); err == nil {
+		common.DefaultPalette.SetColors(string(colorList))
+	}
 	revisionsModel := revisions.New(c, initialRevset)
 	previewModel := preview.New(c)
 	statusModel := status.New(c)

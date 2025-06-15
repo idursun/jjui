@@ -12,6 +12,10 @@ func ConfigGet(key string) CommandArgs {
 	return []string{"config", "get", key}
 }
 
+func ConfigList(key string) CommandArgs {
+	return []string{"config", "list", key, "--color", "never", "--include-defaults"}
+}
+
 func Log(revset string) CommandArgs {
 	args := []string{"log", "--color", "always", "--quiet"}
 	if revset != "" {
