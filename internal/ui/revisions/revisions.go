@@ -1,8 +1,8 @@
 package revisions
 
 import (
-	"bufio"
 	"bytes"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -13,7 +13,7 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/context"
+	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/graph"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/operations/abandon"
@@ -24,8 +24,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/squash"
 	"github.com/idursun/jjui/internal/ui/revset"
 )
-
-const defaultBatchSize = 50
 
 type viewRange struct {
 	start        int
@@ -44,8 +42,7 @@ type Model struct {
 	tag              uint64
 	revisionToSelect string
 	offScreenRows    []graph.Row
-	rowsChan         <-chan graph.RowBatch
-	controlChan      chan graph.ControlMsg
+	streamer         *graph.GraphStreamer
 	hasMore          bool
 	op               operations.Operation
 	revsetValue      string
@@ -53,11 +50,12 @@ type Model struct {
 	cursor           int
 	width            int
 	height           int
-	context          context.AppContext
+	context          appContext.AppContext
 	keymap           config.KeyMappings[key.Binding]
 	output           string
 	err              error
 	quickSearch      string
+	streamingCommand *appContext.StreamingCommand
 }
 
 type updateRevisionsMsg struct {
@@ -66,7 +64,6 @@ type updateRevisionsMsg struct {
 }
 
 type startRowsStreamingMsg struct {
-	rowsChan         <-chan graph.RowBatch
 	selectedRevision string
 	tag              uint64
 }
@@ -176,8 +173,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case startRowsStreamingMsg:
 		m.offScreenRows = nil
 		m.revisionToSelect = msg.selectedRevision
-		m.rowsChan = msg.rowsChan
-		return m, m.requestMoreRows(m.rowsChan, msg.tag)
+		return m, m.requestMoreRows(msg.tag)
 	case appendRowsBatchMsg:
 		if msg.tag != m.tag {
 			return m, nil
@@ -188,11 +184,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		if m.hasMore {
 			// keep requesting rows until we reach the initial load count or the current cursor position
 			if len(m.offScreenRows) < m.cursor+1 || len(m.offScreenRows) < m.viewRange.lastRowIndex+1 {
-				return m, m.requestMoreRows(m.rowsChan, msg.tag)
+				return m, m.requestMoreRows(msg.tag)
 			}
-		} else if m.controlChan != nil {
-			close(m.controlChan)
-			m.rowsChan = nil
+		} else if m.streamer != nil {
+			m.streamer.Close()
 		}
 
 		currentSelectedRevision := m.SelectedRevision()
@@ -231,7 +226,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if m.cursor < len(m.rows)-1 {
 				m.cursor++
 			} else if m.hasMore {
-				return m, m.requestMoreRows(m.rowsChan, m.tag)
+				return m, m.requestMoreRows(m.tag)
 			}
 		case key.Matches(msg, m.keymap.JumpToParent):
 			immediate, _ := m.context.RunCommandImmediate(jj.GetParent(m.SelectedRevisions()))
@@ -324,7 +319,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 func (m *Model) updateSelection() tea.Cmd {
 	if selectedRevision := m.SelectedRevision(); selectedRevision != nil {
-		return m.context.SetSelectedItem(context.SelectedRevision{ChangeId: selectedRevision.GetChangeId()})
+		return m.context.SetSelectedItem(appContext.SelectedRevision{ChangeId: selectedRevision.GetChangeId()})
 	}
 	return nil
 }
@@ -464,32 +459,33 @@ func (m *Model) loadStreaming(revset string, selectedRevision string, tag uint64
 		return nil
 	}
 
-	if m.hasMore {
-		m.controlChan <- graph.Close
-		close(m.controlChan)
-		m.controlChan = nil
-		m.rowsChan = nil
+	if m.streamer != nil {
+		m.streamer.Close()
+		m.streamer = nil
 	}
+
 	m.hasMore = false
 	return func() tea.Msg {
-		output, err := m.context.RunCommandStreaming(jj.Log(revset))
+		streamer, err := graph.NewGraphStreamer(m.context, revset, tag)
 		if err != nil {
 			return common.UpdateRevisionsFailedMsg{
-				Err: err,
-				// TODO: change this to the actual error output
-				Output: "failed",
+				Err:    err,
+				Output: fmt.Sprintf("%v", err),
 			}
 		}
-		m.controlChan = make(chan graph.ControlMsg, 1)
-		rowsChan, _ := graph.ParseRowsStreaming(bufio.NewReader(output), m.controlChan, defaultBatchSize)
-		return startRowsStreamingMsg{rowsChan, selectedRevision, tag}
+		m.streamer = streamer
+		m.hasMore = true
+		m.offScreenRows = nil
+		return startRowsStreamingMsg{selectedRevision, tag}
 	}
 }
 
-func (m *Model) requestMoreRows(rowsChan <-chan graph.RowBatch, tag uint64) tea.Cmd {
+func (m *Model) requestMoreRows(tag uint64) tea.Cmd {
 	return func() tea.Msg {
-		m.controlChan <- graph.RequestMore
-		batch := <-rowsChan
+		if m.streamer == nil || !m.hasMore {
+			return nil
+		}
+		batch := m.streamer.RequestMore()
 		return appendRowsBatchMsg{batch.Rows, batch.HasMore, tag}
 	}
 }
@@ -536,7 +532,7 @@ func (m *Model) GetCommitIds() []string {
 	return commitIds
 }
 
-func New(c context.AppContext, revset string) Model {
+func New(c appContext.AppContext, revset string) Model {
 	v := viewRange{start: 0, end: 0, lastRowIndex: -1}
 	keymap := c.KeyMap()
 	return Model{

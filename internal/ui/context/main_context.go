@@ -2,11 +2,11 @@ package context
 
 import (
 	"bytes"
+	"context"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
-	"io"
 	"log"
 	"os/exec"
 )
@@ -85,12 +85,21 @@ func (a *MainContext) RunCommandImmediate(args []string) ([]byte, error) {
 	return bytes.Trim(output, "\n"), err
 }
 
-func (a *MainContext) RunCommandStreaming(args []string) (io.Reader, error) {
-	c := exec.Command("jj", args...)
+func (a *MainContext) RunCommandStreaming(ctx context.Context, args []string) (*StreamingCommand, error) {
+	c := exec.CommandContext(ctx, "jj", args...)
 	c.Dir = a.location
-	pipe, _ := c.StdoutPipe()
-	err := c.Start()
-	return pipe, err
+	pipe, err := c.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err = c.Start(); err != nil {
+		return nil, err
+	}
+	return &StreamingCommand{
+		ReadCloser: pipe,
+		cmd:        c,
+		ctx:        ctx,
+	}, nil
 }
 
 func (a *MainContext) RunCommand(args []string, continuations ...tea.Cmd) tea.Cmd {
