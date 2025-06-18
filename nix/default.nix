@@ -20,6 +20,7 @@
     {
       packages.default = jjui;
       packages.jjui = jjui;
+      checks.default = jjui;
 
       devShells.default = pkgs.mkShell {
         nativeBuildInputs = [
