@@ -28,7 +28,7 @@ import (
 type Model struct {
 	revisions               *revisions.Model
 	oplog                   *oplog.Model
-	revsetModel             revset.Model
+	revsetModel             *revset.Model
 	previewModel            *preview.Model
 	previewVisible          bool
 	previewWindowPercentage float64
