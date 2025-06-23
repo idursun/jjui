@@ -1,7 +1,7 @@
 package operations
 
 import (
-	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/v2/key"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/context"
 )

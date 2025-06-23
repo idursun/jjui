@@ -3,8 +3,8 @@ package bookmark
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textarea"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/v2/textarea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -18,7 +18,7 @@ type SetBookmarkOperation struct {
 }
 
 func (s SetBookmarkOperation) Init() tea.Cmd {
-	return textarea.Blink
+	return nil
 }
 
 func (s SetBookmarkOperation) View() string {

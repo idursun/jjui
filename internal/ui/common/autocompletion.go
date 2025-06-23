@@ -1,9 +1,9 @@
 package common
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/textinput"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"strings"
 )
 
@@ -58,7 +58,8 @@ func (ac *AutoCompletionInput) Init() tea.Cmd {
 
 func (ac *AutoCompletionInput) SetPrompt(prompt string) {
 	ac.TextInput.Prompt = prompt
-	ac.TextInput.PromptStyle = ac.PromptStyle
+	// FIXME: figure this out later
+	//ac.TextInput.PromptStyle = ac.PromptStyle
 }
 
 func (ac *AutoCompletionInput) SetValue(value string) {
@@ -88,12 +89,12 @@ func (ac *AutoCompletionInput) Update(msg tea.Msg) (*AutoCompletionInput, tea.Cm
 	var cmd tea.Cmd
 
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.Type {
+		switch keyMsg {
 		case tea.KeyTab:
 			ac.tabCompletionActive = true
 			ac.cycleCompletion(1)
 			return ac, cmd
-		case tea.KeyShiftTab:
+		case tea.KeyTab && keyMsg.Modifiers == tea.KeyShift:
 			ac.tabCompletionActive = true
 			ac.cycleCompletion(-1)
 			return ac, cmd

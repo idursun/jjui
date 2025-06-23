@@ -3,7 +3,7 @@ package config
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/v2/key"
 )
 
 var DefaultKeyMappings = KeyMappings[keys]{

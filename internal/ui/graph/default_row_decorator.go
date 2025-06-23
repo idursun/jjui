@@ -1,7 +1,7 @@
 package graph
 
 import (
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/common"
 
 	"github.com/idursun/jjui/internal/jj"

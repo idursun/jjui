@@ -3,13 +3,13 @@ package test
 import (
 	"bytes"
 	"context"
-	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/v2/key"
 	"github.com/idursun/jjui/internal/config"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"io"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/stretchr/testify/assert"
 )

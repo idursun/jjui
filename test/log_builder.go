@@ -3,7 +3,7 @@ package test
 import (
 	"bufio"
 	"fmt"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/muesli/termenv"
 	"strings"
 )

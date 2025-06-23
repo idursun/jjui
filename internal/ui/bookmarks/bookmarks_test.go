@@ -1,7 +1,7 @@
 package bookmarks
 
 import (
-	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/v2/list"
 	"github.com/stretchr/testify/assert"
 	"slices"
 	"testing"

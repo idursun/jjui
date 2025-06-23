@@ -1,7 +1,7 @@
 package common
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"strings"
 )
 

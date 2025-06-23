@@ -1,7 +1,7 @@
 package git
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/test"

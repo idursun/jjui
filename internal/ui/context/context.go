@@ -3,8 +3,8 @@ package context
 import (
 	"context"
 	"errors"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/v2/key"
+	"github.com/charmbracelet/bubbletea/v2"
 	"github.com/idursun/jjui/internal/config"
 	"io"
 	"log"
