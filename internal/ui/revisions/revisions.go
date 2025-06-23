@@ -3,6 +3,7 @@ package revisions
 import (
 	"bytes"
 	"fmt"
+	"github.com/idursun/jjui/internal/ui/operations/description"
 	"log"
 	"slices"
 	"strings"
@@ -146,6 +147,8 @@ func (m *Model) Init() tea.Cmd {
 	return common.RefreshAndSelect("@")
 }
 
+var editDescriptionKey = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "edit description"))
+
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case common.CloseViewMsg:
@@ -228,10 +231,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	if cmd, ok := m.updateOperation(msg); ok {
 		return m, cmd
 	}
-	//if op, ok := m.op.(operations.OperationWithOverlay); ok {
-	//	m.op, cmd = op.Update(msg)
-	//	return m, cmd
-	//}
 
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -277,6 +276,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				return m, nil
 			case key.Matches(msg, m.keymap.Details.Mode):
 				m.op, cmd = details.NewOperation(m.context, m.SelectedRevision())
+			case key.Matches(msg, editDescriptionKey):
+				m.op, cmd = description.NewOperation(m.context, m.SelectedRevision().GetChangeId())
+				return m, cmd
 			case key.Matches(msg, m.keymap.New):
 				cmd = m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
 			case key.Matches(msg, m.keymap.Commit):
