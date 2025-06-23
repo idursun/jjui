@@ -8,6 +8,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"log"
 	"strconv"
 )
 
@@ -61,12 +62,18 @@ func (o Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cmd
 			return o, common.Close
 		}
 	}
-	//newValue := o.input.Value()
-	//h := lipgloss.Height(newValue)
-	//o.input.SetHeight(h)
-
 	var cmd tea.Cmd
 	o.input, cmd = o.input.Update(msg)
+
+	newValue := o.input.Value()
+	h := lipgloss.Height(newValue)
+	if h > o.input.Height() {
+		log.Println("Setting height to", h, "for input with value:", o.input.Height())
+		o.input.MaxHeight = h + 1
+		o.input.SetHeight(h)
+		o.input.CursorDown()
+	}
+
 	return o, cmd
 }
 
