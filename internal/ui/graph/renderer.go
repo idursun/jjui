@@ -6,6 +6,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/idursun/jjui/internal/ui/operations"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/ui/common"
 )
@@ -81,6 +83,9 @@ func RenderRow(r io.Writer, row Row, renderer DefaultRowDecorator) {
 	var lastLine *GraphRowLine
 	for segmentedLine := range row.RowLinesIter(Including(Highlightable)) {
 		lastLine = segmentedLine
+		if renderer.IsHighlighted && segmentedLine.Flags&Highlightable == Highlightable && segmentedLine.Flags&Revision != Revision && renderer.Op.RenderPosition() == operations.RenderOverDescription {
+			continue
+		}
 		lw := strings.Builder{}
 		for i, segment := range segmentedLine.Segments {
 			if i == segmentedLine.ChangeIdIdx {

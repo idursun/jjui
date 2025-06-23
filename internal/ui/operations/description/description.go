@@ -3,16 +3,34 @@ package description
 import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"strconv"
 )
 
 type Operation struct {
 	context  context.AppContext
 	input    textarea.Model
 	revision string
+}
+
+func (o Operation) Width() int {
+	return o.input.Width()
+}
+
+func (o Operation) Height() int {
+	return o.input.Height()
+}
+
+func (o Operation) SetWidth(w int) {
+	o.input.SetWidth(w)
+}
+
+func (o Operation) SetHeight(h int) {
+	o.input.SetHeight(h)
 }
 
 func (o Operation) IsFocused() bool {
@@ -24,7 +42,7 @@ func (o Operation) RenderPosition() operations.RenderPosition {
 }
 
 func (o Operation) Render() string {
-	return o.View()
+	return o.View() + strconv.Itoa(o.input.Height())
 }
 
 func (o Operation) Name() string {
@@ -36,13 +54,17 @@ func (o Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cmd
 		switch keyMsg.Type {
 		case tea.KeyEscape:
 			return o, common.Close
-		case "enter":
+		case tea.KeyCtrlD:
 			if o.input.Value() != "" {
 				return o, o.context.RunCommand(jj.SetDescription(o.revision, o.input.Value()), common.Close, common.Refresh)
 			}
 			return o, common.Close
 		}
 	}
+	//newValue := o.input.Value()
+	//h := lipgloss.Height(newValue)
+	//o.input.SetHeight(h)
+
 	var cmd tea.Cmd
 	o.input, cmd = o.input.Update(msg)
 	return o, cmd
@@ -57,16 +79,18 @@ func (o Operation) View() string {
 }
 
 func NewOperation(context context.AppContext, revision string) (operations.Operation, tea.Cmd) {
+	descOutput, _ := context.RunCommandImmediate(jj.GetDescription(revision))
+	desc := string(descOutput)
+	h := lipgloss.Height(desc)
+
 	input := textarea.New()
 	input.CharLimit = 100
-	input.Prompt = "| "
-	input.SetHeight(4)
-	input.SetWidth(100)
+	input.Prompt = ""
 	input.ShowLineNumbers = false
+	input.SetValue(desc)
+	input.SetHeight(h)
+	input.SetWidth(150)
 	input.Focus()
-
-	desc, _ := context.RunCommandImmediate(jj.GetDescription(revision))
-	input.SetValue(string(desc))
 
 	return Operation{
 		context:  context,
