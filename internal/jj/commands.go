@@ -58,6 +58,14 @@ func Describe(revision string) CommandArgs {
 	return []string{"describe", "-r", revision, "--edit"}
 }
 
+func SetDescription(revision string, description string) CommandArgs {
+	return []string{"describe", "-r", revision, "-m", description}
+}
+
+func GetDescription(revision string) CommandArgs {
+	return []string{"log", "-r", revision, "--template", "description", "--no-graph", "--ignore-working-copy", "--color", "never", "--quiet"}
+}
+
 func Abandon(revision SelectedRevisions) CommandArgs {
 	args := []string{"abandon", "--retain-bookmarks"}
 	args = append(args, revision.AsArgs()...)

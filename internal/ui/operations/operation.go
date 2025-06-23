@@ -13,6 +13,7 @@ const (
 	RenderPositionBefore
 	RenderBeforeChangeId
 	RenderBeforeCommitId
+	RenderOverDescription
 )
 
 type Operation interface {
