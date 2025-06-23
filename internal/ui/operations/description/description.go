@@ -1,6 +1,8 @@
 package description
 
 import (
+	"log"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
@@ -65,7 +67,7 @@ func (o Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cmd
 		switch keyMsg.Type {
 		case tea.KeyEscape:
 			return o, common.Close
-		case "enter":
+		case tea.KeyCtrlD:
 			if o.input.Value() != "" {
 				return o, o.context.RunCommand(jj.SetDescription(o.revision, o.input.Value()), common.Close, common.Refresh)
 			}
@@ -74,6 +76,15 @@ func (o Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cmd
 	}
 	var cmd tea.Cmd
 	o.input, cmd = o.input.Update(msg)
+
+	newValue := o.input.Value()
+	h := lipgloss.Height(newValue)
+	if h >= o.input.Height() {
+		log.Println("Setting height to", h, "for input with value:", o.input.Height())
+		o.input.SetHeight(h + 1)
+		//o.input.CursorDown()
+	}
+
 	return o, cmd
 }
 
@@ -104,9 +115,6 @@ func NewOperation(context *context.MainContext, revision string) (operations.Ope
 	input.SetHeight(h + 1)
 	input.SetWidth(150)
 	input.Focus()
-
-	desc, _ := context.RunCommandImmediate(jj.GetDescription(revision))
-	input.SetValue(string(desc))
 
 	return Operation{
 		context:  context,
