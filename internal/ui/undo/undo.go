@@ -13,7 +13,7 @@ import (
 )
 
 type Model struct {
-	confirmation tea.Model
+	confirmation *confirmation.Model
 }
 
 func (m Model) Init() tea.Cmd {

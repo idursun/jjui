@@ -10,7 +10,7 @@ import (
 )
 
 type Operation struct {
-	Overlay tea.Model
+	Overlay Model
 	keyMap  config.KeyMappings[key.Binding]
 }
 

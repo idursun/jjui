@@ -51,7 +51,7 @@ func New(defaultRevSet string) *Model {
 	autoComplete := common.NewAutoCompletionInput(completionProvider)
 	autoComplete.SetPrompt("revset: ")
 	autoComplete.PromptStyle = common.DefaultPalette.ChangeId
-	autoComplete.TextInput.Cursor.Style = cursorStyle
+	//autoComplete.TextInput.Cursor.Style = cursorStyle
 	autoComplete.SelectedStyle = common.DefaultPalette.Modified.Background(common.BrightBlack).Inline(true)
 	autoComplete.UnselectedStyle = common.DefaultPalette.Dimmed
 	autoComplete.SetValue(defaultRevSet)
@@ -112,8 +112,8 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		if !m.Editing {
 			return m, nil
 		}
-		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
+		switch msg.Key().Code {
+		case tea.KeyEsc:
 			m.Editing = false
 			m.autoComplete.Blur()
 			return m, nil

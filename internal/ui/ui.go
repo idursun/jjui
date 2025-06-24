@@ -41,7 +41,7 @@ type Model struct {
 	height                  int
 	context                 context.AppContext
 	keyMap                  config.KeyMappings[key.Binding]
-	stacked                 tea.Model
+	stacked                 common.WidgetModel
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -95,7 +95,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if m.stacked != nil {
-			m.stacked, cmd = m.stacked.Update(msg)
+			var updated tea.Model
+			updated, cmd = m.stacked.Update(msg)
+			m.stacked = updated.(common.WidgetModel)
 			return m, cmd
 		}
 
@@ -192,7 +194,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	if m.stacked != nil {
-		m.stacked, cmd = m.stacked.Update(msg)
+		var updated tea.Model
+		updated, cmd = m.stacked.Update(msg)
+		m.stacked = updated.(common.WidgetModel)
 		cmds = append(cmds, cmd)
 	}
 

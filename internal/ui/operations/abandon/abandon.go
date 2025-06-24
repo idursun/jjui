@@ -13,7 +13,7 @@ import (
 )
 
 type Operation struct {
-	model   tea.Model
+	model   *confirmation.Model
 	context context.AppContext
 }
 

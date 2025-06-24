@@ -6,16 +6,15 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss/v2"
-	"github.com/idursun/jjui/internal/config"
 )
 
 func RenderRow(r io.Writer, row Row, highlighted bool, width int) {
-	highlightColor := lipgloss.AdaptiveColor{
-		Light: config.Current.UI.HighlightLight,
-		Dark:  config.Current.UI.HighlightDark,
-	}
-	highlightSeq := lipgloss.ColorProfile().FromColor(highlightColor).Sequence(true)
-
+	//highlightColor := lipgloss.AdaptiveColor{
+	//	Light: config.Current.UI.HighlightLight,
+	//	Dark:  config.Current.UI.HighlightDark,
+	//}
+	//highlightSeq := lipgloss.ColorProfile().FromColor("0").Sequence(true)
+	highlightSeq := "[48;5;236m" // dark gray background, can be changed to a different color
 	for _, rowLine := range row.Lines {
 		lw := strings.Builder{}
 		for _, segment := range rowLine.Segments {

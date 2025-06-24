@@ -176,7 +176,7 @@ func New(context context.AppContext) Model {
 	h.Styles.FullSeparator = common.DefaultPalette.Dimmed
 
 	t := textinput.New()
-	t.Width = 50
+	t.SetWidth(50)
 
 	return Model{
 		context: context,

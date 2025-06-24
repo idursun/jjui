@@ -2,6 +2,7 @@ package evolog
 
 import (
 	"bytes"
+	"github.com/charmbracelet/lipgloss/v2/compat"
 
 	"github.com/charmbracelet/bubbles/v2/key"
 	tea "github.com/charmbracelet/bubbletea/v2"
@@ -87,9 +88,9 @@ func (o Operation) Render() string {
 		return "loading"
 	}
 	h := min(o.height-5, len(o.rows)*2)
-	highlightBackground := lipgloss.AdaptiveColor{
-		Light: config.Current.UI.HighlightLight,
-		Dark:  config.Current.UI.HighlightDark,
+	highlightBackground := compat.AdaptiveColor{
+		Light: lipgloss.Color(config.Current.UI.HighlightLight),
+		Dark:  lipgloss.Color(config.Current.UI.HighlightDark),
 	}
 	var w graph.Renderer
 	selectedLineStart := -1

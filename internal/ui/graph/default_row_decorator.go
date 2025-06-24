@@ -1,7 +1,7 @@
 package graph
 
 import (
-	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/charmbracelet/lipgloss/v2/compat"
 	"github.com/idursun/jjui/internal/ui/common"
 
 	"github.com/idursun/jjui/internal/jj"
@@ -10,7 +10,7 @@ import (
 
 type DefaultRowDecorator struct {
 	Palette             common.Palette
-	HighlightBackground lipgloss.AdaptiveColor
+	HighlightBackground compat.AdaptiveColor
 	SearchText          string
 	IsHighlighted       bool
 	IsSelected          bool

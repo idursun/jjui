@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/v2/key"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/charmbracelet/lipgloss/v2/compat"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -402,9 +403,9 @@ func (m *Model) View() string {
 		m.viewRange.end = m.viewRange.start + h
 	}
 
-	highlightBackground := lipgloss.AdaptiveColor{
-		Light: config.Current.UI.HighlightLight,
-		Dark:  config.Current.UI.HighlightDark,
+	highlightBackground := compat.AdaptiveColor{
+		Light: lipgloss.Color(config.Current.UI.HighlightLight),
+		Dark:  lipgloss.Color(config.Current.UI.HighlightDark),
 	}
 
 	var w graph.Renderer

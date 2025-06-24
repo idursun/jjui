@@ -3,10 +3,10 @@ package graph
 import (
 	"bytes"
 	"fmt"
+	"github.com/charmbracelet/lipgloss/v2"
 	"io"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
@@ -73,11 +73,13 @@ func RenderRow(r io.Writer, row Row, renderer DefaultRowDecorator) {
 			fmt.Fprintln(r, line)
 		}
 	}
-	highlightColor := renderer.HighlightBackground.Light
-	if lipgloss.HasDarkBackground() {
-		highlightColor = renderer.HighlightBackground.Dark
-	}
-	highlightSeq := lipgloss.ColorProfile().Color(highlightColor).Sequence(true)
+	//highlightColor := renderer.HighlightBackground.Light
+	//if lipgloss.HasDarkBackground() {
+	//	highlightColor = renderer.HighlightBackground.Dark
+	//}
+	// FIXME: calculate highlight color sequence somehow
+	//highlightSeq := lipgloss.ColorProfile().Color("0").Sequence(true)
+	highlightSeq := "[48;5;236m" // dark gray background, can be changed to a different color
 	var lastLine *GraphRowLine
 	for segmentedLine := range row.RowLinesIter(Including(Highlightable)) {
 		lastLine = segmentedLine

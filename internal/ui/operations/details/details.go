@@ -109,14 +109,14 @@ type Model struct {
 	revision     string
 	files        list.Model
 	height       int
-	confirmation tea.Model
+	confirmation *confirmation.Model
 	context      context.AppContext
 	keyMap       config.KeyMappings[key.Binding]
 }
 
 type updateCommitStatusMsg []string
 
-func New(context context.AppContext, revision string) tea.Model {
+func New(context context.AppContext, revision string) Model {
 	keyMap := context.KeyMap()
 	l := list.New(nil, itemDelegate{}, 0, 0)
 	l.SetFilteringEnabled(false)
@@ -135,10 +135,10 @@ func New(context context.AppContext, revision string) tea.Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(m.load(m.revision), tea.WindowSize())
+	return tea.Batch(m.load(m.revision), tea.RequestWindowSize)
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.confirmation != nil {
