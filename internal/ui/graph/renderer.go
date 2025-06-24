@@ -79,7 +79,7 @@ func RenderRow(r io.Writer, row Row, renderer DefaultRowDecorator) {
 	//}
 	// FIXME: calculate highlight color sequence somehow
 	//highlightSeq := lipgloss.ColorProfile().Color("0").Sequence(true)
-	highlightSeq := "[48;5;236m" // dark gray background, can be changed to a different color
+	highlightSeq := "40" // dark gray background, can be changed to a different color
 	var lastLine *GraphRowLine
 	for segmentedLine := range row.RowLinesIter(Including(Highlightable)) {
 		lastLine = segmentedLine

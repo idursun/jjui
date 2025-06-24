@@ -89,12 +89,13 @@ func (ac *AutoCompletionInput) Update(msg tea.Msg) (*AutoCompletionInput, tea.Cm
 	var cmd tea.Cmd
 
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg {
-		case tea.KeyTab:
+		k := keyMsg.Key()
+		switch {
+		case k.Code == tea.KeyTab:
 			ac.tabCompletionActive = true
 			ac.cycleCompletion(1)
 			return ac, cmd
-		case tea.KeyTab && keyMsg.Modifiers == tea.KeyShift:
+		case k.Code == tea.KeyTab && k.Mod == tea.ModShift:
 			ac.tabCompletionActive = true
 			ac.cycleCompletion(-1)
 			return ac, cmd
