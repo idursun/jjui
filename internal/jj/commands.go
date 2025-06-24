@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"github.com/idursun/jjui/internal/config"
 )
 
 type CommandArgs []string
@@ -113,6 +114,9 @@ func BookmarkUntrack(name string) CommandArgs {
 
 func Squash(from SelectedRevisions, destination string) CommandArgs {
 	args := []string{"squash"}
+	if config.Current.Jj.SquashKeepEmptied {
+		args = append(args, "--keep-emptied")
+	}
 	args = append(args, from.AsPrefixedArgs("--from")...)
 	args = append(args, "--into", destination)
 	return args
