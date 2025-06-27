@@ -9,12 +9,14 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/revset"
 )
 
 type CustomCommand struct {
 	Name           string
 	Key            key.Binding
 	Args           []string
+	Revset         string
 	Show           config.ShowOption
 	hasChangeId    bool
 	hasFile        bool
@@ -22,7 +24,6 @@ type CustomCommand struct {
 }
 
 type InvokableCustomCommand struct {
-	args []string
 	desc string
 	Cmd  tea.Cmd
 }
@@ -46,6 +47,7 @@ func newCustomCommand(name string, definition config.CustomCommandDefinition) Cu
 		Name:           name,
 		Key:            binding,
 		Args:           definition.Args,
+		Revset:         definition.Revset,
 		Show:           definition.Show,
 		hasChangeId:    hasChangeId,
 		hasFile:        hasFile,
@@ -84,10 +86,15 @@ func (cc InvokableCustomCommand) Invoke(ctx context.CommandRunner) tea.Cmd {
 				return common.ShowDiffMsg(output)
 			},
 		}
-	case config.ShowOptionInteractive:
+	case cc.Show == config.ShowOptionInteractive:
 		return InvokableCustomCommand{
 			desc: fmt.Sprintf("jj %s", strings.Join(args, " ")),
 			Cmd:  ctx.RunInteractiveCommand(jj.Args(args...), common.Refresh),
+		}
+	case cc.Revset != "":
+		return InvokableCustomCommand{
+			desc: fmt.Sprintf("set revset to: %s", cc.Revset),
+			Cmd:  revset.UpdateRevSet(cc.Revset),
 		}
 	default:
 		return InvokableCustomCommand{

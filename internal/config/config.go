@@ -94,9 +94,10 @@ const (
 )
 
 type CustomCommandDefinition struct {
-	Key  []string   `toml:"key"`
-	Args []string   `toml:"args"`
-	Show ShowOption `toml:"show"`
+	Key    []string   `toml:"key"`
+	Args   []string   `toml:"args"`
+	Revset string     `toml:"revset"`
+	Show   ShowOption `toml:"show"`
 }
 
 func (s *ShowOption) UnmarshalText(text []byte) error {
@@ -107,7 +108,7 @@ func (s *ShowOption) UnmarshalText(text []byte) error {
 		*s = ShowOption(val)
 		return nil
 	default:
-		return fmt.Errorf("invalid value for 'show': %q. Allowed: none, interactive, and diff", val)
+		return fmt.Errorf("invalid value for 'show': %q. Allowed: none, interactive and diff", val)
 	}
 }
 
