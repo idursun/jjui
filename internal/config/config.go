@@ -29,6 +29,9 @@ var Current = &Config{
 	},
 	CustomCommands:                 map[string]CustomCommandDefinition{},
 	ExperimentalLogBatchingEnabled: false,
+	Jj: JjConfig{
+		SquashKeepEmptied: false,
+	},
 }
 
 type Config struct {
@@ -38,6 +41,12 @@ type Config struct {
 	OpLog                          OpLogConfig                        `toml:"oplog"`
 	CustomCommands                 map[string]CustomCommandDefinition `toml:"custom_commands"`
 	ExperimentalLogBatchingEnabled bool                               `toml:"experimental_log_batching_enabled"`
+	Jj                             JjConfig                           `toml:"jj"`
+}
+
+// JjConfig holds flags that tweak how underlying 'jj' commands are invoked.
+type JjConfig struct {
+	SquashKeepEmptied bool `toml:"squash_keep_emptied"`
 }
 
 type UIConfig struct {
