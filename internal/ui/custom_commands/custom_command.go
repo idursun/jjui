@@ -7,6 +7,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/revset"
 	"strings"
 )
 
@@ -94,6 +95,8 @@ func (cc InvokableCustomCommand) Invoke(ctx context.AppContext) tea.Cmd {
 		}
 	case config.ShowOptionInteractive:
 		return ctx.RunInteractiveCommand(jj.Args(cc.args...), common.Refresh)
+	case config.ShowOptionRevset:
+		return revset.UpdateRevSet(strings.Join(cc.args, " "))
 	}
 	return nil
 }

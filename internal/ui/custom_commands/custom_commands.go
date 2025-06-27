@@ -102,7 +102,13 @@ func NewModel(ctx context.AppContext, width int, height int) *Model {
 
 	for command := range GetCommandManager().IterApplicable(ctx) {
 		invokableCmd := command.Prepare(ctx)
-		items = append(items, item{name: command.Name, desc: "jj " + strings.Join(invokableCmd.args, " "), command: invokableCmd})
+		desc := ""
+		if invokableCmd.show == config.ShowOptionRevset {
+			desc = "set revset to " + strings.Join(invokableCmd.args, " ")
+		} else {
+			desc = "jj " + strings.Join(invokableCmd.args, " ")
+		}
+		items = append(items, item{name: command.Name, desc: desc, command: invokableCmd})
 	}
 	keyMap := ctx.KeyMap()
 	delegate := list.NewDefaultDelegate()
