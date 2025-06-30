@@ -7,11 +7,15 @@
   };
 
   perSystem =
-    { pkgs, ... }:
+    { pkgs, lib, ... }:
     let
-      jjui = pkgs.buildGoModule rec {
+      self = inputs.self;
+      version = if (self ? rev) then self.rev else "dirty-${self.dirtyRev}";
+      jjui = pkgs.buildGoModule {
         name = "jjui";
-        src = ./..;
+        src = lib.cleanSource ./..;
+
+        ldflags = [ "-X main.Version=${version}" ];
         vendorHash = builtins.readFile ./vendor-hash;
         meta.mainProgram = "jjui";
       };
