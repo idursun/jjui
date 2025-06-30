@@ -97,7 +97,6 @@ yay -S jjui-bin
 ```
 
 ### Nix (maintained by [@Adda0](https://github.com/Adda0))
-Maintainer: @Adda0
 
 You can install `jjui` using nix from the unstable channel.
 
