@@ -10,7 +10,13 @@
     { pkgs, lib, ... }:
     let
       self = inputs.self;
-      version = if (self ? rev) then self.rev else "dirty-${self.dirtyRev}";
+      version =
+        if (self ? rev) then
+          self.rev
+        else if (self ? dirtyRev) then
+          "dirty-${self.dirtyRev}"
+        else
+          "(devel)";
       jjui = pkgs.buildGoModule {
         name = "jjui";
         src = lib.cleanSource ./..;
