@@ -1,13 +1,14 @@
 package customcommands
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"strings"
 )
 
 type CustomCommand struct {
@@ -22,7 +23,8 @@ type CustomCommand struct {
 
 type InvokableCustomCommand struct {
 	args []string
-	show config.ShowOption
+	desc string
+	Cmd  tea.Cmd
 }
 
 func newCustomCommand(name string, definition config.CustomCommandDefinition) CustomCommand {
@@ -75,14 +77,24 @@ func (cc InvokableCustomCommand) Invoke(ctx context.CommandRunner) tea.Cmd {
 	case "":
 		return ctx.RunCommand(jj.Args(cc.args...), common.Refresh)
 	case config.ShowOptionDiff:
-		output, _ := ctx.RunCommandImmediate(jj.Args(cc.args...))
-		return func() tea.Msg {
-			return common.ShowDiffMsg(output)
+		return InvokableCustomCommand{
+			desc: fmt.Sprintf("jj %s", strings.Join(args, " ")),
+			Cmd: func() tea.Msg {
+				output, _ := ctx.RunCommandImmediate(jj.Args(args...))
+				return common.ShowDiffMsg(output)
+			},
 		}
 	case config.ShowOptionInteractive:
-		return ctx.RunInteractiveCommand(jj.Args(cc.args...), common.Refresh)
+		return InvokableCustomCommand{
+			desc: fmt.Sprintf("jj %s", strings.Join(args, " ")),
+			Cmd:  ctx.RunInteractiveCommand(jj.Args(args...), common.Refresh),
+		}
+	default:
+		return InvokableCustomCommand{
+			desc: fmt.Sprintf("jj %s", strings.Join(args, " ")),
+			Cmd:  ctx.RunCommand(jj.Args(args...), common.Refresh),
+		}
 	}
-	return nil
 }
 
 func (cc CustomCommand) applicableTo(selectedItem context.SelectedItem) bool {

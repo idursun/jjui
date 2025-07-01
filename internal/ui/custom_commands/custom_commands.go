@@ -9,7 +9,6 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"strings"
 )
 
 type item struct {
@@ -73,7 +72,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keymap.Apply):
 			if item, ok := m.list.SelectedItem().(item); ok {
-				return m, tea.Batch(item.command.Invoke(m.context), common.Close)
+				return m, tea.Batch(item.command.Cmd, common.Close)
 			}
 		case key.Matches(msg, m.keymap.Cancel):
 			if m.list.IsFiltered() {
@@ -102,7 +101,7 @@ func NewModel(ctx *context.MainContext, width int, height int) *Model {
 
 	for command := range GetCommandManager().IterApplicable(ctx) {
 		invokableCmd := command.Prepare(ctx)
-		items = append(items, item{name: command.Name, desc: "jj " + strings.Join(invokableCmd.args, " "), command: invokableCmd})
+		items = append(items, item{name: command.Name, desc: invokableCmd.desc, command: invokableCmd})
 	}
 	keyMap := config.Current.GetKeyMap()
 	delegate := list.NewDefaultDelegate()

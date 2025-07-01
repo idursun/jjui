@@ -144,7 +144,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			if matched := customcommands.Matches(msg); matched != nil {
 				command := *matched
-				cmd = command.Prepare(m.context).Invoke(m.context)
+				cmd = command.Prepare(m.context).Cmd
 				return m, cmd
 			}
 		}
