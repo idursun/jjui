@@ -60,6 +60,7 @@ type Model struct {
 	quickSearch       string
 	selectedRevisions map[string]bool
 	previousOpLogId   string
+	isLoading         bool
 }
 
 type updateRevisionsMsg struct {
@@ -176,6 +177,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		if !msg.KeepSelections {
 			m.selectedRevisions = make(map[string]bool)
 		}
+		m.isLoading = true
 		cmd, _ := m.updateOperation(msg)
 		if config.Current.ExperimentalLogBatchingEnabled {
 			m.tag += 1
@@ -184,8 +186,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			return m, tea.Batch(m.load(m.revsetValue, msg.SelectedRevision), cmd)
 		}
 	case updateRevisionsMsg:
+		m.isLoading = false
 		m.updateGraphRows(msg.rows, msg.selectedRevision)
-		return m, tea.Batch(m.highlightChanges, m.updateSelection())
+		return m, tea.Batch(m.highlightChanges, m.updateSelection(), func() tea.Msg {
+			return common.UpdateRevisionsSuccessMsg{}
+		})
 	case startRowsStreamingMsg:
 		m.offScreenRows = nil
 		m.revisionToSelect = msg.selectedRevision
@@ -207,6 +212,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.streamer.Close()
 		}
 
+		m.isLoading = false
 		currentSelectedRevision := m.SelectedRevision()
 		m.rows = m.offScreenRows
 		if m.revisionToSelect != "" {
@@ -222,7 +228,13 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.cursor = 0
 		}
 
-		return m, tea.Batch(m.highlightChanges, m.updateSelection())
+		cmds := []tea.Cmd{m.highlightChanges, m.updateSelection()}
+		if !m.hasMore {
+			cmds = append(cmds, func() tea.Msg {
+				return common.UpdateRevisionsSuccessMsg{}
+			})
+		}
+		return m, tea.Batch(cmds...)
 	}
 
 	if cmd, ok := m.updateOperation(msg); ok {
@@ -372,7 +384,7 @@ func (m *Model) highlightChanges() tea.Msg {
 
 func (m *Model) updateGraphRows(rows []graph.Row, selectedRevision string) {
 	if rows == nil {
-		return
+		rows = []graph.Row{}
 	}
 
 	currentSelectedRevision := selectedRevision
@@ -381,11 +393,15 @@ func (m *Model) updateGraphRows(rows []graph.Row, selectedRevision string) {
 	}
 	m.rows = rows
 
-	m.cursor = m.selectRevision(currentSelectedRevision)
-	if m.cursor == -1 {
-		m.cursor = m.selectRevision("@")
-	}
-	if m.cursor == -1 {
+	if len(m.rows) > 0 {
+		m.cursor = m.selectRevision(currentSelectedRevision)
+		if m.cursor == -1 {
+			m.cursor = m.selectRevision("@")
+		}
+		if m.cursor == -1 {
+			m.cursor = 0
+		}
+	} else {
 		m.cursor = 0
 	}
 	m.viewRange.reset()
@@ -393,7 +409,10 @@ func (m *Model) updateGraphRows(rows []graph.Row, selectedRevision string) {
 
 func (m *Model) View() string {
 	if len(m.rows) == 0 {
-		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, "loading")
+		if m.isLoading {
+			return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, "loading")
+		}
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, "(no matching revisions)")
 	}
 
 	h := m.height

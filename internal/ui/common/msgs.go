@@ -18,6 +18,7 @@ type (
 		Output string
 		Err    error
 	}
+	UpdateRevisionsSuccessMsg struct{}
 	UpdateBookmarksMsg struct {
 		Bookmarks []string
 		Revision  string

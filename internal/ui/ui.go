@@ -168,6 +168,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = common.Error
 		m.output = msg.Output
 		m.error = msg.Err
+	case common.UpdateRevisionsSuccessMsg:
+		m.state = common.Ready
 	case triggerAutoRefreshMsg:
 		return m, tea.Batch(m.scheduleAutoRefresh(), func() tea.Msg {
 			return common.AutoRefreshMsg{}
