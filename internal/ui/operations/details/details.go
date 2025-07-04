@@ -185,11 +185,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.confirmation = &model
 			return m, m.confirmation.Init()
 		case key.Matches(msg, m.keyMap.Details.ToggleSelect):
-			if item, ok := m.files.SelectedItem().(item); ok {
-				item.selected = !item.selected
+			if oldItem, ok := m.files.SelectedItem().(item); ok {
+				oldItem.selected = !oldItem.selected
 				oldIndex := m.files.Index()
 				m.files.CursorDown()
-				return m, m.files.SetItem(oldIndex, item)
+
+				curItem := m.files.SelectedItem().(item)
+				return m, tea.Batch(m.files.SetItem(oldIndex, oldItem), m.context.SetSelectedItem(context.SelectedFile{ChangeId: m.revision, File: curItem.fileName}))
 			}
 			return m, nil
 		case key.Matches(msg, m.keyMap.Details.RevisionsChangingFile):
