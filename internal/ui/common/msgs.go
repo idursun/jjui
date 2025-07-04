@@ -19,7 +19,7 @@ type (
 		Err    error
 	}
 	UpdateRevisionsSuccessMsg struct{}
-	UpdateBookmarksMsg struct {
+	UpdateBookmarksMsg        struct {
 		Bookmarks []string
 		Revision  string
 	}
