@@ -20,9 +20,15 @@ func (v *viewRange) reset() {
 	v.lastRowIndex = -1
 }
 
+type rowMetadata struct {
+	index     int
+	startLine int
+}
+
 type Renderer struct {
 	buffer           bytes.Buffer
 	viewRange        *viewRange
+	rowMetadatas     []rowMetadata
 	skippedLineCount int
 	lineCount        int
 	Width            int
@@ -91,8 +97,21 @@ func (r *Renderer) String(start, end int) string {
 	return strings.Join(lines[start:end], "\n")
 }
 
+func (r *Renderer) FindRowIndexAtLine(line int) int {
+	if line < 0 || line >= r.LineCount() {
+		return -1
+	}
+	for i, metadata := range r.rowMetadatas {
+		if metadata.startLine <= line && (i == len(r.rowMetadatas)-1 || r.rowMetadatas[i+1].startLine > line) {
+			return metadata.index
+		}
+	}
+	return -1
+}
+
 func (r *Renderer) Reset() {
 	r.buffer.Reset()
+	r.rowMetadatas = make([]rowMetadata, 0)
 	r.lineCount = 0
 	r.skippedLineCount = 0
 }
@@ -124,6 +143,8 @@ func (r *Renderer) Render(iterator RowIterator) string {
 				continue
 			}
 		}
+		currentLine := r.LineCount()
+		r.rowMetadatas = append(r.rowMetadatas, rowMetadata{index: i, startLine: currentLine})
 		iterator.Render(r)
 
 		if iterator.IsHighlighted() {

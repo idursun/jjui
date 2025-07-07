@@ -161,6 +161,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+	case tea.MouseMsg:
+		if msg.Action == tea.MouseActionPress {
+			if msg.Y == 0 {
+				m.revsetModel, cmd = m.revsetModel.Update(revset.EditRevSetMsg{Clear: m.state != common.Error})
+				return m, cmd
+			}
+		}
 	case common.ToggleHelpMsg:
 		if m.stacked == nil {
 			m.stacked = helppage.New(m.context)

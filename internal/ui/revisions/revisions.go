@@ -137,6 +137,18 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.MouseMsg:
+		if msg.Action == tea.MouseActionPress {
+			if cmd, handled := m.updateOperation(msg); !handled {
+				cursor := m.w.FindRowIndexAtLine(msg.Y - 1)
+				if cursor >= 0 {
+					m.cursor = cursor
+				}
+				return m, m.updateSelection()
+			} else {
+				return m, cmd
+			}
+		}
 	case common.CloseViewMsg:
 		m.op = operations.NewDefault()
 		return m, m.updateSelection()

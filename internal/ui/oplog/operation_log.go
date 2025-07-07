@@ -60,6 +60,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case updateOpLogMsg:
 		m.rows = msg.Rows
 		m.w.Reset()
+	case tea.MouseMsg:
+		if msg.Action == tea.MouseActionPress {
+			m.cursor = m.w.FindRowIndexAtLine(msg.Y - 1)
+			return m, m.updateSelection()
+		}
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keymap.Cancel):
