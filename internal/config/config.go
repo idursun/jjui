@@ -2,13 +2,14 @@ package config
 
 import (
 	"fmt"
-	"github.com/idursun/jjui/internal/jj"
 	"log"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
+
+	"github.com/idursun/jjui/internal/jj"
 )
 
 var Current = &Config{
@@ -57,10 +58,12 @@ type colors struct {
 }
 
 type UIConfig struct {
-	HighlightLight      string `toml:"highlight_light"`
-	HighlightDark       string `toml:"highlight_dark"`
-	Colors              colors `toml:"colors"`
-	AutoRefreshInterval int    `toml:"auto_refresh_interval"`
+	HighlightLight string `toml:"highlight_light"`
+	HighlightDark  string `toml:"highlight_dark"`
+	Colors         colors `toml:"colors"`
+	// TODO(ilyagr): It might make sense to rename this to `auto_refresh_period` to match `--period` option
+	// once we have a mechanism to deprecate the old name softly.
+	AutoRefreshInterval int `toml:"auto_refresh_interval"`
 }
 
 type PreviewConfig struct {

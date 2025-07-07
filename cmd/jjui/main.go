@@ -33,6 +33,7 @@ func getVersion() string {
 
 var (
 	revset     string
+	period     int
 	version    bool
 	editConfig bool
 	help       bool
@@ -41,6 +42,8 @@ var (
 func init() {
 	flag.StringVar(&revset, "revset", "", "Set default revset")
 	flag.StringVar(&revset, "r", "", "Set default revset (same as --revset)")
+	flag.IntVar(&period, "period", -1, "Override auto-refresh interval (seconds, set to 0 to disable)")
+	flag.IntVar(&period, "p", -1, "Override auto-refresh interval (alias for --period)")
 	flag.BoolVar(&version, "version", false, "Show version information")
 	flag.BoolVar(&editConfig, "config", false, "Open configuration file in $EDITOR")
 	flag.BoolVar(&help, "help", false, "Show help information")
@@ -118,6 +121,10 @@ func main() {
 	} else {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
+	}
+
+	if period >= 0 {
+		config.Current.UI.AutoRefreshInterval = period
 	}
 
 	p := tea.NewProgram(ui.New(appContext, revset), tea.WithAltScreen())
