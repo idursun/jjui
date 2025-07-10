@@ -80,12 +80,20 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 		if row.Previous != nil {
 			extended = row.Previous.Last(parser.Highlightable).Extend(row.Indent)
 		}
-		s.writeSection(r, extended, before)
+		s.writeSection(r, extended, row.Indent, false, before)
 	}
 	var lastLine *parser.GraphRowLine
 	for segmentedLine := range row.RowLinesIter(parser.Including(parser.Highlightable)) {
 		lastLine = segmentedLine
 		lw := strings.Builder{}
+		if segmentedLine.Flags&parser.Revision != parser.Revision && s.isHighlighted {
+			if decoration := s.Op.Render(row.Commit, operations.RenderOverDescription); decoration != "" {
+				extended := segmentedLine.Chop(row.Indent)
+				s.writeSection(r, extended, row.Indent, true, decoration)
+				continue
+			}
+		}
+		// if it is a revision line
 		for i, segment := range segmentedLine.Segments {
 			if i == segmentedLine.ChangeIdIdx {
 				if decoration := s.RenderBeforeChangeId(row.Commit); decoration != "" {
@@ -134,7 +142,7 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 
 	afterSection := s.RenderAfter(row.Commit)
 	if afterSection != "" && lastLine != nil {
-		s.writeSection(r, lastLine.Extend(row.Indent), afterSection)
+		s.writeSection(r, lastLine.Extend(row.Indent), row.Indent, false, afterSection)
 	}
 
 	for segmentedLine := range row.RowLinesIter(parser.Excluding(parser.Highlightable)) {
@@ -145,13 +153,29 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 	}
 }
 
-func (s *DefaultRowIterator) writeSection(r io.Writer, extended parser.GraphRowLine, section string) {
+func (s *DefaultRowIterator) writeSection(r io.Writer, extended parser.GraphRowLine, indent int, highlight bool, section string) {
 	lines := strings.Split(section, "\n")
-	for _, line := range lines {
+	for _, sectionLine := range lines {
+		lw := strings.Builder{}
 		for _, segment := range extended.Segments {
-			fmt.Fprint(r, segment.String())
+			if s.isHighlighted && highlight {
+				segment = segment.WithBackground(s.highlightSeq)
+			}
+			fmt.Fprint(&lw, segment.String())
 		}
-		fmt.Fprintln(r, line)
+
+		fmt.Fprint(&lw, sectionLine)
+		line := lw.String()
+		fmt.Fprint(r, line)
+		if s.isHighlighted && highlight {
+			lineWidth := lipgloss.Width(line)
+			gap := s.Width - lineWidth
+			if gap > 0 {
+				fmt.Fprintf(r, "\033[%sm%s\033[0m", s.highlightSeq, strings.Repeat(" ", gap))
+			}
+		}
+		fmt.Fprintln(r)
+		extended = extended.Extend(indent)
 	}
 }
 

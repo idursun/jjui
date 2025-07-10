@@ -38,8 +38,38 @@ func NewGraphRowLine(segments []*screen.Segment) GraphRowLine {
 	}
 }
 
+func (gr *GraphRowLine) Chop(indent int) GraphRowLine {
+	ret := NewGraphRowLine(make([]*screen.Segment, 0))
+	for _, s := range gr.Segments {
+		extended := screen.Segment{
+			Params: s.Params,
+		}
+		text := ""
+		for _, p := range s.Text {
+			indent--
+			text += string(p)
+			if indent <= 0 {
+				break
+			}
+		}
+		extended.Text = text
+		ret.Segments = append(ret.Segments, &extended)
+		if indent <= 0 {
+			break
+		}
+	}
+	for indent > 0 {
+		ret.Segments[len(ret.Segments)-1].Text += " "
+		indent--
+	}
+	return ret
+}
+
 func (gr *GraphRowLine) Extend(indent int) GraphRowLine {
 	ret := NewGraphRowLine(make([]*screen.Segment, 0))
+	if len(gr.Segments) == 0 {
+		return ret
+	}
 	for _, s := range gr.Segments {
 		extended := screen.Segment{
 			Params: s.Params,
