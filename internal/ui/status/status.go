@@ -137,7 +137,7 @@ func (m *Model) View() string {
 	} else {
 		commandStatusMark = m.help.View(m.keyMap)
 	}
-	ret := common.DefaultPalette.Normal.Render(m.command)
+	ret := common.DefaultPalette.Normal.Render(strings.ReplaceAll(m.command, "\n", "⏎"))
 	if m.editing {
 		commandStatusMark = ""
 		ret = m.input.View()
