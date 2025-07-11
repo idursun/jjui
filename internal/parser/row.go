@@ -38,68 +38,58 @@ func NewGraphRowLine(segments []*screen.Segment) GraphRowLine {
 	}
 }
 
-func (gr *GraphRowLine) Chop(indent int) GraphRowLine {
-	ret := NewGraphRowLine(make([]*screen.Segment, 0))
-	for _, s := range gr.Segments {
-		extended := screen.Segment{
-			Params: s.Params,
-		}
-		text := ""
-		for _, p := range s.Text {
-			indent--
-			text += string(p)
-			if indent <= 0 {
-				break
-			}
-		}
-		extended.Text = text
-		ret.Segments = append(ret.Segments, &extended)
-		if indent <= 0 {
-			break
-		}
-	}
-	for indent > 0 {
-		ret.Segments[len(ret.Segments)-1].Text += " "
-		indent--
-	}
-	return ret
-}
+type runeTransformer func(r rune) rune
 
-func (gr *GraphRowLine) Extend(indent int) GraphRowLine {
+func (gr *GraphRowLine) transform(indent int, transformer runeTransformer) GraphRowLine {
 	ret := NewGraphRowLine(make([]*screen.Segment, 0))
 	if len(gr.Segments) == 0 {
 		return ret
 	}
+
 	for _, s := range gr.Segments {
 		extended := screen.Segment{
 			Params: s.Params,
 		}
-		text := ""
+		var textBuilder strings.Builder
 		for _, p := range s.Text {
-			if p == '│' || p == '╭' || p == '├' || p == '┐' || p == '┤' || p == '┌' || p == '╮' || p == '┬' || p == '┼' { // curved, square style
-				p = '│'
-			} else if p == '|' { //ascii style
-				p = '|'
-			} else {
-				p = ' '
-			}
-			indent--
-			text += string(p)
 			if indent <= 0 {
 				break
 			}
+			textBuilder.WriteRune(transformer(p))
+			indent--
 		}
-		extended.Text = text
+		extended.Text = textBuilder.String()
 		ret.Segments = append(ret.Segments, &extended)
 		if indent <= 0 {
 			break
 		}
 	}
-	for indent > 0 {
-		ret.Segments[len(ret.Segments)-1].Text += " "
-		indent--
+
+	// Pad with spaces if indent is not fully consumed
+	if indent > 0 && len(ret.Segments) > 0 {
+		lastSegment := ret.Segments[len(ret.Segments)-1]
+		lastSegment.Text += strings.Repeat(" ", indent)
 	}
+
 	return ret
+}
+
+func (gr *GraphRowLine) Chop(indent int) GraphRowLine {
+	return gr.transform(indent, func(r rune) rune { return r })
+}
+
+func (gr *GraphRowLine) Extend(indent int) GraphRowLine {
+	transformer := func(p rune) rune {
+		switch p {
+		case '│', '╭', '├', '┐', '┤', '┌', '╮', '┬', '┼': // curved, square style
+			return '│'
+		case '|': // ascii style
+			return '|'
+		default:
+			return ' '
+		}
+	}
+	return gr.transform(indent, transformer)
 }
 
 func (gr *GraphRowLine) ContainsRune(r rune, indent int) bool {
@@ -127,9 +117,7 @@ func isChangeIdLike(s string) bool {
 
 func isHexLike(s string) bool {
 	for _, r := range s {
-		// Convert the rune to lowercase for case-insensitive comparison
-		lowerChar := unicode.ToLower(r)
-		if !(lowerChar >= 'a' && lowerChar <= 'f') && !(lowerChar >= '0' && lowerChar <= '9') {
+		if !unicode.Is(unicode.Hex_Digit, r) {
 			return false
 		}
 	}
