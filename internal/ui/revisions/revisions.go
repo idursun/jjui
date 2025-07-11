@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/idursun/jjui/internal/parser"
-	"github.com/idursun/jjui/internal/ui/operations/description"
+	"github.com/idursun/jjui/internal/ui/operations/describe"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -276,7 +276,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.Details.Mode):
 				m.op, cmd = details.NewOperation(m.context, m.SelectedRevision())
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
-				m.op, cmd = description.NewOperation(m.context, m.SelectedRevision().GetChangeId())
+				m.op, cmd = describe.NewOperation(m.context, m.SelectedRevision().GetChangeId())
 				return m, cmd
 			case key.Matches(msg, m.keymap.New):
 				cmd = m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))

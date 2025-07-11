@@ -1,4 +1,4 @@
-package description
+package describe
 
 import (
 	"github.com/charmbracelet/bubbles/key"
