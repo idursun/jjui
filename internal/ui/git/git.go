@@ -183,6 +183,17 @@ func NewModel(c *context.MainContext, commit *jj.Commit, width int, height int) 
 	items = append(items,
 		item{name: "git push", desc: "Push tracking bookmarks in the current revset", command: jj.GitPush()},
 		item{name: "git push --all", desc: "Push all bookmarks (including new and deleted bookmarks)", command: jj.GitPush("--all")},
+	)
+	if commit != nil {
+		items = append(items,
+			item{
+				name:    fmt.Sprintf("git push --change %s", commit.GetChangeId()),
+				desc:    fmt.Sprintf("Push the current change (%s)", commit.GetChangeId()),
+				command: jj.GitPush("--change", commit.GetChangeId()),
+			},
+		)
+	}
+	items = append(items,
 		item{name: "git push --deleted", desc: "Push all deleted bookmarks", command: jj.GitPush("--deleted")},
 		item{name: "git push --tracked", desc: "Push all tracked bookmarks (including deleted bookmarks)", command: jj.GitPush("--tracked")},
 		item{name: "git push --allow-new", desc: "Allow pushing new bookmarks", command: jj.GitPush("--allow-new")},
