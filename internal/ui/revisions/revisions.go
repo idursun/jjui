@@ -137,8 +137,6 @@ func (m *Model) Init() tea.Cmd {
 	return common.RefreshAndSelect("@")
 }
 
-var editDescriptionKey = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "edit description"))
-
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case common.CloseViewMsg:
@@ -277,7 +275,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				return m, nil
 			case key.Matches(msg, m.keymap.Details.Mode):
 				m.op, cmd = details.NewOperation(m.context, m.SelectedRevision())
-			case key.Matches(msg, editDescriptionKey):
+			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
 				m.op, cmd = description.NewOperation(m.context, m.SelectedRevision().GetChangeId())
 				return m, cmd
 			case key.Matches(msg, m.keymap.New):

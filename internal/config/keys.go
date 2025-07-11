@@ -85,6 +85,10 @@ var DefaultKeyMappings = KeyMappings[keys]{
 		Mode:    []string{"o"},
 		Restore: []string{"r"},
 	},
+	InlineDescribe: inlineDescribeModeKeys[keys]{
+		Mode:   []string{"enter"},
+		Accept: []string{"alt+enter", "ctrl+s"},
+	},
 }
 
 func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
@@ -167,6 +171,10 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Mode:    key.NewBinding(key.WithKeys(m.OpLog.Mode...), key.WithHelp(JoinKeys(m.OpLog.Mode), "oplog")),
 			Restore: key.NewBinding(key.WithKeys(m.OpLog.Restore...), key.WithHelp(JoinKeys(m.OpLog.Restore), "restore")),
 		},
+		InlineDescribe: inlineDescribeModeKeys[key.Binding]{
+			Mode:   key.NewBinding(key.WithKeys(m.InlineDescribe.Mode...), key.WithHelp(JoinKeys(m.InlineDescribe.Mode), "inline describe")),
+			Accept: key.NewBinding(key.WithKeys(m.InlineDescribe.Accept...), key.WithHelp(JoinKeys(m.InlineDescribe.Accept), "accept")),
+		},
 	}
 }
 
@@ -194,39 +202,40 @@ func JoinKeys(keys []string) string {
 type keys []string
 
 type KeyMappings[T any] struct {
-	Up                T                   `toml:"up"`
-	Down              T                   `toml:"down"`
-	JumpToParent      T                   `toml:"jump_to_parent"`
-	JumpToWorkingCopy T                   `toml:"jump_to_working_copy"`
-	Apply             T                   `toml:"apply"`
-	Cancel            T                   `toml:"cancel"`
-	ToggleSelect      T                   `toml:"toggle_select"`
-	New               T                   `toml:"new"`
-	Commit            T                   `toml:"commit"`
-	Refresh           T                   `toml:"refresh"`
-	Abandon           T                   `toml:"abandon"`
-	Diff              T                   `toml:"diff"`
-	Quit              T                   `toml:"quit"`
-	Help              T                   `toml:"help"`
-	Describe          T                   `toml:"describe"`
-	Edit              T                   `toml:"edit"`
-	Diffedit          T                   `toml:"diffedit"`
-	Absorb            T                   `toml:"absorb"`
-	Split             T                   `toml:"split"`
-	Undo              T                   `toml:"undo"`
-	Evolog            T                   `toml:"evolog"`
-	Revset            T                   `toml:"revset"`
-	QuickSearch       T                   `toml:"quick_search"`
-	QuickSearchCycle  T                   `toml:"quick_search_cycle"`
-	CustomCommands    T                   `toml:"custom_commands"`
-	Suspend           T                   `toml:"suspend"`
-	Rebase            rebaseModeKeys[T]   `toml:"rebase"`
-	Squash            squashModeKeys[T]   `toml:"squash"`
-	Details           detailsModeKeys[T]  `toml:"details"`
-	Preview           previewModeKeys[T]  `toml:"preview"`
-	Bookmark          bookmarkModeKeys[T] `toml:"bookmark"`
-	Git               gitModeKeys[T]      `toml:"git"`
-	OpLog             opLogModeKeys[T]    `toml:"oplog"`
+	Up                T                         `toml:"up"`
+	Down              T                         `toml:"down"`
+	JumpToParent      T                         `toml:"jump_to_parent"`
+	JumpToWorkingCopy T                         `toml:"jump_to_working_copy"`
+	Apply             T                         `toml:"apply"`
+	Cancel            T                         `toml:"cancel"`
+	ToggleSelect      T                         `toml:"toggle_select"`
+	New               T                         `toml:"new"`
+	Commit            T                         `toml:"commit"`
+	Refresh           T                         `toml:"refresh"`
+	Abandon           T                         `toml:"abandon"`
+	Diff              T                         `toml:"diff"`
+	Quit              T                         `toml:"quit"`
+	Help              T                         `toml:"help"`
+	Describe          T                         `toml:"describe"`
+	Edit              T                         `toml:"edit"`
+	Diffedit          T                         `toml:"diffedit"`
+	Absorb            T                         `toml:"absorb"`
+	Split             T                         `toml:"split"`
+	Undo              T                         `toml:"undo"`
+	Evolog            T                         `toml:"evolog"`
+	Revset            T                         `toml:"revset"`
+	QuickSearch       T                         `toml:"quick_search"`
+	QuickSearchCycle  T                         `toml:"quick_search_cycle"`
+	CustomCommands    T                         `toml:"custom_commands"`
+	Suspend           T                         `toml:"suspend"`
+	Rebase            rebaseModeKeys[T]         `toml:"rebase"`
+	Squash            squashModeKeys[T]         `toml:"squash"`
+	Details           detailsModeKeys[T]        `toml:"details"`
+	Preview           previewModeKeys[T]        `toml:"preview"`
+	Bookmark          bookmarkModeKeys[T]       `toml:"bookmark"`
+	InlineDescribe    inlineDescribeModeKeys[T] `toml:"inline_describe"`
+	Git               gitModeKeys[T]            `toml:"git"`
+	OpLog             opLogModeKeys[T]          `toml:"oplog"`
 }
 
 type bookmarkModeKeys[T any] struct {
@@ -286,4 +295,9 @@ type previewModeKeys[T any] struct {
 type opLogModeKeys[T any] struct {
 	Mode    T `toml:"mode"`
 	Restore T `toml:"restore"`
+}
+
+type inlineDescribeModeKeys[T any] struct {
+	Mode   T `toml:"mode"`
+	Accept T `toml:"accept"`
 }

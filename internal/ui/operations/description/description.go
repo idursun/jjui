@@ -1,8 +1,6 @@
 package description
 
 import (
-	"log"
-
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
@@ -24,6 +22,7 @@ type Operation struct {
 func (o Operation) ShortHelp() []key.Binding {
 	return []key.Binding{
 		o.keyMap.Cancel,
+		o.keyMap.InlineDescribe.Accept,
 	}
 }
 
@@ -64,10 +63,10 @@ func (o Operation) Name() string {
 
 func (o Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.Type {
-		case tea.KeyEscape:
+		switch {
+		case key.Matches(keyMsg, o.keyMap.Cancel):
 			return o, common.Close
-		case tea.KeyCtrlD:
+		case key.Matches(keyMsg, o.keyMap.InlineDescribe.Accept):
 			if o.input.Value() != "" {
 				return o, o.context.RunCommand(jj.SetDescription(o.revision, o.input.Value()), common.Close, common.Refresh)
 			}
@@ -80,9 +79,7 @@ func (o Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cmd
 	newValue := o.input.Value()
 	h := lipgloss.Height(newValue)
 	if h >= o.input.Height() {
-		log.Println("Setting height to", h, "for input with value:", o.input.Height())
 		o.input.SetHeight(h + 1)
-		//o.input.CursorDown()
 	}
 
 	return o, cmd

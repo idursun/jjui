@@ -106,6 +106,7 @@ func (h *Model) View() string {
 		printHelp(h.keyMap.Details.Mode),
 		printHelp(h.keyMap.Evolog),
 		printHelp(h.keyMap.Bookmark.Set),
+		printHelp(h.keyMap.InlineDescribe.Mode),
 	)
 
 	middleView := lipgloss.JoinVertical(lipgloss.Left,
