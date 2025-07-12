@@ -10,17 +10,28 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"strings"
 )
 
 var filterStyle = common.DefaultPalette.Shortcut.PaddingLeft(2)
 var filterValueStyle = common.DefaultPalette.Normal.Bold(true)
 
+type itemCategory string
+
+const (
+	itemCategoryPush  itemCategory = "push"
+	itemCategoryFetch itemCategory = "fetch"
+)
+
 type item struct {
-	key.Binding
-	name    string
-	desc    string
-	command []string
+	category itemCategory
+	key      string
+	name     string
+	desc     string
+	command  []string
+}
+
+func (i item) ShortCut() string {
+	return i.key
 }
 
 func (i item) FilterValue() string {
@@ -40,7 +51,7 @@ type Model struct {
 	keymap  config.KeyMappings[key.Binding]
 	list    list.Model
 	items   []list.Item
-	filter  string
+	filter  itemCategory
 	width   int
 	height  int
 }
@@ -54,9 +65,11 @@ func (m *Model) Height() int {
 }
 
 func (m *Model) SetWidth(w int) {
-	maxWidth, minWidth := 80, 40
-	m.width = max(min(maxWidth, w-4), minWidth)
-	m.list.SetWidth(m.width - 8)
+	//maxWidth, minWidth := 80, 40
+	//m.width = max(min(maxWidth, w-4), minWidth)
+	//m.list.SetWidth(m.width - 8)
+	m.width = w
+	m.list.SetWidth(w)
 }
 
 func (m *Model) SetHeight(h int) {
@@ -85,10 +98,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.filtered("")
 			}
 			return m, common.Close
-		case key.Matches(msg, m.keymap.Git.Push):
-			return m.filtered("push")
-		case key.Matches(msg, m.keymap.Git.Fetch):
-			return m.filtered("fetch")
+		case key.Matches(msg, m.keymap.Git.Push) && m.filter != itemCategoryPush:
+			return m.filtered(itemCategoryPush)
+		case key.Matches(msg, m.keymap.Git.Fetch) && m.filter != itemCategoryFetch:
+			return m.filtered(itemCategoryFetch)
+		default:
+			for _, listItem := range m.list.Items() {
+				if item, ok := listItem.(item); ok && m.filter != "" && item.key == msg.String() {
+					return m, m.context.RunCommand(jj.Args(item.command...), common.Refresh, common.Close)
+				}
+			}
 		}
 	}
 	var cmd tea.Cmd
@@ -100,13 +119,13 @@ func (m *Model) View() string {
 	title := m.list.Styles.Title.Render(m.list.Title)
 	filterView := lipgloss.JoinHorizontal(0, filterStyle.Render("Showing "), filterValueStyle.Render("all"))
 	if m.filter != "" {
-		filterView = lipgloss.JoinHorizontal(0, filterStyle.Render("Showing only "), filterValueStyle.Render(m.filter))
+		filterView = lipgloss.JoinHorizontal(0, filterStyle.Render("Showing only "), filterValueStyle.Render(string(m.filter)))
 	}
 	listView := m.list.View()
 	helpView := m.helpView()
 	content := lipgloss.JoinVertical(0, title, "", filterView, listView, "", helpView)
 	content = lipgloss.Place(m.width, m.height, 0, 0, content)
-	return lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Render(content)
+	return lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Padding(0).Render(content)
 }
 
 func renderKey(k key.Binding) string {
@@ -133,16 +152,19 @@ func (m *Model) helpView() string {
 	return " " + lipgloss.JoinHorizontal(0, bindings...)
 }
 
-func (m *Model) filtered(filter string) (tea.Model, tea.Cmd) {
+func (m *Model) filtered(filter itemCategory) (tea.Model, tea.Cmd) {
 	m.filter = filter
 	if m.filter == "" {
+		m.list.SetDelegate(common.ListItemDelegate{ShowShortcuts: false})
 		return m, m.list.SetItems(m.items)
 	}
+	m.list.SetDelegate(common.ListItemDelegate{ShowShortcuts: true})
 	var filtered []list.Item
 	for _, i := range m.items {
-		if strings.Contains(i.FilterValue(), m.filter) {
-			filtered = append(filtered, i)
+		if item, ok := i.(item); !ok || item.category != m.filter {
+			continue
 		}
+		filtered = append(filtered, i)
 	}
 	m.list.ResetSelected()
 	return m, m.list.SetItems(filtered)
@@ -163,53 +185,49 @@ func NewModel(c *context.MainContext, commit *jj.Commit, width int, height int) 
 				continue
 			}
 			for _, remote := range b.Remotes {
-				bookmarkItem := item{
-					name:    fmt.Sprintf("git push --bookmark %s --remote %s", b.Name, remote.Remote),
-					desc:    fmt.Sprintf("Git push bookmark %s to remote %s", b.Name, remote.Remote),
-					command: jj.GitPush("--bookmark", b.Name, "--remote", remote.Remote),
-				}
-				items = append(items, bookmarkItem)
+				items = append(items, item{
+					name:     fmt.Sprintf("git push --bookmark %s --remote %s", b.Name, remote.Remote),
+					desc:     fmt.Sprintf("Git push bookmark %s to remote %s", b.Name, remote.Remote),
+					command:  jj.GitPush("--bookmark", b.Name, "--remote", remote.Remote),
+					category: itemCategoryPush,
+				})
 			}
 			if b.IsPushable() {
-				bookmarkItem := item{
-					name:    fmt.Sprintf("git push --bookmark %s --allow-new", b.Name),
-					desc:    fmt.Sprintf("Git push new bookmark %s", b.Name),
-					command: jj.GitPush("--bookmark", b.Name, "--allow-new"),
-				}
-				items = append(items, bookmarkItem)
+				items = append(items, item{
+					name:     fmt.Sprintf("git push --bookmark %s --allow-new", b.Name),
+					desc:     fmt.Sprintf("Git push new bookmark %s", b.Name),
+					command:  jj.GitPush("--bookmark", b.Name, "--allow-new"),
+					category: itemCategoryPush,
+				})
 			}
 		}
 	}
 	items = append(items,
-		item{name: "git push", desc: "Push tracking bookmarks in the current revset", command: jj.GitPush()},
-		item{name: "git push --all", desc: "Push all bookmarks (including new and deleted bookmarks)", command: jj.GitPush("--all")},
+		item{name: "git push", desc: "Push tracking bookmarks in the current revset", command: jj.GitPush(), category: itemCategoryPush, key: "p"},
+		item{name: "git push --all", desc: "Push all bookmarks (including new and deleted bookmarks)", command: jj.GitPush("--all"), category: itemCategoryPush, key: "a"},
 	)
 	if commit != nil {
 		items = append(items,
 			item{
-				name:    fmt.Sprintf("git push --change %s", commit.GetChangeId()),
-				desc:    fmt.Sprintf("Push the current change (%s)", commit.GetChangeId()),
-				command: jj.GitPush("--change", commit.GetChangeId()),
+				key:      "c",
+				category: itemCategoryPush,
+				name:     fmt.Sprintf("git push --change %s", commit.GetChangeId()),
+				desc:     fmt.Sprintf("Push the current change (%s)", commit.GetChangeId()),
+				command:  jj.GitPush("--change", commit.GetChangeId()),
 			},
 		)
 	}
 	items = append(items,
-		item{name: "git push --deleted", desc: "Push all deleted bookmarks", command: jj.GitPush("--deleted")},
-		item{name: "git push --tracked", desc: "Push all tracked bookmarks (including deleted bookmarks)", command: jj.GitPush("--tracked")},
-		item{name: "git push --allow-new", desc: "Allow pushing new bookmarks", command: jj.GitPush("--allow-new")},
-		item{name: "git fetch", desc: "Fetch from remote", command: jj.GitFetch()},
-		item{name: "git fetch --all-remotes", desc: "Fetch from all remotes", command: jj.GitFetch("--all-remotes")},
+		item{name: "git push --deleted", desc: "Push all deleted bookmarks", command: jj.GitPush("--deleted"), category: itemCategoryPush, key: "d"},
+		item{name: "git push --tracked", desc: "Push all tracked bookmarks (including deleted bookmarks)", command: jj.GitPush("--tracked"), category: itemCategoryPush},
+		item{name: "git push --allow-new", desc: "Allow pushing new bookmarks", command: jj.GitPush("--allow-new"), category: itemCategoryPush},
+		item{name: "git fetch", desc: "Fetch from remote", command: jj.GitFetch(), category: itemCategoryFetch, key: "f"},
+		item{name: "git fetch --all-remotes", desc: "Fetch from all remotes", command: jj.GitFetch("--all-remotes"), category: itemCategoryFetch, key: "a"},
 	)
 
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.DimmedTitle = common.DefaultPalette.Dimmed
-	delegate.Styles.NormalTitle = common.DefaultPalette.Normal.PaddingLeft(2)
-	delegate.Styles.DimmedDesc = common.DefaultPalette.Dimmed.PaddingLeft(2)
-	delegate.Styles.NormalDesc = common.DefaultPalette.Dimmed.PaddingLeft(2)
-	delegate.Styles.SelectedTitle = common.DefaultPalette.ChangeId.PaddingLeft(2)
-	delegate.Styles.SelectedDesc = common.DefaultPalette.ChangeId.Bold(false).PaddingLeft(2)
+	delegate := common.ListItemDelegate{}
 
-	l := list.New(items, delegate, 0, 0)
+	l := list.New(items, delegate, width, height)
 	l.SetShowTitle(true)
 	l.Title = "Git Operations"
 	l.SetShowTitle(false)

@@ -123,7 +123,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.revsetModel, _ = m.revsetModel.Update(revset.EditRevSetMsg{Clear: m.state != common.Error})
 			return m, nil
 		case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
-			m.stacked = git.NewModel(m.context, m.revisions.SelectedRevision(), m.width, m.height)
+			m.stacked = git.NewModel(m.context, m.revisions.SelectedRevision(), 80, 30)
 			return m, m.stacked.Init()
 		case key.Matches(msg, m.keyMap.Undo) && m.revisions.InNormalMode():
 			m.stacked = undo.NewModel(m.context)
@@ -202,6 +202,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s.SetHeight(m.height - 2)
 		}
 		m.status.SetWidth(m.width)
+		m.revisions.SetHeight(m.height)
+		m.revisions.SetWidth(m.width)
 	}
 
 	if m.revsetModel.Editing {
