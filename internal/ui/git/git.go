@@ -225,9 +225,7 @@ func NewModel(c *context.MainContext, commit *jj.Commit, width int, height int) 
 		item{name: "git fetch --all-remotes", desc: "Fetch from all remotes", command: jj.GitFetch("--all-remotes"), category: itemCategoryFetch, key: "a"},
 	)
 
-	delegate := common.ListItemDelegate{}
-
-	l := list.New(items, delegate, width, height)
+	l := list.New(items, common.ListItemDelegate{}, width, height)
 	l.SetShowTitle(true)
 	l.Title = "Git Operations"
 	l.SetShowTitle(false)

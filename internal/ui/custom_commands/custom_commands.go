@@ -9,12 +9,19 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"strings"
 )
 
 type item struct {
 	name    string
 	desc    string
 	command tea.Cmd
+	key     key.Binding
+}
+
+func (i item) ShortCut() string {
+	k := strings.Join(i.key.Keys(), "/")
+	return k
 }
 
 func (i item) FilterValue() string {
@@ -47,9 +54,8 @@ func (m *Model) Height() int {
 }
 
 func (m *Model) SetWidth(w int) {
-	maxWidth, minWidth := 80, 40
-	m.width = max(min(maxWidth, w-4), minWidth)
-	m.list.SetWidth(m.width - 8)
+	m.width = w
+	m.list.SetWidth(m.width)
 }
 
 func (m *Model) SetHeight(h int) {
@@ -79,7 +85,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return m, common.Close
+		default:
+			for _, listItem := range m.list.Items() {
+				if i, ok := listItem.(item); ok && key.Matches(msg, i.key) {
+					return m, tea.Batch(i.command, common.Close)
+				}
+			}
 		}
+
 	}
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
@@ -101,19 +114,11 @@ func NewModel(ctx *context.MainContext, width int, height int) *Model {
 	for name, command := range ctx.CustomCommands {
 		if command.IsApplicableTo(ctx.SelectedItem) {
 			cmd := command.Prepare(ctx)
-			items = append(items, item{name: name, desc: command.Description(ctx), command: cmd})
+			items = append(items, item{name: name, desc: command.Description(ctx), command: cmd, key: command.Binding()})
 		}
 	}
 	keyMap := config.Current.GetKeyMap()
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.DimmedTitle = common.DefaultPalette.Dimmed
-	delegate.Styles.NormalTitle = common.DefaultPalette.Normal.PaddingLeft(2)
-	delegate.Styles.DimmedDesc = common.DefaultPalette.Dimmed.PaddingLeft(2)
-	delegate.Styles.NormalDesc = common.DefaultPalette.Dimmed.PaddingLeft(2)
-	delegate.Styles.SelectedTitle = common.DefaultPalette.ChangeId.PaddingLeft(2)
-	delegate.Styles.SelectedDesc = common.DefaultPalette.ChangeId.Bold(false).PaddingLeft(2)
-
-	l := list.New(items, delegate, 0, 0)
+	l := list.New(items, common.ListItemDelegate{ShowShortcuts: true}, width, height)
 	l.Title = "Custom Commands"
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)

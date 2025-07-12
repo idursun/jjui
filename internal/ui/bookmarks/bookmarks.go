@@ -41,9 +41,8 @@ func (m *Model) Height() int {
 }
 
 func (m *Model) SetWidth(w int) {
-	maxWidth, minWidth := 80, 40
-	m.width = max(min(maxWidth, w-4), minWidth)
-	m.list.SetWidth(m.width - 8)
+	m.width = w
+	m.list.SetWidth(m.width)
 }
 
 func (m *Model) SetHeight(h int) {
@@ -68,6 +67,11 @@ type item struct {
 	priority commandType
 	dist     int
 	args     []string
+	key      string
+}
+
+func (i item) ShortCut() string {
+	return i.key
 }
 
 func (i item) FilterValue() string {
@@ -120,12 +124,16 @@ func (m *Model) loadMovables() tea.Msg {
 			name = fmt.Sprintf("move '%s' backwards to %s", b.Name, m.current.GetChangeId())
 			extraFlags = append(extraFlags, "--allow-backwards")
 		}
-		bookmarkItems = append(bookmarkItems, item{
+		elem := item{
 			name:     name,
 			priority: moveCommand,
 			args:     jj.BookmarkMove(m.current.GetChangeId(), b.Name, extraFlags...),
 			dist:     m.distance(b.CommitId),
-		})
+		}
+		if b.Name == "main" || b.Name == "master" {
+			elem.key = "m"
+		}
+		bookmarkItems = append(bookmarkItems, elem)
 	}
 	return updateItemsMsg{items: bookmarkItems}
 }
@@ -198,16 +206,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			action := m.list.SelectedItem().(item)
 			return m, m.context.RunCommand(action.args, common.Refresh, common.Close)
-		case key.Matches(msg, m.keymap.Bookmark.Move):
+		case key.Matches(msg, m.keymap.Bookmark.Move) && m.filterableList.Filter != "move":
 			return m.filtered("move")
-		case key.Matches(msg, m.keymap.Bookmark.Delete):
+		case key.Matches(msg, m.keymap.Bookmark.Delete) && m.filterableList.Filter != "delete":
 			return m.filtered("delete")
-		case key.Matches(msg, m.keymap.Bookmark.Forget):
+		case key.Matches(msg, m.keymap.Bookmark.Forget) && m.filterableList.Filter != "forget":
 			return m.filtered("forget")
-		case key.Matches(msg, m.keymap.Bookmark.Track):
+		case key.Matches(msg, m.keymap.Bookmark.Track) && m.filterableList.Filter != "track":
 			return m.filtered("track")
-		case key.Matches(msg, m.keymap.Bookmark.Untrack):
+		case key.Matches(msg, m.keymap.Bookmark.Untrack) && m.filterableList.Filter != "untrack":
 			return m.filtered("untrack")
+		default:
+			for _, listItem := range m.filterableList.List.Items() {
+				if item, ok := listItem.(item); ok && m.filterableList.Filter != "" && item.key == msg.String() {
+					return m, m.context.RunCommand(jj.Args(item.args...), common.Refresh, common.Close)
+				}
+			}
 		}
 	case updateItemsMsg:
 		m.items = append(m.items, msg.items...)
@@ -291,15 +305,7 @@ func (m *Model) distance(commitId string) int {
 
 func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string, width int, height int) *Model {
 	var items []list.Item
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.DimmedTitle = common.DefaultPalette.Dimmed
-	delegate.Styles.NormalTitle = common.DefaultPalette.Normal.PaddingLeft(2)
-	delegate.Styles.DimmedDesc = common.DefaultPalette.Dimmed.PaddingLeft(2)
-	delegate.Styles.NormalDesc = common.DefaultPalette.Dimmed.PaddingLeft(2)
-	delegate.Styles.SelectedTitle = common.DefaultPalette.ChangeId.PaddingLeft(2)
-	delegate.Styles.SelectedDesc = common.DefaultPalette.ChangeId.Bold(false).PaddingLeft(2)
-
-	l := list.New(items, delegate, 0, 0)
+	l := list.New(items, common.ListItemDelegate{}, width, height)
 	l.Title = "Bookmark operations"
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
