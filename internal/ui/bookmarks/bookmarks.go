@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -21,34 +20,27 @@ type updateItemsMsg struct {
 }
 
 type Model struct {
-	context     *context.MainContext
-	current     *jj.Commit
-	filter      string
-	list        list.Model
-	items       []list.Item
-	keymap      config.KeyMappings[key.Binding]
-	width       int
-	height      int
-	distanceMap map[string]int
+	context        *context.MainContext
+	current        *jj.Commit
+	filterableList common.FilterableList
+	keymap         config.KeyMappings[key.Binding]
+	distanceMap    map[string]int
 }
 
 func (m *Model) Width() int {
-	return m.width
+	return m.filterableList.Width
 }
 
 func (m *Model) Height() int {
-	return m.height
+	return m.filterableList.Height
 }
 
 func (m *Model) SetWidth(w int) {
-	m.width = w
-	m.list.SetWidth(m.width)
+	m.filterableList.SetWidth(w)
 }
 
 func (m *Model) SetHeight(h int) {
-	maxHeight, minHeight := 30, 10
-	m.height = max(min(maxHeight, h-4), minHeight)
-	m.list.SetHeight(m.height - 6)
+	m.filterableList.SetHeight(h)
 }
 
 type commandType int
@@ -92,18 +84,7 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) filtered(filter string) (tea.Model, tea.Cmd) {
-	m.filter = filter
-	if m.filter == "" {
-		return m, m.list.SetItems(m.items)
-	}
-	var filtered []list.Item
-	for _, i := range m.items {
-		if strings.HasPrefix(i.FilterValue(), m.filter) {
-			filtered = append(filtered, i)
-		}
-	}
-	m.list.ResetSelected()
-	return m, m.list.SetItems(filtered)
+	return m, m.filterableList.Filtered(filter)
 }
 
 func (m *Model) loadMovables() tea.Msg {
@@ -190,21 +171,21 @@ func (m *Model) loadAll() tea.Msg {
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if m.list.SettingFilter() {
+		if m.filterableList.List.SettingFilter() {
 			break
 		}
 		switch {
 		case key.Matches(msg, m.keymap.Cancel):
-			if m.filter != "" || m.list.IsFiltered() {
-				m.list.ResetFilter()
+			if m.filterableList.Filter != "" || m.filterableList.List.IsFiltered() {
+				m.filterableList.List.ResetFilter()
 				return m.filtered("")
 			}
 			return m, common.Close
 		case key.Matches(msg, m.keymap.Apply):
-			if m.list.SelectedItem() == nil {
+			if m.filterableList.List.SelectedItem() == nil {
 				break
 			}
-			action := m.list.SelectedItem().(item)
+			action := m.filterableList.List.SelectedItem().(item)
 			return m, m.context.RunCommand(action.args, common.Refresh, common.Close)
 		case key.Matches(msg, m.keymap.Bookmark.Move) && m.filterableList.Filter != "move":
 			return m.filtered("move")
@@ -224,12 +205,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case updateItemsMsg:
-		m.items = append(m.items, msg.items...)
-		slices.SortFunc(m.items, itemSorter)
-		return m, m.list.SetItems(m.items)
+		m.filterableList.Items = append(m.filterableList.Items, msg.items...)
+		slices.SortFunc(m.filterableList.Items, itemSorter)
+		return m, m.filterableList.List.SetItems(m.filterableList.Items)
 	}
 	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
+	m.filterableList.List, cmd = m.filterableList.List.Update(msg)
 	return m, cmd
 }
 
@@ -251,49 +232,16 @@ func itemSorter(a list.Item, b list.Item) int {
 	return ib.dist - ia.dist
 }
 
-var (
-	filterStyle      = common.DefaultPalette.Shortcut.PaddingLeft(2)
-	filterValueStyle = common.DefaultPalette.Normal.Bold(true)
-)
-
 func (m *Model) View() string {
-	title := m.list.Styles.Title.Render(m.list.Title)
-	filterView := lipgloss.JoinHorizontal(0, filterStyle.Render("Showing "), filterValueStyle.Render("all"))
-	if m.filter != "" {
-		filterView = lipgloss.JoinHorizontal(0, filterStyle.Render("Showing only "), filterValueStyle.Render(m.filter))
-	}
-	listView := m.list.View()
-	helpView := m.helpView()
-	content := lipgloss.JoinVertical(0, title, "", filterView, listView, "", helpView)
-	content = lipgloss.Place(m.Width(), m.Height(), 0, 0, content)
-	return lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Render(content)
-}
-
-func renderKey(k key.Binding) string {
-	if !k.Enabled() {
-		return ""
-	}
-	return lipgloss.JoinHorizontal(0, common.DefaultPalette.Shortcut.Render(k.Help().Key, ""), common.DefaultPalette.Dimmed.Render(k.Help().Desc, ""))
-}
-
-func (m *Model) helpView() string {
-	if m.list.SettingFilter() {
-		return ""
-	}
-	bindings := []string{
-		renderKey(m.keymap.Bookmark.Move),
-		renderKey(m.keymap.Bookmark.Delete),
-		renderKey(m.keymap.Bookmark.Forget),
-		renderKey(m.keymap.Bookmark.Track),
-		renderKey(m.keymap.Bookmark.Untrack),
-	}
-	if m.list.IsFiltered() {
-		bindings = append(bindings, renderKey(m.keymap.Cancel))
-	} else {
-		bindings = append(bindings, renderKey(m.list.KeyMap.Filter))
+	helpKeys := []key.Binding{
+		m.keymap.Bookmark.Move,
+		m.keymap.Bookmark.Delete,
+		m.keymap.Bookmark.Forget,
+		m.keymap.Bookmark.Track,
+		m.keymap.Bookmark.Untrack,
 	}
 
-	return " " + lipgloss.JoinHorizontal(0, bindings...)
+	return m.filterableList.View(helpKeys)
 }
 
 func (m *Model) distance(commitId string) int {
@@ -305,22 +253,20 @@ func (m *Model) distance(commitId string) int {
 
 func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string, width int, height int) *Model {
 	var items []list.Item
-	l := list.New(items, common.ListItemDelegate{}, width, height)
-	l.Title = "Bookmark operations"
-	l.SetShowTitle(false)
-	l.SetShowStatusBar(false)
-	l.SetShowFilter(true)
-	l.SetShowPagination(true)
-	l.SetFilteringEnabled(true)
-	l.SetShowHelp(false)
-	l.DisableQuitKeybindings()
+	keymap := config.Current.GetKeyMap()
+
+	filterableList := common.NewFilterableList(items, width, height, keymap)
+	filterableList.Title = "Bookmark Operations"
+	filterableList.FilterMatches = func(i list.Item, filter string) bool {
+		return strings.HasPrefix(i.FilterValue(), filter)
+	}
 
 	m := &Model{
-		context:     c,
-		keymap:      config.Current.GetKeyMap(),
-		list:        l,
-		current:     current,
-		distanceMap: calcDistanceMap(current.CommitId, commitIds),
+		context:        c,
+		keymap:         keymap,
+		filterableList: filterableList,
+		current:        current,
+		distanceMap:    calcDistanceMap(current.CommitId, commitIds),
 	}
 	m.SetWidth(width)
 	m.SetHeight(height)

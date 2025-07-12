@@ -5,7 +5,6 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -37,31 +36,26 @@ func (i item) Description() string {
 }
 
 type Model struct {
-	context *context.MainContext
-	keymap  config.KeyMappings[key.Binding]
-	list    list.Model
-	width   int
-	height  int
-	help    help.Model
+	context        *context.MainContext
+	keymap         config.KeyMappings[key.Binding]
+	filterableList common.FilterableList
+	help           help.Model
 }
 
 func (m *Model) Width() int {
-	return m.width
+	return m.filterableList.Width
 }
 
 func (m *Model) Height() int {
-	return m.height
+	return m.filterableList.Height
 }
 
 func (m *Model) SetWidth(w int) {
-	m.width = w
-	m.list.SetWidth(m.width)
+	m.filterableList.SetWidth(w)
 }
 
 func (m *Model) SetHeight(h int) {
-	maxHeight, minHeight := 30, 10
-	m.height = max(min(maxHeight, h-4), minHeight)
-	m.list.SetHeight(m.height - 4)
+	m.filterableList.SetHeight(h)
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -71,41 +65,35 @@ func (m *Model) Init() tea.Cmd {
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if m.list.SettingFilter() {
+		if m.filterableList.List.SettingFilter() {
 			break
 		}
 		switch {
 		case key.Matches(msg, m.keymap.Apply):
-			if item, ok := m.list.SelectedItem().(item); ok {
+			if item, ok := m.filterableList.List.SelectedItem().(item); ok {
 				return m, tea.Batch(item.command, common.Close)
 			}
 		case key.Matches(msg, m.keymap.Cancel):
-			if m.list.IsFiltered() {
-				m.list.ResetFilter()
-				return m, nil
+			if m.filterableList.Filter != "" || m.filterableList.List.IsFiltered() {
+				m.filterableList.List.ResetFilter()
+				return m, m.filterableList.Filtered("")
 			}
 			return m, common.Close
 		default:
-			for _, listItem := range m.list.Items() {
+			for _, listItem := range m.filterableList.List.Items() {
 				if i, ok := listItem.(item); ok && key.Matches(msg, i.key) {
 					return m, tea.Batch(i.command, common.Close)
 				}
 			}
 		}
-
 	}
 	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
+	m.filterableList.List, cmd = m.filterableList.List.Update(msg)
 	return m, cmd
 }
 
 func (m *Model) View() string {
-	title := m.list.Styles.Title.Render(m.list.Title)
-	listView := m.list.View()
-	helpView := m.help.ShortHelpView([]key.Binding{m.keymap.Apply, m.keymap.Cancel, m.list.KeyMap.Filter})
-	content := lipgloss.JoinVertical(0, title, "", listView, " "+helpView)
-	content = lipgloss.Place(m.width, m.height, 0, 0, content)
-	return lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Render(content)
+	return m.filterableList.View(nil)
 }
 
 func NewModel(ctx *context.MainContext, width int, height int) *Model {
@@ -118,25 +106,18 @@ func NewModel(ctx *context.MainContext, width int, height int) *Model {
 		}
 	}
 	keyMap := config.Current.GetKeyMap()
-	l := list.New(items, common.ListItemDelegate{ShowShortcuts: true}, width, height)
-	l.Title = "Custom Commands"
-	l.SetShowTitle(false)
-	l.SetShowStatusBar(false)
-	l.SetShowFilter(true)
-	l.SetShowPagination(true)
-	l.SetFilteringEnabled(true)
-	l.SetShowHelp(false)
-	l.DisableQuitKeybindings()
-
-	h := help.New()
-	h.Styles.ShortKey = common.DefaultPalette.Shortcut
-	h.Styles.ShortDesc = common.DefaultPalette.Dimmed
+	filterableList := common.NewFilterableList(items, width, height, keyMap)
+	filterableList.Title = "Custom Commands"
+	filterableList.ShowShortcuts(true)
+	filterableList.FilterMatches = func(i list.Item, filter string) bool {
+		return strings.Contains(strings.ToLower(i.FilterValue()), strings.ToLower(filter))
+	}
 
 	m := &Model{
-		context: ctx,
-		keymap:  keyMap,
-		help:    h,
-		list:    l,
+		context:        ctx,
+		keymap:         keyMap,
+		filterableList: filterableList,
+		help:           help.New(),
 	}
 	m.SetWidth(width)
 	m.SetHeight(height)
