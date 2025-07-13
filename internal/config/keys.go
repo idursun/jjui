@@ -32,6 +32,7 @@ var DefaultKeyMappings = KeyMappings[keys]{
 	QuickSearch:       []string{"/"},
 	QuickSearchCycle:  []string{"'"},
 	CustomCommands:    []string{"x"},
+	Leader:            []string{"\\"},
 	Suspend:           []string{"ctrl+z"},
 	Rebase: rebaseModeKeys[keys]{
 		Mode:     []string{"r"},
@@ -124,6 +125,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		QuickSearch:       key.NewBinding(key.WithKeys(m.QuickSearch...), key.WithHelp(JoinKeys(m.QuickSearch), "quick search")),
 		QuickSearchCycle:  key.NewBinding(key.WithKeys(m.QuickSearchCycle...), key.WithHelp(JoinKeys(m.QuickSearchCycle), "locate next match")),
 		CustomCommands:    key.NewBinding(key.WithKeys(m.CustomCommands...), key.WithHelp(JoinKeys(m.CustomCommands), "custom commands menu")),
+		Leader:            key.NewBinding(key.WithKeys(m.Leader...), key.WithHelp(JoinKeys(m.Leader), "leader")),
 		Suspend:           key.NewBinding(key.WithKeys(m.Suspend...), key.WithHelp(JoinKeys(m.Suspend), "suspend")),
 		Rebase: rebaseModeKeys[key.Binding]{
 			Mode:     key.NewBinding(key.WithKeys(m.Rebase.Mode...), key.WithHelp(JoinKeys(m.Rebase.Mode), "rebase")),
@@ -239,6 +241,7 @@ type KeyMappings[T any] struct {
 	QuickSearch       T                         `toml:"quick_search"`
 	QuickSearchCycle  T                         `toml:"quick_search_cycle"`
 	CustomCommands    T                         `toml:"custom_commands"`
+	Leader            T                         `toml:"leader"`
 	Suspend           T                         `toml:"suspend"`
 	Rebase            rebaseModeKeys[T]         `toml:"rebase"`
 	Duplicate         duplicateModeKeys[T]      `toml:"duplicate"`

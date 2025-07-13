@@ -50,6 +50,7 @@ type MainContext struct {
 	SelectedItem   SelectedItem
 	Location       string
 	CustomCommands map[string]CustomCommand
+	Leader         LeaderMap
 	JJConfig       *config.JJConfig
 	DefaultRevset  string
 	CurrentRevset  string

@@ -16,6 +16,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/helppage"
+	"github.com/idursun/jjui/internal/ui/leader"
 	"github.com/idursun/jjui/internal/ui/oplog"
 	"github.com/idursun/jjui/internal/ui/preview"
 	"github.com/idursun/jjui/internal/ui/revisions"
@@ -32,6 +33,7 @@ type Model struct {
 	previewVisible          bool
 	previewWindowPercentage float64
 	diff                    *diff.Model
+	leader                  *leader.Model
 	state                   common.State
 	error                   error
 	status                  *status.Model
@@ -50,8 +52,16 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
+	if x, ok := msg.(leader.PendingMsg); ok {
+		return m, leader.TakePending(x), true
+	}
+
 	var cmd tea.Cmd
 	if _, ok := msg.(common.CloseViewMsg); ok {
+		if m.leader != nil {
+			m.leader = nil
+			return m, nil, true
+		}
 		if m.diff != nil {
 			m.diff = nil
 			return m, nil, true
@@ -69,6 +79,11 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.leader != nil {
+			m.leader, cmd = m.leader.Update(msg)
+			return m, cmd, true
+		}
+
 		if m.diff != nil {
 			m.diff, cmd = m.diff.Update(msg)
 			return m, cmd, true
@@ -95,6 +110,7 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			return m, cmd, true
 		}
 	}
+
 	return m, nil, false
 }
 
@@ -146,6 +162,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keyMap.CustomCommands):
 			m.stacked = customcommands.NewModel(m.context, m.width, m.height)
 			cmds = append(cmds, m.stacked.Init())
+		case key.Matches(msg, m.keyMap.Leader):
+			m.leader = leader.New(m.context.Leader)
+			cmds = append(cmds, m.leader.Init())
 		case key.Matches(msg, m.keyMap.QuickSearch) && m.oplog != nil:
 			// HACK: prevents quick search from activating in op log view
 			return m, nil
@@ -255,6 +274,11 @@ func (m Model) View() string {
 	} else {
 		m.status.SetHelp(m.revisions)
 		m.status.SetMode(m.revisions.CurrentOperation().Name())
+	}
+
+	if m.leader != nil {
+		m.status.SetMode("leader")
+		m.status.SetHelp(m.leader)
 	}
 
 	footer := m.status.View()

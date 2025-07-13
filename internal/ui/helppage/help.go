@@ -161,6 +161,7 @@ func (h *Model) View() string {
 		printHelp(h.keyMap.Diff),
 		printHelp(h.keyMap.OpLog.Restore),
 		printMode(h.keyMap.CustomCommands, "Custom Commands"),
+		printMode(h.keyMap.Leader, "Leader"),
 	)
 
 	var customCommands []string
