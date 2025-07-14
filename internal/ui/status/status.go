@@ -1,11 +1,12 @@
 package status
 
 import (
+	"strings"
+	"time"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/idursun/jjui/internal/config"
-	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -13,6 +14,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/exec_process"
 )
 
 var cancel = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "dismiss"))
@@ -104,19 +106,35 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.editing = false
 			m.input.Reset()
 		case key.Matches(msg, accept) && m.editing:
+			editMode := m.mode
+			input := m.input.Value()
+			prompt := m.input.Prompt
+
 			m.error = nil
 			m.output = ""
 			m.command = ""
 			m.editing = false
 			m.mode = ""
-			query := m.input.Value()
 			m.input.Reset()
 			return m, func() tea.Msg {
-				return common.QuickSearchMsg(query)
+				if strings.HasPrefix(editMode, "exec") {
+					return exec_process.ExecMsgFromLine(prompt, input)
+				}
+				return common.QuickSearchMsg(input)
 			}
+		case key.Matches(msg, km.ExecJJ, km.ExecShell) && !m.editing:
+			mode := common.ExecJJ
+			if key.Matches(msg, km.ExecShell) {
+				mode = common.ExecShell
+			}
+			m.editing = true
+			m.mode = "exec " + mode.Mode
+			m.input.Prompt = mode.Prompt
+			return m, m.input.Focus()
 		case key.Matches(msg, km.QuickSearch) && !m.editing:
 			m.editing = true
 			m.mode = "search"
+			m.input.Prompt = "> "
 			return m, m.input.Focus()
 		default:
 			if m.editing {
@@ -168,9 +186,7 @@ func (m *Model) SetHelp(keyMap help.KeyMap) {
 }
 
 func (m *Model) SetMode(mode string) {
-	if m.editing {
-		m.mode = "search"
-	} else {
+	if !m.editing {
 		m.mode = mode
 	}
 }

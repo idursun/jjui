@@ -14,6 +14,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/context"
 	customcommands "github.com/idursun/jjui/internal/ui/custom_commands"
 	"github.com/idursun/jjui/internal/ui/diff"
+	"github.com/idursun/jjui/internal/ui/exec_process"
 	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/helppage"
 	"github.com/idursun/jjui/internal/ui/leader"
@@ -180,6 +181,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+	case common.ExecMsg:
+		return m, exec_process.ExecLine(m.context, msg)
 	case common.ToggleHelpMsg:
 		if m.stacked == nil {
 			m.stacked = helppage.New(m.context)

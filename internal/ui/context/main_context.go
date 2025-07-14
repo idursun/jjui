@@ -83,3 +83,22 @@ func NewAppContext(location string) *MainContext {
 	}
 	return m
 }
+
+// context aware replacements for custom commands and exec input.
+func (ctx *MainContext) CreateReplacements() map[string]string {
+	selectedItem := ctx.SelectedItem
+	replacements := make(map[string]string)
+	replacements[jj.RevsetPlaceholder] = ctx.CurrentRevset
+
+	switch selectedItem := selectedItem.(type) {
+	case SelectedRevision:
+		replacements[jj.ChangeIdPlaceholder] = selectedItem.ChangeId
+	case SelectedFile:
+		replacements[jj.ChangeIdPlaceholder] = selectedItem.ChangeId
+		replacements[jj.FilePlaceholder] = selectedItem.File
+	case SelectedOperation:
+		replacements[jj.OperationIdPlaceholder] = selectedItem.OperationId
+	}
+
+	return replacements
+}

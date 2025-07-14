@@ -1,8 +1,9 @@
 package common
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type (
@@ -31,6 +32,10 @@ type (
 	SelectionChangedMsg struct{}
 	QuickSearchMsg      string
 	UpdateRevSetMsg     string
+	ExecMsg             struct {
+		Line string
+		Mode ExecMode
+	}
 )
 
 type State int
@@ -78,4 +83,19 @@ func UpdateRevSet(revset string) tea.Cmd {
 	return func() tea.Msg {
 		return UpdateRevSetMsg(revset)
 	}
+}
+
+type ExecMode struct {
+	Mode   string
+	Prompt string
+}
+
+var ExecJJ ExecMode = ExecMode{
+	Mode:   "jj",
+	Prompt: ": ",
+}
+
+var ExecShell ExecMode = ExecMode{
+	Mode:   "sh",
+	Prompt: "$ ",
 }

@@ -2,6 +2,7 @@ package helppage
 
 import (
 	"fmt"
+
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -95,6 +96,9 @@ func (h *Model) View() string {
 		h.printHelp(h.keyMap.Quit),
 		h.printHelp(h.keyMap.Suspend),
 		h.printHelp(h.keyMap.Revset),
+		h.printHeader("Exec"),
+		h.printHelp(h.keyMap.ExecJJ),
+		h.printHelp(h.keyMap.ExecShell),
 		h.printHeader("Revisions"),
 		h.printHelp(h.keyMap.JumpToParent),
 		h.printHelp(h.keyMap.JumpToWorkingCopy),

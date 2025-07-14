@@ -29,6 +29,8 @@ var DefaultKeyMappings = KeyMappings[keys]{
 	Evolog:            []string{"v"},
 	Help:              []string{"?"},
 	Revset:            []string{"L"},
+	ExecJJ:            []string{":"},
+	ExecShell:         []string{"$"},
 	QuickSearch:       []string{"/"},
 	QuickSearchCycle:  []string{"'"},
 	CustomCommands:    []string{"x"},
@@ -127,6 +129,8 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		CustomCommands:    key.NewBinding(key.WithKeys(m.CustomCommands...), key.WithHelp(JoinKeys(m.CustomCommands), "custom commands menu")),
 		Leader:            key.NewBinding(key.WithKeys(m.Leader...), key.WithHelp(JoinKeys(m.Leader), "leader")),
 		Suspend:           key.NewBinding(key.WithKeys(m.Suspend...), key.WithHelp(JoinKeys(m.Suspend), "suspend")),
+		ExecJJ:            key.NewBinding(key.WithKeys(m.ExecJJ...), key.WithHelp(JoinKeys(m.ExecJJ), "interactive jj")),
+		ExecShell:         key.NewBinding(key.WithKeys(m.ExecShell...), key.WithHelp(JoinKeys(m.ExecShell), "interactive shell command")),
 		Rebase: rebaseModeKeys[key.Binding]{
 			Mode:     key.NewBinding(key.WithKeys(m.Rebase.Mode...), key.WithHelp(JoinKeys(m.Rebase.Mode), "rebase")),
 			Revision: key.NewBinding(key.WithKeys(m.Rebase.Revision...), key.WithHelp(JoinKeys(m.Rebase.Revision), "revision")),
@@ -238,6 +242,8 @@ type KeyMappings[T any] struct {
 	Undo              T                         `toml:"undo"`
 	Evolog            T                         `toml:"evolog"`
 	Revset            T                         `toml:"revset"`
+	ExecJJ            T                         `toml:"exec_jj"`
+	ExecShell         T                         `toml:"exec_shell"`
 	QuickSearch       T                         `toml:"quick_search"`
 	QuickSearchCycle  T                         `toml:"quick_search_cycle"`
 	CustomCommands    T                         `toml:"custom_commands"`
