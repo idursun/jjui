@@ -43,7 +43,7 @@ var DefaultPalette = Palette{
 	StatusSuccess:      lipgloss.NewStyle().Foreground(Green),
 	StatusError:        lipgloss.NewStyle().Foreground(Red),
 	StatusMode:         lipgloss.NewStyle().Foreground(Black).Bold(true).Background(Magenta),
-	Drop:               lipgloss.NewStyle().Bold(true).Foreground(Black).Background(Red),
+	TargetMarker:       lipgloss.NewStyle().Bold(true).Foreground(Black).Background(Red),
 	SourceMarker:       lipgloss.NewStyle().Foreground(Black).Background(Cyan).Bold(true),
 	CompletionSelected: lipgloss.NewStyle().Foreground(Cyan).Background(BrightBlack),
 	CompletionMatched:  lipgloss.NewStyle().Foreground(Cyan),
@@ -65,32 +65,67 @@ type Palette struct {
 	StatusMode         lipgloss.Style
 	StatusSuccess      lipgloss.Style
 	StatusError        lipgloss.Style
-	Drop               lipgloss.Style
+	TargetMarker       lipgloss.Style
 	SourceMarker       lipgloss.Style
 	CompletionMatched  lipgloss.Style
 	CompletionSelected lipgloss.Style
 }
 
-type jjStyleMap map[string]config.Color
-
-func (p *Palette) Update(jjStyles jjStyleMap) {
-	if color, ok := jjStyles["change_id"]; ok {
+func (p *Palette) Update(styleMap map[string]config.Color) {
+	if color, ok := styleMap["change_id"]; ok {
 		p.ChangeId = createStyleFrom(color)
 	}
-	if color, ok := jjStyles["rest"]; ok {
-		p.Dimmed = createStyleFrom(color)
-	}
-	if color, ok := jjStyles["diff renamed"]; ok {
+	if color, ok := styleMap["diff renamed"]; ok {
 		p.Renamed = createStyleFrom(color)
 	}
-	if color, ok := jjStyles["diff modified"]; ok {
+	if color, ok := styleMap["diff modified"]; ok {
 		p.Modified = createStyleFrom(color)
 	}
-	if color, ok := jjStyles["diff removed"]; ok {
+	if color, ok := styleMap["diff removed"]; ok {
 		p.Deleted = createStyleFrom(color)
 	}
-	p.Dimmed = createStyleFrom(config.Current.UI.Colors.Dimmed)
-	p.Shortcut = createStyleFrom(config.Current.UI.Colors.Shortcut)
+	if color, ok := styleMap["dimmed"]; ok {
+		p.Dimmed = createStyleFrom(color)
+	}
+	if color, ok := styleMap["shortcut"]; ok {
+		p.Shortcut = createStyleFrom(color)
+	}
+	if color, ok := styleMap["success"]; ok {
+		p.StatusSuccess = createStyleFrom(color)
+	}
+
+	if color, ok := styleMap["error"]; ok {
+		p.StatusError = createStyleFrom(color)
+	}
+	if color, ok := styleMap["status"]; ok {
+		p.StatusMode = createStyleFrom(color)
+	}
+	if color, ok := styleMap["button"]; ok {
+		p.Button = createStyleFrom(color).PaddingLeft(2).PaddingRight(2)
+	}
+	if color, ok := styleMap["placeholder"]; ok {
+		p.EmptyPlaceholder = createStyleFrom(color)
+	}
+	if color, ok := styleMap["target_marker"]; ok {
+		p.TargetMarker = createStyleFrom(color)
+	}
+	if color, ok := styleMap["source_marker"]; ok {
+		p.SourceMarker = createStyleFrom(color)
+	}
+	if color, ok := styleMap["matched"]; ok {
+		p.CompletionMatched = createStyleFrom(color)
+	}
+	if color, ok := styleMap["selected"]; ok {
+		p.CompletionSelected = createStyleFrom(color)
+	}
+	if color, ok := styleMap["confirmation_text"]; ok {
+		p.ConfirmationText = createStyleFrom(color)
+	}
+	p.FocusedButton = lipgloss.NewStyle().
+		Inherit(p.Button).
+		Background(p.CompletionSelected.GetBackground()).
+		PaddingLeft(2).
+		PaddingRight(2)
 }
 
 func createStyleFrom(color config.Color) lipgloss.Style {

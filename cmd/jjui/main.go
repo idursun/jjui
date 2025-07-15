@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/idursun/jjui/internal/ui/common"
 	"io"
 	"io/fs"
 	"log"
@@ -137,6 +138,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+
+	common.DefaultPalette.Update(config.Current.UI.Colors)
 
 	if period >= 0 {
 		config.Current.UI.AutoRefreshInterval = period

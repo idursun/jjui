@@ -17,9 +17,19 @@ var Current = &Config{
 	UI: UIConfig{
 		HighlightLight: "#a0a0a0",
 		HighlightDark:  "#282a36",
-		Colors: colors{
-			Dimmed:   Color{Fg: "bright black"},
-			Shortcut: Color{Fg: "magenta"},
+		Colors: map[string]Color{
+			"dimmed":            {Fg: "bright black"},
+			"shortcut":          {Fg: "magenta"},
+			"confirmation_text": {Fg: "magenta", Bold: true},
+			"target_marker":     {Fg: "black", Bg: "red", Bold: true},
+			"source_marker":     {Fg: "black", Bg: "cyan"},
+			"matched":           {Fg: "cyan"},
+			"selected":          {Fg: "cyan", Bg: "bright black"},
+			"success":           {Fg: "green"},
+			"error":             {Fg: "red"},
+			"status":            {Fg: "black", Bg: "magenta", Bold: true},
+			"button":            {Fg: "white"},
+			"title":             {Fg: "green", Bold: true},
 		},
 	},
 	Preview: PreviewConfig{
@@ -53,15 +63,10 @@ type Color struct {
 	Underline bool   `toml:"underline"`
 }
 
-type colors struct {
-	Shortcut Color `toml:"shortcut"`
-	Dimmed   Color `toml:"dimmed"`
-}
-
 type UIConfig struct {
-	HighlightLight string `toml:"highlight_light"`
-	HighlightDark  string `toml:"highlight_dark"`
-	Colors         colors `toml:"colors"`
+	HighlightLight string           `toml:"highlight_light"`
+	HighlightDark  string           `toml:"highlight_dark"`
+	Colors         map[string]Color `toml:"colors"`
 	// TODO(ilyagr): It might make sense to rename this to `auto_refresh_period` to match `--period` option
 	// once we have a mechanism to deprecate the old name softly.
 	AutoRefreshInterval int `toml:"auto_refresh_interval"`

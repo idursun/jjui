@@ -4,6 +4,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 )
@@ -25,6 +26,12 @@ type Model struct {
 	historyActive   bool
 	MaxHistoryItems int
 	context         *appContext.MainContext
+	styles          styles
+}
+
+type styles struct {
+	promptStyle lipgloss.Style
+	cursorStyle lipgloss.Style
 }
 
 func (m *Model) IsFocused() bool {
@@ -48,14 +55,16 @@ func (k keymap) FullHelp() [][]key.Binding {
 }
 
 func New(context *appContext.MainContext) *Model {
+	styles := styles{
+		promptStyle: common.DefaultPalette.ChangeId.SetString("revset:"),
+		cursorStyle: common.DefaultPalette.EmptyPlaceholder,
+	}
+
 	revsetAliases := context.JJConfig.RevsetAliases
 	completionProvider := NewCompletionProvider(revsetAliases)
 	autoComplete := common.NewAutoCompletionInput(completionProvider)
 	autoComplete.SetPrompt("revset: ")
-	autoComplete.PromptStyle = common.DefaultPalette.ChangeId
-	autoComplete.TextInput.Cursor.Style = cursorStyle
-	autoComplete.SelectedStyle = common.DefaultPalette.Modified.Background(common.BrightBlack).Inline(true)
-	autoComplete.UnselectedStyle = common.DefaultPalette.Dimmed
+	autoComplete.TextInput.Cursor.Style = common.DefaultPalette.EmptyPlaceholder
 	autoComplete.SetValue(context.DefaultRevset)
 	autoComplete.Focus()
 
@@ -73,6 +82,7 @@ func New(context *appContext.MainContext) *Model {
 		History:         []string{},
 		historyIndex:    -1,
 		MaxHistoryItems: 50,
+		styles:          styles,
 	}
 }
 
@@ -176,11 +186,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	return m, cmd
 }
 
-var (
-	promptStyle = common.DefaultPalette.ChangeId.SetString("revset:")
-	cursorStyle = common.DefaultPalette.EmptyPlaceholder
-)
-
 func (m *Model) View() string {
 	if m.Editing {
 		return m.autoComplete.View()
@@ -191,5 +196,5 @@ func (m *Model) View() string {
 		revset = m.Value
 	}
 
-	return promptStyle.Render(cursorStyle.Render(revset))
+	return m.styles.promptStyle.Render(m.styles.cursorStyle.Render(revset))
 }

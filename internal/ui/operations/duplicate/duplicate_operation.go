@@ -115,7 +115,7 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 
 	return lipgloss.JoinHorizontal(
 		lipgloss.Left,
-		common.DefaultPalette.Drop.Render("<< "+ret+" >>"),
+		common.DefaultPalette.TargetMarker.Render("<< "+ret+" >>"),
 		" ",
 		common.DefaultPalette.Dimmed.Render("duplicate"),
 		" ",

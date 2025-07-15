@@ -46,7 +46,7 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 
 	isSelected := s.current != nil && s.current.GetChangeId() == commit.GetChangeId()
 	if isSelected {
-		return common.DefaultPalette.Drop.Render("<< into >>") + " "
+		return common.DefaultPalette.TargetMarker.Render("<< into >>") + " "
 	}
 	sourceIds := s.from.GetIds()
 	if slices.Contains(sourceIds, commit.ChangeId) {
