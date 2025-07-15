@@ -28,8 +28,9 @@ var Current = &Config{
 			"success":           {Fg: "green"},
 			"error":             {Fg: "red"},
 			"status":            {Fg: "black", Bg: "magenta", Bold: true},
-			"button":            {Fg: "white"},
-			"title":             {Fg: "green", Bold: true},
+			"button":            {Fg: "bright white", Bg: "blue", Bold: true},
+			"title":             {Fg: "magenta", Bold: true},
+			"text":              {Fg: "green", Bold: true},
 		},
 	},
 	Preview: PreviewConfig{

@@ -2,12 +2,10 @@ package confirmation
 
 import (
 	"github.com/charmbracelet/bubbles/key"
-	"strings"
-
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/ui/common"
-
-	tea "github.com/charmbracelet/bubbletea"
+	"strings"
 )
 
 var (
@@ -24,11 +22,17 @@ type option struct {
 	keyBinding key.Binding
 }
 
+type styles struct {
+	borderStyle      lipgloss.Style
+	selectedButton   lipgloss.Style
+	unselectedButton lipgloss.Style
+}
+
 type Model struct {
-	message     string
-	options     []option
-	selected    int
-	borderStyle lipgloss.Style
+	message  string
+	options  []option
+	selected int
+	styles   styles
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -67,12 +71,12 @@ func (m *Model) View() string {
 	for i, option := range m.options {
 		w.WriteString(" ")
 		if i == m.selected {
-			w.WriteString(common.DefaultPalette.FocusedButton.Render(option.label))
+			w.WriteString(m.styles.selectedButton.Render(option.label))
 		} else {
-			w.WriteString(common.DefaultPalette.Button.Render(option.label))
+			w.WriteString(m.styles.unselectedButton.Render(option.label))
 		}
 	}
-	return m.borderStyle.Render(w.String())
+	return m.styles.borderStyle.Render(w.String())
 }
 
 func (m *Model) AddOption(label string, cmd tea.Cmd, keyBinding key.Binding) {
@@ -80,15 +84,20 @@ func (m *Model) AddOption(label string, cmd tea.Cmd, keyBinding key.Binding) {
 }
 
 func (m *Model) SetBorderStyle(style lipgloss.Style) {
-	m.borderStyle = style
+	m.styles.borderStyle = style
 }
 
 func New(message string) Model {
+	styles := styles{
+		borderStyle:      lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1, 0, 1),
+		selectedButton:   common.DefaultPalette.Button,
+		unselectedButton: common.DefaultPalette.Dimmed.PaddingLeft(2).PaddingRight(2),
+	}
 	return Model{
-		message:     message,
-		options:     []option{},
-		selected:    0,
-		borderStyle: lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1, 0, 1),
+		message:  message,
+		options:  []option{},
+		selected: 0,
+		styles:   styles,
 	}
 }
 
