@@ -17,6 +17,7 @@ type ListItem interface {
 
 type ListItemDelegate struct {
 	ShowShortcuts bool
+	styles        styles
 }
 
 func (l ListItemDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
@@ -55,9 +56,9 @@ func (l ListItemDelegate) Render(w io.Writer, m list.Model, index int, item list
 	}
 
 	var (
-		titleStyle    = DefaultPalette.Normal
-		descStyle     = DefaultPalette.Dimmed
-		shortcutStyle = DefaultPalette.Shortcut
+		selectedStyle = l.styles.text
+		descStyle     = l.styles.dimmed
+		shortcutStyle = l.styles.shortcut
 	)
 
 	highlightColor := lipgloss.AdaptiveColor{
@@ -66,22 +67,19 @@ func (l ListItemDelegate) Render(w io.Writer, m list.Model, index int, item list
 	}
 
 	if index == m.Index() {
-		titleStyle = DefaultPalette.Matched.
-			Bold(true).
-			Background(highlightColor)
-		descStyle = DefaultPalette.Selected.
-			Background(highlightColor)
+		selectedStyle = l.styles.selected.Background(highlightColor)
+		descStyle = l.styles.selected.Background(highlightColor)
 		shortcutStyle = shortcutStyle.Background(highlightColor)
 	}
 
-	titleStyle = titleStyle.Width(titleWidth)
+	selectedStyle = selectedStyle.Width(titleWidth)
 	descStyle = descStyle.Width(m.Width())
 
 	_, _ = fmt.Fprint(w, " ")
 	if shortcut != "" {
-		_, _ = fmt.Fprint(w, lipgloss.JoinHorizontal(0, shortcutStyle.Render(shortcut, ""), titleStyle.Render(title)))
+		_, _ = fmt.Fprint(w, lipgloss.JoinHorizontal(0, shortcutStyle.Render(shortcut, ""), selectedStyle.Render(title)))
 	} else {
-		_, _ = fmt.Fprint(w, titleStyle.Render(title))
+		_, _ = fmt.Fprint(w, selectedStyle.Render(title))
 	}
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprint(w, " ")

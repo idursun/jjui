@@ -38,6 +38,15 @@ type Operation struct {
 	Target         Target
 	keyMap         config.KeyMappings[key.Binding]
 	highlightedIds []string
+	styles         styles
+}
+
+type styles struct {
+	changeId     lipgloss.Style
+	dimmed       lipgloss.Style
+	shortcut     lipgloss.Style
+	targetMarker lipgloss.Style
+	sourceMarker lipgloss.Style
 }
 
 func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
@@ -84,7 +93,7 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if pos == operations.RenderBeforeChangeId {
 		changeId := commit.GetChangeId()
 		if slices.Contains(r.highlightedIds, changeId) {
-			return common.DefaultPalette.SourceMarker.Render("<< move >>") + " "
+			return r.styles.sourceMarker.Render("<< move >>") + " "
 		}
 		return ""
 	}
@@ -115,15 +124,15 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 
 	return lipgloss.JoinHorizontal(
 		lipgloss.Left,
-		common.DefaultPalette.TargetMarker.Render("<< "+ret+" >>"),
+		r.styles.targetMarker.Render("<< "+ret+" >>"),
 		" ",
-		common.DefaultPalette.Dimmed.Render("duplicate"),
+		r.styles.dimmed.Render("duplicate"),
 		" ",
-		common.DefaultPalette.ChangeId.Render(strings.Join(r.From.GetIds(), " ")),
+		r.styles.changeId.Render(strings.Join(r.From.GetIds(), " ")),
 		" ",
-		common.DefaultPalette.Dimmed.Render(ret),
+		r.styles.dimmed.Render(ret),
 		" ",
-		common.DefaultPalette.ChangeId.Render(r.To.GetChangeId()),
+		r.styles.changeId.Render(r.To.GetChangeId()),
 	)
 }
 
@@ -132,10 +141,17 @@ func (r *Operation) Name() string {
 }
 
 func NewOperation(context *appContext.MainContext, from jj.SelectedRevisions, target Target) *Operation {
+	styles := styles{
+		changeId:     common.DefaultPalette.Get("change_id"),
+		dimmed:       common.DefaultPalette.Get("duplicate dimmed"),
+		sourceMarker: common.DefaultPalette.Get("duplicate source_marker"),
+		targetMarker: common.DefaultPalette.Get("duplicate target_marker"),
+	}
 	return &Operation{
 		context: context,
 		keyMap:  config.Current.GetKeyMap(),
 		From:    from,
 		Target:  target,
+		styles:  styles,
 	}
 }

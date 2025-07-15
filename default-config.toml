@@ -1,4 +1,5 @@
 experimental_log_batching_enabled = false
+Limit = 0
 
 [keys]
   up = ["up", "k"]
@@ -26,6 +27,7 @@ experimental_log_batching_enabled = false
   quick_search = ["/"]
   quick_search_cycle = ["'"]
   custom_commands = ["x"]
+  leader = ["\\"]
   suspend = ["ctrl+z"]
   [keys.rebase]
     mode = ["r"]
@@ -85,6 +87,112 @@ experimental_log_batching_enabled = false
   highlight_light = "#a0a0a0"
   highlight_dark = "#282a36"
   auto_refresh_interval = 0
+  [ui.colors]
+    [ui.colors."confirmation dimmed"]
+      fg = "white"
+      bg = ""
+      bold = false
+      underline = false
+    [ui.colors."confirmation selected"]
+      fg = "bright white"
+      bg = "blue"
+      bold = true
+      underline = false
+    [ui.colors."confirmation text"]
+      fg = "magenta"
+      bg = ""
+      bold = true
+      underline = false
+    [ui.colors."details selected"]
+      fg = ""
+      bg = "bright black"
+      bold = false
+      underline = false
+    [ui.colors.dimmed]
+      fg = "bright black"
+      bg = ""
+      bold = false
+      underline = false
+    [ui.colors.error]
+      fg = "red"
+      bg = ""
+      bold = false
+      underline = false
+    [ui.colors."help title"]
+      fg = "green"
+      bg = ""
+      bold = true
+      underline = false
+    [ui.colors.matched]
+      fg = "cyan"
+      bg = ""
+      bold = false
+      underline = false
+    [ui.colors."menu matched"]
+      fg = "bright white"
+      bg = ""
+      bold = true
+      underline = false
+    [ui.colors."menu selected"]
+      fg = "cyan"
+      bg = ""
+      bold = true
+      underline = false
+    [ui.colors."menu title"]
+      fg = "230"
+      bg = "62"
+      bold = true
+      underline = false
+    [ui.colors."revset text"]
+      fg = "green"
+      bg = ""
+      bold = true
+      underline = false
+    [ui.colors."revset title"]
+      fg = "magenta"
+      bg = ""
+      bold = false
+      underline = false
+    [ui.colors.selected]
+      fg = "cyan"
+      bg = "bright black"
+      bold = false
+      underline = false
+    [ui.colors.shortcut]
+      fg = "magenta"
+      bg = ""
+      bold = false
+      underline = false
+    [ui.colors.source_marker]
+      fg = "black"
+      bg = "cyan"
+      bold = false
+      underline = false
+    [ui.colors."status title"]
+      fg = "black"
+      bg = "magenta"
+      bold = true
+      underline = false
+    [ui.colors.success]
+      fg = "green"
+      bg = ""
+      bold = false
+      underline = false
+    [ui.colors.target_marker]
+      fg = "black"
+      bg = "red"
+      bold = true
+      underline = false
+    [ui.colors.text]
+      fg = "white"
+      bg = ""
+      bold = false
+      underline = false
+    [ui.colors.title]
+      fg = "magenta"
+      bg = ""
+      bold = true
+      underline = false
 
 [preview]
   extra_args = []

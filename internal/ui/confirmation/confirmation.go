@@ -26,6 +26,7 @@ type styles struct {
 	borderStyle      lipgloss.Style
 	selectedButton   lipgloss.Style
 	unselectedButton lipgloss.Style
+	text             lipgloss.Style
 }
 
 type Model struct {
@@ -67,7 +68,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) View() string {
 	w := strings.Builder{}
-	w.WriteString(common.DefaultPalette.Text.Render(m.message))
+	w.WriteString(m.styles.text.Render(m.message))
 	for i, option := range m.options {
 		w.WriteString(" ")
 		if i == m.selected {
@@ -90,8 +91,9 @@ func (m *Model) SetBorderStyle(style lipgloss.Style) {
 func New(message string) Model {
 	styles := styles{
 		borderStyle:      lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1, 0, 1),
-		selectedButton:   common.DefaultPalette.Button,
-		unselectedButton: common.DefaultPalette.Dimmed.PaddingLeft(2).PaddingRight(2),
+		text:             common.DefaultPalette.Get("confirmation text"),
+		selectedButton:   common.DefaultPalette.Get("confirmation selected").PaddingLeft(2).PaddingRight(2),
+		unselectedButton: common.DefaultPalette.Get("confirmation dimmed").PaddingLeft(2).PaddingRight(2),
 	}
 	return Model{
 		message:  message,

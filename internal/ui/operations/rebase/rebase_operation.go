@@ -54,6 +54,15 @@ type Operation struct {
 	Target         Target
 	keyMap         config.KeyMappings[key.Binding]
 	highlightedIds []string
+	styles         styles
+}
+
+type styles struct {
+	shortcut     lipgloss.Style
+	dimmed       lipgloss.Style
+	sourceMarker lipgloss.Style
+	targetMarker lipgloss.Style
+	changeId     lipgloss.Style
 }
 
 func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
@@ -126,13 +135,13 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if pos == operations.RenderBeforeChangeId {
 		changeId := commit.GetChangeId()
 		if slices.Contains(r.highlightedIds, changeId) {
-			return common.DefaultPalette.SourceMarker.Render("<< move >>") + " "
+			return r.styles.sourceMarker.Render("<< move >>") + " "
 		}
 		if r.Target == TargetInsert && r.InsertStart.GetChangeId() == commit.GetChangeId() {
-			return common.DefaultPalette.SourceMarker.Render("<< after this >>") + " "
+			return r.styles.sourceMarker.Render("<< after this >>") + " "
 		}
 		if r.Target == TargetInsert && r.To.GetChangeId() == commit.GetChangeId() {
-			return common.DefaultPalette.SourceMarker.Render("<< before this >>") + " "
+			return r.styles.sourceMarker.Render("<< before this >>") + " "
 		}
 		return ""
 	}
@@ -183,29 +192,29 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if r.Target == TargetInsert {
 		return lipgloss.JoinHorizontal(
 			lipgloss.Left,
-			common.DefaultPalette.TargetMarker.Render("<< insert >>"),
+			r.styles.targetMarker.Render("<< insert >>"),
 			" ",
-			common.DefaultPalette.Dimmed.Render(source),
-			common.DefaultPalette.ChangeId.Render(strings.Join(r.From.GetIds(), " ")),
-			common.DefaultPalette.Dimmed.Render(" between "),
-			common.DefaultPalette.ChangeId.Render(r.InsertStart.GetChangeId()),
-			common.DefaultPalette.Dimmed.Render(" and "),
-			common.DefaultPalette.ChangeId.Render(r.To.GetChangeId()),
+			r.styles.dimmed.Render(source),
+			r.styles.changeId.Render(strings.Join(r.From.GetIds(), " ")),
+			r.styles.dimmed.Render(" between "),
+			r.styles.changeId.Render(r.InsertStart.GetChangeId()),
+			r.styles.dimmed.Render(" and "),
+			r.styles.changeId.Render(r.To.GetChangeId()),
 		)
 	}
 
 	return lipgloss.JoinHorizontal(
 		lipgloss.Left,
-		common.DefaultPalette.TargetMarker.Render("<< "+ret+" >>"),
+		r.styles.targetMarker.Render("<< "+ret+" >>"),
 		" ",
-		common.DefaultPalette.Dimmed.Render("rebase"),
+		r.styles.dimmed.Render("rebase"),
 		" ",
-		common.DefaultPalette.Dimmed.Render(source),
-		common.DefaultPalette.ChangeId.Render(strings.Join(r.From.GetIds(), " ")),
+		r.styles.dimmed.Render(source),
+		r.styles.changeId.Render(strings.Join(r.From.GetIds(), " ")),
 		" ",
-		common.DefaultPalette.Dimmed.Render(ret),
+		r.styles.dimmed.Render(ret),
 		" ",
-		common.DefaultPalette.ChangeId.Render(r.To.GetChangeId()),
+		r.styles.changeId.Render(r.To.GetChangeId()),
 	)
 }
 
@@ -214,11 +223,19 @@ func (r *Operation) Name() string {
 }
 
 func NewOperation(context *context.MainContext, from jj.SelectedRevisions, source Source, target Target) *Operation {
+	styles := styles{
+		changeId:     common.DefaultPalette.Get("rebase change_id"),
+		shortcut:     common.DefaultPalette.Get("rebase shortcut"),
+		dimmed:       common.DefaultPalette.Get("rebase dimmed"),
+		sourceMarker: common.DefaultPalette.Get("rebase source_marker"),
+		targetMarker: common.DefaultPalette.Get("rebase target_marker"),
+	}
 	return &Operation{
 		context: context,
 		keyMap:  config.Current.GetKeyMap(),
 		From:    from,
 		Source:  source,
 		Target:  target,
+		styles:  styles,
 	}
 }

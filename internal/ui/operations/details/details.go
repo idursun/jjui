@@ -65,16 +65,16 @@ func (i itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	var style lipgloss.Style
 	switch item.status {
 	case Added:
-		style = common.DefaultPalette.Added
+		style = common.DefaultPalette.Get("details added")
 	case Deleted:
-		style = common.DefaultPalette.Deleted
+		style = common.DefaultPalette.Get("details deleted")
 	case Modified:
-		style = common.DefaultPalette.Modified
+		style = common.DefaultPalette.Get("details modified")
 	case Renamed:
-		style = common.DefaultPalette.Renamed
+		style = common.DefaultPalette.Get("details renamed")
 	}
 	if index == m.Index() {
-		style = style.Bold(true).Background(common.DefaultPalette.Selected.GetBackground())
+		style = style.Bold(true).Background(common.DefaultPalette.Get("details selected").GetBackground())
 	}
 
 	title := item.Title()
@@ -93,7 +93,7 @@ func (i itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		}
 	}
 
-	fmt.Fprint(w, style.PaddingRight(1).Render(title), " ", common.DefaultPalette.Dimmed.Render(hint))
+	fmt.Fprint(w, style.PaddingRight(1).Render(title), " ", common.DefaultPalette.Get("details dimmed").Render(hint))
 }
 
 func (i itemDelegate) Height() int                         { return 1 }

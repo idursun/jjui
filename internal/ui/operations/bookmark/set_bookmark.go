@@ -70,6 +70,7 @@ func (s *SetBookmarkOperation) Name() string {
 }
 
 func NewSetBookmarkOperation(context *context.MainContext, changeId string) (operations.Operation, tea.Cmd) {
+	dimmedStyle := common.DefaultPalette.Get("dimmed")
 	t := textinput.New()
 	t.Width = 0
 	t.ShowSuggestions = true
@@ -82,8 +83,8 @@ func NewSetBookmarkOperation(context *context.MainContext, changeId string) (ope
 	t.TextStyle = lipgloss.NewStyle().Background(highlightBackground)
 	t.PromptStyle = t.TextStyle
 	t.Cursor.TextStyle = t.TextStyle
-	t.CompletionStyle = lipgloss.NewStyle().Inherit(common.DefaultPalette.Dimmed).Inline(true).Background(highlightBackground)
-	t.PlaceholderStyle = lipgloss.NewStyle().Inherit(common.DefaultPalette.Dimmed).Inline(true).Background(highlightBackground)
+	t.CompletionStyle = lipgloss.NewStyle().Inherit(dimmedStyle).Inline(true).Background(highlightBackground)
+	t.PlaceholderStyle = lipgloss.NewStyle().Inherit(dimmedStyle).Inline(true).Background(highlightBackground)
 	t.SetValue("")
 	t.Focus()
 

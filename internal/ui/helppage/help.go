@@ -15,6 +15,14 @@ type Model struct {
 	height  int
 	keyMap  config.KeyMappings[key.Binding]
 	context *context.MainContext
+	styles  styles
+}
+type styles struct {
+	border   lipgloss.Style
+	title    lipgloss.Style
+	help     lipgloss.Style
+	shortcut lipgloss.Style
+	dimmed   lipgloss.Style
 }
 
 func (h *Model) Width() int {
@@ -56,23 +64,23 @@ func (h *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return h, nil
 }
 
-func printHelp(k key.Binding) string {
-	return printHelpExt(k.Help().Key, k.Help().Desc)
+func (h *Model) printHelp(k key.Binding) string {
+	return h.printHelpExt(k.Help().Key, k.Help().Desc)
 }
 
-func printHelpExt(key string, desc string) string {
+func (h *Model) printHelpExt(key string, desc string) string {
 	keyAligned := fmt.Sprintf("%9s", key)
-	help := fmt.Sprintf("%s %s", common.DefaultPalette.Shortcut.Render(keyAligned), common.DefaultPalette.Dimmed.Render(desc))
+	help := fmt.Sprintf("%s %s", h.styles.shortcut.Render(keyAligned), h.styles.dimmed.Render(desc))
 	return help
 }
 
-func printHeader(header string) string {
-	return printMode(key.NewBinding(), header)
+func (h *Model) printHeader(header string) string {
+	return h.printMode(key.NewBinding(), header)
 }
 
-func printMode(key key.Binding, name string) string {
+func (h *Model) printMode(key key.Binding, name string) string {
 	keyAligned := fmt.Sprintf("%9s", key.Help().Key)
-	help := fmt.Sprintf("%v %s", common.DefaultPalette.Shortcut.Render(keyAligned), common.DefaultPalette.Title.Render(name))
+	help := fmt.Sprintf("%v %s", h.styles.shortcut.Render(keyAligned), h.styles.title.Render(name))
 	return help
 }
 
@@ -80,93 +88,93 @@ var border = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Padding(2)
 
 func (h *Model) View() string {
 	leftView := lipgloss.JoinVertical(lipgloss.Left,
-		printHeader("UI"),
-		printHelp(h.keyMap.Refresh),
-		printHelp(h.keyMap.Help),
-		printHelp(h.keyMap.Cancel),
-		printHelp(h.keyMap.Quit),
-		printHelp(h.keyMap.Suspend),
-		printHelp(h.keyMap.Revset),
-		printHeader("Revisions"),
-		printHelp(h.keyMap.JumpToParent),
-		printHelp(h.keyMap.JumpToWorkingCopy),
-		printHelp(h.keyMap.ToggleSelect),
-		printHelp(h.keyMap.QuickSearch),
-		printHelp(h.keyMap.QuickSearchCycle),
-		printHelp(h.keyMap.New),
-		printHelp(h.keyMap.Commit),
-		printHelp(h.keyMap.Describe),
-		printHelp(h.keyMap.Edit),
-		printHelp(h.keyMap.Diff),
-		printHelp(h.keyMap.Diffedit),
-		printHelp(h.keyMap.Split),
-		printHelp(h.keyMap.Abandon),
-		printHelp(h.keyMap.Absorb),
-		printHelp(h.keyMap.Undo),
-		printHelp(h.keyMap.Details.Mode),
-		printHelp(h.keyMap.Evolog),
-		printHelp(h.keyMap.Bookmark.Set),
-		printHelp(h.keyMap.InlineDescribe.Mode),
+		h.printHeader("UI"),
+		h.printHelp(h.keyMap.Refresh),
+		h.printHelp(h.keyMap.Help),
+		h.printHelp(h.keyMap.Cancel),
+		h.printHelp(h.keyMap.Quit),
+		h.printHelp(h.keyMap.Suspend),
+		h.printHelp(h.keyMap.Revset),
+		h.printHeader("Revisions"),
+		h.printHelp(h.keyMap.JumpToParent),
+		h.printHelp(h.keyMap.JumpToWorkingCopy),
+		h.printHelp(h.keyMap.ToggleSelect),
+		h.printHelp(h.keyMap.QuickSearch),
+		h.printHelp(h.keyMap.QuickSearchCycle),
+		h.printHelp(h.keyMap.New),
+		h.printHelp(h.keyMap.Commit),
+		h.printHelp(h.keyMap.Describe),
+		h.printHelp(h.keyMap.Edit),
+		h.printHelp(h.keyMap.Diff),
+		h.printHelp(h.keyMap.Diffedit),
+		h.printHelp(h.keyMap.Split),
+		h.printHelp(h.keyMap.Abandon),
+		h.printHelp(h.keyMap.Absorb),
+		h.printHelp(h.keyMap.Undo),
+		h.printHelp(h.keyMap.Details.Mode),
+		h.printHelp(h.keyMap.Evolog),
+		h.printHelp(h.keyMap.Bookmark.Set),
+		h.printHelp(h.keyMap.InlineDescribe.Mode),
 	)
 
 	middleView := lipgloss.JoinVertical(lipgloss.Left,
-		printMode(h.keyMap.Preview.Mode, "Preview"),
-		printHelp(h.keyMap.Preview.ScrollUp),
-		printHelp(h.keyMap.Preview.ScrollDown),
-		printHelp(h.keyMap.Preview.HalfPageDown),
-		printHelp(h.keyMap.Preview.HalfPageUp),
-		printHelp(h.keyMap.Preview.Expand),
-		printHelp(h.keyMap.Preview.Shrink),
+		h.printMode(h.keyMap.Preview.Mode, "Preview"),
+		h.printHelp(h.keyMap.Preview.ScrollUp),
+		h.printHelp(h.keyMap.Preview.ScrollDown),
+		h.printHelp(h.keyMap.Preview.HalfPageDown),
+		h.printHelp(h.keyMap.Preview.HalfPageUp),
+		h.printHelp(h.keyMap.Preview.Expand),
+		h.printHelp(h.keyMap.Preview.Shrink),
 		"",
-		printMode(h.keyMap.Details.Mode, "Details"),
-		printHelp(h.keyMap.Details.Close),
-		printHelp(h.keyMap.Details.ToggleSelect),
-		printHelp(h.keyMap.Details.Restore),
-		printHelp(h.keyMap.Details.Split),
-		printHelp(h.keyMap.Details.Diff),
-		printHelp(h.keyMap.Details.RevisionsChangingFile),
+		h.printMode(h.keyMap.Details.Mode, "Details"),
+		h.printHelp(h.keyMap.Details.Close),
+		h.printHelp(h.keyMap.Details.ToggleSelect),
+		h.printHelp(h.keyMap.Details.Restore),
+		h.printHelp(h.keyMap.Details.Split),
+		h.printHelp(h.keyMap.Details.Diff),
+		h.printHelp(h.keyMap.Details.RevisionsChangingFile),
 		"",
-		printMode(h.keyMap.Git.Mode, "Git"),
-		printHelp(h.keyMap.Git.Push),
-		printHelp(h.keyMap.Git.Fetch),
+		h.printMode(h.keyMap.Git.Mode, "Git"),
+		h.printHelp(h.keyMap.Git.Push),
+		h.printHelp(h.keyMap.Git.Fetch),
 		"",
-		printMode(h.keyMap.Bookmark.Mode, "Bookmarks"),
-		printHelp(h.keyMap.Bookmark.Move),
-		printHelp(h.keyMap.Bookmark.Delete),
-		printHelp(h.keyMap.Bookmark.Untrack),
-		printHelp(h.keyMap.Bookmark.Track),
-		printHelp(h.keyMap.Bookmark.Forget),
+		h.printMode(h.keyMap.Bookmark.Mode, "Bookmarks"),
+		h.printHelp(h.keyMap.Bookmark.Move),
+		h.printHelp(h.keyMap.Bookmark.Delete),
+		h.printHelp(h.keyMap.Bookmark.Untrack),
+		h.printHelp(h.keyMap.Bookmark.Track),
+		h.printHelp(h.keyMap.Bookmark.Forget),
 	)
 
 	rightView := lipgloss.JoinVertical(lipgloss.Left,
-		printMode(h.keyMap.Squash.Mode, "Squash"),
-		printHelp(h.keyMap.Squash.KeepEmptied),
-		printHelp(h.keyMap.Squash.Interactive),
+		h.printMode(h.keyMap.Squash.Mode, "Squash"),
+		h.printHelp(h.keyMap.Squash.KeepEmptied),
+		h.printHelp(h.keyMap.Squash.Interactive),
 		"",
-		printMode(h.keyMap.Rebase.Mode, "Rebase"),
-		printHelp(h.keyMap.Rebase.Revision),
-		printHelp(h.keyMap.Rebase.Source),
-		printHelp(h.keyMap.Rebase.Branch),
-		printHelp(h.keyMap.Rebase.Before),
-		printHelp(h.keyMap.Rebase.After),
-		printHelp(h.keyMap.Rebase.Onto),
-		printHelp(h.keyMap.Rebase.Insert),
+		h.printMode(h.keyMap.Rebase.Mode, "Rebase"),
+		h.printHelp(h.keyMap.Rebase.Revision),
+		h.printHelp(h.keyMap.Rebase.Source),
+		h.printHelp(h.keyMap.Rebase.Branch),
+		h.printHelp(h.keyMap.Rebase.Before),
+		h.printHelp(h.keyMap.Rebase.After),
+		h.printHelp(h.keyMap.Rebase.Onto),
+		h.printHelp(h.keyMap.Rebase.Insert),
 		"",
-		printMode(h.keyMap.Duplicate.Mode, "Duplicate"),
-		printHelp(h.keyMap.Duplicate.Onto),
-		printHelp(h.keyMap.Duplicate.Before),
-		printHelp(h.keyMap.Duplicate.After),
+		h.printMode(h.keyMap.Duplicate.Mode, "Duplicate"),
+		h.printHelp(h.keyMap.Duplicate.Onto),
+		h.printHelp(h.keyMap.Duplicate.Before),
+		h.printHelp(h.keyMap.Duplicate.After),
 		"",
-		printMode(h.keyMap.OpLog.Mode, "Oplog"),
-		printHelp(h.keyMap.Diff),
-		printHelp(h.keyMap.OpLog.Restore),
-		printMode(h.keyMap.CustomCommands, "Custom Commands"),
-		printMode(h.keyMap.Leader, "Leader"),
+		h.printMode(h.keyMap.OpLog.Mode, "Oplog"),
+		h.printHelp(h.keyMap.Diff),
+		h.printHelp(h.keyMap.OpLog.Restore),
+		h.printMode(h.keyMap.Leader, "Leader"),
+		h.printMode(h.keyMap.CustomCommands, "Custom Commands"),
 	)
 
 	var customCommands []string
 	for _, command := range h.context.CustomCommands {
-		customCommands = append(customCommands, printHelp(command.Binding()))
+		customCommands = append(customCommands, h.printHelp(command.Binding()))
 	}
 
 	if len(customCommands) > 0 {
@@ -182,8 +190,16 @@ func (h *Model) View() string {
 }
 
 func New(context *context.MainContext) *Model {
+	styles := styles{
+		title:    common.DefaultPalette.Get("help title"),
+		dimmed:   common.DefaultPalette.Get("help dimmed"),
+		border:   common.DefaultPalette.Get("help border"),
+		help:     common.DefaultPalette.Get("help text"),
+		shortcut: common.DefaultPalette.Get("help shortcut"),
+	}
 	return &Model{
 		context: context,
 		keyMap:  config.Current.GetKeyMap(),
+		styles:  styles,
 	}
 }

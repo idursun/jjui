@@ -1,6 +1,7 @@
 package squash
 
 import (
+	"github.com/charmbracelet/lipgloss"
 	"slices"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -19,6 +20,13 @@ type Operation struct {
 	keyMap      config.KeyMappings[key.Binding]
 	keepEmptied bool
 	interactive bool
+	styles      styles
+}
+
+type styles struct {
+	dimmed       lipgloss.Style
+	sourceMarker lipgloss.Style
+	targetMarker lipgloss.Style
 }
 
 func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
@@ -46,7 +54,7 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 
 	isSelected := s.current != nil && s.current.GetChangeId() == commit.GetChangeId()
 	if isSelected {
-		return common.DefaultPalette.TargetMarker.Render("<< into >>") + " "
+		return s.styles.targetMarker.Render("<< into >>") + " "
 	}
 	sourceIds := s.from.GetIds()
 	if slices.Contains(sourceIds, commit.ChangeId) {
@@ -57,7 +65,7 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		if s.interactive {
 			marker += " (interactive)"
 		}
-		return common.DefaultPalette.SourceMarker.Render(marker) + " "
+		return s.styles.sourceMarker.Render(marker) + " "
 	}
 	return ""
 }
@@ -80,9 +88,15 @@ func (s *Operation) FullHelp() [][]key.Binding {
 }
 
 func NewOperation(context *context.MainContext, from jj.SelectedRevisions) *Operation {
+	styles := styles{
+		dimmed:       common.DefaultPalette.Get("squash dimmed"),
+		sourceMarker: common.DefaultPalette.Get("squash source_marker"),
+		targetMarker: common.DefaultPalette.Get("squash target_marker"),
+	}
 	return &Operation{
 		context: context,
 		keyMap:  config.Current.GetKeyMap(),
 		from:    from,
+		styles:  styles,
 	}
 }

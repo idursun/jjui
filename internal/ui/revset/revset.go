@@ -1,7 +1,6 @@
 package revset
 
 import (
-	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -15,12 +14,10 @@ type EditRevSetMsg struct {
 }
 
 type Model struct {
-	Editing      bool
-	Value        string
-	autoComplete *common.AutoCompletionInput
-	help         help.Model
-	keymap       keymap
-
+	Editing         bool
+	Value           string
+	autoComplete    *common.AutoCompletionInput
+	keymap          keymap
 	History         []string
 	historyIndex    int
 	currentInput    string
@@ -57,8 +54,8 @@ func (k keymap) FullHelp() [][]key.Binding {
 
 func New(context *appContext.MainContext) *Model {
 	styles := styles{
-		promptStyle: common.DefaultPalette.Title,
-		textStyle:   common.DefaultPalette.Text.Bold(true),
+		promptStyle: common.DefaultPalette.Get("revset title"),
+		textStyle:   common.DefaultPalette.Get("revset text"),
 	}
 
 	revsetAliases := context.JJConfig.RevsetAliases
@@ -68,15 +65,10 @@ func New(context *appContext.MainContext) *Model {
 	autoComplete.SetValue(context.DefaultRevset)
 	autoComplete.Focus()
 
-	h := help.New()
-	h.Styles.ShortKey = common.DefaultPalette.Shortcut
-	h.Styles.ShortDesc = common.DefaultPalette.Dimmed
-
 	return &Model{
 		context:         context,
 		Editing:         false,
 		Value:           context.CurrentRevset,
-		help:            h,
 		keymap:          keymap{},
 		autoComplete:    autoComplete,
 		History:         []string{},

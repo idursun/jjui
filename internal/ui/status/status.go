@@ -31,6 +31,15 @@ type Model struct {
 	width   int
 	mode    string
 	editing bool
+	styles  styles
+}
+
+type styles struct {
+	shortcut lipgloss.Style
+	dimmed   lipgloss.Style
+	title    lipgloss.Style
+	success  lipgloss.Style
+	error    lipgloss.Style
 }
 
 func (m *Model) IsFocused() bool {
@@ -131,9 +140,9 @@ func (m *Model) View() string {
 	if m.running {
 		commandStatusMark = common.DefaultPalette.Normal.Render(m.spinner.View())
 	} else if m.error != nil {
-		commandStatusMark = common.DefaultPalette.Error.Render("✗ ")
+		commandStatusMark = m.styles.error.Render("✗ ")
 	} else if m.command != "" {
-		commandStatusMark = common.DefaultPalette.Success.Render("✓ ")
+		commandStatusMark = m.styles.success.Render("✓ ")
 	} else {
 		commandStatusMark = m.help.View(m.keyMap)
 	}
@@ -142,14 +151,14 @@ func (m *Model) View() string {
 		commandStatusMark = ""
 		ret = m.input.View()
 	}
-	mode := common.DefaultPalette.StatusMode.Width(10).Render("", m.mode)
+	mode := m.styles.title.Width(10).Render("", m.mode)
 	ret = lipgloss.JoinHorizontal(lipgloss.Left, mode, " ", commandStatusMark, ret)
 	if m.error != nil {
 		k := cancel.Help().Key
 		return lipgloss.JoinVertical(0,
 			ret,
-			common.DefaultPalette.Error.Render(strings.Trim(m.output, "\n")),
-			common.DefaultPalette.Shortcut.Render("press ", k, " to dismiss"))
+			m.styles.error.Render(strings.Trim(m.output, "\n")),
+			m.styles.shortcut.Render("press ", k, " to dismiss"))
 	}
 	return ret
 }
@@ -167,14 +176,21 @@ func (m *Model) SetMode(mode string) {
 }
 
 func New(context *context.MainContext) Model {
+	styles := styles{
+		shortcut: common.DefaultPalette.Get("status shortcut"),
+		dimmed:   common.DefaultPalette.Get("status dimmed"),
+		title:    common.DefaultPalette.Get("status title"),
+		success:  common.DefaultPalette.Get("status success"),
+		error:    common.DefaultPalette.Get("status error"),
+	}
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 
 	h := help.New()
-	h.Styles.ShortKey = common.DefaultPalette.Shortcut
-	h.Styles.ShortDesc = common.DefaultPalette.Dimmed
-	h.Styles.ShortSeparator = common.DefaultPalette.Dimmed
-	h.Styles.FullSeparator = common.DefaultPalette.Dimmed
+	h.Styles.ShortKey = styles.shortcut
+	h.Styles.ShortDesc = styles.dimmed
+	h.Styles.ShortSeparator = styles.dimmed
+	h.Styles.FullSeparator = styles.dimmed
 
 	t := textinput.New()
 	t.Width = 50
@@ -188,5 +204,6 @@ func New(context *context.MainContext) Model {
 		output:  "",
 		input:   t,
 		keyMap:  nil,
+		styles:  styles,
 	}
 }

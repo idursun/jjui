@@ -20,14 +20,19 @@ type AutoCompletionInput struct {
 	SignatureHelp      string
 	previousValue      string
 	currentCompletions []Completion
-	SelectedStyle      lipgloss.Style
-	UnselectedStyle    lipgloss.Style
-	MatchedStyle       lipgloss.Style
 
 	tabCompletionActive    bool
 	lastCompletedValue     string
 	currentSuggestionIndex int
 	firstTabPressed        bool
+	styles                 autoCompleteStyles
+}
+
+type autoCompleteStyles struct {
+	selected lipgloss.Style
+	matched  lipgloss.Style
+	text     lipgloss.Style
+	dimmed   lipgloss.Style
 }
 
 type Completion struct {
@@ -41,13 +46,17 @@ func NewAutoCompletionInput(provider CompletionProvider) *AutoCompletionInput {
 	ti.Focus()
 	ti.Prompt = ""
 	ti.ShowSuggestions = true
+	styles := autoCompleteStyles{
+		selected: DefaultPalette.Get("selected"),
+		matched:  DefaultPalette.Get("matched"),
+		text:     DefaultPalette.Get("text"),
+		dimmed:   DefaultPalette.Get("dimmed"),
+	}
 
 	return &AutoCompletionInput{
 		TextInput:          ti,
 		CompletionProvider: provider,
-		SelectedStyle:      DefaultPalette.Selected,
-		MatchedStyle:       DefaultPalette.Matched,
-		UnselectedStyle:    DefaultPalette.Dimmed,
+		styles:             styles,
 	}
 }
 
@@ -195,10 +204,10 @@ func (ac *AutoCompletionInput) View() string {
 			completion := ac.currentCompletions[i]
 
 			if i == ac.currentSuggestionIndex {
-				builder.WriteString(ac.SelectedStyle.Render(completion.FullText))
+				builder.WriteString(ac.styles.selected.Render(completion.FullText))
 			} else {
-				matchedPart := ac.MatchedStyle.Render(completion.MatchedPart)
-				restPart := ac.UnselectedStyle.Render(completion.RestPart)
+				matchedPart := ac.styles.matched.Render(completion.MatchedPart)
+				restPart := ac.styles.text.Render(completion.RestPart)
 				builder.WriteString(matchedPart)
 				builder.WriteString(restPart)
 			}
@@ -210,14 +219,13 @@ func (ac *AutoCompletionInput) View() string {
 
 		if len(ac.currentCompletions) > visibleCount {
 			builder.WriteString(" +" +
-				ac.UnselectedStyle.Render(
-					string(rune('0'+len(ac.currentCompletions)-visibleCount))+" more"))
+				ac.styles.text.Render(string(rune('0'+len(ac.currentCompletions)-visibleCount))+" more"))
 		}
 	} else if ac.SignatureHelp != "" {
 		builder.WriteString("\n")
 		builder.WriteString(ac.SignatureHelp)
 	} else if ac.TextInput.Value() != "" {
-		builder.WriteString(DefaultPalette.Dimmed.Render("\nNo suggestions"))
+		builder.WriteString(ac.styles.dimmed.Render("\nNo suggestions"))
 	}
 
 	return builder.String()

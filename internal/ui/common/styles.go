@@ -28,95 +28,50 @@ var (
 )
 
 var DefaultPalette = Palette{
-	Normal:       lipgloss.NewStyle(),
-	ChangeId:     lipgloss.NewStyle().Foreground(Magenta).Bold(true),
-	Dimmed:       lipgloss.NewStyle().Foreground(BrightBlack),
-	Shortcut:     lipgloss.NewStyle().Foreground(Magenta).Bold(true),
-	Text:         lipgloss.NewStyle().Foreground(Magenta).Bold(true),
-	Button:       lipgloss.NewStyle().Foreground(White).PaddingLeft(2).PaddingRight(2),
-	Added:        lipgloss.NewStyle().Foreground(Green),
-	Deleted:      lipgloss.NewStyle().Foreground(Red),
-	Modified:     lipgloss.NewStyle().Foreground(Cyan),
-	Renamed:      lipgloss.NewStyle().Foreground(Cyan),
-	Success:      lipgloss.NewStyle().Foreground(Green),
-	Error:        lipgloss.NewStyle().Foreground(Red),
-	StatusMode:   lipgloss.NewStyle().Foreground(Black).Bold(true).Background(Magenta),
-	TargetMarker: lipgloss.NewStyle().Bold(true).Foreground(Black).Background(Red),
-	SourceMarker: lipgloss.NewStyle().Foreground(Black).Background(Cyan).Bold(true),
-	Selected:     lipgloss.NewStyle().Foreground(Cyan).Background(BrightBlack),
-	Matched:      lipgloss.NewStyle().Foreground(Cyan),
+	Normal: lipgloss.NewStyle(),
 }
 
 type Palette struct {
-	Normal       lipgloss.Style
-	ChangeId     lipgloss.Style
-	Dimmed       lipgloss.Style
-	Shortcut     lipgloss.Style
-	Text         lipgloss.Style
-	Title        lipgloss.Style
-	Button       lipgloss.Style
-	Added        lipgloss.Style
-	Deleted      lipgloss.Style
-	Modified     lipgloss.Style
-	Renamed      lipgloss.Style
-	StatusMode   lipgloss.Style
-	Success      lipgloss.Style
-	Error        lipgloss.Style
-	TargetMarker lipgloss.Style
-	SourceMarker lipgloss.Style
-	Matched      lipgloss.Style
-	Selected     lipgloss.Style
+	Normal lipgloss.Style
+	styles map[string]lipgloss.Style
 }
 
 func (p *Palette) Update(styleMap map[string]config.Color) {
-	if color, ok := styleMap["change_id"]; ok {
-		p.ChangeId = createStyleFrom(color)
+	if p.styles == nil {
+		p.styles = make(map[string]lipgloss.Style)
+	}
+
+	for key, color := range styleMap {
+		p.styles[key] = createStyleFrom(color)
+	}
+
+	if color, ok := styleMap["diff added"]; ok {
+		p.styles["details added"] = createStyleFrom(color)
 	}
 	if color, ok := styleMap["diff renamed"]; ok {
-		p.Renamed = createStyleFrom(color)
+		p.styles["details renamed"] = createStyleFrom(color)
 	}
 	if color, ok := styleMap["diff modified"]; ok {
-		p.Modified = createStyleFrom(color)
+		p.styles["details modified"] = createStyleFrom(color)
 	}
 	if color, ok := styleMap["diff removed"]; ok {
-		p.Deleted = createStyleFrom(color)
+		p.styles["details deleted"] = createStyleFrom(color)
 	}
-	if color, ok := styleMap["dimmed"]; ok {
-		p.Dimmed = createStyleFrom(color)
+}
+
+func (p *Palette) Get(selector string) lipgloss.Style {
+	if style, ok := p.styles[selector]; ok {
+		return style
 	}
-	if color, ok := styleMap["shortcut"]; ok {
-		p.Shortcut = createStyleFrom(color)
+
+	fields := strings.Fields(selector)
+	finalStyle := lipgloss.NewStyle()
+	for _, field := range fields {
+		if style, ok := p.styles[field]; ok {
+			finalStyle = finalStyle.Inherit(style)
+		}
 	}
-	if color, ok := styleMap["success"]; ok {
-		p.Success = createStyleFrom(color)
-	}
-	if color, ok := styleMap["error"]; ok {
-		p.Error = createStyleFrom(color)
-	}
-	if color, ok := styleMap["status"]; ok {
-		p.StatusMode = createStyleFrom(color)
-	}
-	if color, ok := styleMap["button"]; ok {
-		p.Button = createStyleFrom(color).PaddingLeft(2).PaddingRight(2)
-	}
-	if color, ok := styleMap["target_marker"]; ok {
-		p.TargetMarker = createStyleFrom(color)
-	}
-	if color, ok := styleMap["source_marker"]; ok {
-		p.SourceMarker = createStyleFrom(color)
-	}
-	if color, ok := styleMap["matched"]; ok {
-		p.Matched = createStyleFrom(color)
-	}
-	if color, ok := styleMap["selected"]; ok {
-		p.Selected = createStyleFrom(color)
-	}
-	if color, ok := styleMap["text"]; ok {
-		p.Text = createStyleFrom(color)
-	}
-	if color, ok := styleMap["title"]; ok {
-		p.Title = createStyleFrom(color)
-	}
+	return finalStyle
 }
 
 func createStyleFrom(color config.Color) lipgloss.Style {

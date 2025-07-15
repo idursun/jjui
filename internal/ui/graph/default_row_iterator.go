@@ -27,6 +27,8 @@ type DefaultRowIterator struct {
 	current             int
 	Cursor              int
 	highlightSeq        string
+	dimmedStyle         lipgloss.Style
+	checkStyle          lipgloss.Style
 }
 
 func NewDefaultRowIterator(rows []parser.Row, width int) *DefaultRowIterator {
@@ -48,6 +50,8 @@ func NewDefaultRowIterator(rows []parser.Row, width int) *DefaultRowIterator {
 		Selections:          make(map[string]bool),
 		current:             -1,
 		highlightSeq:        highlightSeq,
+		dimmedStyle:         common.DefaultPalette.Get("dimmed"),
+		checkStyle:          common.DefaultPalette.Get("success").Inline(true),
 	}
 }
 
@@ -118,9 +122,9 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			}
 		}
 		if segmentedLine.Flags&parser.Revision == parser.Revision && row.IsAffected {
-			style := common.DefaultPalette.Dimmed
+			style := s.dimmedStyle
 			if s.isHighlighted {
-				style = common.DefaultPalette.Dimmed.Background(s.HighlightBackground)
+				style = s.dimmedStyle.Background(s.HighlightBackground)
 			}
 			fmt.Fprint(&lw, style.Render(" (affected by last operation)"))
 		}
@@ -196,9 +200,9 @@ func (s *DefaultRowIterator) RenderBeforeChangeId(commit *jj.Commit) string {
 	selectedMarker := ""
 	if s.isSelected {
 		if s.isHighlighted {
-			selectedMarker = s.Palette.Added.Background(s.HighlightBackground).Render("✓ ")
+			selectedMarker = s.checkStyle.Background(s.HighlightBackground).Render("✓ ")
 		} else {
-			selectedMarker = s.Palette.Added.Render("✓ ")
+			selectedMarker = s.checkStyle.Render("✓ ")
 		}
 	}
 	return opMarker + selectedMarker
