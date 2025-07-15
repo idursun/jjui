@@ -131,9 +131,9 @@ func (m *Model) View() string {
 	if m.running {
 		commandStatusMark = common.DefaultPalette.Normal.Render(m.spinner.View())
 	} else if m.error != nil {
-		commandStatusMark = common.DefaultPalette.StatusError.Render("✗ ")
+		commandStatusMark = common.DefaultPalette.Error.Render("✗ ")
 	} else if m.command != "" {
-		commandStatusMark = common.DefaultPalette.StatusSuccess.Render("✓ ")
+		commandStatusMark = common.DefaultPalette.Success.Render("✓ ")
 	} else {
 		commandStatusMark = m.help.View(m.keyMap)
 	}
@@ -148,7 +148,7 @@ func (m *Model) View() string {
 		k := cancel.Help().Key
 		return lipgloss.JoinVertical(0,
 			ret,
-			common.DefaultPalette.StatusError.Render(strings.Trim(m.output, "\n")),
+			common.DefaultPalette.Error.Render(strings.Trim(m.output, "\n")),
 			common.DefaultPalette.Shortcut.Render("press ", k, " to dismiss"))
 	}
 	return ret

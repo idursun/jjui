@@ -121,7 +121,7 @@ func RenderKey(k key.Binding) string {
 }
 
 func (m *FilterableList) View(helpKeys []key.Binding) string {
-	titleView := m.List.Styles.Title.Render(m.Title)
+	titleView := DefaultPalette.Title.Render(m.Title)
 	filterView := m.RenderFilterView()
 	listView := m.List.View()
 	helpView := m.RenderHelpView(helpKeys)

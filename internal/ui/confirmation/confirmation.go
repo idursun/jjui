@@ -63,7 +63,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) View() string {
 	w := strings.Builder{}
-	w.WriteString(common.DefaultPalette.ConfirmationText.Render(m.message))
+	w.WriteString(common.DefaultPalette.Text.Render(m.message))
 	for i, option := range m.options {
 		w.WriteString(" ")
 		if i == m.selected {

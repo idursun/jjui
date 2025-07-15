@@ -74,7 +74,7 @@ func (i itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		style = common.DefaultPalette.Renamed
 	}
 	if index == m.Index() {
-		style = style.Bold(true).Background(common.BrightBlack)
+		style = style.Bold(true).Background(common.DefaultPalette.Selected.GetBackground())
 	}
 
 	title := item.Title()

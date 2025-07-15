@@ -28,47 +28,46 @@ var (
 )
 
 var DefaultPalette = Palette{
-	Normal:             lipgloss.NewStyle(),
-	ChangeId:           lipgloss.NewStyle().Foreground(Magenta).Bold(true),
-	Dimmed:             lipgloss.NewStyle().Foreground(BrightBlack),
-	Shortcut:           lipgloss.NewStyle().Foreground(Magenta).Bold(true),
-	EmptyPlaceholder:   lipgloss.NewStyle().Foreground(Green).Bold(true),
-	ConfirmationText:   lipgloss.NewStyle().Foreground(Magenta).Bold(true),
-	Button:             lipgloss.NewStyle().Foreground(White).PaddingLeft(2).PaddingRight(2),
-	FocusedButton:      lipgloss.NewStyle().Foreground(BrightWhite).Background(Blue).PaddingLeft(2).PaddingRight(2),
-	Added:              lipgloss.NewStyle().Foreground(Green),
-	Deleted:            lipgloss.NewStyle().Foreground(Red),
-	Modified:           lipgloss.NewStyle().Foreground(Cyan),
-	Renamed:            lipgloss.NewStyle().Foreground(Cyan),
-	StatusSuccess:      lipgloss.NewStyle().Foreground(Green),
-	StatusError:        lipgloss.NewStyle().Foreground(Red),
-	StatusMode:         lipgloss.NewStyle().Foreground(Black).Bold(true).Background(Magenta),
-	TargetMarker:       lipgloss.NewStyle().Bold(true).Foreground(Black).Background(Red),
-	SourceMarker:       lipgloss.NewStyle().Foreground(Black).Background(Cyan).Bold(true),
-	CompletionSelected: lipgloss.NewStyle().Foreground(Cyan).Background(BrightBlack),
-	CompletionMatched:  lipgloss.NewStyle().Foreground(Cyan),
+	Normal:        lipgloss.NewStyle(),
+	ChangeId:      lipgloss.NewStyle().Foreground(Magenta).Bold(true),
+	Dimmed:        lipgloss.NewStyle().Foreground(BrightBlack),
+	Shortcut:      lipgloss.NewStyle().Foreground(Magenta).Bold(true),
+	Text:          lipgloss.NewStyle().Foreground(Magenta).Bold(true),
+	Button:        lipgloss.NewStyle().Foreground(White).PaddingLeft(2).PaddingRight(2),
+	FocusedButton: lipgloss.NewStyle().Foreground(BrightWhite).Background(Blue).PaddingLeft(2).PaddingRight(2),
+	Added:         lipgloss.NewStyle().Foreground(Green),
+	Deleted:       lipgloss.NewStyle().Foreground(Red),
+	Modified:      lipgloss.NewStyle().Foreground(Cyan),
+	Renamed:       lipgloss.NewStyle().Foreground(Cyan),
+	Success:       lipgloss.NewStyle().Foreground(Green),
+	Error:         lipgloss.NewStyle().Foreground(Red),
+	StatusMode:    lipgloss.NewStyle().Foreground(Black).Bold(true).Background(Magenta),
+	TargetMarker:  lipgloss.NewStyle().Bold(true).Foreground(Black).Background(Red),
+	SourceMarker:  lipgloss.NewStyle().Foreground(Black).Background(Cyan).Bold(true),
+	Selected:      lipgloss.NewStyle().Foreground(Cyan).Background(BrightBlack),
+	Matched:       lipgloss.NewStyle().Foreground(Cyan),
 }
 
 type Palette struct {
-	Normal             lipgloss.Style
-	ChangeId           lipgloss.Style
-	Dimmed             lipgloss.Style
-	Shortcut           lipgloss.Style
-	EmptyPlaceholder   lipgloss.Style
-	ConfirmationText   lipgloss.Style
-	Button             lipgloss.Style
-	FocusedButton      lipgloss.Style
-	Added              lipgloss.Style
-	Deleted            lipgloss.Style
-	Modified           lipgloss.Style
-	Renamed            lipgloss.Style
-	StatusMode         lipgloss.Style
-	StatusSuccess      lipgloss.Style
-	StatusError        lipgloss.Style
-	TargetMarker       lipgloss.Style
-	SourceMarker       lipgloss.Style
-	CompletionMatched  lipgloss.Style
-	CompletionSelected lipgloss.Style
+	Normal        lipgloss.Style
+	ChangeId      lipgloss.Style
+	Dimmed        lipgloss.Style
+	Shortcut      lipgloss.Style
+	Text          lipgloss.Style
+	Title         lipgloss.Style
+	Button        lipgloss.Style
+	FocusedButton lipgloss.Style
+	Added         lipgloss.Style
+	Deleted       lipgloss.Style
+	Modified      lipgloss.Style
+	Renamed       lipgloss.Style
+	StatusMode    lipgloss.Style
+	Success       lipgloss.Style
+	Error         lipgloss.Style
+	TargetMarker  lipgloss.Style
+	SourceMarker  lipgloss.Style
+	Matched       lipgloss.Style
+	Selected      lipgloss.Style
 }
 
 func (p *Palette) Update(styleMap map[string]config.Color) {
@@ -91,20 +90,16 @@ func (p *Palette) Update(styleMap map[string]config.Color) {
 		p.Shortcut = createStyleFrom(color)
 	}
 	if color, ok := styleMap["success"]; ok {
-		p.StatusSuccess = createStyleFrom(color)
+		p.Success = createStyleFrom(color)
 	}
-
 	if color, ok := styleMap["error"]; ok {
-		p.StatusError = createStyleFrom(color)
+		p.Error = createStyleFrom(color)
 	}
 	if color, ok := styleMap["status"]; ok {
 		p.StatusMode = createStyleFrom(color)
 	}
 	if color, ok := styleMap["button"]; ok {
 		p.Button = createStyleFrom(color).PaddingLeft(2).PaddingRight(2)
-	}
-	if color, ok := styleMap["placeholder"]; ok {
-		p.EmptyPlaceholder = createStyleFrom(color)
 	}
 	if color, ok := styleMap["target_marker"]; ok {
 		p.TargetMarker = createStyleFrom(color)
@@ -113,17 +108,20 @@ func (p *Palette) Update(styleMap map[string]config.Color) {
 		p.SourceMarker = createStyleFrom(color)
 	}
 	if color, ok := styleMap["matched"]; ok {
-		p.CompletionMatched = createStyleFrom(color)
+		p.Matched = createStyleFrom(color)
 	}
 	if color, ok := styleMap["selected"]; ok {
-		p.CompletionSelected = createStyleFrom(color)
+		p.Selected = createStyleFrom(color)
 	}
-	if color, ok := styleMap["confirmation_text"]; ok {
-		p.ConfirmationText = createStyleFrom(color)
+	if color, ok := styleMap["text"]; ok {
+		p.Text = createStyleFrom(color)
+	}
+	if color, ok := styleMap["title"]; ok {
+		p.Title = createStyleFrom(color)
 	}
 	p.FocusedButton = lipgloss.NewStyle().
 		Inherit(p.Button).
-		Background(p.CompletionSelected.GetBackground()).
+		Background(p.Selected.GetBackground()).
 		PaddingLeft(2).
 		PaddingRight(2)
 }

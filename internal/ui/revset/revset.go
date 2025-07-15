@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
+	"strings"
 )
 
 type EditRevSetMsg struct {
@@ -31,7 +32,7 @@ type Model struct {
 
 type styles struct {
 	promptStyle lipgloss.Style
-	cursorStyle lipgloss.Style
+	textStyle   lipgloss.Style
 }
 
 func (m *Model) IsFocused() bool {
@@ -56,15 +57,14 @@ func (k keymap) FullHelp() [][]key.Binding {
 
 func New(context *appContext.MainContext) *Model {
 	styles := styles{
-		promptStyle: common.DefaultPalette.ChangeId.SetString("revset:"),
-		cursorStyle: common.DefaultPalette.EmptyPlaceholder,
+		promptStyle: common.DefaultPalette.Title,
+		textStyle:   common.DefaultPalette.Text.Bold(true),
 	}
 
 	revsetAliases := context.JJConfig.RevsetAliases
 	completionProvider := NewCompletionProvider(revsetAliases)
 	autoComplete := common.NewAutoCompletionInput(completionProvider)
-	autoComplete.SetPrompt("revset: ")
-	autoComplete.TextInput.Cursor.Style = common.DefaultPalette.EmptyPlaceholder
+	autoComplete.TextInput.TextStyle = styles.textStyle
 	autoComplete.SetValue(context.DefaultRevset)
 	autoComplete.Focus()
 
@@ -187,14 +187,17 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
+	var w strings.Builder
+	w.WriteString(m.styles.promptStyle.Render("revset:"))
+	w.WriteString(" ")
 	if m.Editing {
-		return m.autoComplete.View()
+		w.WriteString(m.autoComplete.View())
+	} else {
+		revset := "(default)"
+		if m.Value != "" {
+			revset = m.Value
+		}
+		w.WriteString(m.styles.textStyle.Render(revset))
 	}
-
-	revset := "(default)"
-	if m.Value != "" {
-		revset = m.Value
-	}
-
-	return m.styles.promptStyle.Render(m.styles.cursorStyle.Render(revset))
+	return w.String()
 }

@@ -67,12 +67,12 @@ func printHelpExt(key string, desc string) string {
 }
 
 func printHeader(header string) string {
-	return common.DefaultPalette.EmptyPlaceholder.Render(header)
+	return printMode(key.NewBinding(), header)
 }
 
 func printMode(key key.Binding, name string) string {
 	keyAligned := fmt.Sprintf("%9s", key.Help().Key)
-	help := fmt.Sprintf("%v %s", common.DefaultPalette.Shortcut.Render(keyAligned), common.DefaultPalette.EmptyPlaceholder.Render(name))
+	help := fmt.Sprintf("%v %s", common.DefaultPalette.Shortcut.Render(keyAligned), common.DefaultPalette.Title.Render(name))
 	return help
 }
 

@@ -20,7 +20,6 @@ type AutoCompletionInput struct {
 	SignatureHelp      string
 	previousValue      string
 	currentCompletions []Completion
-	PromptStyle        lipgloss.Style
 	SelectedStyle      lipgloss.Style
 	UnselectedStyle    lipgloss.Style
 	MatchedStyle       lipgloss.Style
@@ -40,25 +39,20 @@ type Completion struct {
 func NewAutoCompletionInput(provider CompletionProvider) *AutoCompletionInput {
 	ti := textinput.New()
 	ti.Focus()
+	ti.Prompt = ""
 	ti.ShowSuggestions = true
 
 	return &AutoCompletionInput{
 		TextInput:          ti,
 		CompletionProvider: provider,
-		PromptStyle:        DefaultPalette.StatusSuccess,
-		SelectedStyle:      DefaultPalette.CompletionSelected,
-		MatchedStyle:       DefaultPalette.CompletionMatched,
+		SelectedStyle:      DefaultPalette.Selected,
+		MatchedStyle:       DefaultPalette.Matched,
 		UnselectedStyle:    DefaultPalette.Dimmed,
 	}
 }
 
 func (ac *AutoCompletionInput) Init() tea.Cmd {
 	return textinput.Blink
-}
-
-func (ac *AutoCompletionInput) SetPrompt(prompt string) {
-	ac.TextInput.Prompt = prompt
-	ac.TextInput.PromptStyle = ac.PromptStyle
 }
 
 func (ac *AutoCompletionInput) SetValue(value string) {

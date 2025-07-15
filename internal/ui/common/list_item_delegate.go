@@ -66,10 +66,10 @@ func (l ListItemDelegate) Render(w io.Writer, m list.Model, index int, item list
 	}
 
 	if index == m.Index() {
-		titleStyle = DefaultPalette.CompletionMatched.
+		titleStyle = DefaultPalette.Matched.
 			Bold(true).
 			Background(highlightColor)
-		descStyle = DefaultPalette.CompletionSelected.
+		descStyle = DefaultPalette.Selected.
 			Background(highlightColor)
 		shortcutStyle = shortcutStyle.Background(highlightColor)
 	}
