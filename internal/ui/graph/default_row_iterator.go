@@ -99,14 +99,19 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 				}
 			}
 
-			if s.isHighlighted && s.SearchText != "" && strings.Contains(segment.Text, s.SearchText) {
-				for _, part := range segment.Reverse(s.SearchText) {
-					fmt.Fprint(&lw, part.String())
-				}
-			} else if s.isHighlighted {
-				fmt.Fprint(&lw, segment.Style.Inherit(s.SelectedStyle).Render(segment.Text))
+			style := segment.Style
+			if s.isHighlighted {
+				style = style.Inherit(s.SelectedStyle)
 			} else {
-				fmt.Fprint(&lw, segment.Style.Inherit(s.TextStyle).Render(segment.Text))
+				style = style.Inherit(s.TextStyle)
+			}
+
+			start, end := segment.FindSubstringRange(s.SearchText)
+			if start != -1 {
+				mid := lipgloss.NewRange(start, end, style.Reverse(true))
+				fmt.Fprint(&lw, lipgloss.StyleRanges(style.Render(segment.Text), mid))
+			} else {
+				fmt.Fprint(&lw, style.Render(segment.Text))
 			}
 		}
 		if segmentedLine.Flags&parser.Revision == parser.Revision && row.IsAffected {
