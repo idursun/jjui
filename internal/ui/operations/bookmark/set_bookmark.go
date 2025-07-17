@@ -2,8 +2,6 @@ package bookmark
 
 import (
 	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/idursun/jjui/internal/config"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -70,21 +68,18 @@ func (s *SetBookmarkOperation) Name() string {
 }
 
 func NewSetBookmarkOperation(context *context.MainContext, changeId string) (operations.Operation, tea.Cmd) {
-	dimmedStyle := common.DefaultPalette.Get("dimmed")
+	dimmedStyle := common.DefaultPalette.Get("revisions dimmed").Inline(true)
+	textStyle := common.DefaultPalette.Get("revisions text").Inline(true)
 	t := textinput.New()
 	t.Width = 0
 	t.ShowSuggestions = true
 	t.CharLimit = 120
 	t.Prompt = ""
-	highlightBackground := lipgloss.AdaptiveColor{
-		Light: config.Current.UI.HighlightLight,
-		Dark:  config.Current.UI.HighlightDark,
-	}
-	t.TextStyle = lipgloss.NewStyle().Background(highlightBackground)
+	t.TextStyle = textStyle
 	t.PromptStyle = t.TextStyle
 	t.Cursor.TextStyle = t.TextStyle
-	t.CompletionStyle = lipgloss.NewStyle().Inherit(dimmedStyle).Inline(true).Background(highlightBackground)
-	t.PlaceholderStyle = lipgloss.NewStyle().Inherit(dimmedStyle).Inline(true).Background(highlightBackground)
+	t.CompletionStyle = dimmedStyle
+	t.PlaceholderStyle = t.CompletionStyle
 	t.SetValue("")
 	t.Focus()
 

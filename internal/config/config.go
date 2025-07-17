@@ -15,8 +15,6 @@ import (
 var Current = &Config{
 	Keys: DefaultKeyMappings,
 	UI: UIConfig{
-		HighlightLight: "#a0a0a0",
-		HighlightDark:  "#282a36",
 		Colors: map[string]Color{
 			"dimmed":                {Fg: "bright black"},
 			"title":                 {Fg: "magenta", Bold: true},
@@ -107,9 +105,7 @@ func (c *Color) UnmarshalTOML(text any) error {
 }
 
 type UIConfig struct {
-	HighlightLight string           `toml:"highlight_light"`
-	HighlightDark  string           `toml:"highlight_dark"`
-	Colors         map[string]Color `toml:"colors"`
+	Colors map[string]Color `toml:"colors"`
 	// TODO(ilyagr): It might make sense to rename this to `auto_refresh_period` to match `--period` option
 	// once we have a mechanism to deprecate the old name softly.
 	AutoRefreshInterval int `toml:"auto_refresh_interval"`

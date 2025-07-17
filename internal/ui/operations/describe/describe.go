@@ -90,24 +90,23 @@ func (o Operation) View() string {
 	return o.input.View()
 }
 
-func NewOperation(context *context.MainContext, revision string) (operations.Operation, tea.Cmd) {
+func NewOperation(context *context.MainContext, revision string, width int) (operations.Operation, tea.Cmd) {
 	descOutput, _ := context.RunCommandImmediate(jj.GetDescription(revision))
 	desc := string(descOutput)
 	h := lipgloss.Height(desc)
+
+	selectedStyle := common.DefaultPalette.Get("revisions selected")
 
 	input := textarea.New()
 	input.CharLimit = 0
 	input.MaxHeight = 10
 	input.Prompt = ""
 	input.ShowLineNumbers = false
-	highlightBackground := lipgloss.AdaptiveColor{
-		Light: config.Current.UI.HighlightLight,
-		Dark:  config.Current.UI.HighlightDark,
-	}
-	input.FocusedStyle.Base = lipgloss.NewStyle().Background(highlightBackground)
+	input.FocusedStyle.Base = selectedStyle
+	input.FocusedStyle.CursorLine = selectedStyle
 	input.SetValue(desc)
 	input.SetHeight(h + 1)
-	input.SetWidth(150)
+	input.SetWidth(width)
 	input.Focus()
 
 	return Operation{
