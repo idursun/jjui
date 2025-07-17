@@ -8,22 +8,12 @@ import (
 )
 
 type Segment struct {
-	Text     string
-	Style    lipgloss.Style
-	Reversed bool
+	Text  string
+	Style lipgloss.Style
 }
 
 func (s Segment) String() string {
-	if s.Text == "\n" {
-		return s.Text
-	}
-
-	style := s.Style
-	if s.Reversed {
-		style = style.Reverse(true)
-	}
-
-	return style.Render(s.Text)
+	return s.Style.Render(s.Text)
 }
 
 func (s Segment) StyleEqual(other Segment) bool {

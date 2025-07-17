@@ -4,6 +4,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/config/themes"
 	"github.com/idursun/jjui/internal/ui/common"
 	"io"
 	"io/fs"
@@ -113,6 +115,12 @@ func main() {
 
 	if limit > 0 {
 		config.Current.Limit = limit
+	}
+
+	if lipgloss.HasDarkBackground() {
+		config.Current.UI.Colors = themes.DarkTheme
+	} else {
+		config.Current.UI.Colors = themes.LightTheme
 	}
 
 	appContext := context.NewAppContext(rootLocation)

@@ -61,10 +61,10 @@ func New(context *appContext.MainContext) *Model {
 	revsetAliases := context.JJConfig.RevsetAliases
 	completionProvider := NewCompletionProvider(revsetAliases)
 	autoComplete := common.NewAutoCompletionInput(completionProvider)
-	autoComplete.Styles.Dimmed = common.DefaultPalette.Get("revset dimmed")
-	autoComplete.Styles.Text = common.DefaultPalette.Get("revset text")
-	autoComplete.Styles.Selected = common.DefaultPalette.Get("revset selected")
-	autoComplete.Styles.Matched = common.DefaultPalette.Get("revset matched")
+	autoComplete.Styles.Dimmed = common.DefaultPalette.Get("revset completion dimmed")
+	autoComplete.Styles.Text = common.DefaultPalette.Get("revset completion text")
+	autoComplete.Styles.Selected = common.DefaultPalette.Get("revset completion selected")
+	autoComplete.Styles.Matched = common.DefaultPalette.Get("revset completion matched")
 	autoComplete.TextInput.TextStyle = styles.textStyle
 
 	autoComplete.SetValue(context.DefaultRevset)
