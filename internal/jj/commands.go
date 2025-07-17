@@ -221,15 +221,6 @@ func Args(args ...string) CommandArgs {
 	return args
 }
 
-// Works by replacing placeholders on a single line, being given to `sh -c`.
-// It does not prefixes files with `file:` like TemplatedArgs does.
-func ShellTemplatedLine(shellLine string, replacements map[string]string) string {
-	for k, v := range replacements {
-		shellLine = strings.ReplaceAll(shellLine, k, v)
-	}
-	return shellLine
-}
-
 func TemplatedArgs(templatedArgs []string, replacements map[string]string) CommandArgs {
 	var args []string
 	if fileReplacement, exists := replacements[FilePlaceholder]; exists {
