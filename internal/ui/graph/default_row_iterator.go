@@ -25,7 +25,6 @@ type DefaultRowIterator struct {
 	isSelected          bool
 	current             int
 	Cursor              int
-	highlightSeq        string
 	dimmedStyle         lipgloss.Style
 	checkStyle          lipgloss.Style
 }
@@ -35,11 +34,6 @@ func NewDefaultRowIterator(rows []parser.Row, width int) *DefaultRowIterator {
 		Light: config.Current.UI.HighlightLight,
 		Dark:  config.Current.UI.HighlightDark,
 	}
-	highlightColor := highlightBackground.Light
-	if lipgloss.HasDarkBackground() {
-		highlightColor = highlightBackground.Dark
-	}
-	highlightSeq := lipgloss.ColorProfile().Color(highlightColor).Sequence(true)
 	return &DefaultRowIterator{
 		HighlightBackground: highlightBackground,
 		Op:                  &operations.Default{},
@@ -47,7 +41,6 @@ func NewDefaultRowIterator(rows []parser.Row, width int) *DefaultRowIterator {
 		Rows:                rows,
 		Selections:          make(map[string]bool),
 		current:             -1,
-		highlightSeq:        highlightSeq,
 		dimmedStyle:         common.DefaultPalette.Get("dimmed"),
 		checkStyle:          common.DefaultPalette.Get("success").Inline(true),
 	}
@@ -107,8 +100,10 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 					fmt.Fprint(&lw, decoration)
 				}
 			}
+
+			style := segment.Style
 			if s.isHighlighted {
-				segment = segment.WithBackground(s.highlightSeq)
+				style = style.Background(s.HighlightBackground)
 			}
 
 			if s.isHighlighted && s.SearchText != "" && strings.Contains(segment.Text, s.SearchText) {
@@ -116,7 +111,7 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 					fmt.Fprint(&lw, part.String())
 				}
 			} else {
-				fmt.Fprint(&lw, segment.String())
+				fmt.Fprint(&lw, style.Render(segment.Text))
 			}
 		}
 		if segmentedLine.Flags&parser.Revision == parser.Revision && row.IsAffected {
@@ -132,7 +127,7 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			lineWidth := lipgloss.Width(line)
 			gap := s.Width - lineWidth
 			if gap > 0 {
-				fmt.Fprintf(r, "\033[%sm%s\033[0m", s.highlightSeq, strings.Repeat(" ", gap))
+				fmt.Fprint(r, lipgloss.NewStyle().Background(s.HighlightBackground).Render(strings.Repeat(" ", gap)))
 			}
 		}
 		fmt.Fprint(r, "\n")
@@ -160,10 +155,11 @@ func (s *DefaultRowIterator) writeSection(r io.Writer, extended parser.GraphRowL
 	for _, sectionLine := range lines {
 		lw := strings.Builder{}
 		for _, segment := range extended.Segments {
+			style := segment.Style
 			if s.isHighlighted && highlight {
-				segment = segment.WithBackground(s.highlightSeq)
+				style = style.Background(s.HighlightBackground)
 			}
-			fmt.Fprint(&lw, segment.String())
+			fmt.Fprint(&lw, style.Render(segment.Text))
 		}
 
 		fmt.Fprint(&lw, sectionLine)
@@ -173,7 +169,7 @@ func (s *DefaultRowIterator) writeSection(r io.Writer, extended parser.GraphRowL
 			lineWidth := lipgloss.Width(line)
 			gap := s.Width - lineWidth
 			if gap > 0 {
-				fmt.Fprintf(r, "\033[%sm%s\033[0m", s.highlightSeq, strings.Repeat(" ", gap))
+				fmt.Fprint(r, lipgloss.NewStyle().Background(s.HighlightBackground).Render(strings.Repeat(" ", gap)))
 			}
 		}
 		fmt.Fprintln(r)

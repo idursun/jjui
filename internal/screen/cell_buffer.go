@@ -4,6 +4,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/rivo/uniseg"
 )
 
@@ -18,15 +19,15 @@ type gridCell struct {
 
 var emptyCell = gridCell{
 	Segment: Segment{
-		Text:   "",
-		Params: "",
+		Text:  "",
+		Style: lipgloss.NewStyle(),
 	},
 	width: 0,
 }
 var spaceCell = gridCell{
 	Segment: Segment{
-		Text:   " ",
-		Params: "",
+		Text:  " ",
+		Style: lipgloss.NewStyle(),
 	},
 	width: 1,
 }
@@ -104,8 +105,8 @@ func (b *cellBuffer) merge(input []byte, offsetX, offsetY int) {
 
 			c := gridCell{
 				Segment: Segment{
-					Text:   cluster,
-					Params: st.Params,
+					Text:  cluster,
+					Style: st.Style,
 				},
 				width: charWidth,
 			}
@@ -137,8 +138,8 @@ func (b *cellBuffer) String() string {
 					lineSegments = append(lineSegments, lastSegment)
 				}
 				lastSegment = &Segment{
-					Text:   c.Text,
-					Params: c.Params,
+					Text:  c.Text,
+					Style: c.Style,
 				}
 			} else {
 				lastSegment.Text += c.Text

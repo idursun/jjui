@@ -48,7 +48,7 @@ func (gr *GraphRowLine) transform(indent int, transformer runeTransformer) Graph
 
 	for _, s := range gr.Segments {
 		extended := screen.Segment{
-			Params: s.Params,
+			Style: s.Style,
 		}
 		var textBuilder strings.Builder
 		for _, p := range s.Text {

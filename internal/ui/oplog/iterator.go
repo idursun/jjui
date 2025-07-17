@@ -38,20 +38,15 @@ func (o *iterator) IsHighlighted() bool {
 func (o *iterator) Render(r io.Writer) {
 	row := o.Rows[o.current]
 	renderer := o
-	highlightColor := lipgloss.AdaptiveColor{
-		Light: config.Current.UI.HighlightLight,
-		Dark:  config.Current.UI.HighlightDark,
-	}
-	highlightSeq := lipgloss.ColorProfile().FromColor(highlightColor).Sequence(true)
 
 	for _, rowLine := range row.Lines {
 		lw := strings.Builder{}
 		for _, segment := range rowLine.Segments {
+			style := segment.Style
 			if o.isHighlighted {
-				fmt.Fprint(&lw, segment.WithBackground(highlightSeq).String())
-			} else {
-				fmt.Fprint(&lw, segment.String())
+				style = style.Background(o.HighlightBackground)
 			}
+			fmt.Fprint(&lw, style.Render(segment.Text))
 		}
 		line := lw.String()
 		fmt.Fprint(r, line)
@@ -59,7 +54,7 @@ func (o *iterator) Render(r io.Writer) {
 			lineWidth := lipgloss.Width(line)
 			gap := renderer.Width - lineWidth
 			if gap > 0 {
-				fmt.Fprintf(r, "\033[%sm%s\033[0m", highlightSeq, strings.Repeat(" ", gap))
+				fmt.Fprint(r, lipgloss.NewStyle().Background(o.HighlightBackground).Render(strings.Repeat(" ", gap)))
 			}
 		}
 		fmt.Fprint(r, "\n")
