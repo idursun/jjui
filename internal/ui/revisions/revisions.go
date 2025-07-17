@@ -409,6 +409,8 @@ func (m *Model) View() string {
 	renderer.Cursor = m.cursor
 	renderer.Selections = m.selectedRevisions
 	renderer.SearchText = m.quickSearch
+	renderer.TextStyle = common.DefaultPalette.Get("revisions text").Inline(true)
+	renderer.SelectedStyle = common.DefaultPalette.Get("revisions selected").Inline(true)
 	m.w.SetSize(m.width, m.height)
 	output := m.w.Render(renderer)
 	return output

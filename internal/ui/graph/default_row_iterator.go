@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/common"
 
@@ -15,34 +14,32 @@ import (
 )
 
 type DefaultRowIterator struct {
-	HighlightBackground lipgloss.AdaptiveColor
-	SearchText          string
-	Selections          map[string]bool
-	Op                  operations.Operation
-	Width               int
-	Rows                []parser.Row
-	isHighlighted       bool
-	isSelected          bool
-	current             int
-	Cursor              int
-	dimmedStyle         lipgloss.Style
-	checkStyle          lipgloss.Style
+	SearchText    string
+	Selections    map[string]bool
+	Op            operations.Operation
+	Width         int
+	Rows          []parser.Row
+	isHighlighted bool
+	isSelected    bool
+	current       int
+	Cursor        int
+	dimmedStyle   lipgloss.Style
+	checkStyle    lipgloss.Style
+	TextStyle     lipgloss.Style
+	SelectedStyle lipgloss.Style
 }
 
 func NewDefaultRowIterator(rows []parser.Row, width int) *DefaultRowIterator {
-	highlightBackground := lipgloss.AdaptiveColor{
-		Light: config.Current.UI.HighlightLight,
-		Dark:  config.Current.UI.HighlightDark,
-	}
 	return &DefaultRowIterator{
-		HighlightBackground: highlightBackground,
-		Op:                  &operations.Default{},
-		Width:               width,
-		Rows:                rows,
-		Selections:          make(map[string]bool),
-		current:             -1,
-		dimmedStyle:         common.DefaultPalette.Get("dimmed"),
-		checkStyle:          common.DefaultPalette.Get("success").Inline(true),
+		Op:            &operations.Default{},
+		Width:         width,
+		Rows:          rows,
+		Selections:    make(map[string]bool),
+		current:       -1,
+		dimmedStyle:   common.DefaultPalette.Get("dimmed"),
+		checkStyle:    common.DefaultPalette.Get("success").Inline(true),
+		TextStyle:     common.DefaultPalette.Get("text").Inline(true),
+		SelectedStyle: common.DefaultPalette.Get("selected").Inline(true),
 	}
 }
 
@@ -95,40 +92,35 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 					fmt.Fprint(&lw, decoration)
 				}
 			}
+
 			if s.isHighlighted && i == segmentedLine.CommitIdIdx {
 				if decoration := s.RenderBeforeCommitId(row.Commit); decoration != "" {
 					fmt.Fprint(&lw, decoration)
 				}
 			}
 
-			style := segment.Style
-			if s.isHighlighted {
-				style = style.Background(s.HighlightBackground)
-			}
-
 			if s.isHighlighted && s.SearchText != "" && strings.Contains(segment.Text, s.SearchText) {
 				for _, part := range segment.Reverse(s.SearchText) {
 					fmt.Fprint(&lw, part.String())
 				}
+			} else if s.isHighlighted {
+				fmt.Fprint(&lw, segment.Style.Inherit(s.SelectedStyle).Render(segment.Text))
 			} else {
-				fmt.Fprint(&lw, style.Render(segment.Text))
+				fmt.Fprint(&lw, segment.Style.Inherit(s.TextStyle).Render(segment.Text))
 			}
 		}
 		if segmentedLine.Flags&parser.Revision == parser.Revision && row.IsAffected {
 			style := s.dimmedStyle
 			if s.isHighlighted {
-				style = s.dimmedStyle.Background(s.HighlightBackground)
+				style = s.dimmedStyle.Background(s.SelectedStyle.GetBackground())
 			}
 			fmt.Fprint(&lw, style.Render(" (affected by last operation)"))
 		}
 		line := lw.String()
-		fmt.Fprint(r, line)
-		if s.isHighlighted {
-			lineWidth := lipgloss.Width(line)
-			gap := s.Width - lineWidth
-			if gap > 0 {
-				fmt.Fprint(r, lipgloss.NewStyle().Background(s.HighlightBackground).Render(strings.Repeat(" ", gap)))
-			}
+		if s.isHighlighted && segmentedLine.Flags&parser.Highlightable == parser.Highlightable {
+			fmt.Fprint(r, lipgloss.PlaceHorizontal(s.Width, 0, line, lipgloss.WithWhitespaceBackground(s.SelectedStyle.GetBackground())))
+		} else {
+			fmt.Fprint(r, lipgloss.PlaceHorizontal(s.Width, 0, line, lipgloss.WithWhitespaceBackground(s.TextStyle.GetBackground())))
 		}
 		fmt.Fprint(r, "\n")
 	}
@@ -143,8 +135,15 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 	}
 
 	for segmentedLine := range row.RowLinesIter(parser.Excluding(parser.Highlightable)) {
+		var lw strings.Builder
 		for _, segment := range segmentedLine.Segments {
-			fmt.Fprint(r, segment.String())
+			fmt.Fprint(&lw, segment.String())
+		}
+		line := lw.String()
+		if s.isHighlighted && segmentedLine.Flags&parser.Highlightable == parser.Highlightable {
+			fmt.Fprint(r, lipgloss.PlaceHorizontal(s.Width, 0, line, lipgloss.WithWhitespaceBackground(s.SelectedStyle.GetBackground())))
+		} else {
+			fmt.Fprint(r, lipgloss.PlaceHorizontal(s.Width, 0, line, lipgloss.WithWhitespaceBackground(s.TextStyle.GetBackground())))
 		}
 		fmt.Fprint(r, "\n")
 	}
@@ -157,20 +156,19 @@ func (s *DefaultRowIterator) writeSection(r io.Writer, extended parser.GraphRowL
 		for _, segment := range extended.Segments {
 			style := segment.Style
 			if s.isHighlighted && highlight {
-				style = style.Background(s.HighlightBackground)
+				fmt.Fprint(&lw, segment.Style.Inherit(s.SelectedStyle).Render(segment.Text))
+				style = style.Background(s.SelectedStyle.GetBackground())
+			} else {
+				fmt.Fprint(&lw, segment.Style.Inherit(s.TextStyle).Render(segment.Text))
 			}
-			fmt.Fprint(&lw, style.Render(segment.Text))
 		}
 
 		fmt.Fprint(&lw, sectionLine)
 		line := lw.String()
-		fmt.Fprint(r, line)
 		if s.isHighlighted && highlight {
-			lineWidth := lipgloss.Width(line)
-			gap := s.Width - lineWidth
-			if gap > 0 {
-				fmt.Fprint(r, lipgloss.NewStyle().Background(s.HighlightBackground).Render(strings.Repeat(" ", gap)))
-			}
+			fmt.Fprint(r, lipgloss.PlaceHorizontal(s.Width, 0, line, lipgloss.WithWhitespaceBackground(s.SelectedStyle.GetBackground())))
+		} else {
+			fmt.Fprint(r, lipgloss.PlaceHorizontal(s.Width, 0, line, lipgloss.WithWhitespaceBackground(s.TextStyle.GetBackground())))
 		}
 		fmt.Fprintln(r)
 		extended = extended.Extend(indent)
@@ -194,9 +192,9 @@ func (s *DefaultRowIterator) RenderBeforeChangeId(commit *jj.Commit) string {
 	selectedMarker := ""
 	if s.isSelected {
 		if s.isHighlighted {
-			selectedMarker = s.checkStyle.Background(s.HighlightBackground).Render("✓ ")
+			selectedMarker = s.checkStyle.Background(s.SelectedStyle.GetBackground()).Render("✓ ")
 		} else {
-			selectedMarker = s.checkStyle.Render("✓ ")
+			selectedMarker = s.checkStyle.Background(s.TextStyle.GetBackground()).Render("✓ ")
 		}
 	}
 	return opMarker + selectedMarker
