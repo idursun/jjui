@@ -12,17 +12,16 @@ import (
 )
 
 type Model struct {
-	cancel key.Binding
-	root   context.LeaderMap
-	shown  context.LeaderMap
+	cancel  key.Binding
+	shown   context.LeaderMap
+	context *context.MainContext
 }
 
-func New(root context.LeaderMap) *Model {
+func New(ctx *context.MainContext) *Model {
 	keyMap := config.Current.GetKeyMap()
 	m := &Model{
-		cancel: keyMap.Cancel,
-		root:   root,
-		shown:  root,
+		context: ctx,
+		cancel:  keyMap.Cancel,
 	}
 	return m
 }
@@ -42,7 +41,7 @@ func (m *Model) FullHelp() [][]key.Binding {
 
 type initMsg struct{}
 
-func initCmd() tea.Msg {
+func InitCmd() tea.Msg {
 	return initMsg{}
 }
 
@@ -66,14 +65,10 @@ func TakePending(msg PendingMsg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) Init() tea.Cmd {
-	return initCmd
-}
-
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case initMsg:
-		m.shown = m.root
+		m.shown = contextEnabled(m.context, m.context.Leader)
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.cancel):
@@ -83,7 +78,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		for c := range maps.Values(m.shown) {
 			if key.Matches(msg, *c.Bind) {
 				if len(c.Nest) > 0 {
-					m.shown = c.Nest
+					m.shown = contextEnabled(m.context, c.Nest)
 					return m, nil
 				}
 				m.shown = nil
@@ -96,6 +91,23 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+func contextEnabled(ctx *context.MainContext, bnds context.LeaderMap) context.LeaderMap {
+	bnds = maps.Clone(bnds)
+	replacementKeys := slices.Collect(maps.Keys(ctx.CreateReplacements()))
+	maps.DeleteFunc(bnds, func(k string, v *context.Leader) bool {
+		if v == nil {
+			return true
+		}
+		for _, key := range v.Context {
+			if !slices.Contains(replacementKeys, key) {
+				return true
+			}
+		}
+		return false
+	})
+	return bnds
 }
 
 func sendCmds(strings []string) []tea.Cmd {

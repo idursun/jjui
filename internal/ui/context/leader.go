@@ -10,15 +10,17 @@ import (
 type LeaderMap = map[string]*Leader
 
 type Leader struct {
-	Bind *key.Binding
-	Send []string
-	Nest LeaderMap
+	Bind    *key.Binding
+	Send    []string
+	Context []string
+	Nest    LeaderMap
 }
 
 func LoadLeader(content string) (LeaderMap, error) {
 	type leaderTomlEntry struct {
-		Help string
-		Send []string
+		Help    string
+		Send    []string
+		Context []string
 	}
 	type leaderToml struct {
 		Leader map[string]leaderTomlEntry
@@ -35,9 +37,8 @@ func LoadLeader(content string) (LeaderMap, error) {
 		for i, k := range ks {
 			m := checkExists(at, k)
 			if i == len(ks)-1 {
-				if len(v.Send) > 0 {
-					m.Send = v.Send
-				}
+				m.Send = v.Send
+				m.Context = v.Context
 				if len(v.Help) > 0 {
 					m.Bind.SetHelp(k, v.Help)
 				}
@@ -58,7 +59,6 @@ func checkExists(at LeaderMap, k string) *Leader {
 		)
 		m = &Leader{
 			Bind: &b,
-			Send: nil,
 			Nest: LeaderMap{},
 		}
 		at[k] = m

@@ -78,13 +78,13 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		return m, nil, false
 	}
 
+	if m.leader != nil {
+		m.leader, cmd = m.leader.Update(msg)
+		return m, cmd, true
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if m.leader != nil {
-			m.leader, cmd = m.leader.Update(msg)
-			return m, cmd, true
-		}
-
 		if m.diff != nil {
 			m.diff, cmd = m.diff.Update(msg)
 			return m, cmd, true
@@ -164,8 +164,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stacked = customcommands.NewModel(m.context, 80, 30)
 			cmds = append(cmds, m.stacked.Init())
 		case key.Matches(msg, m.keyMap.Leader):
-			m.leader = leader.New(m.context.Leader)
-			cmds = append(cmds, m.leader.Init())
+			m.leader = leader.New(m.context)
+			cmds = append(cmds, leader.InitCmd)
 		case key.Matches(msg, m.keyMap.QuickSearch) && m.oplog != nil:
 			// HACK: prevents quick search from activating in op log view
 			return m, nil

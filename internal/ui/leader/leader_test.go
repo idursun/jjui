@@ -57,7 +57,11 @@ send = ["?"]
 	if err != nil {
 		t.Fatalf("LoadLeader failed: %v", err)
 	}
-	model := New(lm)
+	ctx := &context.MainContext{
+		Leader: lm,
+	}
+	model := New(ctx)
+	model, _ = model.Update(initMsg{})
 	if len(model.shown) == 0 {
 		t.Fatal("expected shown leader keys")
 	}
@@ -106,6 +110,9 @@ func TestUpdate_gf_shows_git_fetch_submenu_and_returns_nil_cmd(t *testing.T) {
 	content := `[leader.g]
 help = "Git"
 
+[leader.gf]
+context = [ "$change_id" ] # only available if context key is present.
+
 [leader.gff]
 help = "Git Fetch"
 send = ["gf", "enter"]
@@ -114,7 +121,11 @@ send = ["gf", "enter"]
 	if err != nil {
 		t.Fatalf("LoadLeader failed: %v", err)
 	}
-	model := New(lm)
+	ctx := &context.MainContext{
+		Leader: lm,
+	}
+	model := New(ctx)
+	model, _ = model.Update(initMsg{})
 	// Press 'g' to enter the submenu
 	msgG := tea.KeyMsg{
 		Type:  tea.KeyRunes,
@@ -124,7 +135,19 @@ send = ["gf", "enter"]
 	if cmd != nil {
 		t.Errorf("expected nil cmd when entering submenu, got %v", cmd)
 	}
-	if model.shown == nil || len(model.shown) == 0 {
+	if len(model.shown) > 0 {
+		t.Fatal("did not expect submenu to be shown since it lacks required context")
+	}
+
+	// Test that key is available when its context is satified.
+	ctx.SelectedItem = context.SelectedRevision{ChangeId: "foo"}
+	model = New(ctx)
+	model, _ = model.Update(initMsg{})
+	model, cmd = model.Update(msgG)
+	if cmd != nil {
+		t.Errorf("expected nil cmd when entering submenu, got %v", cmd)
+	}
+	if len(model.shown) == 0 {
 		t.Fatal("expected submenu to be shown after pressing 'g'")
 	}
 	// Press 'f' to enter the next submenu
@@ -150,7 +173,10 @@ send = ["?"]
 	if err != nil {
 		t.Fatalf("LoadLeader failed: %v", err)
 	}
-	model := New(lm)
+	ctx := &context.MainContext{
+		Leader: lm,
+	}
+	model := New(ctx)
 	msg := tea.KeyMsg{
 		Type: tea.KeyEsc,
 	}
