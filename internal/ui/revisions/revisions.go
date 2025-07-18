@@ -3,10 +3,11 @@ package revisions
 import (
 	"bytes"
 	"fmt"
-	"github.com/idursun/jjui/internal/ui/operations/duplicate"
 	"log"
 	"slices"
 	"strings"
+
+	"github.com/idursun/jjui/internal/ui/operations/duplicate"
 
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/operations/describe"
@@ -470,11 +471,15 @@ func (m *Model) requestMoreRows(tag uint64) tea.Cmd {
 }
 
 func (m *Model) selectRevision(revision string) int {
+	eqFold := func(other string) bool {
+		return strings.EqualFold(other, revision)
+	}
+
 	idx := slices.IndexFunc(m.rows, func(row parser.Row) bool {
 		if revision == "@" {
 			return row.Commit.IsWorkingCopy
 		}
-		return row.Commit.GetChangeId() == revision || row.Commit.ChangeId == revision || row.Commit.CommitId == revision
+		return eqFold(row.Commit.GetChangeId()) || eqFold(row.Commit.ChangeId) || eqFold(row.Commit.CommitId)
 	})
 	return idx
 }
