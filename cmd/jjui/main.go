@@ -94,7 +94,12 @@ func main() {
 	}
 
 	if location == "" {
-		location = os.Getenv("PWD")
+		var err error
+		if location, err = os.Getwd(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: couldn't determine the current directory: %v.\n", err)
+			fmt.Fprintf(os.Stderr, "Please pass the location of a `jj` repo as an argument to `jjui`.\n")
+			os.Exit(1)
+		}
 	}
 
 	rootLocation, err := getJJRootDir(location)
