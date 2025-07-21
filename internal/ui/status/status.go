@@ -33,6 +33,7 @@ type Model struct {
 	width   int
 	mode    string
 	editing bool
+	history map[string][]string
 	styles  styles
 }
 
@@ -110,6 +111,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			editMode := m.mode
 			input := m.input.Value()
 			prompt := m.input.Prompt
+			m.saveEditingSuggestions()
 
 			m.error = nil
 			m.output = ""
@@ -131,11 +133,13 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.editing = true
 			m.mode = "exec " + mode.Mode
 			m.input.Prompt = mode.Prompt
+			m.loadEditingSuggestions()
 			return m, m.input.Focus()
 		case key.Matches(msg, km.QuickSearch) && !m.editing:
 			m.editing = true
 			m.mode = "search"
 			m.input.Prompt = "> "
+			m.loadEditingSuggestions()
 			return m, m.input.Focus()
 		default:
 			if m.editing {
@@ -151,6 +155,24 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.spinner, cmd = m.spinner.Update(msg)
 		}
 		return m, cmd
+	}
+}
+
+func (m *Model) saveEditingSuggestions() {
+	if h, ok := m.history[m.mode]; ok {
+		m.history[m.mode] = append(h, m.input.Value())
+	} else {
+		m.history[m.mode] = []string{m.input.Value()}
+	}
+}
+
+func (m *Model) loadEditingSuggestions() {
+	if h, ok := m.history[m.mode]; ok {
+		m.input.ShowSuggestions = true
+		m.input.SetSuggestions(h)
+	} else {
+		m.input.ShowSuggestions = false
+		m.input.SetSuggestions([]string{})
 	}
 }
 
@@ -223,5 +245,6 @@ func New(context *context.MainContext) Model {
 		input:   t,
 		keyMap:  nil,
 		styles:  styles,
+		history: make(map[string][]string),
 	}
 }
