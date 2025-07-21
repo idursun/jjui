@@ -55,6 +55,17 @@ type Model struct {
 	textStyle         lipgloss.Style
 }
 
+type revisionsMsg struct {
+	msg tea.Msg
+}
+
+// Allow a message to be targetted to this component.
+func RevisionsCmd(msg tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		return revisionsMsg{msg: msg}
+	}
+}
+
 type updateRevisionsMsg struct {
 	rows             []parser.Row
 	selectedRevision string
@@ -140,6 +151,9 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+	if k, ok := msg.(revisionsMsg); ok {
+		msg = k.msg
+	}
 	switch msg := msg.(type) {
 	case common.CloseViewMsg:
 		m.op = operations.NewDefault()

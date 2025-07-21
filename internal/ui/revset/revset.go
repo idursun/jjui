@@ -1,13 +1,14 @@
 package revset
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
-	"strings"
 )
 
 type EditRevSetMsg struct {
@@ -177,9 +178,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			}
 		}
 	case common.UpdateRevSetMsg:
-		m.Editing = false
 		m.Value = string(msg)
-		m.AddToHistory(m.Value)
+		if m.Editing {
+			m.Editing = false
+			m.AddToHistory(m.Value)
+		}
 	case EditRevSetMsg:
 		m.Editing = true
 		m.autoComplete.Focus()

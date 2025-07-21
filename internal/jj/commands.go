@@ -285,6 +285,13 @@ func GetFirstChild(revision *Commit) CommandArgs {
 	return args
 }
 
+func FilesInRevision(revision *Commit) CommandArgs {
+	args := []string{"file", "list", "-r", revision.CommitId,
+		"--color", "never", "--no-pager", "--quiet", "--ignore-working-copy",
+		"--template", "self.path() ++ \"\n\""}
+	return args
+}
+
 func GetIdsFromRevset(revset string) CommandArgs {
 	return []string{"log", "-r", revset, "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", "change_id.shortest() ++ '\n'"}
 }

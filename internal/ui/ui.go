@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/bookmarks"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -168,6 +169,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keyMap.Leader):
 			m.leader = leader.New(m.context)
 			cmds = append(cmds, leader.InitCmd)
+		case key.Matches(msg, m.keyMap.FileSearch):
+			rev := m.revisions.SelectedRevision()
+			out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
+			return m, common.FileSearch(m.revsetModel.Value, m.previewVisible, rev, out)
 		case key.Matches(msg, m.keyMap.QuickSearch) && m.oplog != nil:
 			// HACK: prevents quick search from activating in op log view
 			return m, nil
@@ -212,6 +217,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var revisionsCmd tea.Cmd
 		m.revisions, revisionsCmd = m.revisions.Update(msg)
 		return m, tea.Batch(revsetCmd, revisionsCmd)
+	case common.ShowPreview:
+		m.previewVisible = bool(msg)
+		cmds = append(cmds, common.SelectionChanged)
+		return m, tea.Batch(cmds...)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/jj"
 )
 
 type (
@@ -36,6 +37,13 @@ type (
 		Line string
 		Mode ExecMode
 	}
+	FileSearchMsg struct {
+		Revset       string
+		PreviewShown bool
+		Commit       *jj.Commit
+		RawFileOut   []byte // raw output from `jj file list`
+	}
+	ShowPreview bool
 )
 
 type State int
@@ -82,6 +90,17 @@ func CommandRunning(args []string) tea.Cmd {
 func UpdateRevSet(revset string) tea.Cmd {
 	return func() tea.Msg {
 		return UpdateRevSetMsg(revset)
+	}
+}
+
+func FileSearch(revset string, preview bool, commit *jj.Commit, rawFileOut []byte) tea.Cmd {
+	return func() tea.Msg {
+		return FileSearchMsg{
+			Commit:       commit,
+			RawFileOut:   rawFileOut,
+			Revset:       revset,
+			PreviewShown: preview,
+		}
 	}
 }
 

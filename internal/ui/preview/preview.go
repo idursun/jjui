@@ -35,6 +35,17 @@ type Model struct {
 
 const DebounceTime = 50 * time.Millisecond
 
+type previewMsg struct {
+	msg tea.Msg
+}
+
+// Allow a message to be targetted to this component.
+func PreviewCmd(msg tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		return previewMsg{msg: msg}
+	}
+}
+
 type refreshPreviewContentMsg struct {
 	Tag int
 }
@@ -65,6 +76,9 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+	if k, ok := msg.(previewMsg); ok {
+		msg = k.msg
+	}
 	switch msg := msg.(type) {
 	case updatePreviewContentMsg:
 		m.content = msg.Content

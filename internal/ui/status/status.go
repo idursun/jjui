@@ -15,6 +15,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/exec_process"
+	"github.com/idursun/jjui/internal/ui/fuzzy_files"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
 )
 
@@ -109,6 +110,13 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		return m, tea.Tick(CommandClearDuration, func(time.Time) tea.Msg {
 			return clearMsg(commandToBeCleared)
 		})
+	case common.FileSearchMsg:
+		m.editing = true
+		m.mode = "rev file"
+		m.input.Prompt = "> "
+		m.loadEditingSuggestions()
+		m.fuzzy = fuzzy_files.NewModel(msg)
+		return m, tea.Batch(m.fuzzy.Init(), m.input.Focus())
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, km.Cancel) && m.editing:
@@ -125,6 +133,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			editMode := m.mode
 			input := m.input.Value()
 			prompt := m.input.Prompt
+			fuzzy := m.fuzzy
 			m.saveEditingSuggestions()
 
 			m.fuzzy = nil
@@ -135,7 +144,8 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 			switch {
 			case strings.HasSuffix(editMode, "file"):
-				return m, func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }
+				_, cmd := fuzzy.Update(msg)
+				return m, cmd
 			case strings.HasPrefix(editMode, "exec"):
 				return m, func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }
 			}
