@@ -252,6 +252,12 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if parentIndex != -1 {
 				m.cursor = parentIndex
 			}
+		case key.Matches(msg, m.keymap.JumpToChildren):
+			immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.SelectedRevision()))
+			index := m.selectRevision(string(immediate))
+			if index != -1 {
+				m.cursor = index
+			}
 		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
 			workingCopyIndex := m.selectRevision("@")
 			if workingCopyIndex != -1 {

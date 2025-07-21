@@ -10,6 +10,7 @@ var DefaultKeyMappings = KeyMappings[keys]{
 	Up:                []string{"up", "k"},
 	Down:              []string{"down", "j"},
 	JumpToParent:      []string{"J"},
+	JumpToChildren:    []string{"K"},
 	JumpToWorkingCopy: []string{"@"},
 	Apply:             []string{"enter"},
 	Cancel:            []string{"esc"},
@@ -105,6 +106,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Up:                key.NewBinding(key.WithKeys(m.Up...), key.WithHelp(JoinKeys(m.Up), "up")),
 		Down:              key.NewBinding(key.WithKeys(m.Down...), key.WithHelp(JoinKeys(m.Down), "down")),
 		JumpToParent:      key.NewBinding(key.WithKeys(m.JumpToParent...), key.WithHelp(JoinKeys(m.JumpToParent), "jump to parent")),
+		JumpToChildren:    key.NewBinding(key.WithKeys(m.JumpToChildren...), key.WithHelp(JoinKeys(m.JumpToChildren), "jump to children")),
 		JumpToWorkingCopy: key.NewBinding(key.WithKeys(m.JumpToWorkingCopy...), key.WithHelp(JoinKeys(m.JumpToWorkingCopy), "jump to working copy")),
 		Apply:             key.NewBinding(key.WithKeys(m.Apply...), key.WithHelp(JoinKeys(m.Apply), "apply")),
 		Cancel:            key.NewBinding(key.WithKeys(m.Cancel...), key.WithHelp(JoinKeys(m.Cancel), "cancel")),
@@ -223,6 +225,7 @@ type KeyMappings[T any] struct {
 	Up                T                         `toml:"up"`
 	Down              T                         `toml:"down"`
 	JumpToParent      T                         `toml:"jump_to_parent"`
+	JumpToChildren    T                         `toml:"jump_to_children"`
 	JumpToWorkingCopy T                         `toml:"jump_to_working_copy"`
 	Apply             T                         `toml:"apply"`
 	Cancel            T                         `toml:"cancel"`
