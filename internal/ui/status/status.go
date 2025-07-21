@@ -15,6 +15,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/exec_process"
+	"github.com/idursun/jjui/internal/ui/fuzzy_search"
 )
 
 var accept = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "accept"))
@@ -40,6 +41,7 @@ type Model struct {
 	mode    string
 	editing bool
 	history map[string][]string
+	fuzzy   fuzzy_search.Model
 	styles  styles
 }
 
@@ -50,6 +52,13 @@ type styles struct {
 	title    lipgloss.Style
 	success  lipgloss.Style
 	error    lipgloss.Style
+}
+
+func (m *Model) FuzzyView() string {
+	if m.fuzzy == nil {
+		return ""
+	}
+	return m.fuzzy.View()
 }
 
 func (m *Model) IsFocused() bool {
@@ -103,24 +112,34 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, km.Cancel) && m.editing:
+			var cmd tea.Cmd
+			if m.fuzzy != nil {
+				_, cmd = m.fuzzy.Update(msg)
+			}
+
+			m.fuzzy = nil
 			m.editing = false
 			m.input.Reset()
+			return m, cmd
 		case key.Matches(msg, accept) && m.editing:
 			editMode := m.mode
 			input := m.input.Value()
 			prompt := m.input.Prompt
 			m.saveEditingSuggestions()
 
+			m.fuzzy = nil
 			m.command = ""
 			m.editing = false
 			m.mode = ""
 			m.input.Reset()
-			return m, func() tea.Msg {
-				if strings.HasPrefix(editMode, "exec") {
-					return exec_process.ExecMsgFromLine(prompt, input)
-				}
-				return common.QuickSearchMsg(input)
+
+			switch {
+			case strings.HasSuffix(editMode, "file"):
+				return m, func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }
+			case strings.HasPrefix(editMode, "exec"):
+				return m, func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }
 			}
+			return m, func() tea.Msg { return common.QuickSearchMsg(input) }
 		case key.Matches(msg, km.ExecJJ, km.ExecShell) && !m.editing:
 			mode := common.ExecJJ
 			if key.Matches(msg, km.ExecShell) {
@@ -141,6 +160,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if m.editing {
 				var cmd tea.Cmd
 				m.input, cmd = m.input.Update(msg)
+				if m.fuzzy != nil {
+					cmd = tea.Batch(cmd, fuzzy_search.Search(m.input.Value(), msg))
+				}
 				return m, cmd
 			}
 		}
@@ -149,6 +171,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		var cmd tea.Cmd
 		if m.status == commandRunning {
 			m.spinner, cmd = m.spinner.Update(msg)
+		}
+		if m.fuzzy != nil {
+			m.fuzzy, cmd = fuzzy_search.Update(m.fuzzy, msg)
 		}
 		return m, cmd
 	}

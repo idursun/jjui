@@ -2,8 +2,9 @@ package ui
 
 import (
 	"fmt"
-	"github.com/idursun/jjui/internal/ui/flash"
 	"time"
+
+	"github.com/idursun/jjui/internal/ui/flash"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -308,7 +309,12 @@ func (m Model) View() string {
 	flashMessageView := m.flash.View()
 	if flashMessageView != "" {
 		mw, mh := lipgloss.Size(flashMessageView)
-		return screen.Stacked(full, flashMessageView, m.width-mw, m.height-mh-1)
+		full = screen.Stacked(full, flashMessageView, m.width-mw, m.height-mh-1)
+	}
+	statusFuzzyView := m.status.FuzzyView()
+	if statusFuzzyView != "" {
+		_, mh := lipgloss.Size(statusFuzzyView)
+		full = screen.Stacked(full, statusFuzzyView, 0, m.height-mh-1)
 	}
 	return full
 }
