@@ -237,7 +237,7 @@ func TemplatedArgs(templatedArgs []string, replacements map[string]string) Comma
 }
 
 func Absorb(changeId string, files ...string) CommandArgs {
-	args := []string{"absorb", "--from", changeId}
+	args := []string{"absorb", "--from", changeId, "--color", "never"}
 	var escapedFiles []string
 	for _, file := range files {
 		escapedFiles = append(escapedFiles, escapeFileName(file))

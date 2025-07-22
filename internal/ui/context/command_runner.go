@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"slices"
 	"sync"
 )
 
@@ -57,6 +58,9 @@ func (a *MainCommandRunner) RunCommand(args []string, continuations ...tea.Cmd) 
 	commands := make([]tea.Cmd, 0)
 	commands = append(commands,
 		func() tea.Msg {
+			if !slices.Contains(args, "--color") {
+				args = append(args, "--color", "always")
+			}
 			c := exec.Command("jj", args...)
 			c.Dir = a.Location
 			output, err := c.CombinedOutput()
