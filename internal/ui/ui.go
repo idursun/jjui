@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/idursun/jjui/internal/ui/flash"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -35,10 +36,9 @@ type Model struct {
 	previewWindowPercentage float64
 	diff                    *diff.Model
 	leader                  *leader.Model
+	flash                   *flash.Model
 	state                   common.State
-	error                   error
 	status                  *status.Model
-	output                  string
 	width                   int
 	height                  int
 	context                 *context.MainContext
@@ -128,9 +128,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
 			m.state = common.Ready
-			m.error = nil
 		case key.Matches(msg, m.keyMap.Cancel) && m.stacked != nil:
 			m.stacked = nil
+		case key.Matches(msg, m.keyMap.Cancel) && m.flash.Any():
+			m.flash.DeleteOldest()
 		case key.Matches(msg, m.keyMap.Quit) && m.isSafeToQuit():
 			return m, tea.Quit
 		case key.Matches(msg, m.keyMap.OpLog.Mode):
@@ -197,12 +198,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case common.ShowDiffMsg:
 		m.diff = diff.New(string(msg), m.width, m.height)
 		return m, m.diff.Init()
-	case common.CommandCompletedMsg:
-		m.output = msg.Output
-	case common.UpdateRevisionsFailedMsg:
-		m.state = common.Error
-		m.output = msg.Output
-		m.error = msg.Err
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
 	case triggerAutoRefreshMsg:
@@ -238,6 +233,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.status, cmd = m.status.Update(msg)
 	cmds = append(cmds, cmd)
 
+	m.flash, cmd = m.flash.Update(msg)
+	cmds = append(cmds, cmd)
+
 	if m.stacked != nil {
 		m.stacked, cmd = m.stacked.Update(msg)
 		cmds = append(cmds, cmd)
@@ -270,9 +268,6 @@ func (m Model) View() string {
 	}
 
 	topView := m.revsetModel.View()
-	if m.state == common.Error {
-		topView += fmt.Sprintf("\n%s\n", m.output)
-	}
 	topViewHeight := lipgloss.Height(topView)
 
 	if m.oplog != nil {
@@ -309,7 +304,13 @@ func (m Model) View() string {
 		sy := (m.height - h) / 2
 		centerView = screen.Stacked(centerView, stackedView, sx, sy)
 	}
-	return lipgloss.JoinVertical(0, topView, centerView, footer)
+	full := lipgloss.JoinVertical(0, topView, centerView, footer)
+	flashMessageView := m.flash.View()
+	if flashMessageView != "" {
+		mw, mh := lipgloss.Size(flashMessageView)
+		return screen.Stacked(full, flashMessageView, m.width-mw, m.height-mh-1)
+	}
+	return full
 }
 
 func (m Model) renderLeftView(footerHeight int, topViewHeight int) string {
@@ -369,5 +370,6 @@ func New(c *context.MainContext) tea.Model {
 		previewWindowPercentage: config.Current.Preview.WidthPercentage,
 		status:                  &statusModel,
 		revsetModel:             revset.New(c),
+		flash:                   flash.New(c),
 	}
 }

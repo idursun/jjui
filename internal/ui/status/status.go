@@ -17,8 +17,16 @@ import (
 	"github.com/idursun/jjui/internal/ui/exec_process"
 )
 
-var cancel = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "dismiss"))
 var accept = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "accept"))
+
+type commandStatus int
+
+const (
+	none commandStatus = iota
+	commandRunning
+	commandCompleted
+	commandFailed
+)
 
 type Model struct {
 	context *context.MainContext
@@ -26,9 +34,8 @@ type Model struct {
 	input   textinput.Model
 	keyMap  help.KeyMap
 	command string
+	status  commandStatus
 	running bool
-	output  string
-	error   error
 	width   int
 	mode    string
 	editing bool
@@ -76,33 +83,25 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case clearMsg:
 		if m.command == string(msg) {
 			m.command = ""
-			m.error = nil
-			m.output = ""
+			m.status = none
 		}
 		return m, nil
 	case common.CommandRunningMsg:
 		m.command = string(msg)
-		m.running = true
+		m.status = commandRunning
 		return m, m.spinner.Tick
 	case common.CommandCompletedMsg:
-		m.running = false
-		m.output = msg.Output
-		m.error = msg.Err
-		if m.error == nil {
-			commandToBeCleared := m.command
-			return m, tea.Tick(CommandClearDuration, func(time.Time) tea.Msg {
-				return clearMsg(commandToBeCleared)
-			})
+		if msg.Err != nil {
+			m.status = commandFailed
+		} else {
+			m.status = commandCompleted
 		}
-		return m, nil
+		commandToBeCleared := m.command
+		return m, tea.Tick(CommandClearDuration, func(time.Time) tea.Msg {
+			return clearMsg(commandToBeCleared)
+		})
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, km.Cancel) && m.error != nil:
-			m.error = nil
-			m.output = ""
-			m.command = ""
-			m.editing = false
-			m.mode = ""
 		case key.Matches(msg, km.Cancel) && m.editing:
 			m.editing = false
 			m.input.Reset()
@@ -112,8 +111,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			prompt := m.input.Prompt
 			m.saveEditingSuggestions()
 
-			m.error = nil
-			m.output = ""
 			m.command = ""
 			m.editing = false
 			m.mode = ""
@@ -150,7 +147,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		return m, nil
 	default:
 		var cmd tea.Cmd
-		if m.running {
+		if m.status == commandRunning {
 			m.spinner, cmd = m.spinner.Update(msg)
 		}
 		return m, cmd
@@ -177,11 +174,11 @@ func (m *Model) loadEditingSuggestions() {
 
 func (m *Model) View() string {
 	commandStatusMark := m.styles.text.Render(" ")
-	if m.running {
+	if m.status == commandRunning {
 		commandStatusMark = m.styles.text.Render(m.spinner.View())
-	} else if m.error != nil {
+	} else if m.status == commandFailed {
 		commandStatusMark = m.styles.error.Render("✗ ")
-	} else if m.command != "" {
+	} else if m.status == commandCompleted {
 		commandStatusMark = m.styles.success.Render("✓ ")
 	} else {
 		commandStatusMark = m.helpView(m.keyMap)
@@ -193,13 +190,6 @@ func (m *Model) View() string {
 	}
 	mode := m.styles.title.Width(10).Render("", m.mode)
 	ret = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), commandStatusMark, ret)
-	if m.error != nil {
-		k := cancel.Help().Key
-		return lipgloss.JoinVertical(0,
-			ret,
-			strings.Trim(m.output, "\n"),
-			m.styles.shortcut.Render("press ", k, " to dismiss"))
-	}
 	height := lipgloss.Height(ret)
 	return lipgloss.Place(m.width, height, 0, 0, ret, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
 }
@@ -249,8 +239,7 @@ func New(context *context.MainContext) Model {
 		context: context,
 		spinner: s,
 		command: "",
-		running: false,
-		output:  "",
+		status:  none,
 		input:   t,
 		keyMap:  nil,
 		styles:  styles,
