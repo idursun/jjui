@@ -4,12 +4,13 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"io"
+	"time"
+
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	appContext "github.com/idursun/jjui/internal/ui/context"
-	"io"
-	"time"
 )
 
 const DefaultBatchSize = 50
@@ -57,7 +58,12 @@ func NewGraphStreamer(ctx appContext.CommandRunner, revset string) (*GraphStream
 	controlChan := make(chan parser.ControlMsg, 1)
 	reader := bufio.NewReader(command)
 
-	rowsChan, err := parser.ParseRowsStreaming(reader, controlChan, DefaultBatchSize)
+	batchSize := config.Current.Graph.BatchSize
+	if batchSize <= 0 {
+		batchSize = DefaultBatchSize
+	}
+
+	rowsChan, err := parser.ParseRowsStreaming(reader, controlChan, batchSize)
 	if err != nil {
 		cancel()
 		_ = command.Close()
@@ -69,7 +75,7 @@ func NewGraphStreamer(ctx appContext.CommandRunner, revset string) (*GraphStream
 		cancel:      cancel,
 		controlChan: controlChan,
 		rowsChan:    rowsChan,
-		batchSize:   DefaultBatchSize,
+		batchSize:   batchSize,
 	}, commandError
 }
 func (g *GraphStreamer) RequestMore() parser.RowBatch {

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -45,6 +46,22 @@ func getConfigFilePath() string {
 		return filepath.Join(configDirs[0], "jjui", "config.toml")
 	}
 	return ""
+}
+
+func loadDefaultConfig() *Config {
+	data, err := configFS.ReadFile("default/config.toml")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Fatal: no embedded default config found: %v\n", err)
+		os.Exit(1)
+	}
+
+	config := &Config{}
+	if err := config.Load(string(data)); err != nil {
+		fmt.Fprintf(os.Stderr, "Fatal: failed to load embedded default config: %v\n", err)
+		os.Exit(1)
+	}
+
+	return config
 }
 
 func (c *Config) Load(data string) error {

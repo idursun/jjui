@@ -1,5 +1,5 @@
 experimental_log_batching_enabled = false
-Limit = 0
+limit = 0
 
 [keys]
   up = ["up", "k"]
@@ -90,7 +90,10 @@ Limit = 0
   theme = ""
   auto_refresh_interval = 0
 
+[ui.colors]
+
 [preview]
+  extra_args = []
   revision_command = ["show", "--color", "always", "-r", "$change_id"]
   oplog_command = ["op", "show", "$operation_id", "--color", "always"]
   file_command = ["diff", "--color", "always", "-r", "$change_id", "$file"]
@@ -100,3 +103,6 @@ Limit = 0
 
 [oplog]
   limit = 200
+
+[graph]
+  batch_size = 50

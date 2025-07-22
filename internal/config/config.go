@@ -1,39 +1,27 @@
 package config
 
 import (
+	"embed"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path"
-
-	"github.com/idursun/jjui/internal/jj"
 )
 
-var Current = &Config{
-	Keys: DefaultKeyMappings,
-	UI:   UIConfig{},
-	Preview: PreviewConfig{
-		OplogCommand:             []string{"op", "show", jj.OperationIdPlaceholder, "--color", "always"},
-		FileCommand:              []string{"diff", "--color", "always", "-r", jj.ChangeIdPlaceholder, jj.FilePlaceholder},
-		RevisionCommand:          []string{"show", "--color", "always", "-r", jj.ChangeIdPlaceholder},
-		ShowAtStart:              false,
-		WidthPercentage:          50,
-		WidthIncrementPercentage: 5,
-	},
-	OpLog: OpLogConfig{
-		Limit: 200,
-	},
-	ExperimentalLogBatchingEnabled: false,
-}
+//go:embed default/*.toml
+var configFS embed.FS
+
+var Current = loadDefaultConfig()
 
 type Config struct {
 	Keys                           KeyMappings[keys] `toml:"keys"`
 	UI                             UIConfig          `toml:"ui"`
 	Preview                        PreviewConfig     `toml:"preview"`
 	OpLog                          OpLogConfig       `toml:"oplog"`
+	Graph                          GraphConfig       `toml:"graph"`
 	ExperimentalLogBatchingEnabled bool              `toml:"experimental_log_batching_enabled"`
-	Limit                          int
+	Limit                          int               `toml:"limit"`
 }
 
 type Color struct {
@@ -96,6 +84,10 @@ type PreviewConfig struct {
 
 type OpLogConfig struct {
 	Limit int `toml:"limit"`
+}
+
+type GraphConfig struct {
+	BatchSize int `toml:"batch_size"`
 }
 
 type ShowOption string
