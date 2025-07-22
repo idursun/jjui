@@ -12,6 +12,13 @@ import (
 func getConfigFilePath() string {
 	var configDirs []string
 
+	// useful during development or other non-standard setups.
+	if dir := os.Getenv("JJUI_CONFIG_DIR"); dir != "" {
+		if s, err := os.Stat(dir); err == nil && s.IsDir() {
+			configDirs = append(configDirs, dir)
+		}
+	}
+
 	// os.UserConfigDir() already does this for linux leaving darwin to handle
 	if runtime.GOOS == "darwin" {
 		configDirs = append(configDirs, path.Join(os.Getenv("HOME"), ".config"))
