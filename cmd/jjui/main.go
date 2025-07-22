@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/idursun/jjui/internal/config/themes"
 	"github.com/idursun/jjui/internal/ui/common"
 
 	"github.com/idursun/jjui/internal/config"
@@ -148,10 +147,15 @@ func main() {
 
 	var theme map[string]config.Color
 	if config.Current.UI.Theme == "" {
+		var themeName string
 		if lipgloss.HasDarkBackground() {
-			theme = themes.DarkTheme
+			theme, err = config.LoadEmbeddedTheme("default_dark")
 		} else {
-			theme = themes.LightTheme
+			theme, err = config.LoadEmbeddedTheme("default_light")
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading default theme '%s': %v\n", themeName, err)
+			os.Exit(1)
 		}
 	} else {
 		// Load the specified theme from the themes directory

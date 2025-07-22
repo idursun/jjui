@@ -1,0 +1,24 @@
+dimmed = "bright black"
+title = { fg = "magenta", bold = true }
+shortcut = "magenta"
+matched = "cyan"
+selected = { fg = "cyan", bg = "bright black" }
+target_marker = { fg = "black", bg = "red", bold = true }
+source_marker = { fg = "black", bg = "cyan" }
+success = "green"
+error = "red"
+border = "bright white"
+"confirmation text" = { fg = "magenta", bold = true }
+"confirmation selected" = { fg = "bright white", bg = "blue", bold = true }
+"confirmation dimmed" = "white"
+"help title" = { fg = "green", bold = true }
+"revisions details selected" = { bg = "bright black" }
+"revset title" = "magenta"
+"revset text" = { fg = "green", bold = true }
+"revset completion text" = "white"
+"revset completion matched" = { fg = "cyan", bold = true }
+"revset completion selected" = { fg = "cyan", bg = "bright black" }
+"status title" = { fg = "black", bg = "magenta", bold = true }
+"menu title" = { fg = "230", bg = "62", bold = true }
+"menu matched" = { fg = "magenta", bold = true }
+"menu selected" = { fg = "cyan", bg = "default", bold = true }

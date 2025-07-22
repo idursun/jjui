@@ -88,21 +88,31 @@ func LoadConfigFile() ([]byte, error) {
 	return data, nil
 }
 
-func LoadTheme(name string) (map[string]Color, error) {
-	configFilePath := getConfigFilePath()
-	themeFile := filepath.Join(filepath.Dir(configFilePath), "themes", name+".toml")
-	_, err := os.Stat(themeFile)
-	if err != nil {
-		return nil, err
-	}
-	data, err := os.ReadFile(themeFile)
-	if err != nil {
-		return nil, err
-	}
+func loadTheme(data []byte) (map[string]Color, error) {
 	colors := make(map[string]Color)
-	err = toml.Unmarshal(data, &colors)
+	err := toml.Unmarshal(data, &colors)
 	if err != nil {
 		return nil, err
 	}
 	return colors, nil
+}
+
+func LoadEmbeddedTheme(name string) (map[string]Color, error) {
+	embeddedPath := "default/" + name + ".toml"
+	data, err := configFS.ReadFile(embeddedPath)
+	if err != nil {
+		return nil, err
+	}
+	return loadTheme(data)
+}
+
+func LoadTheme(name string) (map[string]Color, error) {
+	configFilePath := getConfigFilePath()
+	themeFile := filepath.Join(filepath.Dir(configFilePath), "themes", name+".toml")
+
+	data, err := os.ReadFile(themeFile)
+	if err != nil {
+		return nil, err
+	}
+	return loadTheme(data)
 }
