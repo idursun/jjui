@@ -65,8 +65,10 @@ func (c *Color) UnmarshalTOML(text any) error {
 }
 
 type UIConfig struct {
-	Theme  string           `toml:"theme"`
-	Colors map[string]Color `toml:"colors"`
+	Theme      string           `toml:"theme"`
+	DarkTheme  string           `toml:"dark_theme"`
+	LightTheme string           `toml:"light_theme"`
+	Colors     map[string]Color `toml:"colors"`
 	// TODO(ilyagr): It might make sense to rename this to `auto_refresh_period` to match `--period` option
 	// once we have a mechanism to deprecate the old name softly.
 	AutoRefreshInterval int `toml:"auto_refresh_interval"`

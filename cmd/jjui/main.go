@@ -146,24 +146,35 @@ func main() {
 	}
 
 	var theme map[string]config.Color
-	if config.Current.UI.Theme == "" {
-		var themeName string
-		if lipgloss.HasDarkBackground() {
-			theme, err = config.LoadEmbeddedTheme("default_dark")
+	var themeName string
+
+	if lipgloss.HasDarkBackground() {
+		if config.Current.UI.DarkTheme != "" {
+			themeName = config.Current.UI.DarkTheme
+			theme, err = config.LoadTheme(themeName)
+		} else if config.Current.UI.Theme != "" {
+			themeName = config.Current.UI.Theme
+			theme, err = config.LoadTheme(themeName)
 		} else {
-			theme, err = config.LoadEmbeddedTheme("default_light")
-		}
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading default theme '%s': %v\n", themeName, err)
-			os.Exit(1)
+			themeName = "default_dark"
+			theme, err = config.LoadEmbeddedTheme(themeName)
 		}
 	} else {
-		// Load the specified theme from the themes directory
-		theme, err = config.LoadTheme(config.Current.UI.Theme)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading theme '%s': %v\n", config.Current.UI.Theme, err)
-			os.Exit(1)
+		if config.Current.UI.LightTheme != "" {
+			themeName = config.Current.UI.LightTheme
+			theme, err = config.LoadTheme(themeName)
+		} else if config.Current.UI.Theme != "" {
+			themeName = config.Current.UI.Theme
+			theme, err = config.LoadTheme(themeName)
+		} else {
+			themeName = "default_light"
+			theme, err = config.LoadEmbeddedTheme(themeName)
 		}
+	}
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading theme '%s': %v\n", themeName, err)
+		os.Exit(1)
 	}
 
 	common.DefaultPalette.Update(theme)

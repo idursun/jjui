@@ -88,6 +88,8 @@ limit = 0
 
 [ui]
   theme = ""
+  dark_theme = ""
+  light_theme = ""
   auto_refresh_interval = 0
 
 [ui.colors]
