@@ -54,6 +54,7 @@ type MainContext struct {
 	JJConfig       *config.JJConfig
 	DefaultRevset  string
 	CurrentRevset  string
+	Histories      *config.Histories
 }
 
 func NewAppContext(location string) *MainContext {
@@ -61,7 +62,8 @@ func NewAppContext(location string) *MainContext {
 		CommandRunner: &MainCommandRunner{
 			Location: location,
 		},
-		Location: location,
+		Location:  location,
+		Histories: config.NewHistories(),
 	}
 
 	m.JJConfig = &config.JJConfig{}

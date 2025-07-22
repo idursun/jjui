@@ -41,7 +41,6 @@ type Model struct {
 	width   int
 	mode    string
 	editing bool
-	history map[string][]string
 	fuzzy   fuzzy_search.Model
 	styles  styles
 }
@@ -190,21 +189,19 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 }
 
 func (m *Model) saveEditingSuggestions() {
-	if h, ok := m.history[m.mode]; ok {
-		m.history[m.mode] = append(h, m.input.Value())
-	} else {
-		m.history[m.mode] = []string{m.input.Value()}
+	input := m.input.Value()
+	if len(strings.TrimSpace(input)) == 0 {
+		return
 	}
+	h := m.context.Histories.GetHistory(config.HistoryKey(m.mode), true)
+	h.Append(input)
 }
 
 func (m *Model) loadEditingSuggestions() {
-	if h, ok := m.history[m.mode]; ok {
-		m.input.ShowSuggestions = true
-		m.input.SetSuggestions(h)
-	} else {
-		m.input.ShowSuggestions = false
-		m.input.SetSuggestions([]string{})
-	}
+	h := m.context.Histories.GetHistory(config.HistoryKey(m.mode), true)
+	history := h.Entries()
+	m.input.ShowSuggestions = true
+	m.input.SetSuggestions([]string(history))
 }
 
 func (m *Model) View() string {
@@ -278,6 +275,5 @@ func New(context *context.MainContext) Model {
 		input:   t,
 		keyMap:  nil,
 		styles:  styles,
-		history: make(map[string][]string),
 	}
 }
