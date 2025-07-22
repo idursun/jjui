@@ -249,7 +249,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case key.Matches(msg, m.keyMap.Details.RevisionsChangingFile):
 			if item, ok := m.files.SelectedItem().(item); ok {
-				return m, tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(%s)", item.fileName)))
+				return m, tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(\"%s\")", item.fileName)))
 			}
 		default:
 			if len(m.files.Items()) > 0 {
