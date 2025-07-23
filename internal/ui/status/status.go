@@ -16,6 +16,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/exec_process"
 	"github.com/idursun/jjui/internal/ui/fuzzy_files"
+	"github.com/idursun/jjui/internal/ui/fuzzy_input"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
 )
 
@@ -41,6 +42,7 @@ type Model struct {
 	width   int
 	mode    string
 	editing bool
+	history map[string][]string
 	fuzzy   fuzzy_search.Model
 	styles  styles
 }
@@ -158,7 +160,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.mode = "exec " + mode.Mode
 			m.input.Prompt = mode.Prompt
 			m.loadEditingSuggestions()
-			return m, m.input.Focus()
+
+			m.fuzzy = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
+			return m, tea.Batch(m.fuzzy.Init(), m.input.Focus())
 		case key.Matches(msg, km.QuickSearch) && !m.editing:
 			m.editing = true
 			m.mode = "search"
