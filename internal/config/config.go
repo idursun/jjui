@@ -64,14 +64,55 @@ func (c *Color) UnmarshalTOML(text any) error {
 	return nil
 }
 
+type ThemeConfig struct {
+	Dark  string `toml:"dark"`
+	Light string `toml:"light"`
+}
+
 type UIConfig struct {
-	Theme      string           `toml:"theme"`
-	DarkTheme  string           `toml:"dark_theme"`
-	LightTheme string           `toml:"light_theme"`
-	Colors     map[string]Color `toml:"colors"`
+	Theme  string           `toml:"theme"`
+	Themes ThemeConfig      `toml:"-"`
+	Colors map[string]Color `toml:"colors"`
 	// TODO(ilyagr): It might make sense to rename this to `auto_refresh_period` to match `--period` option
 	// once we have a mechanism to deprecate the old name softly.
 	AutoRefreshInterval int `toml:"auto_refresh_interval"`
+}
+
+func (ui *UIConfig) UnmarshalTOML(data interface{}) error {
+	if m, ok := data.(map[string]interface{}); ok {
+		if v, exists := m["auto_refresh_interval"]; exists {
+			if i, ok := v.(int64); ok {
+				ui.AutoRefreshInterval = int(i)
+			}
+		}
+
+		if v, exists := m["colors"]; exists {
+			if colorMap, ok := v.(map[string]interface{}); ok {
+				ui.Colors = make(map[string]Color)
+				for name, colorData := range colorMap {
+					var color Color
+					if err := color.UnmarshalTOML(colorData); err == nil {
+						ui.Colors[name] = color
+					}
+				}
+			}
+		}
+
+		if themeValue, exists := m["theme"]; exists {
+			if themeStr, isString := themeValue.(string); isString {
+				ui.Theme = themeStr
+			} else if themeMap, isMap := themeValue.(map[string]interface{}); isMap {
+				if dark, ok := themeMap["dark"].(string); ok {
+					ui.Themes.Dark = dark
+				}
+				if light, ok := themeMap["light"].(string); ok {
+					ui.Themes.Light = light
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 type PreviewConfig struct {
