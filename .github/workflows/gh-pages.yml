@@ -1,0 +1,40 @@
+name: GH Pages
+on:
+  gollum:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install mdbook
+        run: |
+          set -e
+          MDBOOK_VERSION=$(curl -s "https://api.github.com/repos/rust-lang/mdBook/releases/latest" | grep -Po '"tag_name": "v\K[0-9.]+')
+          wget -qO mdbook.tar.gz https://github.com/rust-lang/mdBook/releases/latest/download/mdbook-v$MDBOOK_VERSION-x86_64-unknown-linux-gnu.tar.gz
+          sudo tar xf mdbook.tar.gz -C /usr/local/bin mdbook
+          mdbook --version
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: '${{github.repository}}.wiki'
+      - name: Build
+        run: mdbook build
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './book'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
