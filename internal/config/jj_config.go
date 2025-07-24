@@ -23,6 +23,7 @@ func (c *JJConfig) GetApplicableColors() map[string]Color {
 		"diff modified",
 		"diff removed",
 		"change_id",
+		"conflict",
 	}
 	for _, key := range applicableColorKeys {
 		if color, ok := c.Colors[key]; ok {

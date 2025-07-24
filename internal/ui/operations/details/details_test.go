@@ -14,7 +14,7 @@ import (
 
 const (
 	Revision     = "ignored"
-	StatusOutput = "M file.txt\nA newfile.txt\n"
+	StatusOutput = "false false\nM file.txt\nA newfile.txt\n"
 )
 
 func TestModel_Init_ExecutesStatusCommand(t *testing.T) {
@@ -68,7 +68,7 @@ func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
 func TestModel_Update_HandlesMovedFiles(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.Snapshot())
-	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte("R internal/ui/{revisions => }/file.go\nR {file => sub/newfile}\n"))
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte("false false\nR internal/ui/{revisions => }/file.go\nR {file => sub/newfile}\n"))
 	commandRunner.Expect(jj.Restore(Revision, []string{"internal/ui/file.go", "sub/newfile"}))
 	defer commandRunner.Verify()
 

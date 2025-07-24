@@ -33,6 +33,7 @@ type item struct {
 	name     string
 	fileName string
 	selected bool
+	conflict bool
 }
 
 func (f item) Title() string {
@@ -47,6 +48,7 @@ func (f item) Title() string {
 	case Renamed:
 		status = "R"
 	}
+
 	return fmt.Sprintf("%s %s", status, f.name)
 }
 func (f item) Description() string { return "" }
@@ -98,7 +100,13 @@ func (i itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		}
 	}
 
-	fmt.Fprint(w, style.PaddingRight(1).Render(title), i.styles.Dimmed.Render(hint))
+	fmt.Fprint(w, style.PaddingRight(1).Render(title))
+	if item.conflict {
+		fmt.Fprint(w, i.styles.Conflict.Render("conflict "))
+	}
+	if hint != "" {
+		fmt.Fprint(w, i.styles.Dimmed.Render(hint))
+	}
 }
 
 func (i itemDelegate) Height() int                         { return 1 }
@@ -117,6 +125,7 @@ type styles struct {
 	Selected lipgloss.Style
 	Dimmed   lipgloss.Style
 	Text     lipgloss.Style
+	Conflict lipgloss.Style
 }
 
 type Model struct {
@@ -130,7 +139,7 @@ type Model struct {
 }
 
 type updateCommitStatusMsg struct {
-	summary       []string
+	summary       string
 	selectedFiles []string
 }
 
@@ -145,6 +154,7 @@ func New(context *context.MainContext, revision string) tea.Model {
 		Selected: common.DefaultPalette.Get("revisions details selected"),
 		Dimmed:   common.DefaultPalette.Get("revisions details dimmed"),
 		Text:     common.DefaultPalette.Get("revisions details text"),
+		Conflict: common.DefaultPalette.Get("revisions details conflict"),
 	}
 
 	l := list.New(nil, itemDelegate{styles: s}, 0, 0)
@@ -278,9 +288,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) createListItems(content []string, selectedFiles []string) []list.Item {
+func (m Model) createListItems(content string, selectedFiles []string) []list.Item {
 	items := make([]list.Item, 0)
-	for _, file := range content {
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	var conflicts []bool
+	if scanner.Scan() {
+		conflictsLine := strings.Split(scanner.Text(), " ")
+		for _, c := range conflictsLine {
+			conflicts = append(conflicts, c == "true")
+		}
+	} else {
+		return items
+	}
+
+	index := 0
+	for scanner.Scan() {
+		file := strings.TrimSpace(scanner.Text())
 		if file == "" {
 			continue
 		}
@@ -316,7 +339,9 @@ func (m Model) createListItems(content []string, selectedFiles []string) []list.
 			name:     fileName,
 			fileName: actualFileName,
 			selected: slices.ContainsFunc(selectedFiles, func(s string) bool { return s == actualFileName }),
+			conflict: conflicts[index],
 		})
+		index++
 	}
 	return items
 }
@@ -372,7 +397,7 @@ func (m Model) load(revision string) tea.Cmd {
 		output, err = m.context.RunCommandImmediate(jj.Status(revision))
 		if err == nil {
 			return func() tea.Msg {
-				summary := strings.Split(strings.TrimSpace(string(output)), "\n")
+				summary := string(output)
 				selectedFiles, isVirtuallySelected := m.getSelectedFiles()
 				if isVirtuallySelected {
 					selectedFiles = []string{}

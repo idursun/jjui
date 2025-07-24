@@ -106,7 +106,8 @@ func Snapshot() CommandArgs {
 }
 
 func Status(revision string) CommandArgs {
-	return []string{"log", "-r", revision, "--summary", "--no-graph", "--color", "never", "--quiet", "--template", "", "--ignore-working-copy"}
+	template := `separate(";", diff.files().map(|x| x.target().conflict())) ++ "\n"`
+	return []string{"log", "-r", revision, "--summary", "--no-graph", "--color", "never", "--quiet", "--template", template, "--ignore-working-copy"}
 }
 
 func BookmarkSet(revision string, name string) CommandArgs {

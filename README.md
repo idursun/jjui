@@ -147,7 +147,7 @@ You can download pre-built binaries from the [releases](https://github.com/idurs
 
 ## Compatibility
 
-Minimum supported `jj` version is **v0.21**+.
+Minimum supported `jj` version is **v0.26**+.
 
 ## Contributing
 
