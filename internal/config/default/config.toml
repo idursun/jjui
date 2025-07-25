@@ -58,6 +58,7 @@ limit = 0
     restore = ["r"]
     absorb = ["A"]
     diff = ["d"]
+    edit = ["alt+e"]
     select = ["m", " "]
     revisions_changing_file = ["*"]
   [keys.preview]

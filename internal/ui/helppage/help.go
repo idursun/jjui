@@ -139,6 +139,7 @@ func (h *Model) View() string {
 		h.printKeyBinding(h.keyMap.Details.Restore),
 		h.printKeyBinding(h.keyMap.Details.Split),
 		h.printKeyBinding(h.keyMap.Details.Diff),
+		h.printKeyBinding(h.keyMap.Details.Edit),
 		h.printKeyBinding(h.keyMap.Details.RevisionsChangingFile),
 		"",
 		h.printMode(h.keyMap.Git.Mode, "Git"),
