@@ -151,7 +151,7 @@ func (s *ShowOption) UnmarshalText(text []byte) error {
 	}
 }
 
-func getDefaultEditor() string {
+func GetDefaultEditor() string {
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = os.Getenv("VISUAL")
@@ -192,7 +192,7 @@ func Edit() int {
 		}
 	}
 
-	editor := getDefaultEditor()
+	editor := GetDefaultEditor()
 	if editor == "" {
 		log.Fatal("No editor found. Please set $EDITOR or $VISUAL")
 	}

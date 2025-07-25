@@ -32,19 +32,19 @@ const (
 )
 
 type Model struct {
-	context *context.MainContext
-	spinner spinner.Model
-	input   textinput.Model
-	keyMap  help.KeyMap
-	command string
-	status  commandStatus
-	running bool
-	width   int
-	mode    string
-	editing bool
-	history map[string][]string
-	fuzzy   fuzzy_search.Model
-	styles  styles
+	context    *context.MainContext
+	spinner    spinner.Model
+	input      textinput.Model
+	keyMap     help.KeyMap
+	command    string
+	status     commandStatus
+	running    bool
+	width      int
+	mode       string
+	editStatus editStatus
+	history    map[string][]string
+	fuzzy      fuzzy_search.Model
+	styles     styles
 }
 
 type styles struct {
@@ -56,15 +56,23 @@ type styles struct {
 	error    lipgloss.Style
 }
 
+// a function that will be used to show
+// dynamic help when editing is focused.
+type editStatus = func() (help.KeyMap, string)
+
+func emptyEditStatus() (help.KeyMap, string) {
+	return nil, ""
+}
+
+func (m *Model) IsFocused() bool {
+	return m.editStatus != nil
+}
+
 func (m *Model) FuzzyView() string {
 	if m.fuzzy == nil {
 		return ""
 	}
 	return m.fuzzy.View()
-}
-
-func (m *Model) IsFocused() bool {
-	return m.editing
 }
 
 const CommandClearDuration = 3 * time.Second
@@ -112,25 +120,24 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			return clearMsg(commandToBeCleared)
 		})
 	case common.FileSearchMsg:
-		m.editing = true
 		m.mode = "rev file"
 		m.input.Prompt = "> "
 		m.loadEditingSuggestions()
-		m.fuzzy = fuzzy_files.NewModel(msg)
+		m.fuzzy, m.editStatus = fuzzy_files.NewModel(msg)
 		return m, tea.Batch(m.fuzzy.Init(), m.input.Focus())
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, km.Cancel) && m.editing:
+		case key.Matches(msg, km.Cancel) && m.IsFocused():
 			var cmd tea.Cmd
 			if m.fuzzy != nil {
 				_, cmd = m.fuzzy.Update(msg)
 			}
 
 			m.fuzzy = nil
-			m.editing = false
+			m.editStatus = nil
 			m.input.Reset()
 			return m, cmd
-		case key.Matches(msg, accept) && m.editing:
+		case key.Matches(msg, accept) && m.IsFocused():
 			editMode := m.mode
 			input := m.input.Value()
 			prompt := m.input.Prompt
@@ -139,7 +146,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 			m.fuzzy = nil
 			m.command = ""
-			m.editing = false
+			m.editStatus = nil
 			m.mode = ""
 			m.input.Reset()
 
@@ -151,26 +158,26 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				return m, func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }
 			}
 			return m, func() tea.Msg { return common.QuickSearchMsg(input) }
-		case key.Matches(msg, km.ExecJJ, km.ExecShell) && !m.editing:
+		case key.Matches(msg, km.ExecJJ, km.ExecShell) && !m.IsFocused():
 			mode := common.ExecJJ
 			if key.Matches(msg, km.ExecShell) {
 				mode = common.ExecShell
 			}
-			m.editing = true
+			m.editStatus = emptyEditStatus
 			m.mode = "exec " + mode.Mode
 			m.input.Prompt = mode.Prompt
 			m.loadEditingSuggestions()
 
 			m.fuzzy = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
 			return m, tea.Batch(m.fuzzy.Init(), m.input.Focus())
-		case key.Matches(msg, km.QuickSearch) && !m.editing:
-			m.editing = true
+		case key.Matches(msg, km.QuickSearch) && !m.IsFocused():
+			m.editStatus = emptyEditStatus
 			m.mode = "search"
 			m.input.Prompt = "> "
 			m.loadEditingSuggestions()
 			return m, m.input.Focus()
 		default:
-			if m.editing {
+			if m.IsFocused() {
 				var cmd tea.Cmd
 				m.input, cmd = m.input.Update(msg)
 				if m.fuzzy != nil {
@@ -218,13 +225,21 @@ func (m *Model) View() string {
 		commandStatusMark = m.styles.success.Render("✓ ")
 	} else {
 		commandStatusMark = m.helpView(m.keyMap)
+		commandStatusMark = lipgloss.PlaceHorizontal(m.width, 0, commandStatusMark, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
 	}
+	modeWith := 10
 	ret := m.styles.text.Render(strings.ReplaceAll(m.command, "\n", "⏎"))
-	if m.editing {
+	if m.IsFocused() {
 		commandStatusMark = ""
-		ret = m.input.View()
+		editKeys, editHelp := m.editStatus()
+		if editKeys != nil {
+			editHelp = lipgloss.JoinHorizontal(0, m.helpView(editKeys), editHelp)
+		}
+		promptWidth := len(m.input.Prompt) + 2
+		m.input.Width = m.width - modeWith - promptWidth - lipgloss.Width(editHelp)
+		ret = lipgloss.JoinHorizontal(0, m.input.View(), editHelp)
 	}
-	mode := m.styles.title.Width(10).Render("", m.mode)
+	mode := m.styles.title.Width(modeWith).Render("", m.mode)
 	ret = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), commandStatusMark, ret)
 	height := lipgloss.Height(ret)
 	return lipgloss.Place(m.width, height, 0, 0, ret, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
@@ -235,7 +250,7 @@ func (m *Model) SetHelp(keyMap help.KeyMap) {
 }
 
 func (m *Model) SetMode(mode string) {
-	if !m.editing {
+	if !m.IsFocused() {
 		m.mode = mode
 	}
 }
@@ -250,7 +265,8 @@ func (m *Model) helpView(keyMap help.KeyMap) string {
 		h := binding.Help()
 		entries = append(entries, m.styles.shortcut.Render(h.Key)+m.styles.dimmed.PaddingLeft(1).Render(h.Desc))
 	}
-	return lipgloss.PlaceHorizontal(m.width, 0, strings.Join(entries, m.styles.dimmed.Render(" • ")), lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
+	help := strings.Join(entries, m.styles.dimmed.Render(" • "))
+	return help
 }
 
 func New(context *context.MainContext) Model {

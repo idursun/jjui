@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -28,6 +30,7 @@ type fuzzyFiles struct {
 	// enabled with ctrl+t again
 	// live preview of revset and rev-diff
 	revsetPreview bool
+	debounceTag   int
 
 	// search state
 	files   []string
@@ -35,6 +38,10 @@ type fuzzyFiles struct {
 	matches fuzzy.Matches
 	styles  fuzzy_search.Styles
 }
+
+var debounceDuration = 250 * time.Millisecond
+
+type debouncePreview int
 
 type initMsg struct{}
 
@@ -57,6 +64,17 @@ func (fzf *fuzzyFiles) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return fzf, cmd
 		}
 		fzf.search(msg.Input)
+		if fzf.revsetPreview {
+			fzf.debounceTag++
+			tag := debouncePreview(fzf.debounceTag)
+			return fzf, tea.Tick(debounceDuration, func(_ time.Time) tea.Msg {
+				return tag
+			})
+		}
+	case debouncePreview:
+		if int(msg) != fzf.debounceTag {
+			return fzf, nil
+		}
 		if fzf.revsetPreview {
 			return fzf, tea.Batch(
 				fzf.updateRevSet(),
@@ -83,6 +101,7 @@ var inputKm = textinput.DefaultKeyMap
 var up = key.NewBinding(key.WithKeys("up"))
 var down = key.NewBinding(key.WithKeys("down"))
 var enter = key.NewBinding(key.WithKeys("enter"))
+var edit = key.NewBinding(key.WithKeys("alt+e"))
 
 func isInputMovement(k tea.KeyMsg) bool {
 	return key.Matches(k,
@@ -125,8 +144,18 @@ func (fzf *fuzzyFiles) handleKey(msg tea.KeyMsg) tea.Cmd {
 			common.UpdateRevSet(fzf.revset),
 			newCmd(common.ShowPreview(fzf.wasPreviewShown)),
 		)
+	case key.Matches(msg, edit):
+		path := fuzzy_search.SelectedMatch(fzf)
+		return newCmd(common.ExecMsg{
+			Line: config.GetDefaultEditor() + " " + path,
+			Mode: common.ExecShell,
+		})
 	case key.Matches(msg, km.FileSearch):
 		fzf.revsetPreview = !fzf.revsetPreview
+		return tea.Batch(
+			newCmd(common.ShowPreview(fzf.revsetPreview)),
+			fzf.updateRevSet(),
+		)
 	case key.Matches(msg, enter, inputKm.AcceptSuggestion):
 		return fzf.updateRevSet()
 	case isInputMovement(msg):
@@ -197,8 +226,37 @@ func (fzf *fuzzyFiles) View() string {
 	return lipgloss.JoinVertical(0, title, entries)
 }
 
-func NewModel(msg common.FileSearchMsg) fuzzy_search.Model {
-	return &fuzzyFiles{
+func (fzf *fuzzyFiles) ShortHelp() []key.Binding {
+	keys := []key.Binding{}
+	addKey := func(ks string, help string) {
+		keys = append(keys, key.NewBinding(key.WithKeys(ks), key.WithHelp(ks, help)))
+	}
+
+	addKey(km.FileSearch.Keys()[0], "live mode")
+	addKey("alt+e", "edit file")
+
+	if fzf.revsetPreview {
+		addKey("up/down", "move on revset")
+		addKey("ctrl+n/ctrl+p", "scroll preview")
+	} else {
+		addKey("enter", "file revset")
+	}
+
+	return keys
+}
+
+func (fzf *fuzzyFiles) FullHelp() [][]key.Binding {
+	return [][]key.Binding{fzf.ShortHelp()}
+}
+
+type editStatus func() (help.KeyMap, string)
+
+func (fzf *fuzzyFiles) editStatus() (help.KeyMap, string) {
+	return fzf, ""
+}
+
+func NewModel(msg common.FileSearchMsg) (fuzzy_search.Model, editStatus) {
+	model := &fuzzyFiles{
 		revset:          msg.Revset,
 		wasPreviewShown: msg.PreviewShown,
 		max:             30,
@@ -206,4 +264,5 @@ func NewModel(msg common.FileSearchMsg) fuzzy_search.Model {
 		files:           strings.Split(string(msg.RawFileOut), "\n"),
 		styles:          fuzzy_search.NewStyles(),
 	}
+	return model, model.editStatus
 }
