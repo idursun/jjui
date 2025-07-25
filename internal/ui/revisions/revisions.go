@@ -170,6 +170,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		m.output = msg.Output
 		m.err = msg.Err
 		return m, nil
+	case common.EditRevision:
+		cmd := m.context.RunCommand(jj.Edit(string(msg)), common.Refresh)
+		return m, cmd
 	case common.AutoRefreshMsg:
 		id, _ := m.context.RunCommandImmediate(jj.OpLogId(true))
 		currentOperationId := string(id)

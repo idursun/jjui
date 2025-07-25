@@ -199,6 +199,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				output, _ := m.context.RunCommandImmediate(jj.Diff(m.revision, selected.fileName))
 				return common.ShowDiffMsg(output)
 			}
+		case key.Matches(msg, m.keyMap.Details.Edit):
+			editRevision := func() tea.Msg { return common.EditRevision(m.revision) }
+			selectedFiles, _ := m.getSelectedFiles()
+			editFiles := func() tea.Msg {
+				line := []string{config.GetDefaultEditor()}
+				line = append(line, selectedFiles...)
+				return common.ExecMsg{
+					Line: strings.Join(line, " "),
+					Mode: common.ExecShell,
+				}
+			}
+			return m, tea.Batch(editRevision, editFiles)
 		case key.Matches(msg, m.keyMap.Details.Split):
 			selectedFiles, isVirtuallySelected := m.getSelectedFiles()
 			m.files.SetDelegate(itemDelegate{

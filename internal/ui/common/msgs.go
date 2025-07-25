@@ -21,6 +21,7 @@ type (
 		Err    error
 	}
 	UpdateRevisionsSuccessMsg struct{}
+	EditRevision              string
 	UpdateBookmarksMsg        struct {
 		Bookmarks []string
 		Revision  string
