@@ -35,6 +35,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		QuickSearch:       key.NewBinding(key.WithKeys(m.QuickSearch...), key.WithHelp(JoinKeys(m.QuickSearch), "quick search")),
 		QuickSearchCycle:  key.NewBinding(key.WithKeys(m.QuickSearchCycle...), key.WithHelp(JoinKeys(m.QuickSearchCycle), "locate next match")),
 		CustomCommands:    key.NewBinding(key.WithKeys(m.CustomCommands...), key.WithHelp(JoinKeys(m.CustomCommands), "custom commands menu")),
+		Aliases:           key.NewBinding(key.WithKeys(m.Aliases...), key.WithHelp(JoinKeys(m.Aliases), "aliases menu")),
 		Leader:            key.NewBinding(key.WithKeys(m.Leader...), key.WithHelp(JoinKeys(m.Leader), "leader")),
 		Suspend:           key.NewBinding(key.WithKeys(m.Suspend...), key.WithHelp(JoinKeys(m.Suspend), "suspend")),
 		ExecJJ:            key.NewBinding(key.WithKeys(m.ExecJJ...), key.WithHelp(JoinKeys(m.ExecJJ), "interactive jj")),
@@ -157,6 +158,7 @@ type KeyMappings[T any] struct {
 	QuickSearch       T                         `toml:"quick_search"`
 	QuickSearchCycle  T                         `toml:"quick_search_cycle"`
 	CustomCommands    T                         `toml:"custom_commands"`
+	Aliases           T                         `toml:"aliases"`
 	Leader            T                         `toml:"leader"`
 	Suspend           T                         `toml:"suspend"`
 	Rebase            rebaseModeKeys[T]         `toml:"rebase"`

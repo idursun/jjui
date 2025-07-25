@@ -60,6 +60,16 @@ For detailed information, see [Preview](https://github.com/idursun/jjui/wiki/Pre
 
 ![GIF](https://github.com/idursun/jjui/wiki/gifs/jjui_preview.gif)
 
+### Aliases
+You can execute any JJ alias defined in your configuration by pressing `X`. This opens a menu showing all available aliases from your `jj config`. The menu displays:
+- Alias names and their corresponding commands
+- Parameter requirements (e.g., "needs 1 parameter(s)")
+- Inline parameter input for aliases that use positional parameters like `$1`, `$2`, etc.
+
+When you select an alias that requires parameters, the interface shows an input field below the menu. For aliases with multiple parameters, you'll be prompted for each one sequentially (e.g., "param1: (1/2)", "param2: (2/2)", etc.). Aliases are displayed in alphabetical order for easy navigation.
+
+For example, if you have an alias `co = ["new", "$1"]`, selecting it will show an input field where you can type the parameter that will replace `$1` in the command.
+
 Additionally,
 * View the diff of a revision by pressing `d`.
 * Edit the description of a revision by pressing `D`
@@ -71,6 +81,7 @@ Additionally,
 * Git _push_/_fetch_ by pressing `g`
 * Undo the last change by pressing `u`
 * Show evolog of a revision by pressing `v`
+* Execute JJ aliases by pressing `X`
 
 ## Configuration
 

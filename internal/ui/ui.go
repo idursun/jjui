@@ -12,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/aliases"
 	"github.com/idursun/jjui/internal/ui/bookmarks"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -165,6 +166,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.previewWindowPercentage -= config.Current.Preview.WidthIncrementPercentage
 		case key.Matches(msg, m.keyMap.CustomCommands):
 			m.stacked = customcommands.NewModel(m.context, m.width, m.height)
+			cmds = append(cmds, m.stacked.Init())
+		case key.Matches(msg, m.keyMap.Aliases):
+			m.stacked = aliases.NewModel(m.context, m.width, m.height)
 			cmds = append(cmds, m.stacked.Init())
 		case key.Matches(msg, m.keyMap.Leader):
 			m.leader = leader.New(m.context)

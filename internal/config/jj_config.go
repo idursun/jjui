@@ -5,8 +5,9 @@ import (
 )
 
 type JJConfig struct {
-	Colors        map[string]Color  `toml:"colors"`
-	RevsetAliases map[string]string `toml:"revset-aliases"`
+	Colors        map[string]Color    `toml:"colors"`
+	RevsetAliases map[string]string   `toml:"revset-aliases"`
+	Aliases       map[string][]string `toml:"aliases"`
 	Revsets       struct {
 		Log string `toml:"log"`
 	} `toml:"revsets"`

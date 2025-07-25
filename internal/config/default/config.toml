@@ -31,6 +31,7 @@ limit = 0
   quick_search = ["/"]
   quick_search_cycle = ["'"]
   custom_commands = ["x"]
+  aliases = ["X"]
   leader = ["\\"]
   suspend = ["ctrl+z"]
   [keys.rebase]
