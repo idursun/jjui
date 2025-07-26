@@ -6,14 +6,14 @@ type Traceable interface {
 }
 
 type TraceableRow struct {
-	row *Row
+	Row *Row
 }
 
 func (tr *TraceableRow) Get(line int, col int) (rune, bool) {
-	if line < 0 || line >= len(tr.row.Lines) {
+	if line < 0 || line >= len(tr.Row.Lines) {
 		return ' ', false
 	}
-	l := tr.row.Lines[line]
+	l := tr.Row.Lines[line]
 	if col < 0 || col >= len(l.Gutter.Segments) {
 		return ' ', false
 	}
@@ -25,13 +25,13 @@ func (tr *TraceableRow) Get(line int, col int) (rune, bool) {
 }
 
 func (tr *TraceableRow) GetNodeIndex() int {
-	for _, line := range tr.row.Lines {
+	for _, line := range tr.Row.Lines {
 		if line.Flags&Revision != Revision {
 			continue
 		}
 		for j, g := range line.Gutter.Segments {
 			for _, r := range g.Text {
-				if r == '@' || r == '○' || r == '◆' {
+				if r == '@' || r == '○' || r == '◆' || r == '×' {
 					return j
 				}
 			}
@@ -61,6 +61,29 @@ func (t *Tracer) Trace(row Traceable, tracedLanes TracedLanes) (bool, TracedLane
 		}
 	}
 	return false, tracedLanes
+}
+
+func (t *Tracer) IsLinked(current int, targetIndex int, rows []Traceable) bool {
+	if current == targetIndex {
+		return true
+	}
+	if current < 0 || current >= len(rows) {
+		return false
+	}
+
+	startIndex := current
+	endIndex := targetIndex
+	if startIndex > endIndex {
+		startIndex, endIndex = endIndex, startIndex
+	}
+
+	currentLanes := t.GetTraceLanes(rows[startIndex])
+	lanes := currentLanes
+	isParent := false
+	for i := startIndex + 1; i <= endIndex; i++ {
+		isParent, lanes = t.Trace(rows[i], lanes)
+	}
+	return isParent
 }
 
 func (t *Tracer) GetTraceLanes(row Traceable) TracedLanes {

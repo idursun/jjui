@@ -89,13 +89,11 @@ func (s *DefaultRowIterator) RowHeight() int {
 
 func (s *DefaultRowIterator) Render(r io.Writer) {
 	row := s.Rows[s.current]
-	if s.isHighlighted {
-		s.lanes = s.tracer.GetTraceLanes(&row)
+	var traceableRows []parser.Traceable
+	for i := range s.Rows {
+		traceableRows = append(traceableRows, &parser.TraceableRow{Row: &s.Rows[i]})
 	}
-	isParent := false
-	if s.current > s.Cursor {
-		isParent, s.lanes = s.tracer.Trace(&row, s.lanes)
-	}
+	isLinked := s.tracer.IsLinked(s.current, s.Cursor, traceableRows)
 	// will render by extending the previous connections
 	if before := s.RenderBefore(row.Commit); before != "" {
 		extended := parser.GraphGutter{}
@@ -116,8 +114,10 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 		for _, segment := range segmentedLine.Gutter.Segments {
 			if s.isHighlighted {
 				fmt.Fprint(&lw, segment.Style.Inherit(s.selectedStyle).Render(segment.Text))
-			} else {
+			} else if isLinked {
 				fmt.Fprint(&lw, segment.Style.Inherit(s.textStyle).Render(segment.Text))
+			} else {
+				fmt.Fprint(&lw, segment.Style.Inherit(s.dimmedStyle).Render(segment.Text))
 			}
 		}
 
@@ -137,7 +137,7 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			style := segment.Style
 			if s.isHighlighted {
 				style = style.Inherit(s.selectedStyle)
-			} else if isParent {
+			} else if isLinked {
 				style = style.Inherit(s.textStyle)
 			} else {
 				style = style.Inherit(s.dimmedStyle).Foreground(s.dimmedStyle.GetForeground())
