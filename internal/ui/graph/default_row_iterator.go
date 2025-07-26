@@ -27,6 +27,7 @@ type DefaultRowIterator struct {
 	checkStyle    lipgloss.Style
 	textStyle     lipgloss.Style
 	selectedStyle lipgloss.Style
+	tracer        *parser.Tracer
 }
 
 type Option func(*DefaultRowIterator)
@@ -37,6 +38,7 @@ func NewDefaultRowIterator(rows []parser.Row, options ...Option) *DefaultRowIter
 		Rows:       rows,
 		Selections: make(map[string]bool),
 		current:    -1,
+		tracer:     parser.NewTracer(),
 	}
 
 	for _, opt := range options {
@@ -87,6 +89,13 @@ func (s *DefaultRowIterator) RowHeight() int {
 
 func (s *DefaultRowIterator) Render(r io.Writer) {
 	row := s.Rows[s.current]
+	if s.isHighlighted {
+		s.lanes = s.tracer.GetTraceLanes(&row)
+	}
+	isParent := false
+	if s.current > s.Cursor {
+		isParent, s.lanes = s.tracer.Trace(&row, s.lanes)
+	}
 	// will render by extending the previous connections
 	if before := s.RenderBefore(row.Commit); before != "" {
 		extended := parser.GraphGutter{}
@@ -128,8 +137,10 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			style := segment.Style
 			if s.isHighlighted {
 				style = style.Inherit(s.selectedStyle)
-			} else {
+			} else if isParent {
 				style = style.Inherit(s.textStyle)
+			} else {
+				style = style.Inherit(s.dimmedStyle).Foreground(s.dimmedStyle.GetForeground())
 			}
 
 			start, end := segment.FindSubstringRange(s.SearchText)
