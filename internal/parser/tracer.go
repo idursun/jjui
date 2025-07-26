@@ -1,8 +1,11 @@
 package parser
 
+// TracedLanes is a bitset represented as uint32 where each bit position represents a lane index
+type TracedLanes uint32
+
 type Traceable interface {
 	Get(line int, col int) (rune, bool)
-	GetNodeIndex() int
+	GetNodeMask() TracedLanes
 }
 
 type TraceableRow struct {
@@ -24,7 +27,7 @@ func (tr *TraceableRow) Get(line int, col int) (rune, bool) {
 	return ' ', false
 }
 
-func (tr *TraceableRow) GetNodeIndex() int {
+func (tr *TraceableRow) getNodeIndex() int {
 	for _, line := range tr.Row.Lines {
 		if line.Flags&Revision != Revision {
 			continue
@@ -40,7 +43,15 @@ func (tr *TraceableRow) GetNodeIndex() int {
 	return 0
 }
 
-type TracedLanes []int
+func (tr *TraceableRow) GetNodeMask() TracedLanes {
+	index := tr.getNodeIndex()
+	if index < 0 || index >= 32 {
+		return 0 // Out of range for our uint32 bitset
+	}
+	var mask TracedLanes
+	mask |= 1 << uint32(index)
+	return mask
+}
 
 type Tracer struct {
 	lanes map[int]TracedLanes
@@ -51,16 +62,13 @@ func NewTracer() *Tracer {
 }
 
 func (t *Tracer) Trace(row Traceable, tracedLanes TracedLanes) (bool, TracedLanes) {
-	index := row.GetNodeIndex()
-	for i, lane := range tracedLanes {
-		if lane == index {
-			// remove col from traced lanes if it exists
-			tracedLanes = append(tracedLanes[:i], tracedLanes[i+1:]...)
-			rowTraceLanes := t.GetTraceLanes(row)
-			return true, append(tracedLanes, rowTraceLanes...)
-		}
+	nodeMask := row.GetNodeMask()
+	if nodeMask < 0 || nodeMask >= 32 {
+		return false, tracedLanes // Out of range for our uint32 bitset
 	}
-	return false, tracedLanes
+
+	parent := nodeMask&tracedLanes == nodeMask
+	return parent, tracedLanes
 }
 
 func (t *Tracer) IsLinked(current int, targetIndex int, rows []Traceable) bool {
@@ -77,18 +85,18 @@ func (t *Tracer) IsLinked(current int, targetIndex int, rows []Traceable) bool {
 		startIndex, endIndex = endIndex, startIndex
 	}
 
-	currentLanes := t.GetTraceLanes(rows[startIndex])
-	lanes := currentLanes
+	startNodeMask := rows[startIndex].GetNodeMask()
+	lanes := t.GetTraceMask(rows[startIndex], startNodeMask)
 	isParent := false
 	for i := startIndex + 1; i <= endIndex; i++ {
-		isParent, lanes = t.Trace(rows[i], lanes)
+		nodeMask := rows[i].GetNodeMask()
+		isParent = nodeMask&lanes == nodeMask
+		lanes = t.GetTraceMask(rows[i], lanes)
 	}
 	return isParent
 }
 
-func (t *Tracer) GetTraceLanes(row Traceable) TracedLanes {
-	index := row.GetNodeIndex()
-
+func (t *Tracer) GetTraceMask(row Traceable, mask TracedLanes) TracedLanes {
 	type dir int
 	const (
 		down dir = iota
@@ -104,7 +112,15 @@ func (t *Tracer) GetTraceLanes(row Traceable) TracedLanes {
 
 	var directions []direction
 	var tracedLanes TracedLanes
-	directions = append(directions, direction{col: index, line: 0, dir: down})
+	m := mask
+	index := 0
+	for m > 0 {
+		if m&1 == 1 {
+			directions = append(directions, direction{col: index, line: 0, dir: down})
+		}
+		m >>= 1
+		index++
+	}
 	// implement a breadth-first search to find all lanes that are traced
 	for len(directions) > 0 {
 		current := directions[0]
@@ -122,7 +138,10 @@ func (t *Tracer) GetTraceLanes(row Traceable) TracedLanes {
 
 		ch, exists := row.Get(r, c)
 		if !exists {
-			tracedLanes = append(tracedLanes, current.col)
+			// Only add to tracedLanes if the column is within the valid range for uint32
+			if current.col >= 0 && current.col < 32 {
+				tracedLanes |= 1 << uint32(current.col)
+			}
 			continue
 		}
 		switch ch {
