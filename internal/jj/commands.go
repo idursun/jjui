@@ -16,11 +16,11 @@ const (
 type CommandArgs []string
 
 func ConfigListAll() CommandArgs {
-	return []string{"config", "list", "--color", "never", "--include-defaults"}
+	return []string{"config", "list", "--color", "never", "--include-defaults", "--ignore-working-copy"}
 }
 
 func Log(revset string, limit int) CommandArgs {
-	args := []string{"log", "--color", "always", "--quiet"}
+	args := []string{"log", "--color", "always", "--quiet", "--ignore-working-copy"}
 	if revset != "" {
 		args = append(args, "-r", revset)
 	}
@@ -77,7 +77,7 @@ func Abandon(revision SelectedRevisions) CommandArgs {
 }
 
 func Diff(revision string, fileName string, extraArgs ...string) CommandArgs {
-	args := []string{"diff", "-r", revision, "--color", "always"}
+	args := []string{"diff", "-r", revision, "--color", "always", "--ignore-working-copy"}
 	if fileName != "" {
 		args = append(args, escapeFileName(fileName))
 	}
@@ -153,7 +153,7 @@ func Squash(from SelectedRevisions, destination string, keepEmptied bool, intera
 
 func BookmarkList(revset string) CommandArgs {
 	const template = `separate(";", name, if(remote, remote, "."), tracked, conflict, 'false', normal_target.commit_id().shortest(1)) ++ "\n"`
-	return []string{"bookmark", "list", "-a", "-r", revset, "--template", template, "--color", "never"}
+	return []string{"bookmark", "list", "-a", "-r", revset, "--template", template, "--color", "never", "--ignore-working-copy"}
 }
 
 func BookmarkListMovable(revision string) CommandArgs {
@@ -161,11 +161,11 @@ func BookmarkListMovable(revision string) CommandArgs {
 	revsetAfter := fmt.Sprintf("%s::", revision)
 	revset := fmt.Sprintf("%s | %s", revsetBefore, revsetAfter)
 	template := fmt.Sprintf(moveBookmarkTemplate, revsetAfter)
-	return []string{"bookmark", "list", "-r", revset, "--template", template, "--color", "never"}
+	return []string{"bookmark", "list", "-r", revset, "--template", template, "--color", "never", "--ignore-working-copy"}
 }
 
 func BookmarkListAll() CommandArgs {
-	return []string{"bookmark", "list", "-a", "--template", allBookmarkTemplate, "--color", "never"}
+	return []string{"bookmark", "list", "-a", "--template", allBookmarkTemplate, "--color", "never", "--ignore-working-copy"}
 }
 
 func GitFetch(flags ...string) CommandArgs {
@@ -185,7 +185,7 @@ func GitPush(flags ...string) CommandArgs {
 }
 
 func Show(revision string, extraArgs ...string) CommandArgs {
-	args := []string{"show", "-r", revision, "--color", "always"}
+	args := []string{"show", "-r", revision, "--color", "always", "--ignore-working-copy"}
 	if extraArgs != nil {
 		args = append(args, extraArgs...)
 	}
@@ -215,7 +215,7 @@ func Duplicate(from SelectedRevisions, to string, target string) CommandArgs {
 }
 
 func Evolog(revision string) CommandArgs {
-	return []string{"evolog", "-r", revision, "--color", "always", "--quiet"}
+	return []string{"evolog", "-r", revision, "--color", "always", "--quiet", "--ignore-working-copy"}
 }
 
 func Args(args ...string) CommandArgs {
@@ -264,7 +264,7 @@ func OpLog(limit int) CommandArgs {
 }
 
 func OpShow(operationId string) CommandArgs {
-	return []string{"op", "show", operationId, "--color", "always"}
+	return []string{"op", "show", operationId, "--color", "always", "--ignore-working-copy"}
 }
 
 func OpRestore(operationId string) CommandArgs {
