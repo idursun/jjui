@@ -31,6 +31,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Help:              key.NewBinding(key.WithKeys(m.Help...), key.WithHelp(JoinKeys(m.Help), "help")),
 		Evolog:            key.NewBinding(key.WithKeys(m.Evolog...), key.WithHelp(JoinKeys(m.Evolog), "evolog")),
 		Revset:            key.NewBinding(key.WithKeys(m.Revset...), key.WithHelp(JoinKeys(m.Revset), "revset")),
+		AceJump:           key.NewBinding(key.WithKeys(m.AceJump...), key.WithHelp(JoinKeys(m.AceJump), "ace jump")),
 		QuickSearch:       key.NewBinding(key.WithKeys(m.QuickSearch...), key.WithHelp(JoinKeys(m.QuickSearch), "quick search")),
 		QuickSearchCycle:  key.NewBinding(key.WithKeys(m.QuickSearchCycle...), key.WithHelp(JoinKeys(m.QuickSearchCycle), "locate next match")),
 		CustomCommands:    key.NewBinding(key.WithKeys(m.CustomCommands...), key.WithHelp(JoinKeys(m.CustomCommands), "custom commands menu")),
@@ -159,6 +160,7 @@ type KeyMappings[T any] struct {
 	Revset            T                         `toml:"revset"`
 	ExecJJ            T                         `toml:"exec_jj"`
 	ExecShell         T                         `toml:"exec_shell"`
+	AceJump           T                         `toml:"ace_jump"`
 	QuickSearch       T                         `toml:"quick_search"`
 	QuickSearchCycle  T                         `toml:"quick_search_cycle"`
 	CustomCommands    T                         `toml:"custom_commands"`

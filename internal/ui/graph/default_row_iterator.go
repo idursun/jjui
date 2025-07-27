@@ -15,6 +15,7 @@ import (
 
 type DefaultRowIterator struct {
 	SearchText    string
+	AceJumpPrefix *string
 	Selections    map[string]bool
 	Op            operations.Operation
 	Width         int
@@ -132,9 +133,19 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 				style = style.Inherit(s.textStyle)
 			}
 
+			isAce := func() bool {
+				return s.AceJumpPrefix != nil &&
+					(segment.Text == row.Commit.ChangeId || segment.Text == row.Commit.CommitId) &&
+					strings.HasPrefix(strings.ToLower(segment.Text), strings.ToLower(*s.AceJumpPrefix))
+			}
+
 			start, end := segment.FindSubstringRange(s.SearchText)
 			if start != -1 {
 				mid := lipgloss.NewRange(start, end, style.Reverse(true))
+				fmt.Fprint(&lw, lipgloss.StyleRanges(style.Render(segment.Text), mid))
+			} else if isAce() {
+				n := len(*s.AceJumpPrefix)
+				mid := lipgloss.NewRange(n, n+1, style.Reverse(true))
 				fmt.Fprint(&lw, lipgloss.StyleRanges(style.Render(segment.Text), mid))
 			} else {
 				fmt.Fprint(&lw, style.Render(segment.Text))

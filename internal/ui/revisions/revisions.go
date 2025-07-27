@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/idursun/jjui/internal/ui/ace_jump"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
 
 	"github.com/idursun/jjui/internal/parser"
@@ -47,6 +48,7 @@ type Model struct {
 	keymap            config.KeyMappings[key.Binding]
 	output            string
 	err               error
+	aceJump           *ace_jump.AceJump
 	quickSearch       string
 	selectedRevisions map[string]bool
 	previousOpLogId   string
@@ -278,6 +280,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				m.cursor = workingCopyIndex
 			}
 			return m, m.updateSelection()
+		case key.Matches(msg, m.keymap.AceJump):
+			m.aceJump = m.findAceKeys()
+			return m, nil
 		default:
 			if op, ok := m.op.(operations.HandleKey); ok {
 				cmd = op.HandleKey(msg)
@@ -431,6 +436,7 @@ func (m *Model) View() string {
 	renderer.Cursor = m.cursor
 	renderer.Selections = m.selectedRevisions
 	renderer.SearchText = m.quickSearch
+	renderer.AceJumpPrefix = m.aceJump.Prefix()
 	m.w.SetSize(m.width, m.height)
 	output := m.w.Render(renderer)
 	output = m.textStyle.MaxWidth(m.width).Render(output)

@@ -104,6 +104,7 @@ func (h *Model) View() string {
 			h.keyMap.JumpToWorkingCopy.Help().Key,
 		), "jump to parent/child/working-copy"),
 		h.printKeyBinding(h.keyMap.ToggleSelect),
+		h.printKeyBinding(h.keyMap.AceJump),
 		h.printKeyBinding(h.keyMap.QuickSearch),
 		h.printKeyBinding(h.keyMap.QuickSearchCycle),
 		h.printKeyBinding(h.keyMap.FileSearch.Toggle),
