@@ -31,7 +31,6 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Help:              key.NewBinding(key.WithKeys(m.Help...), key.WithHelp(JoinKeys(m.Help), "help")),
 		Evolog:            key.NewBinding(key.WithKeys(m.Evolog...), key.WithHelp(JoinKeys(m.Evolog), "evolog")),
 		Revset:            key.NewBinding(key.WithKeys(m.Revset...), key.WithHelp(JoinKeys(m.Revset), "revset")),
-		FileSearch:        key.NewBinding(key.WithKeys(m.FileSearch...), key.WithHelp(JoinKeys(m.FileSearch), "fuzzy files search")),
 		QuickSearch:       key.NewBinding(key.WithKeys(m.QuickSearch...), key.WithHelp(JoinKeys(m.QuickSearch), "quick search")),
 		QuickSearchCycle:  key.NewBinding(key.WithKeys(m.QuickSearchCycle...), key.WithHelp(JoinKeys(m.QuickSearchCycle), "locate next match")),
 		CustomCommands:    key.NewBinding(key.WithKeys(m.CustomCommands...), key.WithHelp(JoinKeys(m.CustomCommands), "custom commands menu")),
@@ -101,6 +100,13 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Mode:   key.NewBinding(key.WithKeys(m.InlineDescribe.Mode...), key.WithHelp(JoinKeys(m.InlineDescribe.Mode), "inline describe")),
 			Accept: key.NewBinding(key.WithKeys(m.InlineDescribe.Accept...), key.WithHelp(JoinKeys(m.InlineDescribe.Accept), "accept")),
 		},
+		FileSearch: fileSearchKeys[key.Binding]{
+			Toggle: key.NewBinding(key.WithKeys(m.FileSearch.Toggle...), key.WithHelp(JoinKeys(m.FileSearch.Toggle), "fuzzy files search")),
+			Up:     key.NewBinding(key.WithKeys(m.FileSearch.Up...), key.WithHelp(JoinKeys(m.FileSearch.Up), "up")),
+			Down:   key.NewBinding(key.WithKeys(m.FileSearch.Down...), key.WithHelp(JoinKeys(m.FileSearch.Down), "down")),
+			Accept: key.NewBinding(key.WithKeys(m.FileSearch.Accept...), key.WithHelp(JoinKeys(m.FileSearch.Accept), "file revset")),
+			Edit:   key.NewBinding(key.WithKeys(m.FileSearch.Edit...), key.WithHelp(JoinKeys(m.FileSearch.Edit), "edit file")),
+		},
 	}
 }
 
@@ -153,7 +159,6 @@ type KeyMappings[T any] struct {
 	Revset            T                         `toml:"revset"`
 	ExecJJ            T                         `toml:"exec_jj"`
 	ExecShell         T                         `toml:"exec_shell"`
-	FileSearch        T                         `toml:"file_search"`
 	QuickSearch       T                         `toml:"quick_search"`
 	QuickSearchCycle  T                         `toml:"quick_search_cycle"`
 	CustomCommands    T                         `toml:"custom_commands"`
@@ -168,6 +173,7 @@ type KeyMappings[T any] struct {
 	InlineDescribe    inlineDescribeModeKeys[T] `toml:"inline_describe"`
 	Git               gitModeKeys[T]            `toml:"git"`
 	OpLog             opLogModeKeys[T]          `toml:"oplog"`
+	FileSearch        fileSearchKeys[T]         `toml:"file_search"`
 }
 
 type bookmarkModeKeys[T any] struct {
@@ -239,4 +245,12 @@ type opLogModeKeys[T any] struct {
 type inlineDescribeModeKeys[T any] struct {
 	Mode   T `toml:"mode"`
 	Accept T `toml:"accept"`
+}
+
+type fileSearchKeys[T any] struct {
+	Toggle T `toml:"toggle"`
+	Up     T `toml:"up"`
+	Down   T `toml:"down"`
+	Accept T `toml:"accept"`
+	Edit   T `toml:"edit"`
 }

@@ -106,7 +106,7 @@ func (h *Model) View() string {
 		h.printKeyBinding(h.keyMap.ToggleSelect),
 		h.printKeyBinding(h.keyMap.QuickSearch),
 		h.printKeyBinding(h.keyMap.QuickSearchCycle),
-		h.printKeyBinding(h.keyMap.FileSearch),
+		h.printKeyBinding(h.keyMap.FileSearch.Toggle),
 		h.printKeyBinding(h.keyMap.New),
 		h.printKeyBinding(h.keyMap.Commit),
 		h.printKeyBinding(h.keyMap.Describe),

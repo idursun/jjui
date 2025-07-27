@@ -21,6 +21,9 @@ import (
 )
 
 type fuzzyFiles struct {
+	keyMap  config.KeyMappings[key.Binding]
+	inputKm textinput.KeyMap
+
 	// restore
 	revset          string
 	commit          *jj.Commit
@@ -96,22 +99,15 @@ func (fzf *fuzzyFiles) updateRevSet() tea.Cmd {
 	return common.UpdateRevSet(revset)
 }
 
-var km = config.Current.GetKeyMap()
-var inputKm = textinput.DefaultKeyMap
-var up = key.NewBinding(key.WithKeys("up"))
-var down = key.NewBinding(key.WithKeys("down"))
-var enter = key.NewBinding(key.WithKeys("enter"))
-var edit = key.NewBinding(key.WithKeys("alt+e"))
-
-func isInputMovement(k tea.KeyMsg) bool {
+func (fzf *fuzzyFiles) isInputMovement(k tea.KeyMsg) bool {
 	return key.Matches(k,
-		inputKm.CharacterForward,
-		inputKm.CharacterBackward,
-		inputKm.WordForward,
-		inputKm.WordBackward,
-		inputKm.LineStart,
-		inputKm.LineEnd,
-		inputKm.AcceptSuggestion,
+		fzf.inputKm.CharacterForward,
+		fzf.inputKm.CharacterBackward,
+		fzf.inputKm.WordForward,
+		fzf.inputKm.WordBackward,
+		fzf.inputKm.LineStart,
+		fzf.inputKm.LineEnd,
+		fzf.inputKm.AcceptSuggestion,
 	)
 }
 
@@ -120,45 +116,47 @@ func skipSearch() tea.Msg {
 }
 
 func (fzf *fuzzyFiles) handleKey(msg tea.KeyMsg) tea.Cmd {
+	fzfKm := fzf.keyMap.FileSearch
+	previewKm := fzf.keyMap.Preview
 	if fzf.revsetPreview {
 		switch {
-		case key.Matches(msg, up, down):
+		case key.Matches(msg, fzfKm.Up, fzfKm.Down):
 			return revisions.RevisionsCmd(msg)
-		case key.Matches(msg, km.Preview.ScrollUp, km.Preview.ScrollDown, km.Preview.HalfPageUp, km.Preview.HalfPageDown):
+		case key.Matches(msg, previewKm.ScrollUp, previewKm.ScrollDown, previewKm.HalfPageUp, previewKm.HalfPageDown):
 			return preview.PreviewCmd(msg)
 		}
 	} else {
 		switch {
-		case key.Matches(msg, up, km.Preview.ScrollUp):
+		case key.Matches(msg, fzfKm.Up, previewKm.ScrollUp):
 			fzf.moveCursor(1)
 			return skipSearch
-		case key.Matches(msg, down, km.Preview.ScrollDown):
+		case key.Matches(msg, fzfKm.Down, previewKm.ScrollDown):
 			fzf.moveCursor(-1)
 			return skipSearch
 		}
 	}
 
 	switch {
-	case key.Matches(msg, km.Cancel):
+	case key.Matches(msg, fzf.keyMap.Cancel):
 		return tea.Batch(
 			common.UpdateRevSet(fzf.revset),
 			newCmd(common.ShowPreview(fzf.wasPreviewShown)),
 		)
-	case key.Matches(msg, edit):
+	case key.Matches(msg, fzfKm.Edit):
 		path := fuzzy_search.SelectedMatch(fzf)
 		return newCmd(common.ExecMsg{
 			Line: config.GetDefaultEditor() + " " + path,
 			Mode: common.ExecShell,
 		})
-	case key.Matches(msg, km.FileSearch):
+	case key.Matches(msg, fzfKm.Toggle):
 		fzf.revsetPreview = !fzf.revsetPreview
 		return tea.Batch(
 			newCmd(common.ShowPreview(fzf.revsetPreview)),
 			fzf.updateRevSet(),
 		)
-	case key.Matches(msg, enter, inputKm.AcceptSuggestion):
+	case key.Matches(msg, fzfKm.Accept, fzf.inputKm.AcceptSuggestion):
 		return fzf.updateRevSet()
-	case isInputMovement(msg):
+	case fzf.isInputMovement(msg):
 		return skipSearch
 	}
 
@@ -226,23 +224,33 @@ func (fzf *fuzzyFiles) View() string {
 	return lipgloss.JoinVertical(0, title, entries)
 }
 
+func joinBindings(help string, a key.Binding, b key.Binding) key.Binding {
+	keys := append(a.Keys(), b.Keys()...)
+	joined := config.JoinKeys(keys)
+	return key.NewBinding(
+		key.WithKeys(keys...),
+		key.WithHelp(joined, help),
+	)
+}
+
 func (fzf *fuzzyFiles) ShortHelp() []key.Binding {
-	keys := []key.Binding{}
-	addKey := func(ks string, help string) {
-		keys = append(keys, key.NewBinding(key.WithKeys(ks), key.WithHelp(ks, help)))
-	}
-
-	addKey(km.FileSearch.Keys()[0], "live mode")
-	addKey("alt+e", "edit file")
-
+	short_help := []key.Binding{fzf.keyMap.FileSearch.Edit}
+	toggle := fzf.keyMap.FileSearch.Toggle.Keys()[0]
 	if fzf.revsetPreview {
-		addKey("up/down", "move on revset")
-		addKey("ctrl+n/ctrl+p", "scroll preview")
+		short_help = append(short_help,
+			// we join some bindings to take less space and help of toggle depending on value
+			key.NewBinding(key.WithKeys(toggle), key.WithHelp(toggle, "preview off")),
+			joinBindings("move on revset", fzf.keyMap.FileSearch.Up, fzf.keyMap.FileSearch.Down),
+			joinBindings("scroll preview", fzf.keyMap.Preview.ScrollUp, fzf.keyMap.Preview.ScrollDown),
+		)
 	} else {
-		addKey("enter", "file revset")
+		short_help = append(short_help,
+			key.NewBinding(key.WithKeys(toggle), key.WithHelp(toggle, "preview on")),
+			fzf.keyMap.FileSearch.Accept,
+		)
 	}
 
-	return keys
+	return short_help
 }
 
 func (fzf *fuzzyFiles) FullHelp() [][]key.Binding {
@@ -256,7 +264,11 @@ func (fzf *fuzzyFiles) editStatus() (help.KeyMap, string) {
 }
 
 func NewModel(msg common.FileSearchMsg) (fuzzy_search.Model, editStatus) {
+	keyMap := config.Current.GetKeyMap()
+	inputKm := textinput.DefaultKeyMap
 	model := &fuzzyFiles{
+		keyMap:          keyMap,
+		inputKm:         inputKm,
 		revset:          msg.Revset,
 		wasPreviewShown: msg.PreviewShown,
 		max:             30,

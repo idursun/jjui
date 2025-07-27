@@ -169,7 +169,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keyMap.Leader):
 			m.leader = leader.New(m.context)
 			cmds = append(cmds, leader.InitCmd)
-		case key.Matches(msg, m.keyMap.FileSearch):
+		case key.Matches(msg, m.keyMap.FileSearch.Toggle):
 			rev := m.revisions.SelectedRevision()
 			out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
 			return m, common.FileSearch(m.revsetModel.Value, m.previewVisible, rev, out)
