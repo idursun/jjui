@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common"
 
 	"github.com/idursun/jjui/internal/jj"
@@ -86,6 +87,24 @@ func (s *DefaultRowIterator) RowHeight() int {
 	return len(s.Rows[s.current].Lines)
 }
 
+func (s *DefaultRowIterator) aceJumpIndex(segment *screen.Segment, row parser.Row) int {
+	if s.AceJumpPrefix == nil || row.Commit == nil {
+		return -1
+	}
+	if !(segment.Text == row.Commit.ChangeId || segment.Text == row.Commit.CommitId) {
+		return -1
+	}
+	lowerText, lowerPrefix := strings.ToLower(segment.Text), strings.ToLower(*s.AceJumpPrefix)
+	if !strings.HasPrefix(lowerText, lowerPrefix) {
+		return -1
+	}
+	idx := len(lowerPrefix)
+	if idx == len(lowerText) {
+		idx-- // dont move past last character
+	}
+	return idx
+}
+
 func (s *DefaultRowIterator) Render(r io.Writer) {
 	row := s.Rows[s.current]
 	// will render by extending the previous connections
@@ -133,19 +152,12 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 				style = style.Inherit(s.textStyle)
 			}
 
-			isAce := func() bool {
-				return s.AceJumpPrefix != nil &&
-					(segment.Text == row.Commit.ChangeId || segment.Text == row.Commit.CommitId) &&
-					strings.HasPrefix(strings.ToLower(segment.Text), strings.ToLower(*s.AceJumpPrefix))
-			}
-
 			start, end := segment.FindSubstringRange(s.SearchText)
 			if start != -1 {
 				mid := lipgloss.NewRange(start, end, style.Reverse(true))
 				fmt.Fprint(&lw, lipgloss.StyleRanges(style.Render(segment.Text), mid))
-			} else if isAce() {
-				n := len(*s.AceJumpPrefix)
-				mid := lipgloss.NewRange(n, n+1, style.Reverse(true))
+			} else if aceIdx := s.aceJumpIndex(segment, row); aceIdx > -1 {
+				mid := lipgloss.NewRange(aceIdx, aceIdx+1, style.Reverse(true))
 				fmt.Fprint(&lw, lipgloss.StyleRanges(style.Render(segment.Text), mid))
 			} else {
 				fmt.Fprint(&lw, style.Render(segment.Text))
