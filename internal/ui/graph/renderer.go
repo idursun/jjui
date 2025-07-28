@@ -6,14 +6,16 @@ import (
 )
 
 type viewRange struct {
-	start        int
-	end          int
-	lastRowIndex int
+	start         int
+	end           int
+	firstRowIndex int
+	lastRowIndex  int
 }
 
 func (v *viewRange) reset() {
 	v.start = 0
 	v.end = 0
+	v.firstRowIndex = -1
 	v.lastRowIndex = -1
 }
 
@@ -29,7 +31,7 @@ type Renderer struct {
 func NewRenderer(width int, height int) *Renderer {
 	return &Renderer{
 		buffer:    bytes.Buffer{},
-		viewRange: &viewRange{start: 0, end: height, lastRowIndex: -1},
+		viewRange: &viewRange{start: 0, end: height, firstRowIndex: -1, lastRowIndex: -1},
 		Width:     width,
 		Height:    height,
 	}
@@ -41,6 +43,10 @@ func (r *Renderer) SetSize(width int, height int) {
 	if r.viewRange.end < r.viewRange.start+r.Height {
 		r.viewRange.end = r.viewRange.start + r.Height
 	}
+}
+
+func (r *Renderer) FirstRowIndex() int {
+	return r.viewRange.firstRowIndex
 }
 
 func (r *Renderer) LastRowIndex() int {
@@ -103,6 +109,7 @@ func (r *Renderer) Render(iterator RowIterator) string {
 
 	selectedLineStart := -1
 	selectedLineEnd := -1
+	firstRenderedRowIndex := -1
 	lastRenderedRowIndex := -1
 	i := -1
 	for {
@@ -121,6 +128,9 @@ func (r *Renderer) Render(iterator RowIterator) string {
 			}
 		}
 		iterator.Render(r)
+		if firstRenderedRowIndex == -1 {
+			firstRenderedRowIndex = i
+		}
 
 		if iterator.IsHighlighted() {
 			selectedLineEnd = r.LineCount()
@@ -134,6 +144,7 @@ func (r *Renderer) Render(iterator RowIterator) string {
 		lastRenderedRowIndex = iterator.Len() - 1
 	}
 
+	r.viewRange.firstRowIndex = firstRenderedRowIndex
 	r.viewRange.lastRowIndex = lastRenderedRowIndex
 	if selectedLineStart <= r.viewRange.start {
 		r.viewRange.start = selectedLineStart

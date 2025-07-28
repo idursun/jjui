@@ -24,7 +24,13 @@ func (m *Model) HandleAceJump(k tea.KeyMsg) tea.Cmd {
 
 func (m *Model) findAceKeys() *ace_jump.AceJump {
 	aj := ace_jump.NewAceJump()
-	for i, row := range m.rows {
+	first, last := m.w.FirstRowIndex(), m.w.LastRowIndex()
+	if first == -1 || last == -1 {
+		return nil // wait until rendered
+	}
+	for i := range last - first + 1 {
+		i += first
+		row := m.rows[i]
 		c := row.Commit
 		if c == nil {
 			continue
