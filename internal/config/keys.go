@@ -81,7 +81,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		},
 		Preview: previewModeKeys[key.Binding]{
 			Mode:         key.NewBinding(key.WithKeys(m.Preview.Mode...), key.WithHelp(JoinKeys(m.Preview.Mode), "preview")),
-			ToggleBottom: key.NewBinding(key.WithKeys(m.Preview.ToggleBottom...), key.WithHelp(JoinKeys(m.Preview.ToggleBottom), "toggle bottom")),
+			ToggleBottom: key.NewBinding(key.WithKeys(m.Preview.ToggleBottom...), key.WithHelp(JoinKeys(m.Preview.ToggleBottom), "toggle show at bottom")),
 			ScrollUp:     key.NewBinding(key.WithKeys(m.Preview.ScrollUp...), key.WithHelp(JoinKeys(m.Preview.ScrollUp), "preview scroll up")),
 			ScrollDown:   key.NewBinding(key.WithKeys(m.Preview.ScrollDown...), key.WithHelp(JoinKeys(m.Preview.ScrollDown), "preview scroll down")),
 			HalfPageDown: key.NewBinding(key.WithKeys(m.Preview.HalfPageDown...), key.WithHelp(JoinKeys(m.Preview.HalfPageDown), "preview half page down")),

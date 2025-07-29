@@ -133,6 +133,7 @@ func (h *Model) View() string {
 		h.printKeyBinding(h.keyMap.Preview.HalfPageUp),
 		h.printKeyBinding(h.keyMap.Preview.Expand),
 		h.printKeyBinding(h.keyMap.Preview.Shrink),
+		h.printKeyBinding(h.keyMap.Preview.ToggleBottom),
 		"",
 		h.printMode(h.keyMap.Details.Mode, "Details"),
 		h.printKeyBinding(h.keyMap.Details.Close),
