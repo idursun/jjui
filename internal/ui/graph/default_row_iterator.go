@@ -109,9 +109,9 @@ func (s *DefaultRowIterator) aceJumpIndex(segment *screen.Segment, row parser.Ro
 
 func (s *DefaultRowIterator) Render(r io.Writer) {
 	row := s.Rows[s.current]
-	selectedLane := s.Tracer.GetRowLane(s.Cursor)
-	currentLane := s.Tracer.GetRowLane(s.current)
-	inLane := (currentLane == selectedLane) || (currentLane <= selectedLane && s.current >= s.Cursor)
+	highlightedRowLane := s.Tracer.GetRowLane(s.Cursor)
+	currentRowLane := s.Tracer.GetRowLane(s.current)
+	inLane := (currentRowLane == highlightedRowLane) || (currentRowLane <= highlightedRowLane && s.current >= s.Cursor)
 	// will render by extending the previous connections
 	if before := s.RenderBefore(row.Commit); before != "" {
 		extended := parser.GraphGutter{}
@@ -131,17 +131,27 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			}
 		}
 
-		for i, segment := range segmentedLine.Gutter.Segments {
-			lane := s.Tracer.GetLane(s.current, lineIndex, i)
-			style := lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(lane + 1)))
-			if s.isHighlighted {
-				fmt.Fprint(&lw, segment.Style.Inherit(s.selectedStyle).Render(segment.Text))
-			} else {
-				fmt.Fprint(&lw, style.Render(segment.Text))
+		maxGutterLane := 0
+		for i := range segmentedLine.Gutter.Segments {
+			gutterLane := s.Tracer.GetLane(s.current, lineIndex, i)
+			if gutterLane <= highlightedRowLane {
+				maxGutterLane = max(maxGutterLane, gutterLane)
 			}
-			//else {
-			//	fmt.Fprint(&lw, style.Faint(true).Foreground(s.dimmedStyle.GetForeground()).Render(segment.Text))
-			//}
+		}
+
+		for i, segment := range segmentedLine.Gutter.Segments {
+			gutterLane := s.Tracer.GetLane(s.current, lineIndex, i)
+			style := lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(gutterLane + 1)))
+			gutterInLane := gutterLane == highlightedRowLane || (maxGutterLane < highlightedRowLane && s.current > s.Cursor && gutterLane == maxGutterLane)
+			//if s.isHighlighted {
+			//	fmt.Fprint(&lw, segment.Style.Inherit(s.selectedStyle).Render(segment.Text))
+			//} else
+			if gutterInLane {
+				fmt.Fprint(&lw, style.Render(segment.Text))
+			} else {
+				fmt.Fprint(&lw, style.Faint(true).Foreground(s.dimmedStyle.GetForeground()).Render(segment.Text))
+				//fmt.Fprint(&lw, style.Faint(true).Render(segment.Text))
+			}
 		}
 
 		if segmentedLine.Flags&parser.Revision == parser.Revision {
@@ -163,7 +173,8 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			} else if inLane {
 				style = style.Inherit(s.textStyle)
 			} else {
-				style = style.Inherit(s.dimmedStyle).Faint(true).Foreground(s.dimmedStyle.GetForeground())
+				//style = style.Inherit(s.dimmedStyle).Faint(true).Foreground(s.dimmedStyle.GetForeground())
+				style = style.Inherit(s.dimmedStyle).Faint(true)
 			}
 
 			start, end := segment.FindSubstringRange(s.SearchText)
