@@ -21,18 +21,49 @@ type updateEvologMsg struct {
 }
 
 type Operation struct {
-	context  *context.MainContext
-	w        *graph.Renderer
-	revision *jj.Commit
-	rows     []parser.Row
-	cursor   int
-	width    int
-	height   int
-	keyMap   config.KeyMappings[key.Binding]
+	context           *context.MainContext
+	w                 *graph.Renderer
+	revision          *jj.Commit
+	selectedRevisions map[string]bool
+	rows              []parser.Row
+	cursor            int
+	width             int
+	height            int
+	keyMap            config.KeyMappings[key.Binding]
+}
+
+func (o *Operation) restoreFromInto() (string, string) {
+	from := ""
+	switch f := o.context.SelectedItem.(type) {
+	case context.SelectedRevision:
+		from = f.ChangeId
+	}
+	count := 0
+	into := ""
+	for k, v := range o.selectedRevisions {
+		if v {
+			count++
+			into = k
+		}
+	}
+	if count == 1 {
+		return from, into
+	} else {
+		return "", ""
+	}
 }
 
 func (o *Operation) ShortHelp() []key.Binding {
-	return []key.Binding{o.keyMap.Up, o.keyMap.Down, o.keyMap.Cancel, o.keyMap.Diff}
+	binds := []key.Binding{o.keyMap.Up, o.keyMap.Down, o.keyMap.Cancel, o.keyMap.Diff}
+
+	if from, into := o.restoreFromInto(); from != "" && into != "" {
+		binds = append(binds, key.NewBinding(
+			key.WithKeys("R"),
+			key.WithHelp("R", "restore descendants from "+from+" into "+into),
+		))
+	}
+
+	return binds
 }
 
 func (o *Operation) FullHelp() [][]key.Binding {
@@ -61,6 +92,11 @@ func (o *Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cm
 		case key.Matches(msg, o.keyMap.Down):
 			if o.cursor < len(o.rows)-1 {
 				o.cursor++
+			}
+		case msg.String() == "R":
+			if from, into := o.restoreFromInto(); from != "" && into != "" {
+				args := []string{"restore", "--from", from, "--into", into, "--restore-descendants"}
+				return o, o.context.RunCommand(jj.Args(args...), common.Close, common.Refresh, common.Close)
 			}
 		}
 	}
@@ -108,17 +144,18 @@ func (o *Operation) load() tea.Msg {
 	}
 }
 
-func NewOperation(context *context.MainContext, revision *jj.Commit, width int, height int) (operations.Operation, tea.Cmd) {
+func NewOperation(context *context.MainContext, revision *jj.Commit, selectedRevisions map[string]bool, width int, height int) (operations.Operation, tea.Cmd) {
 	w := graph.NewRenderer(width, height)
 	o := &Operation{
-		context:  context,
-		keyMap:   config.Current.GetKeyMap(),
-		w:        w,
-		revision: revision,
-		rows:     nil,
-		cursor:   0,
-		width:    width,
-		height:   height,
+		context:           context,
+		keyMap:            config.Current.GetKeyMap(),
+		w:                 w,
+		revision:          revision,
+		selectedRevisions: selectedRevisions,
+		rows:              nil,
+		cursor:            0,
+		width:             width,
+		height:            height,
 	}
 	return o, o.load
 }

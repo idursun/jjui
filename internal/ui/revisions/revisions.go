@@ -334,7 +334,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				currentRevision := m.SelectedRevision().GetChangeId()
 				return m, m.context.RunInteractiveCommand(jj.Describe(currentRevision), common.Refresh)
 			case key.Matches(msg, m.keymap.Evolog):
-				m.op, cmd = evolog.NewOperation(m.context, m.SelectedRevision(), m.width, m.height)
+				m.op, cmd = evolog.NewOperation(m.context, m.SelectedRevision(), m.selectedRevisions, m.width, m.height)
 			case key.Matches(msg, m.keymap.Diff):
 				return m, func() tea.Msg {
 					changeId := m.SelectedRevision().GetChangeId()
