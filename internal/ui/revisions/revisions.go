@@ -291,8 +291,14 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 			switch {
 			case key.Matches(msg, m.keymap.ToggleSelect):
-				changeId := m.rows[m.cursor].Commit.GetChangeId()
+				commit := m.rows[m.cursor].Commit
+				changeId := commit.GetChangeId()
 				m.selectedRevisions[changeId] = !m.selectedRevisions[changeId]
+				immediate, _ := m.context.RunCommandImmediate(jj.GetParent(jj.NewSelectedRevisions(commit)))
+				parentIndex := m.selectRevision(string(immediate))
+				if parentIndex != -1 {
+					m.cursor = parentIndex
+				}
 			case key.Matches(msg, m.keymap.Cancel):
 				m.op = operations.NewDefault()
 			case key.Matches(msg, m.keymap.QuickSearchCycle):
