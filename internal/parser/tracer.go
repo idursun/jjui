@@ -3,10 +3,24 @@ package parser
 type Traceable interface {
 	Get(line int, col int) (rune, bool)
 	GetNodeIndex() int
+	GetLane(line int, col int) int
+	SetLane(line int, col int, lane int)
 }
 
 type TraceableRow struct {
-	row *Row
+	row   *Row
+	lanes [][]int
+}
+
+func NewTraceableRow(row *Row) *TraceableRow {
+	lanes := make([][]int, len(row.Lines))
+	for i, line := range row.Lines {
+		lanes[i] = make([]int, len(line.Gutter.Segments))
+	}
+	return &TraceableRow{
+		row:   row,
+		lanes: lanes,
+	}
 }
 
 func (tr *TraceableRow) Get(line int, col int) (rune, bool) {
@@ -31,7 +45,7 @@ func (tr *TraceableRow) GetNodeIndex() int {
 		}
 		for j, g := range line.Gutter.Segments {
 			for _, r := range g.Text {
-				if r == '@' || r == '○' || r == '◆' {
+				if r == '@' || r == '○' || r == '◆' || r == '×' {
 					return j
 				}
 			}
@@ -40,31 +54,68 @@ func (tr *TraceableRow) GetNodeIndex() int {
 	return 0
 }
 
+func (tr *TraceableRow) GetLane(line int, col int) int {
+	if line < 0 || line >= len(tr.lanes) {
+		return 0
+	}
+	if col < 0 || col >= len(tr.lanes[line]) {
+		return 0
+	}
+	return tr.lanes[line][col]
+}
+
+func (tr *TraceableRow) SetLane(line int, col int, lane int) {
+	if line < 0 || line >= len(tr.lanes) {
+		return
+	}
+	if col < 0 || col >= len(tr.lanes[line]) {
+		return
+	}
+	if tr.lanes[line][col] == 0 {
+		tr.lanes[line][col] = lane
+	}
+}
+
 type TracedLanes []int
 
 type Tracer struct {
-	lanes map[int]TracedLanes
+	rows       []Traceable
+	nextLaneId int
 }
 
-func NewTracer() *Tracer {
-	return &Tracer{}
+func NewTracer(rows []Traceable) *Tracer {
+	t := &Tracer{
+		rows:       rows,
+		nextLaneId: 0,
+	}
+	t.TraceLanes()
+	return t
 }
 
-func (t *Tracer) Trace(row Traceable, tracedLanes TracedLanes) (bool, TracedLanes) {
-	index := row.GetNodeIndex()
-	for i, lane := range tracedLanes {
-		if lane == index {
-			// remove col from traced lanes if it exists
-			tracedLanes = append(tracedLanes[:i], tracedLanes[i+1:]...)
-			rowTraceLanes := t.GetTraceLanes(row)
-			return true, append(tracedLanes, rowTraceLanes...)
+func (t *Tracer) GetLane(rowIndex int, line int, col int) int {
+	return t.rows[rowIndex].GetLane(line, col)
+}
+
+func (t *Tracer) GetRowLane(rowIndex int) int {
+	currentRow := t.rows[rowIndex]
+	index := currentRow.GetNodeIndex()
+	lane := currentRow.GetLane(0, index)
+	return lane
+}
+
+func (t *Tracer) TraceLanes() {
+	for i := range t.rows {
+		row := t.rows[i]
+		index := row.GetNodeIndex()
+		lane := row.GetLane(0, index)
+		if lane == 0 {
+			t.traceLane(i)
 		}
 	}
-	return false, tracedLanes
 }
 
-func (t *Tracer) GetTraceLanes(row Traceable) TracedLanes {
-	index := row.GetNodeIndex()
+func (t *Tracer) traceLane(rowIndex int) {
+	t.nextLaneId++
 
 	type dir int
 	const (
@@ -74,20 +125,26 @@ func (t *Tracer) GetTraceLanes(row Traceable) TracedLanes {
 	)
 
 	type direction struct {
-		col  int
-		line int
-		dir  dir
+		rowIndex int
+		col      int
+		line     int
+		dir      dir
 	}
 
+	currentRow := t.rows[rowIndex]
+	index := currentRow.GetNodeIndex()
+	currentRow.SetLane(0, index, t.nextLaneId)
+
 	var directions []direction
-	var tracedLanes TracedLanes
-	directions = append(directions, direction{col: index, line: 0, dir: down})
-	// implement a breadth-first search to find all lanes that are traced
+	directions = append(directions, direction{rowIndex: rowIndex, line: 0, col: index, dir: down})
+
 	for len(directions) > 0 {
 		current := directions[0]
 		directions = directions[1:]
 		r := current.line
 		c := current.col
+		rowIndex = current.rowIndex
+		currentRow = t.rows[rowIndex]
 		switch current.dir {
 		case down:
 			r += 1
@@ -97,40 +154,55 @@ func (t *Tracer) GetTraceLanes(row Traceable) TracedLanes {
 			c += 1
 		}
 
-		ch, exists := row.Get(r, c)
+		ch, exists := currentRow.Get(r, c)
 		if !exists {
-			tracedLanes = append(tracedLanes, current.col)
-			continue
+			rowIndex++
+			if rowIndex >= len(t.rows) {
+				continue
+			}
+			currentRow = t.rows[rowIndex]
+			r = 0
+			ch, _ = currentRow.Get(r, c)
 		}
+		currentRow.SetLane(r, c, t.nextLaneId)
 		switch ch {
 		case '─':
-			directions = append(directions, direction{col: c, line: r, dir: current.dir})
-		case '│', '~':
-			directions = append(directions, direction{col: c, line: r, dir: down})
+			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: current.dir})
+		case '│', '~', '○', '◆', '×', '*':
+			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
 		case '┤':
-			directions = append(directions, direction{col: c, line: r, dir: down})
+			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
 		case '┬':
-			directions = append(directions, direction{col: c, line: r, dir: down})
-			if current.dir == left {
-				directions = append(directions, direction{col: c, line: r, dir: left})
-			}
-			if current.dir == right {
-				directions = append(directions, direction{col: c, line: r, dir: right})
-			}
+			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
+			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: current.dir})
 		case '├':
-			directions = append(directions, direction{col: c, line: r, dir: down})
-			if current.dir != left {
-				directions = append(directions, direction{col: c, line: r, dir: right})
+			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
+			if current.dir != left && t.lookAhead(rowIndex, r, c, 1, '╮') {
+				directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: right})
 			}
 		case '╯', '┘':
-			directions = append(directions, direction{col: c, line: r, dir: left})
+			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: left})
 		case '╰', '└':
-			directions = append(directions, direction{col: c, line: r, dir: right})
+			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: right})
 		case '╮', '┐':
-			directions = append(directions, direction{col: c, line: r, dir: down})
+			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
 		case '╭', '┌':
-			directions = append(directions, direction{col: c, line: r, dir: down})
+			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
 		}
 	}
-	return tracedLanes
+}
+
+func (t *Tracer) lookAhead(rowIndex int, r int, c int, diff int, expected int32) bool {
+	row := t.rows[rowIndex]
+	i := c
+	for {
+		i += diff
+		ch, exists := row.Get(r, i)
+		if !exists {
+			return false
+		}
+		if ch == expected {
+			return true
+		}
+	}
 }

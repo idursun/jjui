@@ -3,6 +3,7 @@ package graph
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -29,6 +30,7 @@ type DefaultRowIterator struct {
 	checkStyle    lipgloss.Style
 	textStyle     lipgloss.Style
 	selectedStyle lipgloss.Style
+	Tracer        *parser.Tracer
 }
 
 type Option func(*DefaultRowIterator)
@@ -107,6 +109,9 @@ func (s *DefaultRowIterator) aceJumpIndex(segment *screen.Segment, row parser.Ro
 
 func (s *DefaultRowIterator) Render(r io.Writer) {
 	row := s.Rows[s.current]
+	selectedLane := s.Tracer.GetRowLane(s.Cursor)
+	currentLane := s.Tracer.GetRowLane(s.current)
+	inLane := (currentLane == selectedLane) || (currentLane <= selectedLane && s.current >= s.Cursor)
 	// will render by extending the previous connections
 	if before := s.RenderBefore(row.Commit); before != "" {
 		extended := parser.GraphGutter{}
@@ -115,7 +120,9 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 		}
 		s.writeSection(r, extended, extended, false, before)
 	}
+	lineIndex := -1
 	for segmentedLine := range row.RowLinesIter(parser.Including(parser.Highlightable)) {
+		lineIndex++
 		lw := strings.Builder{}
 		if segmentedLine.Flags&parser.Revision != parser.Revision && s.isHighlighted {
 			if decoration := s.Op.Render(row.Commit, operations.RenderOverDescription); decoration != "" {
@@ -124,12 +131,17 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			}
 		}
 
-		for _, segment := range segmentedLine.Gutter.Segments {
+		for i, segment := range segmentedLine.Gutter.Segments {
+			lane := s.Tracer.GetLane(s.current, lineIndex, i)
+			style := lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(lane + 1)))
 			if s.isHighlighted {
 				fmt.Fprint(&lw, segment.Style.Inherit(s.selectedStyle).Render(segment.Text))
 			} else {
-				fmt.Fprint(&lw, segment.Style.Inherit(s.textStyle).Render(segment.Text))
+				fmt.Fprint(&lw, style.Render(segment.Text))
 			}
+			//else {
+			//	fmt.Fprint(&lw, style.Faint(true).Foreground(s.dimmedStyle.GetForeground()).Render(segment.Text))
+			//}
 		}
 
 		if segmentedLine.Flags&parser.Revision == parser.Revision {
@@ -148,8 +160,10 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			style := segment.Style
 			if s.isHighlighted {
 				style = style.Inherit(s.selectedStyle)
-			} else {
+			} else if inLane {
 				style = style.Inherit(s.textStyle)
+			} else {
+				style = style.Inherit(s.dimmedStyle).Faint(true).Foreground(s.dimmedStyle.GetForeground())
 			}
 
 			start, end := segment.FindSubstringRange(s.SearchText)

@@ -459,6 +459,12 @@ func (m *Model) View() string {
 	renderer.Selections = m.selectedRevisions
 	renderer.SearchText = m.quickSearch
 	renderer.AceJumpPrefix = m.aceJump.Prefix()
+	traceableRows := make([]parser.Traceable, 0, len(m.rows))
+	for _, row := range m.rows {
+		traceableRows = append(traceableRows, parser.NewTraceableRow(&row))
+	}
+	renderer.Tracer = parser.NewTracer(traceableRows)
+
 	m.w.SetSize(m.width, m.height)
 	output := m.w.Render(renderer)
 	output = m.textStyle.MaxWidth(m.width).Render(output)
