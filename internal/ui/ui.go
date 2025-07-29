@@ -35,6 +35,7 @@ type Model struct {
 	revsetModel             *revset.Model
 	previewModel            *preview.Model
 	previewVisible          bool
+	previewAtBottom         bool
 	previewWindowPercentage float64
 	diff                    *diff.Model
 	leader                  *leader.Model
@@ -160,14 +161,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keyMap.Help):
 			cmds = append(cmds, common.ToggleHelp)
 			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Preview.Mode):
+		case key.Matches(msg, m.keyMap.Preview.Mode, m.keyMap.Preview.ToggleBottom):
+			if key.Matches(msg, m.keyMap.Preview.ToggleBottom) {
+				m.previewAtBottom = !m.previewAtBottom
+				if m.previewVisible {
+					return m, tea.Batch(cmds...)
+				}
+			}
 			m.previewVisible = !m.previewVisible
 			cmds = append(cmds, common.SelectionChanged)
 			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Preview.Expand) && m.previewVisible && m.previewWindowPercentage < 95.0:
+		case key.Matches(msg, m.keyMap.Preview.Expand) && m.previewVisible:
 			m.previewWindowPercentage += config.Current.Preview.WidthIncrementPercentage
-		case key.Matches(msg, m.keyMap.Preview.Shrink) && m.previewVisible && m.previewWindowPercentage > 5.0:
+			if m.previewWindowPercentage > 95 {
+				m.previewWindowPercentage = 95
+			}
+		case key.Matches(msg, m.keyMap.Preview.Shrink) && m.previewVisible:
 			m.previewWindowPercentage -= config.Current.Preview.WidthIncrementPercentage
+			if m.previewWindowPercentage < 10 {
+				m.previewWindowPercentage = 10
+			}
 		case key.Matches(msg, m.keyMap.CustomCommands):
 			m.stacked = customcommands.NewModel(m.context, m.width, m.height)
 			cmds = append(cmds, m.stacked.Init())
@@ -301,16 +314,28 @@ func (m Model) View() string {
 	footer := m.status.View()
 	footerHeight := lipgloss.Height(footer)
 
-	leftView := m.renderLeftView(footerHeight, topViewHeight)
-
-	previewView := ""
-	if m.previewVisible {
-		m.previewModel.SetWidth(m.width - lipgloss.Width(leftView))
-		m.previewModel.SetHeight(m.height - footerHeight - topViewHeight)
-		previewView = m.previewModel.View()
+	bottomPreviewHeight := 0
+	if m.previewVisible && m.previewAtBottom {
+		bottomPreviewHeight = int(float64(m.height) * (m.previewWindowPercentage / 100.0))
 	}
+	leftView := m.renderLeftView(footerHeight, topViewHeight, bottomPreviewHeight)
+	centerView := leftView
 
-	centerView := lipgloss.JoinHorizontal(lipgloss.Left, leftView, previewView)
+	if m.previewVisible {
+		if m.previewAtBottom {
+			m.previewModel.SetWidth(m.width)
+			m.previewModel.SetHeight(bottomPreviewHeight)
+		} else {
+			m.previewModel.SetWidth(m.width - lipgloss.Width(leftView))
+			m.previewModel.SetHeight(m.height - footerHeight - topViewHeight)
+		}
+		previewView := m.previewModel.View()
+		if m.previewAtBottom {
+			centerView = lipgloss.JoinVertical(lipgloss.Top, leftView, previewView)
+		} else {
+			centerView = lipgloss.JoinHorizontal(lipgloss.Left, leftView, previewView)
+		}
+	}
 
 	if m.stacked != nil {
 		stackedView := m.stacked.View()
@@ -333,21 +358,26 @@ func (m Model) View() string {
 	return full
 }
 
-func (m Model) renderLeftView(footerHeight int, topViewHeight int) string {
+func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreviewHeight int) string {
 	leftView := ""
 	w := m.width
+	h := 0
 
 	if m.previewVisible {
-		w = m.width - int(float64(m.width)*(m.previewWindowPercentage/100.0))
+		if m.previewAtBottom {
+			h = bottomPreviewHeight
+		} else {
+			w = m.width - int(float64(m.width)*(m.previewWindowPercentage/100.0))
+		}
 	}
 
 	if m.oplog != nil {
 		m.oplog.SetWidth(w)
-		m.oplog.SetHeight(m.height - footerHeight - topViewHeight)
+		m.oplog.SetHeight(m.height - footerHeight - topViewHeight - h)
 		leftView = m.oplog.View()
 	} else {
 		m.revisions.SetWidth(w)
-		m.revisions.SetHeight(m.height - footerHeight - topViewHeight)
+		m.revisions.SetHeight(m.height - footerHeight - topViewHeight - h)
 		leftView = m.revisions.View()
 	}
 	return leftView
@@ -386,6 +416,7 @@ func New(c *context.MainContext) tea.Model {
 		state:                   common.Loading,
 		revisions:               &revisionsModel,
 		previewModel:            &previewModel,
+		previewAtBottom:         config.Current.Preview.ShowAtBottom,
 		previewVisible:          config.Current.Preview.ShowAtStart,
 		previewWindowPercentage: config.Current.Preview.WidthPercentage,
 		status:                  &statusModel,

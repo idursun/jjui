@@ -81,6 +81,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		},
 		Preview: previewModeKeys[key.Binding]{
 			Mode:         key.NewBinding(key.WithKeys(m.Preview.Mode...), key.WithHelp(JoinKeys(m.Preview.Mode), "preview")),
+			ToggleBottom: key.NewBinding(key.WithKeys(m.Preview.ToggleBottom...), key.WithHelp(JoinKeys(m.Preview.ToggleBottom), "toggle bottom")),
 			ScrollUp:     key.NewBinding(key.WithKeys(m.Preview.ScrollUp...), key.WithHelp(JoinKeys(m.Preview.ScrollUp), "preview scroll up")),
 			ScrollDown:   key.NewBinding(key.WithKeys(m.Preview.ScrollDown...), key.WithHelp(JoinKeys(m.Preview.ScrollDown), "preview scroll down")),
 			HalfPageDown: key.NewBinding(key.WithKeys(m.Preview.HalfPageDown...), key.WithHelp(JoinKeys(m.Preview.HalfPageDown), "preview half page down")),
@@ -231,6 +232,7 @@ type gitModeKeys[T any] struct {
 
 type previewModeKeys[T any] struct {
 	Mode         T `toml:"mode"`
+	ToggleBottom T `toml:"toggle_bottom"`
 	ScrollUp     T `toml:"scroll_up"`
 	ScrollDown   T `toml:"scroll_down"`
 	HalfPageDown T `toml:"half_page_down"`

@@ -62,6 +62,7 @@ limit = 0
     revisions_changing_file = ["*"]
   [keys.preview]
     mode = ["p"]
+    toggle_bottom = ["P"]
     scroll_up = ["ctrl+p"]
     scroll_down = ["ctrl+n"]
     half_page_down = ["ctrl+d"]
@@ -104,6 +105,7 @@ limit = 0
   revision_command = ["show", "--color", "always", "-r", "$change_id"]
   oplog_command = ["op", "show", "$operation_id", "--color", "always"]
   file_command = ["diff", "--color", "always", "-r", "$change_id", "$file"]
+  show_at_bottom = false
   show_at_start = false
   width_percentage = 50.0
   width_increment_percentage = 5.0

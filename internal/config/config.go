@@ -120,6 +120,7 @@ type PreviewConfig struct {
 	OplogCommand             []string `toml:"oplog_command"`
 	FileCommand              []string `toml:"file_command"`
 	ShowAtStart              bool     `toml:"show_at_start"`
+	ShowAtBottom             bool     `toml:"show_at_bottom"`
 	WidthPercentage          float64  `toml:"width_percentage"`
 	WidthIncrementPercentage float64  `toml:"width_increment_percentage"`
 }
