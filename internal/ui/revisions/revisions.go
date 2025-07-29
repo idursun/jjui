@@ -334,7 +334,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				currentRevision := m.SelectedRevision().GetChangeId()
 				return m, m.context.RunInteractiveCommand(jj.Describe(currentRevision), common.Refresh)
 			case key.Matches(msg, m.keymap.Evolog):
-				m.op, cmd = evolog.NewOperation(m.context, m.SelectedRevision(), m.selectedRevisions, m.width, m.height)
+				m.op, cmd = evolog.NewOperation(m.context, m.SelectedRevision(), m.width, m.height)
 			case key.Matches(msg, m.keymap.Diff):
 				return m, func() tea.Msg {
 					changeId := m.SelectedRevision().GetChangeId()
@@ -574,6 +574,17 @@ func New(c *appContext.MainContext) Model {
 }
 
 func (m *Model) updateOperation(msg tea.Msg) (tea.Cmd, bool) {
+	// HACK: Evolog operation with overlay but also change its mode from select to restore.
+	// In 'select' mode, they function like standard overlays.
+	// 'Restore' mode transforms them into rebase/squash-like operations.
+	// This is currently a hack due to the lack of a mechanism to handle mode changes.
+	// The 'restore' mode name was added to facilitate this special case.
+	// Future refactoring will address mode changes more generically.
+	if m.op != nil && m.op.Name() == "restore" {
+		if _, ok := msg.(tea.KeyMsg); ok {
+			return nil, false
+		}
+	}
 	var cmd tea.Cmd
 	if op, ok := m.op.(operations.OperationWithOverlay); ok {
 		m.op, cmd = op.Update(msg)
