@@ -164,9 +164,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.previewVisible = !m.previewVisible
 			cmds = append(cmds, common.SelectionChanged)
 			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Preview.Expand):
+		case key.Matches(msg, m.keyMap.Preview.Expand) && m.previewVisible && m.previewWindowPercentage < 95.0:
 			m.previewWindowPercentage += config.Current.Preview.WidthIncrementPercentage
-		case key.Matches(msg, m.keyMap.Preview.Shrink):
+		case key.Matches(msg, m.keyMap.Preview.Shrink) && m.previewVisible && m.previewWindowPercentage > 5.0:
 			m.previewWindowPercentage -= config.Current.Preview.WidthIncrementPercentage
 		case key.Matches(msg, m.keyMap.CustomCommands):
 			m.stacked = customcommands.NewModel(m.context, m.width, m.height)
