@@ -8,6 +8,7 @@ import (
 
 const (
 	ChangeIdPlaceholder    = "$change_id"
+	CommitIdPlaceholder    = "$commit_id"
 	FilePlaceholder        = "$file"
 	OperationIdPlaceholder = "$operation_id"
 	RevsetPlaceholder      = "$revset"

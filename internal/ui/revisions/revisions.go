@@ -366,7 +366,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 func (m *Model) updateSelection() tea.Cmd {
 	if selectedRevision := m.SelectedRevision(); selectedRevision != nil {
-		return m.context.SetSelectedItem(appContext.SelectedRevision{ChangeId: selectedRevision.GetChangeId()})
+		return m.context.SetSelectedItem(appContext.SelectedRevision{
+			ChangeId: selectedRevision.GetChangeId(),
+			CommitId: selectedRevision.CommitId,
+		})
 	}
 	return nil
 }

@@ -98,6 +98,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 					replacements := map[string]string{
 						jj.RevsetPlaceholder:   m.context.CurrentRevset,
 						jj.ChangeIdPlaceholder: msg.ChangeId,
+						jj.CommitIdPlaceholder: msg.CommitId,
 						jj.FilePlaceholder:     msg.File,
 					}
 					output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
@@ -107,6 +108,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				replacements := map[string]string{
 					jj.RevsetPlaceholder:   m.context.CurrentRevset,
 					jj.ChangeIdPlaceholder: msg.ChangeId,
+					jj.CommitIdPlaceholder: msg.CommitId,
 				}
 				return m, func() tea.Msg {
 					output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))

@@ -2,12 +2,13 @@ package context
 
 import (
 	"fmt"
+	"slices"
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
-	"slices"
-	"strings"
 )
 
 type CustomRunCommand struct {
@@ -18,16 +19,17 @@ type CustomRunCommand struct {
 
 func (c CustomRunCommand) IsApplicableTo(item SelectedItem) bool {
 	hasChangeIdPlaceholder := slices.ContainsFunc(c.Args, func(s string) bool { return strings.Contains(s, jj.ChangeIdPlaceholder) })
+	hasCommitIdPlaceholder := slices.ContainsFunc(c.Args, func(s string) bool { return strings.Contains(s, jj.CommitIdPlaceholder) })
 	hasFilePlaceholder := slices.ContainsFunc(c.Args, func(s string) bool { return strings.Contains(s, jj.FilePlaceholder) })
 	hasOperationIdPlaceholder := slices.ContainsFunc(c.Args, func(s string) bool { return strings.Contains(s, jj.OperationIdPlaceholder) })
-	if !hasChangeIdPlaceholder && !hasFilePlaceholder && !hasOperationIdPlaceholder {
+	if !hasChangeIdPlaceholder && !hasFilePlaceholder && !hasOperationIdPlaceholder && !hasCommitIdPlaceholder {
 		// If no placeholders are used, the command is applicable to any item
 		return true
 	}
 
 	switch item.(type) {
 	case SelectedRevision:
-		return hasChangeIdPlaceholder
+		return hasChangeIdPlaceholder || hasCommitIdPlaceholder
 	case SelectedFile:
 		return hasFilePlaceholder
 	case SelectedOperation:

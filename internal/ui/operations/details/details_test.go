@@ -2,9 +2,10 @@ package details
 
 import (
 	"bytes"
-	"github.com/idursun/jjui/internal/jj"
 	"testing"
 	"time"
+
+	"github.com/idursun/jjui/internal/jj"
 
 	"github.com/idursun/jjui/test"
 
@@ -17,13 +18,18 @@ const (
 	StatusOutput = "false false\nM file.txt\nA newfile.txt\n"
 )
 
+var Commit = &jj.Commit{
+	ChangeId: Revision,
+	CommitId: Revision,
+}
+
 func TestModel_Init_ExecutesStatusCommand(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.Snapshot())
 	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
 	defer commandRunner.Verify()
 
-	tm := teatest.NewTestModel(t, New(test.NewTestContext(commandRunner), Revision))
+	tm := teatest.NewTestModel(t, New(test.NewTestContext(commandRunner), Commit))
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("file.txt"))
 	})
@@ -36,7 +42,7 @@ func TestModel_Update_RestoresSelectedFiles(t *testing.T) {
 	commandRunner.Expect(jj.Restore(Revision, []string{"file.txt"}))
 	defer commandRunner.Verify()
 
-	tm := teatest.NewTestModel(t, test.NewShell(New(test.NewTestContext(commandRunner), Revision)))
+	tm := teatest.NewTestModel(t, test.NewShell(New(test.NewTestContext(commandRunner), Commit)))
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("file.txt"))
 	})
@@ -54,7 +60,7 @@ func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
 	commandRunner.Expect(jj.Split(Revision, []string{"file.txt"}))
 	defer commandRunner.Verify()
 
-	tm := teatest.NewTestModel(t, test.NewShell(New(test.NewTestContext(commandRunner), Revision)))
+	tm := teatest.NewTestModel(t, test.NewShell(New(test.NewTestContext(commandRunner), Commit)))
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("file.txt"))
 	})
@@ -72,7 +78,7 @@ func TestModel_Update_HandlesMovedFiles(t *testing.T) {
 	commandRunner.Expect(jj.Restore(Revision, []string{"internal/ui/file.go", "sub/newfile"}))
 	defer commandRunner.Verify()
 
-	tm := teatest.NewTestModel(t, test.NewShell(New(test.NewTestContext(commandRunner), Revision)))
+	tm := teatest.NewTestModel(t, test.NewShell(New(test.NewTestContext(commandRunner), Commit)))
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("file.go"))
 	})

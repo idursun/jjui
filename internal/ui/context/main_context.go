@@ -13,23 +13,25 @@ type SelectedItem interface {
 
 type SelectedRevision struct {
 	ChangeId string
+	CommitId string
 }
 
 func (s SelectedRevision) Equal(other SelectedItem) bool {
 	if o, ok := other.(SelectedRevision); ok {
-		return s.ChangeId == o.ChangeId
+		return s.ChangeId == o.ChangeId && s.CommitId == o.CommitId
 	}
 	return false
 }
 
 type SelectedFile struct {
 	ChangeId string
+	CommitId string
 	File     string
 }
 
 func (s SelectedFile) Equal(other SelectedItem) bool {
 	if o, ok := other.(SelectedFile); ok {
-		return s.ChangeId == o.ChangeId && s.File == o.File
+		return s.ChangeId == o.ChangeId && s.CommitId == o.CommitId && s.File == o.File
 	}
 	return false
 }
@@ -93,8 +95,10 @@ func (ctx *MainContext) CreateReplacements() map[string]string {
 	switch selectedItem := selectedItem.(type) {
 	case SelectedRevision:
 		replacements[jj.ChangeIdPlaceholder] = selectedItem.ChangeId
+		replacements[jj.CommitIdPlaceholder] = selectedItem.CommitId
 	case SelectedFile:
 		replacements[jj.ChangeIdPlaceholder] = selectedItem.ChangeId
+		replacements[jj.CommitIdPlaceholder] = selectedItem.CommitId
 		replacements[jj.FilePlaceholder] = selectedItem.File
 	case SelectedOperation:
 		replacements[jj.OperationIdPlaceholder] = selectedItem.OperationId

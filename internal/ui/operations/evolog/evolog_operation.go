@@ -72,7 +72,10 @@ func (o *Operation) updateSelection() tea.Cmd {
 		return nil
 	}
 
-	return o.context.SetSelectedItem(context.SelectedRevision{ChangeId: o.rows[o.cursor].Commit.CommitId})
+	return o.context.SetSelectedItem(context.SelectedRevision{
+		ChangeId: o.rows[o.cursor].Commit.GetChangeId(),
+		CommitId: o.rows[o.cursor].Commit.CommitId,
+	})
 }
 
 func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {

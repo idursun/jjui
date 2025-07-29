@@ -129,7 +129,7 @@ type styles struct {
 }
 
 type Model struct {
-	revision     string
+	revision     *jj.Commit
 	files        list.Model
 	height       int
 	confirmation tea.Model
@@ -143,7 +143,7 @@ type updateCommitStatusMsg struct {
 	selectedFiles []string
 }
 
-func New(context *context.MainContext, revision string) tea.Model {
+func New(context *context.MainContext, revision *jj.Commit) tea.Model {
 	keyMap := config.Current.GetKeyMap()
 
 	s := styles{
@@ -176,7 +176,7 @@ func New(context *context.MainContext, revision string) tea.Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(m.load(m.revision), tea.WindowSize())
+	return tea.Batch(m.load(m.revision.GetChangeId()), tea.WindowSize())
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -196,7 +196,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return m, func() tea.Msg {
-				output, _ := m.context.RunCommandImmediate(jj.Diff(m.revision, selected.fileName))
+				output, _ := m.context.RunCommandImmediate(jj.Diff(m.revision.GetChangeId(), selected.fileName))
 				return common.ShowDiffMsg(output)
 			}
 		case key.Matches(msg, m.keyMap.Details.Split):
@@ -210,7 +210,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			model := confirmation.New(
 				[]string{"Are you sure you want to split the selected files?"},
 				confirmation.WithStylePrefix("revisions"),
-				confirmation.WithOption("Yes", tea.Batch(m.context.RunInteractiveCommand(jj.Split(m.revision, selectedFiles), common.Refresh), common.Close), key.NewBinding(key.WithKeys("y"))),
+				confirmation.WithOption("Yes", tea.Batch(m.context.RunInteractiveCommand(jj.Split(m.revision.GetChangeId(), selectedFiles), common.Refresh), common.Close), key.NewBinding(key.WithKeys("y"))),
 				confirmation.WithOption("No", confirmation.Close, key.NewBinding(key.WithKeys("n", "esc"))),
 			)
 			m.confirmation = &model
@@ -226,7 +226,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			model := confirmation.New(
 				[]string{"Are you sure you want to restore the selected files?"},
 				confirmation.WithStylePrefix("revisions"),
-				confirmation.WithOption("Yes", m.context.RunCommand(jj.Restore(m.revision, selectedFiles), common.Refresh, confirmation.Close), key.NewBinding(key.WithKeys("y"))),
+				confirmation.WithOption("Yes", m.context.RunCommand(jj.Restore(m.revision.GetChangeId(), selectedFiles), common.Refresh, confirmation.Close), key.NewBinding(key.WithKeys("y"))),
 				confirmation.WithOption("No", confirmation.Close, key.NewBinding(key.WithKeys("n", "esc"))),
 			)
 			m.confirmation = &model
@@ -242,7 +242,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			model := confirmation.New(
 				[]string{"Are you sure you want to absorb changes from the selected files?"},
 				confirmation.WithStylePrefix("revisions"),
-				confirmation.WithOption("Yes", m.context.RunCommand(jj.Absorb(m.revision, selectedFiles...), common.Refresh, confirmation.Close), key.NewBinding(key.WithKeys("y"))),
+				confirmation.WithOption("Yes", m.context.RunCommand(jj.Absorb(m.revision.GetChangeId(), selectedFiles...), common.Refresh, confirmation.Close), key.NewBinding(key.WithKeys("y"))),
 				confirmation.WithOption("No", confirmation.Close, key.NewBinding(key.WithKeys("n", "esc"))),
 			)
 			m.confirmation = &model
@@ -254,7 +254,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.files.CursorDown()
 
 				curItem := m.files.SelectedItem().(item)
-				return m, tea.Batch(m.files.SetItem(oldIndex, oldItem), m.context.SetSelectedItem(context.SelectedFile{ChangeId: m.revision, File: curItem.fileName}))
+				return m, tea.Batch(m.files.SetItem(oldIndex, oldItem), m.context.SetSelectedItem(context.SelectedFile{
+					ChangeId: m.revision.GetChangeId(),
+					CommitId: m.revision.CommitId,
+					File:     curItem.fileName,
+				}))
 			}
 			return m, nil
 		case key.Matches(msg, m.keyMap.Details.RevisionsChangingFile):
@@ -266,7 +270,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				var cmd tea.Cmd
 				m.files, cmd = m.files.Update(msg)
 				curItem := m.files.SelectedItem().(item)
-				return m, tea.Batch(cmd, m.context.SetSelectedItem(context.SelectedFile{ChangeId: m.revision, File: curItem.fileName}))
+				return m, tea.Batch(cmd, m.context.SetSelectedItem(context.SelectedFile{
+					ChangeId: m.revision.GetChangeId(),
+					CommitId: m.revision.CommitId,
+					File:     curItem.fileName,
+				}))
 			}
 		}
 	case confirmation.CloseMsg:
@@ -274,12 +282,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.files.SetDelegate(itemDelegate{styles: m.styles})
 		return m, nil
 	case common.RefreshMsg:
-		return m, m.load(m.revision)
+		return m, m.load(m.revision.GetChangeId())
 	case updateCommitStatusMsg:
 		items := m.createListItems(msg.summary, msg.selectedFiles)
 		var selectionChangedCmd tea.Cmd
 		if len(items) > 0 {
-			selectionChangedCmd = m.context.SetSelectedItem(context.SelectedFile{ChangeId: m.revision, File: items[0].(item).fileName})
+			selectionChangedCmd = m.context.SetSelectedItem(context.SelectedFile{
+				ChangeId: m.revision.GetChangeId(),
+				CommitId: m.revision.CommitId,
+				File:     items[0].(item).fileName,
+			})
 		}
 		return m, tea.Batch(selectionChangedCmd, m.files.SetItems(items))
 	case tea.WindowSizeMsg:
