@@ -11,14 +11,14 @@ import (
 
 type TestTraceableRow struct {
 	lines []string
-	lanes [][]int
+	lanes [][]uint64
 }
 
 func newTestTraceableRow(lines []string) *TestTraceableRow {
-	lanes := make([][]int, len(lines))
+	lanes := make([][]uint64, len(lines))
 	for i := range lines {
 		w := uniseg.StringWidth(lines[i])
-		lanes[i] = make([]int, w)
+		lanes[i] = make([]uint64, w)
 	}
 	return &TestTraceableRow{
 		lines: lines,
@@ -26,11 +26,11 @@ func newTestTraceableRow(lines []string) *TestTraceableRow {
 	}
 }
 
-func (t *TestTraceableRow) GetLane(line int, col int) int {
+func (t *TestTraceableRow) GetLane(line int, col int) uint64 {
 	return t.lanes[line][col]
 }
 
-func (t *TestTraceableRow) SetLane(line int, col int, lane int) {
+func (t *TestTraceableRow) SetLane(line int, col int, lane uint64) {
 	if line < 0 || line >= len(t.lines) {
 		return
 	}
@@ -135,7 +135,7 @@ func createLaneMap(rows []*TestTraceableRow) string {
 				if lane == 0 {
 					sb.WriteString(" ")
 				} else {
-					sb.WriteString(strconv.Itoa(lane))
+					sb.WriteString(strconv.Itoa(int(lane)))
 				}
 			}
 			sb.WriteString("\n")

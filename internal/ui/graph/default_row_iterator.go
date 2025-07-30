@@ -3,7 +3,6 @@ package graph
 import (
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -111,7 +110,9 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 	row := s.Rows[s.current]
 	highlightedRowLane := s.Tracer.GetRowLane(s.Cursor)
 	currentRowLane := s.Tracer.GetRowLane(s.current)
-	inLane := (currentRowLane == highlightedRowLane) || (currentRowLane <= highlightedRowLane && s.current >= s.Cursor)
+	lowestBit := highlightedRowLane & -highlightedRowLane
+	inLane := currentRowLane&lowestBit > 0
+
 	// will render by extending the previous connections
 	if before := s.RenderBefore(row.Commit); before != "" {
 		extended := parser.GraphGutter{}
@@ -131,26 +132,25 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			}
 		}
 
-		maxGutterLane := 0
-		for i := range segmentedLine.Gutter.Segments {
-			gutterLane := s.Tracer.GetLane(s.current, lineIndex, i)
-			if gutterLane <= highlightedRowLane {
-				maxGutterLane = max(maxGutterLane, gutterLane)
-			}
-		}
-
 		for i, segment := range segmentedLine.Gutter.Segments {
 			gutterLane := s.Tracer.GetLane(s.current, lineIndex, i)
-			style := lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(gutterLane + 1)))
-			gutterInLane := gutterLane == highlightedRowLane || (maxGutterLane < highlightedRowLane && s.current > s.Cursor && gutterLane == maxGutterLane)
-			//if s.isHighlighted {
-			//	fmt.Fprint(&lw, segment.Style.Inherit(s.selectedStyle).Render(segment.Text))
-			//} else
+			style := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+			gutterInLane := gutterLane&lowestBit > 0
+			text := segment.Text
+			if gutterInLane && text == "├" {
+				rightLane := s.Tracer.GetLane(s.current, lineIndex, i+1)&lowestBit > 0
+				upperLane := s.Tracer.GetLane(s.current, lineIndex-1, i)&lowestBit > 0
+
+				if rightLane && !upperLane {
+					text = "╭"
+				} else if !rightLane && upperLane {
+					text = "│"
+				}
+			}
 			if gutterInLane {
-				fmt.Fprint(&lw, style.Render(segment.Text))
+				fmt.Fprint(&lw, style.Render(text))
 			} else {
-				fmt.Fprint(&lw, style.Faint(true).Foreground(s.dimmedStyle.GetForeground()).Render(segment.Text))
-				//fmt.Fprint(&lw, style.Faint(true).Render(segment.Text))
+				fmt.Fprint(&lw, style.Faint(true).Foreground(s.dimmedStyle.GetForeground()).Render(text))
 			}
 		}
 
@@ -213,10 +213,20 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 		s.writeSection(r, extended, extended, false, afterSection)
 	}
 
+	lineIndex = 0
 	for segmentedLine := range row.RowLinesIter(parser.Excluding(parser.Highlightable)) {
+		lineIndex++
 		var lw strings.Builder
-		for _, segment := range segmentedLine.Gutter.Segments {
-			fmt.Fprint(&lw, segment.Style.Inherit(s.textStyle).Render(segment.Text))
+		for i, segment := range segmentedLine.Gutter.Segments {
+			gutterLane := s.Tracer.GetLane(s.current, lineIndex, i)
+			style := lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Faint(true)
+			gutterInLane := gutterLane&lowestBit > 0
+			text := segment.Text
+			if gutterInLane {
+				fmt.Fprint(&lw, style.Render(text))
+			} else {
+				fmt.Fprint(&lw, style.Faint(true).Foreground(s.dimmedStyle.GetForeground()).Render(text))
+			}
 		}
 		for _, segment := range segmentedLine.Segments {
 			fmt.Fprint(&lw, segment.Style.Inherit(s.textStyle).Render(segment.Text))

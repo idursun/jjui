@@ -3,19 +3,19 @@ package parser
 type Traceable interface {
 	Get(line int, col int) (rune, bool)
 	GetNodeIndex() int
-	GetLane(line int, col int) int
-	SetLane(line int, col int, lane int)
+	GetLane(line int, col int) uint64
+	SetLane(line int, col int, lane uint64)
 }
 
 type TraceableRow struct {
 	row   *Row
-	lanes [][]int
+	lanes [][]uint64
 }
 
 func NewTraceableRow(row *Row) *TraceableRow {
-	lanes := make([][]int, len(row.Lines))
+	lanes := make([][]uint64, len(row.Lines))
 	for i, line := range row.Lines {
-		lanes[i] = make([]int, len(line.Gutter.Segments))
+		lanes[i] = make([]uint64, len(line.Gutter.Segments))
 	}
 	return &TraceableRow{
 		row:   row,
@@ -54,7 +54,7 @@ func (tr *TraceableRow) GetNodeIndex() int {
 	return 0
 }
 
-func (tr *TraceableRow) GetLane(line int, col int) int {
+func (tr *TraceableRow) GetLane(line int, col int) uint64 {
 	if line < 0 || line >= len(tr.lanes) {
 		return 0
 	}
@@ -64,23 +64,22 @@ func (tr *TraceableRow) GetLane(line int, col int) int {
 	return tr.lanes[line][col]
 }
 
-func (tr *TraceableRow) SetLane(line int, col int, lane int) {
+func (tr *TraceableRow) SetLane(line int, col int, lane uint64) {
 	if line < 0 || line >= len(tr.lanes) {
 		return
 	}
 	if col < 0 || col >= len(tr.lanes[line]) {
 		return
 	}
-	if tr.lanes[line][col] == 0 {
-		tr.lanes[line][col] = lane
-	}
+	previousLane := tr.lanes[line][col]
+	tr.lanes[line][col] = previousLane | lane
 }
 
 type TracedLanes []int
 
 type Tracer struct {
 	rows       []Traceable
-	nextLaneId int
+	nextLaneId uint64
 }
 
 func NewTracer(rows []Traceable) *Tracer {
@@ -92,11 +91,11 @@ func NewTracer(rows []Traceable) *Tracer {
 	return t
 }
 
-func (t *Tracer) GetLane(rowIndex int, line int, col int) int {
+func (t *Tracer) GetLane(rowIndex int, line int, col int) uint64 {
 	return t.rows[rowIndex].GetLane(line, col)
 }
 
-func (t *Tracer) GetRowLane(rowIndex int) int {
+func (t *Tracer) GetRowLane(rowIndex int) uint64 {
 	currentRow := t.rows[rowIndex]
 	index := currentRow.GetNodeIndex()
 	lane := currentRow.GetLane(0, index)
@@ -115,7 +114,11 @@ func (t *Tracer) TraceLanes() {
 }
 
 func (t *Tracer) traceLane(rowIndex int) {
-	t.nextLaneId++
+	if t.nextLaneId == 0 {
+		t.nextLaneId = 1
+	} else {
+		t.nextLaneId = t.nextLaneId << 1
+	}
 
 	type dir int
 	const (
@@ -177,6 +180,9 @@ func (t *Tracer) traceLane(rowIndex int) {
 			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: current.dir})
 		case '├':
 			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
+			if current.dir == left {
+				currentRow.SetLane(r, c, t.nextLaneId)
+			}
 			if current.dir != left && t.lookAhead(rowIndex, r, c, 1, '╮') {
 				directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: right})
 			}
