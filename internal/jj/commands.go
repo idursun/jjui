@@ -98,6 +98,11 @@ func Restore(revision string, files []string) CommandArgs {
 	return args
 }
 
+func RestoreEvolog(from string, into string) CommandArgs {
+	args := []string{"restore", "--from", from, "--into", into, "--restore-descendants"}
+	return args
+}
+
 func Undo() CommandArgs {
 	return []string{"undo"}
 }

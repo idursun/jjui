@@ -71,8 +71,7 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		case key.Matches(msg, o.keyMap.Apply):
 			from := o.getSelectedEvolog().CommitId
 			into := o.target.GetChangeId()
-			args := []string{"restore", "--from", from, "--into", into, "--restore-descendants"}
-			return o.context.RunCommand(jj.Args(args...), common.Close, common.Refresh)
+			return o.context.RunCommand(jj.RestoreEvolog(from, into), common.Close, common.Refresh)
 		}
 	}
 	return nil
