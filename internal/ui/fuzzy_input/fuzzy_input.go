@@ -55,7 +55,7 @@ func (fzf *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	km := config.Current.GetKeyMap()
 	skipSearch := func() tea.Msg { return nil }
 	switch {
-	case key.Matches(msg, fzf.input.KeyMap.AcceptSuggestion):
+	case key.Matches(msg, fzf.input.KeyMap.AcceptSuggestion) && len(fzf.matches) > 0:
 		suggestion := fuzzy_search.SelectedMatch(fzf)
 		fzf.input.SetValue(suggestion)
 		fzf.input.CursorEnd()
