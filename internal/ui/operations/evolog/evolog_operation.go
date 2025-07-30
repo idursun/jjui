@@ -46,12 +46,6 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		switch {
 		case key.Matches(msg, o.keyMap.Cancel):
 			return common.Close
-		case key.Matches(msg, o.keyMap.Diff):
-			return func() tea.Msg {
-				selectedCommitId := o.getSelectedEvolog().CommitId
-				output, _ := o.context.RunCommandImmediate(jj.Diff(selectedCommitId, ""))
-				return common.ShowDiffMsg(output)
-			}
 		case key.Matches(msg, o.keyMap.Up):
 			if o.cursor > 0 {
 				o.cursor--
@@ -60,7 +54,13 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 			if o.cursor < len(o.rows)-1 {
 				o.cursor++
 			}
-		case key.Matches(msg, restoreKey):
+		case key.Matches(msg, o.keyMap.Evolog.Diff):
+			return func() tea.Msg {
+				selectedCommitId := o.getSelectedEvolog().CommitId
+				output, _ := o.context.RunCommandImmediate(jj.Diff(selectedCommitId, ""))
+				return common.ShowDiffMsg(output)
+			}
+		case key.Matches(msg, o.keyMap.Evolog.Restore):
 			o.mode = restoreMode
 		}
 	case restoreMode:
@@ -88,14 +88,11 @@ func (o *Operation) SetSelectedRevision(commit *jj.Commit) {
 	o.target = commit
 }
 
-// TODO: move this to the default keymap
-var restoreKey = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restore"))
-
 func (o *Operation) ShortHelp() []key.Binding {
 	if o.mode == restoreMode {
 		return []key.Binding{o.keyMap.Cancel, o.keyMap.Apply}
 	}
-	return []key.Binding{o.keyMap.Up, o.keyMap.Down, o.keyMap.Cancel, o.keyMap.Diff, restoreKey}
+	return []key.Binding{o.keyMap.Up, o.keyMap.Down, o.keyMap.Cancel, o.keyMap.Evolog.Diff, o.keyMap.Evolog.Restore}
 }
 
 func (o *Operation) FullHelp() [][]key.Binding {

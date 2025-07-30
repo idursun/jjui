@@ -20,7 +20,7 @@ func (n *Default) ShortHelp() []key.Binding {
 		n.keyMap.Preview.Mode,
 		n.keyMap.Revset,
 		n.keyMap.Details.Mode,
-		n.keyMap.Evolog,
+		n.keyMap.Evolog.Mode,
 		n.keyMap.Rebase.Mode,
 		n.keyMap.Squash.Mode,
 		n.keyMap.Bookmark.Mode,

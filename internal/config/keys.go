@@ -29,16 +29,20 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Absorb:            key.NewBinding(key.WithKeys(m.Absorb...), key.WithHelp(JoinKeys(m.Absorb), "absorb")),
 		Split:             key.NewBinding(key.WithKeys(m.Split...), key.WithHelp(JoinKeys(m.Split), "split")),
 		Help:              key.NewBinding(key.WithKeys(m.Help...), key.WithHelp(JoinKeys(m.Help), "help")),
-		Evolog:            key.NewBinding(key.WithKeys(m.Evolog...), key.WithHelp(JoinKeys(m.Evolog), "evolog")),
-		Revset:            key.NewBinding(key.WithKeys(m.Revset...), key.WithHelp(JoinKeys(m.Revset), "revset")),
-		AceJump:           key.NewBinding(key.WithKeys(m.AceJump...), key.WithHelp(JoinKeys(m.AceJump), "ace jump")),
-		QuickSearch:       key.NewBinding(key.WithKeys(m.QuickSearch...), key.WithHelp(JoinKeys(m.QuickSearch), "quick search")),
-		QuickSearchCycle:  key.NewBinding(key.WithKeys(m.QuickSearchCycle...), key.WithHelp(JoinKeys(m.QuickSearchCycle), "locate next match")),
-		CustomCommands:    key.NewBinding(key.WithKeys(m.CustomCommands...), key.WithHelp(JoinKeys(m.CustomCommands), "custom commands menu")),
-		Leader:            key.NewBinding(key.WithKeys(m.Leader...), key.WithHelp(JoinKeys(m.Leader), "leader")),
-		Suspend:           key.NewBinding(key.WithKeys(m.Suspend...), key.WithHelp(JoinKeys(m.Suspend), "suspend")),
-		ExecJJ:            key.NewBinding(key.WithKeys(m.ExecJJ...), key.WithHelp(JoinKeys(m.ExecJJ), "interactive jj")),
-		ExecShell:         key.NewBinding(key.WithKeys(m.ExecShell...), key.WithHelp(JoinKeys(m.ExecShell), "interactive shell command")),
+		Evolog: evologModeKeys[key.Binding]{
+			Mode:    key.NewBinding(key.WithKeys(m.Evolog.Mode...), key.WithHelp(JoinKeys(m.Evolog.Mode), "evolog")),
+			Diff:    key.NewBinding(key.WithKeys(m.Evolog.Diff...), key.WithHelp(JoinKeys(m.Evolog.Diff), "diff")),
+			Restore: key.NewBinding(key.WithKeys(m.Evolog.Restore...), key.WithHelp(JoinKeys(m.Evolog.Restore), "restore")),
+		},
+		Revset:           key.NewBinding(key.WithKeys(m.Revset...), key.WithHelp(JoinKeys(m.Revset), "revset")),
+		AceJump:          key.NewBinding(key.WithKeys(m.AceJump...), key.WithHelp(JoinKeys(m.AceJump), "ace jump")),
+		QuickSearch:      key.NewBinding(key.WithKeys(m.QuickSearch...), key.WithHelp(JoinKeys(m.QuickSearch), "quick search")),
+		QuickSearchCycle: key.NewBinding(key.WithKeys(m.QuickSearchCycle...), key.WithHelp(JoinKeys(m.QuickSearchCycle), "locate next match")),
+		CustomCommands:   key.NewBinding(key.WithKeys(m.CustomCommands...), key.WithHelp(JoinKeys(m.CustomCommands), "custom commands menu")),
+		Leader:           key.NewBinding(key.WithKeys(m.Leader...), key.WithHelp(JoinKeys(m.Leader), "leader")),
+		Suspend:          key.NewBinding(key.WithKeys(m.Suspend...), key.WithHelp(JoinKeys(m.Suspend), "suspend")),
+		ExecJJ:           key.NewBinding(key.WithKeys(m.ExecJJ...), key.WithHelp(JoinKeys(m.ExecJJ), "interactive jj")),
+		ExecShell:        key.NewBinding(key.WithKeys(m.ExecShell...), key.WithHelp(JoinKeys(m.ExecShell), "interactive shell command")),
 		Rebase: rebaseModeKeys[key.Binding]{
 			Mode:     key.NewBinding(key.WithKeys(m.Rebase.Mode...), key.WithHelp(JoinKeys(m.Rebase.Mode), "rebase")),
 			Revision: key.NewBinding(key.WithKeys(m.Rebase.Revision...), key.WithHelp(JoinKeys(m.Rebase.Revision), "revision")),
@@ -157,7 +161,6 @@ type KeyMappings[T any] struct {
 	Absorb            T                         `toml:"absorb"`
 	Split             T                         `toml:"split"`
 	Undo              T                         `toml:"undo"`
-	Evolog            T                         `toml:"evolog"`
 	Revset            T                         `toml:"revset"`
 	ExecJJ            T                         `toml:"exec_jj"`
 	ExecShell         T                         `toml:"exec_shell"`
@@ -171,6 +174,7 @@ type KeyMappings[T any] struct {
 	Duplicate         duplicateModeKeys[T]      `toml:"duplicate"`
 	Squash            squashModeKeys[T]         `toml:"squash"`
 	Details           detailsModeKeys[T]        `toml:"details"`
+	Evolog            evologModeKeys[T]         `toml:"evolog"`
 	Preview           previewModeKeys[T]        `toml:"preview"`
 	Bookmark          bookmarkModeKeys[T]       `toml:"bookmark"`
 	InlineDescribe    inlineDescribeModeKeys[T] `toml:"inline_describe"`
@@ -211,6 +215,12 @@ type duplicateModeKeys[T any] struct {
 	After  T `toml:"after"`
 	Before T `toml:"before"`
 	Onto   T `toml:"onto"`
+}
+
+type evologModeKeys[T any] struct {
+	Mode    T `toml:"mode"`
+	Diff    T `toml:"diff"`
+	Restore T `toml:"restore"`
 }
 
 type detailsModeKeys[T any] struct {

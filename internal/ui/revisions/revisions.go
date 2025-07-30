@@ -333,7 +333,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.Describe):
 				currentRevision := m.SelectedRevision().GetChangeId()
 				return m, m.context.RunInteractiveCommand(jj.Describe(currentRevision), common.Refresh)
-			case key.Matches(msg, m.keymap.Evolog):
+			case key.Matches(msg, m.keymap.Evolog.Mode):
 				m.op, cmd = evolog.NewOperation(m.context, m.SelectedRevision(), m.width, m.height)
 			case key.Matches(msg, m.keymap.Diff):
 				return m, func() tea.Msg {
