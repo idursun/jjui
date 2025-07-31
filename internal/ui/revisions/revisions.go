@@ -459,11 +459,7 @@ func (m *Model) View() string {
 	renderer.Selections = m.selectedRevisions
 	renderer.SearchText = m.quickSearch
 	renderer.AceJumpPrefix = m.aceJump.Prefix()
-	traceableRows := make([]parser.Traceable, 0, len(m.rows))
-	for _, row := range m.rows {
-		traceableRows = append(traceableRows, parser.NewTraceableRow(&row))
-	}
-	renderer.Tracer = parser.NewTracer(traceableRows)
+	renderer.Tracer = parser.NewTracer(m.rows)
 
 	m.w.SetSize(m.width, m.height)
 	output := m.w.Render(renderer)

@@ -1,105 +1,17 @@
 package parser
 
-type Traceable interface {
-	Get(line int, col int) (rune, bool)
-	GetNodeIndex() int
-	GetLane(line int, col int) uint64
-	SetLane(line int, col int, lane uint64)
-}
-
-type TraceableRow struct {
-	row   *Row
-	lanes [][]uint64
-}
-
-func NewTraceableRow(row *Row) *TraceableRow {
-	lanes := make([][]uint64, len(row.Lines))
-	for i, line := range row.Lines {
-		lanes[i] = make([]uint64, len(line.Gutter.Segments))
-	}
-	return &TraceableRow{
-		row:   row,
-		lanes: lanes,
-	}
-}
-
-func (tr *TraceableRow) Get(line int, col int) (rune, bool) {
-	if line < 0 || line >= len(tr.row.Lines) {
-		return ' ', false
-	}
-	l := tr.row.Lines[line]
-	if col < 0 || col >= len(l.Gutter.Segments) {
-		return ' ', false
-	}
-	g := l.Gutter.Segments[col]
-	for _, r := range g.Text {
-		return r, true
-	}
-	return ' ', false
-}
-
-func (tr *TraceableRow) GetNodeIndex() int {
-	for _, line := range tr.row.Lines {
-		if line.Flags&Revision != Revision {
-			continue
-		}
-		for j, g := range line.Gutter.Segments {
-			for _, r := range g.Text {
-				if r == '@' || r == '○' || r == '◆' || r == '×' {
-					return j
-				}
-			}
-		}
-	}
-	return 0
-}
-
-func (tr *TraceableRow) GetLane(line int, col int) uint64 {
-	if line < 0 || line >= len(tr.lanes) {
-		return 0
-	}
-	if col < 0 || col >= len(tr.lanes[line]) {
-		return 0
-	}
-	return tr.lanes[line][col]
-}
-
-func (tr *TraceableRow) SetLane(line int, col int, lane uint64) {
-	if line < 0 || line >= len(tr.lanes) {
-		return
-	}
-	if col < 0 || col >= len(tr.lanes[line]) {
-		return
-	}
-	previousLane := tr.lanes[line][col]
-	tr.lanes[line][col] = previousLane | lane
-}
-
-type TracedLanes []int
-
 type Tracer struct {
-	rows       []Traceable
+	rows       []Row
 	nextLaneId uint64
 }
 
-func NewTracer(rows []Traceable) *Tracer {
+func NewTracer(rows []Row) *Tracer {
 	t := &Tracer{
 		rows:       rows,
 		nextLaneId: 0,
 	}
 	t.TraceLanes()
 	return t
-}
-
-func (t *Tracer) GetLane(rowIndex int, line int, col int) uint64 {
-	return t.rows[rowIndex].GetLane(line, col)
-}
-
-func (t *Tracer) GetRowLane(rowIndex int) uint64 {
-	currentRow := t.rows[rowIndex]
-	index := currentRow.GetNodeIndex()
-	lane := currentRow.GetLane(0, index)
-	return lane
 }
 
 func (t *Tracer) TraceLanes() {
@@ -111,6 +23,50 @@ func (t *Tracer) TraceLanes() {
 			t.traceLane(i)
 		}
 	}
+}
+
+func (t *Tracer) IsInSameLane(current int, cursor int) bool {
+	currentRowLane := t.getRowLane(current)
+	highlightedRowLane := t.getRowLane(cursor)
+	lowestBit := highlightedRowLane & -highlightedRowLane
+	inLane := currentRowLane&lowestBit > 0
+	return inLane
+}
+
+func (t *Tracer) IsGutterInLane(current int, cursor int, lineIndex int, segmentIndex int) bool {
+	gutterLane := t.getLane(current, lineIndex, segmentIndex)
+	highlightedRowLane := t.getRowLane(cursor)
+	lowestBit := highlightedRowLane & -highlightedRowLane
+	gutterInLane := gutterLane&lowestBit > 0
+	return gutterInLane
+}
+
+func (t *Tracer) UpdateGutterText(current int, cursor int, lineIndex int, i int, text string) string {
+	gutterInLane := t.IsGutterInLane(current, cursor, lineIndex, i)
+	highlightedRowLane := t.getRowLane(cursor)
+	lowestBit := highlightedRowLane & -highlightedRowLane
+	if gutterInLane && text == "├" {
+		rightLane := t.getLane(current, lineIndex, i+1)&lowestBit > 0
+		upperLane := t.getLane(current, lineIndex-1, i)&lowestBit > 0
+
+		if rightLane && !upperLane {
+			text = "╭"
+		} else if !rightLane && upperLane {
+			text = "│"
+		}
+	}
+	return text
+}
+
+func (t *Tracer) getLane(rowIndex int, line int, col int) uint64 {
+	return t.rows[rowIndex].GetLane(line, col)
+}
+
+func (t *Tracer) getRowLane(rowIndex int) uint64 {
+	currentRow := t.rows[rowIndex]
+	index := currentRow.GetNodeIndex()
+	lane := currentRow.GetLane(0, index)
+	return lane
 }
 
 func (t *Tracer) traceLane(rowIndex int) {
@@ -171,8 +127,6 @@ func (t *Tracer) traceLane(rowIndex int) {
 		switch ch {
 		case '─':
 			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: current.dir})
-		case '│', '~', '○', '◆', '×', '*':
-			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
 		case '┤':
 			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
 		case '┬':
@@ -194,6 +148,8 @@ func (t *Tracer) traceLane(rowIndex int) {
 			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
 		case '╭', '┌':
 			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
+		default:
+			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
 		}
 	}
 }
@@ -211,37 +167,4 @@ func (t *Tracer) lookAhead(rowIndex int, r int, c int, diff int, expected int32)
 			return true
 		}
 	}
-}
-
-func (t *Tracer) IsInLane(current int, cursor int) bool {
-	currentRowLane := t.GetRowLane(current)
-	highlightedRowLane := t.GetRowLane(cursor)
-	lowestBit := highlightedRowLane & -highlightedRowLane
-	inLane := currentRowLane&lowestBit > 0
-	return inLane
-}
-
-func (t *Tracer) IsGutterInLane(current int, cursor int, lineIndex int, segmentIndex int) bool {
-	gutterLane := t.GetLane(current, lineIndex, segmentIndex)
-	highlightedRowLane := t.GetRowLane(cursor)
-	lowestBit := highlightedRowLane & -highlightedRowLane
-	gutterInLane := gutterLane&lowestBit > 0
-	return gutterInLane
-}
-
-func (t *Tracer) UpdateGutterText(current int, cursor int, lineIndex int, i int, text string) string {
-	gutterInLane := t.IsGutterInLane(current, cursor, lineIndex, i)
-	highlightedRowLane := t.GetRowLane(cursor)
-	lowestBit := highlightedRowLane & -highlightedRowLane
-	if gutterInLane && text == "├" {
-		rightLane := t.GetLane(current, lineIndex, i+1)&lowestBit > 0
-		upperLane := t.GetLane(current, lineIndex-1, i)&lowestBit > 0
-
-		if rightLane && !upperLane {
-			text = "╭"
-		} else if !rightLane && upperLane {
-			text = "│"
-		}
-	}
-	return text
 }

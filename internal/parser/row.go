@@ -30,6 +30,58 @@ func NewGraphRow() Row {
 	}
 }
 
+func (row *Row) Get(line int, col int) (rune, bool) {
+	if line < 0 || line >= len(row.Lines) {
+		return ' ', false
+	}
+	l := row.Lines[line]
+	if col < 0 || col >= len(l.Gutter.Segments) {
+		return ' ', false
+	}
+	g := l.Gutter.Segments[col]
+	for _, r := range g.Text {
+		return r, true
+	}
+	return ' ', false
+}
+
+func (row *Row) GetNodeIndex() int {
+	for _, line := range row.Lines {
+		if line.Flags&Revision != Revision {
+			continue
+		}
+		for j, g := range line.Gutter.Segments {
+			for _, r := range g.Text {
+				if r == '@' || r == '○' || r == '◆' || r == '×' {
+					return j
+				}
+			}
+		}
+	}
+	return 0
+}
+
+func (row *Row) GetLane(line int, col int) uint64 {
+	if line < 0 || line >= len(row.Lines) {
+		return 0
+	}
+	if col < 0 || col >= len(row.Lines[line].Gutter.Segments) {
+		return 0
+	}
+	return row.Lines[line].Gutter.Segments[col].Lane
+}
+
+func (row *Row) SetLane(line int, col int, lane uint64) {
+	if line < 0 || line >= len(row.Lines) {
+		return
+	}
+	if col < 0 || col >= len(row.Lines[line].Gutter.Segments) {
+		return
+	}
+	previousLane := row.Lines[line].Gutter.Segments[col].Lane
+	row.Lines[line].Gutter.Segments[col].Lane = previousLane | lane
+}
+
 func (row *Row) Extend() GraphGutter {
 	type extendResult int
 	const (

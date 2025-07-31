@@ -2,76 +2,19 @@ package parser
 
 import (
 	"bufio"
-	"github.com/rivo/uniseg"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/screen"
 	"github.com/stretchr/testify/assert"
 	"strconv"
 	"strings"
 	"testing"
 )
 
-type TestTraceableRow struct {
-	lines []string
-	lanes [][]uint64
-}
-
-func newTestTraceableRow(lines []string) *TestTraceableRow {
-	lanes := make([][]uint64, len(lines))
-	for i := range lines {
-		w := uniseg.StringWidth(lines[i])
-		lanes[i] = make([]uint64, w)
-	}
-	return &TestTraceableRow{
-		lines: lines,
-		lanes: lanes,
-	}
-}
-
-func (t *TestTraceableRow) GetLane(line int, col int) uint64 {
-	return t.lanes[line][col]
-}
-
-func (t *TestTraceableRow) SetLane(line int, col int, lane uint64) {
-	if line < 0 || line >= len(t.lines) {
-		return
-	}
-	t.lanes[line][col] = lane
-}
-
-func (t *TestTraceableRow) Get(line int, col int) (rune, bool) {
-	if line < 0 || line >= len(t.lines) {
-		return ' ', false
-	}
-	if col < 0 || col >= len(t.lines[line]) {
-		return ' ', false
-	}
-	i := 0
-	for _, r := range t.lines[line] {
-		if i == col {
-			return r, true
-		}
-		i++
-	}
-	return ' ', false
-}
-
-func (t *TestTraceableRow) GetNodeIndex() int {
-	for _, line := range t.lines {
-		index := 0
-		for _, r := range line {
-			if r == '*' {
-				return index
-			}
-			index++
-		}
-	}
-	return -1
-}
-
 func TestTraceStraightLine(t *testing.T) {
 	rows := createRows(`
-*
+○
 │
-*
+○
 │
 `)
 	laneMap := createLaneMap(rows)
@@ -85,9 +28,9 @@ func TestTraceStraightLine(t *testing.T) {
 
 func TestTraceCurvedPathConnection(t *testing.T) {
 	rows := createRows(`
-│ *
+│ ○
 ├─╯
-*
+○
 │
 `)
 	laneMap := createLaneMap(rows)
@@ -101,13 +44,13 @@ func TestTraceCurvedPathConnection(t *testing.T) {
 
 func TestMultiBranchTraceMask(t *testing.T) {
 	rows := createRows(`
-*
+○
 ├─┬─╮
-│ │ *
+│ │ ○
 │ │ │
-│ * │
+│ ○ │
 │ ├───╮
-* │ │ │
+○ │ │ │
 `)
 	laneMap := createLaneMap(rows)
 	assert.Equal(t, `
@@ -121,21 +64,17 @@ func TestMultiBranchTraceMask(t *testing.T) {
 `, laneMap)
 }
 
-func createLaneMap(rows []*TestTraceableRow) string {
-	var traceableRows []Traceable
-	for _, row := range rows {
-		traceableRows = append(traceableRows, row)
-	}
-	_ = NewTracer(traceableRows)
+func createLaneMap(rows []Row) string {
+	_ = NewTracer(rows)
 	var sb strings.Builder
 	sb.WriteString("\n")
 	for _, row := range rows {
-		for _, laneLine := range row.lanes {
-			for _, lane := range laneLine {
-				if lane == 0 {
+		for _, laneLine := range row.Lines {
+			for _, lane := range laneLine.Gutter.Segments {
+				if lane.Lane == 0 {
 					sb.WriteString(" ")
 				} else {
-					sb.WriteString(strconv.Itoa(int(lane)))
+					sb.WriteString(strconv.Itoa(int(lane.Lane)))
 				}
 			}
 			sb.WriteString("\n")
@@ -144,14 +83,42 @@ func createLaneMap(rows []*TestTraceableRow) string {
 	return sb.String()
 }
 
-func createRows(g string) []*TestTraceableRow {
+func newTestTraceableRow(lines []string) Row {
+	row := Row{
+		Lines: make([]*GraphRowLine, 0),
+	}
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var segments []*screen.Segment
+		for _, r := range line {
+			segments = append(segments, &screen.Segment{
+				Text:  string(r),
+				Style: lipgloss.NewStyle(),
+			})
+		}
+		gutter := GraphGutter{
+			Segments: segments,
+		}
+		flags := RowLineFlags(0)
+		if i == 0 {
+			flags |= Revision
+		}
+		row.Lines = append(row.Lines, &GraphRowLine{Gutter: gutter, Flags: flags})
+	}
+	return row
+}
+
+func createRows(g string) []Row {
 	g = strings.TrimSpace(g)
 	scanner := bufio.NewScanner(strings.NewReader(g))
-	var ret []*TestTraceableRow
+	var ret []Row
 	var lines []string
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.Contains(line, "*") && len(lines) > 0 {
+		if strings.Contains(line, "○") && len(lines) > 0 {
 			row := newTestTraceableRow(lines)
 			lines = make([]string, 0)
 			ret = append(ret, row)
