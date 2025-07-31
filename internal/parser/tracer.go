@@ -5,24 +5,13 @@ type Tracer struct {
 	nextLaneId uint64
 }
 
-func NewTracer(rows []Row) *Tracer {
+func NewTracer(rows []Row, start int, end int) *Tracer {
 	t := &Tracer{
 		rows:       rows,
 		nextLaneId: 0,
 	}
-	t.TraceLanes()
+	t.traceLanes(start, end)
 	return t
-}
-
-func (t *Tracer) TraceLanes() {
-	for i := range t.rows {
-		row := t.rows[i]
-		index := row.GetNodeIndex()
-		lane := row.GetLane(0, index)
-		if lane == 0 {
-			t.traceLane(i)
-		}
-	}
 }
 
 func (t *Tracer) IsInSameLane(current int, cursor int) bool {
@@ -56,6 +45,25 @@ func (t *Tracer) UpdateGutterText(current int, cursor int, lineIndex int, i int,
 		}
 	}
 	return text
+}
+
+func (t *Tracer) traceLanes(start int, end int) {
+	for i := start; i < end; i++ {
+		row := t.rows[i]
+		for _, line := range row.Lines {
+			for _, segment := range line.Gutter.Segments {
+				segment.Lane = 0
+			}
+		}
+	}
+	for i := start; i < end; i++ {
+		row := t.rows[i]
+		index := row.GetNodeIndex()
+		lane := row.GetLane(0, index)
+		if lane == 0 {
+			t.traceLane(i)
+		}
+	}
 }
 
 func (t *Tracer) getLane(rowIndex int, line int, col int) uint64 {

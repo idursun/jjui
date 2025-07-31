@@ -65,7 +65,7 @@ func TestMultiBranchTraceMask(t *testing.T) {
 }
 
 func createLaneMap(rows []Row) string {
-	_ = NewTracer(rows)
+	_ = NewTracer(rows, 0, len(rows))
 	var sb strings.Builder
 	sb.WriteString("\n")
 	for _, row := range rows {

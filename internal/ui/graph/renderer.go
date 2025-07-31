@@ -2,6 +2,7 @@ package graph
 
 import (
 	"bytes"
+	"github.com/idursun/jjui/internal/parser"
 	"strings"
 )
 
@@ -155,4 +156,33 @@ func (r *Renderer) Render(iterator RowIterator) string {
 	}
 
 	return r.String(r.viewRange.start, r.viewRange.end)
+}
+
+func (r *Renderer) GetVisibleRowRange(rows []parser.Row, cursor int) (int, int) {
+	firstRenderedRowIndex := 0
+	lastRenderedRowIndex := 0
+	lineCount := 0
+	i := -1
+	for {
+		i++
+		lineCount += len(rows[i].Lines)
+		if i == cursor {
+			lastRenderedRowIndex = i
+			break
+		}
+	}
+
+	if lineCount < r.Height {
+		// there's more room to render
+		for lineCount < r.Height && lastRenderedRowIndex < len(rows)-1 {
+			lastRenderedRowIndex++
+			lineCount += len(rows[lastRenderedRowIndex].Lines)
+		}
+	} else if lineCount > r.Height {
+		for lineCount > r.Height && firstRenderedRowIndex < lastRenderedRowIndex {
+			lineCount -= len(rows[firstRenderedRowIndex].Lines)
+			firstRenderedRowIndex++
+		}
+	}
+	return firstRenderedRowIndex, lastRenderedRowIndex
 }
