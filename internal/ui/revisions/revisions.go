@@ -461,10 +461,11 @@ func (m *Model) View() string {
 	renderer.AceJumpPrefix = m.aceJump.Prefix()
 
 	m.w.SetSize(m.width, m.height)
-	start, end := m.w.GetVisibleRowRange(m.rows, m.cursor)
-	log.Println("Visible row range:", start, end, "Cursor:", m.cursor, "Total rows:", len(m.rows))
-
-	renderer.Tracer = parser.NewTracer(m.rows, start, end)
+	if config.Current.UI.Tracer.Enabled {
+		start, end := m.w.GetVisibleRowRange(m.rows, m.cursor)
+		log.Println("Visible row range:", start, end, "Cursor:", m.cursor, "Total rows:", len(m.rows))
+		renderer.Tracer = parser.NewTracer(m.rows, start, end)
+	}
 	output := m.w.Render(renderer)
 	output = m.textStyle.MaxWidth(m.width).Render(output)
 	return lipgloss.Place(m.width, m.height, 0, 0, output)

@@ -108,6 +108,9 @@ limit = 0
   theme = ""
   auto_refresh_interval = 0
 
+[ui.tracer]
+    enabled = false
+
 [ui.colors]
 
 [preview]

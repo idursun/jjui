@@ -29,7 +29,7 @@ type DefaultRowIterator struct {
 	checkStyle    lipgloss.Style
 	textStyle     lipgloss.Style
 	selectedStyle lipgloss.Style
-	Tracer        *parser.Tracer
+	Tracer        parser.LaneTracer
 }
 
 type Option func(*DefaultRowIterator)
@@ -39,6 +39,7 @@ func NewDefaultRowIterator(rows []parser.Row, options ...Option) *DefaultRowIter
 		Op:         &operations.Default{},
 		Rows:       rows,
 		Selections: make(map[string]bool),
+		Tracer:     parser.NewNoopTracer(),
 		current:    -1,
 	}
 

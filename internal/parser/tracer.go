@@ -1,5 +1,27 @@
 package parser
 
+type LaneTracer interface {
+	IsInSameLane(current int, cursor int) bool
+	IsGutterInLane(current int, cursor int, lineIndex int, segmentIndex int) bool
+	UpdateGutterText(current int, cursor int, lineIndex int, segmentIndex int, text string) string
+}
+
+type NoopTracer struct{}
+
+func NewNoopTracer() NoopTracer {
+	return NoopTracer{}
+}
+
+func (n NoopTracer) IsInSameLane(int, int) bool {
+	return true
+}
+func (n NoopTracer) IsGutterInLane(int, int, int, int) bool {
+	return true
+}
+func (n NoopTracer) UpdateGutterText(_ int, _ int, _ int, _ int, text string) string {
+	return text
+}
+
 type Tracer struct {
 	rows       []Row
 	nextLaneId uint64
