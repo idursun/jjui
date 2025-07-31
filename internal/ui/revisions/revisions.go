@@ -11,6 +11,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/ace_jump"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
+	"github.com/idursun/jjui/internal/ui/operations/revert"
 
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/operations/describe"
@@ -363,6 +364,8 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 					m.cursor++
 				}
 				m.op = squash.NewOperation(m.context, selectedRevisions)
+			case key.Matches(msg, m.keymap.Revert.Mode):
+				m.op = revert.NewOperation(m.context, m.SelectedRevisions(), revert.TargetDestination)
 			case key.Matches(msg, m.keymap.Rebase.Mode):
 				m.op = rebase.NewOperation(m.context, m.SelectedRevisions(), rebase.SourceRevision, rebase.TargetDestination)
 			case key.Matches(msg, m.keymap.Duplicate.Mode):

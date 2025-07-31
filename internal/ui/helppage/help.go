@@ -141,6 +141,8 @@ func (h *Model) View() string {
 		h.printKeyBinding(h.keyMap.Squash.KeepEmptied),
 		h.printKeyBinding(h.keyMap.Squash.Interactive),
 		"",
+		h.printMode(h.keyMap.Revert.Mode, "Revert"),
+		"",
 		h.printMode(h.keyMap.Rebase.Mode, "Rebase"),
 		h.printKeyBinding(h.keyMap.Rebase.Revision),
 		h.printKeyBinding(h.keyMap.Rebase.Source),

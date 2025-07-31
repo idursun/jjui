@@ -43,6 +43,13 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Suspend:          key.NewBinding(key.WithKeys(m.Suspend...), key.WithHelp(JoinKeys(m.Suspend), "suspend")),
 		ExecJJ:           key.NewBinding(key.WithKeys(m.ExecJJ...), key.WithHelp(JoinKeys(m.ExecJJ), "interactive jj")),
 		ExecShell:        key.NewBinding(key.WithKeys(m.ExecShell...), key.WithHelp(JoinKeys(m.ExecShell), "interactive shell command")),
+		Revert: revertModeKeys[key.Binding]{
+			Mode:   key.NewBinding(key.WithKeys(m.Revert.Mode...), key.WithHelp(JoinKeys(m.Revert.Mode), "rebase")),
+			After:  key.NewBinding(key.WithKeys(m.Revert.After...), key.WithHelp(JoinKeys(m.Revert.After), "insert after")),
+			Before: key.NewBinding(key.WithKeys(m.Revert.Before...), key.WithHelp(JoinKeys(m.Revert.Before), "insert before")),
+			Onto:   key.NewBinding(key.WithKeys(m.Revert.Onto...), key.WithHelp(JoinKeys(m.Revert.Onto), "onto")),
+			Insert: key.NewBinding(key.WithKeys(m.Revert.Insert...), key.WithHelp(JoinKeys(m.Revert.Insert), "insert between")),
+		},
 		Rebase: rebaseModeKeys[key.Binding]{
 			Mode:     key.NewBinding(key.WithKeys(m.Rebase.Mode...), key.WithHelp(JoinKeys(m.Rebase.Mode), "rebase")),
 			Revision: key.NewBinding(key.WithKeys(m.Rebase.Revision...), key.WithHelp(JoinKeys(m.Rebase.Revision), "revision")),
@@ -170,6 +177,7 @@ type KeyMappings[T any] struct {
 	CustomCommands    T                         `toml:"custom_commands"`
 	Leader            T                         `toml:"leader"`
 	Suspend           T                         `toml:"suspend"`
+	Revert            revertModeKeys[T]         `toml:"revert"`
 	Rebase            rebaseModeKeys[T]         `toml:"rebase"`
 	Duplicate         duplicateModeKeys[T]      `toml:"duplicate"`
 	Squash            squashModeKeys[T]         `toml:"squash"`
@@ -197,6 +205,14 @@ type squashModeKeys[T any] struct {
 	Mode        T `toml:"mode"`
 	KeepEmptied T `toml:"keep_emptied"`
 	Interactive T `toml:"interactive"`
+}
+
+type revertModeKeys[T any] struct {
+	Mode   T `toml:"mode"`
+	After  T `toml:"after"`
+	Before T `toml:"before"`
+	Onto   T `toml:"onto"`
+	Insert T `toml:"insert"`
 }
 
 type rebaseModeKeys[T any] struct {

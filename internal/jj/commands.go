@@ -224,6 +224,21 @@ func RebaseInsert(from SelectedRevisions, insertAfter string, insertBefore strin
 	return args
 }
 
+func Revert(from SelectedRevisions, to string, source string, target string) CommandArgs {
+	args := []string{"revert"}
+	args = append(args, from.AsPrefixedArgs(source)...)
+	args = append(args, target, to)
+	return args
+}
+
+func RevertInsert(from SelectedRevisions, insertAfter string, insertBefore string) CommandArgs {
+	args := []string{"revert"}
+	args = append(args, from.AsArgs()...)
+	args = append(args, "--insert-before", insertBefore)
+	args = append(args, "--insert-after", insertAfter)
+	return args
+}
+
 func Duplicate(from SelectedRevisions, to string, target string) CommandArgs {
 	args := []string{"duplicate"}
 	args = append(args, from.AsPrefixedArgs("-r")...)
