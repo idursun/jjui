@@ -129,11 +129,10 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			}
 		}
 
-		style := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
-
 		for i, segment := range segmentedLine.Gutter.Segments {
 			gutterInLane := s.Tracer.IsGutterInLane(s.current, s.Cursor, lineIndex, i)
 			text := s.Tracer.UpdateGutterText(s.current, s.Cursor, lineIndex, i, segment.Text)
+			style := segment.Style
 			if gutterInLane {
 				fmt.Fprint(&lw, style.Render(text))
 			} else {
@@ -160,7 +159,6 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			} else if inLane {
 				style = style.Inherit(s.textStyle)
 			} else {
-				//style = style.Inherit(s.dimmedStyle).Faint(true).Foreground(s.dimmedStyle.GetForeground())
 				style = style.Inherit(s.dimmedStyle).Faint(true)
 			}
 
@@ -201,13 +199,13 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 	}
 
 	lineIndex = 0
-	style := lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Faint(true)
 	for segmentedLine := range row.RowLinesIter(parser.Excluding(parser.Highlightable)) {
 		lineIndex++
 		var lw strings.Builder
 		for i, segment := range segmentedLine.Gutter.Segments {
 			gutterInLane := s.Tracer.IsGutterInLane(s.current, s.Cursor, lineIndex, i)
 			text := segment.Text
+			style := segment.Style
 			if gutterInLane {
 				fmt.Fprint(&lw, style.Render(text))
 			} else {
