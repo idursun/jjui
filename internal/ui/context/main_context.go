@@ -1,10 +1,15 @@
 package context
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
+	"reflect"
+	"slices"
+	"strings"
+
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type SelectedItem interface {
@@ -49,7 +54,8 @@ func (s SelectedOperation) Equal(other SelectedItem) bool {
 
 type MainContext struct {
 	CommandRunner
-	SelectedItem   SelectedItem
+	SelectedItem   SelectedItem   // Single item where cursor is hover.
+	CheckedItems   []SelectedItem // Items checked ✓ by the user.
 	Location       string
 	CustomCommands map[string]CustomCommand
 	Leader         LeaderMap
@@ -73,6 +79,27 @@ func NewAppContext(location string) *MainContext {
 		m.JJConfig, _ = config.DefaultConfig(output)
 	}
 	return m
+}
+
+func (ctx *MainContext) ClearCheckedItems(ofType reflect.Type) {
+	ctx.CheckedItems = slices.DeleteFunc(ctx.CheckedItems, func(i SelectedItem) bool {
+		return ofType == nil || ofType == reflect.TypeOf(i)
+	})
+}
+
+func (ctx *MainContext) AddCheckedItem(item SelectedItem) {
+	exists := slices.ContainsFunc(ctx.CheckedItems, func(i SelectedItem) bool {
+		return i.Equal(item)
+	})
+	if !exists {
+		ctx.CheckedItems = append(ctx.CheckedItems, item)
+	}
+}
+
+func (ctx *MainContext) RemoveCheckedItem(item SelectedItem) {
+	ctx.CheckedItems = slices.DeleteFunc(ctx.CheckedItems, func(i SelectedItem) bool {
+		return i.Equal(item)
+	})
 }
 
 func (ctx *MainContext) SetSelectedItem(item SelectedItem) tea.Cmd {
@@ -102,6 +129,25 @@ func (ctx *MainContext) CreateReplacements() map[string]string {
 		replacements[jj.FilePlaceholder] = selectedItem.File
 	case SelectedOperation:
 		replacements[jj.OperationIdPlaceholder] = selectedItem.OperationId
+	}
+
+	checkedFiles := []string{}
+	checkedRevisions := []string{}
+	for _, checked := range ctx.CheckedItems {
+		switch c := checked.(type) {
+		case SelectedRevision:
+			checkedRevisions = append(checkedRevisions, c.CommitId)
+		case SelectedFile:
+			checkedFiles = append(checkedFiles, c.File)
+		}
+	}
+
+	if len(checkedFiles) > 0 {
+		replacements[jj.CheckedFilesPlaceholder] = strings.Join(checkedFiles, "\t")
+	}
+
+	if len(checkedRevisions) > 0 {
+		replacements[jj.CheckedCommitIdsPlaceholder] = strings.Join(checkedRevisions, "|")
 	}
 
 	return replacements

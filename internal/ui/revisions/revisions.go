@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"reflect"
 	"slices"
 	"strings"
 
 	"github.com/idursun/jjui/internal/ui/ace_jump"
+	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
 
 	"github.com/idursun/jjui/internal/parser"
@@ -183,6 +185,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case common.RefreshMsg:
 		if !msg.KeepSelections {
 			m.selectedRevisions = make(map[string]bool)
+			m.context.ClearCheckedItems(reflect.TypeFor[context.SelectedRevision]())
 		}
 		m.isLoading = true
 		cmd, _ := m.updateOperation(msg)
@@ -293,7 +296,14 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.ToggleSelect):
 				commit := m.rows[m.cursor].Commit
 				changeId := commit.GetChangeId()
-				m.selectedRevisions[changeId] = !m.selectedRevisions[changeId]
+				isChecked := !m.selectedRevisions[changeId]
+				m.selectedRevisions[changeId] = isChecked
+				item := context.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
+				if isChecked {
+					m.context.AddCheckedItem(item)
+				} else {
+					m.context.RemoveCheckedItem(item)
+				}
 				immediate, _ := m.context.RunCommandImmediate(jj.GetParent(jj.NewSelectedRevisions(commit)))
 				parentIndex := m.selectRevision(string(immediate))
 				if parentIndex != -1 {

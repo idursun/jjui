@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -249,7 +250,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.confirmation.Init()
 		case key.Matches(msg, m.keyMap.Details.ToggleSelect):
 			if oldItem, ok := m.files.SelectedItem().(item); ok {
-				oldItem.selected = !oldItem.selected
+				isChecked := !oldItem.selected
+				oldItem.selected = isChecked
+
+				checkedFile := context.SelectedFile{
+					ChangeId: m.revision.GetChangeId(),
+					CommitId: m.revision.CommitId,
+					File:     oldItem.fileName,
+				}
+				if isChecked {
+					m.context.AddCheckedItem(checkedFile)
+				} else {
+					m.context.RemoveCheckedItem(checkedFile)
+				}
+
 				oldIndex := m.files.Index()
 				m.files.CursorDown()
 
@@ -286,12 +300,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case updateCommitStatusMsg:
 		items := m.createListItems(msg.summary, msg.selectedFiles)
 		var selectionChangedCmd tea.Cmd
+		m.context.ClearCheckedItems(reflect.TypeFor[context.SelectedFile]())
 		if len(items) > 0 {
-			selectionChangedCmd = m.context.SetSelectedItem(context.SelectedFile{
-				ChangeId: m.revision.GetChangeId(),
-				CommitId: m.revision.CommitId,
-				File:     items[0].(item).fileName,
-			})
+			var first context.SelectedItem
+			for _, it := range items {
+				it := it.(item)
+				sel := context.SelectedFile{
+					ChangeId: m.revision.GetChangeId(),
+					CommitId: m.revision.CommitId,
+					File:     it.fileName,
+				}
+				if first == nil {
+					first = sel
+				}
+				if it.selected {
+					m.context.AddCheckedItem(sel)
+				}
+			}
+			selectionChangedCmd = m.context.SetSelectedItem(first)
 		}
 		return m, tea.Batch(selectionChangedCmd, m.files.SetItems(items))
 	case tea.WindowSizeMsg:
