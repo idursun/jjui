@@ -212,3 +212,36 @@ func (t *Tracer) lookAhead(rowIndex int, r int, c int, diff int, expected int32)
 		}
 	}
 }
+
+func (t *Tracer) IsInLane(current int, cursor int) bool {
+	currentRowLane := t.GetRowLane(current)
+	highlightedRowLane := t.GetRowLane(cursor)
+	lowestBit := highlightedRowLane & -highlightedRowLane
+	inLane := currentRowLane&lowestBit > 0
+	return inLane
+}
+
+func (t *Tracer) IsGutterInLane(current int, cursor int, lineIndex int, segmentIndex int) bool {
+	gutterLane := t.GetLane(current, lineIndex, segmentIndex)
+	highlightedRowLane := t.GetRowLane(cursor)
+	lowestBit := highlightedRowLane & -highlightedRowLane
+	gutterInLane := gutterLane&lowestBit > 0
+	return gutterInLane
+}
+
+func (t *Tracer) UpdateGutterText(current int, cursor int, lineIndex int, i int, text string) string {
+	gutterInLane := t.IsGutterInLane(current, cursor, lineIndex, i)
+	highlightedRowLane := t.GetRowLane(cursor)
+	lowestBit := highlightedRowLane & -highlightedRowLane
+	if gutterInLane && text == "├" {
+		rightLane := t.GetLane(current, lineIndex, i+1)&lowestBit > 0
+		upperLane := t.GetLane(current, lineIndex-1, i)&lowestBit > 0
+
+		if rightLane && !upperLane {
+			text = "╭"
+		} else if !rightLane && upperLane {
+			text = "│"
+		}
+	}
+	return text
+}

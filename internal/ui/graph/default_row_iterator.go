@@ -108,10 +108,7 @@ func (s *DefaultRowIterator) aceJumpIndex(segment *screen.Segment, row parser.Ro
 
 func (s *DefaultRowIterator) Render(r io.Writer) {
 	row := s.Rows[s.current]
-	highlightedRowLane := s.Tracer.GetRowLane(s.Cursor)
-	currentRowLane := s.Tracer.GetRowLane(s.current)
-	lowestBit := highlightedRowLane & -highlightedRowLane
-	inLane := currentRowLane&lowestBit > 0
+	inLane := s.Tracer.IsInLane(s.current, s.Cursor)
 
 	// will render by extending the previous connections
 	if before := s.RenderBefore(row.Commit); before != "" {
@@ -132,21 +129,11 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			}
 		}
 
-		for i, segment := range segmentedLine.Gutter.Segments {
-			gutterLane := s.Tracer.GetLane(s.current, lineIndex, i)
-			style := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
-			gutterInLane := gutterLane&lowestBit > 0
-			text := segment.Text
-			if gutterInLane && text == "├" {
-				rightLane := s.Tracer.GetLane(s.current, lineIndex, i+1)&lowestBit > 0
-				upperLane := s.Tracer.GetLane(s.current, lineIndex-1, i)&lowestBit > 0
+		style := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 
-				if rightLane && !upperLane {
-					text = "╭"
-				} else if !rightLane && upperLane {
-					text = "│"
-				}
-			}
+		for i, segment := range segmentedLine.Gutter.Segments {
+			gutterInLane := s.Tracer.IsGutterInLane(s.current, s.Cursor, lineIndex, i)
+			text := s.Tracer.UpdateGutterText(s.current, s.Cursor, lineIndex, i, segment.Text)
 			if gutterInLane {
 				fmt.Fprint(&lw, style.Render(text))
 			} else {
@@ -214,13 +201,12 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 	}
 
 	lineIndex = 0
+	style := lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Faint(true)
 	for segmentedLine := range row.RowLinesIter(parser.Excluding(parser.Highlightable)) {
 		lineIndex++
 		var lw strings.Builder
 		for i, segment := range segmentedLine.Gutter.Segments {
-			gutterLane := s.Tracer.GetLane(s.current, lineIndex, i)
-			style := lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Faint(true)
-			gutterInLane := gutterLane&lowestBit > 0
+			gutterInLane := s.Tracer.IsGutterInLane(s.current, s.Cursor, lineIndex, i)
 			text := segment.Text
 			if gutterInLane {
 				fmt.Fprint(&lw, style.Render(text))
