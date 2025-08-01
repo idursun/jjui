@@ -2,9 +2,11 @@ package fuzzy_input
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -14,6 +16,16 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
+type suggestMode int
+
+const (
+	suggestOff suggestMode = iota
+	suggestFuzzy
+	suggestRegex
+)
+
+const ctrl_r = "ctrl+r"
+
 type model struct {
 	suggestions []string
 	input       *textinput.Model
@@ -21,6 +33,7 @@ type model struct {
 	max         int
 	matches     fuzzy.Matches
 	styles      fuzzy_search.Styles
+	suggestMode suggestMode
 }
 
 type initMsg struct{}
@@ -55,15 +68,29 @@ func (fzf *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	km := config.Current.GetKeyMap()
 	skipSearch := func() tea.Msg { return nil }
 	switch {
-	case key.Matches(msg, fzf.input.KeyMap.AcceptSuggestion) && len(fzf.matches) > 0:
+	case ctrl_r == msg.String():
+		switch fzf.suggestMode {
+		case suggestOff:
+			fzf.suggestMode = suggestFuzzy
+			return nil
+		case suggestFuzzy:
+			fzf.suggestMode = suggestRegex
+			return nil
+		case suggestRegex:
+			fzf.suggestMode = suggestOff
+			fzf.cursor = 0
+			fzf.matches = nil
+			return skipSearch
+		}
+	case key.Matches(msg, fzf.input.KeyMap.AcceptSuggestion) && fzf.hasSuggestions():
 		suggestion := fuzzy_search.SelectedMatch(fzf)
 		fzf.input.SetValue(suggestion)
 		fzf.input.CursorEnd()
 		return skipSearch
-	case key.Matches(msg, km.Up, km.Preview.ScrollUp, fzf.input.KeyMap.PrevSuggestion):
+	case key.Matches(msg, km.Preview.ScrollUp, fzf.input.KeyMap.PrevSuggestion):
 		fzf.moveCursor(1)
 		return skipSearch
-	case key.Matches(msg, km.Down, km.Preview.ScrollDown, fzf.input.KeyMap.NextSuggestion):
+	case key.Matches(msg, km.Preview.ScrollDown, fzf.input.KeyMap.NextSuggestion):
 		fzf.moveCursor(-1)
 		return skipSearch
 	case key.Matches(msg,
@@ -76,12 +103,26 @@ func (fzf *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		fzf.input.KeyMap.LineEnd,
 	):
 		return skipSearch
+	case !fzf.suggestEnabled():
+		return skipSearch
 	}
 	return nil
 }
 
+func (fzf *model) suggestEnabled() bool {
+	return fzf.suggestMode != suggestOff
+}
+
+func (fzf *model) hasSuggestions() bool {
+	return fzf.suggestEnabled() && len(fzf.matches) > 0
+}
+
 func (fzf *model) moveCursor(inc int) {
-	l := len(fzf.matches)
+	l := min(len(fzf.matches), fzf.max)
+	if !fzf.suggestEnabled() {
+		// move on complete history
+		l = min(fzf.Len(), fzf.max)
+	}
 	n := fzf.cursor + inc
 	if n < 0 {
 		n = l - 1
@@ -90,6 +131,11 @@ func (fzf *model) moveCursor(inc int) {
 		n = 0
 	}
 	fzf.cursor = n
+	if !fzf.suggestEnabled() {
+		// update input.
+		fzf.input.SetValue(fzf.String(n))
+		fzf.input.CursorEnd()
+	}
 }
 
 func (fzf *model) Styles() fuzzy_search.Styles {
@@ -122,11 +168,40 @@ func (fzf *model) String(i int) string {
 func (fzf *model) search(input string) {
 	input = strings.TrimSpace(input)
 	fzf.cursor = 0
+	fzf.matches = fuzzy.Matches{}
 	if len(input) == 0 {
-		fzf.matches = fuzzy.Matches{}
 		return
 	}
-	fzf.matches = fuzzy.FindFrom(input, fzf)
+	if fzf.suggestMode == suggestFuzzy {
+		fzf.matches = fuzzy.FindFrom(input, fzf)
+	} else if fzf.suggestMode == suggestRegex {
+		fzf.matches = fzf.searchRegex(input)
+	}
+}
+
+func (fzf *model) searchRegex(input string) fuzzy.Matches {
+	matches := fuzzy.Matches{}
+	re, err := regexp.CompilePOSIX(input)
+	if err != nil {
+		return matches
+	}
+	for i := range fzf.Len() {
+		str := fzf.String(i)
+		loc := re.FindStringIndex(str)
+		if loc == nil {
+			continue
+		}
+		indexes := []int{}
+		for i := range loc[1] - loc[0] {
+			indexes = append(indexes, i+loc[0])
+		}
+		matches = append(matches, fuzzy.Match{
+			Index:          i,
+			Str:            str,
+			MatchedIndexes: indexes,
+		})
+	}
+	return matches
 }
 
 func (fzf *model) View() string {
@@ -144,13 +219,46 @@ func (fzf *model) View() string {
 	return lipgloss.JoinVertical(0, title, view)
 }
 
-func NewModel(input *textinput.Model, suggestions []string) fuzzy_search.Model {
+func (fzf *model) ShortHelp() []key.Binding {
+	shortHelp := []key.Binding{}
+	bind := func(keys string, help string) key.Binding {
+		return key.NewBinding(key.WithKeys(keys), key.WithHelp(keys, help))
+	}
+
+	upDown := "ctrl+p/ctrl+n"
+
+	moveOnHistory := bind(upDown, "move on history")
+	moveOnSuggestions := bind(upDown, "move on suggest")
+
+	switch fzf.suggestMode {
+	case suggestOff:
+		shortHelp = append(shortHelp, bind(ctrl_r, "suggest: off"), moveOnHistory)
+	case suggestFuzzy:
+		shortHelp = append(shortHelp, bind(ctrl_r, "suggest: fuzzy"), moveOnSuggestions)
+	case suggestRegex:
+		shortHelp = append(shortHelp, bind(ctrl_r, "suggest: regex"), moveOnSuggestions)
+	}
+	return shortHelp
+}
+
+func (fzf *model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{fzf.ShortHelp()}
+}
+
+type editStatus func() (help.KeyMap, string)
+
+func (fzf *model) editStatus() (help.KeyMap, string) {
+	return fzf, ""
+}
+
+func NewModel(input *textinput.Model, suggestions []string) (fuzzy_search.Model, editStatus) {
 	input.ShowSuggestions = false
 	input.SetSuggestions([]string{})
-	return &model{
+	fzf := &model{
 		input:       input,
 		suggestions: suggestions,
 		max:         30,
 		styles:      fuzzy_search.NewStyles(),
 	}
+	return fzf, fzf.editStatus
 }

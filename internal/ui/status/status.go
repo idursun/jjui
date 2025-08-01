@@ -163,12 +163,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if key.Matches(msg, km.ExecShell) {
 				mode = common.ExecShell
 			}
-			m.editStatus = emptyEditStatus
 			m.mode = "exec " + mode.Mode
 			m.input.Prompt = mode.Prompt
 			m.loadEditingSuggestions()
 
-			m.fuzzy = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
+			m.fuzzy, m.editStatus = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
 			return m, tea.Batch(m.fuzzy.Init(), m.input.Focus())
 		case key.Matches(msg, km.QuickSearch) && !m.IsFocused():
 			m.editStatus = emptyEditStatus
