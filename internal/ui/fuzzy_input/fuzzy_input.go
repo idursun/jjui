@@ -2,9 +2,11 @@ package fuzzy_input
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -14,6 +16,16 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
+type historyMode int
+
+const (
+	historyOff historyMode = iota
+	historyFuzzy
+	historyExact
+)
+
+const ctrl_r = "ctrl+r"
+
 type model struct {
 	suggestions []string
 	input       *textinput.Model
@@ -21,6 +33,7 @@ type model struct {
 	max         int
 	matches     fuzzy.Matches
 	styles      fuzzy_search.Styles
+	historyMode historyMode
 }
 
 type initMsg struct{}
@@ -55,7 +68,19 @@ func (fzf *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	km := config.Current.GetKeyMap()
 	skipSearch := func() tea.Msg { return nil }
 	switch {
-	case key.Matches(msg, fzf.input.KeyMap.AcceptSuggestion) && len(fzf.matches) > 0:
+	case ctrl_r == msg.String():
+		switch fzf.historyMode {
+		case historyOff:
+			fzf.historyMode = historyFuzzy
+			return nil
+		case historyFuzzy:
+			fzf.historyMode = historyExact
+			return nil
+		case historyExact:
+			fzf.historyMode = historyOff
+			return nil
+		}
+	case key.Matches(msg, fzf.input.KeyMap.AcceptSuggestion) && fzf.historyMode != historyOff && len(fzf.matches) > 0:
 		suggestion := fuzzy_search.SelectedMatch(fzf)
 		fzf.input.SetValue(suggestion)
 		fzf.input.CursorEnd()
@@ -122,11 +147,34 @@ func (fzf *model) String(i int) string {
 func (fzf *model) search(input string) {
 	input = strings.TrimSpace(input)
 	fzf.cursor = 0
+	fzf.matches = fuzzy.Matches{}
 	if len(input) == 0 {
-		fzf.matches = fuzzy.Matches{}
 		return
 	}
-	fzf.matches = fuzzy.FindFrom(input, fzf)
+	if fzf.historyMode == historyFuzzy {
+		fzf.matches = fuzzy.FindFrom(input, fzf)
+	} else if fzf.historyMode == historyExact {
+		fzf.matches = fzf.searchSubstr(input)
+	}
+}
+
+func (fzf *model) searchSubstr(input string) fuzzy.Matches {
+	parts := strings.Fields(input)
+	matches := fuzzy.Matches{}
+	for i := range fzf.Len() {
+		item := strings.Fields(fzf.String(i))
+		deleted := slices.DeleteFunc(parts, func(p string) bool {
+			return slices.ContainsFunc(item, func(s string) bool {
+				return strings.Contains(s, p)
+			})
+		})
+		if len(deleted) == 0 {
+			matches = append(matches, fuzzy.Match{
+				Index: i,
+			})
+		}
+	}
+	return matches
 }
 
 func (fzf *model) View() string {
@@ -144,13 +192,42 @@ func (fzf *model) View() string {
 	return lipgloss.JoinVertical(0, title, view)
 }
 
-func NewModel(input *textinput.Model, suggestions []string) fuzzy_search.Model {
+func (fzf *model) ShortHelp() []key.Binding {
+	short_help := []key.Binding{}
+	bind := func(keys string, help string) key.Binding {
+		return key.NewBinding(key.WithKeys(keys), key.WithHelp(keys, help))
+	}
+
+	switch fzf.historyMode {
+	case historyOff:
+		short_help = append(short_help, bind("ctrl+r", "history off"))
+	case historyFuzzy:
+		short_help = append(short_help, bind("ctrl+r", "fuzzy history"))
+	case historyExact:
+		short_help = append(short_help, bind("ctrl+r", "exact history"))
+	}
+	return short_help
+}
+
+func (fzf *model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{fzf.ShortHelp()}
+}
+
+type editStatus func() (help.KeyMap, string)
+
+func (fzf *model) editStatus() (help.KeyMap, string) {
+	return fzf, ""
+}
+
+func NewModel(input *textinput.Model, suggestions []string) (fuzzy_search.Model, editStatus) {
 	input.ShowSuggestions = false
 	input.SetSuggestions([]string{})
-	return &model{
+	fzf := &model{
 		input:       input,
 		suggestions: suggestions,
 		max:         30,
 		styles:      fuzzy_search.NewStyles(),
+		historyMode: historyFuzzy,
 	}
+	return fzf, fzf.editStatus
 }
