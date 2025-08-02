@@ -17,7 +17,7 @@ func TestTraceStraightLine(t *testing.T) {
 ○
 │
 `)
-	laneMap := createLaneMap(rows, 0)
+	laneMap := createLaneMap(rows, 0, 0)
 	assert.Equal(t, `
 1
 1
@@ -33,7 +33,7 @@ func TestTraceCurvedPathConnection(t *testing.T) {
 ○
 │
 `)
-	laneMap := createLaneMap(rows, 0)
+	laneMap := createLaneMap(rows, 0, 0)
 	assert.Equal(t, `
 1 2
 322
@@ -51,8 +51,8 @@ func TestTraceCurvedPathConnectionScrolled(t *testing.T) {
 ○
 │
 `)
-	_ = createLaneMap(rows, 0)
-	laneMap := createLaneMap(rows, 1)
+	_ = createLaneMap(rows, 0, 0)
+	laneMap := createLaneMap(rows, 1, 0)
 	assert.Equal(t, `
 1
 1
@@ -73,7 +73,7 @@ func TestMultiBranchTraceMask(t *testing.T) {
 │ ├───╮
 ○ │ │ │
 `)
-	laneMap := createLaneMap(rows, 0)
+	laneMap := createLaneMap(rows, 0, 0)
 	assert.Equal(t, `
 1
 11111
@@ -85,8 +85,8 @@ func TestMultiBranchTraceMask(t *testing.T) {
 `, laneMap)
 }
 
-func createLaneMap(rows []Row, start int) string {
-	_ = NewTracer(rows, start, len(rows))
+func createLaneMap(rows []Row, cursor, start int) string {
+	_ = NewTracer(rows, cursor, start, len(rows))
 	var sb strings.Builder
 	sb.WriteString("\n")
 	for _, row := range rows {

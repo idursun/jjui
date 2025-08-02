@@ -109,7 +109,7 @@ func (s *DefaultRowIterator) aceJumpIndex(segment *screen.Segment, row parser.Ro
 
 func (s *DefaultRowIterator) Render(r io.Writer) {
 	row := s.Rows[s.current]
-	inLane := s.Tracer.IsInSameLane(s.current, s.Cursor)
+	inLane := s.Tracer.IsInSameLane(s.current)
 
 	// will render by extending the previous connections
 	if before := s.RenderBefore(row.Commit); before != "" {
@@ -131,8 +131,8 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 		}
 
 		for i, segment := range segmentedLine.Gutter.Segments {
-			gutterInLane := s.Tracer.IsGutterInLane(s.current, s.Cursor, lineIndex, i)
-			text := s.Tracer.UpdateGutterText(s.current, s.Cursor, lineIndex, i, segment.Text)
+			gutterInLane := s.Tracer.IsGutterInLane(s.current, lineIndex, i)
+			text := s.Tracer.UpdateGutterText(s.current, lineIndex, i, segment.Text)
 			style := segment.Style
 			if gutterInLane {
 				fmt.Fprint(&lw, style.Render(text))
@@ -204,8 +204,8 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 		lineIndex++
 		var lw strings.Builder
 		for i, segment := range segmentedLine.Gutter.Segments {
-			gutterInLane := s.Tracer.IsGutterInLane(s.current, s.Cursor, lineIndex, i)
-			text := s.Tracer.UpdateGutterText(s.current, s.Cursor, lineIndex, i, segment.Text)
+			gutterInLane := s.Tracer.IsGutterInLane(s.current, lineIndex, i)
+			text := s.Tracer.UpdateGutterText(s.current, lineIndex, i, segment.Text)
 			style := segment.Style
 			if gutterInLane {
 				fmt.Fprint(&lw, style.Render(text))

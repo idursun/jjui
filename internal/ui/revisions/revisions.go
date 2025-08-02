@@ -464,7 +464,7 @@ func (m *Model) View() string {
 	if config.Current.UI.Tracer.Enabled {
 		start, end := m.w.FirstRowIndex(), m.w.LastRowIndex()+1 // +1 because the last row is inclusive in the view range
 		log.Println("Visible row range:", start, end, "Cursor:", m.cursor, "Total rows:", len(m.rows))
-		renderer.Tracer = parser.NewTracer(m.rows, start, end)
+		renderer.Tracer = parser.NewTracer(m.rows, m.cursor, start, end)
 	}
 	output := m.w.Render(renderer)
 	output = m.textStyle.MaxWidth(m.width).Render(output)

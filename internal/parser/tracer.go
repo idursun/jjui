@@ -5,9 +5,9 @@ import (
 )
 
 type LaneTracer interface {
-	IsInSameLane(current int, cursor int) bool
-	IsGutterInLane(current int, cursor int, lineIndex int, segmentIndex int) bool
-	UpdateGutterText(current int, cursor int, lineIndex int, segmentIndex int, text string) string
+	IsInSameLane(current int) bool
+	IsGutterInLane(current int, lineIndex int, segmentIndex int) bool
+	UpdateGutterText(current int, lineIndex int, segmentIndex int, text string) string
 }
 
 type NoopTracer struct{}
@@ -16,54 +16,54 @@ func NewNoopTracer() NoopTracer {
 	return NoopTracer{}
 }
 
-func (n NoopTracer) IsInSameLane(int, int) bool {
+func (n NoopTracer) IsInSameLane(int) bool {
 	return true
 }
-func (n NoopTracer) IsGutterInLane(int, int, int, int) bool {
+func (n NoopTracer) IsGutterInLane(int, int, int) bool {
 	return true
 }
-func (n NoopTracer) UpdateGutterText(_ int, _ int, _ int, _ int, text string) string {
+func (n NoopTracer) UpdateGutterText(_ int, _ int, _ int, text string) string {
 	return text
 }
 
 type Tracer struct {
-	rows       []Row
-	nextLaneId uint64
+	rows                 []Row
+	nextLaneId           uint64
+	highlightedRowLane   uint64
+	highlightedLowestBit uint64
 }
 
-func NewTracer(rows []Row, start int, end int) *Tracer {
+func NewTracer(rows []Row, cursor int, start int, end int) *Tracer {
 	t := &Tracer{
 		rows:       rows,
 		nextLaneId: 0,
 	}
 	log.Println("Tracing lanes from", start, "to", end)
 	t.traceLanes(start, end)
+
+	if cursor >= 0 && cursor < len(t.rows) {
+		t.highlightedRowLane = t.getRowLane(cursor)
+		t.highlightedLowestBit = t.highlightedRowLane & -t.highlightedRowLane
+	}
+
 	return t
 }
 
-func (t *Tracer) IsInSameLane(current int, cursor int) bool {
+func (t *Tracer) IsInSameLane(current int) bool {
 	currentRowLane := t.getRowLane(current)
-	highlightedRowLane := t.getRowLane(cursor)
-	lowestBit := highlightedRowLane & -highlightedRowLane
-	inLane := currentRowLane&lowestBit > 0
-	return inLane
+	return currentRowLane&t.highlightedLowestBit > 0
 }
 
-func (t *Tracer) IsGutterInLane(current int, cursor int, lineIndex int, segmentIndex int) bool {
+func (t *Tracer) IsGutterInLane(current int, lineIndex int, segmentIndex int) bool {
 	gutterLane := t.getLane(current, lineIndex, segmentIndex)
-	highlightedRowLane := t.getRowLane(cursor)
-	lowestBit := highlightedRowLane & -highlightedRowLane
-	gutterInLane := gutterLane&lowestBit > 0
-	return gutterInLane
+	return gutterLane&t.highlightedLowestBit > 0
 }
 
-func (t *Tracer) UpdateGutterText(current int, cursor int, lineIndex int, i int, text string) string {
-	gutterInLane := t.IsGutterInLane(current, cursor, lineIndex, i)
-	highlightedRowLane := t.getRowLane(cursor)
-	lowestBit := highlightedRowLane & -highlightedRowLane
+func (t *Tracer) UpdateGutterText(current int, lineIndex int, i int, text string) string {
+	gutterInLane := t.IsGutterInLane(current, lineIndex, i)
 	if gutterInLane && text == "├" {
-		rightLane := t.getLane(current, lineIndex, i+1)&lowestBit > 0
-		upperLane := t.getLane(current, lineIndex-1, i)&lowestBit > 0
+		rightLane := t.getLane(current, lineIndex, i+1)&t.highlightedLowestBit > 0
+		upperLane := t.getLane(current, lineIndex-1, i)&t.highlightedLowestBit > 0
 
 		if rightLane && !upperLane {
 			text = "╭"
