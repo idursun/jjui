@@ -13,6 +13,7 @@ border = "bright white"
 "confirmation dimmed" = "white"
 "help title" = { fg = "green", bold = true }
 "revisions details selected" = { bg = "bright black" }
+"revisions matched" = { underline = false }
 "revset title" = "magenta"
 "revset text" = { fg = "green", bold = true }
 "revset completion text" = "white"
@@ -21,4 +22,4 @@ border = "bright white"
 "status title" = { fg = "black", bg = "magenta", bold = true }
 "menu title" = { fg = "230", bg = "62", bold = true }
 "menu matched" = { fg = "magenta", bold = true }
-"menu selected" = { fg = "cyan", bold = true }
+"menu selected" = { fg = "cyan", bold = true, underline = false }

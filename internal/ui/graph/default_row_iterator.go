@@ -29,6 +29,7 @@ type DefaultRowIterator struct {
 	checkStyle    lipgloss.Style
 	textStyle     lipgloss.Style
 	selectedStyle lipgloss.Style
+	Tracer        parser.LaneTracer
 }
 
 type Option func(*DefaultRowIterator)
@@ -38,6 +39,7 @@ func NewDefaultRowIterator(rows []parser.Row, options ...Option) *DefaultRowIter
 		Op:         &operations.Default{},
 		Rows:       rows,
 		Selections: make(map[string]bool),
+		Tracer:     parser.NewNoopTracer(),
 		current:    -1,
 	}
 
@@ -107,6 +109,8 @@ func (s *DefaultRowIterator) aceJumpIndex(segment *screen.Segment, row parser.Ro
 
 func (s *DefaultRowIterator) Render(r io.Writer) {
 	row := s.Rows[s.current]
+	inLane := s.Tracer.IsInSameLane(s.current, s.Cursor)
+
 	// will render by extending the previous connections
 	if before := s.RenderBefore(row.Commit); before != "" {
 		extended := parser.GraphGutter{}
@@ -115,7 +119,9 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 		}
 		s.writeSection(r, extended, extended, false, before)
 	}
+	lineIndex := -1
 	for segmentedLine := range row.RowLinesIter(parser.Including(parser.Highlightable)) {
+		lineIndex++
 		lw := strings.Builder{}
 		if segmentedLine.Flags&parser.Revision != parser.Revision && s.isHighlighted {
 			if decoration := s.Op.Render(row.Commit, operations.RenderOverDescription); decoration != "" {
@@ -124,11 +130,14 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			}
 		}
 
-		for _, segment := range segmentedLine.Gutter.Segments {
-			if s.isHighlighted {
-				fmt.Fprint(&lw, segment.Style.Inherit(s.selectedStyle).Render(segment.Text))
+		for i, segment := range segmentedLine.Gutter.Segments {
+			gutterInLane := s.Tracer.IsGutterInLane(s.current, s.Cursor, lineIndex, i)
+			text := s.Tracer.UpdateGutterText(s.current, s.Cursor, lineIndex, i, segment.Text)
+			style := segment.Style
+			if gutterInLane {
+				fmt.Fprint(&lw, style.Render(text))
 			} else {
-				fmt.Fprint(&lw, segment.Style.Inherit(s.textStyle).Render(segment.Text))
+				fmt.Fprint(&lw, style.Faint(true).Foreground(s.dimmedStyle.GetForeground()).Render(text))
 			}
 		}
 
@@ -148,8 +157,10 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			style := segment.Style
 			if s.isHighlighted {
 				style = style.Inherit(s.selectedStyle)
-			} else {
+			} else if inLane {
 				style = style.Inherit(s.textStyle)
+			} else {
+				style = style.Inherit(s.dimmedStyle).Faint(true)
 			}
 
 			start, end := segment.FindSubstringRange(s.SearchText)
@@ -188,10 +199,19 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 		s.writeSection(r, extended, extended, false, afterSection)
 	}
 
+	lineIndex = 0
 	for segmentedLine := range row.RowLinesIter(parser.Excluding(parser.Highlightable)) {
+		lineIndex++
 		var lw strings.Builder
-		for _, segment := range segmentedLine.Gutter.Segments {
-			fmt.Fprint(&lw, segment.Style.Inherit(s.textStyle).Render(segment.Text))
+		for i, segment := range segmentedLine.Gutter.Segments {
+			gutterInLane := s.Tracer.IsGutterInLane(s.current, s.Cursor, lineIndex, i)
+			text := s.Tracer.UpdateGutterText(s.current, s.Cursor, lineIndex, i, segment.Text)
+			style := segment.Style
+			if gutterInLane {
+				fmt.Fprint(&lw, style.Render(text))
+			} else {
+				fmt.Fprint(&lw, style.Faint(true).Foreground(s.dimmedStyle.GetForeground()).Render(text))
+			}
 		}
 		for _, segment := range segmentedLine.Segments {
 			fmt.Fprint(&lw, segment.Style.Inherit(s.textStyle).Render(segment.Text))

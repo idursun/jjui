@@ -10,6 +10,7 @@ import (
 type Segment struct {
 	Text  string
 	Style lipgloss.Style
+	Lane  uint64
 }
 
 func (s Segment) String() string {

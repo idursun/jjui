@@ -459,7 +459,13 @@ func (m *Model) View() string {
 	renderer.Selections = m.selectedRevisions
 	renderer.SearchText = m.quickSearch
 	renderer.AceJumpPrefix = m.aceJump.Prefix()
+
 	m.w.SetSize(m.width, m.height)
+	if config.Current.UI.Tracer.Enabled {
+		start, end := m.w.FirstRowIndex(), m.w.LastRowIndex()+1 // +1 because the last row is inclusive in the view range
+		log.Println("Visible row range:", start, end, "Cursor:", m.cursor, "Total rows:", len(m.rows))
+		renderer.Tracer = parser.NewTracer(m.rows, start, end)
+	}
 	output := m.w.Render(renderer)
 	output = m.textStyle.MaxWidth(m.width).Render(output)
 	return lipgloss.Place(m.width, m.height, 0, 0, output)
