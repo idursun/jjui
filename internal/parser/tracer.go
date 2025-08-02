@@ -1,5 +1,9 @@
 package parser
 
+import (
+	"log"
+)
+
 type LaneTracer interface {
 	IsInSameLane(current int, cursor int) bool
 	IsGutterInLane(current int, cursor int, lineIndex int, segmentIndex int) bool
@@ -32,6 +36,7 @@ func NewTracer(rows []Row, start int, end int) *Tracer {
 		rows:       rows,
 		nextLaneId: 0,
 	}
+	log.Println("Tracing lanes from", start, "to", end)
 	t.traceLanes(start, end)
 	return t
 }
@@ -70,6 +75,9 @@ func (t *Tracer) UpdateGutterText(current int, cursor int, lineIndex int, i int,
 }
 
 func (t *Tracer) traceLanes(start int, end int) {
+	if start < 0 || end > len(t.rows) {
+		return
+	}
 	for i := start; i < end; i++ {
 		row := t.rows[i]
 		for _, line := range row.Lines {
@@ -78,12 +86,22 @@ func (t *Tracer) traceLanes(start int, end int) {
 			}
 		}
 	}
-	for i := start; i < end; i++ {
-		row := t.rows[i]
-		index := row.GetNodeIndex()
-		lane := row.GetLane(0, index)
-		if lane == 0 {
-			t.traceLane(i)
+
+	t.nextLaneId = 1
+	for rowIndex := start; rowIndex < end; rowIndex++ {
+		row := t.rows[rowIndex]
+		for line := 0; line < len(row.Lines); line++ {
+			rowLine := row.Lines[line]
+			for index, segment := range rowLine.Gutter.Segments {
+				if segment.Text == " " {
+					continue
+				}
+				lane := row.GetLane(line, index)
+				if lane == 0 {
+					t.traceLane(rowIndex, end, line, index)
+					t.nextLaneId = t.nextLaneId << 1
+				}
+			}
 		}
 	}
 }
@@ -99,13 +117,10 @@ func (t *Tracer) getRowLane(rowIndex int) uint64 {
 	return lane
 }
 
-func (t *Tracer) traceLane(rowIndex int) {
-	if t.nextLaneId == 0 {
-		t.nextLaneId = 1
-	} else {
-		t.nextLaneId = t.nextLaneId << 1
+func (t *Tracer) traceLane(rowIndex int, endIndex int, lineIndex int, index int) {
+	if rowIndex >= endIndex {
+		return
 	}
-
 	type dir int
 	const (
 		down dir = iota
@@ -121,8 +136,7 @@ func (t *Tracer) traceLane(rowIndex int) {
 	}
 
 	currentRow := t.rows[rowIndex]
-	index := currentRow.GetNodeIndex()
-	currentRow.SetLane(0, index, t.nextLaneId)
+	currentRow.SetLane(lineIndex, index, t.nextLaneId)
 
 	var directions []direction
 	directions = append(directions, direction{rowIndex: rowIndex, line: 0, col: index, dir: down})
@@ -146,12 +160,15 @@ func (t *Tracer) traceLane(rowIndex int) {
 		ch, exists := currentRow.Get(r, c)
 		if !exists {
 			rowIndex++
-			if rowIndex >= len(t.rows) {
+			if rowIndex >= endIndex {
 				continue
 			}
 			currentRow = t.rows[rowIndex]
 			r = 0
-			ch, _ = currentRow.Get(r, c)
+			ch, exists = currentRow.Get(r, c)
+			if !exists {
+				continue
+			}
 		}
 		currentRow.SetLane(r, c, t.nextLaneId)
 		switch ch {
@@ -178,6 +195,8 @@ func (t *Tracer) traceLane(rowIndex int) {
 			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
 		case '╭', '┌':
 			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
+		case ' ': // empty space, continue
+			continue
 		default:
 			directions = append(directions, direction{rowIndex: rowIndex, col: c, line: r, dir: down})
 		}

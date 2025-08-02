@@ -205,7 +205,7 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 		var lw strings.Builder
 		for i, segment := range segmentedLine.Gutter.Segments {
 			gutterInLane := s.Tracer.IsGutterInLane(s.current, s.Cursor, lineIndex, i)
-			text := segment.Text
+			text := s.Tracer.UpdateGutterText(s.current, s.Cursor, lineIndex, i, segment.Text)
 			style := segment.Style
 			if gutterInLane {
 				fmt.Fprint(&lw, style.Render(text))
