@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/charmbracelet/bubbles/help"
 	"time"
 
 	"github.com/idursun/jjui/internal/ui/flash"
@@ -301,6 +302,10 @@ func (m Model) View() string {
 	if m.oplog != nil {
 		m.status.SetMode("oplog")
 		m.status.SetHelp(m.oplog)
+	} else if m.stacked != nil {
+		if s, ok := m.stacked.(help.KeyMap); ok {
+			m.status.SetHelp(s)
+		}
 	} else {
 		m.status.SetHelp(m.revisions)
 		m.status.SetMode(m.revisions.CurrentOperation().Name())

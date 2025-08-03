@@ -11,7 +11,15 @@ import (
 )
 
 type Model struct {
-	confirmation tea.Model
+	confirmation *confirmation.Model
+}
+
+func (m Model) ShortHelp() []key.Binding {
+	return m.confirmation.ShortHelp()
+}
+
+func (m Model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{m.ShortHelp()}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -34,11 +42,11 @@ func NewModel(context *context.MainContext) Model {
 	model := confirmation.New(
 		[]string{lastOperation, "Are you sure you want to undo last change?"},
 		confirmation.WithStylePrefix("undo"),
-		confirmation.WithOption("Yes", context.RunCommand(jj.Undo(), common.Refresh, common.Close), key.NewBinding(key.WithKeys("y"))),
+		confirmation.WithOption("Yes", context.RunCommand(jj.Undo(), common.Refresh, common.Close), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+		confirmation.WithOption("No", common.Close, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 	)
 	model.Styles.Border = common.DefaultPalette.GetBorder("undo border", lipgloss.NormalBorder()).Padding(1)
-	model.AddOption("No", common.Close, key.NewBinding(key.WithKeys("n", "esc")))
 	return Model{
-		confirmation: &model,
+		confirmation: model,
 	}
 }
