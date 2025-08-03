@@ -10,7 +10,7 @@ import (
 )
 
 type Operation struct {
-	Overlay tea.Model
+	Overlay Model
 	Current *jj.Commit
 	keyMap  config.KeyMappings[key.Binding]
 }
@@ -20,17 +20,7 @@ func (s *Operation) SetSelectedRevision(commit *jj.Commit) {
 }
 
 func (s *Operation) ShortHelp() []key.Binding {
-	return []key.Binding{
-		s.keyMap.Up,
-		s.keyMap.Down,
-		s.keyMap.Cancel,
-		s.keyMap.Details.Diff,
-		s.keyMap.Details.ToggleSelect,
-		s.keyMap.Details.Split,
-		s.keyMap.Details.Restore,
-		s.keyMap.Details.Absorb,
-		s.keyMap.Details.RevisionsChangingFile,
-	}
+	return s.Overlay.ShortHelp()
 }
 
 func (s *Operation) FullHelp() [][]key.Binding {

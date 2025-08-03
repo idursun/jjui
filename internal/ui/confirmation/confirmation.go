@@ -39,6 +39,32 @@ type Model struct {
 	stylePrefix string
 }
 
+func (m *Model) ShortHelp() []key.Binding {
+	var bindings []key.Binding
+	for _, option := range m.options {
+		bindings = append(bindings, option.keyBinding)
+	}
+	bindings = append(bindings,
+		key.NewBinding(
+			key.WithKeys("left", "h"),
+			key.WithHelp("←", "left"),
+		),
+		key.NewBinding(
+			key.WithKeys("right", "l"),
+			key.WithHelp("→", "right"),
+		),
+		key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("↵", "select"),
+		),
+	)
+	return bindings
+}
+
+func (m *Model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{m.ShortHelp()}
+}
+
 // Option is a function that configures a Model
 type Option func(*Model)
 
@@ -66,7 +92,7 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	km := config.Current.GetKeyMap()
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -102,7 +128,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) View() string {
 	w := strings.Builder{}
 	for i, message := range m.messages {
-		w.WriteString(m.Styles.Text.Render(message))
+		w.WriteString(m.Styles.Text.PaddingLeft(1).Render(message))
 		if i < len(m.messages)-1 {
 			w.WriteString(m.Styles.Text.Render("\n"))
 		}
@@ -120,11 +146,6 @@ func (m *Model) View() string {
 	return m.Styles.Border.Render(content)
 }
 
-// AddOption adds an option to the confirmation dialog (legacy method)
-func (m *Model) AddOption(label string, cmd tea.Cmd, keyBinding key.Binding) {
-	m.options = append(m.options, option{label, cmd, keyBinding, cmd})
-}
-
 // getStyleKey prefixes the key with the style prefix if one is set
 func (m *Model) getStyleKey(key string) string {
 	if m.stylePrefix == "" {
@@ -133,7 +154,7 @@ func (m *Model) getStyleKey(key string) string {
 	return m.stylePrefix + " " + key
 }
 
-func New(messages []string, opts ...Option) Model {
+func New(messages []string, opts ...Option) *Model {
 	m := Model{
 		messages: messages,
 		options:  []option{},
@@ -153,7 +174,7 @@ func New(messages []string, opts ...Option) Model {
 		Dimmed:   common.DefaultPalette.Get(m.getStyleKey("confirmation dimmed")).PaddingLeft(2).PaddingRight(2),
 	}
 
-	return m
+	return &m
 }
 
 func Close() tea.Msg {

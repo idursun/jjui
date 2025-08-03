@@ -133,10 +133,31 @@ type Model struct {
 	revision     *jj.Commit
 	files        list.Model
 	height       int
-	confirmation tea.Model
+	confirmation *confirmation.Model
 	context      *context.MainContext
 	keyMap       config.KeyMappings[key.Binding]
 	styles       styles
+}
+
+func (m Model) ShortHelp() []key.Binding {
+	if m.confirmation != nil {
+		return m.confirmation.ShortHelp()
+	}
+	return []key.Binding{
+		m.keyMap.Up,
+		m.keyMap.Down,
+		m.keyMap.Cancel,
+		m.keyMap.Details.Diff,
+		m.keyMap.Details.ToggleSelect,
+		m.keyMap.Details.Split,
+		m.keyMap.Details.Restore,
+		m.keyMap.Details.Absorb,
+		m.keyMap.Details.RevisionsChangingFile,
+	}
+}
+
+func (m Model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{m.ShortHelp()}
 }
 
 type updateCommitStatusMsg struct {
@@ -144,7 +165,7 @@ type updateCommitStatusMsg struct {
 	selectedFiles []string
 }
 
-func New(context *context.MainContext, revision *jj.Commit) tea.Model {
+func New(context *context.MainContext, revision *jj.Commit) Model {
 	keyMap := config.Current.GetKeyMap()
 
 	s := styles{
@@ -180,7 +201,7 @@ func (m Model) Init() tea.Cmd {
 	return tea.Batch(m.load(m.revision.GetChangeId()), tea.WindowSize())
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.confirmation != nil {
@@ -211,10 +232,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			model := confirmation.New(
 				[]string{"Are you sure you want to split the selected files?"},
 				confirmation.WithStylePrefix("revisions"),
-				confirmation.WithOption("Yes", tea.Batch(m.context.RunInteractiveCommand(jj.Split(m.revision.GetChangeId(), selectedFiles), common.Refresh), common.Close), key.NewBinding(key.WithKeys("y"))),
-				confirmation.WithOption("No", confirmation.Close, key.NewBinding(key.WithKeys("n", "esc"))),
+				confirmation.WithOption("Yes",
+					tea.Batch(m.context.RunInteractiveCommand(jj.Split(m.revision.GetChangeId(), selectedFiles), common.Refresh), common.Close),
+					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+				confirmation.WithOption("No",
+					confirmation.Close,
+					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 			)
-			m.confirmation = &model
+			m.confirmation = model
 			return m, m.confirmation.Init()
 		case key.Matches(msg, m.keyMap.Details.Restore):
 			selectedFiles, isVirtuallySelected := m.getSelectedFiles()
@@ -227,10 +252,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			model := confirmation.New(
 				[]string{"Are you sure you want to restore the selected files?"},
 				confirmation.WithStylePrefix("revisions"),
-				confirmation.WithOption("Yes", m.context.RunCommand(jj.Restore(m.revision.GetChangeId(), selectedFiles), common.Refresh, confirmation.Close), key.NewBinding(key.WithKeys("y"))),
-				confirmation.WithOption("No", confirmation.Close, key.NewBinding(key.WithKeys("n", "esc"))),
+				confirmation.WithOption("Yes",
+					m.context.RunCommand(jj.Restore(m.revision.GetChangeId(), selectedFiles), common.Refresh, confirmation.Close),
+					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+				confirmation.WithOption("No",
+					confirmation.Close,
+					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 			)
-			m.confirmation = &model
+			m.confirmation = model
 			return m, m.confirmation.Init()
 		case key.Matches(msg, m.keyMap.Details.Absorb):
 			selectedFiles, isVirtuallySelected := m.getSelectedFiles()
@@ -243,10 +272,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			model := confirmation.New(
 				[]string{"Are you sure you want to absorb changes from the selected files?"},
 				confirmation.WithStylePrefix("revisions"),
-				confirmation.WithOption("Yes", m.context.RunCommand(jj.Absorb(m.revision.GetChangeId(), selectedFiles...), common.Refresh, confirmation.Close), key.NewBinding(key.WithKeys("y"))),
-				confirmation.WithOption("No", confirmation.Close, key.NewBinding(key.WithKeys("n", "esc"))),
+				confirmation.WithOption("Yes",
+					m.context.RunCommand(jj.Absorb(m.revision.GetChangeId(), selectedFiles...), common.Refresh, confirmation.Close),
+					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+				confirmation.WithOption("No",
+					confirmation.Close,
+					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 			)
-			m.confirmation = &model
+			m.confirmation = model
 			return m, m.confirmation.Init()
 		case key.Matches(msg, m.keyMap.Details.ToggleSelect):
 			if oldItem, ok := m.files.SelectedItem().(item); ok {

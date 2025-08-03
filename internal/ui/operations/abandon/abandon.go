@@ -13,9 +13,17 @@ import (
 )
 
 type Operation struct {
-	model   tea.Model
+	model   *confirmation.Model
 	current *jj.Commit
 	context *context.MainContext
+}
+
+func (a *Operation) ShortHelp() []key.Binding {
+	return a.model.ShortHelp()
+}
+
+func (a *Operation) FullHelp() [][]key.Binding {
+	return [][]key.Binding{a.ShortHelp()}
 }
 
 func (a *Operation) SetSelectedRevision(commit *jj.Commit) {
@@ -58,13 +66,13 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 	}
 	model := confirmation.New(
 		[]string{message},
-		confirmation.WithAltOption("Yes", cmd(false), cmd(true), key.NewBinding(key.WithKeys("y"))),
-		confirmation.WithOption("No", common.Close, key.NewBinding(key.WithKeys("n", "esc"))),
+		confirmation.WithAltOption("Yes", cmd(false), cmd(true), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+		confirmation.WithOption("No", common.Close, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 		confirmation.WithStylePrefix("abandon"),
 	)
 
 	op := &Operation{
-		model: &model,
+		model: model,
 	}
 	return op
 }
