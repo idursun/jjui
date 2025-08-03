@@ -199,7 +199,6 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 		s.writeSection(r, extended, extended, false, afterSection)
 	}
 
-	lineIndex = 0
 	for segmentedLine := range row.RowLinesIter(parser.Excluding(parser.Highlightable)) {
 		lineIndex++
 		var lw strings.Builder

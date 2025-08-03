@@ -85,6 +85,54 @@ func TestMultiBranchTraceMask(t *testing.T) {
 `, laneMap)
 }
 
+func TestTracer_IsGutterInLane(t *testing.T) {
+	row1 := NewGraphRow()
+	row1.Lines = append(row1.Lines,
+		&GraphRowLine{
+			Gutter: GraphGutter{
+				Segments: []*screen.Segment{
+					{Text: "│", Style: lipgloss.NewStyle()},
+					{Text: " ", Style: lipgloss.NewStyle()},
+					{Text: "◆", Style: lipgloss.NewStyle()},
+				},
+			},
+			Flags: Revision | Highlightable,
+		},
+		&GraphRowLine{
+			Gutter: GraphGutter{
+				Segments: []*screen.Segment{
+					{Text: "│", Style: lipgloss.NewStyle()},
+					{Text: " ", Style: lipgloss.NewStyle()},
+					{Text: "│", Style: lipgloss.NewStyle()},
+				},
+			},
+		},
+		&GraphRowLine{
+			Gutter: GraphGutter{
+				Segments: []*screen.Segment{
+					{Text: "│", Style: lipgloss.NewStyle()},
+					{Text: " ", Style: lipgloss.NewStyle()},
+					{Text: "~", Style: lipgloss.NewStyle()},
+				},
+			},
+		},
+		&GraphRowLine{
+			Gutter: GraphGutter{
+				Segments: []*screen.Segment{
+					{Text: "├", Style: lipgloss.NewStyle()},
+					{Text: "─", Style: lipgloss.NewStyle()},
+					{Text: "╯", Style: lipgloss.NewStyle()},
+				},
+			},
+		})
+
+	var rows []Row
+	rows = append(rows, row1)
+	tracer := NewTracer(rows, 0, 0, len(rows))
+	assert.True(t, tracer.IsGutterInLane(0, 0, 2))
+	assert.True(t, tracer.IsGutterInLane(0, 3, 0))
+}
+
 func createLaneMap(rows []Row, cursor, start int) string {
 	_ = NewTracer(rows, cursor, start, len(rows))
 	var sb strings.Builder
