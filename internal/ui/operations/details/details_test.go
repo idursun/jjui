@@ -29,7 +29,8 @@ func TestModel_Init_ExecutesStatusCommand(t *testing.T) {
 	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
 	defer commandRunner.Verify()
 
-	tm := teatest.NewTestModel(t, New(test.NewTestContext(commandRunner), Commit))
+	model := test.NewShell(New(test.NewTestContext(commandRunner), Commit))
+	tm := teatest.NewTestModel(t, model)
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("file.txt"))
 	})

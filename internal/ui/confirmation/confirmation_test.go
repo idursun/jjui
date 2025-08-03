@@ -83,15 +83,13 @@ func TestConfirmationWithOption(t *testing.T) {
 }
 
 func TestLegacyAddOption(t *testing.T) {
-	model := New([]string{"Test message"})
-
 	var cmdCalled bool
 	testCmd := func() tea.Msg {
 		cmdCalled = true
 		return nil
 	}
 
-	model.AddOption("Yes", testCmd, key.NewBinding(key.WithKeys("y")))
+	model := New([]string{"Test message"}, WithOption("Yes", testCmd, key.NewBinding(key.WithKeys("y"))))
 
 	assert.Equal(t, 1, len(model.options))
 	assert.Equal(t, "Yes", model.options[0].label)
