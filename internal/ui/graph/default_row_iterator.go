@@ -135,10 +135,11 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			text := s.Tracer.UpdateGutterText(s.current, lineIndex, i, segment.Text)
 			style := segment.Style
 			if gutterInLane {
-				fmt.Fprint(&lw, style.Render(text))
+				style = style.Inherit(s.textStyle)
 			} else {
-				fmt.Fprint(&lw, style.Faint(true).Foreground(s.dimmedStyle.GetForeground()).Render(text))
+				style = style.Inherit(s.dimmedStyle).Faint(true)
 			}
+			fmt.Fprint(&lw, style.Render(text))
 		}
 
 		if segmentedLine.Flags&parser.Revision == parser.Revision {
@@ -207,10 +208,11 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			text := s.Tracer.UpdateGutterText(s.current, lineIndex, i, segment.Text)
 			style := segment.Style
 			if gutterInLane {
-				fmt.Fprint(&lw, style.Render(text))
+				style = style.Inherit(s.textStyle)
 			} else {
-				fmt.Fprint(&lw, style.Faint(true).Foreground(s.dimmedStyle.GetForeground()).Render(text))
+				style = style.Inherit(s.dimmedStyle).Faint(true)
 			}
+			fmt.Fprint(&lw, style.Render(text))
 		}
 		for _, segment := range segmentedLine.Segments {
 			fmt.Fprint(&lw, segment.Style.Inherit(s.textStyle).Render(segment.Text))
