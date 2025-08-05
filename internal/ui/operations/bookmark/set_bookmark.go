@@ -1,10 +1,13 @@
 package bookmark
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textinput"
+
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -41,12 +44,13 @@ func (s *SetBookmarkOperation) IsFocused() bool {
 }
 
 func (s *SetBookmarkOperation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cmd) {
+	km := config.Current.GetKeyMap()
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
+		switch {
+		case key.Matches(msg, km.Cancel):
 			return s, common.Close
-		case "enter":
+		case key.Matches(msg, km.Apply, km.InlineDescribe.Accept):
 			return s, s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), common.Close, common.Refresh)
 		}
 	}
