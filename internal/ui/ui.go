@@ -2,8 +2,9 @@ package ui
 
 import (
 	"fmt"
-	"github.com/charmbracelet/bubbles/help"
 	"time"
+
+	"github.com/charmbracelet/bubbles/help"
 
 	"github.com/idursun/jjui/internal/ui/flash"
 
@@ -190,6 +191,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, leader.InitCmd)
 		case key.Matches(msg, m.keyMap.FileSearch.Toggle):
 			rev := m.revisions.SelectedRevision()
+			if rev == nil {
+				// noop if current revset does not exist (#264)
+				return m, nil
+			}
 			out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
 			return m, common.FileSearch(m.revsetModel.Value, m.previewVisible, rev, out)
 		case key.Matches(msg, m.keyMap.QuickSearch) && m.oplog != nil:
