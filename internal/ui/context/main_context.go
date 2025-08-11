@@ -146,7 +146,9 @@ func (ctx *MainContext) CreateReplacements() map[string]string {
 		replacements[jj.CheckedFilesPlaceholder] = strings.Join(checkedFiles, "\t")
 	}
 
-	if len(checkedRevisions) > 0 {
+	if len(checkedRevisions) == 0 {
+		replacements[jj.CheckedCommitIdsPlaceholder] = "none()"
+	} else {
 		replacements[jj.CheckedCommitIdsPlaceholder] = strings.Join(checkedRevisions, "|")
 	}
 
