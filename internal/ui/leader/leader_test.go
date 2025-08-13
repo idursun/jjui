@@ -29,7 +29,7 @@ func Test_sendCmds_detects_tea_keytypes(t *testing.T) {
 }
 
 func Test_sendCmds_produces_rune_keys_on_non_keytypes(t *testing.T) {
-	cmds := sendCmds([]string{"hi"})
+	cmds := sendCmds([]string{"hello", "world"})
 	if len(cmds) != 2 {
 		t.Fatalf("expected 2 cmds, got %d", len(cmds))
 	}
@@ -40,11 +40,11 @@ func Test_sendCmds_produces_rune_keys_on_non_keytypes(t *testing.T) {
 	if !ok1 || !ok2 {
 		t.Fatalf("expected tea.KeyMsg, got %T and %T", msg1, msg2)
 	}
-	if key1.Type != tea.KeyRunes || string(key1.Runes) != "h" {
-		t.Errorf("expected key1 to be rune 'h', got type %v runes %q", key1.Type, string(key1.Runes))
+	if key1.Type != tea.KeyRunes || string(key1.Runes) != "hello" {
+		t.Errorf("expected key1 to be rune 'hello', got type %v runes %q", key1.Type, string(key1.Runes))
 	}
-	if key2.Type != tea.KeyRunes || string(key2.Runes) != "i" {
-		t.Errorf("expected key2 to be rune 'i', got type %v runes %q", key2.Type, string(key2.Runes))
+	if key2.Type != tea.KeyRunes || string(key2.Runes) != "world" {
+		t.Errorf("expected key2 to be rune 'world', got type %v runes %q", key2.Type, string(key2.Runes))
 	}
 }
 
