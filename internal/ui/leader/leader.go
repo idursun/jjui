@@ -45,26 +45,6 @@ func InitCmd() tea.Msg {
 	return initMsg{}
 }
 
-type PendingMsg struct {
-	cmds []tea.Cmd
-}
-
-func pendingCmd(cmds []tea.Cmd) tea.Cmd {
-	return func() tea.Msg {
-		return PendingMsg{cmds: cmds}
-	}
-}
-
-func TakePending(msg PendingMsg) tea.Cmd {
-	if len(msg.cmds) > 1 {
-		return tea.Batch(msg.cmds[0], pendingCmd(msg.cmds[1:]))
-	}
-	if len(msg.cmds) == 1 {
-		return msg.cmds[0]
-	}
-	return nil
-}
-
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case initMsg:
@@ -85,7 +65,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				cmds := sendCmds(c.Send)
 				return m, tea.Batch(
 					common.Close,
-					pendingCmd(cmds),
+					tea.Sequence(cmds...),
 				)
 			}
 		}
@@ -111,7 +91,7 @@ func contextEnabled(ctx *context.MainContext, bnds context.LeaderMap) context.Le
 }
 
 func sendCmds(strings []string) []tea.Cmd {
-	cmds := []tea.Cmd{}
+	var cmds []tea.Cmd
 	send := func(k tea.Key) {
 		cmds = append(cmds, func() tea.Msg {
 			return tea.KeyMsg(k)

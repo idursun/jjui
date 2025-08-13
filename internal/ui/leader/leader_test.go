@@ -88,22 +88,7 @@ send = ["?"]
 	if _, ok := closeMsg.(common.CloseViewMsg); !ok {
 		t.Error("expected non-nil closeMsg")
 	}
-	pendingMsgRaw := batch[1]()
-	pendingMsg, ok := pendingMsgRaw.(PendingMsg)
-	if !ok {
-		t.Fatalf("expected PendingMsg, got %T", pendingMsgRaw)
-	}
-	if len(pendingMsg.cmds) != 1 {
-		t.Fatalf("expected 1 cmd in PendingMsg, got %d", len(pendingMsg.cmds))
-	}
-	msg2 := pendingMsg.cmds[0]()
-	keyMsg, ok := msg2.(tea.KeyMsg)
-	if !ok {
-		t.Fatalf("expected tea.KeyMsg, got %T", msg2)
-	}
-	if keyMsg.Type != tea.KeyRunes || string(keyMsg.Runes) != "?" {
-		t.Errorf("expected keyMsg to be rune '?', got type %v runes %q", keyMsg.Type, string(keyMsg.Runes))
-	}
+	// batch[1]() is a tea.sequenceMsg (private). we test it via sendCmds tests.
 }
 
 func TestUpdate_gf_shows_git_fetch_submenu_and_returns_nil_cmd(t *testing.T) {
@@ -190,38 +175,5 @@ send = ["?"]
 	msgOut := cmd()
 	if _, ok := msgOut.(common.CloseViewMsg); !ok {
 		t.Errorf("expected CloseViewMsg, got %T", msgOut)
-	}
-}
-
-func TestTakePending_reduces_cmds_one_by_one(t *testing.T) {
-	cmds := sendCmds([]string{"ctrl+h", "b", "c"})
-	pending := PendingMsg{cmds: cmds}
-	if len(pending.cmds) != 3 {
-		t.Fatalf("Expected 3 cmds")
-	}
-
-	cmd := TakePending(pending)
-	if batch, ok := cmd().(tea.BatchMsg); !ok {
-		t.Fatalf("expected BatchMsg got %v", batch)
-	} else if len(batch) != 2 {
-		t.Fatalf("expected 2 cmds in batch, got %d", len(batch))
-	} else if k, ok := batch[0]().(tea.KeyMsg); !ok || k.String() != "ctrl+h" {
-		t.Fatalf("expected rune got %v", k)
-	} else if pending, ok = batch[1]().(PendingMsg); !ok || len(pending.cmds) != 2 {
-		t.Fatalf("expected two pending cmds got %v", pending)
-	}
-
-	cmds = sendCmds([]string{"c"})
-	pending = PendingMsg{cmds: cmds}
-	cmd = TakePending(pending)
-	if cmd().(tea.KeyMsg).String() != "c" {
-		t.Fatalf("expected single command to be returned")
-	}
-
-	cmds = sendCmds([]string{})
-	pending = PendingMsg{cmds: cmds}
-	cmd = TakePending(pending)
-	if cmd != nil {
-		t.Fatalf("expected nil command for empty send keys")
 	}
 }
