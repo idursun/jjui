@@ -121,12 +121,10 @@ func sendCmds(strings []string) []tea.Cmd {
 		if k, ok := keyNames[s]; ok {
 			send(k)
 		} else {
-			for _, r := range s {
-				send(tea.Key{
-					Type:  tea.KeyRunes,
-					Runes: []rune{r},
-				})
-			}
+			send(tea.Key{
+				Type:  tea.KeyRunes,
+				Runes: []rune(s),
+			})
 		}
 	}
 	return cmds
