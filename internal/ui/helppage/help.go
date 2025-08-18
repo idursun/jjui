@@ -131,6 +131,7 @@ func (h *Model) View() string {
 		h.printKeyBinding(h.keyMap.Details.ToggleSelect),
 		h.printKeyBinding(h.keyMap.Details.Restore),
 		h.printKeyBinding(h.keyMap.Details.Split),
+		h.printKeyBinding(h.keyMap.Details.Squash),
 		h.printKeyBinding(h.keyMap.Details.Diff),
 		h.printKeyBinding(h.keyMap.Details.RevisionsChangingFile),
 		"",

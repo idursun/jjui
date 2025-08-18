@@ -241,6 +241,26 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			)
 			m.confirmation = model
 			return m, m.confirmation.Init()
+		case key.Matches(msg, m.keyMap.Details.Squash):
+			selectedFiles, isVirtuallySelected := m.getSelectedFiles()
+			m.files.SetDelegate(itemDelegate{
+				isVirtuallySelected: isVirtuallySelected,
+				selectedHint:        "gets squashed into parent",
+				unselectedHint:      "stays as is",
+				styles:              m.styles,
+			})
+			model := confirmation.New(
+				[]string{"Are you sure you want to squash the selected files?"},
+				confirmation.WithStylePrefix("revisions"),
+				confirmation.WithOption("Yes",
+					tea.Batch(m.context.RunCommand(jj.SquashFiles(m.revision.GetChangeId(), selectedFiles), common.Refresh), confirmation.Close),
+					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+				confirmation.WithOption("No",
+					confirmation.Close,
+					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+			)
+			m.confirmation = model
+			return m, m.confirmation.Init()
 		case key.Matches(msg, m.keyMap.Details.Restore):
 			selectedFiles, isVirtuallySelected := m.getSelectedFiles()
 			m.files.SetDelegate(itemDelegate{

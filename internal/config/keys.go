@@ -78,6 +78,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Mode:                  key.NewBinding(key.WithKeys(m.Details.Mode...), key.WithHelp(JoinKeys(m.Details.Mode), "details")),
 			Close:                 key.NewBinding(key.WithKeys(m.Details.Close...), key.WithHelp(JoinKeys(m.Details.Close), "close")),
 			Split:                 key.NewBinding(key.WithKeys(m.Details.Split...), key.WithHelp(JoinKeys(m.Details.Split), "split")),
+			Squash:                key.NewBinding(key.WithKeys(m.Details.Squash...), key.WithHelp(JoinKeys(m.Details.Squash), "squash")),
 			Restore:               key.NewBinding(key.WithKeys(m.Details.Restore...), key.WithHelp(JoinKeys(m.Details.Restore), "restore")),
 			Absorb:                key.NewBinding(key.WithKeys(m.Details.Absorb...), key.WithHelp(JoinKeys(m.Details.Absorb), "absorb")),
 			Diff:                  key.NewBinding(key.WithKeys(m.Details.Diff...), key.WithHelp(JoinKeys(m.Details.Diff), "diff")),
@@ -251,6 +252,7 @@ type detailsModeKeys[T any] struct {
 	Split                 T `toml:"split"`
 	Restore               T `toml:"restore"`
 	Absorb                T `toml:"absorb"`
+	Squash                T `toml:"squash"`
 	Diff                  T `toml:"diff"`
 	ToggleSelect          T `toml:"select"`
 	RevisionsChangingFile T `toml:"revisions_changing_file"`

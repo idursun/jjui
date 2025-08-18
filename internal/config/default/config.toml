@@ -62,6 +62,7 @@ limit = 0
     mode = ["l"]
     close = ["h"]
     split = ["s"]
+    squash = ["S"]
     restore = ["r"]
     absorb = ["A"]
     diff = ["d"]
