@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
-
+	"github.com/idursun/jjui/internal/ui/actions/set_revset"
 	"github.com/idursun/jjui/internal/ui/flash"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -121,6 +121,8 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	return m, nil, false
 }
 
+var invokeActionKey = key.NewBinding(key.WithKeys("!"))
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m, cmd, handled := m.handleFocusInputMessage(msg); handled {
 		return m, cmd
@@ -132,6 +134,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
+		case key.Matches(msg, invokeActionKey):
+			set_revset.Call(m.context, "main")
+			return m, nil
 		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
 			m.state = common.Ready
 		case key.Matches(msg, m.keyMap.Cancel) && m.stacked != nil:
@@ -192,7 +197,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
-			return m, common.FileSearch(m.revsetModel.Value, m.previewVisible, rev, out)
+			return m, common.FileSearch(m.context.CurrentRevset, m.previewVisible, rev, out)
 		case key.Matches(msg, m.keyMap.QuickSearch) && m.oplog != nil:
 			// HACK: prevents quick search from activating in op log view
 			return m, nil

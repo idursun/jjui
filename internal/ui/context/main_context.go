@@ -63,6 +63,7 @@ type MainContext struct {
 	DefaultRevset  string
 	CurrentRevset  string
 	Histories      *config.Histories
+	App            *tea.Program
 }
 
 func NewAppContext(location string) *MainContext {

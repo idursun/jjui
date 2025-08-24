@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/ui/actions/set_revset"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
@@ -17,7 +18,6 @@ type EditRevSetMsg struct {
 
 type Model struct {
 	Editing         bool
-	Value           string
 	autoComplete    *autocompletion.AutoCompletionInput
 	keymap          keymap
 	History         []string
@@ -87,7 +87,6 @@ func New(context *appContext.MainContext) *Model {
 	return &Model{
 		context:         context,
 		Editing:         false,
-		Value:           context.CurrentRevset,
 		keymap:          keymap{},
 		autoComplete:    autoComplete,
 		History:         []string{},
@@ -143,12 +142,13 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		case tea.KeyEnter:
 			m.Editing = false
 			m.autoComplete.Blur()
-			m.Value = m.autoComplete.Value()
-			m.AddToHistory(m.Value)
-			if m.Value == "" {
-				m.Value = m.context.DefaultRevset
+			value := m.autoComplete.Value()
+			m.AddToHistory(value)
+			if value == "" {
+				value = m.context.DefaultRevset
 			}
-			return m, tea.Batch(common.Close, common.UpdateRevSet(m.Value))
+			set_revset.Call(m.context, value)
+			return m, common.Close
 		case tea.KeyUp:
 			if len(m.History) > 0 {
 				if !m.historyActive {
@@ -177,12 +177,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				return m, nil
 			}
 		}
-	case common.UpdateRevSetMsg:
-		m.Value = string(msg)
-		if m.Editing {
-			m.Editing = false
-			m.AddToHistory(m.Value)
-		}
 	case EditRevSetMsg:
 		m.Editing = true
 		m.autoComplete.Focus()
@@ -205,10 +199,7 @@ func (m *Model) View() string {
 	if m.Editing {
 		w.WriteString(m.autoComplete.View())
 	} else {
-		revset := m.context.DefaultRevset
-		if m.Value != "" {
-			revset = m.Value
-		}
+		revset := m.context.CurrentRevset
 		w.WriteString(m.styles.textStyle.Render(revset))
 	}
 	return lipgloss.Place(m.width, m.height, 0, 0, w.String(), lipgloss.WithWhitespaceBackground(m.styles.textStyle.GetBackground()))

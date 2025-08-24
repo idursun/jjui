@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions/set_revset"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -310,7 +311,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, nil
 		case key.Matches(msg, m.keyMap.Details.RevisionsChangingFile):
 			if item, ok := m.files.SelectedItem().(item); ok {
-				return m, tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(\"%s\")", item.fileName)))
+				set_revset.Call(m.context, fmt.Sprintf("files(\"%s\")", item.fileName))
+				return m, common.Close
 			}
 		default:
 			if len(m.files.Items()) > 0 {

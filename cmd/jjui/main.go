@@ -191,8 +191,8 @@ func main() {
 		appContext.DefaultRevset = appContext.JJConfig.Revsets.Log
 	}
 	appContext.CurrentRevset = appContext.DefaultRevset
-
 	p := tea.NewProgram(ui.New(appContext), tea.WithAltScreen())
+	appContext.App = p
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error running program: %v\n", err)
 		os.Exit(1)

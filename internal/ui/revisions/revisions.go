@@ -169,8 +169,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case common.CloseViewMsg:
 		m.op = operations.NewDefault()
 		return m, m.updateSelection()
-	case common.UpdateRevSetMsg:
-		return m, common.Refresh
 	case common.QuickSearchMsg:
 		m.quickSearch = string(msg)
 		m.cursor = m.search(0)
