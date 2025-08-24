@@ -5,10 +5,6 @@ import (
 	appContext "github.com/idursun/jjui/internal/ui/context"
 )
 
-type Action struct {
-	Revset string
-}
-
 func Call(ctx *appContext.MainContext, revset string) {
 	ctx.CurrentRevset = revset
 	go func() {

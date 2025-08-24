@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/idursun/jjui/internal/ui/ace_jump"
+	"github.com/idursun/jjui/internal/ui/actions/set_selected_revision"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
 	"github.com/idursun/jjui/internal/ui/operations/megamerge"
 	"github.com/idursun/jjui/internal/ui/operations/revert"
@@ -272,10 +273,12 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		case key.Matches(msg, m.keymap.Up):
 			if m.cursor > 0 {
 				m.cursor--
+				set_selected_revision.Call(m.context, m.rows[m.cursor].Commit)
 			}
 		case key.Matches(msg, m.keymap.Down):
 			if m.cursor < len(m.rows)-1 {
 				m.cursor++
+				set_selected_revision.Call(m.context, m.rows[m.cursor].Commit)
 			} else if m.hasMore {
 				return m, m.requestMoreRows(m.tag)
 			}

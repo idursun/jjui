@@ -43,7 +43,10 @@ type (
 		Commit       *jj.Commit
 		RawFileOut   []byte // raw output from `jj file list`
 	}
-	ShowPreview bool
+	ShowPreview             bool
+	UpdatePreviewContentMsg struct {
+		Content string
+	}
 )
 
 type State int
@@ -91,6 +94,10 @@ func UpdateRevSet(revset string) tea.Cmd {
 	return func() tea.Msg {
 		return UpdateRevSetMsg(revset)
 	}
+}
+
+func UpdatePreviewContent(content string) tea.Msg {
+	return UpdatePreviewContentMsg{Content: content}
 }
 
 func FileSearch(revset string, preview bool, commit *jj.Commit, rawFileOut []byte) tea.Cmd {

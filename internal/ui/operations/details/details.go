@@ -16,6 +16,7 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions/set_revset"
+	"github.com/idursun/jjui/internal/ui/actions/set_selected_file"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -302,11 +303,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.files.CursorDown()
 
 				curItem := m.files.SelectedItem().(item)
-				return m, tea.Batch(m.files.SetItem(oldIndex, oldItem), m.context.SetSelectedItem(context.SelectedFile{
-					ChangeId: m.revision.GetChangeId(),
-					CommitId: m.revision.CommitId,
-					File:     curItem.fileName,
-				}))
+				set_selected_file.Call(m.context, m.revision, curItem.fileName)
+				return m, m.files.SetItem(oldIndex, oldItem)
 			}
 			return m, nil
 		case key.Matches(msg, m.keyMap.Details.RevisionsChangingFile):
@@ -319,11 +317,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				var cmd tea.Cmd
 				m.files, cmd = m.files.Update(msg)
 				curItem := m.files.SelectedItem().(item)
-				return m, tea.Batch(cmd, m.context.SetSelectedItem(context.SelectedFile{
-					ChangeId: m.revision.GetChangeId(),
-					CommitId: m.revision.CommitId,
-					File:     curItem.fileName,
-				}))
+				set_selected_file.Call(m.context, m.revision, curItem.fileName)
+				return m, cmd
 			}
 		}
 	case confirmation.CloseMsg:
