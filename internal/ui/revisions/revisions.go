@@ -261,6 +261,19 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			})
 		}
 		return m, tea.Batch(cmds...)
+	case common.JumpToParentMsg:
+		if msg.Commit == nil {
+			return m, nil
+		}
+		m.jumpToParent(jj.NewSelectedRevisions(msg.Commit))
+		return m, m.updateSelection()
+	}
+
+	// TODO: This is duplicated at the end of the function, needs refactoring
+	if curSelected := m.SelectedRevision(); curSelected != nil {
+		if op, ok := m.op.(operations.TracksSelectedRevision); ok {
+			op.SetSelectedRevision(curSelected)
+		}
 	}
 
 	if len(m.rows) == 0 {
@@ -286,11 +299,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				return m, m.requestMoreRows(m.tag)
 			}
 		case key.Matches(msg, m.keymap.JumpToParent):
-			immediate, _ := m.context.RunCommandImmediate(jj.GetParent(m.SelectedRevisions()))
-			parentIndex := m.selectRevision(string(immediate))
-			if parentIndex != -1 {
-				m.cursor = parentIndex
-			}
+			m.jumpToParent(m.SelectedRevisions())
 		case key.Matches(msg, m.keymap.JumpToChildren):
 			immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.SelectedRevision()))
 			index := m.selectRevision(string(immediate))
@@ -613,7 +622,7 @@ func (m *Model) updateOperation(msg tea.Msg) (tea.Cmd, bool) {
 	// This is currently a hack due to the lack of a mechanism to handle mode changes.
 	// The 'restore' mode name was added to facilitate this special case.
 	// Future refactoring will address mode changes more generically.
-	if m.op != nil && m.op.Name() == "restore" {
+	if m.op != nil && (m.op.Name() == "restore" || m.op.Name() == "target") {
 		if _, ok := msg.(tea.KeyMsg); ok {
 			return nil, false
 		}
@@ -624,4 +633,12 @@ func (m *Model) updateOperation(msg tea.Msg) (tea.Cmd, bool) {
 		return cmd, true
 	}
 	return nil, false
+}
+
+func (m *Model) jumpToParent(revisions jj.SelectedRevisions) {
+	immediate, _ := m.context.RunCommandImmediate(jj.GetParent(revisions))
+	parentIndex := m.selectRevision(string(immediate))
+	if parentIndex != -1 {
+		m.cursor = parentIndex
+	}
 }

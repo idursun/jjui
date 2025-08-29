@@ -79,11 +79,11 @@ func Split(revision string, files []string) CommandArgs {
 	return args
 }
 
-func SquashFiles(revision string, files []string) CommandArgs {
-	args := []string{"squash", "-r", revision, "--use-destination-message"}
+func SquashFiles(from string, into string, files []string) CommandArgs {
+	args := []string{"squash", "--from", from, "--into", into, "--use-destination-message"}
 	var escapedFiles []string
 	for _, file := range files {
-		escapedFiles = append(escapedFiles, escapeFileName(file))
+		escapedFiles = append(escapedFiles, EscapeFileName(file))
 	}
 	args = append(args, escapedFiles...)
 	return args

@@ -132,6 +132,7 @@ type styles struct {
 type Model struct {
 	revision     *jj.Commit
 	files        list.Model
+	mode         mode
 	height       int
 	confirmation *confirmation.Model
 	context      *context.MainContext
@@ -144,12 +145,11 @@ func (m Model) ShortHelp() []key.Binding {
 		return m.confirmation.ShortHelp()
 	}
 	return []key.Binding{
-		m.keyMap.Up,
-		m.keyMap.Down,
 		m.keyMap.Cancel,
 		m.keyMap.Details.Diff,
 		m.keyMap.Details.ToggleSelect,
 		m.keyMap.Details.Split,
+		m.keyMap.Details.Squash,
 		m.keyMap.Details.Restore,
 		m.keyMap.Details.Absorb,
 		m.keyMap.Details.RevisionsChangingFile,
@@ -191,6 +191,7 @@ func New(context *context.MainContext, revision *jj.Commit) Model {
 	return Model{
 		revision: revision,
 		files:    l,
+		mode:     viewMode,
 		context:  context,
 		keyMap:   keyMap,
 		styles:   s,
@@ -242,25 +243,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.confirmation = model
 			return m, m.confirmation.Init()
 		case key.Matches(msg, m.keyMap.Details.Squash):
-			selectedFiles, isVirtuallySelected := m.getSelectedFiles()
-			m.files.SetDelegate(itemDelegate{
-				isVirtuallySelected: isVirtuallySelected,
-				selectedHint:        "gets squashed into parent",
-				unselectedHint:      "stays as is",
-				styles:              m.styles,
-			})
-			model := confirmation.New(
-				[]string{"Are you sure you want to squash the selected files?"},
-				confirmation.WithStylePrefix("revisions"),
-				confirmation.WithOption("Yes",
-					tea.Batch(m.context.RunCommand(jj.SquashFiles(m.revision.GetChangeId(), selectedFiles), common.Refresh), confirmation.Close),
-					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-				confirmation.WithOption("No",
-					confirmation.Close,
-					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
-			)
-			m.confirmation = model
-			return m, m.confirmation.Init()
+			m.mode = squashTargetMode
+			return m, common.JumpToParent(m.revision)
 		case key.Matches(msg, m.keyMap.Details.Restore):
 			selectedFiles, isVirtuallySelected := m.getSelectedFiles()
 			m.files.SetDelegate(itemDelegate{
