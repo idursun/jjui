@@ -5,13 +5,11 @@ import (
 	"slices"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/operations"
-
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/ui/helpers"
 )
 
 type SelectedItem interface {
@@ -77,13 +75,10 @@ func NewAppContext(location string) *MainContext {
 		},
 		Location:  location,
 		Histories: config.NewHistories(),
-		Revisions: &RevisionsContext{
-			Rows:    []parser.Row{},
-			Op:      operations.NewDefault(),
-			Checked: []parser.Row{},
-			Cursor:  -1,
+		Revisions: NewRevisionsContext(),
+		OpLog: &OplogContext{
+			List: helpers.NewList[Row](),
 		},
-		OpLog: &OplogContext{},
 	}
 	m.Revisions.context = m
 	m.OpLog.context = m

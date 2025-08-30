@@ -147,14 +147,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.revsetModel, _ = m.revsetModel.Update(revset.EditRevSetMsg{Clear: m.state != common.Error})
 			return m, nil
 		case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
-			m.stacked = git.NewModel(m.context, m.revisions.SelectedRevision(), m.width, m.height)
+			m.stacked = git.NewModel(m.context, m.context.Revisions.Current().Commit, m.width, m.height)
 			return m, m.stacked.Init()
 		case key.Matches(msg, m.keyMap.Undo) && m.revisions.InNormalMode():
 			m.stacked = undo.NewModel(m.context)
 			cmds = append(cmds, m.stacked.Init())
 		case key.Matches(msg, m.keyMap.Bookmark.Mode) && m.revisions.InNormalMode():
 			changeIds := m.revisions.GetCommitIds()
-			m.stacked = bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds, m.width, m.height)
+			m.stacked = bookmarks.NewModel(m.context, m.context.Revisions.Current().Commit, changeIds, m.width, m.height)
 			cmds = append(cmds, m.stacked.Init())
 		case key.Matches(msg, m.keyMap.Help):
 			cmds = append(cmds, common.ToggleHelp)
@@ -186,7 +186,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.leader = leader.New(m.context)
 			cmds = append(cmds, leader.InitCmd)
 		case key.Matches(msg, m.keyMap.FileSearch.Toggle):
-			rev := m.revisions.SelectedRevision()
+			rev := m.context.Revisions.Current().Commit
 			if rev == nil {
 				// noop if current revset does not exist (#264)
 				return m, nil

@@ -35,7 +35,7 @@ func (o *iterator) IsHighlighted() bool {
 }
 
 func (o *iterator) Render(r io.Writer) {
-	row := o.context.Rows[o.current]
+	row := o.context.Items[o.current]
 
 	for _, rowLine := range row.Lines {
 		lw := strings.Builder{}
@@ -57,12 +57,12 @@ func (o *iterator) Render(r io.Writer) {
 }
 
 func (o *iterator) RowHeight() int {
-	return len(o.context.Rows[o.current].Lines)
+	return len(o.context.Items[o.current].Lines)
 }
 
 func (o *iterator) Next() bool {
 	o.current++
-	if o.current >= len(o.context.Rows) {
+	if o.current >= len(o.context.Items) {
 		return false
 	}
 	o.isHighlighted = o.current == o.context.Cursor
@@ -70,5 +70,5 @@ func (o *iterator) Next() bool {
 }
 
 func (o *iterator) Len() int {
-	return len(o.context.Rows)
+	return len(o.context.Items)
 }

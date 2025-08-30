@@ -30,7 +30,7 @@ func (m *Model) findAceKeys() *ace_jump.AceJump {
 	}
 	for i := range last - first + 1 {
 		i += first
-		row := m.context.Revisions.Rows[i]
+		row := m.context.Revisions.Items[i]
 		c := row.Commit
 		if c == nil {
 			continue

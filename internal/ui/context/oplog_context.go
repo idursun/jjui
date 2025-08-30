@@ -7,12 +7,12 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/helpers"
 )
 
 type OplogContext struct {
 	context *MainContext
-	Rows    []Row
-	Cursor  int
+	*helpers.List[Row]
 }
 
 type Row struct {
@@ -45,28 +45,9 @@ func (o *OplogContext) Load() {
 		}
 
 		rows := parseRows(bytes.NewReader(output))
-		o.Rows = rows
+		o.Items = rows
 		o.context.App.Send("")
 	}()
-}
-
-func (o *OplogContext) GetCurrentOperationId() string {
-	if len(o.Rows) == 0 {
-		return ""
-	}
-	return o.Rows[o.Cursor].OperationId
-}
-
-func (o *OplogContext) Prev() {
-	if o.Cursor > 0 {
-		o.Cursor--
-	}
-}
-
-func (o *OplogContext) Next() {
-	if o.Cursor < len(o.Rows)-1 {
-		o.Cursor++
-	}
 }
 
 func parseRows(reader io.Reader) []Row {

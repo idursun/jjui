@@ -61,18 +61,18 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.context.OpLog.Next()
 		case key.Matches(msg, m.keymap.Diff):
 			return m, func() tea.Msg {
-				output, _ := m.context.RunCommandImmediate(jj.OpShow(m.context.OpLog.GetCurrentOperationId()))
+				output, _ := m.context.RunCommandImmediate(jj.OpShow(m.context.OpLog.Current().OperationId))
 				return common.ShowDiffMsg(output)
 			}
 		case key.Matches(msg, m.keymap.OpLog.Restore):
-			return m, tea.Batch(common.Close, m.context.RunCommand(jj.OpRestore(m.context.OpLog.GetCurrentOperationId()), common.Refresh))
+			return m, tea.Batch(common.Close, m.context.RunCommand(jj.OpRestore(m.context.OpLog.Current().OperationId), common.Refresh))
 		}
 	}
 	return m, nil
 }
 
 func (m *Model) View() string {
-	if m.context.OpLog.Rows == nil {
+	if m.context.OpLog.Items == nil {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, "loading")
 	}
 
