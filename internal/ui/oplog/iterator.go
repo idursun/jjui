@@ -7,36 +7,35 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/context"
 )
 
 type iterator struct {
+	context       *context.OplogContext
 	Width         int
-	Rows          []row
 	isHighlighted bool
 	current       int
-	Cursor        int
 	SelectedStyle lipgloss.Style
 	TextStyle     lipgloss.Style
 }
 
-func newIterator(rows []row, cursor int, width int) *iterator {
+func newIterator(context *context.OplogContext, width int) *iterator {
 	return &iterator{
+		context:       context,
 		Width:         width,
-		Rows:          rows,
 		isHighlighted: false,
 		current:       -1,
-		Cursor:        cursor,
 		SelectedStyle: common.DefaultPalette.Get("oplog selected").Inline(true),
 		TextStyle:     common.DefaultPalette.Get("oplog text").Inline(true),
 	}
 }
 
 func (o *iterator) IsHighlighted() bool {
-	return o.current == o.Cursor
+	return o.current == o.context.Cursor
 }
 
 func (o *iterator) Render(r io.Writer) {
-	row := o.Rows[o.current]
+	row := o.context.Rows[o.current]
 
 	for _, rowLine := range row.Lines {
 		lw := strings.Builder{}
@@ -58,18 +57,18 @@ func (o *iterator) Render(r io.Writer) {
 }
 
 func (o *iterator) RowHeight() int {
-	return len(o.Rows[o.current].Lines)
+	return len(o.context.Rows[o.current].Lines)
 }
 
 func (o *iterator) Next() bool {
 	o.current++
-	if o.current >= len(o.Rows) {
+	if o.current >= len(o.context.Rows) {
 		return false
 	}
-	o.isHighlighted = o.current == o.Cursor
+	o.isHighlighted = o.current == o.context.Cursor
 	return true
 }
 
 func (o *iterator) Len() int {
-	return len(o.Rows)
+	return len(o.context.Rows)
 }
