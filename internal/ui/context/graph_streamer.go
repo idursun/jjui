@@ -1,4 +1,4 @@
-package graph
+package context
 
 import (
 	"bufio"
@@ -10,20 +10,19 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
-	appContext "github.com/idursun/jjui/internal/ui/context"
 )
 
-const DefaultBatchSize = 50
+const DefaultBatchSize = 3
 
 type GraphStreamer struct {
-	command     *appContext.StreamingCommand
+	command     *StreamingCommand
 	cancel      context.CancelFunc
 	controlChan chan parser.ControlMsg
 	rowsChan    <-chan parser.RowBatch
 	batchSize   int
 }
 
-func NewGraphStreamer(ctx appContext.CommandRunner, revset string) (*GraphStreamer, error) {
+func NewGraphStreamer(ctx CommandRunner, revset string) (*GraphStreamer, error) {
 	streamerCtx, cancel := context.WithCancel(context.Background())
 	var commandError error
 
@@ -78,6 +77,7 @@ func NewGraphStreamer(ctx appContext.CommandRunner, revset string) (*GraphStream
 		batchSize:   batchSize,
 	}, commandError
 }
+
 func (g *GraphStreamer) RequestMore() parser.RowBatch {
 	g.controlChan <- parser.RequestMore
 	return <-g.rowsChan

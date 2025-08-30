@@ -309,7 +309,7 @@ func (m Model) View() string {
 		}
 	} else {
 		m.status.SetHelp(m.revisions)
-		m.status.SetMode(m.revisions.CurrentOperation().Name())
+		m.status.SetMode(m.context.Revisions.Op.Name())
 	}
 
 	if m.leader != nil {
@@ -406,7 +406,7 @@ func (m Model) isSafeToQuit() bool {
 	if m.oplog != nil {
 		return false
 	}
-	if m.revisions.CurrentOperation().Name() == "normal" {
+	if m.context.Revisions.Op.Name() == "normal" {
 		return true
 	}
 	return false

@@ -134,4 +134,4 @@ limit = 0
   limit = 200
 
 [graph]
-  batch_size = 50
+  batch_size = 3

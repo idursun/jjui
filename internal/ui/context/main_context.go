@@ -7,7 +7,9 @@ import (
 
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/operations"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -63,6 +65,9 @@ type MainContext struct {
 	DefaultRevset  string
 	CurrentRevset  string
 	Histories      *config.Histories
+	Revisions      *RevisionsContext
+	OpLog          *OplogContext
+	App            *tea.Program
 }
 
 func NewAppContext(location string) *MainContext {
@@ -72,7 +77,16 @@ func NewAppContext(location string) *MainContext {
 		},
 		Location:  location,
 		Histories: config.NewHistories(),
+		Revisions: &RevisionsContext{
+			Rows:    []parser.Row{},
+			Op:      operations.NewDefault(),
+			Checked: []parser.Row{},
+			Cursor:  -1,
+		},
+		OpLog: &OplogContext{},
 	}
+	m.Revisions.context = m
+	m.OpLog.context = m
 
 	m.JJConfig = &config.JJConfig{}
 	if output, err := m.RunCommandImmediate(jj.ConfigListAll()); err == nil {
