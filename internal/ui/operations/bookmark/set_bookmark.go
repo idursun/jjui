@@ -13,7 +13,7 @@ import (
 )
 
 type SetBookmarkOperation struct {
-	context  *context.MainContext
+	context  *context.RevisionsContext
 	revision string
 	name     textinput.Model
 }
@@ -68,7 +68,7 @@ func (s *SetBookmarkOperation) Name() string {
 	return "bookmark"
 }
 
-func NewSetBookmarkOperation(context *context.MainContext, changeId string) (operations.Operation, tea.Cmd) {
+func NewSetBookmarkOperation(context *context.RevisionsContext, changeId string) (operations.Operation, tea.Cmd) {
 	dimmedStyle := common.DefaultPalette.Get("revisions dimmed").Inline(true)
 	textStyle := common.DefaultPalette.Get("revisions text").Inline(true)
 	t := textinput.New()

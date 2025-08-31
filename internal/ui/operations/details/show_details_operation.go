@@ -19,7 +19,7 @@ const (
 )
 
 type Operation struct {
-	context           *context.MainContext
+	context           *context.RevisionsContext
 	Overlay           Model
 	Current           *jj.Commit
 	keyMap            config.KeyMappings[key.Binding]
@@ -90,7 +90,7 @@ func (s *Operation) Name() string {
 	return "details"
 }
 
-func NewOperation(context *context.MainContext, selected *jj.Commit) (operations.Operation, tea.Cmd) {
+func NewOperation(context *context.RevisionsContext, selected *jj.Commit) (operations.Operation, tea.Cmd) {
 	op := &Operation{
 		Overlay:           New(context, selected),
 		context:           context,

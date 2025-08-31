@@ -184,13 +184,13 @@ func main() {
 		config.Current.UI.AutoRefreshInterval = period
 	}
 	if revset != "" {
-		appContext.DefaultRevset = revset
+		appContext.Revset.DefaultRevset = revset
 	} else if config.Current.Revisions.Revset != "" {
-		appContext.DefaultRevset = config.Current.Revisions.Revset
+		appContext.Revset.DefaultRevset = config.Current.Revisions.Revset
 	} else {
-		appContext.DefaultRevset = appContext.JJConfig.Revsets.Log
+		appContext.Revset.DefaultRevset = appContext.JJConfig.Revsets.Log
 	}
-	appContext.CurrentRevset = appContext.DefaultRevset
+	appContext.Revset.CurrentRevset = appContext.Revset.DefaultRevset
 
 	p := tea.NewProgram(ui.New(appContext), tea.WithAltScreen())
 	appContext.App = p

@@ -32,7 +32,7 @@ var (
 )
 
 type Operation struct {
-	context        *context.MainContext
+	context        *context.RevisionsContext
 	From           jj.SelectedRevisions
 	InsertStart    *jj.Commit
 	To             *jj.Commit
@@ -176,7 +176,7 @@ func (r *Operation) Name() string {
 	return "revert"
 }
 
-func NewOperation(context *context.MainContext, from jj.SelectedRevisions, target Target) *Operation {
+func NewOperation(context *context.RevisionsContext, from jj.SelectedRevisions, target Target) *Operation {
 	styles := styles{
 		changeId:     common.DefaultPalette.Get("revert change_id"),
 		shortcut:     common.DefaultPalette.Get("revert shortcut"),

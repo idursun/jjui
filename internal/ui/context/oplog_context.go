@@ -7,25 +7,45 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/context/models"
 	"github.com/idursun/jjui/internal/ui/helpers"
 )
 
 type OplogContext struct {
-	context *MainContext
-	*helpers.List[Row]
+	CommandRunner
+	UI
+	*OpLogList
 }
 
-type Row struct {
-	OperationId string
-	Lines       []*rowLine
+type OpLogList struct {
+	*helpers.List[models.OperationLogItem]
 }
 
-type rowLine struct {
-	Segments []*screen.Segment
+func NewOpLogContext(commandRunner CommandRunner, ui UI) *OplogContext {
+	return &OplogContext{
+		commandRunner,
+		ui,
+		&OpLogList{
+			List: helpers.NewList[models.OperationLogItem](),
+		},
+	}
 }
 
-func (l *rowLine) FindIdIndex() int {
-	for i, segment := range l.Segments {
+func (o *OplogContext) Load() {
+	go func() {
+		output, err := o.RunCommandImmediate(jj.OpLog(config.Current.OpLog.Limit))
+		if err != nil {
+			panic(err)
+		}
+
+		rows := parseRows(bytes.NewReader(output))
+		o.Items = rows
+		o.UI.Update()
+	}()
+}
+
+func findIdIndex(segments []*screen.Segment) int {
+	for i, segment := range segments {
 		if len(segment.Text) == 12 {
 			return i
 		}
@@ -33,37 +53,23 @@ func (l *rowLine) FindIdIndex() int {
 	return -1
 }
 
-func newRowLine(segments []*screen.Segment) rowLine {
-	return rowLine{Segments: segments}
-}
-
-func (o *OplogContext) Load() {
-	go func() {
-		output, err := o.context.RunCommandImmediate(jj.OpLog(config.Current.OpLog.Limit))
-		if err != nil {
-			panic(err)
-		}
-
-		rows := parseRows(bytes.NewReader(output))
-		o.Items = rows
-		o.context.App.Send("")
-	}()
-}
-
-func parseRows(reader io.Reader) []Row {
-	var rows []Row
-	var r Row
+func parseRows(reader io.Reader) []models.OperationLogItem {
+	var rows []models.OperationLogItem
+	var r models.OperationLogItem
 	rawSegments := screen.ParseFromReader(reader)
 
 	for segmentedLine := range screen.BreakNewLinesIter(rawSegments) {
-		rowLine := newRowLine(segmentedLine)
-		if opIdIdx := rowLine.FindIdIndex(); opIdIdx != -1 {
+		if opIdIdx := findIdIndex(segmentedLine); opIdIdx != -1 {
 			if r.OperationId != "" {
 				rows = append(rows, r)
 			}
-			r = Row{OperationId: rowLine.Segments[opIdIdx].Text}
+			r = models.OperationLogItem{
+				BaseItem:    models.BaseItem{},
+				OperationId: segmentedLine[opIdIdx].Text,
+				Lines:       nil,
+			}
 		}
-		r.Lines = append(r.Lines, &rowLine)
+		r.Lines = append(r.Lines, segmentedLine)
 	}
 	rows = append(rows, r)
 	return rows

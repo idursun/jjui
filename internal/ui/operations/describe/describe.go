@@ -13,7 +13,7 @@ import (
 )
 
 type Operation struct {
-	context  *context.MainContext
+	context  *context.RevisionsContext
 	keyMap   config.KeyMappings[key.Binding]
 	input    textarea.Model
 	revision string
@@ -90,7 +90,7 @@ func (o Operation) View() string {
 	return o.input.View()
 }
 
-func NewOperation(context *context.MainContext, revision string, width int) (operations.Operation, tea.Cmd) {
+func NewOperation(context *context.RevisionsContext, revision string, width int) (operations.Operation, tea.Cmd) {
 	descOutput, _ := context.RunCommandImmediate(jj.GetDescription(revision))
 	desc := string(descOutput)
 	h := lipgloss.Height(desc)

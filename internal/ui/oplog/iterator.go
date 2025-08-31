@@ -37,9 +37,9 @@ func (o *iterator) IsHighlighted() bool {
 func (o *iterator) Render(r io.Writer) {
 	row := o.context.Items[o.current]
 
-	for _, rowLine := range row.Lines {
+	for _, segments := range row.Lines {
 		lw := strings.Builder{}
-		for _, segment := range rowLine.Segments {
+		for _, segment := range segments {
 			if o.isHighlighted {
 				fmt.Fprint(&lw, segment.Style.Inherit(o.SelectedStyle).Render(segment.Text))
 			} else {

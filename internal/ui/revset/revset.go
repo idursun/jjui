@@ -17,7 +17,6 @@ type EditRevSetMsg struct {
 
 type Model struct {
 	Editing         bool
-	Value           string
 	autoComplete    *autocompletion.AutoCompletionInput
 	keymap          keymap
 	History         []string
@@ -81,13 +80,12 @@ func New(context *appContext.MainContext) *Model {
 	completionProvider := NewCompletionProvider(revsetAliases)
 	autoComplete := autocompletion.New(completionProvider, autocompletion.WithStylePrefix("revset"))
 
-	autoComplete.SetValue(context.DefaultRevset)
+	autoComplete.SetValue(context.Revset.DefaultRevset)
 	autoComplete.Focus()
 
 	return &Model{
 		context:         context,
 		Editing:         false,
-		Value:           context.CurrentRevset,
 		keymap:          keymap{},
 		autoComplete:    autoComplete,
 		History:         []string{},
@@ -143,12 +141,12 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		case tea.KeyEnter:
 			m.Editing = false
 			m.autoComplete.Blur()
-			m.Value = m.autoComplete.Value()
-			m.AddToHistory(m.Value)
-			if m.Value == "" {
-				m.Value = m.context.DefaultRevset
+			m.context.Revset.CurrentRevset = m.autoComplete.Value()
+			if m.context.Revset.CurrentRevset == "" {
+				m.context.Revset.CurrentRevset = m.context.Revset.DefaultRevset
 			}
-			return m, tea.Batch(common.Close, common.UpdateRevSet(m.Value))
+			m.AddToHistory(m.context.Revset.CurrentRevset)
+			return m, tea.Batch(common.Close, common.UpdateRevSet(m.context.Revset.CurrentRevset))
 		case tea.KeyUp:
 			if len(m.History) > 0 {
 				if !m.historyActive {
@@ -178,10 +176,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			}
 		}
 	case common.UpdateRevSetMsg:
-		m.Value = string(msg)
+		m.context.Revset.CurrentRevset = string(msg)
 		if m.Editing {
 			m.Editing = false
-			m.AddToHistory(m.Value)
+			m.AddToHistory(m.context.Revset.CurrentRevset)
 		}
 	case EditRevSetMsg:
 		m.Editing = true
@@ -205,11 +203,7 @@ func (m *Model) View() string {
 	if m.Editing {
 		w.WriteString(m.autoComplete.View())
 	} else {
-		revset := m.context.DefaultRevset
-		if m.Value != "" {
-			revset = m.Value
-		}
-		w.WriteString(m.styles.textStyle.Render(revset))
+		w.WriteString(m.styles.textStyle.Render(m.context.Revset.CurrentRevset))
 	}
 	return lipgloss.Place(m.width, m.height, 0, 0, w.String(), lipgloss.WithWhitespaceBackground(m.styles.textStyle.GetBackground()))
 }

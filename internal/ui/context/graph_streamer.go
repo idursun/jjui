@@ -22,11 +22,11 @@ type GraphStreamer struct {
 	batchSize   int
 }
 
-func NewGraphStreamer(ctx CommandRunner, revset string) (*GraphStreamer, error) {
+func NewGraphStreamer(commandRunner CommandRunner, revset string) (*GraphStreamer, error) {
 	streamerCtx, cancel := context.WithCancel(context.Background())
 	var commandError error
 
-	command, err := ctx.RunCommandStreaming(streamerCtx, jj.Log(revset, config.Current.Limit))
+	command, err := commandRunner.RunCommandStreaming(streamerCtx, jj.Log(revset, config.Current.Limit))
 	if err != nil {
 		cancel()
 		return nil, err

@@ -48,7 +48,7 @@ func (a *Operation) Name() string {
 	return "abandon"
 }
 
-func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRevisions) operations.Operation {
+func NewOperation(context *context.RevisionsContext, selectedRevisions jj.SelectedRevisions) operations.Operation {
 	var ids []string
 	var conflictingWarning string
 	for _, rev := range selectedRevisions.Revisions {

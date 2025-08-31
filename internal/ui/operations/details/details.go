@@ -130,12 +130,12 @@ type styles struct {
 }
 
 type Model struct {
+	context      *context.RevisionsContext
 	revision     *jj.Commit
 	files        list.Model
 	mode         mode
 	height       int
 	confirmation *confirmation.Model
-	context      *context.MainContext
 	keyMap       config.KeyMappings[key.Binding]
 	styles       styles
 }
@@ -165,7 +165,7 @@ type updateCommitStatusMsg struct {
 	selectedFiles []string
 }
 
-func New(context *context.MainContext, revision *jj.Commit) Model {
+func New(context *context.RevisionsContext, revision *jj.Commit) Model {
 	keyMap := config.Current.GetKeyMap()
 
 	s := styles{

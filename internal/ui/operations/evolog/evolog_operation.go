@@ -28,7 +28,7 @@ const (
 )
 
 type Operation struct {
-	context  *context.MainContext
+	context  *context.RevisionsContext
 	w        *graph.Renderer
 	revision *jj.Commit
 	mode     mode
@@ -180,7 +180,7 @@ func (o *Operation) load() tea.Msg {
 	}
 }
 
-func NewOperation(context *context.MainContext, revision *jj.Commit, width int, height int) (operations.Operation, tea.Cmd) {
+func NewOperation(context *context.RevisionsContext, revision *jj.Commit, width int, height int) (operations.Operation, tea.Cmd) {
 	styles := styles{
 		dimmedStyle:   common.DefaultPalette.Get("evolog dimmed"),
 		commitIdStyle: common.DefaultPalette.Get("evolog commit_id"),

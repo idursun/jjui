@@ -192,7 +192,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
-			return m, common.FileSearch(m.revsetModel.Value, m.previewVisible, rev, out)
+			return m, common.FileSearch(m.context.Revset.CurrentRevset, m.previewVisible, rev, out)
 		case key.Matches(msg, m.keyMap.QuickSearch) && m.oplog != nil:
 			// HACK: prevents quick search from activating in op log view
 			return m, nil
@@ -232,7 +232,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		})
 	case common.UpdateRevSetMsg:
 		var revsetCmd tea.Cmd
-		m.context.CurrentRevset = string(msg)
+		m.context.Revset.CurrentRevset = string(msg)
 		m.revsetModel, revsetCmd = m.revsetModel.Update(msg)
 		var revisionsCmd tea.Cmd
 		m.revisions, revisionsCmd = m.revisions.Update(msg)

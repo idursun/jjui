@@ -31,7 +31,7 @@ var (
 )
 
 type Operation struct {
-	context        *appContext.MainContext
+	context        *appContext.RevisionsContext
 	From           jj.SelectedRevisions
 	InsertStart    *jj.Commit
 	To             *jj.Commit
@@ -136,7 +136,7 @@ func (r *Operation) Name() string {
 	return "duplicate"
 }
 
-func NewOperation(context *appContext.MainContext, from jj.SelectedRevisions, target Target) *Operation {
+func NewOperation(context *appContext.RevisionsContext, from jj.SelectedRevisions, target Target) *Operation {
 	styles := styles{
 		changeId:     common.DefaultPalette.Get("duplicate change_id"),
 		dimmed:       common.DefaultPalette.Get("duplicate dimmed"),

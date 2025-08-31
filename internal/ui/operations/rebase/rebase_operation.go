@@ -46,7 +46,7 @@ var (
 )
 
 type Operation struct {
-	context        *context.MainContext
+	context        *context.RevisionsContext
 	From           jj.SelectedRevisions
 	InsertStart    *jj.Commit
 	To             *jj.Commit
@@ -222,7 +222,7 @@ func (r *Operation) Name() string {
 	return "rebase"
 }
 
-func NewOperation(context *context.MainContext, from jj.SelectedRevisions, source Source, target Target) *Operation {
+func NewOperation(context *context.RevisionsContext, from jj.SelectedRevisions, source Source, target Target) *Operation {
 	styles := styles{
 		changeId:     common.DefaultPalette.Get("rebase change_id"),
 		shortcut:     common.DefaultPalette.Get("rebase shortcut"),

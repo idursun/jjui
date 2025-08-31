@@ -93,7 +93,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			switch msg := m.context.SelectedItem.(type) {
 			case context.SelectedFile:
 				replacements := map[string]string{
-					jj.RevsetPlaceholder:   m.context.CurrentRevset,
+					jj.RevsetPlaceholder:   m.context.Revset.CurrentRevset,
 					jj.ChangeIdPlaceholder: msg.ChangeId,
 					jj.CommitIdPlaceholder: msg.CommitId,
 					jj.FilePlaceholder:     msg.File,
@@ -102,7 +102,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				m.updatePreviewContent(string(output))
 			case context.SelectedRevision:
 				replacements := map[string]string{
-					jj.RevsetPlaceholder:   m.context.CurrentRevset,
+					jj.RevsetPlaceholder:   m.context.Revset.CurrentRevset,
 					jj.ChangeIdPlaceholder: msg.ChangeId,
 					jj.CommitIdPlaceholder: msg.CommitId,
 				}
@@ -110,7 +110,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				m.updatePreviewContent(string(output))
 			case context.SelectedOperation:
 				replacements := map[string]string{
-					jj.RevsetPlaceholder:      m.context.CurrentRevset,
+					jj.RevsetPlaceholder:      m.context.Revset.CurrentRevset,
 					jj.OperationIdPlaceholder: msg.OperationId,
 				}
 				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))

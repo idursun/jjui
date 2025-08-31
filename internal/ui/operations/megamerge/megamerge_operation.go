@@ -16,7 +16,7 @@ import (
 )
 
 type Model struct {
-	context  *context.MainContext
+	context  *context.RevisionsContext
 	target   *jj.Commit
 	current  *jj.Commit
 	toRemove map[string]bool
@@ -117,7 +117,7 @@ func (m *Model) Name() string {
 	return "megamerge"
 }
 
-func NewModel(ctx *context.MainContext, to *jj.Commit) *Model {
+func NewModel(ctx *context.RevisionsContext, to *jj.Commit) *Model {
 	styles := styles{
 		sourceMarker: common.DefaultPalette.Get("megamerge source_marker"),
 		targetMarker: common.DefaultPalette.Get("megamerge target_marker"),

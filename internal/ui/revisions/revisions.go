@@ -33,7 +33,7 @@ import (
 type Model struct {
 	width           int
 	height          int
-	context         *appContext.MainContext
+	context         *appContext.RevisionsContext
 	keymap          config.KeyMappings[key.Binding]
 	output          string
 	err             error
@@ -57,14 +57,14 @@ func RevisionsCmd(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) IsFocused() bool {
-	if _, ok := m.context.Revisions.Op.(common.Focusable); ok {
+	if _, ok := m.context.Op.(common.Focusable); ok {
 		return true
 	}
 	return false
 }
 
 func (m *Model) InNormalMode() bool {
-	if _, ok := m.context.Revisions.Op.(*operations.Default); ok {
+	if _, ok := m.context.Op.(*operations.Default); ok {
 		return true
 	}
 	return false
@@ -87,14 +87,14 @@ func (m *Model) SetHeight(h int) {
 }
 
 func (m *Model) ShortHelp() []key.Binding {
-	if op, ok := m.context.Revisions.Op.(help.KeyMap); ok {
+	if op, ok := m.context.Op.(help.KeyMap); ok {
 		return op.ShortHelp()
 	}
 	return (&operations.Default{}).ShortHelp()
 }
 
 func (m *Model) FullHelp() [][]key.Binding {
-	if op, ok := m.context.Revisions.Op.(help.KeyMap); ok {
+	if op, ok := m.context.Op.(help.KeyMap); ok {
 		return op.FullHelp()
 	}
 	return [][]key.Binding{m.ShortHelp()}
@@ -103,19 +103,18 @@ func (m *Model) FullHelp() [][]key.Binding {
 func (m *Model) SelectedRevisions() jj.SelectedRevisions {
 	var selected []*jj.Commit
 	ids := make(map[string]bool)
-	for _, ci := range m.context.CheckedItems {
-		if rev, ok := ci.(appContext.SelectedRevision); ok {
-			ids[rev.CommitId] = true
-		}
+	items := m.context.GetCheckedItems()
+	for _, item := range items {
+		ids[item.Commit.CommitId] = true
 	}
-	for _, row := range m.context.Revisions.Items {
+	for _, row := range m.context.Items {
 		if _, ok := ids[row.Commit.CommitId]; ok {
 			selected = append(selected, row.Commit)
 		}
 	}
 
 	if len(selected) == 0 {
-		return jj.NewSelectedRevisions(m.context.Revisions.Current().Commit)
+		return jj.NewSelectedRevisions(m.context.Current().Commit)
 	}
 	return jj.NewSelectedRevisions(selected...)
 }
@@ -130,14 +129,14 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	}
 	switch msg := msg.(type) {
 	case common.CloseViewMsg:
-		m.context.Revisions.Op = operations.NewDefault()
+		m.context.Op = operations.NewDefault()
 		return m, m.updateSelection()
 	case common.UpdateRevSetMsg:
 		return m, common.Refresh
 	case common.QuickSearchMsg:
 		m.quickSearch = string(msg)
-		m.context.Revisions.Cursor = m.search(0)
-		m.context.Revisions.Op = operations.NewDefault()
+		m.context.Cursor = m.search(0)
+		m.context.Op = operations.NewDefault()
 		m.w.ResetViewRange()
 		return m, nil
 	case common.CommandCompletedMsg:
@@ -156,23 +155,23 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		//if !msg.KeepSelections {
 		//	m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
 		//}
-		m.context.Revisions.LoadRows(msg.SelectedRevision)
+		m.context.LoadRows(msg.SelectedRevision)
 	case common.JumpToParentMsg:
 		if msg.Commit == nil {
 			return m, nil
 		}
-		m.context.Revisions.JumpToParent(jj.NewSelectedRevisions(msg.Commit))
+		m.context.JumpToParent(jj.NewSelectedRevisions(msg.Commit))
 		return m, m.updateSelection()
 	}
 
 	// TODO: This is duplicated at the end of the function, needs refactoring
-	if curSelected := m.context.Revisions.Current(); curSelected != nil {
-		if op, ok := m.context.Revisions.Op.(operations.TracksSelectedRevision); ok {
+	if curSelected := m.context.Current(); curSelected != nil {
+		if op, ok := m.context.Op.(operations.TracksSelectedRevision); ok {
 			op.SetSelectedRevision(curSelected.Commit)
 		}
 	}
 
-	if len(m.context.Revisions.Items) == 0 {
+	if len(m.context.Items) == 0 {
 		return m, nil
 	}
 
@@ -185,52 +184,50 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keymap.Up):
-			m.context.Revisions.Prev()
+			m.context.Prev()
 		case key.Matches(msg, m.keymap.Down):
-			m.context.Revisions.Next()
+			m.context.Next()
 		case key.Matches(msg, m.keymap.JumpToParent):
-			m.context.Revisions.JumpToParent(m.SelectedRevisions())
+			m.context.JumpToParent(m.SelectedRevisions())
 		case key.Matches(msg, m.keymap.JumpToChildren):
-			immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.context.Revisions.Current().Commit))
-			index := m.context.Revisions.SelectRevision(string(immediate))
+			immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.context.Current().Commit))
+			index := m.context.SelectRevision(string(immediate))
 			if index != -1 {
-				m.context.Revisions.Cursor = index
+				m.context.Cursor = index
 			}
 		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
-			workingCopyIndex := m.context.Revisions.SelectRevision("@")
+			workingCopyIndex := m.context.SelectRevision("@")
 			if workingCopyIndex != -1 {
-				m.context.Revisions.Cursor = workingCopyIndex
+				m.context.Cursor = workingCopyIndex
 			}
 			return m, m.updateSelection()
 		case key.Matches(msg, m.keymap.AceJump):
 			m.aceJump = m.findAceKeys()
 		default:
-			if op, ok := m.context.Revisions.Op.(operations.HandleKey); ok {
+			if op, ok := m.context.Op.(operations.HandleKey); ok {
 				cmd = op.HandleKey(msg)
 				break
 			}
 
 			switch {
 			case key.Matches(msg, m.keymap.ToggleSelect):
-				commit := m.context.Revisions.List.Current().Commit
-				changeId := commit.GetChangeId()
-				item := appContext.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
-				m.context.ToggleCheckedItem(item)
+				commit := m.context.Current().Commit
+				m.context.Current().Toggle()
 				immediate, _ := m.context.RunCommandImmediate(jj.GetParent(jj.NewSelectedRevisions(commit)))
-				parentIndex := m.context.Revisions.SelectRevision(string(immediate))
+				parentIndex := m.context.SelectRevision(string(immediate))
 				if parentIndex != -1 {
-					m.context.Revisions.Cursor = parentIndex
+					m.context.Cursor = parentIndex
 				}
 			case key.Matches(msg, m.keymap.Cancel):
-				m.context.Revisions.Op = operations.NewDefault()
+				m.context.Op = operations.NewDefault()
 			case key.Matches(msg, m.keymap.QuickSearchCycle):
-				m.context.Revisions.Cursor = m.search(m.context.Revisions.Cursor + 1)
+				m.context.Cursor = m.search(m.context.Cursor + 1)
 				m.w.ResetViewRange()
 				return m, nil
 			case key.Matches(msg, m.keymap.Details.Mode):
-				m.context.Revisions.Op, cmd = details.NewOperation(m.context, m.context.Revisions.Current().Commit)
+				m.context.Op, cmd = details.NewOperation(m.context, m.context.Current().Commit)
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
-				m.context.Revisions.Op, cmd = describe.NewOperation(m.context, m.context.Revisions.Current().Commit.GetChangeId(), m.width)
+				m.context.Op, cmd = describe.NewOperation(m.context, m.context.Current().Commit.GetChangeId(), m.width)
 				return m, cmd
 			case key.Matches(msg, m.keymap.New):
 				cmd = m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
@@ -238,29 +235,29 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				cmd = m.context.RunInteractiveCommand(jj.CommitWorkingCopy(), common.Refresh)
 			case key.Matches(msg, m.keymap.Edit, m.keymap.ForceEdit):
 				ignoreImmutable := key.Matches(msg, m.keymap.ForceEdit)
-				cmd = m.context.RunCommand(jj.Edit(m.context.Revisions.Current().Commit.GetChangeId(), ignoreImmutable), common.Refresh)
+				cmd = m.context.RunCommand(jj.Edit(m.context.Current().Commit.GetChangeId(), ignoreImmutable), common.Refresh)
 			case key.Matches(msg, m.keymap.Diffedit):
-				changeId := m.context.Revisions.Current().Commit.GetChangeId()
+				changeId := m.context.Current().Commit.GetChangeId()
 				cmd = m.context.RunInteractiveCommand(jj.DiffEdit(changeId), common.Refresh)
 			case key.Matches(msg, m.keymap.Absorb):
-				changeId := m.context.Revisions.Current().Commit.GetChangeId()
+				changeId := m.context.Current().Commit.GetChangeId()
 				cmd = m.context.RunCommand(jj.Absorb(changeId), common.Refresh)
 			case key.Matches(msg, m.keymap.Abandon):
 				selections := m.SelectedRevisions()
-				m.context.Revisions.Op = abandon.NewOperation(m.context, selections)
+				m.context.Op = abandon.NewOperation(m.context, selections)
 			case key.Matches(msg, m.keymap.Bookmark.Set):
-				m.context.Revisions.Op, cmd = bookmark.NewSetBookmarkOperation(m.context, m.context.Revisions.Current().Commit.GetChangeId())
+				m.context.Op, cmd = bookmark.NewSetBookmarkOperation(m.context, m.context.Current().Commit.GetChangeId())
 			case key.Matches(msg, m.keymap.Split):
-				currentRevision := m.context.Revisions.Current().Commit.GetChangeId()
+				currentRevision := m.context.Current().Commit.GetChangeId()
 				return m, m.context.RunInteractiveCommand(jj.Split(currentRevision, []string{}), common.Refresh)
 			case key.Matches(msg, m.keymap.Describe):
-				currentRevision := m.context.Revisions.Current().Commit.GetChangeId()
+				currentRevision := m.context.Current().Commit.GetChangeId()
 				return m, m.context.RunInteractiveCommand(jj.Describe(currentRevision), common.Refresh)
 			case key.Matches(msg, m.keymap.Evolog.Mode):
-				m.context.Revisions.Op, cmd = evolog.NewOperation(m.context, m.context.Revisions.Current().Commit, m.width, m.height)
+				m.context.Op, cmd = evolog.NewOperation(m.context, m.context.Current().Commit, m.width, m.height)
 			case key.Matches(msg, m.keymap.Diff):
 				return m, func() tea.Msg {
-					changeId := m.context.Revisions.Current().Commit.GetChangeId()
+					changeId := m.context.Current().Commit.GetChangeId()
 					output, _ := m.context.RunCommandImmediate(jj.Diff(changeId, ""))
 					return common.ShowDiffMsg(output)
 				}
@@ -269,28 +266,28 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.Squash.Mode):
 				selectedRevisions := m.SelectedRevisions()
 				parent, _ := m.context.RunCommandImmediate(jj.GetParent(selectedRevisions))
-				parentIdx := m.context.Revisions.SelectRevision(string(parent))
+				parentIdx := m.context.SelectRevision(string(parent))
 				if parentIdx != -1 {
-					m.context.Revisions.Cursor = parentIdx
-				} else if m.context.Revisions.Cursor < len(m.context.Revisions.Items)-1 {
-					m.context.Revisions.Cursor++
+					m.context.Cursor = parentIdx
+				} else if m.context.Cursor < len(m.context.Items)-1 {
+					m.context.Cursor++
 				}
-				m.context.Revisions.Op = squash.NewOperation(m.context, selectedRevisions)
+				m.context.Op = squash.NewOperation(m.context, selectedRevisions)
 			case key.Matches(msg, m.keymap.Revert.Mode):
-				m.context.Revisions.Op = revert.NewOperation(m.context, m.SelectedRevisions(), revert.TargetDestination)
+				m.context.Op = revert.NewOperation(m.context, m.SelectedRevisions(), revert.TargetDestination)
 			case key.Matches(msg, m.keymap.Rebase.Mode):
-				m.context.Revisions.Op = rebase.NewOperation(m.context, m.SelectedRevisions(), rebase.SourceRevision, rebase.TargetDestination)
+				m.context.Op = rebase.NewOperation(m.context, m.SelectedRevisions(), rebase.SourceRevision, rebase.TargetDestination)
 			case key.Matches(msg, m.keymap.Duplicate.Mode):
-				m.context.Revisions.Op = duplicate.NewOperation(m.context, m.SelectedRevisions(), duplicate.TargetDestination)
+				m.context.Op = duplicate.NewOperation(m.context, m.SelectedRevisions(), duplicate.TargetDestination)
 			case key.Matches(msg, m.keymap.Megamerge):
-				m.context.Revisions.Op = megamerge.NewModel(m.context, m.context.Revisions.Current().Commit)
+				m.context.Op = megamerge.NewModel(m.context, m.context.Current().Commit)
 			}
 		}
 	}
 
-	if curSelected := m.context.Revisions.Current().Commit; curSelected != nil {
-		if op, ok := m.context.Revisions.Op.(operations.TracksSelectedRevision); ok {
-			op.SetSelectedRevision(curSelected)
+	if curSelected := m.context.Current(); curSelected != nil {
+		if op, ok := m.context.Op.(operations.TracksSelectedRevision); ok {
+			op.SetSelectedRevision(curSelected.Commit)
 		}
 		return m, tea.Batch(m.updateSelection(), cmd)
 	}
@@ -298,12 +295,12 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 }
 
 func (m *Model) updateSelection() tea.Cmd {
-	if selectedRevision := m.context.Revisions.Current().Commit; selectedRevision != nil {
-		return m.context.SetSelectedItem(appContext.SelectedRevision{
-			ChangeId: selectedRevision.GetChangeId(),
-			CommitId: selectedRevision.CommitId,
-		})
-	}
+	//if selectedRevision := m.context.Current().Commit; selectedRevision != nil {
+	//	return m.context.SetSelectedItem(appContext.SelectedRevision{
+	//		ChangeId: selectedRevision.GetChangeId(),
+	//		CommitId: selectedRevision.CommitId,
+	//	})
+	//}
 	return nil
 }
 
@@ -323,8 +320,8 @@ func (m *Model) highlightChanges() tea.Msg {
 		}
 		parts := strings.Split(line, " ")
 		if len(parts) > 0 {
-			for i := range m.context.Revisions.Items {
-				row := &m.context.Revisions.Items[i]
+			for i := range m.context.Items {
+				row := m.context.Items[i]
 				if row.Commit.GetChangeId() == parts[0] {
 					row.IsAffected = true
 					break
@@ -335,49 +332,31 @@ func (m *Model) highlightChanges() tea.Msg {
 	return nil
 }
 
-func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
-	if rows == nil {
-		rows = []parser.Row{}
-	}
-
-	currentSelectedRevision := selectedRevision
-	if cur := m.context.Revisions.Current().Commit; currentSelectedRevision == "" && cur != nil {
-		currentSelectedRevision = cur.GetChangeId()
-	}
-	m.context.Revisions.Items = rows
-
-	if len(m.context.Revisions.Items) > 0 {
-		m.context.Revisions.Cursor = m.context.Revisions.SelectRevision(currentSelectedRevision)
-		if m.context.Revisions.Cursor == -1 {
-			m.context.Revisions.Cursor = m.context.Revisions.SelectRevision("@")
-		}
-		if m.context.Revisions.Cursor == -1 {
-			m.context.Revisions.Cursor = 0
-		}
-	} else {
-		m.context.Revisions.Cursor = 0
-	}
-}
-
 func (m *Model) View() string {
-	if len(m.context.Revisions.Items) == 0 {
+	if len(m.context.Items) == 0 {
 		if m.isLoading {
 			return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, "loading")
 		}
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, "(no matching revisions)")
 	}
 
-	renderer := graph.NewDefaultRowIterator(m.context.Revisions.Items, graph.WithWidth(m.width), graph.WithStylePrefix("revisions"), graph.WithSelections(m.context.GetSelectedRevisions()))
-	renderer.Op = m.context.Revisions.Op
-	renderer.Cursor = m.context.Revisions.Cursor
+	checkedItems := m.context.GetCheckedItems()
+	selections := make(map[string]bool)
+	for _, checkedItem := range checkedItems {
+		selections[checkedItem.Commit.GetChangeId()] = true
+	}
+
+	renderer := graph.NewDefaultRowIterator(m.context.AsRows(), graph.WithWidth(m.width), graph.WithStylePrefix("revisions"), graph.WithSelections(selections))
+	renderer.Op = m.context.Op
+	renderer.Cursor = m.context.Cursor
 	renderer.SearchText = m.quickSearch
 	renderer.AceJumpPrefix = m.aceJump.Prefix()
 
 	m.w.SetSize(m.width, m.height)
 	if config.Current.UI.Tracer.Enabled {
 		start, end := m.w.FirstRowIndex(), m.w.LastRowIndex()+1 // +1 because the last row is inclusive in the view range
-		log.Println("Visible row range:", start, end, "Cursor:", m.context.Revisions.Cursor, "Total rows:", len(m.context.Revisions.Items))
-		renderer.Tracer = parser.NewTracer(m.context.Revisions.Items, m.context.Revisions.Cursor, start, end)
+		log.Println("Visible row range:", start, end, "Cursor:", m.context.Cursor, "Total rows:", len(m.context.Items))
+		renderer.Tracer = parser.NewTracer(m.context.AsRows(), m.context.Cursor, start, end)
 	}
 	output := m.w.Render(renderer)
 	output = m.textStyle.MaxWidth(m.width).Render(output)
@@ -386,13 +365,13 @@ func (m *Model) View() string {
 
 func (m *Model) search(startIndex int) int {
 	if m.quickSearch == "" {
-		return m.context.Revisions.Cursor
+		return m.context.Cursor
 	}
 
-	n := len(m.context.Revisions.Items)
+	n := len(m.context.Items)
 	for i := startIndex; i < n+startIndex; i++ {
 		c := i % n
-		row := &m.context.Revisions.Items[c]
+		row := m.context.Items[c]
 		for _, line := range row.Lines {
 			for _, segment := range line.Segments {
 				if segment.Text != "" && strings.Contains(segment.Text, m.quickSearch) {
@@ -401,12 +380,12 @@ func (m *Model) search(startIndex int) int {
 			}
 		}
 	}
-	return m.context.Revisions.Cursor
+	return m.context.Cursor
 }
 
 func (m *Model) GetCommitIds() []string {
 	var commitIds []string
-	for _, row := range m.context.Revisions.Items {
+	for _, row := range m.context.Items {
 		commitIds = append(commitIds, row.Commit.CommitId)
 	}
 	return commitIds
@@ -416,7 +395,7 @@ func New(c *appContext.MainContext) Model {
 	keymap := config.Current.GetKeyMap()
 	w := graph.NewRenderer(20, 10)
 	return Model{
-		context:   c,
+		context:   c.Revisions,
 		w:         w,
 		keymap:    keymap,
 		width:     20,
@@ -432,14 +411,14 @@ func (m *Model) updateOperation(msg tea.Msg) (tea.Cmd, bool) {
 	// This is currently a hack due to the lack of a mechanism to handle mode changes.
 	// The 'restore' mode name was added to facilitate this special case.
 	// Future refactoring will address mode changes more generically.
-	if m.context.Revisions.Op != nil && (m.context.Revisions.Op.Name() == "restore" || m.context.Revisions.Op.Name() == "target") {
+	if m.context.Op != nil && (m.context.Op.Name() == "restore" || m.context.Op.Name() == "target") {
 		if _, ok := msg.(tea.KeyMsg); ok {
 			return nil, false
 		}
 	}
 	var cmd tea.Cmd
-	if op, ok := m.context.Revisions.Op.(operations.OperationWithOverlay); ok {
-		m.context.Revisions.Op, cmd = op.Update(msg)
+	if op, ok := m.context.Op.(operations.OperationWithOverlay); ok {
+		m.context.Op, cmd = op.Update(msg)
 		return cmd, true
 	}
 	return nil, false

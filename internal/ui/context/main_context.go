@@ -9,7 +9,6 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/helpers"
 )
 
 type SelectedItem interface {
@@ -54,40 +53,51 @@ func (s SelectedOperation) Equal(other SelectedItem) bool {
 
 type MainContext struct {
 	CommandRunner
+	UI
 	SelectedItem   SelectedItem   // Single item where cursor is hover.
 	CheckedItems   []SelectedItem // Items checked ✓ by the user.
 	Location       string
 	CustomCommands map[string]CustomCommand
 	Leader         LeaderMap
 	JJConfig       *config.JJConfig
-	DefaultRevset  string
-	CurrentRevset  string
 	Histories      *config.Histories
 	Revisions      *RevisionsContext
 	OpLog          *OplogContext
+	Revset         *RevsetContext
 	App            *tea.Program
 }
 
+type UI interface {
+	Update()
+	Send(msg tea.Msg)
+}
+
 func NewAppContext(location string) *MainContext {
-	m := &MainContext{
-		CommandRunner: &MainCommandRunner{
-			Location: location,
-		},
-		Location:  location,
-		Histories: config.NewHistories(),
-		Revisions: NewRevisionsContext(),
-		OpLog: &OplogContext{
-			List: helpers.NewList[Row](),
-		},
+	commandRunner := &MainCommandRunner{
+		Location: location,
 	}
-	m.Revisions.context = m
-	m.OpLog.context = m
+	m := &MainContext{
+		CommandRunner: commandRunner,
+		Location:      location,
+		Histories:     config.NewHistories(),
+	}
+	m.Revset = NewRevsetContext()
+	m.Revisions = NewRevisionsContext(commandRunner, m, m.Revset)
+	m.OpLog = NewOpLogContext(commandRunner, m)
 
 	m.JJConfig = &config.JJConfig{}
 	if output, err := m.RunCommandImmediate(jj.ConfigListAll()); err == nil {
 		m.JJConfig, _ = config.DefaultConfig(output)
 	}
 	return m
+}
+
+func (ctx *MainContext) Update() {
+	ctx.Send("")
+}
+
+func (ctx *MainContext) Send(msg tea.Msg) {
+	ctx.App.Send(msg)
 }
 
 func (ctx *MainContext) ClearCheckedItems(ofType reflect.Type) {
@@ -126,7 +136,7 @@ func (ctx *MainContext) SetSelectedItem(item SelectedItem) tea.Cmd {
 func (ctx *MainContext) CreateReplacements() map[string]string {
 	selectedItem := ctx.SelectedItem
 	replacements := make(map[string]string)
-	replacements[jj.RevsetPlaceholder] = ctx.CurrentRevset
+	replacements[jj.RevsetPlaceholder] = ctx.Revset.CurrentRevset
 
 	switch selectedItem := selectedItem.(type) {
 	case SelectedRevision:

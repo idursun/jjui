@@ -30,11 +30,12 @@ func (l *List[T]) Next() {
 	}
 }
 
-func (l *List[T]) Current() *T {
+func (l *List[T]) Current() T {
+	var zero T
 	if l.Cursor >= 0 && l.Cursor < len(l.Items) {
-		return &l.Items[l.Cursor]
+		return l.Items[l.Cursor]
 	}
-	return nil
+	return zero
 }
 
 func NewList[T any]() *List[T] {

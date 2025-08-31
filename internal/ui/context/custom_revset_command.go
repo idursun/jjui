@@ -18,7 +18,7 @@ func (c CustomRevsetCommand) Description(ctx *MainContext) string {
 	if item, ok := ctx.SelectedItem.(SelectedRevision); ok {
 		rendered := strings.ReplaceAll(c.Revset, jj.ChangeIdPlaceholder, item.ChangeId)
 		rendered = strings.ReplaceAll(rendered, jj.CommitIdPlaceholder, item.CommitId)
-		rendered = strings.ReplaceAll(rendered, jj.RevsetPlaceholder, ctx.CurrentRevset)
+		rendered = strings.ReplaceAll(rendered, jj.RevsetPlaceholder, ctx.Revset.CurrentRevset)
 		return fmt.Sprintf("change revset to %s", rendered)
 	}
 	return ""
@@ -33,7 +33,7 @@ func (c CustomRevsetCommand) Prepare(ctx *MainContext) tea.Cmd {
 	if item, ok := ctx.SelectedItem.(SelectedRevision); ok {
 		rendered := strings.ReplaceAll(c.Revset, jj.ChangeIdPlaceholder, item.ChangeId)
 		rendered = strings.ReplaceAll(rendered, jj.CommitIdPlaceholder, item.CommitId)
-		rendered = strings.ReplaceAll(rendered, jj.RevsetPlaceholder, ctx.CurrentRevset)
+		rendered = strings.ReplaceAll(rendered, jj.RevsetPlaceholder, ctx.Revset.CurrentRevset)
 		return common.UpdateRevSet(rendered)
 	}
 	return nil

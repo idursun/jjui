@@ -15,7 +15,7 @@ import (
 )
 
 type Operation struct {
-	context     *context.MainContext
+	context     *context.RevisionsContext
 	from        jj.SelectedRevisions
 	current     *jj.Commit
 	keyMap      config.KeyMappings[key.Binding]
@@ -88,7 +88,7 @@ func (s *Operation) FullHelp() [][]key.Binding {
 	return [][]key.Binding{s.ShortHelp()}
 }
 
-func NewOperation(context *context.MainContext, from jj.SelectedRevisions) *Operation {
+func NewOperation(context *context.RevisionsContext, from jj.SelectedRevisions) *Operation {
 	styles := styles{
 		dimmed:       common.DefaultPalette.Get("squash dimmed"),
 		sourceMarker: common.DefaultPalette.Get("squash source_marker"),
