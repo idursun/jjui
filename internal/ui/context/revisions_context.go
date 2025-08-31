@@ -70,7 +70,7 @@ func (c *RevisionsContext) LoadRows(revisionToSelect string) {
 	c.hasMore = true
 	//log.Println("Starting streaming revisions with tag:", tag)
 	c.RequestMore()
-	c.Cursor = c.SelectRevision(revisionToSelect)
+	c.SelectRevision(revisionToSelect)
 }
 
 func (c *RevisionsContext) RequestMore() {
@@ -91,20 +91,20 @@ func (c *RevisionsContext) HasMore() bool {
 }
 
 func (c *RevisionsContext) Next() {
-	if c.Cursor+1 == len(c.Items) && c.HasMore() {
+	if c.Cursor()+1 == len(c.Items) && c.HasMore() {
 		c.RequestMore()
 	}
 	c.List.Next()
 }
 
-func (c *RevisionsContext) SelectRevision(revision string) int {
+func (c *RevisionsContext) SelectRevision(revision string) {
 	eqFold := func(other string) bool {
 		return strings.EqualFold(other, revision)
 	}
 
 	if revision == "" {
-		if c.Cursor >= 0 && c.Cursor < len(c.List.Items) {
-			return c.Cursor
+		if c.Cursor() >= 0 && c.Cursor() < len(c.List.Items) {
+			return
 		}
 	}
 
@@ -114,15 +114,12 @@ func (c *RevisionsContext) SelectRevision(revision string) int {
 		}
 		return eqFold(item.Row.Commit.GetChangeId()) || eqFold(item.Row.Commit.ChangeId) || eqFold(item.Row.Commit.CommitId)
 	})
-	return idx
+	c.SetCursor(idx)
 }
 
 func (c *RevisionsContext) JumpToParent(revisions jj.SelectedRevisions) {
 	immediate, _ := c.RunCommandImmediate(jj.GetParent(revisions))
-	parentIndex := c.SelectRevision(string(immediate))
-	if parentIndex != -1 {
-		c.Cursor = parentIndex
-	}
+	c.SelectRevision(string(immediate))
 }
 
 func (c *RevisionsContext) AsRows() []parser.Row {

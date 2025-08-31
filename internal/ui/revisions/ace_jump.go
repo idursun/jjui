@@ -13,10 +13,10 @@ func (m *Model) HandleAceJump(k tea.KeyMsg) tea.Cmd {
 	if k.String() == tea.KeyEscape.String() {
 		m.aceJump = nil
 	} else if k.String() == tea.KeyEnter.String() {
-		m.context.Cursor = m.aceJump.First().RowIdx
+		m.context.SetCursor(m.aceJump.First().RowIdx)
 		m.aceJump = nil
 	} else if found := m.aceJump.Narrow(k); found != nil {
-		m.context.Cursor = found.RowIdx
+		m.context.SetCursor(found.RowIdx)
 		m.aceJump = nil
 	}
 	return m.updateSelection()

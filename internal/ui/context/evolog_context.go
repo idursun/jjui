@@ -28,5 +28,5 @@ func (e *EvologContext) Load(revision *models.RevisionItem) {
 	for _, row := range rows {
 		e.Items = append(e.Items, &models.EvologItem{Row: &row})
 	}
-	e.Cursor = 0
+	e.SetCursor(0)
 }

@@ -135,7 +135,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		return m, common.Refresh
 	case common.QuickSearchMsg:
 		m.quickSearch = string(msg)
-		m.context.Cursor = m.search(0)
+		m.context.SetCursor(m.search(0))
 		m.context.Op = operations.NewDefault()
 		m.w.ResetViewRange()
 		return m, nil
@@ -191,15 +191,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.context.JumpToParent(m.SelectedRevisions())
 		case key.Matches(msg, m.keymap.JumpToChildren):
 			immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.context.Current().Commit))
-			index := m.context.SelectRevision(string(immediate))
-			if index != -1 {
-				m.context.Cursor = index
-			}
+			m.context.SelectRevision(string(immediate))
 		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
-			workingCopyIndex := m.context.SelectRevision("@")
-			if workingCopyIndex != -1 {
-				m.context.Cursor = workingCopyIndex
-			}
+			m.context.SelectRevision("@")
 			return m, nil
 		case key.Matches(msg, m.keymap.AceJump):
 			m.aceJump = m.findAceKeys()
@@ -214,14 +208,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				commit := m.context.Current().Commit
 				m.context.Current().Toggle()
 				immediate, _ := m.context.RunCommandImmediate(jj.GetParent(jj.NewSelectedRevisions(commit)))
-				parentIndex := m.context.SelectRevision(string(immediate))
-				if parentIndex != -1 {
-					m.context.Cursor = parentIndex
-				}
+				m.context.SelectRevision(string(immediate))
 			case key.Matches(msg, m.keymap.Cancel):
 				m.context.Op = operations.NewDefault()
 			case key.Matches(msg, m.keymap.QuickSearchCycle):
-				m.context.Cursor = m.search(m.context.Cursor + 1)
+				m.context.SetCursor(m.search(m.context.Cursor() + 1))
 				m.w.ResetViewRange()
 				return m, nil
 			case key.Matches(msg, m.keymap.Details.Mode):
@@ -267,12 +258,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.Squash.Mode):
 				selectedRevisions := m.SelectedRevisions()
 				parent, _ := m.context.RunCommandImmediate(jj.GetParent(selectedRevisions))
-				parentIdx := m.context.SelectRevision(string(parent))
-				if parentIdx != -1 {
-					m.context.Cursor = parentIdx
-				} else if m.context.Cursor < len(m.context.Items)-1 {
-					m.context.Cursor++
-				}
+				m.context.SelectRevision(string(parent))
 				m.context.Op = squash.NewOperation(m.context, selectedRevisions)
 			case key.Matches(msg, m.keymap.Revert.Mode):
 				m.context.Op = revert.NewOperation(m.context, m.SelectedRevisions(), revert.TargetDestination)
@@ -343,15 +329,15 @@ func (m *Model) View() string {
 
 	renderer := graph.NewDefaultRowIterator(m.context.AsRows(), graph.WithWidth(m.width), graph.WithStylePrefix("revisions"), graph.WithSelections(selections))
 	renderer.Op = m.context.Op
-	renderer.Cursor = m.context.Cursor
+	renderer.Cursor = m.context.Cursor()
 	renderer.SearchText = m.quickSearch
 	renderer.AceJumpPrefix = m.aceJump.Prefix()
 
 	m.w.SetSize(m.width, m.height)
 	if config.Current.UI.Tracer.Enabled {
 		start, end := m.w.FirstRowIndex(), m.w.LastRowIndex()+1 // +1 because the last row is inclusive in the view range
-		log.Println("Visible row range:", start, end, "Cursor:", m.context.Cursor, "Total rows:", len(m.context.Items))
-		renderer.Tracer = parser.NewTracer(m.context.AsRows(), m.context.Cursor, start, end)
+		//log.Println("Visible row range:", start, end, "Cursor:", m.context.Cursor, "Total rows:", len(m.context.Items))
+		renderer.Tracer = parser.NewTracer(m.context.AsRows(), m.context.Cursor(), start, end)
 	}
 	output := m.w.Render(renderer)
 	output = m.textStyle.MaxWidth(m.width).Render(output)
@@ -360,7 +346,7 @@ func (m *Model) View() string {
 
 func (m *Model) search(startIndex int) int {
 	if m.quickSearch == "" {
-		return m.context.Cursor
+		return m.context.Cursor()
 	}
 
 	n := len(m.context.Items)
@@ -375,7 +361,7 @@ func (m *Model) search(startIndex int) int {
 			}
 		}
 	}
-	return m.context.Cursor
+	return m.context.Cursor()
 }
 
 func (m *Model) GetCommitIds() []string {

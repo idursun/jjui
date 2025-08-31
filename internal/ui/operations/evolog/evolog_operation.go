@@ -127,7 +127,7 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		rows = append(rows, *item.Row)
 	}
 	renderer := graph.NewDefaultRowIterator(rows, graph.WithWidth(o.width), graph.WithStylePrefix("evolog"))
-	renderer.Cursor = o.context.Cursor
+	renderer.Cursor = o.context.Cursor()
 	content := o.w.Render(renderer)
 	content = lipgloss.PlaceHorizontal(o.width, lipgloss.Left, content)
 	return content

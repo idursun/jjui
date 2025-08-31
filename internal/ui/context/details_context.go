@@ -88,5 +88,5 @@ func (d *DetailsContext) Load(item *models.RevisionItem) {
 		})
 		index++
 	}
-	d.Cursor = 0
+	d.SetCursor(0)
 }

@@ -242,7 +242,7 @@ func (m *Model) Render(w io.Writer, index int, item *models.RevisionFile) {
 		style = m.styles.Renamed
 	}
 
-	if index == m.context.Cursor {
+	if index == m.context.Cursor() {
 		style = style.Bold(true).Background(m.styles.Selected.GetBackground())
 	} else {
 		style = style.Background(m.styles.Text.GetBackground())
@@ -270,7 +270,7 @@ func (m *Model) Render(w io.Writer, index int, item *models.RevisionFile) {
 	hint := ""
 	if m.showHint() {
 		hint = m.unselectedHint
-		if item.IsChecked() || (m.isVirtuallySelected && index == m.context.Cursor) {
+		if item.IsChecked() || (m.isVirtuallySelected && index == m.context.Cursor()) {
 			hint = m.selectedHint
 			title = "✓" + title
 		}

@@ -31,7 +31,7 @@ func newIterator(context *context.OplogContext, width int) *iterator {
 }
 
 func (o *iterator) IsHighlighted() bool {
-	return o.current == o.context.Cursor
+	return o.current == o.context.Cursor()
 }
 
 func (o *iterator) Render(r io.Writer) {
@@ -65,7 +65,7 @@ func (o *iterator) Next() bool {
 	if o.current >= len(o.context.Items) {
 		return false
 	}
-	o.isHighlighted = o.current == o.context.Cursor
+	o.isHighlighted = o.current == o.context.Cursor()
 	return true
 }
 

@@ -7,33 +7,41 @@ type ILoadable interface {
 
 type List[T any] struct {
 	Items  []T
-	Cursor int
+	cursor int
+}
+
+func (l *List[T]) Cursor() int {
+	return l.cursor
+}
+
+func (l *List[T]) SetCursor(cursor int) {
+	l.cursor = cursor
 }
 
 func (l *List[T]) Prev() {
 	if len(l.Items) == 0 {
-		l.Cursor = -1
+		l.cursor = -1
 		return
 	}
-	if l.Cursor > 0 {
-		l.Cursor--
+	if l.cursor > 0 {
+		l.cursor--
 	}
 }
 
 func (l *List[T]) Next() {
 	if len(l.Items) == 0 {
-		l.Cursor = -1
+		l.cursor = -1
 		return
 	}
-	if l.Cursor < len(l.Items)-1 {
-		l.Cursor++
+	if l.cursor < len(l.Items)-1 {
+		l.cursor++
 	}
 }
 
 func (l *List[T]) Current() T {
 	var zero T
-	if l.Cursor >= 0 && l.Cursor < len(l.Items) {
-		return l.Items[l.Cursor]
+	if l.cursor >= 0 && l.cursor < len(l.Items) {
+		return l.Items[l.cursor]
 	}
 	return zero
 }
@@ -41,6 +49,6 @@ func (l *List[T]) Current() T {
 func NewList[T any]() *List[T] {
 	return &List[T]{
 		Items:  make([]T, 0),
-		Cursor: -1,
+		cursor: -1,
 	}
 }
