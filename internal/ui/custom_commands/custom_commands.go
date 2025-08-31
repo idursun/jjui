@@ -101,12 +101,12 @@ func (m *Model) View() string {
 func NewModel(ctx *context.MainContext, width int, height int) *Model {
 	var items []list.Item
 
-	for name, command := range ctx.CustomCommands {
-		if command.IsApplicableTo(ctx.SelectedItem) {
-			cmd := command.Prepare(ctx)
-			items = append(items, item{name: name, desc: command.Description(ctx), command: cmd, key: command.Binding()})
-		}
-	}
+	//for name, command := range ctx.CustomCommands {
+	//	if command.IsApplicableTo(ctx.SelectedItem) {
+	//		cmd := command.Prepare(ctx)
+	//		items = append(items, item{name: name, desc: command.Description(ctx), command: cmd, key: command.Binding()})
+	//	}
+	//}
 	keyMap := config.Current.GetKeyMap()
 	menu := menu.NewMenu(items, width, height, keyMap, menu.WithStylePrefix("custom_commands"))
 	menu.Title = "Custom Commands"

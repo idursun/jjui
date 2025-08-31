@@ -1,14 +1,9 @@
 package context
 
 import (
-	"reflect"
-	"slices"
-	"strings"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/common"
 )
 
 type SelectedItem interface {
@@ -54,8 +49,6 @@ func (s SelectedOperation) Equal(other SelectedItem) bool {
 type MainContext struct {
 	CommandRunner
 	UI
-	SelectedItem   SelectedItem   // Single item where cursor is hover.
-	CheckedItems   []SelectedItem // Items checked ✓ by the user.
 	Location       string
 	CustomCommands map[string]CustomCommand
 	Leader         LeaderMap
@@ -117,96 +110,44 @@ func (ctx *MainContext) Send(msg tea.Msg) {
 	ctx.App.Send(msg)
 }
 
-func (ctx *MainContext) ClearCheckedItems(ofType reflect.Type) {
-	ctx.CheckedItems = slices.DeleteFunc(ctx.CheckedItems, func(i SelectedItem) bool {
-		return ofType == nil || ofType == reflect.TypeOf(i)
-	})
-}
-
-func (ctx *MainContext) AddCheckedItem(item SelectedItem) {
-	exists := slices.ContainsFunc(ctx.CheckedItems, func(i SelectedItem) bool {
-		return i.Equal(item)
-	})
-	if !exists {
-		ctx.CheckedItems = append(ctx.CheckedItems, item)
-	}
-}
-
-func (ctx *MainContext) RemoveCheckedItem(item SelectedItem) {
-	ctx.CheckedItems = slices.DeleteFunc(ctx.CheckedItems, func(i SelectedItem) bool {
-		return i.Equal(item)
-	})
-}
-
-func (ctx *MainContext) SetSelectedItem(item SelectedItem) tea.Cmd {
-	if item == nil {
-		return nil
-	}
-	if item.Equal(ctx.SelectedItem) {
-		return nil
-	}
-	ctx.SelectedItem = item
-	return common.SelectionChanged
-}
-
 // CreateReplacements context aware replacements for custom commands and exec input.
 func (ctx *MainContext) CreateReplacements() map[string]string {
-	selectedItem := ctx.SelectedItem
+	selectedItem := ctx.Revisions.Current()
 	replacements := make(map[string]string)
 	replacements[jj.RevsetPlaceholder] = ctx.Revset.CurrentRevset
+	replacements[jj.ChangeIdPlaceholder] = selectedItem.Commit.ChangeId
+	replacements[jj.CommitIdPlaceholder] = selectedItem.Commit.CommitId
 
-	switch selectedItem := selectedItem.(type) {
-	case SelectedRevision:
-		replacements[jj.ChangeIdPlaceholder] = selectedItem.ChangeId
-		replacements[jj.CommitIdPlaceholder] = selectedItem.CommitId
-	case SelectedFile:
-		replacements[jj.ChangeIdPlaceholder] = selectedItem.ChangeId
-		replacements[jj.CommitIdPlaceholder] = selectedItem.CommitId
-		replacements[jj.FilePlaceholder] = selectedItem.File
-	case SelectedOperation:
-		replacements[jj.OperationIdPlaceholder] = selectedItem.OperationId
-	}
+	//switch selectedItem := selectedItem.(type) {
+	//case models:
+	//case SelectedFile:
+	//	replacements[jj.ChangeIdPlaceholder] = selectedItem.ChangeId
+	//	replacements[jj.CommitIdPlaceholder] = selectedItem.CommitId
+	//	replacements[jj.FilePlaceholder] = selectedItem.File
+	//case SelectedOperation:
+	//	replacements[jj.OperationIdPlaceholder] = selectedItem.OperationId
+	//}
 
-	var checkedFiles []string
-	var checkedRevisions []string
-	for _, checked := range ctx.CheckedItems {
-		switch c := checked.(type) {
-		case SelectedRevision:
-			checkedRevisions = append(checkedRevisions, c.CommitId)
-		case SelectedFile:
-			checkedFiles = append(checkedFiles, c.File)
-		}
-	}
-
-	if len(checkedFiles) > 0 {
-		replacements[jj.CheckedFilesPlaceholder] = strings.Join(checkedFiles, "\t")
-	}
-
-	if len(checkedRevisions) == 0 {
-		replacements[jj.CheckedCommitIdsPlaceholder] = "none()"
-	} else {
-		replacements[jj.CheckedCommitIdsPlaceholder] = strings.Join(checkedRevisions, "|")
-	}
+	//var checkedFiles []string
+	//var checkedRevisions []string
+	//for _, checked := range ctx.CheckedItems {
+	//	switch c := checked.(type) {
+	//	case SelectedRevision:
+	//		checkedRevisions = append(checkedRevisions, c.CommitId)
+	//	case SelectedFile:
+	//		checkedFiles = append(checkedFiles, c.File)
+	//	}
+	//}
+	//
+	//if len(checkedFiles) > 0 {
+	//	replacements[jj.CheckedFilesPlaceholder] = strings.Join(checkedFiles, "\t")
+	//}
+	//
+	//if len(checkedRevisions) == 0 {
+	//	replacements[jj.CheckedCommitIdsPlaceholder] = "none()"
+	//} else {
+	//	replacements[jj.CheckedCommitIdsPlaceholder] = strings.Join(checkedRevisions, "|")
+	//}
 
 	return replacements
-}
-
-func (ctx *MainContext) ToggleCheckedItem(item SelectedRevision) {
-	for i, checked := range ctx.CheckedItems {
-		if checked.Equal(item) {
-			ctx.CheckedItems = slices.Delete(ctx.CheckedItems, i, i+1)
-			return
-		}
-	}
-	ctx.CheckedItems = append(ctx.CheckedItems, item)
-}
-
-func (ctx *MainContext) GetSelectedRevisions() map[string]bool {
-	selectedRevisions := make(map[string]bool)
-	for _, item := range ctx.CheckedItems {
-		if rev, ok := item.(SelectedRevision); ok {
-			selectedRevisions[rev.ChangeId] = true
-		}
-	}
-	return selectedRevisions
 }

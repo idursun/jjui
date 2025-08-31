@@ -199,14 +199,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keyMap.Suspend):
 			return m, tea.Suspend
 		default:
-			for _, command := range m.context.CustomCommands {
-				if !command.IsApplicableTo(m.context.SelectedItem) {
-					continue
-				}
-				if key.Matches(msg, command.Binding()) {
-					return m, command.Prepare(m.context)
-				}
-			}
+			// FIXME: add selected item tracking back
+			//for _, command := range m.context.CustomCommands {
+			//	if !command.IsApplicableTo(m.context.SelectedItem) {
+			//		continue
+			//	}
+			//	if key.Matches(msg, command.Binding()) {
+			//		return m, command.Prepare(m.context)
+			//	}
+			//}
 		}
 	case common.ExecMsg:
 		return m, exec_process.ExecLine(m.context, msg)
