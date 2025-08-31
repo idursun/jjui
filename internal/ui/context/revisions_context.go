@@ -22,6 +22,7 @@ type RevisionsContext struct {
 	CommandRunner
 	UI
 	DetailsContext *DetailsContext
+	EvologContext  *EvologContext
 	Op             operations.Operation
 	tag            atomic.Int64
 	streamer       *GraphStreamer
@@ -43,6 +44,7 @@ func NewRevisionsContext(commandRunner CommandRunner, ui UI, revsetCtx *RevsetCo
 		CommandRunner:  commandRunner,
 		UI:             ui,
 		DetailsContext: NewDetailsContext(commandRunner),
+		EvologContext:  NewEvologContext(commandRunner),
 	}
 }
 

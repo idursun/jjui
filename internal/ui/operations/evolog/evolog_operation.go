@@ -1,11 +1,10 @@
 package evolog
 
 import (
-	"bytes"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/context/models"
 	"github.com/idursun/jjui/internal/ui/operations"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -16,10 +15,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/graph"
 )
 
-type updateEvologMsg struct {
-	rows []parser.Row
-}
-
 type mode int
 
 const (
@@ -28,17 +23,15 @@ const (
 )
 
 type Operation struct {
-	context  *context.RevisionsContext
-	w        *graph.Renderer
-	revision *jj.Commit
-	mode     mode
-	rows     []parser.Row
-	cursor   int
-	width    int
-	height   int
-	keyMap   config.KeyMappings[key.Binding]
-	target   *jj.Commit
-	styles   styles
+	revisionsContext *context.RevisionsContext
+	context          *context.EvologContext
+	w                *graph.Renderer
+	revision         *models.RevisionItem
+	mode             mode
+	width            int
+	height           int
+	keyMap           config.KeyMappings[key.Binding]
+	styles           styles
 }
 
 func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
@@ -48,18 +41,12 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		case key.Matches(msg, o.keyMap.Cancel):
 			return common.Close
 		case key.Matches(msg, o.keyMap.Up):
-			if o.cursor > 0 {
-				o.cursor--
-				return o.updateSelection()
-			}
+			o.context.Prev()
 		case key.Matches(msg, o.keyMap.Down):
-			if o.cursor < len(o.rows)-1 {
-				o.cursor++
-				return o.updateSelection()
-			}
+			o.context.Next()
 		case key.Matches(msg, o.keyMap.Evolog.Diff):
 			return func() tea.Msg {
-				selectedCommitId := o.getSelectedEvolog().CommitId
+				selectedCommitId := o.context.Current().Commit.CommitId
 				output, _ := o.context.RunCommandImmediate(jj.Diff(selectedCommitId, ""))
 				return common.ShowDiffMsg(output)
 			}
@@ -72,8 +59,8 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 			o.mode = selectMode
 			return nil
 		case key.Matches(msg, o.keyMap.Apply):
-			from := o.getSelectedEvolog().CommitId
-			into := o.target.GetChangeId()
+			from := o.context.Current().Commit.CommitId
+			into := o.revisionsContext.Current().Commit.GetChangeId()
 			return o.context.RunCommand(jj.RestoreEvolog(from, into), common.Close, common.Refresh)
 		}
 	}
@@ -85,10 +72,6 @@ type styles struct {
 	commitIdStyle lipgloss.Style
 	changeIdStyle lipgloss.Style
 	markerStyle   lipgloss.Style
-}
-
-func (o *Operation) SetSelectedRevision(commit *jj.Commit) {
-	o.target = commit
 }
 
 func (o *Operation) ShortHelp() []key.Binding {
@@ -104,10 +87,6 @@ func (o *Operation) FullHelp() [][]key.Binding {
 
 func (o *Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cmd) {
 	switch msg := msg.(type) {
-	case updateEvologMsg:
-		o.rows = msg.rows
-		o.cursor = 0
-		return o, o.updateSelection()
 	case tea.KeyMsg:
 		cmd := o.HandleKey(msg)
 		return o, cmd
@@ -115,31 +94,16 @@ func (o *Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cm
 	return o, nil
 }
 
-func (o *Operation) getSelectedEvolog() *jj.Commit {
-	return o.rows[o.cursor].Commit
-}
-
-func (o *Operation) updateSelection() tea.Cmd {
-	if o.rows == nil {
-		return nil
-	}
-
-	selected := o.getSelectedEvolog()
-	return o.context.SetSelectedItem(context.SelectedRevision{
-		ChangeId: selected.GetChangeId(),
-		CommitId: selected.CommitId,
-	})
-}
-
 func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
-	if o.mode == restoreMode && pos == operations.RenderPositionBefore && o.target != nil && o.target.GetChangeId() == commit.GetChangeId() {
-		selectedCommitId := o.getSelectedEvolog().CommitId
+	target := o.revisionsContext.Current().Commit
+	if o.mode == restoreMode && pos == operations.RenderPositionBefore && target != nil && target.GetChangeId() == commit.GetChangeId() {
+		selectedCommitId := o.context.Current().Commit.CommitId
 		return lipgloss.JoinHorizontal(0,
 			o.styles.markerStyle.Render("<< restore >>"),
 			o.styles.dimmedStyle.PaddingLeft(1).Render("restore from "),
 			o.styles.commitIdStyle.Render(selectedCommitId),
 			o.styles.dimmedStyle.Render(" into "),
-			o.styles.changeIdStyle.Render(o.target.GetChangeId()),
+			o.styles.changeIdStyle.Render(target.GetChangeId()),
 		)
 	}
 
@@ -148,18 +112,22 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		return ""
 	}
 
-	isSelected := commit.GetChangeId() == o.revision.GetChangeId()
+	isSelected := commit.GetChangeId() == o.revision.Commit.GetChangeId()
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return ""
 	}
 
-	if len(o.rows) == 0 {
+	if len(o.context.Items) == 0 {
 		return "loading"
 	}
-	h := min(o.height-5, len(o.rows)*2)
+	h := min(o.height-5, len(o.context.Items)*2)
 	o.w.SetSize(o.width, h)
-	renderer := graph.NewDefaultRowIterator(o.rows, graph.WithWidth(o.width), graph.WithStylePrefix("evolog"))
-	renderer.Cursor = o.cursor
+	rows := make([]parser.Row, 0)
+	for _, item := range o.context.Items {
+		rows = append(rows, *item.Row)
+	}
+	renderer := graph.NewDefaultRowIterator(rows, graph.WithWidth(o.width), graph.WithStylePrefix("evolog"))
+	renderer.Cursor = o.context.Cursor
 	content := o.w.Render(renderer)
 	content = lipgloss.PlaceHorizontal(o.width, lipgloss.Left, content)
 	return content
@@ -172,15 +140,9 @@ func (o *Operation) Name() string {
 	return "evolog"
 }
 
-func (o *Operation) load() tea.Msg {
-	output, _ := o.context.RunCommandImmediate(jj.Evolog(o.revision.GetChangeId()))
-	rows := parser.ParseRows(bytes.NewReader(output))
-	return updateEvologMsg{
-		rows: rows,
-	}
-}
-
-func NewOperation(context *context.RevisionsContext, revision *jj.Commit, width int, height int) (operations.Operation, tea.Cmd) {
+func NewOperation(context *context.RevisionsContext, width int, height int) (operations.Operation, tea.Cmd) {
+	current := context.Current()
+	context.EvologContext.Load(current)
 	styles := styles{
 		dimmedStyle:   common.DefaultPalette.Get("evolog dimmed"),
 		commitIdStyle: common.DefaultPalette.Get("evolog commit_id"),
@@ -189,15 +151,14 @@ func NewOperation(context *context.RevisionsContext, revision *jj.Commit, width 
 	}
 	w := graph.NewRenderer(width, height)
 	o := &Operation{
-		context:  context,
-		keyMap:   config.Current.GetKeyMap(),
-		w:        w,
-		revision: revision,
-		rows:     nil,
-		cursor:   0,
-		width:    width,
-		height:   height,
-		styles:   styles,
+		revisionsContext: context,
+		context:          context.EvologContext,
+		keyMap:           config.Current.GetKeyMap(),
+		w:                w,
+		revision:         current,
+		width:            width,
+		height:           height,
+		styles:           styles,
 	}
-	return o, o.load
+	return o, nil
 }
