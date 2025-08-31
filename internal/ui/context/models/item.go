@@ -13,7 +13,20 @@ type BaseItem struct {
 	Kind ItemKind
 }
 
-type Checkable interface {
+type ICheckable interface {
 	Toggle()
 	IsChecked() bool
+}
+
+type Checkable struct {
+	ICheckable
+	checked bool
+}
+
+func (c *Checkable) IsChecked() bool {
+	return c.checked
+}
+
+func (c *Checkable) Toggle() {
+	c.checked = !c.checked
 }

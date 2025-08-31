@@ -21,10 +21,11 @@ type RevisionsContext struct {
 	*RevsetContext
 	CommandRunner
 	UI
-	Op       operations.Operation
-	tag      atomic.Int64
-	streamer *GraphStreamer
-	hasMore  bool
+	DetailsContext *DetailsContext
+	Op             operations.Operation
+	tag            atomic.Int64
+	streamer       *GraphStreamer
+	hasMore        bool
 }
 
 type RevisionsList struct {
@@ -37,10 +38,11 @@ func NewRevisionsContext(commandRunner CommandRunner, ui UI, revsetCtx *RevsetCo
 		RevisionsList: &RevisionsList{
 			CheckableList: helpers.NewCheckableList[*models.RevisionItem](),
 		},
-		RevsetContext: revsetCtx,
-		Op:            operations.NewDefault(),
-		CommandRunner: commandRunner,
-		UI:            ui,
+		RevsetContext:  revsetCtx,
+		Op:             operations.NewDefault(),
+		CommandRunner:  commandRunner,
+		UI:             ui,
+		DetailsContext: NewDetailsContext(commandRunner),
 	}
 }
 
@@ -52,7 +54,7 @@ func (c *RevisionsContext) LoadRows(revisionToSelect string) {
 		c.streamer = nil
 	}
 
-	c.List.Items = make([]*models.RevisionItem, 0)
+	c.Items = make([]*models.RevisionItem, 0)
 	c.hasMore = false
 
 	streamer, err := NewGraphStreamer(c, c.CurrentRevset)

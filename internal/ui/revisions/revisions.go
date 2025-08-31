@@ -225,7 +225,8 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				m.w.ResetViewRange()
 				return m, nil
 			case key.Matches(msg, m.keymap.Details.Mode):
-				m.context.Op, cmd = details.NewOperation(m.context, m.context.Current().Commit)
+				m.context.DetailsContext.Load(m.context.Current())
+				m.context.Op, cmd = details.NewOperation(m.context)
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
 				m.context.Op, cmd = describe.NewOperation(m.context, m.context.Current().Commit.GetChangeId(), m.width)
 				return m, cmd

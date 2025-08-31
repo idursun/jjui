@@ -8,6 +8,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/context/models"
 	"github.com/idursun/jjui/internal/ui/operations"
 )
 
@@ -20,11 +21,11 @@ const (
 
 type Operation struct {
 	context           *context.RevisionsContext
-	Overlay           Model
+	Overlay           *Model
 	Current           *jj.Commit
 	keyMap            config.KeyMappings[key.Binding]
 	targetMarkerStyle lipgloss.Style
-	selected          *jj.Commit
+	selected          *models.RevisionItem
 }
 
 func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
@@ -34,7 +35,7 @@ func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 			return common.Close
 		case key.Matches(msg, s.keyMap.Apply):
 			selectedFiles, _ := s.Overlay.getSelectedFiles()
-			return tea.Batch(s.context.RunCommand(jj.SquashFiles(s.selected.GetChangeId(), s.Current.GetChangeId(), selectedFiles), common.Refresh), common.Close)
+			return tea.Batch(s.context.RunCommand(jj.SquashFiles(s.selected.Commit.GetChangeId(), s.Current.GetChangeId(), selectedFiles), common.Refresh), common.Close)
 		}
 	}
 	return nil
@@ -90,9 +91,10 @@ func (s *Operation) Name() string {
 	return "details"
 }
 
-func NewOperation(context *context.RevisionsContext, selected *jj.Commit) (operations.Operation, tea.Cmd) {
+func NewOperation(context *context.RevisionsContext) (operations.Operation, tea.Cmd) {
+	selected := context.Current()
 	op := &Operation{
-		Overlay:           New(context, selected),
+		Overlay:           New(context.DetailsContext, selected),
 		context:           context,
 		selected:          selected,
 		keyMap:            config.Current.GetKeyMap(),
