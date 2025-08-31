@@ -3,14 +3,12 @@ package preview
 import (
 	"bufio"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 )
@@ -21,19 +19,14 @@ type viewRange struct {
 }
 
 type Model struct {
-	tag              int
-	viewRange        *viewRange
-	help             help.Model
-	width            int
-	height           int
-	content          string
-	contentLineCount int
-	context          *context.MainContext
-	keyMap           config.KeyMappings[key.Binding]
-	borderStyle      lipgloss.Style
+	viewRange   *viewRange
+	help        help.Model
+	width       int
+	height      int
+	context     *context.MainContext
+	keyMap      config.KeyMappings[key.Binding]
+	borderStyle lipgloss.Style
 }
-
-const DebounceTime = 50 * time.Millisecond
 
 type previewMsg struct {
 	msg tea.Msg
@@ -44,10 +37,6 @@ func PreviewCmd(msg tea.Msg) tea.Cmd {
 	return func() tea.Msg {
 		return previewMsg{msg: msg}
 	}
-}
-
-type refreshPreviewContentMsg struct {
-	Tag int
 }
 
 func (m *Model) Width() int {
@@ -63,7 +52,7 @@ func (m *Model) SetWidth(w int) {
 }
 
 func (m *Model) SetHeight(h int) {
-	m.viewRange.end = min(m.viewRange.start+h-3, m.contentLineCount)
+	m.viewRange.end = min(m.viewRange.start+h-3, m.context.Preview.LineCount)
 	m.height = h
 }
 
@@ -71,56 +60,50 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) updatePreviewContent(content string) {
-	m.content = content
-	m.contentLineCount = lipgloss.Height(m.content)
-	m.reset()
-}
-
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	if k, ok := msg.(previewMsg); ok {
 		msg = k.msg
 	}
 	switch msg := msg.(type) {
-	case common.SelectionChangedMsg, common.RefreshMsg:
-		m.tag++
-		tag := m.tag
-		return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
-			return refreshPreviewContentMsg{Tag: tag}
-		})
-	case refreshPreviewContentMsg:
-		if m.tag == msg.Tag {
-			switch msg := m.context.SelectedItem.(type) {
-			case context.SelectedFile:
-				replacements := map[string]string{
-					jj.RevsetPlaceholder:   m.context.Revset.CurrentRevset,
-					jj.ChangeIdPlaceholder: msg.ChangeId,
-					jj.CommitIdPlaceholder: msg.CommitId,
-					jj.FilePlaceholder:     msg.File,
-				}
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
-				m.updatePreviewContent(string(output))
-			case context.SelectedRevision:
-				replacements := map[string]string{
-					jj.RevsetPlaceholder:   m.context.Revset.CurrentRevset,
-					jj.ChangeIdPlaceholder: msg.ChangeId,
-					jj.CommitIdPlaceholder: msg.CommitId,
-				}
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
-				m.updatePreviewContent(string(output))
-			case context.SelectedOperation:
-				replacements := map[string]string{
-					jj.RevsetPlaceholder:      m.context.Revset.CurrentRevset,
-					jj.OperationIdPlaceholder: msg.OperationId,
-				}
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
-				m.updatePreviewContent(string(output))
-			}
-		}
+	//case common.SelectionChangedMsg, common.RefreshMsg:
+	//	m.tag++
+	//	tag := m.tag
+	//	return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
+	//		return refreshPreviewContentMsg{Tag: tag}
+	//	})
+	//case refreshPreviewContentMsg:
+	//	if m.tag == msg.Tag {
+	//		switch msg := m.context.SelectedItem.(type) {
+	//		case context.SelectedFile:
+	//			replacements := map[string]string{
+	//				jj.RevsetPlaceholder:   m.context.Revset.CurrentRevset,
+	//				jj.ChangeIdPlaceholder: msg.ChangeId,
+	//				jj.CommitIdPlaceholder: msg.CommitId,
+	//				jj.FilePlaceholder:     msg.File,
+	//			}
+	//			output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
+	//			m.updatePreviewContent(string(output))
+	//		case context.SelectedRevision:
+	//			replacements := map[string]string{
+	//				jj.RevsetPlaceholder:   m.context.Revset.CurrentRevset,
+	//				jj.ChangeIdPlaceholder: msg.ChangeId,
+	//				jj.CommitIdPlaceholder: msg.CommitId,
+	//			}
+	//			output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
+	//			m.updatePreviewContent(string(output))
+	//		case context.SelectedOperation:
+	//			replacements := map[string]string{
+	//				jj.RevsetPlaceholder:      m.context.Revset.CurrentRevset,
+	//				jj.OperationIdPlaceholder: msg.OperationId,
+	//			}
+	//			output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
+	//			m.updatePreviewContent(string(output))
+	//		}
+	//	}
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Preview.ScrollDown):
-			if m.viewRange.end < m.contentLineCount {
+			if m.viewRange.end < m.context.Preview.LineCount {
 				m.viewRange.start++
 				m.viewRange.end++
 			}
@@ -130,7 +113,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				m.viewRange.end--
 			}
 		case key.Matches(msg, m.keyMap.Preview.HalfPageDown):
-			contentHeight := m.contentLineCount
+			contentHeight := m.context.Preview.LineCount
 			halfPageSize := m.height / 2
 			if halfPageSize+m.viewRange.end > contentHeight {
 				halfPageSize = contentHeight - m.viewRange.end
@@ -149,7 +132,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 func (m *Model) View() string {
 	var w strings.Builder
-	scanner := bufio.NewScanner(strings.NewReader(m.content))
+	scanner := bufio.NewScanner(strings.NewReader(m.context.Preview.Content))
 	current := 0
 	for scanner.Scan() {
 		line := scanner.Text()

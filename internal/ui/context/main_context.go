@@ -64,6 +64,7 @@ type MainContext struct {
 	Revisions      *RevisionsContext
 	OpLog          *OplogContext
 	Revset         *RevsetContext
+	Preview        *PreviewContext
 	App            *tea.Program
 }
 
@@ -84,6 +85,7 @@ func NewAppContext(location string) *MainContext {
 	m.Revset = NewRevsetContext()
 	m.Revisions = NewRevisionsContext(commandRunner, m, m.Revset)
 	m.OpLog = NewOpLogContext(commandRunner, m)
+	m.Preview = NewPreviewContext(commandRunner, m, m.Revset)
 
 	m.JJConfig = &config.JJConfig{}
 	if output, err := m.RunCommandImmediate(jj.ConfigListAll()); err == nil {
