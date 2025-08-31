@@ -46,7 +46,31 @@ func (p *PreviewContext) LoadRevision(revision *models.RevisionItem) {
 }
 
 func (p *PreviewContext) LoadRevisionFile(file *models.RevisionFile) {
+	p.debounceCall(func() {
+		replacements := map[string]string{
+			jj.RevsetPlaceholder:   p.revsetContext.CurrentRevset,
+			jj.ChangeIdPlaceholder: file.RevisionItem.Commit.GetChangeId(),
+			jj.CommitIdPlaceholder: file.RevisionItem.Commit.CommitId,
+			jj.FilePlaceholder:     file.FileName,
+		}
+		output, _ := p.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
+		p.Content = string(output)
+		p.LineCount = lipgloss.Height(p.Content)
+		p.UI.Update()
+	})
+}
 
+func (p *PreviewContext) LoadOpLog(oplogItem models.OperationLogItem) {
+	p.debounceCall(func() {
+		replacements := map[string]string{
+			jj.RevsetPlaceholder:      p.revsetContext.CurrentRevset,
+			jj.OperationIdPlaceholder: oplogItem.OperationId,
+		}
+		output, _ := p.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
+		p.Content = string(output)
+		p.LineCount = lipgloss.Height(p.Content)
+		p.UI.Update()
+	})
 }
 
 func (p *PreviewContext) LoadEvolog(evolog *models.EvologItem) {

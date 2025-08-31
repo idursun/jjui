@@ -12,6 +12,7 @@ var (
 type RevisionFile struct {
 	BaseItem
 	Checkable
+	*RevisionItem
 	Name     string
 	FileName string
 	Status   Status

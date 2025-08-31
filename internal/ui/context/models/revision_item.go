@@ -6,5 +6,4 @@ type RevisionItem struct {
 	BaseItem
 	Checkable
 	parser.Row
-	checked bool
 }

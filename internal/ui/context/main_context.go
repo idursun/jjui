@@ -90,6 +90,18 @@ func NewAppContext(location string) *MainContext {
 		m.Preview.LoadRevision(m.Revisions.Current())
 	})
 
+	m.Revisions.DetailsContext.List.AddHandler(func() {
+		m.Preview.LoadRevisionFile(m.Revisions.DetailsContext.Current())
+	})
+
+	m.Revisions.EvologContext.List.AddHandler(func() {
+		m.Preview.LoadEvolog(m.Revisions.EvologContext.Current())
+	})
+
+	m.OpLog.List.AddHandler(func() {
+		m.Preview.LoadOpLog(m.OpLog.Current())
+	})
+
 	m.JJConfig = &config.JJConfig{}
 	if output, err := m.RunCommandImmediate(jj.ConfigListAll()); err == nil {
 		m.JJConfig, _ = config.DefaultConfig(output)

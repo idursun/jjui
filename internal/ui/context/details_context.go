@@ -22,14 +22,14 @@ func NewDetailsContext(commandRunner CommandRunner) *DetailsContext {
 	}
 }
 
-func (d *DetailsContext) Load(item *models.RevisionItem) {
-	revision := item.Commit.GetChangeId()
+func (d *DetailsContext) Load(revisionItem *models.RevisionItem) {
+	changeId := revisionItem.Commit.GetChangeId()
 	output, err := d.RunCommandImmediate(jj.Snapshot())
 	if err != nil {
 		panic(err)
 	}
 
-	output, err = d.RunCommandImmediate(jj.Status(revision))
+	output, err = d.RunCommandImmediate(jj.Status(changeId))
 	if err != nil {
 		panic(err)
 	}
@@ -81,10 +81,11 @@ func (d *DetailsContext) Load(item *models.RevisionItem) {
 			}
 		}
 		d.Items = append(d.Items, &models.RevisionFile{
-			Status:   status,
-			Name:     fileName,
-			FileName: actualFileName,
-			Conflict: conflicts[index],
+			RevisionItem: revisionItem,
+			Status:       status,
+			Name:         fileName,
+			FileName:     actualFileName,
+			Conflict:     conflicts[index],
 		})
 		index++
 	}
