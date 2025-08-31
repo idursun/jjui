@@ -9,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/context/models"
 	"github.com/idursun/jjui/internal/ui/operations"
 )
 
@@ -16,7 +17,7 @@ type Operation struct {
 	context  *context.RevisionsContext
 	keyMap   config.KeyMappings[key.Binding]
 	input    textarea.Model
-	revision string
+	revision *models.RevisionItem
 }
 
 func (o Operation) ShortHelp() []key.Binding {
@@ -67,7 +68,7 @@ func (o Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cmd
 		case key.Matches(keyMsg, o.keyMap.Cancel):
 			return o, common.Close
 		case key.Matches(keyMsg, o.keyMap.InlineDescribe.Accept):
-			return o, o.context.RunCommand(jj.SetDescription(o.revision, o.input.Value()), common.Close, common.Refresh)
+			return o, o.context.RunCommand(jj.SetDescription(o.revision.Commit.GetChangeId(), o.input.Value()), common.Close, common.Refresh)
 		}
 	}
 	var cmd tea.Cmd
@@ -90,8 +91,9 @@ func (o Operation) View() string {
 	return o.input.View()
 }
 
-func NewOperation(context *context.RevisionsContext, revision string, width int) (operations.Operation, tea.Cmd) {
-	descOutput, _ := context.RunCommandImmediate(jj.GetDescription(revision))
+func NewOperation(context *context.RevisionsContext, width int) (operations.Operation, tea.Cmd) {
+	current := context.Current()
+	descOutput, _ := context.RunCommandImmediate(jj.GetDescription(current.Commit.GetChangeId()))
 	desc := string(descOutput)
 	h := lipgloss.Height(desc)
 
@@ -113,6 +115,6 @@ func NewOperation(context *context.RevisionsContext, revision string, width int)
 		context:  context,
 		keyMap:   config.Current.GetKeyMap(),
 		input:    input,
-		revision: revision,
+		revision: current,
 	}, input.Focus()
 }

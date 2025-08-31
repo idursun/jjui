@@ -130,7 +130,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case common.CloseViewMsg:
 		m.context.Op = operations.NewDefault()
-		return m, m.updateSelection()
+		return m, nil
 	case common.UpdateRevSetMsg:
 		return m, common.Refresh
 	case common.QuickSearchMsg:
@@ -161,7 +161,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			return m, nil
 		}
 		m.context.JumpToParent(jj.NewSelectedRevisions(msg.Commit))
-		return m, m.updateSelection()
+		return m, nil
 	}
 
 	// TODO: This is duplicated at the end of the function, needs refactoring
@@ -200,7 +200,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if workingCopyIndex != -1 {
 				m.context.Cursor = workingCopyIndex
 			}
-			return m, m.updateSelection()
+			return m, nil
 		case key.Matches(msg, m.keymap.AceJump):
 			m.aceJump = m.findAceKeys()
 		default:
@@ -228,7 +228,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				m.context.DetailsContext.Load(m.context.Current())
 				m.context.Op, cmd = details.NewOperation(m.context)
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
-				m.context.Op, cmd = describe.NewOperation(m.context, m.context.Current().Commit.GetChangeId(), m.width)
+				m.context.Op, cmd = describe.NewOperation(m.context, m.width)
 				return m, cmd
 			case key.Matches(msg, m.keymap.New):
 				cmd = m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
@@ -255,7 +255,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				currentRevision := m.context.Current().Commit.GetChangeId()
 				return m, m.context.RunInteractiveCommand(jj.Describe(currentRevision), common.Refresh)
 			case key.Matches(msg, m.keymap.Evolog.Mode):
-				m.context.Op, cmd = evolog.NewOperation(m.context, m.context.Current().Commit, m.width, m.height)
+				m.context.Op, cmd = evolog.NewOperation(m.context, m.width, m.height)
 			case key.Matches(msg, m.keymap.Diff):
 				return m, func() tea.Msg {
 					changeId := m.context.Current().Commit.GetChangeId()
@@ -281,7 +281,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.Duplicate.Mode):
 				m.context.Op = duplicate.NewOperation(m.context, m.SelectedRevisions(), duplicate.TargetDestination)
 			case key.Matches(msg, m.keymap.Megamerge):
-				m.context.Op = megamerge.NewModel(m.context, m.context.Current().Commit)
+				m.context.Op = megamerge.NewOperation(m.context)
 			}
 		}
 	}
@@ -296,12 +296,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 }
 
 func (m *Model) updateSelection() tea.Cmd {
-	//if selectedRevision := m.context.Current().Commit; selectedRevision != nil {
-	//	return m.context.SetSelectedItem(appContext.SelectedRevision{
-	//		ChangeId: selectedRevision.GetChangeId(),
-	//		CommitId: selectedRevision.CommitId,
-	//	})
-	//}
 	return nil
 }
 

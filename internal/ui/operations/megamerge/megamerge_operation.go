@@ -12,12 +12,13 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/context/models"
 	"github.com/idursun/jjui/internal/ui/operations"
 )
 
 type Model struct {
 	context  *context.RevisionsContext
-	target   *jj.Commit
+	source   *models.RevisionItem
 	current  *jj.Commit
 	toRemove map[string]bool
 	toAdd    map[string]bool
@@ -53,7 +54,7 @@ func (m *Model) SetSelectedRevision(commit *jj.Commit) {
 func (m *Model) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, m.keyMap.ToggleSelect):
-		if m.current.GetChangeId() == m.target.GetChangeId() {
+		if m.current.GetChangeId() == m.source.Commit.GetChangeId() {
 			return nil
 		}
 
@@ -86,7 +87,7 @@ func (m *Model) HandleKey(msg tea.KeyMsg) tea.Cmd {
 			parentsToRemove = append(parentsToRemove, changeId)
 		}
 
-		return m.context.RunCommand(jj.ModifyParents(m.target.GetChangeId(), parentsToAdd, parentsToRemove), common.RefreshAndSelect(m.target.GetChangeId()), common.Close)
+		return m.context.RunCommand(jj.ModifyParents(m.source.Commit.GetChangeId(), parentsToAdd, parentsToRemove), common.RefreshAndSelect(m.source.Commit.GetChangeId()), common.Close)
 	case key.Matches(msg, m.keyMap.Cancel):
 		return common.Close
 	}
@@ -107,7 +108,7 @@ func (m *Model) Render(commit *jj.Commit, renderPosition operations.RenderPositi
 	if slices.Contains(m.parents, commit.CommitId) {
 		return m.styles.dimmed.Render("<< parent >>")
 	}
-	if commit.GetChangeId() == m.target.GetChangeId() {
+	if commit.GetChangeId() == m.source.Commit.GetChangeId() {
 		return m.styles.targetMarker.Render("<< to >>")
 	}
 	return ""
@@ -117,15 +118,16 @@ func (m *Model) Name() string {
 	return "megamerge"
 }
 
-func NewModel(ctx *context.RevisionsContext, to *jj.Commit) *Model {
+func NewOperation(ctx *context.RevisionsContext) *Model {
+	current := ctx.Current()
 	styles := styles{
 		sourceMarker: common.DefaultPalette.Get("megamerge source_marker"),
 		targetMarker: common.DefaultPalette.Get("megamerge target_marker"),
 		dimmed:       common.DefaultPalette.Get("megamerge dimmed"),
 	}
-	output, err := ctx.RunCommandImmediate(jj.GetParents(to.GetChangeId()))
+	output, err := ctx.RunCommandImmediate(jj.GetParents(current.Commit.GetChangeId()))
 	if err != nil {
-		log.Println("Failed to get parents for commit", to.GetChangeId())
+		log.Println("Failed to get parents for commit", current.Commit.GetChangeId())
 	}
 	parents := strings.Fields(string(output))
 	return &Model{
@@ -134,7 +136,7 @@ func NewModel(ctx *context.RevisionsContext, to *jj.Commit) *Model {
 		parents:  parents,
 		toRemove: make(map[string]bool),
 		toAdd:    make(map[string]bool),
-		target:   to,
+		source:   current,
 		styles:   styles,
 	}
 }
