@@ -86,6 +86,9 @@ func NewAppContext(location string) *MainContext {
 	m.Revisions = NewRevisionsContext(commandRunner, m, m.Revset)
 	m.OpLog = NewOpLogContext(commandRunner, m)
 	m.Preview = NewPreviewContext(commandRunner, m, m.Revset)
+	m.Revisions.List.AddHandler(func() {
+		m.Preview.LoadRevision(m.Revisions.Current())
+	})
 
 	m.JJConfig = &config.JJConfig{}
 	if output, err := m.RunCommandImmediate(jj.ConfigListAll()); err == nil {

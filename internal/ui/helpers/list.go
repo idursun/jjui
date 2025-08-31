@@ -5,7 +5,24 @@ type ILoadable interface {
 	RequestMore()
 }
 
+type CursorChangedHandlerFunc func()
+
+type CursorChangedHandler struct {
+	handlers []CursorChangedHandlerFunc
+}
+
+func (c *CursorChangedHandler) Notify() {
+	for _, handler := range c.handlers {
+		handler()
+	}
+}
+
+func (c *CursorChangedHandler) AddHandler(handler CursorChangedHandlerFunc) {
+	c.handlers = append(c.handlers, handler)
+}
+
 type List[T any] struct {
+	*CursorChangedHandler
 	Items  []T
 	cursor int
 }
@@ -16,6 +33,7 @@ func (l *List[T]) Cursor() int {
 
 func (l *List[T]) SetCursor(cursor int) {
 	l.cursor = cursor
+	l.CursorChangedHandler.Notify()
 }
 
 func (l *List[T]) Prev() {
@@ -24,7 +42,7 @@ func (l *List[T]) Prev() {
 		return
 	}
 	if l.cursor > 0 {
-		l.cursor--
+		l.SetCursor(l.cursor - 1)
 	}
 }
 
@@ -34,7 +52,7 @@ func (l *List[T]) Next() {
 		return
 	}
 	if l.cursor < len(l.Items)-1 {
-		l.cursor++
+		l.SetCursor(l.cursor + 1)
 	}
 }
 
@@ -48,7 +66,10 @@ func (l *List[T]) Current() T {
 
 func NewList[T any]() *List[T] {
 	return &List[T]{
-		Items:  make([]T, 0),
+		Items: make([]T, 0),
+		CursorChangedHandler: &CursorChangedHandler{
+			handlers: make([]CursorChangedHandlerFunc, 0),
+		},
 		cursor: -1,
 	}
 }
