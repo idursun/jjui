@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/idursun/jjui/internal/ui/ace_jump"
+	"github.com/idursun/jjui/internal/ui/common/list"
+	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
 	"github.com/idursun/jjui/internal/ui/operations/megamerge"
 	"github.com/idursun/jjui/internal/ui/operations/revert"
@@ -36,6 +38,7 @@ import (
 
 type Model struct {
 	*common.Sizeable
+	*list.CheckableList[models.RevisionItem]
 	rows             []parser.Row
 	tag              uint64
 	revisionToSelect string
@@ -581,6 +584,7 @@ func New(c *appContext.MainContext) Model {
 	w := graph.NewRenderer(20, 10)
 	return Model{
 		Sizeable:      &common.Sizeable{Width: 20, Height: 10},
+		CheckableList: list.NewCheckableList[models.RevisionItem](),
 		context:       c,
 		w:             w,
 		keymap:        keymap,
