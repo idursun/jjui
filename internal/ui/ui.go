@@ -79,7 +79,7 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		}
 		if m.oplog != nil {
 			m.oplog = nil
-			return m, common.SelectionChanged, true
+			return m, nil, true
 		}
 		return m, nil, false
 	}
@@ -167,7 +167,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			m.previewVisible = !m.previewVisible
-			cmds = append(cmds, common.SelectionChanged)
 			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Preview.Expand) && m.previewVisible:
 			m.previewWindowPercentage += config.Current.Preview.WidthIncrementPercentage
@@ -240,7 +239,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(revsetCmd, revisionsCmd)
 	case common.ShowPreview:
 		m.previewVisible = bool(msg)
-		cmds = append(cmds, common.SelectionChanged)
 		return m, tea.Batch(cmds...)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width

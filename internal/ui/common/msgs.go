@@ -30,10 +30,9 @@ type (
 		Output string
 		Err    error
 	}
-	SelectionChangedMsg struct{}
-	QuickSearchMsg      string
-	UpdateRevSetMsg     string
-	ExecMsg             struct {
+	QuickSearchMsg  string
+	UpdateRevSetMsg string
+	ExecMsg         struct {
 		Line string
 		Mode ExecMode
 	}
@@ -59,10 +58,6 @@ const (
 
 func Close() tea.Msg {
 	return CloseViewMsg{}
-}
-
-func SelectionChanged() tea.Msg {
-	return SelectionChangedMsg{}
 }
 
 func RefreshAndSelect(selectedRevision string) tea.Cmd {
