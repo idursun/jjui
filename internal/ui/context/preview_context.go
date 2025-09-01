@@ -15,19 +15,25 @@ const DebounceTime = 50 * time.Millisecond
 type PreviewContext struct {
 	CommandRunner
 	UI
-	revsetContext *RevsetContext
-	Content       string
-	LineCount     int
-	tag           atomic.Int64
+	revsetContext    *RevsetContext
+	Content          string
+	LineCount        int
+	Visible          bool
+	PreviewAtBottom  bool
+	WindowPercentage float64
+	tag              atomic.Int64
 }
 
 func NewPreviewContext(runner CommandRunner, ui UI, revsetCtx *RevsetContext) *PreviewContext {
 	return &PreviewContext{
-		CommandRunner: runner,
-		UI:            ui,
-		revsetContext: revsetCtx,
-		Content:       "",
-		tag:           atomic.Int64{},
+		CommandRunner:    runner,
+		UI:               ui,
+		revsetContext:    revsetCtx,
+		Content:          "",
+		PreviewAtBottom:  config.Current.Preview.ShowAtBottom,
+		Visible:          config.Current.Preview.ShowAtStart,
+		WindowPercentage: config.Current.Preview.WidthPercentage,
+		tag:              atomic.Int64{},
 	}
 }
 
@@ -75,6 +81,20 @@ func (p *PreviewContext) LoadOpLog(oplogItem models.OperationLogItem) {
 
 func (p *PreviewContext) LoadEvolog(evolog *models.EvologItem) {
 
+}
+
+func (p *PreviewContext) TogglePreviewPosition() {
+	p.PreviewAtBottom = !p.PreviewAtBottom
+	go func() {
+		p.UI.Update()
+	}()
+}
+
+func (p *PreviewContext) ToggleVisible() {
+	p.Visible = !p.Visible
+	go func() {
+		p.UI.Update()
+	}()
 }
 
 func (p *PreviewContext) debounceCall(f func()) {
