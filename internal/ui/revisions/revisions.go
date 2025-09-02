@@ -36,25 +36,33 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/squash"
 )
 
+type RevisionList struct {
+	*list.CheckableList[*models.RevisionItem]
+	renderer      *list.ListRenderer[*models.RevisionItem]
+	op            operations.Operation
+	aceJump       *ace_jump.AceJump
+	quickSearch   string
+	dimmedStyle   lipgloss.Style
+	checkStyle    lipgloss.Style
+	textStyle     lipgloss.Style
+	selectedStyle lipgloss.Style
+	Tracer        parser.LaneTracer
+}
+
 type Model struct {
 	*common.Sizeable
-	*list.CheckableList[*models.RevisionItem]
+	*RevisionList
 	tag              uint64
 	revisionToSelect string
 	offScreenRows    []*models.RevisionItem
 	streamer         *graph.GraphStreamer
 	hasMore          bool
-	op               operations.Operation
 	context          *appContext.MainContext
 	keymap           config.KeyMappings[key.Binding]
 	output           string
 	err              error
-	aceJump          *ace_jump.AceJump
-	quickSearch      string
 	previousOpLogId  string
 	isLoading        bool
-	renderer         *graph.Renderer
-	textStyle        lipgloss.Style
 }
 
 type revisionsMsg struct {
@@ -204,7 +212,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 		if m.hasMore {
 			// keep requesting rows until we reach the initial load count or the current cursor position
-			if len(m.offScreenRows) < m.Cursor+1 || len(m.offScreenRows) < m.renderer.LastRowIndex()+1 {
+			if len(m.offScreenRows) < m.Cursor+1 || len(m.offScreenRows) < m.renderer.LastRowIndex+1 {
 				return m, m.requestMoreRows(msg.tag)
 			}
 		} else if m.streamer != nil {
@@ -452,19 +460,20 @@ func (m *Model) View() string {
 		selections[item.Commit.GetChangeId()] = true
 	}
 
-	iterator := graph.NewDefaultRowIterator(m.List, graph.WithWidth(m.Width), graph.WithStylePrefix("revisions"), graph.WithSelections(selections))
-	iterator.Op = m.op
-	iterator.Cursor = m.Cursor
-	iterator.SearchText = m.quickSearch
-	iterator.AceJumpPrefix = m.aceJump.Prefix()
+	//iterator := graph.NewDefaultRowIterator(m.List, graph.WithWidth(m.Width), graph.WithStylePrefix("revisions"), graph.WithSelections(selections))
+	//iterator.Op = m.op
+	//iterator.Cursor = m.Cursor
+	//iterator.SearchText = m.quickSearch
+	//iterator.AceJumpPrefix = m.aceJump.Prefix()
 
-	m.renderer.SetHeight(m.Height)
-	if config.Current.UI.Tracer.Enabled {
-		start, end := m.renderer.FirstRowIndex(), m.renderer.LastRowIndex()+1 // +1 because the last row is inclusive in the view range
-		log.Println("Visible row range:", start, end, "Cursor:", m.Cursor, "Total rows:", len(m.Items))
-		iterator.Tracer = parser.NewTracer(m.List, m.Cursor, start, end)
-	}
-	output := m.renderer.Render(iterator)
+	//m.renderer.SetHeight(m.Height)
+	//if config.Current.UI.Tracer.Enabled {
+	//	start, end := m.renderer.FirstRowIndex, m.renderer.LastRowIndex+1 // +1 because the last row is inclusive in the view range
+	//	log.Println("Visible row range:", start, end, "Cursor:", m.Cursor, "Total rows:", len(m.Items))
+	//	//iterator.Tracer = parser.NewTracer(m.List, m.Cursor, start, end)
+	//}
+	output := m.renderer.Render()
+	//output := m.renderer.Render(iterator)
 	output = m.textStyle.MaxWidth(m.Width).Render(output)
 	return lipgloss.Place(m.Width, m.Height, 0, 0, output)
 }
@@ -574,16 +583,26 @@ func (m *Model) GetCommitIds() []string {
 
 func New(c *appContext.MainContext) Model {
 	keymap := config.Current.GetKeyMap()
-	w := graph.NewRenderer(20, 10)
+	l := list.NewCheckableList[*models.RevisionItem]()
+	size := common.NewSizeable(20, 10)
+
+	rl := &RevisionList{
+		CheckableList: l,
+		op:            operations.NewDefault(),
+		aceJump:       nil,
+		textStyle:     common.DefaultPalette.Get("revisions text"),
+		selectedStyle: common.DefaultPalette.Get("revisions selected").Inline(true),
+		dimmedStyle:   common.DefaultPalette.Get("revisions dimmed"),
+		checkStyle:    common.DefaultPalette.Get("revisions success").Inline(true),
+		Tracer:        parser.NewNoopTracer(),
+	}
+	rl.renderer = list.NewRenderer[*models.RevisionItem](l.List, rl.RenderItem, rl.GetItemHeight, size)
 	return Model{
-		Sizeable:      &common.Sizeable{Width: 20, Height: 10},
-		CheckableList: list.NewCheckableList[*models.RevisionItem](),
+		Sizeable:      size,
+		RevisionList:  rl,
 		context:       c,
-		renderer:      w,
 		keymap:        keymap,
 		offScreenRows: nil,
-		op:            operations.NewDefault(),
-		textStyle:     common.DefaultPalette.Get("revisions text"),
 	}
 }
 
