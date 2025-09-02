@@ -17,3 +17,10 @@ func (s *Sizeable) SetWidth(w int) {
 func (s *Sizeable) SetHeight(h int) {
 	s.Height = h
 }
+
+func NewSizeable(width int, height int) *Sizeable {
+	return &Sizeable{
+		Width:  width,
+		Height: height,
+	}
+}

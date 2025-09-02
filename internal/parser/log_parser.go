@@ -2,10 +2,12 @@ package parser
 
 import (
 	"io"
+
+	"github.com/idursun/jjui/internal/ui/common/models"
 )
 
-func ParseRows(reader io.Reader) []Row {
-	var rows []Row
+func ParseRows(reader io.Reader) []*models.RevisionItem {
+	var rows []*models.RevisionItem
 	controlChan := make(chan ControlMsg)
 	defer close(controlChan)
 	streamerChannel, err := ParseRowsStreaming(reader, controlChan, 50)
@@ -15,7 +17,7 @@ func ParseRows(reader io.Reader) []Row {
 	for {
 		controlChan <- RequestMore
 		chunk := <-streamerChannel
-		rows = append(rows, chunk.Rows...)
+		rows = append(rows, chunk.Items...)
 		if !chunk.HasMore {
 			break
 		}

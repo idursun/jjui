@@ -7,11 +7,12 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/common/models"
 )
 
 type iterator struct {
 	Width         int
-	Rows          []row
+	Rows          []*models.OperationLogItem
 	isHighlighted bool
 	current       int
 	Cursor        int
@@ -19,7 +20,7 @@ type iterator struct {
 	TextStyle     lipgloss.Style
 }
 
-func newIterator(rows []row, cursor int, width int) *iterator {
+func newIterator(rows []*models.OperationLogItem, cursor int, width int) *iterator {
 	return &iterator{
 		Width:         width,
 		Rows:          rows,

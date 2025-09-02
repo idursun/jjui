@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -87,20 +88,20 @@ func TestMultiBranchTraceMask(t *testing.T) {
 }
 
 func TestTracer_IsGutterInLane(t *testing.T) {
-	row1 := NewGraphRow()
+	row1 := models.NewGraphRow()
 	row1.Lines = append(row1.Lines,
-		&GraphRowLine{
-			Gutter: GraphGutter{
+		&models.GraphRowLine{
+			Gutter: models.GraphGutter{
 				Segments: []*screen.Segment{
 					{Text: "│", Style: lipgloss.NewStyle()},
 					{Text: " ", Style: lipgloss.NewStyle()},
 					{Text: "◆", Style: lipgloss.NewStyle()},
 				},
 			},
-			Flags: Revision | Highlightable,
+			Flags: models.Revision | models.Highlightable,
 		},
-		&GraphRowLine{
-			Gutter: GraphGutter{
+		&models.GraphRowLine{
+			Gutter: models.GraphGutter{
 				Segments: []*screen.Segment{
 					{Text: "│", Style: lipgloss.NewStyle()},
 					{Text: " ", Style: lipgloss.NewStyle()},
@@ -108,8 +109,8 @@ func TestTracer_IsGutterInLane(t *testing.T) {
 				},
 			},
 		},
-		&GraphRowLine{
-			Gutter: GraphGutter{
+		&models.GraphRowLine{
+			Gutter: models.GraphGutter{
 				Segments: []*screen.Segment{
 					{Text: "│", Style: lipgloss.NewStyle()},
 					{Text: " ", Style: lipgloss.NewStyle()},
@@ -117,8 +118,8 @@ func TestTracer_IsGutterInLane(t *testing.T) {
 				},
 			},
 		},
-		&GraphRowLine{
-			Gutter: GraphGutter{
+		&models.GraphRowLine{
+			Gutter: models.GraphGutter{
 				Segments: []*screen.Segment{
 					{Text: "├", Style: lipgloss.NewStyle()},
 					{Text: "─", Style: lipgloss.NewStyle()},
@@ -127,14 +128,14 @@ func TestTracer_IsGutterInLane(t *testing.T) {
 			},
 		})
 
-	var rows []Row
+	var rows []models.Row
 	rows = append(rows, row1)
 	tracer := NewTracer(rows, 0, 0, len(rows))
 	assert.True(t, tracer.IsGutterInLane(0, 0, 2))
 	assert.True(t, tracer.IsGutterInLane(0, 3, 0))
 }
 
-func createLaneMap(rows []Row, cursor, start int) string {
+func createLaneMap(rows []models.Row, cursor, start int) string {
 	_ = NewTracer(rows, cursor, start, len(rows))
 	var sb strings.Builder
 	sb.WriteString("\n")
@@ -153,9 +154,9 @@ func createLaneMap(rows []Row, cursor, start int) string {
 	return sb.String()
 }
 
-func newTestTraceableRow(lines []string) Row {
-	row := Row{
-		Lines: make([]*GraphRowLine, 0),
+func newTestTraceableRow(lines []string) models.Row {
+	row := models.Row{
+		Lines: make([]*models.GraphRowLine, 0),
 	}
 	for i, line := range lines {
 		line = strings.TrimSpace(line)
@@ -169,22 +170,22 @@ func newTestTraceableRow(lines []string) Row {
 				Style: lipgloss.NewStyle(),
 			})
 		}
-		gutter := GraphGutter{
+		gutter := models.GraphGutter{
 			Segments: segments,
 		}
-		flags := RowLineFlags(0)
+		flags := models.RowLineFlags(0)
 		if i == 0 {
-			flags |= Revision
+			flags |= models.Revision
 		}
-		row.Lines = append(row.Lines, &GraphRowLine{Gutter: gutter, Flags: flags})
+		row.Lines = append(row.Lines, &models.GraphRowLine{Gutter: gutter, Flags: flags})
 	}
 	return row
 }
 
-func createRows(g string) []Row {
+func createRows(g string) []models.Row {
 	g = strings.TrimSpace(g)
 	scanner := bufio.NewScanner(strings.NewReader(g))
-	var ret []Row
+	var ret []models.Row
 	var lines []string
 	for scanner.Scan() {
 		line := scanner.Text()

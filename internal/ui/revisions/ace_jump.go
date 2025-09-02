@@ -13,10 +13,10 @@ func (m *Model) HandleAceJump(k tea.KeyMsg) tea.Cmd {
 	if k.String() == tea.KeyEscape.String() {
 		m.aceJump = nil
 	} else if k.String() == tea.KeyEnter.String() {
-		m.cursor = m.aceJump.First().RowIdx
+		m.Cursor = m.aceJump.First().RowIdx
 		m.aceJump = nil
 	} else if found := m.aceJump.Narrow(k); found != nil {
-		m.cursor = found.RowIdx
+		m.Cursor = found.RowIdx
 		m.aceJump = nil
 	}
 	return m.updateSelection()
@@ -30,7 +30,7 @@ func (m *Model) findAceKeys() *ace_jump.AceJump {
 	}
 	for i := range last - first + 1 {
 		i += first
-		row := m.rows[i]
+		row := m.Items[i]
 		c := row.Commit
 		if c == nil {
 			continue
