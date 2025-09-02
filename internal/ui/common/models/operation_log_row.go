@@ -1,27 +1,23 @@
-package oplog
+package models
 
 import (
 	"github.com/idursun/jjui/internal/screen"
 )
 
-type row struct {
+type OperationLogRow struct {
 	OperationId string
-	Lines       []*rowLine
+	Lines       []*OperationLogRowLine
 }
 
-type rowLine struct {
+type OperationLogRowLine struct {
 	Segments []*screen.Segment
 }
 
-func (l *rowLine) FindIdIndex() int {
+func (l *OperationLogRowLine) FindIdIndex() int {
 	for i, segment := range l.Segments {
 		if len(segment.Text) == 12 {
 			return i
 		}
 	}
 	return -1
-}
-
-func newRowLine(segments []*screen.Segment) rowLine {
-	return rowLine{Segments: segments}
 }

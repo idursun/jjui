@@ -1,11 +1,15 @@
 package models
 
-import (
-	"github.com/idursun/jjui/internal/parser"
-)
-
 type RevisionItem struct {
 	*Checkable
-	parser.Row
+	Row
 	IsAffected bool
+}
+
+func NewRevisionItem(row Row) *RevisionItem {
+	return &RevisionItem{
+		&Checkable{checked: false},
+		row,
+		false,
+	}
 }

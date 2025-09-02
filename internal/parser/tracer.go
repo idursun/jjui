@@ -2,6 +2,8 @@ package parser
 
 import (
 	"log"
+
+	"github.com/idursun/jjui/internal/ui/common/models"
 )
 
 type LaneTracer interface {
@@ -27,13 +29,13 @@ func (n NoopTracer) UpdateGutterText(_ int, _ int, _ int, text string) string {
 }
 
 type Tracer struct {
-	rows                 []Row
+	rows                 []models.Row
 	nextLaneId           uint64
 	highlightedRowLane   uint64
 	highlightedLowestBit uint64
 }
 
-func NewTracer(rows []Row, cursor int, start int, end int) *Tracer {
+func NewTracer(rows []models.Row, cursor int, start int, end int) *Tracer {
 	t := &Tracer{
 		rows:       rows,
 		nextLaneId: 0,

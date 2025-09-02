@@ -9,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/common/models"
 
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -19,7 +20,7 @@ type DefaultRowIterator struct {
 	AceJumpPrefix *string
 	Op            operations.Operation
 	Width         int
-	Rows          []parser.Row
+	Rows          []models.Row
 	current       int
 	Cursor        int
 	isHighlighted bool
@@ -34,7 +35,7 @@ type DefaultRowIterator struct {
 
 type Option func(*DefaultRowIterator)
 
-func NewDefaultRowIterator(rows []parser.Row, options ...Option) *DefaultRowIterator {
+func NewDefaultRowIterator(rows []models.Row, options ...Option) *DefaultRowIterator {
 	iterator := &DefaultRowIterator{
 		Op:         &operations.Default{},
 		Rows:       rows,
@@ -95,7 +96,7 @@ func (s *DefaultRowIterator) RowHeight() int {
 	return len(s.Rows[s.current].Lines)
 }
 
-func (s *DefaultRowIterator) aceJumpIndex(segment *screen.Segment, row parser.Row) int {
+func (s *DefaultRowIterator) aceJumpIndex(segment *screen.Segment, row models.Row) int {
 	if s.AceJumpPrefix == nil || row.Commit == nil {
 		return -1
 	}
@@ -119,7 +120,7 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 
 	// will render by extending the previous connections
 	if before := s.RenderBefore(row.Commit); before != "" {
-		extended := parser.GraphGutter{}
+		extended := models.GraphGutter{}
 		if row.Previous != nil {
 			extended = row.Previous.Extend()
 		}
@@ -136,17 +137,17 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 	// Elided: this is usually the last line of the row, it is not highlightable
 	for lineIndex := 0; lineIndex < len(row.Lines); lineIndex++ {
 		segmentedLine := row.Lines[lineIndex]
-		if segmentedLine.Flags&parser.Elided == parser.Elided {
+		if segmentedLine.Flags&models.Elided == models.Elided {
 			break
 		}
 		lw := strings.Builder{}
-		if segmentedLine.Flags&parser.Revision != parser.Revision && s.isHighlighted {
+		if segmentedLine.Flags&models.Revision != models.Revision && s.isHighlighted {
 			if requiresDescriptionRendering {
 				s.writeSection(r, segmentedLine.Gutter, row.Extend(), true, descriptionOverlay)
 				descriptionRendered = true
 				// skip all remaining highlightable lines
 				for lineIndex < len(row.Lines) {
-					if row.Lines[lineIndex].Flags&parser.Highlightable == parser.Highlightable {
+					if row.Lines[lineIndex].Flags&models.Highlightable == models.Highlightable {
 						lineIndex++
 						continue
 					} else {
@@ -169,7 +170,7 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			fmt.Fprint(&lw, style.Render(text))
 		}
 
-		if segmentedLine.Flags&parser.Revision == parser.Revision {
+		if segmentedLine.Flags&models.Revision == models.Revision {
 			if decoration := s.RenderBeforeChangeId(row.Commit); decoration != "" {
 				fmt.Fprint(&lw, decoration)
 			}
@@ -202,7 +203,7 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 				fmt.Fprint(&lw, style.Render(segment.Text))
 			}
 		}
-		if segmentedLine.Flags&parser.Revision == parser.Revision && row.IsAffected {
+		if segmentedLine.Flags&models.Revision == models.Revision && row.IsAffected {
 			style := s.dimmedStyle
 			if s.isHighlighted {
 				style = s.dimmedStyle.Background(s.selectedStyle.GetBackground())
@@ -210,7 +211,7 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			fmt.Fprint(&lw, style.Render(" (affected by last operation)"))
 		}
 		line := lw.String()
-		if s.isHighlighted && segmentedLine.Flags&parser.Highlightable == parser.Highlightable {
+		if s.isHighlighted && segmentedLine.Flags&models.Highlightable == models.Highlightable {
 			fmt.Fprint(r, lipgloss.PlaceHorizontal(s.Width, 0, line, lipgloss.WithWhitespaceBackground(s.selectedStyle.GetBackground())))
 		} else {
 			fmt.Fprint(r, lipgloss.PlaceHorizontal(s.Width, 0, line, lipgloss.WithWhitespaceBackground(s.textStyle.GetBackground())))
@@ -231,7 +232,7 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 		s.writeSection(r, extended, extended, false, afterSection)
 	}
 
-	for lineIndex, segmentedLine := range row.RowLinesIter(parser.Excluding(parser.Highlightable)) {
+	for lineIndex, segmentedLine := range row.RowLinesIter(models.Excluding(models.Highlightable)) {
 		var lw strings.Builder
 		for i, segment := range segmentedLine.Gutter.Segments {
 			gutterInLane := s.Tracer.IsGutterInLane(s.current, lineIndex, i)
@@ -255,7 +256,7 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 
 // current gutter to be used in the first line (needed for overlaying the description)
 // extended used to repeat the gutter for each line
-func (s *DefaultRowIterator) writeSection(r io.Writer, current parser.GraphGutter, extended parser.GraphGutter, highlight bool, section string) {
+func (s *DefaultRowIterator) writeSection(r io.Writer, current models.GraphGutter, extended models.GraphGutter, highlight bool, section string) {
 	lines := strings.Split(section, "\n")
 	for _, sectionLine := range lines {
 		lw := strings.Builder{}

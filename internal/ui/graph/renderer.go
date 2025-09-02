@@ -3,6 +3,8 @@ package graph
 import (
 	"bytes"
 	"strings"
+
+	"github.com/idursun/jjui/internal/ui/common"
 )
 
 type viewRange struct {
@@ -20,20 +22,18 @@ func (v *viewRange) reset() {
 }
 
 type Renderer struct {
+	*common.Sizeable
 	buffer           bytes.Buffer
 	viewRange        *viewRange
 	skippedLineCount int
 	lineCount        int
-	Width            int
-	Height           int
 }
 
 func NewRenderer(width int, height int) *Renderer {
 	return &Renderer{
+		Sizeable:  common.NewSizeable(width, height),
 		buffer:    bytes.Buffer{},
 		viewRange: &viewRange{start: 0, end: height, firstRowIndex: -1, lastRowIndex: -1},
-		Width:     width,
-		Height:    height,
 	}
 }
 

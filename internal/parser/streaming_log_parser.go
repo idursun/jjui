@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/common/models"
 )
 
 type ControlMsg int
@@ -15,22 +16,17 @@ const (
 	Close
 )
 
-type RowBatch struct {
-	Rows    []Row
-	HasMore bool
-}
-
-func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batchSize int) (<-chan RowBatch, error) {
-	rowsChan := make(chan RowBatch, 1)
+func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batchSize int) (<-chan models.RowBatch, error) {
+	rowsChan := make(chan models.RowBatch, 1)
 	go func() {
 		defer close(rowsChan)
-		var rows []Row
-		var row Row
+		var rows []models.Row
+		var row models.Row
 		rawSegments := screen.ParseFromReader(reader)
 		for segmentedLine := range screen.BreakNewLinesIter(rawSegments) {
-			rowLine := NewGraphRowLine(segmentedLine)
+			rowLine := models.NewGraphRowLine(segmentedLine)
 			if changeIdIdx := rowLine.FindPossibleChangeIdIdx(); changeIdIdx != -1 && changeIdIdx != len(rowLine.Segments)-1 {
-				rowLine.Flags = Revision | Highlightable
+				rowLine.Flags = models.Revision | models.Highlightable
 				previousRow := row
 				if len(rows) > batchSize {
 					select {
@@ -39,13 +35,17 @@ func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batc
 						case Close:
 							return
 						case RequestMore:
-							rowsChan <- RowBatch{Rows: rows, HasMore: true}
+							var items []*models.RevisionItem
+							for _, r := range rows {
+								items = append(items, models.NewRevisionItem(r))
+							}
+							rowsChan <- models.RowBatch{Items: items, HasMore: true}
 							rows = nil
 							break
 						}
 					}
 				}
-				row = NewGraphRow()
+				row = models.NewGraphRow()
 				if previousRow.Commit != nil {
 					rows = append(rows, previousRow)
 					row.Previous = &previousRow
@@ -77,7 +77,11 @@ func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batc
 				case Close:
 					return
 				case RequestMore:
-					rowsChan <- RowBatch{Rows: rows, HasMore: false}
+					var items []*models.RevisionItem
+					for _, r := range rows {
+						items = append(items, models.NewRevisionItem(r))
+					}
+					rowsChan <- models.RowBatch{Items: items, HasMore: false}
 					rows = nil
 					break
 				}

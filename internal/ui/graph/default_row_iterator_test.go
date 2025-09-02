@@ -6,8 +6,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,15 +17,15 @@ var style = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 const width = 40
 
 func TestDefaultRowIterator_Render(t *testing.T) {
-	rows := []parser.Row{
+	rows := []models.Row{
 		{
 			Commit: &jj.Commit{
 				ChangeId: "abc",
 				CommitId: "123",
 			},
-			Lines: []*parser.GraphRowLine{
+			Lines: []*models.GraphRowLine{
 				{
-					Gutter: parser.GraphGutter{
+					Gutter: models.GraphGutter{
 						Segments: []*screen.Segment{
 							{Text: "@", Style: style},
 							{Text: "  ", Style: style},
@@ -36,10 +36,10 @@ func TestDefaultRowIterator_Render(t *testing.T) {
 						{Text: " ", Style: style},
 						{Text: "123", Style: style},
 					},
-					Flags: parser.Revision | parser.Highlightable,
+					Flags: models.Revision | models.Highlightable,
 				},
 				{
-					Gutter: parser.GraphGutter{
+					Gutter: models.GraphGutter{
 						Segments: []*screen.Segment{
 							{Text: "|", Style: style},
 							{Text: "  ", Style: style},
@@ -48,10 +48,10 @@ func TestDefaultRowIterator_Render(t *testing.T) {
 					Segments: []*screen.Segment{
 						{Text: "description goes here", Style: style},
 					},
-					Flags: parser.Highlightable,
+					Flags: models.Highlightable,
 				},
 				{
-					Gutter: parser.GraphGutter{
+					Gutter: models.GraphGutter{
 						Segments: []*screen.Segment{
 							{Text: "~", Style: style},
 							{Text: "  ", Style: style},
@@ -60,7 +60,7 @@ func TestDefaultRowIterator_Render(t *testing.T) {
 					Segments: []*screen.Segment{
 						{Text: "elided revisions", Style: style},
 					},
-					Flags: parser.Elided,
+					Flags: models.Elided,
 				},
 			},
 		},
@@ -77,15 +77,15 @@ func TestDefaultRowIterator_Render(t *testing.T) {
 }
 
 func TestDefaultRowIterator_Render_WithDescriptionOverride(t *testing.T) {
-	rows := []parser.Row{
+	rows := []models.Row{
 		{
 			Commit: &jj.Commit{
 				ChangeId: "abc",
 				CommitId: "123",
 			},
-			Lines: []*parser.GraphRowLine{
+			Lines: []*models.GraphRowLine{
 				{
-					Gutter: parser.GraphGutter{
+					Gutter: models.GraphGutter{
 						Segments: []*screen.Segment{
 							{Text: "@", Style: style},
 							{Text: "  ", Style: style},
@@ -96,10 +96,10 @@ func TestDefaultRowIterator_Render_WithDescriptionOverride(t *testing.T) {
 						{Text: " ", Style: style},
 						{Text: "123", Style: style},
 					},
-					Flags: parser.Revision | parser.Highlightable,
+					Flags: models.Revision | models.Highlightable,
 				},
 				{
-					Gutter: parser.GraphGutter{
+					Gutter: models.GraphGutter{
 						Segments: []*screen.Segment{
 							{Text: "|", Style: style},
 							{Text: "  ", Style: style},
@@ -108,10 +108,10 @@ func TestDefaultRowIterator_Render_WithDescriptionOverride(t *testing.T) {
 					Segments: []*screen.Segment{
 						{Text: "description goes here", Style: style},
 					},
-					Flags: parser.Highlightable,
+					Flags: models.Highlightable,
 				},
 				{
-					Gutter: parser.GraphGutter{
+					Gutter: models.GraphGutter{
 						Segments: []*screen.Segment{
 							{Text: "|", Style: style},
 							{Text: "  ", Style: style},
@@ -120,10 +120,10 @@ func TestDefaultRowIterator_Render_WithDescriptionOverride(t *testing.T) {
 					Segments: []*screen.Segment{
 						{Text: "some extra description line", Style: style},
 					},
-					Flags: parser.Highlightable,
+					Flags: models.Highlightable,
 				},
 				{
-					Gutter: parser.GraphGutter{
+					Gutter: models.GraphGutter{
 						Segments: []*screen.Segment{
 							{Text: "~", Style: style},
 							{Text: "  ", Style: style},
@@ -132,7 +132,7 @@ func TestDefaultRowIterator_Render_WithDescriptionOverride(t *testing.T) {
 					Segments: []*screen.Segment{
 						{Text: "elided revisions", Style: style},
 					},
-					Flags: parser.Elided,
+					Flags: models.Elided,
 				},
 			},
 		},
@@ -150,15 +150,15 @@ func TestDefaultRowIterator_Render_WithDescriptionOverride(t *testing.T) {
 }
 
 func TestDefaultRowIterator_Render_SingleRow_WithDescriptionOverride(t *testing.T) {
-	rows := []parser.Row{
+	rows := []models.Row{
 		{
 			Commit: &jj.Commit{
 				ChangeId: "abc",
 				CommitId: "123",
 			},
-			Lines: []*parser.GraphRowLine{
+			Lines: []*models.GraphRowLine{
 				{
-					Gutter: parser.GraphGutter{
+					Gutter: models.GraphGutter{
 						Segments: []*screen.Segment{
 							{Text: "@", Style: style},
 							{Text: "  ", Style: style},
@@ -169,7 +169,7 @@ func TestDefaultRowIterator_Render_SingleRow_WithDescriptionOverride(t *testing.
 						{Text: " description goes here ", Style: style},
 						{Text: "123", Style: style},
 					},
-					Flags: parser.Revision | parser.Highlightable,
+					Flags: models.Revision | models.Highlightable,
 				},
 			},
 		},
@@ -186,15 +186,15 @@ func TestDefaultRowIterator_Render_SingleRow_WithDescriptionOverride(t *testing.
 }
 
 func TestDefaultRowIterator_Render_WithSelection(t *testing.T) {
-	rows := []parser.Row{
+	rows := []models.Row{
 		{
 			Commit: &jj.Commit{
 				ChangeId: "abc",
 				CommitId: "123",
 			},
-			Lines: []*parser.GraphRowLine{
+			Lines: []*models.GraphRowLine{
 				{
-					Gutter: parser.GraphGutter{
+					Gutter: models.GraphGutter{
 						Segments: []*screen.Segment{
 							{Text: "@", Style: style},
 							{Text: "  ", Style: style},
@@ -205,7 +205,7 @@ func TestDefaultRowIterator_Render_WithSelection(t *testing.T) {
 						{Text: " ", Style: style},
 						{Text: "123", Style: style},
 					},
-					Flags: parser.Revision | parser.Highlightable,
+					Flags: models.Revision | models.Highlightable,
 				},
 			},
 		},
@@ -222,16 +222,16 @@ func TestDefaultRowIterator_Render_WithSelection(t *testing.T) {
 }
 
 func TestDefaultRowIterator_Render_Affected(t *testing.T) {
-	rows := []parser.Row{
+	rows := []models.Row{
 		{
 			Commit: &jj.Commit{
 				ChangeId: "abc",
 				CommitId: "123",
 			},
 			IsAffected: true,
-			Lines: []*parser.GraphRowLine{
+			Lines: []*models.GraphRowLine{
 				{
-					Gutter: parser.GraphGutter{
+					Gutter: models.GraphGutter{
 						Segments: []*screen.Segment{
 							{Text: "@", Style: style},
 							{Text: "  ", Style: style},
@@ -242,7 +242,7 @@ func TestDefaultRowIterator_Render_Affected(t *testing.T) {
 						{Text: " ", Style: style},
 						{Text: "123", Style: style},
 					},
-					Flags: parser.Revision | parser.Highlightable,
+					Flags: models.Revision | models.Highlightable,
 				},
 			},
 		},

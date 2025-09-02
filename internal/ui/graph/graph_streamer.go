@@ -10,6 +10,7 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/ui/common/models"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 )
 
@@ -19,7 +20,7 @@ type GraphStreamer struct {
 	command     *appContext.StreamingCommand
 	cancel      context.CancelFunc
 	controlChan chan parser.ControlMsg
-	rowsChan    <-chan parser.RowBatch
+	rowsChan    <-chan models.RowBatch
 	batchSize   int
 }
 
@@ -78,7 +79,7 @@ func NewGraphStreamer(ctx appContext.CommandRunner, revset string) (*GraphStream
 		batchSize:   batchSize,
 	}, commandError
 }
-func (g *GraphStreamer) RequestMore() parser.RowBatch {
+func (g *GraphStreamer) RequestMore() models.RowBatch {
 	g.controlChan <- parser.RequestMore
 	return <-g.rowsChan
 }

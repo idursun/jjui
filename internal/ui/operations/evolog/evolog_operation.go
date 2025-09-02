@@ -6,6 +6,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/common/list"
+	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/operations"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -17,7 +19,7 @@ import (
 )
 
 type updateEvologMsg struct {
-	rows []parser.Row
+	rows []*models.RevisionItem
 }
 
 type mode int
@@ -29,12 +31,11 @@ const (
 
 type Operation struct {
 	*common.Sizeable
+	*list.List[*models.RevisionItem]
 	context  *context.MainContext
 	w        *graph.Renderer
 	revision *jj.Commit
 	mode     mode
-	rows     []parser.Row
-	cursor   int
 	keyMap   config.KeyMappings[key.Binding]
 	target   *jj.Commit
 	styles   styles
@@ -47,13 +48,13 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		case key.Matches(msg, o.keyMap.Cancel):
 			return common.Close
 		case key.Matches(msg, o.keyMap.Up):
-			if o.cursor > 0 {
-				o.cursor--
+			if o.Cursor > 0 {
+				o.Cursor--
 				return o.updateSelection()
 			}
 		case key.Matches(msg, o.keyMap.Down):
-			if o.cursor < len(o.rows)-1 {
-				o.cursor++
+			if o.Cursor < len(o.Items)-1 {
+				o.Cursor++
 				return o.updateSelection()
 			}
 		case key.Matches(msg, o.keyMap.Evolog.Diff):
@@ -104,8 +105,8 @@ func (o *Operation) FullHelp() [][]key.Binding {
 func (o *Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cmd) {
 	switch msg := msg.(type) {
 	case updateEvologMsg:
-		o.rows = msg.rows
-		o.cursor = 0
+		o.Items = msg.rows
+		o.Cursor = 0
 		return o, o.updateSelection()
 	case tea.KeyMsg:
 		cmd := o.HandleKey(msg)
@@ -115,11 +116,11 @@ func (o *Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cm
 }
 
 func (o *Operation) getSelectedEvolog() *jj.Commit {
-	return o.rows[o.cursor].Commit
+	return o.Items[o.Cursor].Commit
 }
 
 func (o *Operation) updateSelection() tea.Cmd {
-	if o.rows == nil {
+	if o.Items == nil {
 		return nil
 	}
 
@@ -152,13 +153,17 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		return ""
 	}
 
-	if len(o.rows) == 0 {
+	if len(o.Items) == 0 {
 		return "loading"
 	}
-	h := min(o.Height-5, len(o.rows)*2)
+	h := min(o.Height-5, len(o.Items)*2)
 	o.w.SetSize(o.Width, h)
-	renderer := graph.NewDefaultRowIterator(o.rows, graph.WithWidth(o.Width), graph.WithStylePrefix("evolog"))
-	renderer.Cursor = o.cursor
+	var rows []models.Row
+	for _, item := range o.Items {
+		rows = append(rows, item.Row)
+	}
+	renderer := graph.NewDefaultRowIterator(rows, graph.WithWidth(o.Width), graph.WithStylePrefix("evolog"))
+	renderer.Cursor = o.Cursor
 	content := o.w.Render(renderer)
 	content = lipgloss.PlaceHorizontal(o.Width, lipgloss.Left, content)
 	return content
@@ -189,12 +194,11 @@ func NewOperation(context *context.MainContext, revision *jj.Commit, width int, 
 	w := graph.NewRenderer(width, height)
 	o := &Operation{
 		Sizeable: &common.Sizeable{Width: width, Height: height},
+		List:     list.NewList[*models.RevisionItem](),
 		context:  context,
 		keyMap:   config.Current.GetKeyMap(),
 		w:        w,
 		revision: revision,
-		rows:     nil,
-		cursor:   0,
 		styles:   styles,
 	}
 	return o, o.load

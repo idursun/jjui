@@ -25,12 +25,12 @@ func TestParseRowsStreaming_RequestMore(t *testing.T) {
 	var batch RowBatch
 	controlChannel <- RequestMore
 	batch = <-receiver
-	assert.Len(t, batch.Rows, 51)
+	assert.Len(t, batch.Items, 51)
 	assert.True(t, batch.HasMore, "expected more rows")
 
 	controlChannel <- RequestMore
 	batch = <-receiver
-	assert.Len(t, batch.Rows, 19)
+	assert.Len(t, batch.Items, 19)
 	assert.False(t, batch.HasMore, "expected no more rows")
 }
 

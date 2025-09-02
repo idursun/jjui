@@ -1,4 +1,4 @@
-package parser
+package models
 
 import (
 	"strings"
@@ -17,11 +17,10 @@ const (
 )
 
 type Row struct {
-	Commit     *jj.Commit
-	Lines      []*GraphRowLine
-	IsAffected bool
-	Indent     int
-	Previous   *Row
+	Commit   *jj.Commit
+	Lines    []*GraphRowLine
+	Indent   int
+	Previous *Row
 }
 
 func NewGraphRow() Row {

@@ -11,3 +11,11 @@ func NewList[T any]() *List[T] {
 		Cursor: -1,
 	}
 }
+
+func (l *List[T]) Current() T {
+	var zero T
+	if l.Cursor < 0 || l.Cursor >= len(l.Items) {
+		return zero
+	}
+	return l.Items[l.Cursor]
+}

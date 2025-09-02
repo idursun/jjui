@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestModel_highlightChanges(t *testing.T) {
 	model := Model{
-		rows: []parser.Row{
+		rows: []models.Row{
 			{Commit: &jj.Commit{ChangeId: "someother"}},
 			{Commit: &jj.Commit{ChangeId: "nyqzpsmt"}},
 		},
