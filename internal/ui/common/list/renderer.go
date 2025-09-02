@@ -59,7 +59,6 @@ func (r *ListRenderer[T]) String(start, end int) string {
 
 func (r *ListRenderer[T]) Reset() {
 	r.buffer.Reset()
-	r.ViewRange.Reset()
 	r.lineCount = 0
 	r.skippedLineCount = 0
 }
