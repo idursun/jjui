@@ -6,13 +6,13 @@ type ICheckable interface {
 }
 
 type Checkable struct {
-	checked bool
+	Checked bool
 }
 
 func (c *Checkable) IsChecked() bool {
-	return c.checked
+	return c.Checked
 }
 
 func (c *Checkable) Toggle() {
-	c.checked = !c.checked
+	c.Checked = !c.Checked
 }

@@ -20,6 +20,18 @@ func (l *List[T]) Current() T {
 	return l.Items[l.Cursor]
 }
 
+func (l *List[T]) CursorDown() {
+	if l.Cursor < len(l.Items)-1 {
+		l.Cursor++
+	}
+}
+
+func (l *List[T]) CursorUp() {
+	if l.Cursor > 0 {
+		l.Cursor--
+	}
+}
+
 func (l *List[T]) SetItems(items []T) {
 	l.Items = items
 }

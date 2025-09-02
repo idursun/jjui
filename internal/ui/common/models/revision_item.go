@@ -8,7 +8,7 @@ type RevisionItem struct {
 
 func NewRevisionItem(row Row) *RevisionItem {
 	return &RevisionItem{
-		&Checkable{checked: false},
+		&Checkable{Checked: false},
 		row,
 		false,
 	}
