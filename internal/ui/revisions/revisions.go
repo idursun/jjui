@@ -53,7 +53,7 @@ type Model struct {
 	quickSearch      string
 	previousOpLogId  string
 	isLoading        bool
-	w                *graph.Renderer
+	renderer         *graph.Renderer
 	textStyle        lipgloss.Style
 }
 
@@ -204,7 +204,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 		if m.hasMore {
 			// keep requesting rows until we reach the initial load count or the current cursor position
-			if len(m.offScreenRows) < m.Cursor+1 || len(m.offScreenRows) < m.w.LastRowIndex()+1 {
+			if len(m.offScreenRows) < m.Cursor+1 || len(m.offScreenRows) < m.renderer.LastRowIndex()+1 {
 				return m, m.requestMoreRows(msg.tag)
 			}
 		} else if m.streamer != nil {
@@ -452,19 +452,19 @@ func (m *Model) View() string {
 		selections[item.Commit.GetChangeId()] = true
 	}
 
-	renderer := graph.NewDefaultRowIterator(m.List, graph.WithWidth(m.Width), graph.WithStylePrefix("revisions"), graph.WithSelections(selections))
-	renderer.Op = m.op
-	renderer.Cursor = m.Cursor
-	renderer.SearchText = m.quickSearch
-	renderer.AceJumpPrefix = m.aceJump.Prefix()
+	iterator := graph.NewDefaultRowIterator(m.List, graph.WithWidth(m.Width), graph.WithStylePrefix("revisions"), graph.WithSelections(selections))
+	iterator.Op = m.op
+	iterator.Cursor = m.Cursor
+	iterator.SearchText = m.quickSearch
+	iterator.AceJumpPrefix = m.aceJump.Prefix()
 
-	m.w.SetHeight(m.Height)
+	m.renderer.SetHeight(m.Height)
 	if config.Current.UI.Tracer.Enabled {
-		start, end := m.w.FirstRowIndex(), m.w.LastRowIndex()+1 // +1 because the last row is inclusive in the view range
+		start, end := m.renderer.FirstRowIndex(), m.renderer.LastRowIndex()+1 // +1 because the last row is inclusive in the view range
 		log.Println("Visible row range:", start, end, "Cursor:", m.Cursor, "Total rows:", len(m.Items))
-		renderer.Tracer = parser.NewTracer(m.List, m.Cursor, start, end)
+		iterator.Tracer = parser.NewTracer(m.List, m.Cursor, start, end)
 	}
-	output := m.w.Render(renderer)
+	output := m.renderer.Render(iterator)
 	output = m.textStyle.MaxWidth(m.Width).Render(output)
 	return lipgloss.Place(m.Width, m.Height, 0, 0, output)
 }
@@ -579,7 +579,7 @@ func New(c *appContext.MainContext) Model {
 		Sizeable:      &common.Sizeable{Width: 20, Height: 10},
 		CheckableList: list.NewCheckableList[*models.RevisionItem](),
 		context:       c,
-		w:             w,
+		renderer:      w,
 		keymap:        keymap,
 		offScreenRows: nil,
 		op:            operations.NewDefault(),

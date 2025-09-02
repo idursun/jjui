@@ -24,7 +24,7 @@ func (m *Model) HandleAceJump(k tea.KeyMsg) tea.Cmd {
 
 func (m *Model) findAceKeys() *ace_jump.AceJump {
 	aj := ace_jump.NewAceJump()
-	first, last := m.w.FirstRowIndex(), m.w.LastRowIndex()
+	first, last := m.renderer.FirstRowIndex(), m.renderer.LastRowIndex()
 	if first == -1 || last == -1 {
 		return nil // wait until rendered
 	}
