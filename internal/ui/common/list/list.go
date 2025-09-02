@@ -19,3 +19,7 @@ func (l *List[T]) Current() T {
 	}
 	return l.Items[l.Cursor]
 }
+
+func (l *List[T]) SetItems(items []T) {
+	l.Items = items
+}

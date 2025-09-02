@@ -10,7 +10,6 @@ func NewCheckableList[T models.ICheckable]() *CheckableList[T] {
 	return &CheckableList[T]{
 		List: NewList[T](),
 	}
-
 }
 
 func (c *CheckableList[T]) GetCheckedItems() []T {
