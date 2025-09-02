@@ -2,6 +2,9 @@ package oplog
 
 import (
 	"bytes"
+	"fmt"
+	"io"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -12,20 +15,51 @@ import (
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/graph"
 )
 
 type updateOpLogMsg struct {
 	Rows []*models.OperationLogItem
 }
 
+type OpLogList struct {
+	*list.List[*models.OperationLogItem]
+	renderer      *list.ListRenderer[*models.OperationLogItem]
+	selectedStyle lipgloss.Style
+	textStyle     lipgloss.Style
+}
+
+func (o *OpLogList) RenderItem(w io.Writer, index int) {
+	row := o.Items[index]
+	isHighlighted := index == o.Cursor
+
+	for _, rowLine := range row.Lines {
+		lw := strings.Builder{}
+		for _, segment := range rowLine.Segments {
+			if isHighlighted {
+				fmt.Fprint(&lw, segment.Style.Inherit(o.selectedStyle).Render(segment.Text))
+			} else {
+				fmt.Fprint(&lw, segment.Style.Inherit(o.textStyle).Render(segment.Text))
+			}
+		}
+		line := lw.String()
+		if isHighlighted {
+			fmt.Fprint(w, lipgloss.PlaceHorizontal(o.renderer.Width, 0, line, lipgloss.WithWhitespaceBackground(o.selectedStyle.GetBackground())))
+		} else {
+			fmt.Fprint(w, lipgloss.PlaceHorizontal(o.renderer.Width, 0, line, lipgloss.WithWhitespaceBackground(o.textStyle.GetBackground())))
+		}
+		fmt.Fprint(w, "\n")
+	}
+}
+
+func (o *OpLogList) GetItemHeight(index int) int {
+	return len(o.Items[index].Lines)
+}
+
 type Model struct {
 	*common.Sizeable
-	*list.List[*models.OperationLogItem]
-	context   *context.MainContext
-	w         *graph.Renderer
-	keymap    config.KeyMappings[key.Binding]
-	textStyle lipgloss.Style
+	*OpLogList
+	context *context.MainContext
+	keymap  config.KeyMappings[key.Binding]
 }
 
 func (m *Model) ShortHelp() []key.Binding {
@@ -45,7 +79,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case updateOpLogMsg:
 		m.Items = msg.Rows
 		m.Cursor = 0
-		m.w.Reset()
+		m.renderer.Reset()
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keymap.Cancel):
@@ -86,10 +120,7 @@ func (m *Model) View() string {
 		return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading")
 	}
 
-	m.w.Reset()
-	m.w.SetHeight(m.Height)
-	renderer := newIterator(m.Items, m.Cursor, m.Width)
-	content := m.w.Render(renderer)
+	content := m.renderer.Render()
 	content = lipgloss.PlaceHorizontal(m.Width, lipgloss.Left, content)
 	return m.textStyle.MaxWidth(m.Width).Render(content)
 }
@@ -107,14 +138,20 @@ func (m *Model) load() tea.Cmd {
 }
 
 func New(context *context.MainContext, width int, height int) *Model {
+	size := common.NewSizeable(width, height)
+
 	keyMap := config.Current.GetKeyMap()
-	w := graph.NewRenderer(width, height)
+	l := list.NewList[*models.OperationLogItem]()
+	ol := &OpLogList{
+		List:          l,
+		selectedStyle: common.DefaultPalette.Get("oplog selected"),
+		textStyle:     common.DefaultPalette.Get("oplog text"),
+	}
+	ol.renderer = list.NewRenderer[*models.OperationLogItem](l, ol.RenderItem, ol.GetItemHeight, size)
 	return &Model{
-		List:      list.NewList[*models.OperationLogItem](),
-		Sizeable:  &common.Sizeable{Width: width, Height: height},
+		OpLogList: ol,
+		Sizeable:  size,
 		context:   context,
-		w:         w,
 		keymap:    keyMap,
-		textStyle: common.DefaultPalette.Get("oplog text"),
 	}
 }
