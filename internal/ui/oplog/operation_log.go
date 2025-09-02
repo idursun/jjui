@@ -87,7 +87,7 @@ func (m *Model) View() string {
 	}
 
 	m.w.Reset()
-	m.w.SetSize(m.Width, m.Height)
+	m.w.SetHeight(m.Height)
 	renderer := newIterator(m.Items, m.Cursor, m.Width)
 	content := m.w.Render(renderer)
 	content = lipgloss.PlaceHorizontal(m.Width, lipgloss.Left, content)

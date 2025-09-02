@@ -148,7 +148,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		m.quickSearch = string(msg)
 		m.Cursor = m.search(0)
 		m.op = operations.NewDefault()
-		m.w.ResetViewRange()
 		return m, nil
 	case common.CommandCompletedMsg:
 		m.output = msg.Output
@@ -306,7 +305,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				m.op = operations.NewDefault()
 			case key.Matches(msg, m.keymap.QuickSearchCycle):
 				m.Cursor = m.search(m.Cursor + 1)
-				m.w.ResetViewRange()
 				return m, nil
 			case key.Matches(msg, m.keymap.Details.Mode):
 				m.op, cmd = details.NewOperation(m.context, m.SelectedRevision())
@@ -465,7 +463,7 @@ func (m *Model) View() string {
 	renderer.SearchText = m.quickSearch
 	renderer.AceJumpPrefix = m.aceJump.Prefix()
 
-	m.w.SetSize(m.Width, m.Height)
+	m.w.SetHeight(m.Height)
 	if config.Current.UI.Tracer.Enabled {
 		start, end := m.w.FirstRowIndex(), m.w.LastRowIndex()+1 // +1 because the last row is inclusive in the view range
 		log.Println("Visible row range:", start, end, "Cursor:", m.Cursor, "Total rows:", len(m.Items))
