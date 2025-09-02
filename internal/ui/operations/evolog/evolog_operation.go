@@ -2,6 +2,9 @@ package evolog
 
 import (
 	"bytes"
+	"fmt"
+	"io"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/parser"
@@ -15,7 +18,6 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/graph"
 )
 
 type updateEvologMsg struct {
@@ -29,16 +31,58 @@ const (
 	restoreMode
 )
 
+type EvologList struct {
+	*list.List[*models.RevisionItem]
+	renderer      *list.ListRenderer[*models.RevisionItem]
+	selectedStyle lipgloss.Style
+	textStyle     lipgloss.Style
+	dimmedStyle   lipgloss.Style
+	commitIdStyle lipgloss.Style
+	changeIdStyle lipgloss.Style
+	markerStyle   lipgloss.Style
+}
+
+func (e *EvologList) RenderItem(w io.Writer, index int) {
+	row := e.Items[index]
+	isHighlighted := index == e.Cursor
+	for lineIndex := 0; lineIndex < len(row.Lines); lineIndex++ {
+		segmentedLine := row.Lines[lineIndex]
+
+		lw := strings.Builder{}
+		for _, segment := range segmentedLine.Gutter.Segments {
+			style := segment.Style
+			fmt.Fprint(&lw, style.Render(segment.Text))
+		}
+
+		for _, segment := range segmentedLine.Segments {
+			style := segment.Style
+			if isHighlighted {
+				style = style.Inherit(e.selectedStyle)
+			}
+			fmt.Fprint(&lw, style.Render(segment.Text))
+		}
+		line := lw.String()
+		if isHighlighted && segmentedLine.Flags&models.Highlightable == models.Highlightable {
+			fmt.Fprint(w, lipgloss.PlaceHorizontal(e.renderer.Width, 0, line, lipgloss.WithWhitespaceBackground(e.selectedStyle.GetBackground())))
+		} else {
+			fmt.Fprint(w, lipgloss.PlaceHorizontal(e.renderer.Width, 0, line, lipgloss.WithWhitespaceBackground(e.textStyle.GetBackground())))
+		}
+		fmt.Fprint(w, "\n")
+	}
+}
+
+func (e *EvologList) GetItemHeight(index int) int {
+	return len(e.Items[index].Lines)
+}
+
 type Operation struct {
 	*common.Sizeable
-	*list.List[*models.RevisionItem]
+	*EvologList
 	context  *context.MainContext
-	w        *graph.Renderer
 	revision *jj.Commit
 	mode     mode
 	keyMap   config.KeyMappings[key.Binding]
 	target   *jj.Commit
-	styles   styles
 }
 
 func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
@@ -78,13 +122,6 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		}
 	}
 	return nil
-}
-
-type styles struct {
-	dimmedStyle   lipgloss.Style
-	commitIdStyle lipgloss.Style
-	changeIdStyle lipgloss.Style
-	markerStyle   lipgloss.Style
 }
 
 func (o *Operation) SetSelectedRevision(commit *jj.Commit) {
@@ -135,11 +172,11 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if o.mode == restoreMode && pos == operations.RenderPositionBefore && o.target != nil && o.target.GetChangeId() == commit.GetChangeId() {
 		selectedCommitId := o.getSelectedEvolog().CommitId
 		return lipgloss.JoinHorizontal(0,
-			o.styles.markerStyle.Render("<< restore >>"),
-			o.styles.dimmedStyle.PaddingLeft(1).Render("restore from "),
-			o.styles.commitIdStyle.Render(selectedCommitId),
-			o.styles.dimmedStyle.Render(" into "),
-			o.styles.changeIdStyle.Render(o.target.GetChangeId()),
+			o.markerStyle.Render("<< restore >>"),
+			o.dimmedStyle.PaddingLeft(1).Render("restore from "),
+			o.commitIdStyle.Render(selectedCommitId),
+			o.dimmedStyle.Render(" into "),
+			o.changeIdStyle.Render(o.target.GetChangeId()),
 		)
 	}
 
@@ -157,14 +194,8 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		return "loading"
 	}
 	h := min(o.Height-5, len(o.Items)*2)
-	o.w.SetHeight(h)
-	var rows []models.Row
-	for _, item := range o.Items {
-		rows = append(rows, item.Row)
-	}
-	renderer := graph.NewDefaultRowIterator(o.List, graph.WithWidth(o.Width), graph.WithStylePrefix("evolog"))
-	renderer.Cursor = o.Cursor
-	content := o.w.Render(renderer)
+	o.renderer.SetHeight(h)
+	content := o.renderer.Render()
 	content = lipgloss.PlaceHorizontal(o.Width, lipgloss.Left, content)
 	return content
 }
@@ -185,21 +216,24 @@ func (o *Operation) load() tea.Msg {
 }
 
 func NewOperation(context *context.MainContext, revision *jj.Commit, width int, height int) (operations.Operation, tea.Cmd) {
-	styles := styles{
+	size := common.NewSizeable(width, height)
+	l := list.NewList[*models.RevisionItem]()
+	el := &EvologList{
+		List:          l,
+		selectedStyle: common.DefaultPalette.Get("evolog selected"),
+		textStyle:     common.DefaultPalette.Get("evolog text"),
 		dimmedStyle:   common.DefaultPalette.Get("evolog dimmed"),
 		commitIdStyle: common.DefaultPalette.Get("evolog commit_id"),
 		changeIdStyle: common.DefaultPalette.Get("evolog change_id"),
 		markerStyle:   common.DefaultPalette.Get("evolog target_marker"),
 	}
-	w := graph.NewRenderer(width, height)
+	el.renderer = list.NewRenderer[*models.RevisionItem](l, el.RenderItem, el.GetItemHeight, common.NewSizeable(width, height))
 	o := &Operation{
-		Sizeable: &common.Sizeable{Width: width, Height: height},
-		List:     list.NewList[*models.RevisionItem](),
-		context:  context,
-		keyMap:   config.Current.GetKeyMap(),
-		w:        w,
-		revision: revision,
-		styles:   styles,
+		Sizeable:   size,
+		EvologList: el,
+		context:    context,
+		keyMap:     config.Current.GetKeyMap(),
+		revision:   revision,
 	}
 	return o, o.load
 }
