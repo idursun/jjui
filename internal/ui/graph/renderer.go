@@ -7,14 +7,23 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
-type viewRange struct {
+type ViewRange struct {
+	*common.Sizeable
 	start         int
 	end           int
 	firstRowIndex int
 	lastRowIndex  int
 }
 
-func (v *viewRange) reset() {
+func (v *ViewRange) FirstRowIndex() int {
+	return v.firstRowIndex
+}
+
+func (v *ViewRange) LastRowIndex() int {
+	return v.lastRowIndex
+}
+
+func (v *ViewRange) Reset() {
 	v.start = 0
 	v.end = 0
 	v.firstRowIndex = -1
@@ -22,45 +31,17 @@ func (v *viewRange) reset() {
 }
 
 type Renderer struct {
-	*common.Sizeable
+	*ViewRange
 	buffer           bytes.Buffer
-	viewRange        *viewRange
 	skippedLineCount int
 	lineCount        int
 }
 
 func NewRenderer(width int, height int) *Renderer {
 	return &Renderer{
-		Sizeable:  common.NewSizeable(width, height),
+		ViewRange: &ViewRange{Sizeable: common.NewSizeable(width, height), start: 0, end: height, firstRowIndex: -1, lastRowIndex: -1},
 		buffer:    bytes.Buffer{},
-		viewRange: &viewRange{start: 0, end: height, firstRowIndex: -1, lastRowIndex: -1},
 	}
-}
-
-func (r *Renderer) SetSize(width int, height int) {
-	r.Width = width
-	r.Height = height
-	if r.viewRange.end < r.viewRange.start+r.Height {
-		r.viewRange.end = r.viewRange.start + r.Height
-	}
-}
-
-func (r *Renderer) FirstRowIndex() int {
-	return r.viewRange.firstRowIndex
-}
-
-func (r *Renderer) LastRowIndex() int {
-	return r.viewRange.lastRowIndex
-}
-
-func (r *Renderer) ResetViewRange() {
-	r.viewRange.reset()
-	r.skippedLineCount = 0
-	r.lineCount = 0
-}
-
-func (r *Renderer) SkipLines(amount int) {
-	r.skippedLineCount = r.skippedLineCount + amount
 }
 
 func (r *Renderer) Write(p []byte) (n int, err error) {
@@ -69,10 +50,6 @@ func (r *Renderer) Write(p []byte) (n int, err error) {
 	}
 	r.lineCount += bytes.Count(p, []byte("\n"))
 	return r.buffer.Write(p)
-}
-
-func (r *Renderer) LineCount() int {
-	return r.lineCount + r.skippedLineCount
 }
 
 func (r *Renderer) String(start, end int) string {
@@ -96,15 +73,16 @@ func (r *Renderer) String(start, end int) string {
 
 func (r *Renderer) Reset() {
 	r.buffer.Reset()
+	r.ViewRange.Reset()
 	r.lineCount = 0
 	r.skippedLineCount = 0
 }
 
 func (r *Renderer) Render(iterator RowIterator) string {
 	r.Reset()
-	viewHeight := r.viewRange.end - r.viewRange.start
+	viewHeight := r.ViewRange.end - r.ViewRange.start
 	if viewHeight != r.Height {
-		r.viewRange.end = r.viewRange.start + r.Height
+		r.ViewRange.end = r.ViewRange.start + r.Height
 	}
 
 	selectedLineStart := -1
@@ -119,11 +97,11 @@ func (r *Renderer) Render(iterator RowIterator) string {
 			break
 		}
 		if iterator.IsHighlighted() {
-			selectedLineStart = r.LineCount()
+			selectedLineStart = r.totalLineCount()
 		} else {
 			rowLineCount := iterator.RowHeight()
-			if rowLineCount+r.LineCount() < r.viewRange.start {
-				r.SkipLines(rowLineCount)
+			if rowLineCount+r.totalLineCount() < r.ViewRange.start {
+				r.skipLines(rowLineCount)
 				continue
 			}
 		}
@@ -133,9 +111,9 @@ func (r *Renderer) Render(iterator RowIterator) string {
 		}
 
 		if iterator.IsHighlighted() {
-			selectedLineEnd = r.LineCount()
+			selectedLineEnd = r.totalLineCount()
 		}
-		if selectedLineEnd > 0 && r.LineCount() > r.viewRange.end {
+		if selectedLineEnd > 0 && r.totalLineCount() > r.ViewRange.end {
 			lastRenderedRowIndex = i
 			break
 		}
@@ -144,15 +122,23 @@ func (r *Renderer) Render(iterator RowIterator) string {
 		lastRenderedRowIndex = iterator.Len() - 1
 	}
 
-	r.viewRange.firstRowIndex = firstRenderedRowIndex
-	r.viewRange.lastRowIndex = lastRenderedRowIndex
-	if selectedLineStart <= r.viewRange.start {
-		r.viewRange.start = selectedLineStart
-		r.viewRange.end = selectedLineStart + r.Height
-	} else if selectedLineEnd > r.viewRange.end {
-		r.viewRange.end = selectedLineEnd
-		r.viewRange.start = selectedLineEnd - r.Height
+	r.ViewRange.firstRowIndex = firstRenderedRowIndex
+	r.ViewRange.lastRowIndex = lastRenderedRowIndex
+	if selectedLineStart <= r.ViewRange.start {
+		r.ViewRange.start = selectedLineStart
+		r.ViewRange.end = selectedLineStart + r.Height
+	} else if selectedLineEnd > r.ViewRange.end {
+		r.ViewRange.end = selectedLineEnd
+		r.ViewRange.start = selectedLineEnd - r.Height
 	}
 
-	return r.String(r.viewRange.start, r.viewRange.end)
+	return r.String(r.ViewRange.start, r.ViewRange.end)
+}
+
+func (r *Renderer) skipLines(amount int) {
+	r.skippedLineCount = r.skippedLineCount + amount
+}
+
+func (r *Renderer) totalLineCount() int {
+	return r.lineCount + r.skippedLineCount
 }

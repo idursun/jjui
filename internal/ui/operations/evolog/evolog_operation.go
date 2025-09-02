@@ -157,7 +157,7 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		return "loading"
 	}
 	h := min(o.Height-5, len(o.Items)*2)
-	o.w.SetSize(o.Width, h)
+	o.w.SetHeight(h)
 	var rows []models.Row
 	for _, item := range o.Items {
 		rows = append(rows, item.Row)
