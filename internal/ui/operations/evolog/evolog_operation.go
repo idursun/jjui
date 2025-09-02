@@ -162,7 +162,7 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	for _, item := range o.Items {
 		rows = append(rows, item.Row)
 	}
-	renderer := graph.NewDefaultRowIterator(rows, graph.WithWidth(o.Width), graph.WithStylePrefix("evolog"))
+	renderer := graph.NewDefaultRowIterator(o.List, graph.WithWidth(o.Width), graph.WithStylePrefix("evolog"))
 	renderer.Cursor = o.Cursor
 	content := o.w.Render(renderer)
 	content = lipgloss.PlaceHorizontal(o.Width, lipgloss.Left, content)

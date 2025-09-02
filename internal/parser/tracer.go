@@ -3,6 +3,7 @@ package parser
 import (
 	"log"
 
+	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/common/models"
 )
 
@@ -29,21 +30,21 @@ func (n NoopTracer) UpdateGutterText(_ int, _ int, _ int, text string) string {
 }
 
 type Tracer struct {
-	rows                 []models.Row
+	*list.List[*models.RevisionItem]
 	nextLaneId           uint64
 	highlightedRowLane   uint64
 	highlightedLowestBit uint64
 }
 
-func NewTracer(rows []models.Row, cursor int, start int, end int) *Tracer {
+func NewTracer(list *list.List[*models.RevisionItem], cursor int, start int, end int) *Tracer {
 	t := &Tracer{
-		rows:       rows,
+		List:       list,
 		nextLaneId: 0,
 	}
 	log.Println("Tracing lanes from", start, "to", end)
 	t.traceLanes(start, end)
 
-	if cursor >= 0 && cursor < len(t.rows) {
+	if cursor >= 0 && cursor < len(t.Items) {
 		t.highlightedRowLane = t.getRowLane(cursor)
 		t.highlightedLowestBit = t.highlightedRowLane & -t.highlightedRowLane
 	}
@@ -94,11 +95,11 @@ func (t *Tracer) UpdateGutterText(current int, lineIndex int, i int, text string
 }
 
 func (t *Tracer) traceLanes(start int, end int) {
-	if start < 0 || end > len(t.rows) {
+	if start < 0 || end > len(t.Items) {
 		return
 	}
 	for i := start; i < end; i++ {
-		row := t.rows[i]
+		row := t.Items[i]
 		for _, line := range row.Lines {
 			for _, segment := range line.Gutter.Segments {
 				segment.Lane = 0
@@ -108,7 +109,7 @@ func (t *Tracer) traceLanes(start int, end int) {
 
 	t.nextLaneId = 1
 	for rowIndex := start; rowIndex < end; rowIndex++ {
-		row := t.rows[rowIndex]
+		row := t.Items[rowIndex]
 		for line := 0; line < len(row.Lines); line++ {
 			rowLine := row.Lines[line]
 			for index, segment := range rowLine.Gutter.Segments {
@@ -126,11 +127,11 @@ func (t *Tracer) traceLanes(start int, end int) {
 }
 
 func (t *Tracer) getLane(rowIndex int, line int, col int) uint64 {
-	return t.rows[rowIndex].GetLane(line, col)
+	return t.Items[rowIndex].GetLane(line, col)
 }
 
 func (t *Tracer) getRowLane(rowIndex int) uint64 {
-	currentRow := t.rows[rowIndex]
+	currentRow := t.Items[rowIndex]
 	index := currentRow.GetNodeIndex()
 	lane := currentRow.GetLane(0, index)
 	return lane
@@ -154,7 +155,7 @@ func (t *Tracer) traceLane(rowIndex int, endIndex int, lineIndex int, index int)
 		dir      dir
 	}
 
-	currentRow := t.rows[rowIndex]
+	currentRow := t.Items[rowIndex]
 	currentRow.SetLane(lineIndex, index, t.nextLaneId)
 
 	var directions []direction
@@ -166,7 +167,7 @@ func (t *Tracer) traceLane(rowIndex int, endIndex int, lineIndex int, index int)
 		r := current.line
 		c := current.col
 		rowIndex = current.rowIndex
-		currentRow = t.rows[rowIndex]
+		currentRow = t.Items[rowIndex]
 		switch current.dir {
 		case down:
 			r += 1
@@ -182,7 +183,7 @@ func (t *Tracer) traceLane(rowIndex int, endIndex int, lineIndex int, index int)
 			if rowIndex >= endIndex {
 				continue
 			}
-			currentRow = t.rows[rowIndex]
+			currentRow = t.Items[rowIndex]
 			r = 0
 			ch, exists = currentRow.Get(r, c)
 			if !exists {
@@ -223,7 +224,7 @@ func (t *Tracer) traceLane(rowIndex int, endIndex int, lineIndex int, index int)
 }
 
 func (t *Tracer) lookAhead(rowIndex int, r int, c int, diff int, expected int32) bool {
-	row := t.rows[rowIndex]
+	row := t.Items[rowIndex]
 	i := c
 	for {
 		i += diff
