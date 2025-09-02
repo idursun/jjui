@@ -446,18 +446,13 @@ func (m *Model) View() string {
 		return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "(no matching revisions)")
 	}
 
-	var rows []models.Row
-	for _, item := range m.Items {
-		rows = append(rows, item.Row)
-	}
-
 	selections := make(map[string]bool)
 	checked := m.GetCheckedItems()
 	for _, item := range checked {
 		selections[item.Commit.GetChangeId()] = true
 	}
 
-	renderer := graph.NewDefaultRowIterator(rows, graph.WithWidth(m.Width), graph.WithStylePrefix("revisions"), graph.WithSelections(selections))
+	renderer := graph.NewDefaultRowIterator(m.List, graph.WithWidth(m.Width), graph.WithStylePrefix("revisions"), graph.WithSelections(selections))
 	renderer.Op = m.op
 	renderer.Cursor = m.Cursor
 	renderer.SearchText = m.quickSearch
@@ -467,7 +462,7 @@ func (m *Model) View() string {
 	if config.Current.UI.Tracer.Enabled {
 		start, end := m.w.FirstRowIndex(), m.w.LastRowIndex()+1 // +1 because the last row is inclusive in the view range
 		log.Println("Visible row range:", start, end, "Cursor:", m.Cursor, "Total rows:", len(m.Items))
-		renderer.Tracer = parser.NewTracer(rows, m.Cursor, start, end)
+		renderer.Tracer = parser.NewTracer(m.List, m.Cursor, start, end)
 	}
 	output := m.w.Render(renderer)
 	output = m.textStyle.MaxWidth(m.Width).Render(output)

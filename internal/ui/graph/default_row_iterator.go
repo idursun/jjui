@@ -9,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/common/models"
 
 	"github.com/idursun/jjui/internal/jj"
@@ -16,13 +17,12 @@ import (
 )
 
 type DefaultRowIterator struct {
+	*list.List[*models.RevisionItem]
 	SearchText    string
 	AceJumpPrefix *string
 	Op            operations.Operation
 	Width         int
-	Rows          []models.Row
 	current       int
-	Cursor        int
 	isHighlighted bool
 	isSelected    bool
 	selections    map[string]bool
@@ -35,10 +35,10 @@ type DefaultRowIterator struct {
 
 type Option func(*DefaultRowIterator)
 
-func NewDefaultRowIterator(rows []models.Row, options ...Option) *DefaultRowIterator {
+func NewDefaultRowIterator(list *list.List[*models.RevisionItem], options ...Option) *DefaultRowIterator {
 	iterator := &DefaultRowIterator{
 		Op:         &operations.Default{},
-		Rows:       rows,
+		List:       list,
 		selections: make(map[string]bool),
 		Tracer:     parser.NewNoopTracer(),
 		current:    -1,
@@ -81,19 +81,19 @@ func (s *DefaultRowIterator) IsHighlighted() bool {
 
 func (s *DefaultRowIterator) Next() bool {
 	s.current++
-	if s.current >= len(s.Rows) {
+	if s.current >= len(s.Items) {
 		return false
 	}
 	s.isHighlighted = s.current == s.Cursor
 	s.isSelected = false
-	if v, ok := s.selections[s.Rows[s.current].Commit.GetChangeId()]; ok {
+	if v, ok := s.selections[s.Items[s.current].Commit.GetChangeId()]; ok {
 		s.isSelected = v
 	}
 	return true
 }
 
 func (s *DefaultRowIterator) RowHeight() int {
-	return len(s.Rows[s.current].Lines)
+	return len(s.Items[s.current].Lines)
 }
 
 func (s *DefaultRowIterator) aceJumpIndex(segment *screen.Segment, row models.Row) int {
@@ -115,7 +115,7 @@ func (s *DefaultRowIterator) aceJumpIndex(segment *screen.Segment, row models.Ro
 }
 
 func (s *DefaultRowIterator) Render(r io.Writer) {
-	row := s.Rows[s.current]
+	row := s.Items[s.current]
 	inLane := s.Tracer.IsInSameLane(s.current)
 
 	// will render by extending the previous connections
@@ -196,7 +196,7 @@ func (s *DefaultRowIterator) Render(r io.Writer) {
 			if start != -1 {
 				mid := lipgloss.NewRange(start, end, style.Reverse(true))
 				fmt.Fprint(&lw, lipgloss.StyleRanges(style.Render(segment.Text), mid))
-			} else if aceIdx := s.aceJumpIndex(segment, row); aceIdx > -1 {
+			} else if aceIdx := s.aceJumpIndex(segment, row.Row); aceIdx > -1 {
 				mid := lipgloss.NewRange(aceIdx, aceIdx+1, style.Reverse(true))
 				fmt.Fprint(&lw, lipgloss.StyleRanges(style.Render(segment.Text), mid))
 			} else {
@@ -277,7 +277,7 @@ func (s *DefaultRowIterator) writeSection(r io.Writer, current models.GraphGutte
 }
 
 func (s *DefaultRowIterator) Len() int {
-	return len(s.Rows)
+	return len(s.Items)
 }
 
 func (s *DefaultRowIterator) RenderBefore(commit *jj.Commit) string {
