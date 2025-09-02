@@ -142,7 +142,7 @@ func (o *Operation) FullHelp() [][]key.Binding {
 func (o *Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cmd) {
 	switch msg := msg.(type) {
 	case updateEvologMsg:
-		o.Items = msg.rows
+		o.SetItems(msg.rows)
 		o.Cursor = 0
 		return o, o.updateSelection()
 	case tea.KeyMsg:

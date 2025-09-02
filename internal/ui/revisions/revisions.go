@@ -220,7 +220,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 
 		currentSelectedRevision := m.SelectedRevision()
-		m.Items = m.offScreenRows
+		m.SetItems(m.offScreenRows)
 		if m.revisionToSelect != "" {
 			m.Cursor = m.selectRevision(m.revisionToSelect)
 			m.revisionToSelect = ""
@@ -431,7 +431,7 @@ func (m *Model) updateGraphRows(rows []*models.RevisionItem, selectedRevision st
 	if cur := m.SelectedRevision(); currentSelectedRevision == "" && cur != nil {
 		currentSelectedRevision = cur.GetChangeId()
 	}
-	m.Items = rows
+	m.SetItems(rows)
 
 	if len(m.Items) > 0 {
 		m.Cursor = m.selectRevision(currentSelectedRevision)
@@ -460,20 +460,7 @@ func (m *Model) View() string {
 		selections[item.Commit.GetChangeId()] = true
 	}
 
-	//iterator := graph.NewDefaultRowIterator(m.List, graph.WithWidth(m.Width), graph.WithStylePrefix("revisions"), graph.WithSelections(selections))
-	//iterator.Op = m.op
-	//iterator.Cursor = m.Cursor
-	//iterator.SearchText = m.quickSearch
-	//iterator.AceJumpPrefix = m.aceJump.Prefix()
-
-	//m.renderer.SetHeight(m.Height)
-	//if config.Current.UI.Tracer.Enabled {
-	//	start, end := m.renderer.FirstRowIndex, m.renderer.LastRowIndex+1 // +1 because the last row is inclusive in the view range
-	//	log.Println("Visible row range:", start, end, "Cursor:", m.Cursor, "Total rows:", len(m.Items))
-	//	//iterator.Tracer = parser.NewTracer(m.List, m.Cursor, start, end)
-	//}
 	output := m.renderer.Render()
-	//output := m.renderer.Render(iterator)
 	output = m.textStyle.MaxWidth(m.Width).Render(output)
 	return lipgloss.Place(m.Width, m.Height, 0, 0, output)
 }
