@@ -3,6 +3,7 @@ package models
 type ICheckable interface {
 	IsChecked() bool
 	Toggle()
+	SetChecked(checked bool)
 }
 
 type Checkable struct {
@@ -11,6 +12,10 @@ type Checkable struct {
 
 func (c *Checkable) IsChecked() bool {
 	return c.Checked
+}
+
+func (c *Checkable) SetChecked(checked bool) {
+	c.Checked = checked
 }
 
 func (c *Checkable) Toggle() {

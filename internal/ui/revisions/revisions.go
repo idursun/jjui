@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-	"reflect"
 	"slices"
 	"strings"
 
@@ -171,7 +170,8 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 	case common.RefreshMsg:
 		if !msg.KeepSelections {
-			m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
+			m.context.Revisions.ClearCheckedItems()
+			//m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
 		}
 		m.isLoading = true
 		cmd, _ := m.updateOperation(msg)
