@@ -141,7 +141,7 @@ func New(context *context.MainContext, width int, height int) *Model {
 	size := common.NewSizeable(width, height)
 
 	keyMap := config.Current.GetKeyMap()
-	l := list.NewList[*models.OperationLogItem]()
+	l := context.OpLog
 	ol := &OpLogList{
 		List:          l,
 		selectedStyle: common.DefaultPalette.Get("oplog selected"),
