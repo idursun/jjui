@@ -8,6 +8,8 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/common/list"
+	"github.com/idursun/jjui/internal/ui/common/models"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -54,6 +56,10 @@ func (s SelectedOperation) Equal(other SelectedItem) bool {
 
 type MainContext struct {
 	CommandRunner
+	Revisions      *list.CheckableList[*models.RevisionItem]
+	RevisionFiles  *list.CheckableList[*models.RevisionFileItem]
+	OpLog          *list.List[*models.OperationLogItem]
+	Evolog         *list.List[*models.RevisionItem]
 	SelectedItem   SelectedItem   // Single item where cursor is hover.
 	CheckedItems   []SelectedItem // Items checked ✓ by the user.
 	Location       string
@@ -70,8 +76,12 @@ func NewAppContext(location string) *MainContext {
 		CommandRunner: &MainCommandRunner{
 			Location: location,
 		},
-		Location:  location,
-		Histories: config.NewHistories(),
+		Location:      location,
+		Histories:     config.NewHistories(),
+		Revisions:     list.NewCheckableList[*models.RevisionItem](),
+		RevisionFiles: list.NewCheckableList[*models.RevisionFileItem](),
+		OpLog:         list.NewList[*models.OperationLogItem](),
+		Evolog:        list.NewList[*models.RevisionItem](),
 	}
 
 	m.JJConfig = &config.JJConfig{}

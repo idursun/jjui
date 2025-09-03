@@ -217,7 +217,7 @@ func (o *Operation) load() tea.Msg {
 
 func NewOperation(context *context.MainContext, revision *jj.Commit, width int, height int) (operations.Operation, tea.Cmd) {
 	size := common.NewSizeable(width, height)
-	l := list.NewList[*models.RevisionItem]()
+	l := context.Evolog
 	el := &EvologList{
 		List:          l,
 		selectedStyle: common.DefaultPalette.Get("evolog selected"),
