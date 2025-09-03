@@ -21,3 +21,11 @@ func (c *CheckableList[T]) GetCheckedItems() []T {
 	}
 	return ret
 }
+
+func (c *CheckableList[T]) ClearCheckedItems() {
+	for _, item := range c.Items {
+		if item.IsChecked() {
+			item.SetChecked(false)
+		}
+	}
+}
