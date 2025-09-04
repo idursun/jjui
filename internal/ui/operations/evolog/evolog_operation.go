@@ -197,9 +197,10 @@ func (o *Operation) load() tea.Msg {
 	}
 }
 
-func NewOperation(context *context.MainContext, revision *jj.Commit, width int, height int) (operations.Operation, tea.Cmd) {
+func NewOperation(ctx *context.MainContext, revision *jj.Commit, width int, height int) (operations.Operation, tea.Cmd) {
+	ctx.ActiveList = context.ListEvolog
 	size := common.NewSizeable(width, height)
-	l := context.Evolog
+	l := ctx.Evolog
 	el := &EvologList{
 		List:          l,
 		selectedStyle: common.DefaultPalette.Get("evolog selected"),
@@ -213,7 +214,7 @@ func NewOperation(context *context.MainContext, revision *jj.Commit, width int, 
 	o := &Operation{
 		Sizeable:   size,
 		EvologList: el,
-		context:    context,
+		context:    ctx,
 		keyMap:     config.Current.GetKeyMap(),
 		revision:   revision,
 	}

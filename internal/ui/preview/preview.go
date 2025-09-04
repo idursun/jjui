@@ -2,6 +2,7 @@ package preview
 
 import (
 	"bufio"
+	"log"
 	"strings"
 	"time"
 
@@ -20,19 +21,32 @@ type viewRange struct {
 	end   int
 }
 
+type previewState struct {
+	activeList context.ListId
+	pos        int
+}
+
+func (p *previewState) Equals(other *previewState) bool {
+	if p == nil || other == nil {
+		return false
+	}
+	if p == other {
+		return true
+	}
+	return p.activeList == other.activeList && p.pos == other.pos
+}
+
 type Model struct {
 	*common.Sizeable
-	tag                     int
-	previewVisible          bool
-	previewAtBottom         bool
-	previewWindowPercentage float64
-	viewRange               *viewRange
-	help                    help.Model
-	content                 string
-	contentLineCount        int
-	context                 *context.MainContext
-	keyMap                  config.KeyMappings[key.Binding]
-	borderStyle             lipgloss.Style
+	tag              int
+	viewRange        *viewRange
+	help             help.Model
+	content          string
+	contentLineCount int
+	context          *context.MainContext
+	keyMap           config.KeyMappings[key.Binding]
+	borderStyle      lipgloss.Style
+	state            *previewState
 }
 
 const DebounceTime = 50 * time.Millisecond
@@ -61,36 +75,6 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Visible() bool {
-	return m.previewVisible
-}
-
-func (m *Model) SetVisible(visible bool) {
-	m.previewVisible = visible
-	if m.previewVisible {
-		m.reset()
-	}
-}
-
-func (m *Model) ToggleVisible() {
-	m.previewVisible = !m.previewVisible
-	if m.previewVisible {
-		m.reset()
-	}
-}
-
-func (m *Model) TogglePosition() {
-	m.previewAtBottom = !m.previewAtBottom
-}
-
-func (m *Model) AtBottom() bool {
-	return m.previewAtBottom
-}
-
-func (m *Model) WindowPercentage() float64 {
-	return m.previewWindowPercentage
-}
-
 func (m *Model) updatePreviewContent(content string) {
 	m.content = content
 	m.contentLineCount = lipgloss.Height(m.content)
@@ -103,33 +87,32 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	}
 	switch msg := msg.(type) {
 	case common.RefreshMsg:
-		if !m.previewVisible {
+		if !m.context.Preview.Visible {
 			return m, nil
 		}
 
 		m.tag++
 		tag := m.tag
+		m.state = capture(m.context)
+		log.Println("preview: scheduling refresh", m.state)
 		return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
 			return refreshPreviewContentMsg{Tag: tag}
 		})
 	case refreshPreviewContentMsg:
 		if m.tag == msg.Tag {
 			replacements := m.context.CreateReplacements()
-			// FIXME: support file and oplog preview as well
-			output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
-			m.updatePreviewContent(string(output))
-
-			//switch msg := m.context.SelectedItem.(type) {
-			//case context.SelectedFile:
-			//	output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
-			//	m.updatePreviewContent(string(output))
-			//case context.SelectedRevision:
-			//	output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
-			//	m.updatePreviewContent(string(output))
-			//case context.SelectedOperation:
-			//	output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
-			//	m.updatePreviewContent(string(output))
-			//}
+			switch m.state.activeList {
+			case context.ListRevisions:
+				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
+				m.updatePreviewContent(string(output))
+			case context.ListFiles:
+				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
+				m.updatePreviewContent(string(output))
+			case context.ListOplog:
+				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
+				m.updatePreviewContent(string(output))
+			}
+			m.state = capture(m.context)
 		}
 	case tea.KeyMsg:
 		switch {
@@ -187,33 +170,44 @@ func (m *Model) reset() {
 	m.viewRange.start, m.viewRange.end = 0, m.Height
 }
 
-func (m *Model) Expand() {
-	m.previewWindowPercentage += config.Current.Preview.WidthIncrementPercentage
-	if m.previewWindowPercentage > 95 {
-		m.previewWindowPercentage = 95
+func (m *Model) IsDirty() bool {
+	if !m.context.Preview.Visible {
+		return false
+	}
+	newState := capture(m.context)
+	result := !newState.Equals(m.state)
+	return result
+}
+
+func capture(ctx *context.MainContext) *previewState {
+	var pos int
+	switch ctx.ActiveList {
+	case context.ListRevisions:
+		pos = ctx.Revisions.Revisions.Cursor
+	case context.ListFiles:
+		pos = ctx.Revisions.Files.Cursor
+	case context.ListOplog:
+		pos = ctx.OpLog.Cursor
+	case context.ListEvolog:
+		pos = ctx.Evolog.Cursor
+	}
+	return &previewState{
+		activeList: ctx.ActiveList,
+		pos:        pos,
 	}
 }
 
-func (m *Model) Shrink() {
-	m.previewWindowPercentage -= config.Current.Preview.WidthIncrementPercentage
-	if m.previewWindowPercentage < 10 {
-		m.previewWindowPercentage = 10
-	}
-}
-
-func New(context *context.MainContext) Model {
+func New(ctx *context.MainContext) Model {
 	borderStyle := common.DefaultPalette.GetBorder("preview border", lipgloss.NormalBorder())
 	borderStyle = borderStyle.Inherit(common.DefaultPalette.Get("preview text"))
 
 	return Model{
-		Sizeable:                &common.Sizeable{Width: 0, Height: 0},
-		viewRange:               &viewRange{start: 0, end: 0},
-		context:                 context,
-		keyMap:                  config.Current.GetKeyMap(),
-		help:                    help.New(),
-		borderStyle:             borderStyle,
-		previewAtBottom:         config.Current.Preview.ShowAtBottom,
-		previewVisible:          config.Current.Preview.ShowAtStart,
-		previewWindowPercentage: config.Current.Preview.WidthPercentage,
+		Sizeable:    &common.Sizeable{Width: 0, Height: 0},
+		state:       nil,
+		viewRange:   &viewRange{start: 0, end: 0},
+		context:     ctx,
+		keyMap:      config.Current.GetKeyMap(),
+		help:        help.New(),
+		borderStyle: borderStyle,
 	}
 }

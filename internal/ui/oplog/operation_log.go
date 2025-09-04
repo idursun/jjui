@@ -126,11 +126,12 @@ func (m *Model) load() tea.Cmd {
 	}
 }
 
-func New(context *context.MainContext, width int, height int) *Model {
+func New(ctx *context.MainContext, width int, height int) *Model {
+	ctx.ActiveList = context.ListOplog
 	size := common.NewSizeable(width, height)
 
 	keyMap := config.Current.GetKeyMap()
-	l := context.OpLog
+	l := ctx.OpLog
 	ol := &OpLogList{
 		List:          l,
 		selectedStyle: common.DefaultPalette.Get("oplog selected"),
@@ -140,7 +141,7 @@ func New(context *context.MainContext, width int, height int) *Model {
 	return &Model{
 		OpLogList: ol,
 		Sizeable:  size,
-		context:   context,
+		context:   ctx,
 		keymap:    keyMap,
 	}
 }

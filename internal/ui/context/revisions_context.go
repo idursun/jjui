@@ -159,6 +159,7 @@ func (m *RevisionsContext) SetOperation(op operations.Operation, continuations .
 
 func (m *RevisionsContext) CloseOperation() tea.Cmd {
 	return func() tea.Msg {
+		m.Parent.ActiveList = ListRevisions
 		m.Op = operations.NewDefault()
 		m.Files.SetItems(nil)
 		return nil
