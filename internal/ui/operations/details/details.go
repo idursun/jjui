@@ -16,6 +16,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/operations/squash"
 )
 
 type styles struct {
@@ -97,7 +98,6 @@ type Model struct {
 	*DetailsList
 	context      *context.MainContext
 	revision     *jj.Commit
-	mode         mode
 	confirmation *confirmation.Model
 	keyMap       config.KeyMappings[key.Binding]
 }
@@ -147,7 +147,6 @@ func New(context *context.MainContext, revision *jj.Commit) *Model {
 		Sizeable:    size,
 		DetailsList: dl,
 		revision:    revision,
-		mode:        viewMode,
 		context:     context,
 		keyMap:      keyMap,
 	}
@@ -209,8 +208,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.confirmation = model
 			return m, m.confirmation.Init()
 		case key.Matches(msg, m.keyMap.Details.Squash):
-			m.mode = squashTargetMode
-			return m, common.JumpToParent(m.revision)
+			files := m.context.Revisions.Files.GetCheckedItems()
+			op := squash.NewOperation(m.context, squash.NewSquashFilesOpts(jj.NewSelectedRevisions(m.revision), files))
+			m.context.Revisions.JumpToParent(jj.NewSelectedRevisions(m.revision))
+			return m, m.context.Revisions.SetOperation(op)
 		case key.Matches(msg, m.keyMap.Details.Restore):
 			selectedFiles, isVirtuallySelected := m.getSelectedFiles()
 			m.isVirtuallySelected = isVirtuallySelected

@@ -150,9 +150,11 @@ func (m *RevisionsContext) SelectRevision(revision string) int {
 	return idx
 }
 
-func (m *RevisionsContext) SetOperation(op operations.Operation) tea.Cmd {
-	m.Op = op
-	return nil
+func (m *RevisionsContext) SetOperation(op operations.Operation, continuations ...tea.Cmd) tea.Cmd {
+	return tea.Sequence(func() tea.Msg {
+		m.Op = op
+		return nil
+	}, tea.Batch(continuations...))
 }
 
 func (m *RevisionsContext) CloseOperation() tea.Cmd {
