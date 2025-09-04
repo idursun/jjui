@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/ui/common/models"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -17,6 +18,7 @@ import (
 type Operation struct {
 	context     *context.MainContext
 	from        jj.SelectedRevisions
+	files       []*models.RevisionFileItem
 	current     *jj.Commit
 	keyMap      config.KeyMappings[key.Binding]
 	keepEmptied bool
@@ -88,16 +90,39 @@ func (s *Operation) FullHelp() [][]key.Binding {
 	return [][]key.Binding{s.ShortHelp()}
 }
 
-func NewOperation(context *context.MainContext, from jj.SelectedRevisions) *Operation {
+type SquashOperationOpts struct {
+	KeepEmptied bool
+	Interactive bool
+	From        jj.SelectedRevisions
+	Files       []*models.RevisionFileItem
+}
+
+func NewSquashRevisionsOpts(from jj.SelectedRevisions) SquashOperationOpts {
+	return SquashOperationOpts{
+		From: from,
+	}
+}
+
+func NewSquashFilesOpts(from jj.SelectedRevisions, files []*models.RevisionFileItem) SquashOperationOpts {
+	return SquashOperationOpts{
+		From:  from,
+		Files: files,
+	}
+}
+
+func NewOperation(context *context.MainContext, opts SquashOperationOpts) *Operation {
 	styles := styles{
 		dimmed:       common.DefaultPalette.Get("squash dimmed"),
 		sourceMarker: common.DefaultPalette.Get("squash source_marker"),
 		targetMarker: common.DefaultPalette.Get("squash target_marker"),
 	}
 	return &Operation{
-		context: context,
-		keyMap:  config.Current.GetKeyMap(),
-		from:    from,
-		styles:  styles,
+		context:     context,
+		keyMap:      config.Current.GetKeyMap(),
+		from:        opts.From,
+		files:       opts.Files,
+		interactive: opts.Interactive,
+		keepEmptied: opts.KeepEmptied,
+		styles:      styles,
 	}
 }

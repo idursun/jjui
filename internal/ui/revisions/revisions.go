@@ -146,7 +146,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case common.RefreshMsg:
 		if !msg.KeepSelections {
 			m.context.Revisions.Revisions.ClearCheckedItems()
-			//m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
 		}
 		m.isLoading = true
 		cmd, _ := m.updateOperation(msg)
@@ -175,12 +174,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 		cmds := []tea.Cmd{m.highlightChanges, m.UpdateSelection()}
 		return m, tea.Batch(cmds...)
-	case common.JumpToParentMsg:
-		if msg.Commit == nil {
-			return m, nil
-		}
-		m.JumpToParent(jj.NewSelectedRevisions(msg.Commit))
-		return m, m.UpdateSelection()
 	}
 
 	// TODO: This is duplicated at the end of the function, needs refactoring
@@ -235,9 +228,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				current := m.Current()
 				current.Toggle()
 				commit := current.Commit
-				//changeId := commit.GetChangeId()
-				//item := appContext.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
-				//m.context.ToggleCheckedItem(item)
 				m.JumpToParent(jj.NewSelectedRevisions(commit))
 			case key.Matches(msg, m.keymap.Cancel):
 				return m, m.CloseOperation()
@@ -293,7 +283,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				} else if m.Cursor < len(m.Items)-1 {
 					m.Cursor++
 				}
-				m.Op = squash.NewOperation(m.context, selectedRevisions)
+				m.Op = squash.NewOperation(m.context, squash.NewSquashRevisionsOpts(selectedRevisions))
 			case key.Matches(msg, m.keymap.Revert.Mode):
 				m.Op = revert.NewOperation(m.context, m.SelectedRevisions(), revert.TargetDestination)
 			case key.Matches(msg, m.keymap.Rebase.Mode):
