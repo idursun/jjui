@@ -5,59 +5,15 @@ import (
 
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/common/models"
-
-	tea "github.com/charmbracelet/bubbletea"
 )
-
-type SelectedItem interface {
-	Equal(other SelectedItem) bool
-}
-
-type SelectedRevision struct {
-	ChangeId string
-	CommitId string
-}
-
-func (s SelectedRevision) Equal(other SelectedItem) bool {
-	if o, ok := other.(SelectedRevision); ok {
-		return s.ChangeId == o.ChangeId && s.CommitId == o.CommitId
-	}
-	return false
-}
-
-type SelectedFile struct {
-	ChangeId string
-	CommitId string
-	File     string
-}
-
-func (s SelectedFile) Equal(other SelectedItem) bool {
-	if o, ok := other.(SelectedFile); ok {
-		return s.ChangeId == o.ChangeId && s.CommitId == o.CommitId && s.File == o.File
-	}
-	return false
-}
-
-type SelectedOperation struct {
-	OperationId string
-}
-
-func (s SelectedOperation) Equal(other SelectedItem) bool {
-	if o, ok := other.(SelectedOperation); ok {
-		return s.OperationId == o.OperationId
-	}
-	return false
-}
 
 type MainContext struct {
 	CommandRunner
 	Revisions      *RevisionsContext
 	OpLog          *list.List[*models.OperationLogItem]
 	Evolog         *list.List[*models.RevisionItem]
-	SelectedItem   SelectedItem // Single item where cursor is hover.
 	Location       string
 	CustomCommands map[string]CustomCommand
 	Leader         LeaderMap
@@ -88,39 +44,33 @@ func NewAppContext(location string) *MainContext {
 	return m
 }
 
-func (ctx *MainContext) SetSelectedItem(item SelectedItem) tea.Cmd {
-	if item == nil {
-		return nil
-	}
-	if item.Equal(ctx.SelectedItem) {
-		return nil
-	}
-	ctx.SelectedItem = item
-	return common.SelectionChanged
-}
-
 // CreateReplacements context aware replacements for custom commands and exec input.
 func (ctx *MainContext) CreateReplacements() map[string]string {
-	selectedItem := ctx.SelectedItem
 	replacements := make(map[string]string)
 	replacements[jj.RevsetPlaceholder] = ctx.CurrentRevset
 
-	switch selectedItem := selectedItem.(type) {
-	case SelectedRevision:
-		replacements[jj.ChangeIdPlaceholder] = selectedItem.ChangeId
-		replacements[jj.CommitIdPlaceholder] = selectedItem.CommitId
-	case SelectedFile:
-		replacements[jj.ChangeIdPlaceholder] = selectedItem.ChangeId
-		replacements[jj.CommitIdPlaceholder] = selectedItem.CommitId
-		replacements[jj.FilePlaceholder] = selectedItem.File
-	case SelectedOperation:
-		replacements[jj.OperationIdPlaceholder] = selectedItem.OperationId
+	if current := ctx.Revisions.Revisions.Current(); current != nil {
+		replacements[jj.ChangeIdPlaceholder] = current.Commit.ChangeId
+		replacements[jj.CommitIdPlaceholder] = current.Commit.CommitId
+	}
+	if current := ctx.Revisions.Files.Current(); current != nil {
+		replacements[jj.FilePlaceholder] = current.FileName
+	}
+	if current := ctx.OpLog.Current(); current != nil {
+		replacements[jj.OperationIdPlaceholder] = current.OperationId
 	}
 
 	var checkedRevisions []string
 	for _, item := range ctx.Revisions.Revisions.GetCheckedItems() {
 		checkedRevisions = append(checkedRevisions, item.Commit.CommitId)
 	}
+
+	if len(checkedRevisions) == 0 {
+		replacements[jj.CheckedCommitIdsPlaceholder] = "none()"
+	} else {
+		replacements[jj.CheckedCommitIdsPlaceholder] = strings.Join(checkedRevisions, "|")
+	}
+
 	var checkedFiles []string
 	for _, item := range ctx.Revisions.Files.GetCheckedItems() {
 		checkedFiles = append(checkedFiles, item.FileName)
@@ -128,12 +78,6 @@ func (ctx *MainContext) CreateReplacements() map[string]string {
 
 	if len(checkedFiles) > 0 {
 		replacements[jj.CheckedFilesPlaceholder] = strings.Join(checkedFiles, "\t")
-	}
-
-	if len(checkedRevisions) == 0 {
-		replacements[jj.CheckedCommitIdsPlaceholder] = "none()"
-	} else {
-		replacements[jj.CheckedCommitIdsPlaceholder] = strings.Join(checkedRevisions, "|")
 	}
 
 	return replacements

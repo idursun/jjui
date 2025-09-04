@@ -1,11 +1,9 @@
 package context
 
 import (
-	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
@@ -15,26 +13,24 @@ type CustomRevsetCommand struct {
 }
 
 func (c CustomRevsetCommand) Description(ctx *MainContext) string {
-	if item, ok := ctx.SelectedItem.(SelectedRevision); ok {
-		rendered := strings.ReplaceAll(c.Revset, jj.ChangeIdPlaceholder, item.ChangeId)
-		rendered = strings.ReplaceAll(rendered, jj.CommitIdPlaceholder, item.CommitId)
-		rendered = strings.ReplaceAll(rendered, jj.RevsetPlaceholder, ctx.CurrentRevset)
-		return fmt.Sprintf("change revset to %s", rendered)
+	replacements := ctx.CreateReplacements()
+	rendered := c.Revset
+	for k, v := range replacements {
+		rendered = strings.ReplaceAll(rendered, k, v)
 	}
-	return ""
+	return rendered
 }
 
-func (c CustomRevsetCommand) IsApplicableTo(item SelectedItem) bool {
-	_, ok := item.(SelectedRevision)
-	return ok
+func (c CustomRevsetCommand) IsApplicableTo(ctx *MainContext) bool {
+	// FIXME: This should return true only if the active element is a revision
+	return true
 }
 
 func (c CustomRevsetCommand) Prepare(ctx *MainContext) tea.Cmd {
-	if item, ok := ctx.SelectedItem.(SelectedRevision); ok {
-		rendered := strings.ReplaceAll(c.Revset, jj.ChangeIdPlaceholder, item.ChangeId)
-		rendered = strings.ReplaceAll(rendered, jj.CommitIdPlaceholder, item.CommitId)
-		rendered = strings.ReplaceAll(rendered, jj.RevsetPlaceholder, ctx.CurrentRevset)
-		return common.UpdateRevSet(rendered)
+	replacements := ctx.CreateReplacements()
+	rendered := c.Revset
+	for k, v := range replacements {
+		rendered = strings.ReplaceAll(rendered, k, v)
 	}
-	return nil
+	return common.UpdateRevSet(rendered)
 }

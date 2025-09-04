@@ -13,7 +13,7 @@ type CustomCommand interface {
 	Binding() key.Binding
 	Description(ctx *MainContext) string
 	Prepare(ctx *MainContext) tea.Cmd
-	IsApplicableTo(item SelectedItem) bool
+	IsApplicableTo(ctx *MainContext) bool
 }
 
 type CustomCommandBase struct {

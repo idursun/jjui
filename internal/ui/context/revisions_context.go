@@ -158,9 +158,11 @@ func (m *RevisionsContext) SetOperation(op operations.Operation, continuations .
 }
 
 func (m *RevisionsContext) CloseOperation() tea.Cmd {
-	m.Op = operations.NewDefault()
-	m.Files.SetItems(nil)
-	return m.UpdateSelection()
+	return func() tea.Msg {
+		m.Op = operations.NewDefault()
+		m.Files.SetItems(nil)
+		return nil
+	}
 }
 
 func (m *RevisionsContext) JumpToParent(revisions jj.SelectedRevisions) {
@@ -169,27 +171,6 @@ func (m *RevisionsContext) JumpToParent(revisions jj.SelectedRevisions) {
 	if parentIndex != -1 {
 		m.Revisions.Cursor = parentIndex
 	}
-}
-
-// UpdateSelection FIXME: this can be made private
-func (m *RevisionsContext) UpdateSelection() tea.Cmd {
-	if len(m.Files.Items) > 0 {
-		currentRevision := m.Revisions.Current()
-		if current := m.Files.Current(); current != nil {
-			return m.Parent.SetSelectedItem(SelectedFile{
-				ChangeId: currentRevision.Commit.GetChangeId(),
-				CommitId: currentRevision.Commit.CommitId,
-				File:     current.FileName,
-			})
-		}
-	}
-	if current := m.Revisions.Current(); current != nil {
-		return m.Parent.SetSelectedItem(SelectedRevision{
-			ChangeId: current.Commit.GetChangeId(),
-			CommitId: current.Commit.CommitId,
-		})
-	}
-	return nil
 }
 
 func (m *RevisionsContext) LoadFiles() tea.Cmd {
@@ -203,7 +184,7 @@ func (m *RevisionsContext) LoadFiles() tea.Cmd {
 				items := createListItems(summary)
 				m.Files.SetItems(items)
 				m.Files.Cursor = 0
-				return m.UpdateSelection()
+				return nil
 			}
 		}
 	}

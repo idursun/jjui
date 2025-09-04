@@ -102,7 +102,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		msg = k.msg
 	}
 	switch msg := msg.(type) {
-	case common.SelectionChangedMsg, common.RefreshMsg:
+	case common.RefreshMsg:
+		if !m.previewVisible {
+			return m, nil
+		}
+
 		m.tag++
 		tag := m.tag
 		return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
@@ -110,32 +114,22 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		})
 	case refreshPreviewContentMsg:
 		if m.tag == msg.Tag {
-			switch msg := m.context.SelectedItem.(type) {
-			case context.SelectedFile:
-				replacements := map[string]string{
-					jj.RevsetPlaceholder:   m.context.CurrentRevset,
-					jj.ChangeIdPlaceholder: msg.ChangeId,
-					jj.CommitIdPlaceholder: msg.CommitId,
-					jj.FilePlaceholder:     msg.File,
-				}
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
-				m.updatePreviewContent(string(output))
-			case context.SelectedRevision:
-				replacements := map[string]string{
-					jj.RevsetPlaceholder:   m.context.CurrentRevset,
-					jj.ChangeIdPlaceholder: msg.ChangeId,
-					jj.CommitIdPlaceholder: msg.CommitId,
-				}
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
-				m.updatePreviewContent(string(output))
-			case context.SelectedOperation:
-				replacements := map[string]string{
-					jj.RevsetPlaceholder:      m.context.CurrentRevset,
-					jj.OperationIdPlaceholder: msg.OperationId,
-				}
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
-				m.updatePreviewContent(string(output))
-			}
+			replacements := m.context.CreateReplacements()
+			// FIXME: support file and oplog preview as well
+			output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
+			m.updatePreviewContent(string(output))
+
+			//switch msg := m.context.SelectedItem.(type) {
+			//case context.SelectedFile:
+			//	output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
+			//	m.updatePreviewContent(string(output))
+			//case context.SelectedRevision:
+			//	output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
+			//	m.updatePreviewContent(string(output))
+			//case context.SelectedOperation:
+			//	output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
+			//	m.updatePreviewContent(string(output))
+			//}
 		}
 	case tea.KeyMsg:
 		switch {

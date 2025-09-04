@@ -92,15 +92,9 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		case key.Matches(msg, o.keyMap.Cancel):
 			return common.Close
 		case key.Matches(msg, o.keyMap.Up):
-			if o.Cursor > 0 {
-				o.Cursor--
-				return o.updateSelection()
-			}
+			o.CursorUp()
 		case key.Matches(msg, o.keyMap.Down):
-			if o.Cursor < len(o.Items)-1 {
-				o.Cursor++
-				return o.updateSelection()
-			}
+			o.CursorDown()
 		case key.Matches(msg, o.keyMap.Evolog.Diff):
 			return func() tea.Msg {
 				selectedCommitId := o.getSelectedEvolog().CommitId
@@ -144,7 +138,7 @@ func (o *Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cm
 	case updateEvologMsg:
 		o.SetItems(msg.rows)
 		o.Cursor = 0
-		return o, o.updateSelection()
+		return o, nil
 	case tea.KeyMsg:
 		cmd := o.HandleKey(msg)
 		return o, cmd
@@ -154,18 +148,6 @@ func (o *Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cm
 
 func (o *Operation) getSelectedEvolog() *jj.Commit {
 	return o.Items[o.Cursor].Commit
-}
-
-func (o *Operation) updateSelection() tea.Cmd {
-	if o.Items == nil {
-		return nil
-	}
-
-	selected := o.getSelectedEvolog()
-	return o.context.SetSelectedItem(context.SelectedRevision{
-		ChangeId: selected.GetChangeId(),
-		CommitId: selected.CommitId,
-	})
 }
 
 func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {

@@ -101,18 +101,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			return m, tea.Batch(common.Close, m.context.RunCommand(jj.OpRestore(m.Current().OperationId), common.Refresh))
 		}
 	}
-	return m, m.updateSelection()
-}
-
-func (m *Model) updateSelection() tea.Cmd {
-	if m.Items == nil {
-		return nil
-	}
-	current := m.Current()
-	if current != nil {
-		return m.context.SetSelectedItem(context.SelectedOperation{OperationId: current.OperationId})
-	}
-	return nil
+	return m, nil
 }
 
 func (m *Model) View() string {

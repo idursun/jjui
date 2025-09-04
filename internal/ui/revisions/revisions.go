@@ -157,7 +157,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case appContext.UpdateRevisionsMsg:
 		m.isLoading = false
 		m.updateGraphRows(msg.Rows, msg.SelectedRevision)
-		return m, tea.Batch(m.highlightChanges, m.UpdateSelection(), func() tea.Msg {
+		return m, tea.Batch(m.highlightChanges, func() tea.Msg {
 			return common.UpdateRevisionsSuccessMsg{}
 		})
 	case appContext.AppendRowsBatchMsg:
@@ -172,8 +172,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.Cursor = 0
 		}
 
-		cmds := []tea.Cmd{m.highlightChanges, m.UpdateSelection()}
-		return m, tea.Batch(cmds...)
+		return m, tea.Batch(m.highlightChanges)
 	}
 
 	// TODO: This is duplicated at the end of the function, needs refactoring
@@ -214,7 +213,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if workingCopyIndex != -1 {
 				m.Cursor = workingCopyIndex
 			}
-			return m, m.UpdateSelection()
+			return m, nil
 		case key.Matches(msg, m.keymap.AceJump):
 			m.aceJump = m.findAceKeys()
 		default:
@@ -300,7 +299,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		if op, ok := m.Op.(operations.TracksSelectedRevision); ok {
 			op.SetSelectedRevision(curSelected)
 		}
-		return m, tea.Batch(m.UpdateSelection(), cmd)
+		return m, cmd
 	}
 	return m, cmd
 }
