@@ -20,7 +20,7 @@ const (
 
 type Operation struct {
 	context           *context.MainContext
-	Overlay           Model
+	Overlay           *Model
 	Current           *jj.Commit
 	keyMap            config.KeyMappings[key.Binding]
 	targetMarkerStyle lipgloss.Style
