@@ -58,10 +58,6 @@ func Close() tea.Msg {
 	return CloseViewMsg{}
 }
 
-func SelectionChanged() tea.Msg {
-	return SelectionChangedMsg{}
-}
-
 func RefreshAndSelect(selectedRevision string) tea.Cmd {
 	return func() tea.Msg {
 		return RefreshMsg{SelectedRevision: selectedRevision}

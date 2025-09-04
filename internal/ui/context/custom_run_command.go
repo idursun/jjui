@@ -17,7 +17,7 @@ type CustomRunCommand struct {
 	Show config.ShowOption `toml:"show"`
 }
 
-func (c CustomRunCommand) IsApplicableTo(item SelectedItem) bool {
+func (c CustomRunCommand) IsApplicableTo(ctx *MainContext) bool {
 	hasChangeIdPlaceholder := slices.ContainsFunc(c.Args, func(s string) bool { return strings.Contains(s, jj.ChangeIdPlaceholder) })
 	hasCommitIdPlaceholder := slices.ContainsFunc(c.Args, func(s string) bool { return strings.Contains(s, jj.CommitIdPlaceholder) })
 	hasFilePlaceholder := slices.ContainsFunc(c.Args, func(s string) bool { return strings.Contains(s, jj.FilePlaceholder) })
@@ -27,16 +27,8 @@ func (c CustomRunCommand) IsApplicableTo(item SelectedItem) bool {
 		return true
 	}
 
-	switch item.(type) {
-	case SelectedRevision:
-		return hasChangeIdPlaceholder || hasCommitIdPlaceholder
-	case SelectedFile:
-		return hasFilePlaceholder
-	case SelectedOperation:
-		return hasOperationIdPlaceholder
-	default:
-		return false
-	}
+	//FIXME: This should be based on the active element, not the context as a whole
+	return true
 }
 
 func (c CustomRunCommand) Description(ctx *MainContext) string {
