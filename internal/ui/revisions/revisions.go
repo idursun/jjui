@@ -245,8 +245,8 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				m.Cursor = m.search(m.Cursor + 1)
 				return m, nil
 			case key.Matches(msg, m.keymap.Details.Mode):
-				m.Op, cmd = details.NewOperation(m.Parent, m.Revisions.Current().Commit)
-				return m, cmd
+				op := details.NewOperation(m.Parent, m.Revisions.Current().Commit)
+				return m, tea.Sequence(m.LoadFiles(), m.SetOperation(op), tea.WindowSize())
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
 				m.Op, cmd = describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
 				return m, cmd
