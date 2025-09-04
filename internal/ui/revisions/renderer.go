@@ -28,7 +28,7 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 		r.writeSection(w, index, extended, extended, false, before)
 	}
 
-	descriptionOverlay := r.op.Render(row.Commit, operations.RenderOverDescription)
+	descriptionOverlay := r.Context.Op.Render(row.Commit, operations.RenderOverDescription)
 	requiresDescriptionRendering := descriptionOverlay != "" && isHighlighted
 	descriptionRendered := false
 
@@ -178,18 +178,18 @@ func (r *RevisionList) writeSection(w io.Writer, index int, current models.Graph
 }
 
 func (r *RevisionList) RenderBefore(commit *jj.Commit) string {
-	return r.op.Render(commit, operations.RenderPositionBefore)
+	return r.Context.Op.Render(commit, operations.RenderPositionBefore)
 }
 
 func (r *RevisionList) RenderAfter(commit *jj.Commit) string {
-	return r.op.Render(commit, operations.RenderPositionAfter)
+	return r.Context.Op.Render(commit, operations.RenderPositionAfter)
 }
 
 func (r *RevisionList) RenderBeforeChangeId(index int, item *models.RevisionItem) string {
 	commit := item.Commit
 	isSelected := item.IsChecked()
 	isHighlighted := r.Cursor == index
-	opMarker := r.op.Render(commit, operations.RenderBeforeChangeId)
+	opMarker := r.Context.Op.Render(commit, operations.RenderBeforeChangeId)
 	selectedMarker := ""
 	if isSelected {
 		if isHighlighted {
@@ -218,7 +218,7 @@ func (r *RevisionList) RenderBeforeChangeId(index int, item *models.RevisionItem
 }
 
 func (r *RevisionList) RenderBeforeCommitId(commit *jj.Commit) string {
-	return r.op.Render(commit, operations.RenderBeforeCommitId)
+	return r.Context.Op.Render(commit, operations.RenderBeforeCommitId)
 }
 
 func (r *RevisionList) aceJumpIndex(segment *screen.Segment, row models.Row) int {
