@@ -142,7 +142,7 @@ func New(context *context.MainContext, revision *jj.Commit) Model {
 	}
 
 	size := common.NewSizeable(5, 5)
-	l := context.RevisionFiles
+	l := context.Revisions.Files
 	dl := &DetailsList{
 		CheckableList: l,
 		styles:        s,

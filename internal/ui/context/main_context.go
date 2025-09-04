@@ -54,8 +54,7 @@ func (s SelectedOperation) Equal(other SelectedItem) bool {
 
 type MainContext struct {
 	CommandRunner
-	Revisions      *list.CheckableList[*models.RevisionItem]
-	RevisionFiles  *list.CheckableList[*models.RevisionFileItem]
+	Revisions      *RevisionsContext
 	OpLog          *list.List[*models.OperationLogItem]
 	Evolog         *list.List[*models.RevisionItem]
 	SelectedItem   SelectedItem // Single item where cursor is hover.
@@ -73,13 +72,16 @@ func NewAppContext(location string) *MainContext {
 		CommandRunner: &MainCommandRunner{
 			Location: location,
 		},
-		Location:      location,
-		Histories:     config.NewHistories(),
-		Revisions:     list.NewCheckableList[*models.RevisionItem](),
-		RevisionFiles: list.NewCheckableList[*models.RevisionFileItem](),
-		OpLog:         list.NewList[*models.OperationLogItem](),
-		Evolog:        list.NewList[*models.RevisionItem](),
+		Location:  location,
+		Histories: config.NewHistories(),
+		Revisions: &RevisionsContext{
+			Revisions: list.NewCheckableList[*models.RevisionItem](),
+			Files:     list.NewCheckableList[*models.RevisionFileItem](),
+		},
+		OpLog:  list.NewList[*models.OperationLogItem](),
+		Evolog: list.NewList[*models.RevisionItem](),
 	}
+	m.Revisions.Parent = m
 
 	m.JJConfig = &config.JJConfig{}
 	if output, err := m.RunCommandImmediate(jj.ConfigListAll()); err == nil {
@@ -118,11 +120,11 @@ func (ctx *MainContext) CreateReplacements() map[string]string {
 	}
 
 	var checkedRevisions []string
-	for _, item := range ctx.Revisions.GetCheckedItems() {
+	for _, item := range ctx.Revisions.Revisions.GetCheckedItems() {
 		checkedRevisions = append(checkedRevisions, item.Commit.CommitId)
 	}
 	var checkedFiles []string
-	for _, item := range ctx.RevisionFiles.GetCheckedItems() {
+	for _, item := range ctx.Revisions.Files.GetCheckedItems() {
 		checkedFiles = append(checkedFiles, item.FileName)
 	}
 

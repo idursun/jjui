@@ -1,10 +1,7 @@
 package revisions
 
 import (
-	"bytes"
-	"fmt"
 	"log"
-	"slices"
 	"strings"
 
 	"github.com/idursun/jjui/internal/ui/ace_jump"
@@ -25,7 +22,6 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/graph"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/operations/abandon"
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
@@ -50,18 +46,14 @@ type RevisionList struct {
 
 type Model struct {
 	*common.Sizeable
+	*appContext.RevisionsContext
 	*RevisionList
-	tag              uint64
-	revisionToSelect string
-	offScreenRows    []*models.RevisionItem
-	streamer         *graph.GraphStreamer
-	hasMore          bool
-	context          *appContext.MainContext
-	keymap           config.KeyMappings[key.Binding]
-	output           string
-	err              error
-	previousOpLogId  string
-	isLoading        bool
+	context         *appContext.MainContext
+	keymap          config.KeyMappings[key.Binding]
+	output          string
+	err             error
+	previousOpLogId string
+	isLoading       bool
 }
 
 type revisionsMsg struct {
@@ -73,22 +65,6 @@ func RevisionsCmd(msg tea.Msg) tea.Cmd {
 	return func() tea.Msg {
 		return revisionsMsg{msg: msg}
 	}
-}
-
-type updateRevisionsMsg struct {
-	rows             []*models.RevisionItem
-	selectedRevision string
-}
-
-type startRowsStreamingMsg struct {
-	selectedRevision string
-	tag              uint64
-}
-
-type appendRowsBatchMsg struct {
-	rows    []*models.RevisionItem
-	hasMore bool
-	tag     uint64
 }
 
 func (m *Model) IsFocused() bool {
@@ -170,64 +146,28 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 	case common.RefreshMsg:
 		if !msg.KeepSelections {
-			m.context.Revisions.ClearCheckedItems()
+			m.context.Revisions.Revisions.ClearCheckedItems()
 			//m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
 		}
 		m.isLoading = true
 		cmd, _ := m.updateOperation(msg)
 		if config.Current.Revisions.LogBatching {
-			m.tag += 1
-			return m, tea.Batch(m.loadStreaming(m.context.CurrentRevset, msg.SelectedRevision, m.tag), cmd)
+			return m, tea.Batch(m.LoadStreaming(m.context.CurrentRevset, msg.SelectedRevision), cmd)
 		} else {
-			return m, tea.Batch(m.load(m.context.CurrentRevset, msg.SelectedRevision), cmd)
+			return m, tea.Batch(m.Load(m.context.CurrentRevset, msg.SelectedRevision), cmd)
 		}
-	case updateRevisionsMsg:
+	case appContext.UpdateRevisionsMsg:
 		m.isLoading = false
-		m.updateGraphRows(msg.rows, msg.selectedRevision)
+		m.updateGraphRows(msg.Rows, msg.SelectedRevision)
 		return m, tea.Batch(m.highlightChanges, m.updateSelection(), func() tea.Msg {
 			return common.UpdateRevisionsSuccessMsg{}
 		})
-	case startRowsStreamingMsg:
-		m.offScreenRows = nil
-		m.revisionToSelect = msg.selectedRevision
-
-		// If the revision to select is not set, use the currently selected item
-		if m.revisionToSelect == "" {
-			switch selected := m.context.SelectedItem.(type) {
-			case appContext.SelectedRevision:
-				m.revisionToSelect = selected.CommitId
-			case appContext.SelectedFile:
-				m.revisionToSelect = selected.CommitId
-			}
-		}
-		log.Println("Starting streaming revisions message received with tag:", msg.tag, "revision to select:", msg.selectedRevision)
-		return m, m.requestMoreRows(msg.tag)
-	case appendRowsBatchMsg:
-		if msg.tag != m.tag {
-			return m, nil
-		}
-		m.offScreenRows = append(m.offScreenRows, msg.rows...)
-		m.hasMore = msg.hasMore
-		m.isLoading = m.hasMore && len(m.offScreenRows) > 0
-
-		if m.hasMore {
-			// keep requesting rows until we reach the initial load count or the current cursor position
-			if len(m.offScreenRows) < m.Cursor+1 || len(m.offScreenRows) < m.renderer.LastRowIndex+1 {
-				return m, m.requestMoreRows(msg.tag)
-			}
-		} else if m.streamer != nil {
-			m.streamer.Close()
-		}
-
+	case appContext.AppendRowsBatchMsg:
 		currentSelectedRevision := m.SelectedRevision()
-		m.SetItems(m.offScreenRows)
-		if m.revisionToSelect != "" {
-			m.Cursor = m.selectRevision(m.revisionToSelect)
-			m.revisionToSelect = ""
-		}
+		m.SetItems(msg.Rows)
 
 		if m.Cursor == -1 && currentSelectedRevision != nil {
-			m.Cursor = m.selectRevision(currentSelectedRevision.GetChangeId())
+			m.Cursor = m.SelectRevision(currentSelectedRevision.GetChangeId())
 		}
 
 		if (m.Cursor < 0 || m.Cursor >= len(m.Items)) && len(m.Items) > 0 {
@@ -235,17 +175,12 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 
 		cmds := []tea.Cmd{m.highlightChanges, m.updateSelection()}
-		if !m.hasMore {
-			cmds = append(cmds, func() tea.Msg {
-				return common.UpdateRevisionsSuccessMsg{}
-			})
-		}
 		return m, tea.Batch(cmds...)
 	case common.JumpToParentMsg:
 		if msg.Commit == nil {
 			return m, nil
 		}
-		m.jumpToParent(jj.NewSelectedRevisions(msg.Commit))
+		m.JumpToParent(jj.NewSelectedRevisions(msg.Commit))
 		return m, m.updateSelection()
 	}
 
@@ -273,21 +208,17 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				m.Cursor--
 			}
 		case key.Matches(msg, m.keymap.Down):
-			if m.Cursor < len(m.Items)-1 {
-				m.Cursor++
-			} else if m.hasMore {
-				return m, m.requestMoreRows(m.tag)
-			}
+			m.Revisions.CursorDown()
 		case key.Matches(msg, m.keymap.JumpToParent):
-			m.jumpToParent(m.SelectedRevisions())
+			m.JumpToParent(m.SelectedRevisions())
 		case key.Matches(msg, m.keymap.JumpToChildren):
 			immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.SelectedRevision()))
-			index := m.selectRevision(string(immediate))
+			index := m.SelectRevision(string(immediate))
 			if index != -1 {
 				m.Cursor = index
 			}
 		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
-			workingCopyIndex := m.selectRevision("@")
+			workingCopyIndex := m.SelectRevision("@")
 			if workingCopyIndex != -1 {
 				m.Cursor = workingCopyIndex
 			}
@@ -308,7 +239,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				//changeId := commit.GetChangeId()
 				//item := appContext.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
 				//m.context.ToggleCheckedItem(item)
-				m.jumpToParent(jj.NewSelectedRevisions(commit))
+				m.JumpToParent(jj.NewSelectedRevisions(commit))
 			case key.Matches(msg, m.keymap.Cancel):
 				m.op = operations.NewDefault()
 			case key.Matches(msg, m.keymap.QuickSearchCycle):
@@ -356,7 +287,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.Squash.Mode):
 				selectedRevisions := m.SelectedRevisions()
 				parent, _ := m.context.RunCommandImmediate(jj.GetParent(selectedRevisions))
-				parentIdx := m.selectRevision(string(parent))
+				parentIdx := m.SelectRevision(string(parent))
 				if parentIdx != -1 {
 					m.Cursor = parentIdx
 				} else if m.Cursor < len(m.Items)-1 {
@@ -434,9 +365,9 @@ func (m *Model) updateGraphRows(rows []*models.RevisionItem, selectedRevision st
 	m.SetItems(rows)
 
 	if len(m.Items) > 0 {
-		m.Cursor = m.selectRevision(currentSelectedRevision)
+		m.Cursor = m.SelectRevision(currentSelectedRevision)
 		if m.Cursor == -1 {
-			m.Cursor = m.selectRevision("@")
+			m.Cursor = m.SelectRevision("@")
 		}
 		if m.Cursor == -1 {
 			m.Cursor = 0
@@ -463,77 +394,6 @@ func (m *Model) View() string {
 	output := m.renderer.Render()
 	output = m.textStyle.MaxWidth(m.Width).Render(output)
 	return lipgloss.Place(m.Width, m.Height, 0, 0, output)
-}
-
-func (m *Model) load(revset string, selectedRevision string) tea.Cmd {
-	return func() tea.Msg {
-		output, err := m.context.RunCommandImmediate(jj.Log(revset, config.Current.Limit))
-		if err != nil {
-			return common.UpdateRevisionsFailedMsg{
-				Err:    err,
-				Output: string(output),
-			}
-		}
-		rows := parser.ParseRows(bytes.NewReader(output))
-		return updateRevisionsMsg{rows, selectedRevision}
-	}
-}
-
-func (m *Model) loadStreaming(revset string, selectedRevision string, tag uint64) tea.Cmd {
-	if m.tag != tag {
-		return nil
-	}
-
-	if m.streamer != nil {
-		m.streamer.Close()
-		m.streamer = nil
-	}
-
-	m.hasMore = false
-
-	var notifyErrorCmd tea.Cmd
-	streamer, err := graph.NewGraphStreamer(m.context, revset)
-	if err != nil {
-		notifyErrorCmd = func() tea.Msg {
-			return common.UpdateRevisionsFailedMsg{
-				Err:    err,
-				Output: fmt.Sprintf("%v", err),
-			}
-		}
-	}
-	m.streamer = streamer
-	m.hasMore = true
-	m.offScreenRows = nil
-	log.Println("Starting streaming revisions with tag:", tag)
-	startStreamingCmd := func() tea.Msg {
-		return startRowsStreamingMsg{selectedRevision, tag}
-	}
-
-	return tea.Batch(startStreamingCmd, notifyErrorCmd)
-}
-
-func (m *Model) requestMoreRows(tag uint64) tea.Cmd {
-	return func() tea.Msg {
-		if m.streamer == nil || !m.hasMore {
-			return nil
-		}
-		batch := m.streamer.RequestMore()
-		return appendRowsBatchMsg{batch.Items, batch.HasMore, tag}
-	}
-}
-
-func (m *Model) selectRevision(revision string) int {
-	eqFold := func(other string) bool {
-		return strings.EqualFold(other, revision)
-	}
-
-	idx := slices.IndexFunc(m.Items, func(row *models.RevisionItem) bool {
-		if revision == "@" {
-			return row.Commit.IsWorkingCopy
-		}
-		return eqFold(row.Commit.GetChangeId()) || eqFold(row.Commit.ChangeId) || eqFold(row.Commit.CommitId)
-	})
-	return idx
 }
 
 func (m *Model) search(startIndex int) int {
@@ -570,7 +430,7 @@ func (m *Model) GetCommitIds() []string {
 
 func New(c *appContext.MainContext) Model {
 	keymap := config.Current.GetKeyMap()
-	l := c.Revisions
+	l := c.Revisions.Revisions
 	size := common.NewSizeable(20, 10)
 
 	rl := &RevisionList{
@@ -585,11 +445,11 @@ func New(c *appContext.MainContext) Model {
 	}
 	rl.renderer = list.NewRenderer[*models.RevisionItem](l.List, rl.RenderItem, rl.GetItemHeight, size)
 	return Model{
-		Sizeable:      size,
-		RevisionList:  rl,
-		context:       c,
-		keymap:        keymap,
-		offScreenRows: nil,
+		RevisionsContext: c.Revisions,
+		Sizeable:         size,
+		RevisionList:     rl,
+		context:          c,
+		keymap:           keymap,
 	}
 }
 
@@ -611,12 +471,4 @@ func (m *Model) updateOperation(msg tea.Msg) (tea.Cmd, bool) {
 		return cmd, true
 	}
 	return nil, false
-}
-
-func (m *Model) jumpToParent(revisions jj.SelectedRevisions) {
-	immediate, _ := m.context.RunCommandImmediate(jj.GetParent(revisions))
-	parentIndex := m.selectRevision(string(immediate))
-	if parentIndex != -1 {
-		m.Cursor = parentIndex
-	}
 }
