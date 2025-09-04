@@ -63,14 +63,17 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	if _, ok := msg.(common.CloseViewMsg); ok {
 		if m.leader != nil {
 			m.leader = nil
+			m.context.ActiveList = context.ListRevisions
 			return m, nil, true
 		}
 		if m.diff != nil {
 			m.diff = nil
+			m.context.ActiveList = context.ListRevisions
 			return m, nil, true
 		}
 		if m.stacked != nil {
 			m.stacked = nil
+			m.context.ActiveList = context.ListRevisions
 			return m, nil, true
 		}
 		if m.oplog != nil {
@@ -123,9 +126,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	var cmd tea.Cmd
 	var cmds []tea.Cmd
-
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -163,18 +165,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Preview.Mode, m.keyMap.Preview.ToggleBottom):
 			if key.Matches(msg, m.keyMap.Preview.ToggleBottom) {
-				m.previewModel.TogglePosition()
-				if m.previewModel.Visible() {
+				m.context.Preview.TogglePosition()
+				if m.context.Preview.Visible {
 					return m, tea.Batch(cmds...)
 				}
 			}
-			m.previewModel.ToggleVisible()
+			m.context.Preview.ToggleVisible()
 			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Preview.Expand) && m.previewModel.Visible():
-			m.previewModel.Expand()
+		case key.Matches(msg, m.keyMap.Preview.Expand) && m.context.Preview.Visible:
+			m.context.Preview.Expand()
 			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Preview.Shrink) && m.previewModel.Visible():
-			m.previewModel.Shrink()
+		case key.Matches(msg, m.keyMap.Preview.Shrink) && m.context.Preview.Visible:
+			m.context.Preview.Shrink()
 			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.CustomCommands):
 			m.stacked = customcommands.NewModel(m.context, m.Width, m.Height)
@@ -191,7 +193,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
-			return m, common.FileSearch(m.context.CurrentRevset, m.previewModel.Visible(), rev, out)
+			return m, common.FileSearch(m.context.CurrentRevset, m.context.Preview.Visible, rev, out)
 		case key.Matches(msg, m.keyMap.QuickSearch) && m.oplog != nil:
 			// HACK: prevents quick search from activating in op log view
 			return m, nil
@@ -234,7 +236,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.revsetModel.AddToHistory(m.context.CurrentRevset)
 		return m, common.Refresh
 	case common.ShowPreview:
-		m.previewModel.SetVisible(bool(msg))
+		m.context.Preview.SetVisible(bool(msg))
 		return m, tea.Batch(cmds...)
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
@@ -274,7 +276,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
-	if m.previewModel.Visible() {
+	if m.context.Preview.Visible {
+		if m.previewModel.IsDirty() {
+			m.previewModel, cmd = m.previewModel.Update(common.RefreshMsg{})
+			cmds = append(cmds, cmd)
+		}
+
 		m.previewModel, cmd = m.previewModel.Update(msg)
 		cmds = append(cmds, cmd)
 	}
@@ -317,14 +324,14 @@ func (m Model) View() string {
 	topViewHeight := lipgloss.Height(topView)
 
 	bottomPreviewHeight := 0
-	if m.previewModel.Visible() && m.previewModel.AtBottom() {
-		bottomPreviewHeight = int(float64(m.Height) * (m.previewModel.WindowPercentage() / 100.0))
+	if m.context.Preview.Visible && m.context.Preview.AtBottom {
+		bottomPreviewHeight = int(float64(m.Height) * (m.context.Preview.WindowPercentage / 100.0))
 	}
 	leftView := m.renderLeftView(footerHeight, topViewHeight, bottomPreviewHeight)
 	centerView := leftView
 
-	if m.previewModel.Visible() {
-		if m.previewModel.AtBottom() {
+	if m.context.Preview.Visible {
+		if m.context.Preview.AtBottom {
 			m.previewModel.SetWidth(m.Width)
 			m.previewModel.SetHeight(bottomPreviewHeight)
 		} else {
@@ -332,7 +339,7 @@ func (m Model) View() string {
 			m.previewModel.SetHeight(m.Height - footerHeight - topViewHeight)
 		}
 		previewView := m.previewModel.View()
-		if m.previewModel.AtBottom() {
+		if m.context.Preview.AtBottom {
 			centerView = lipgloss.JoinVertical(lipgloss.Top, leftView, previewView)
 		} else {
 			centerView = lipgloss.JoinHorizontal(lipgloss.Left, leftView, previewView)
@@ -366,11 +373,11 @@ func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreview
 	w := m.Width
 	h := 0
 
-	if m.previewModel.Visible() {
-		if m.previewModel.AtBottom() {
+	if m.context.Preview.Visible {
+		if m.context.Preview.AtBottom {
 			h = bottomPreviewHeight
 		} else {
-			w = m.Width - int(float64(m.Width)*(m.previewModel.WindowPercentage()/100.0))
+			w = m.Width - int(float64(m.Width)*(m.context.Preview.WindowPercentage/100.0))
 		}
 	}
 

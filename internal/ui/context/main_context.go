@@ -9,9 +9,20 @@ import (
 	"github.com/idursun/jjui/internal/ui/common/models"
 )
 
+type ListId int
+
+const (
+	ListRevisions ListId = iota
+	ListFiles
+	ListOplog
+	ListEvolog
+)
+
 type MainContext struct {
 	CommandRunner
+	ActiveList     ListId
 	Revisions      *RevisionsContext
+	Preview        *PreviewContext
 	OpLog          *list.List[*models.OperationLogItem]
 	Evolog         *list.List[*models.RevisionItem]
 	Location       string
@@ -34,6 +45,7 @@ func NewAppContext(location string) *MainContext {
 		Revisions:     NewRevisionsContext(commandRunner),
 		OpLog:         list.NewList[*models.OperationLogItem](),
 		Evolog:        list.NewList[*models.RevisionItem](),
+		Preview:       NewPreviewContext(commandRunner),
 	}
 	m.Revisions.Parent = m
 

@@ -235,6 +235,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				return m, nil
 			case key.Matches(msg, m.keymap.Details.Mode):
 				op := details.NewOperation(m.Parent, m.Revisions.Current().Commit)
+				m.context.ActiveList = appContext.ListFiles
 				return m, tea.Sequence(m.LoadFiles(), m.SetOperation(op), tea.WindowSize())
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
 				m.Op, cmd = describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
