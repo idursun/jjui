@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"path"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -123,10 +122,6 @@ func (m Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{m.ShortHelp()}
 }
 
-type updateCommitStatusMsg struct {
-	summary string
-}
-
 func New(context *context.MainContext, revision *jj.Commit) Model {
 	keyMap := config.Current.GetKeyMap()
 
@@ -159,7 +154,7 @@ func New(context *context.MainContext, revision *jj.Commit) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(m.load(m.revision.GetChangeId()), tea.WindowSize())
+	return tea.WindowSize()
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -271,76 +266,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.selectedHint = ""
 		m.unselectedHint = ""
 		return m, nil
-	case common.RefreshMsg:
-		return m, m.load(m.revision.GetChangeId())
-	case updateCommitStatusMsg:
-		items := m.createListItems(msg.summary)
-		m.SetItems(items)
-		m.Cursor = 0
-		return m, nil
+	//case common.RefreshMsg:
+	//	return m, m.load(m.revision.GetChangeId())
 	case tea.WindowSizeMsg:
 		m.SetHeight(msg.Height)
 	}
 	return m, nil
-}
-
-func (m Model) createListItems(content string) []*models.RevisionFileItem {
-	items := make([]*models.RevisionFileItem, 0)
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	var conflicts []bool
-	if scanner.Scan() {
-		conflictsLine := strings.Split(scanner.Text(), " ")
-		for _, c := range conflictsLine {
-			conflicts = append(conflicts, c == "true")
-		}
-	} else {
-		return items
-	}
-
-	index := 0
-	for scanner.Scan() {
-		file := strings.TrimSpace(scanner.Text())
-		if file == "" {
-			continue
-		}
-		var status models.Status
-		switch file[0] {
-		case 'A':
-			status = models.Added
-		case 'D':
-			status = models.Deleted
-		case 'M':
-			status = models.Modified
-		case 'R':
-			status = models.Renamed
-		}
-		fileName := file[2:]
-
-		actualFileName := fileName
-		if status == models.Renamed && strings.Contains(actualFileName, "{") {
-			for strings.Contains(actualFileName, "{") {
-				start := strings.Index(actualFileName, "{")
-				end := strings.Index(actualFileName, "}")
-				if end == -1 {
-					break
-				}
-				replacement := actualFileName[start+1 : end]
-				parts := strings.Split(replacement, " => ")
-				replacement = parts[1]
-				actualFileName = path.Clean(actualFileName[:start] + replacement + actualFileName[end+1:])
-			}
-		}
-		items = append(items, &models.RevisionFileItem{
-			Checkable: &models.Checkable{Checked: false},
-			Status:    status,
-			Name:      fileName,
-			FileName:  actualFileName,
-			Conflict:  conflicts[index],
-		})
-		index++
-	}
-
-	return items
 }
 
 func (m Model) getSelectedFiles() ([]string, bool) {
@@ -386,23 +317,4 @@ func (m Model) View() string {
 	view = strings.Join(lines, "\n")
 	w, h := lipgloss.Size(view)
 	return lipgloss.Place(w, h, 0, 0, view, lipgloss.WithWhitespaceBackground(m.styles.Text.GetBackground()))
-}
-
-func (m Model) load(revision string) tea.Cmd {
-	output, err := m.context.RunCommandImmediate(jj.Snapshot())
-	if err == nil {
-		output, err = m.context.RunCommandImmediate(jj.Status(revision))
-		if err == nil {
-			return func() tea.Msg {
-				summary := string(output)
-				return updateCommitStatusMsg{summary}
-			}
-		}
-	}
-	return func() tea.Msg {
-		return common.CommandCompletedMsg{
-			Output: string(output),
-			Err:    err,
-		}
-	}
 }

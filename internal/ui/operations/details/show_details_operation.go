@@ -90,7 +90,7 @@ func (s *Operation) Name() string {
 	return "details"
 }
 
-func NewOperation(context *context.MainContext, selected *jj.Commit) (operations.Operation, tea.Cmd) {
+func NewOperation(context *context.MainContext, selected *jj.Commit) operations.Operation {
 	op := &Operation{
 		Overlay:           New(context, selected),
 		context:           context,
@@ -98,5 +98,5 @@ func NewOperation(context *context.MainContext, selected *jj.Commit) (operations
 		keyMap:            config.Current.GetKeyMap(),
 		targetMarkerStyle: common.DefaultPalette.Get("details target_marker"),
 	}
-	return op, op.Overlay.Init()
+	return op
 }
