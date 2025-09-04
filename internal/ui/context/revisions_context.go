@@ -14,17 +14,29 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/common/models"
+	"github.com/idursun/jjui/internal/ui/operations"
 )
 
 type RevisionsContext struct {
+	CommandRunner
 	Parent           *MainContext
 	Revisions        *list.CheckableList[*models.RevisionItem]
 	Files            *list.CheckableList[*models.RevisionFileItem]
+	Op               operations.Operation
 	tag              atomic.Uint64
 	revisionToSelect string
 	offScreenRows    []*models.RevisionItem
 	streamer         *GraphStreamer
 	hasMore          bool
+}
+
+func NewRevisionsContext(commandRunner CommandRunner) *RevisionsContext {
+	return &RevisionsContext{
+		CommandRunner: commandRunner,
+		Op:            operations.NewDefault(),
+		Revisions:     list.NewCheckableList[*models.RevisionItem](),
+		Files:         list.NewCheckableList[*models.RevisionFileItem](),
+	}
 }
 
 func (m *RevisionsContext) LoadStreaming(revset string, selectedRevision string) tea.Cmd {
@@ -94,7 +106,7 @@ func (m *RevisionsContext) RequestMoreRows() tea.Cmd {
 
 func (m *RevisionsContext) Load(revset string, selectedRevision string) tea.Cmd {
 	return func() tea.Msg {
-		output, err := m.Parent.RunCommandImmediate(jj.Log(revset, config.Current.Limit))
+		output, err := m.RunCommandImmediate(jj.Log(revset, config.Current.Limit))
 		if err != nil {
 			return common.UpdateRevisionsFailedMsg{
 				Err:    err,
@@ -104,6 +116,13 @@ func (m *RevisionsContext) Load(revset string, selectedRevision string) tea.Cmd 
 		rows := parser.ParseRows(bytes.NewReader(output))
 		return UpdateRevisionsMsg{rows, selectedRevision}
 	}
+}
+
+func (m *RevisionsContext) CursorUp() tea.Cmd {
+	if m.Revisions.Cursor > 0 {
+		m.Revisions.Cursor--
+	}
+	return nil
 }
 
 func (m *RevisionsContext) CursorDown() tea.Cmd {
@@ -129,12 +148,28 @@ func (m *RevisionsContext) SelectRevision(revision string) int {
 	return idx
 }
 
+func (m *RevisionsContext) CloseOperation() tea.Cmd {
+	m.Op = operations.NewDefault()
+	return m.UpdateSelection()
+}
+
 func (m *RevisionsContext) JumpToParent(revisions jj.SelectedRevisions) {
-	immediate, _ := m.Parent.RunCommandImmediate(jj.GetParent(revisions))
+	immediate, _ := m.RunCommandImmediate(jj.GetParent(revisions))
 	parentIndex := m.SelectRevision(string(immediate))
 	if parentIndex != -1 {
 		m.Revisions.Cursor = parentIndex
 	}
+}
+
+// FIXME: this can be made private
+func (m *RevisionsContext) UpdateSelection() tea.Cmd {
+	if current := m.Revisions.Current(); current != nil {
+		return m.Parent.SetSelectedItem(SelectedRevision{
+			ChangeId: current.Commit.GetChangeId(),
+			CommitId: current.Commit.CommitId,
+		})
+	}
+	return nil
 }
 
 type AppendRowsBatchMsg struct {

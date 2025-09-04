@@ -68,18 +68,16 @@ type MainContext struct {
 }
 
 func NewAppContext(location string) *MainContext {
+	commandRunner := &MainCommandRunner{
+		Location: location,
+	}
 	m := &MainContext{
-		CommandRunner: &MainCommandRunner{
-			Location: location,
-		},
-		Location:  location,
-		Histories: config.NewHistories(),
-		Revisions: &RevisionsContext{
-			Revisions: list.NewCheckableList[*models.RevisionItem](),
-			Files:     list.NewCheckableList[*models.RevisionFileItem](),
-		},
-		OpLog:  list.NewList[*models.OperationLogItem](),
-		Evolog: list.NewList[*models.RevisionItem](),
+		CommandRunner: commandRunner,
+		Location:      location,
+		Histories:     config.NewHistories(),
+		Revisions:     NewRevisionsContext(commandRunner),
+		OpLog:         list.NewList[*models.OperationLogItem](),
+		Evolog:        list.NewList[*models.RevisionItem](),
 	}
 	m.Revisions.Parent = m
 
