@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/idursun/jjui/internal/ui/common/menu"
+	"github.com/idursun/jjui/internal/ui/view"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -21,12 +22,30 @@ type updateItemsMsg struct {
 	items []list.Item
 }
 
+var _ view.IViewModel = (*Model)(nil)
+
 type Model struct {
+	*view.ViewNode
 	context     *context.MainContext
 	current     *jj.Commit
 	menu        menu.Menu
 	keymap      config.KeyMappings[key.Binding]
 	distanceMap map[string]int
+}
+
+func (m *Model) GetId() view.ViewId {
+	return "bookmarks"
+}
+
+func (m *Model) Mount(v *view.ViewNode) {
+	m.ViewNode = v
+	v.Id = "bookmarks"
+	maxWidth, minWidth := 80, 40
+	m.Width = max(min(maxWidth, m.ViewManager.Width), minWidth)
+	m.menu.SetWidth(m.Width)
+	maxHeight, minHeight := 30, 10
+	m.Height = max(min(maxHeight, m.ViewManager.Height), minHeight)
+	m.menu.SetHeight(m.Height)
 }
 
 func (m *Model) ShortHelp() []key.Binding {
@@ -44,22 +63,6 @@ func (m *Model) ShortHelp() []key.Binding {
 
 func (m *Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{m.ShortHelp()}
-}
-
-func (m *Model) Width() int {
-	return m.menu.Width()
-}
-
-func (m *Model) Height() int {
-	return m.menu.Height()
-}
-
-func (m *Model) SetWidth(w int) {
-	m.menu.SetWidth(w)
-}
-
-func (m *Model) SetHeight(h int) {
-	m.menu.SetHeight(h)
 }
 
 type commandType int
@@ -199,13 +202,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.menu.List.ResetFilter()
 				return m.filtered("")
 			}
-			return m, common.Close
+			m.ViewManager.UnregisterView(m.GetId())
+			return m, nil
 		case key.Matches(msg, m.keymap.Apply):
 			if m.menu.List.SelectedItem() == nil {
 				break
 			}
 			action := m.menu.List.SelectedItem().(item)
-			return m, m.context.RunCommand(action.args, common.Refresh, common.Close)
+			m.ViewManager.UnregisterView(m.GetId())
+			return m, m.context.RunCommand(action.args, common.Refresh)
 		case key.Matches(msg, m.keymap.Bookmark.Move) && m.menu.Filter != "move":
 			return m.filtered("move")
 		case key.Matches(msg, m.keymap.Bookmark.Delete) && m.menu.Filter != "delete":
@@ -262,11 +267,12 @@ func (m *Model) distance(commitId string) int {
 	return math.MinInt32
 }
 
-func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string, width int, height int) *Model {
+func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string) view.IViewModel {
 	var items []list.Item
 	keymap := config.Current.GetKeyMap()
+	size := view.NewSizeable(80, 25)
 
-	menu := menu.NewMenu(items, width, height, keymap, menu.WithStylePrefix("bookmarks"))
+	menu := menu.NewMenu(items, size.Width, size.Height, keymap, menu.WithStylePrefix("bookmarks"))
 	menu.Title = "Bookmark Operations"
 	menu.FilterMatches = func(i list.Item, filter string) bool {
 		return strings.HasPrefix(i.FilterValue(), filter)
@@ -279,8 +285,6 @@ func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string, wi
 		current:     current,
 		distanceMap: calcDistanceMap(current.CommitId, commitIds),
 	}
-	m.SetWidth(width)
-	m.SetHeight(height)
 	return m
 }
 

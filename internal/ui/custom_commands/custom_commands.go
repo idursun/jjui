@@ -11,6 +11,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/menu"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type item struct {
@@ -37,11 +38,29 @@ func (i item) Description() string {
 	return i.desc
 }
 
+var _ view.IViewModel = (*Model)(nil)
+
 type Model struct {
+	*view.ViewNode
 	context *context.MainContext
 	keymap  config.KeyMappings[key.Binding]
 	menu    menu.Menu
 	help    help.Model
+}
+
+func (m *Model) GetId() view.ViewId {
+	return "custom commands"
+}
+
+func (m *Model) Mount(v *view.ViewNode) {
+	m.ViewNode = v
+	v.Id = "custom commands"
+	maxWidth, minWidth := 80, 40
+	m.Width = max(min(maxWidth, m.ViewManager.Width), minWidth)
+	m.menu.SetWidth(m.Width)
+	maxHeight, minHeight := 30, 10
+	m.Height = max(min(maxHeight, m.ViewManager.Height), minHeight)
+	m.menu.SetHeight(m.Height)
 }
 
 func (m *Model) ShortHelp() []key.Binding {
@@ -54,22 +73,6 @@ func (m *Model) ShortHelp() []key.Binding {
 
 func (m *Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{m.ShortHelp()}
-}
-
-func (m *Model) Width() int {
-	return m.menu.Width()
-}
-
-func (m *Model) Height() int {
-	return m.menu.Height()
-}
-
-func (m *Model) SetWidth(w int) {
-	m.menu.SetWidth(w)
-}
-
-func (m *Model) SetHeight(h int) {
-	m.menu.SetHeight(h)
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -92,7 +95,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.menu.List.ResetFilter()
 				return m, m.menu.Filtered("")
 			}
-			return m, common.Close
+			m.ViewManager.UnregisterView(m.Id)
+			return m, nil
 		default:
 			for _, listItem := range m.menu.List.Items() {
 				if i, ok := listItem.(item); ok && key.Matches(msg, i.key) {
@@ -110,8 +114,9 @@ func (m *Model) View() string {
 	return m.menu.View()
 }
 
-func NewModel(ctx *context.MainContext, width int, height int) *Model {
+func NewModel(ctx *context.MainContext) view.IViewModel {
 	var items []list.Item
+	size := view.NewSizeable(80, 25)
 
 	for name, command := range ctx.CustomCommands {
 		if command.IsApplicableTo(ctx) {
@@ -120,7 +125,7 @@ func NewModel(ctx *context.MainContext, width int, height int) *Model {
 		}
 	}
 	keyMap := config.Current.GetKeyMap()
-	menu := menu.NewMenu(items, width, height, keyMap, menu.WithStylePrefix("custom_commands"))
+	menu := menu.NewMenu(items, size.Width, size.Height, keyMap, menu.WithStylePrefix("custom_commands"))
 	menu.Title = "Custom Commands"
 	menu.ShowShortcuts(true)
 	menu.FilterMatches = func(i list.Item, filter string) bool {
@@ -133,7 +138,5 @@ func NewModel(ctx *context.MainContext, width int, height int) *Model {
 		menu:    menu,
 		help:    help.New(),
 	}
-	m.SetWidth(width)
-	m.SetHeight(height)
 	return m
 }

@@ -3,6 +3,7 @@ package autocompletion
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -59,6 +60,7 @@ func New(provider CompletionProvider, options ...Option) *AutoCompletionInput {
 	ti.Focus()
 	ti.Prompt = ""
 	ti.ShowSuggestions = true
+	ti.Cursor.SetMode(cursor.CursorStatic)
 
 	m := &AutoCompletionInput{
 		TextInput:          ti,

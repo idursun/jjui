@@ -5,13 +5,18 @@ import (
 	"io"
 	"strings"
 
-	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type ItemRenderFunc func(w io.Writer, index int)
 
+type IItemRenderer interface {
+	RenderItem(w io.Writer, index int)
+	GetItemHeight(index int) int
+}
+
 type ListRenderer[T any] struct {
-	*common.ViewRange
+	*view.ViewRange
 	list             *List[T]
 	renderItemFn     ItemRenderFunc
 	getItemHeight    func(index int) int
@@ -20,12 +25,12 @@ type ListRenderer[T any] struct {
 	lineCount        int
 }
 
-func NewRenderer[T any](list *List[T], renderFn ItemRenderFunc, getItemHeight func(index int) int, size *common.Sizeable) *ListRenderer[T] {
+func NewRenderer[T any](list *List[T], itemRenderer IItemRenderer, size *view.Sizeable) *ListRenderer[T] {
 	return &ListRenderer[T]{
-		ViewRange:     &common.ViewRange{Sizeable: size, Start: 0, End: size.Height, FirstRowIndex: -1, LastRowIndex: -1},
+		ViewRange:     &view.ViewRange{Sizeable: size, Start: 0, End: size.Height, FirstRowIndex: -1, LastRowIndex: -1},
 		list:          list,
-		renderItemFn:  renderFn,
-		getItemHeight: getItemHeight,
+		renderItemFn:  itemRenderer.RenderItem,
+		getItemHeight: itemRenderer.GetItemHeight,
 		buffer:        bytes.Buffer{},
 	}
 }

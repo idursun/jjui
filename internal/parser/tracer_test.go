@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/stretchr/testify/assert"
 )
@@ -128,15 +129,25 @@ func TestTracer_IsGutterInLane(t *testing.T) {
 			},
 		})
 
-	var rows []models.Row
-	rows = append(rows, row1)
-	tracer := NewTracer(rows, 0, 0, len(rows))
+	var rows []*models.RevisionItem
+	rows = append(rows, models.NewRevisionItem(row1))
+	l := list.NewList[*models.RevisionItem]()
+	l.SetItems(rows)
+	tracer := NewTracer(l, 0, 0, len(rows))
+
 	assert.True(t, tracer.IsGutterInLane(0, 0, 2))
 	assert.True(t, tracer.IsGutterInLane(0, 3, 0))
 }
 
 func createLaneMap(rows []models.Row, cursor, start int) string {
-	_ = NewTracer(rows, cursor, start, len(rows))
+	l := list.NewList[*models.RevisionItem]()
+	var items []*models.RevisionItem
+	for _, row := range rows {
+		items = append(items, models.NewRevisionItem(row))
+	}
+	l.SetItems(items)
+	_ = NewTracer(l, cursor, start, len(rows))
+
 	var sb strings.Builder
 	sb.WriteString("\n")
 	for _, row := range rows {

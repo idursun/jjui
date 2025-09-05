@@ -3,11 +3,12 @@ package abandon
 import (
 	"bytes"
 	"testing"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 	"github.com/idursun/jjui/test"
 )
 
@@ -19,7 +20,11 @@ func Test_Accept(t *testing.T) {
 	commandRunner.Expect(jj.Abandon(revisions, false))
 	defer commandRunner.Verify()
 
-	model := test.NewOperationHost(NewOperation(test.NewTestContext(commandRunner), revisions), commit)
+	appContext := context.NewAppContext(commandRunner, "")
+	model := NewOperation(appContext, revisions)
+	viewManager := view.NewViewManager()
+	_ = viewManager.CreateView(model)
+	viewManager.FocusView(model.Id)
 	tm := teatest.NewTestModel(t, model)
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("abandon"))
@@ -27,20 +32,23 @@ func Test_Accept(t *testing.T) {
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte("closed"))
+		return !viewManager.IsFocused(model.Id)
 	})
-	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+	tm.Quit()
 }
 
 func Test_Cancel(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
 
-	model := test.NewOperationHost(NewOperation(test.NewTestContext(commandRunner), revisions), commit)
+	appContext := context.NewAppContext(commandRunner, "")
+	model := NewOperation(appContext, revisions)
+	viewManager := view.NewViewManager()
+	_ = viewManager.CreateView(model)
+	viewManager.FocusView(model.Id)
 	tm := teatest.NewTestModel(t, model)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte("closed"))
+		return !viewManager.IsFocused(model.Id)
 	})
-	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }

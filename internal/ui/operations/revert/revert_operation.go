@@ -12,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type Target int
@@ -31,7 +32,10 @@ var (
 	}
 )
 
+var _ view.IViewModel = (*Operation)(nil)
+
 type Operation struct {
+	*view.ViewNode
 	context        *context.MainContext
 	From           jj.SelectedRevisions
 	InsertStart    *jj.Commit
@@ -40,6 +44,39 @@ type Operation struct {
 	keyMap         config.KeyMappings[key.Binding]
 	highlightedIds []string
 	styles         styles
+}
+
+func (o *Operation) Init() tea.Cmd {
+	return nil
+}
+
+func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if cmd := o.HandleKey(msg); cmd != nil {
+			return o, cmd
+		}
+	case common.RefreshMsg:
+		o.setSelectedRevision()
+		return o, nil
+	}
+	return o, nil
+}
+
+func (o *Operation) View() string {
+	return ""
+}
+
+func (o *Operation) GetId() view.ViewId {
+	return "revert"
+}
+
+func (o *Operation) Mount(v *view.ViewNode) {
+	o.ViewNode = v
+	v.Id = o.GetId()
+	delegatedViewId := view.RevisionsViewId
+	v.KeyDelegation = &delegatedViewId
+	v.NeedsRefresh = true
 }
 
 type styles struct {
@@ -51,66 +88,72 @@ type styles struct {
 	text         lipgloss.Style
 }
 
-func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
+func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
-	case key.Matches(msg, r.keyMap.Revert.Onto):
-		r.Target = TargetDestination
-	case key.Matches(msg, r.keyMap.Revert.After):
-		r.Target = TargetAfter
-	case key.Matches(msg, r.keyMap.Revert.Before):
-		r.Target = TargetBefore
-	case key.Matches(msg, r.keyMap.Revert.Insert):
-		r.Target = TargetInsert
-		r.InsertStart = r.To
-	case key.Matches(msg, r.keyMap.Apply):
-		if r.Target == TargetInsert {
-			return r.context.RunCommand(jj.RevertInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId()), common.RefreshAndSelect(r.From.Last()), common.Close)
+	case key.Matches(msg, o.keyMap.Revert.Onto):
+		o.Target = TargetDestination
+	case key.Matches(msg, o.keyMap.Revert.After):
+		o.Target = TargetAfter
+	case key.Matches(msg, o.keyMap.Revert.Before):
+		o.Target = TargetBefore
+	case key.Matches(msg, o.keyMap.Revert.Insert):
+		o.Target = TargetInsert
+		o.InsertStart = o.To
+	case key.Matches(msg, o.keyMap.Apply):
+		o.ViewManager.UnregisterView(o.GetId())
+		if o.Target == TargetInsert {
+			return o.context.RunCommand(jj.RevertInsert(o.From, o.InsertStart.GetChangeId(), o.To.GetChangeId()), common.RefreshAndSelect(o.From.Last()))
 		} else {
 			source := "--revisions"
-			target := targetToFlags[r.Target]
-			return r.context.RunCommand(jj.Revert(r.From, r.To.GetChangeId(), source, target), common.RefreshAndSelect(r.From.Last()), common.Close)
+			target := targetToFlags[o.Target]
+			return o.context.RunCommand(jj.Revert(o.From, o.To.GetChangeId(), source, target), common.RefreshAndSelect(o.From.Last()))
 		}
-	case key.Matches(msg, r.keyMap.Cancel):
-		return common.Close
+	case key.Matches(msg, o.keyMap.Cancel):
+		o.ViewManager.UnregisterView(o.GetId())
+		return nil
 	}
 	return nil
 }
 
-func (r *Operation) SetSelectedRevision(commit *jj.Commit) {
-	r.highlightedIds = nil
-	r.To = commit
-	r.highlightedIds = r.From.GetIds()
+func (o *Operation) setSelectedRevision() {
+	current := o.context.Revisions.Current()
+	if current == nil {
+		return
+	}
+	o.highlightedIds = nil
+	o.To = current.Commit
+	o.highlightedIds = o.From.GetIds()
 }
 
-func (r *Operation) ShortHelp() []key.Binding {
+func (o *Operation) ShortHelp() []key.Binding {
 	return []key.Binding{
-		r.keyMap.Revert.Before,
-		r.keyMap.Revert.After,
-		r.keyMap.Revert.Onto,
-		r.keyMap.Revert.Insert,
+		o.keyMap.Revert.Before,
+		o.keyMap.Revert.After,
+		o.keyMap.Revert.Onto,
+		o.keyMap.Revert.Insert,
 	}
 }
 
-func (r *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{r.ShortHelp()}
+func (o *Operation) FullHelp() [][]key.Binding {
+	return [][]key.Binding{o.ShortHelp()}
 }
 
-func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
+func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
 	if pos == operations.RenderBeforeChangeId {
 		changeId := commit.GetChangeId()
-		if slices.Contains(r.highlightedIds, changeId) {
-			return r.styles.sourceMarker.Render("<< revert >>")
+		if slices.Contains(o.highlightedIds, changeId) {
+			return o.styles.sourceMarker.Render("<< revert >>")
 		}
-		if r.Target == TargetInsert && r.InsertStart.GetChangeId() == commit.GetChangeId() {
-			return r.styles.sourceMarker.Render("<< after this >>")
+		if o.Target == TargetInsert && o.InsertStart.GetChangeId() == commit.GetChangeId() {
+			return o.styles.sourceMarker.Render("<< after this >>")
 		}
-		if r.Target == TargetInsert && r.To.GetChangeId() == commit.GetChangeId() {
-			return r.styles.sourceMarker.Render("<< before this >>")
+		if o.Target == TargetInsert && o.To.GetChangeId() == commit.GetChangeId() {
+			return o.styles.sourceMarker.Render("<< before this >>")
 		}
 		return ""
 	}
 	expectedPos := operations.RenderPositionBefore
-	if r.Target == TargetBefore || r.Target == TargetInsert {
+	if o.Target == TargetBefore || o.Target == TargetInsert {
 		expectedPos = operations.RenderPositionAfter
 	}
 
@@ -118,13 +161,13 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		return ""
 	}
 
-	isSelected := r.To != nil && r.To.GetChangeId() == commit.GetChangeId()
+	isSelected := o.To != nil && o.To.GetChangeId() == commit.GetChangeId()
 	if !isSelected {
 		return ""
 	}
 
 	var source string
-	isMany := len(r.From.Revisions) > 0
+	isMany := len(o.From.Revisions) > 0
 	switch {
 	case isMany:
 		source = "revisions "
@@ -132,51 +175,47 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		source = "revision "
 	}
 	var ret string
-	if r.Target == TargetDestination {
+	if o.Target == TargetDestination {
 		ret = "onto"
 	}
-	if r.Target == TargetAfter {
+	if o.Target == TargetAfter {
 		ret = "after"
 	}
-	if r.Target == TargetBefore {
+	if o.Target == TargetBefore {
 		ret = "before"
 	}
-	if r.Target == TargetInsert {
+	if o.Target == TargetInsert {
 		ret = "insert"
 	}
 
-	if r.Target == TargetInsert {
+	if o.Target == TargetInsert {
 		return lipgloss.JoinHorizontal(
 			lipgloss.Left,
-			r.styles.targetMarker.Render("<< insert >>"),
+			o.styles.targetMarker.Render("<< insert >>"),
 			" ",
-			r.styles.dimmed.Render(source),
-			r.styles.changeId.Render(strings.Join(r.From.GetIds(), " ")),
-			r.styles.dimmed.Render(" between "),
-			r.styles.changeId.Render(r.InsertStart.GetChangeId()),
-			r.styles.dimmed.Render(" and "),
-			r.styles.changeId.Render(r.To.GetChangeId()),
+			o.styles.dimmed.Render(source),
+			o.styles.changeId.Render(strings.Join(o.From.GetIds(), " ")),
+			o.styles.dimmed.Render(" between "),
+			o.styles.changeId.Render(o.InsertStart.GetChangeId()),
+			o.styles.dimmed.Render(" and "),
+			o.styles.changeId.Render(o.To.GetChangeId()),
 		)
 	}
 
 	return lipgloss.JoinHorizontal(
 		lipgloss.Left,
-		r.styles.targetMarker.Render("<< "+ret+" >>"),
-		r.styles.dimmed.Render(" revert "),
-		r.styles.dimmed.Render(source),
-		r.styles.changeId.Render(strings.Join(r.From.GetIds(), " ")),
-		r.styles.dimmed.Render(" "),
-		r.styles.dimmed.Render(ret),
-		r.styles.dimmed.Render(" "),
-		r.styles.changeId.Render(r.To.GetChangeId()),
+		o.styles.targetMarker.Render("<< "+ret+" >>"),
+		o.styles.dimmed.Render(" revert "),
+		o.styles.dimmed.Render(source),
+		o.styles.changeId.Render(strings.Join(o.From.GetIds(), " ")),
+		o.styles.dimmed.Render(" "),
+		o.styles.dimmed.Render(ret),
+		o.styles.dimmed.Render(" "),
+		o.styles.changeId.Render(o.To.GetChangeId()),
 	)
 }
 
-func (r *Operation) Name() string {
-	return "revert"
-}
-
-func NewOperation(context *context.MainContext, from jj.SelectedRevisions, target Target) *Operation {
+func NewOperation(context *context.MainContext, from jj.SelectedRevisions, target Target) view.IViewModel {
 	styles := styles{
 		changeId:     common.DefaultPalette.Get("revert change_id"),
 		shortcut:     common.DefaultPalette.Get("revert shortcut"),

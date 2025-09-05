@@ -1,5 +1,9 @@
 package models
 
+type IItem interface {
+	Equals(other IItem) bool
+}
+
 type ICheckable interface {
 	IsChecked() bool
 	Toggle()

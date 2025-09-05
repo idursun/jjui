@@ -1,4 +1,4 @@
-package common
+package view
 
 type ISizeable interface {
 	SetWidth(w int)

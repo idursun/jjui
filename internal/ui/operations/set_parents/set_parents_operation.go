@@ -13,9 +13,13 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
-type Model struct {
+var _ view.IViewModel = (*Operation)(nil)
+
+type Operation struct {
+	*view.ViewNode
 	context  *context.MainContext
 	target   *jj.Commit
 	current  *jj.Commit
@@ -26,17 +30,50 @@ type Model struct {
 	parents  []string
 }
 
-func (m *Model) ShortHelp() []key.Binding {
+func (o *Operation) Init() tea.Cmd {
+	return nil
+}
+
+func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if cmd := o.HandleKey(msg); cmd != nil {
+			return o, cmd
+		}
+	case common.RefreshMsg:
+		o.setSelectedRevision()
+		return o, nil
+	}
+	return o, nil
+}
+
+func (o *Operation) View() string {
+	return ""
+}
+
+func (o *Operation) GetId() view.ViewId {
+	return "set_parents"
+}
+
+func (o *Operation) Mount(v *view.ViewNode) {
+	o.ViewNode = v
+	v.Id = "set_parents"
+	v.NeedsRefresh = true
+	keyDelegation := view.RevisionsViewId
+	v.KeyDelegation = &keyDelegation
+}
+
+func (o *Operation) ShortHelp() []key.Binding {
 	return []key.Binding{
-		m.keyMap.ToggleSelect,
-		m.keyMap.Apply,
-		m.keyMap.Cancel,
+		o.keyMap.ToggleSelect,
+		o.keyMap.Apply,
+		o.keyMap.Cancel,
 	}
 }
 
-func (m *Model) FullHelp() [][]key.Binding {
+func (o *Operation) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		m.ShortHelp(),
+		o.ShortHelp(),
 	}
 }
 
@@ -46,78 +83,80 @@ type styles struct {
 	dimmed       lipgloss.Style
 }
 
-func (m *Model) SetSelectedRevision(commit *jj.Commit) {
-	m.current = commit
+func (o *Operation) setSelectedRevision() {
+	current := o.context.Revisions.Current()
+	if current == nil {
+		return
+	}
+	o.current = current.Commit
 }
 
-func (m *Model) HandleKey(msg tea.KeyMsg) tea.Cmd {
+func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
-	case key.Matches(msg, m.keyMap.ToggleSelect):
-		if m.current.GetChangeId() == m.target.GetChangeId() {
+	case key.Matches(msg, o.keyMap.ToggleSelect):
+		if o.current.GetChangeId() == o.target.GetChangeId() {
 			return nil
 		}
 
-		if slices.Contains(m.parents, m.current.CommitId) {
-			if m.toRemove[m.current.GetChangeId()] {
-				delete(m.toRemove, m.current.GetChangeId())
+		if slices.Contains(o.parents, o.current.CommitId) {
+			if o.toRemove[o.current.GetChangeId()] {
+				delete(o.toRemove, o.current.GetChangeId())
 			} else {
-				m.toRemove[m.current.GetChangeId()] = true
+				o.toRemove[o.current.GetChangeId()] = true
 			}
 		} else {
-			if m.toAdd[m.current.GetChangeId()] {
-				delete(m.toAdd, m.current.GetChangeId())
+			if o.toAdd[o.current.GetChangeId()] {
+				delete(o.toAdd, o.current.GetChangeId())
 			} else {
-				m.toAdd[m.current.GetChangeId()] = true
+				o.toAdd[o.current.GetChangeId()] = true
 			}
 		}
-	case key.Matches(msg, m.keyMap.Apply):
-		if len(m.toAdd) == 0 && len(m.toRemove) == 0 {
+	case key.Matches(msg, o.keyMap.Apply):
+		if len(o.toAdd) == 0 && len(o.toRemove) == 0 {
 			return common.Close
 		}
 
 		var parentsToAdd []string
 		var parentsToRemove []string
 
-		for changeId := range m.toAdd {
+		for changeId := range o.toAdd {
 			parentsToAdd = append(parentsToAdd, changeId)
 		}
 
-		for changeId := range m.toRemove {
+		for changeId := range o.toRemove {
 			parentsToRemove = append(parentsToRemove, changeId)
 		}
 
-		return m.context.RunCommand(jj.SetParents(m.target.GetChangeId(), parentsToAdd, parentsToRemove), common.RefreshAndSelect(m.target.GetChangeId()), common.Close)
-	case key.Matches(msg, m.keyMap.Cancel):
-		return common.Close
+		o.ViewManager.UnregisterView(o.GetId())
+		return o.context.RunCommand(jj.SetParents(o.target.GetChangeId(), parentsToAdd, parentsToRemove), common.RefreshAndSelect(o.target.GetChangeId()))
+	case key.Matches(msg, o.keyMap.Cancel):
+		o.ViewManager.UnregisterView(o.GetId())
+		return nil
 	}
 	return nil
 }
 
-func (m *Model) Render(commit *jj.Commit, renderPosition operations.RenderPosition) string {
+func (o *Operation) Render(commit *jj.Commit, renderPosition operations.RenderPosition) string {
 	if renderPosition != operations.RenderBeforeChangeId {
 		return ""
 	}
-	if m.toAdd[commit.GetChangeId()] {
-		return m.styles.sourceMarker.Render("<< add >>")
+	if o.toAdd[commit.GetChangeId()] {
+		return o.styles.sourceMarker.Render("<< add >>")
 	}
-	if m.toRemove[commit.GetChangeId()] {
-		return m.styles.sourceMarker.Render("<< remove >>")
+	if o.toRemove[commit.GetChangeId()] {
+		return o.styles.sourceMarker.Render("<< remove >>")
 	}
 
-	if slices.Contains(m.parents, commit.CommitId) {
-		return m.styles.dimmed.Render("<< parent >>")
+	if slices.Contains(o.parents, commit.CommitId) {
+		return o.styles.dimmed.Render("<< parent >>")
 	}
-	if commit.GetChangeId() == m.target.GetChangeId() {
-		return m.styles.targetMarker.Render("<< to >>")
+	if commit.GetChangeId() == o.target.GetChangeId() {
+		return o.styles.targetMarker.Render("<< to >>")
 	}
 	return ""
 }
 
-func (m *Model) Name() string {
-	return "set parents"
-}
-
-func NewModel(ctx *context.MainContext, to *jj.Commit) *Model {
+func NewOperation(ctx *context.MainContext, to *jj.Commit) view.IViewModel {
 	styles := styles{
 		sourceMarker: common.DefaultPalette.Get("set_parents source_marker"),
 		targetMarker: common.DefaultPalette.Get("set_parents target_marker"),
@@ -128,7 +167,7 @@ func NewModel(ctx *context.MainContext, to *jj.Commit) *Model {
 		log.Println("Failed to get parents for commit", to.GetChangeId())
 	}
 	parents := strings.Fields(string(output))
-	return &Model{
+	return &Operation{
 		context:  ctx,
 		keyMap:   config.Current.GetKeyMap(),
 		parents:  parents,

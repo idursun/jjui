@@ -3,30 +3,45 @@ package revset
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
-type EditRevSetMsg struct {
-	Clear bool
-}
+var _ view.IViewModel = (*Model)(nil)
+var _ help.KeyMap = (*Model)(nil)
+var _ view.Editable = (*Model)(nil)
 
 type Model struct {
-	*common.Sizeable
-	Editing         bool
+	*view.ViewNode
+	context         *appContext.MainContext
 	autoComplete    *autocompletion.AutoCompletionInput
-	keymap          keymap
+	keymap          config.KeyMappings[key.Binding]
 	History         []string
 	historyIndex    int
 	currentInput    string
 	historyActive   bool
 	MaxHistoryItems int
-	context         *appContext.MainContext
 	styles          styles
+}
+
+func (m *Model) OnEdit() {
+	m.autoComplete.SetValue("")
+}
+
+func (m *Model) Mount(v *view.ViewNode) {
+	m.ViewNode = v
+	v.Id = m.GetId()
+}
+
+func (m *Model) GetId() view.ViewId {
+	return view.RevsetViewId
 }
 
 type styles struct {
@@ -34,54 +49,28 @@ type styles struct {
 	textStyle   lipgloss.Style
 }
 
-func (m *Model) IsFocused() bool {
-	return m.Editing
-}
-
-type keymap struct{}
-
-func (k keymap) ShortHelp() []key.Binding {
-	return []key.Binding{
-		key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "complete")),
-		key.NewBinding(key.WithKeys("ctrl+n"), key.WithHelp("ctrl+n", "next")),
-		key.NewBinding(key.WithKeys("ctrl+p"), key.WithHelp("ctrl+p", "prev")),
-		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "accept")),
-		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "quit")),
-	}
-}
-
-func (k keymap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{k.ShortHelp()}
-}
-
-func New(context *appContext.MainContext) *Model {
-	styles := styles{
-		promptStyle: common.DefaultPalette.Get("revset title"),
-		textStyle:   common.DefaultPalette.Get("revset text"),
-	}
-
-	revsetAliases := context.JJConfig.RevsetAliases
-	completionProvider := NewCompletionProvider(revsetAliases)
-	autoComplete := autocompletion.New(completionProvider, autocompletion.WithStylePrefix("revset"))
-
-	autoComplete.SetValue(context.DefaultRevset)
-	autoComplete.Focus()
-
-	return &Model{
-		Sizeable:        &common.Sizeable{Width: 0, Height: 0},
-		context:         context,
-		Editing:         false,
-		keymap:          keymap{},
-		autoComplete:    autoComplete,
-		History:         []string{},
-		historyIndex:    -1,
-		MaxHistoryItems: 50,
-		styles:          styles,
-	}
-}
-
 func (m *Model) Init() tea.Cmd {
 	return nil
+}
+
+var upKey = key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "previous"))
+var downKey = key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "next"))
+var applyKey = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "apply"))
+var cancelKey = key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "cancel"))
+var tabKey = key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "cycle"))
+
+func (m *Model) ShortHelp() []key.Binding {
+	return []key.Binding{
+		upKey,
+		downKey,
+		tabKey,
+		applyKey,
+		cancelKey,
+	}
+}
+
+func (m *Model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{m.ShortHelp()}
 }
 
 func (m *Model) AddToHistory(input string) {
@@ -112,23 +101,25 @@ func (m *Model) SetHistory(history []string) {
 	m.historyActive = false
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if !m.Editing {
+		if !m.ViewManager.IsThisEditing(m.Id) {
 			return m, nil
 		}
-		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
-			m.Editing = false
-			m.autoComplete.Blur()
+		switch {
+		case key.Matches(msg, m.keymap.Cancel):
+			m.ViewManager.StopEditing()
+			m.ViewManager.RestorePreviousFocus()
 			return m, nil
-		case tea.KeyEnter:
-			m.Editing = false
-			m.autoComplete.Blur()
+		case key.Matches(msg, m.keymap.Apply):
 			value := m.autoComplete.Value()
-			return m, tea.Batch(common.Close, common.UpdateRevSet(value))
-		case tea.KeyUp:
+			m.AddToHistory(value)
+			m.context.CurrentRevset = value
+			m.ViewManager.StopEditing()
+			m.ViewManager.RestorePreviousFocus()
+			return m, common.Refresh
+		case key.Matches(msg, upKey):
 			if len(m.History) > 0 {
 				if !m.historyActive {
 					m.currentInput = m.autoComplete.Value()
@@ -142,7 +133,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				}
 				return m, nil
 			}
-		case tea.KeyDown:
+		case key.Matches(msg, downKey):
 			if m.historyActive {
 				if m.historyIndex > 0 {
 					m.historyIndex--
@@ -156,19 +147,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				return m, nil
 			}
 		}
-	case common.UpdateRevSetMsg:
-		if m.Editing {
-			m.Editing = false
-		}
-	case EditRevSetMsg:
-		m.Editing = true
-		m.autoComplete.Focus()
-		if msg.Clear {
-			m.autoComplete.SetValue("")
-		}
-		m.historyActive = false
-		m.historyIndex = -1
-		return m, m.autoComplete.Init()
 	}
 
 	var cmd tea.Cmd
@@ -179,7 +157,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 func (m *Model) View() string {
 	var w strings.Builder
 	w.WriteString(m.styles.promptStyle.PaddingRight(1).Render("revset:"))
-	if m.Editing {
+	if m.ViewManager.IsThisEditing(m.Id) {
 		w.WriteString(m.autoComplete.View())
 	} else {
 		revset := m.context.DefaultRevset
@@ -188,5 +166,33 @@ func (m *Model) View() string {
 		}
 		w.WriteString(m.styles.textStyle.Render(revset))
 	}
-	return lipgloss.Place(m.Width, m.Height, 0, 0, w.String(), lipgloss.WithWhitespaceBackground(m.styles.textStyle.GetBackground()))
+	content := w.String()
+	width, height := lipgloss.Size(content)
+	m.SetHeight(height)
+	return lipgloss.Place(width, height, 0, 0, w.String(), lipgloss.WithWhitespaceBackground(m.styles.textStyle.GetBackground()))
+}
+
+func New(ctx *appContext.MainContext) *Model {
+	styles := styles{
+		promptStyle: common.DefaultPalette.Get("revset title"),
+		textStyle:   common.DefaultPalette.Get("revset text"),
+	}
+
+	revsetAliases := ctx.JJConfig.RevsetAliases
+	completionProvider := NewCompletionProvider(revsetAliases)
+	autoComplete := autocompletion.New(completionProvider, autocompletion.WithStylePrefix("revset"))
+
+	autoComplete.SetValue(ctx.DefaultRevset)
+	autoComplete.Focus()
+
+	m := &Model{
+		context:         ctx,
+		keymap:          config.Current.GetKeyMap(),
+		autoComplete:    autoComplete,
+		History:         []string{},
+		historyIndex:    -1,
+		MaxHistoryItems: 50,
+		styles:          styles,
+	}
+	return m
 }

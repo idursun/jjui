@@ -2,11 +2,12 @@ package git
 
 import (
 	"testing"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -16,10 +17,18 @@ func Test_Push(t *testing.T) {
 	commandRunner.Expect(jj.GitPush())
 	defer commandRunner.Verify()
 
-	op := NewModel(test.NewTestContext(commandRunner), nil, 0, 0)
-	tm := teatest.NewTestModel(t, test.NewShell(op))
+	ctx := context.NewAppContext(commandRunner, "")
+	model := NewModel(ctx, nil)
+	viewManager := view.NewViewManager()
+	_ = viewManager.CreateView(model)
+	viewManager.FocusView(model.GetId())
+	tm := teatest.NewTestModel(t, model)
+
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return commandRunner.VerifyCalled(jj.GitPush())
+	})
+	tm.Quit()
 }
 
 func Test_Fetch(t *testing.T) {
@@ -27,13 +36,21 @@ func Test_Fetch(t *testing.T) {
 	commandRunner.Expect(jj.GitFetch())
 	defer commandRunner.Verify()
 
-	op := NewModel(test.NewTestContext(commandRunner), nil, 0, 0)
-	tm := teatest.NewTestModel(t, test.NewShell(op))
+	ctx := context.NewAppContext(commandRunner, "")
+	model := NewModel(ctx, nil)
+	viewManager := view.NewViewManager()
+	_ = viewManager.CreateView(model)
+	viewManager.FocusView(model.GetId())
+	tm := teatest.NewTestModel(t, model)
+
 	tm.Type("/")
 	tm.Type("fetch")
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return commandRunner.VerifyCalled(jj.GitFetch())
+	})
+	tm.Quit()
 }
 
 func Test_loadBookmarks(t *testing.T) {
@@ -60,12 +77,20 @@ func Test_PushChange(t *testing.T) {
 	commandRunner.Expect(jj.GitPush("--change", changeId))
 	defer commandRunner.Verify()
 
-	op := NewModel(test.NewTestContext(commandRunner), &jj.Commit{ChangeId: changeId}, 0, 0)
-	tm := teatest.NewTestModel(t, test.NewShell(op))
+	ctx := context.NewAppContext(commandRunner, "")
+	model := NewModel(ctx, &jj.Commit{ChangeId: changeId})
+	viewManager := view.NewViewManager()
+	_ = viewManager.CreateView(model)
+	viewManager.FocusView(model.GetId())
+	tm := teatest.NewTestModel(t, model)
+
 	// Filter for the exact item and ensure selection is at index 0
 	tm.Type("/")
 	tm.Type("git push --change")
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // Ensure first item is selected
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return commandRunner.VerifyCalled(jj.GitPush("--change", changeId))
+	})
+	tm.Quit()
 }

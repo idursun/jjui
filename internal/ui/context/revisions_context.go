@@ -1,10 +1,8 @@
 package context
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
-	"path"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -16,15 +14,11 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/common/models"
-	"github.com/idursun/jjui/internal/ui/operations"
 )
 
 type RevisionsContext struct {
 	CommandRunner
-	Parent           *MainContext
-	Revisions        *list.CheckableList[*models.RevisionItem]
-	Files            *list.CheckableList[*models.RevisionFileItem]
-	Op               operations.Operation
+	*list.CheckableList[*models.RevisionItem]
 	tag              atomic.Uint64
 	revisionToSelect string
 	offScreenRows    []*models.RevisionItem
@@ -32,12 +26,10 @@ type RevisionsContext struct {
 	hasMore          bool
 }
 
-func NewRevisionsContext(commandRunner CommandRunner) *RevisionsContext {
+func NewRevisionsContext(ctx *MainContext) *RevisionsContext {
 	return &RevisionsContext{
-		CommandRunner: commandRunner,
-		Op:            operations.NewDefault(),
-		Revisions:     list.NewCheckableList[*models.RevisionItem](),
-		Files:         list.NewCheckableList[*models.RevisionFileItem](),
+		CommandRunner: ctx.CommandRunner,
+		CheckableList: list.NewCheckableList[*models.RevisionItem](),
 	}
 }
 
@@ -51,7 +43,7 @@ func (m *RevisionsContext) LoadStreaming(revset string, selectedRevision string)
 
 	m.hasMore = false
 
-	streamer, err := NewGraphStreamer(m.Parent.CommandRunner, revset)
+	streamer, err := NewGraphStreamer(m.CommandRunner, revset)
 	if err != nil {
 		return func() tea.Msg {
 			return common.UpdateRevisionsFailedMsg{
@@ -67,12 +59,12 @@ func (m *RevisionsContext) LoadStreaming(revset string, selectedRevision string)
 
 	// If the revision to select is not set, use the currently selected item
 	if m.revisionToSelect == "" {
-		if current := m.Revisions.Current(); current != nil {
-			m.revisionToSelect = m.Revisions.Current().Commit.GetChangeId()
+		if current := m.Current(); current != nil {
+			m.revisionToSelect = m.Current().Commit.GetChangeId()
 		}
 	}
 
-	for m.hasMore && (m.Revisions.Cursor == -1 || m.Revisions.Cursor >= len(m.offScreenRows)) {
+	for m.hasMore && (m.Cursor == -1 || m.Cursor >= len(m.offScreenRows)) {
 		if currentTag != m.tag.Load() {
 			// cancel loading if a new request has been made
 			return nil
@@ -121,15 +113,15 @@ func (m *RevisionsContext) Load(revset string, selectedRevision string) tea.Cmd 
 }
 
 func (m *RevisionsContext) CursorUp() tea.Cmd {
-	if m.Revisions.Cursor > 0 {
-		m.Revisions.Cursor--
+	if m.Cursor > 0 {
+		m.Cursor--
 	}
 	return nil
 }
 
 func (m *RevisionsContext) CursorDown() tea.Cmd {
-	if m.Revisions.Cursor < len(m.Revisions.Items)-1 {
-		m.Revisions.Cursor++
+	if m.Cursor < len(m.Items)-1 {
+		m.Cursor++
 	} else if m.hasMore {
 		return m.RequestMoreRows()
 	}
@@ -141,7 +133,7 @@ func (m *RevisionsContext) SelectRevision(revision string) int {
 		return strings.EqualFold(other, revision)
 	}
 
-	idx := slices.IndexFunc(m.Revisions.Items, func(row *models.RevisionItem) bool {
+	idx := slices.IndexFunc(m.Items, func(row *models.RevisionItem) bool {
 		if revision == "@" {
 			return row.Commit.IsWorkingCopy
 		}
@@ -150,110 +142,20 @@ func (m *RevisionsContext) SelectRevision(revision string) int {
 	return idx
 }
 
-func (m *RevisionsContext) SetOperation(op operations.Operation, continuations ...tea.Cmd) tea.Cmd {
-	return tea.Sequence(func() tea.Msg {
-		m.Op = op
-		return nil
-	}, tea.Batch(continuations...))
-}
-
-func (m *RevisionsContext) CloseOperation() tea.Cmd {
-	return func() tea.Msg {
-		m.Parent.ActiveList = ListRevisions
-		m.Op = operations.NewDefault()
-		m.Files.SetItems(nil)
-		return nil
-	}
-}
-
 func (m *RevisionsContext) JumpToParent(revisions jj.SelectedRevisions) {
 	immediate, _ := m.RunCommandImmediate(jj.GetParent(revisions))
 	parentIndex := m.SelectRevision(string(immediate))
 	if parentIndex != -1 {
-		m.Revisions.Cursor = parentIndex
+		m.Cursor = parentIndex
 	}
 }
 
-func (m *RevisionsContext) LoadFiles() tea.Cmd {
-	current := m.Revisions.Current()
-	output, err := m.RunCommandImmediate(jj.Snapshot())
-	if err == nil {
-		output, err = m.RunCommandImmediate(jj.Status(current.Commit.GetChangeId()))
-		if err == nil {
-			return func() tea.Msg {
-				summary := string(output)
-				items := createListItems(summary)
-				m.Files.SetItems(items)
-				m.Files.Cursor = 0
-				return nil
-			}
-		}
+func (m *RevisionsContext) GetCommitIds() []string {
+	var commitIds []string
+	for _, row := range m.Items {
+		commitIds = append(commitIds, row.Commit.CommitId)
 	}
-	return func() tea.Msg {
-		return common.CommandCompletedMsg{
-			Output: string(output),
-			Err:    err,
-		}
-	}
-}
-
-func createListItems(content string) []*models.RevisionFileItem {
-	items := make([]*models.RevisionFileItem, 0)
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	var conflicts []bool
-	if scanner.Scan() {
-		conflictsLine := strings.Split(scanner.Text(), " ")
-		for _, c := range conflictsLine {
-			conflicts = append(conflicts, c == "true")
-		}
-	} else {
-		return items
-	}
-
-	index := 0
-	for scanner.Scan() {
-		file := strings.TrimSpace(scanner.Text())
-		if file == "" {
-			continue
-		}
-		var status models.Status
-		switch file[0] {
-		case 'A':
-			status = models.Added
-		case 'D':
-			status = models.Deleted
-		case 'M':
-			status = models.Modified
-		case 'R':
-			status = models.Renamed
-		}
-		fileName := file[2:]
-
-		actualFileName := fileName
-		if status == models.Renamed && strings.Contains(actualFileName, "{") {
-			for strings.Contains(actualFileName, "{") {
-				start := strings.Index(actualFileName, "{")
-				end := strings.Index(actualFileName, "}")
-				if end == -1 {
-					break
-				}
-				replacement := actualFileName[start+1 : end]
-				parts := strings.Split(replacement, " => ")
-				replacement = parts[1]
-				actualFileName = path.Clean(actualFileName[:start] + replacement + actualFileName[end+1:])
-			}
-		}
-		items = append(items, &models.RevisionFileItem{
-			Checkable: &models.Checkable{Checked: false},
-			Status:    status,
-			Name:      fileName,
-			FileName:  actualFileName,
-			Conflict:  conflicts[index],
-		})
-		index++
-	}
-
-	return items
+	return commitIds
 }
 
 type AppendRowsBatchMsg struct {

@@ -30,11 +30,11 @@ func ExecMsgFromLine(prompt string, line string) common.ExecMsg {
 	}
 }
 
-func ExecLine(ctx *context.MainContext, msg common.ExecMsg) tea.Cmd {
+func ExecLine(ctx *context.MainContext, mode common.ExecMode, line string) tea.Cmd {
 	replacements := ctx.CreateReplacements()
-	switch msg.Mode {
+	switch mode {
 	case common.ExecJJ:
-		args := strings.Fields(msg.Line)
+		args := strings.Fields(line)
 		args = jj.TemplatedArgs(args, replacements)
 		return execProgram("jj", args, ctx.Location, nil)
 	case common.ExecShell:
@@ -44,7 +44,7 @@ func ExecLine(ctx *context.MainContext, msg common.ExecMsg) tea.Cmd {
 		if len(program) == 0 {
 			program = "sh"
 		}
-		args := []string{"-c", msg.Line}
+		args := []string{"-c", line}
 		return execProgram(program, args, ctx.Location, replacements)
 	}
 	return nil

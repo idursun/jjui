@@ -9,22 +9,13 @@ import (
 	"github.com/idursun/jjui/internal/ui/common/models"
 )
 
-type ListId int
-
-const (
-	ListRevisions ListId = iota
-	ListFiles
-	ListOplog
-	ListEvolog
-)
-
 type MainContext struct {
 	CommandRunner
-	ActiveList     ListId
-	Revisions      *RevisionsContext
-	Preview        *PreviewContext
 	OpLog          *list.List[*models.OperationLogItem]
+	Revisions      *RevisionsContext
 	Evolog         *list.List[*models.RevisionItem]
+	Files          *DetailsContext
+	Preview        *PreviewContext
 	Location       string
 	CustomCommands map[string]CustomCommand
 	Leader         LeaderMap
@@ -34,20 +25,17 @@ type MainContext struct {
 	Histories      *config.Histories
 }
 
-func NewAppContext(location string) *MainContext {
-	commandRunner := &MainCommandRunner{
-		Location: location,
-	}
+func NewAppContext(commandRunner CommandRunner, location string) *MainContext {
 	m := &MainContext{
 		CommandRunner: commandRunner,
 		Location:      location,
 		Histories:     config.NewHistories(),
-		Revisions:     NewRevisionsContext(commandRunner),
 		OpLog:         list.NewList[*models.OperationLogItem](),
-		Evolog:        list.NewList[*models.RevisionItem](),
-		Preview:       NewPreviewContext(commandRunner),
 	}
-	m.Revisions.Parent = m
+	m.Revisions = NewRevisionsContext(m)
+	m.Files = NewDetailsContext(m)
+	m.Evolog = list.NewList[*models.RevisionItem]()
+	m.Preview = NewPreviewContext(commandRunner)
 
 	m.JJConfig = &config.JJConfig{}
 	if output, err := m.RunCommandImmediate(jj.ConfigListAll()); err == nil {
@@ -61,19 +49,22 @@ func (ctx *MainContext) CreateReplacements() map[string]string {
 	replacements := make(map[string]string)
 	replacements[jj.RevsetPlaceholder] = ctx.CurrentRevset
 
-	if current := ctx.Revisions.Revisions.Current(); current != nil {
+	if current := ctx.Revisions.Current(); current != nil {
 		replacements[jj.ChangeIdPlaceholder] = current.Commit.ChangeId
 		replacements[jj.CommitIdPlaceholder] = current.Commit.CommitId
 	}
-	if current := ctx.Revisions.Files.Current(); current != nil {
+	if current := ctx.Files.Current(); current != nil {
 		replacements[jj.FilePlaceholder] = current.FileName
 	}
 	if current := ctx.OpLog.Current(); current != nil {
 		replacements[jj.OperationIdPlaceholder] = current.OperationId
 	}
+	if current := ctx.Evolog.Current(); current != nil {
+		replacements[jj.CommitIdPlaceholder] = current.Commit.CommitId
+	}
 
 	var checkedRevisions []string
-	for _, item := range ctx.Revisions.Revisions.GetCheckedItems() {
+	for _, item := range ctx.Revisions.GetCheckedItems() {
 		checkedRevisions = append(checkedRevisions, item.Commit.CommitId)
 	}
 
@@ -84,7 +75,7 @@ func (ctx *MainContext) CreateReplacements() map[string]string {
 	}
 
 	var checkedFiles []string
-	for _, item := range ctx.Revisions.Files.GetCheckedItems() {
+	for _, item := range ctx.Files.GetCheckedItems() {
 		checkedFiles = append(checkedFiles, item.FileName)
 	}
 

@@ -10,12 +10,31 @@ import (
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
+var _ view.IViewModel = (*Operation)(nil)
+
 type Operation struct {
+	*view.ViewNode
 	model   *confirmation.Model
-	current *jj.Commit
 	context *context.MainContext
+}
+
+func (a *Operation) Mount(v *view.ViewNode) {
+	a.ViewNode = v
+}
+
+func (a *Operation) GetId() view.ViewId {
+	return "abandon"
+}
+
+func (a *Operation) Init() tea.Cmd {
+	return nil
+}
+
+func (a *Operation) View() string {
+	return a.model.View()
 }
 
 func (a *Operation) ShortHelp() []key.Binding {
@@ -26,29 +45,32 @@ func (a *Operation) FullHelp() [][]key.Binding {
 	return [][]key.Binding{a.ShortHelp()}
 }
 
-func (a *Operation) SetSelectedRevision(commit *jj.Commit) {
-	a.current = commit
-}
-
-func (a *Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cmd) {
+func (a *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	a.model, cmd = a.model.Update(msg)
 	return a, cmd
 }
 
 func (a *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
-	isSelected := commit != nil && commit.GetChangeId() == a.current.GetChangeId()
+	current := a.context.Revisions.Current()
+
+	isSelected := commit != nil && current != nil && commit.GetChangeId() == current.Commit.GetChangeId()
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return ""
 	}
-	return a.model.View()
+	return a.View()
 }
 
-func (a *Operation) Name() string {
-	return "abandon"
+func (a *Operation) close() tea.Msg {
+	a.ViewManager.UnregisterView(a.Id)
+	return nil
 }
 
-func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRevisions) operations.Operation {
+func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRevisions) *Operation {
+	op := &Operation{
+		context: context,
+	}
+
 	var ids []string
 	var conflictingWarning string
 	for _, rev := range selectedRevisions.Revisions {
@@ -62,17 +84,14 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 		message = fmt.Sprintf("Are you sure you want to abandon %d %srevisions?", len(selectedRevisions.Revisions), conflictingWarning)
 	}
 	cmd := func(ignoreImmutable bool) tea.Cmd {
-		return context.RunCommand(jj.Abandon(selectedRevisions, ignoreImmutable), common.Refresh, common.Close)
+		return context.RunCommand(jj.Abandon(selectedRevisions, ignoreImmutable), common.Refresh, op.close)
 	}
-	model := confirmation.New(
+	op.model = confirmation.New(
 		[]string{message},
 		confirmation.WithAltOption("Yes", cmd(false), cmd(true), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-		confirmation.WithOption("No", common.Close, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+		confirmation.WithOption("No", op.close, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 		confirmation.WithStylePrefix("abandon"),
 	)
 
-	op := &Operation{
-		model: model,
-	}
 	return op
 }

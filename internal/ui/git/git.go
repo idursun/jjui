@@ -11,6 +11,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/menu"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type itemCategory string
@@ -44,10 +45,28 @@ func (i item) Description() string {
 	return i.desc
 }
 
+var _ view.IViewModel = (*Model)(nil)
+
 type Model struct {
+	*view.ViewNode
 	context *context.MainContext
 	keymap  config.KeyMappings[key.Binding]
 	menu    menu.Menu
+}
+
+func (m *Model) GetId() view.ViewId {
+	return "git"
+}
+
+func (m *Model) Mount(v *view.ViewNode) {
+	m.ViewNode = v
+	v.Id = "git"
+	maxWidth, minWidth := 80, 40
+	m.Width = max(min(maxWidth, m.ViewManager.Width), minWidth)
+	m.menu.SetWidth(m.Width)
+	maxHeight, minHeight := 30, 10
+	m.Height = max(min(maxHeight, m.ViewManager.Height), minHeight)
+	m.menu.SetHeight(m.Height)
 }
 
 func (m *Model) ShortHelp() []key.Binding {
@@ -64,22 +83,6 @@ func (m *Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{m.ShortHelp()}
 }
 
-func (m *Model) Width() int {
-	return m.menu.Width()
-}
-
-func (m *Model) Height() int {
-	return m.menu.Height()
-}
-
-func (m *Model) SetWidth(w int) {
-	m.menu.SetWidth(w)
-}
-
-func (m *Model) SetHeight(h int) {
-	m.menu.SetHeight(h)
-}
-
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
@@ -93,13 +96,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keymap.Apply):
 			action := m.menu.List.SelectedItem().(item)
-			return m, m.context.RunCommand(jj.Args(action.command...), common.Refresh, common.Close)
+			m.ViewManager.UnregisterView(m.GetId())
+			return m, m.context.RunCommand(jj.Args(action.command...), common.Refresh)
 		case key.Matches(msg, m.keymap.Cancel):
 			if m.menu.Filter != "" || m.menu.List.IsFiltered() {
 				m.menu.List.ResetFilter()
 				return m.filtered("")
 			}
-			return m, common.Close
+			m.ViewManager.UnregisterView(m.GetId())
+			return m, nil
 		case key.Matches(msg, m.keymap.Git.Push) && m.menu.Filter != string(itemCategoryPush):
 			return m.filtered(string(itemCategoryPush))
 		case key.Matches(msg, m.keymap.Git.Fetch) && m.menu.Filter != string(itemCategoryFetch):
@@ -107,7 +112,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			for _, listItem := range m.menu.List.Items() {
 				if item, ok := listItem.(item); ok && m.menu.Filter != "" && item.key == msg.String() {
-					return m, m.context.RunCommand(jj.Args(item.command...), common.Refresh, common.Close)
+					m.ViewManager.UnregisterView(m.GetId())
+					return m, m.context.RunCommand(jj.Args(item.command...), common.Refresh)
 				}
 			}
 		}
@@ -131,7 +137,7 @@ func loadBookmarks(c context.CommandRunner, changeId string) []jj.Bookmark {
 	return bookmarks
 }
 
-func NewModel(c *context.MainContext, commit *jj.Commit, width int, height int) *Model {
+func NewModel(c *context.MainContext, commit *jj.Commit) view.IViewModel {
 	var items []list.Item
 	if commit != nil {
 		bookmarks := loadBookmarks(c, commit.GetChangeId())
@@ -180,8 +186,9 @@ func NewModel(c *context.MainContext, commit *jj.Commit, width int, height int) 
 		item{name: "git fetch --all-remotes", desc: "Fetch from all remotes", command: jj.GitFetch("--all-remotes"), category: itemCategoryFetch, key: "a"},
 	)
 
+	size := view.NewSizeable(0, 0)
 	keymap := config.Current.GetKeyMap()
-	menu := menu.NewMenu(items, width, height, keymap, menu.WithStylePrefix("git"))
+	menu := menu.NewMenu(items, size.Width, size.Height, keymap, menu.WithStylePrefix("git"))
 	menu.Title = "Git Operations"
 	menu.FilterMatches = func(i list.Item, filter string) bool {
 		if gitItem, ok := i.(item); ok {
@@ -195,7 +202,5 @@ func NewModel(c *context.MainContext, commit *jj.Commit, width int, height int) 
 		menu:    menu,
 		keymap:  keymap,
 	}
-	m.SetWidth(width)
-	m.SetHeight(height)
 	return m
 }

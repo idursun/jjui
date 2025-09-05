@@ -122,7 +122,10 @@ func main() {
 		config.Current.Limit = limit
 	}
 
-	appContext := context.NewAppContext(rootLocation)
+	commandRunner := &context.MainCommandRunner{
+		Location: rootLocation,
+	}
+	appContext := context.NewAppContext(commandRunner, rootLocation)
 	defer appContext.Histories.Flush()
 	if output, err := config.LoadConfigFile(); err == nil {
 		if err := config.Current.Load(string(output)); err != nil {

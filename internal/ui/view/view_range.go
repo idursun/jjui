@@ -1,4 +1,4 @@
-package common
+package view
 
 type ViewRange struct {
 	*Sizeable

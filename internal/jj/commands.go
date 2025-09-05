@@ -79,16 +79,6 @@ func Split(revision string, files []string) CommandArgs {
 	return args
 }
 
-func SquashFiles(from string, into string, files []string) CommandArgs {
-	args := []string{"squash", "--from", from, "--into", into, "--use-destination-message"}
-	var escapedFiles []string
-	for _, file := range files {
-		escapedFiles = append(escapedFiles, EscapeFileName(file))
-	}
-	args = append(args, escapedFiles...)
-	return args
-}
-
 func Describe(revisions SelectedRevisions) CommandArgs {
 	args := []string{"describe", "--edit"}
 	args = append(args, revisions.AsArgs()...)
@@ -189,6 +179,22 @@ func Squash(from SelectedRevisions, destination string, keepEmptied bool, intera
 	if interactive {
 		args = append(args, "--interactive")
 	}
+	return args
+}
+
+func SquashFiles(from string, into string, files []string, keepEmptied bool, interactive bool) CommandArgs {
+	args := []string{"squash", "--from", from, "--into", into, "--use-destination-message"}
+	if keepEmptied {
+		args = append(args, "--keep-emptied")
+	}
+	if interactive {
+		args = append(args, "--interactive")
+	}
+	var escapedFiles []string
+	for _, file := range files {
+		escapedFiles = append(escapedFiles, EscapeFileName(file))
+	}
+	args = append(args, escapedFiles...)
 	return args
 }
 

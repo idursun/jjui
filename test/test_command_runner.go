@@ -37,6 +37,10 @@ func (t *CommandRunner) RunCommandImmediate(args []string) ([]byte, error) {
 	defer t.mutex.Unlock()
 
 	subCommand := args[0]
+	if subCommand == "config" {
+		// Ignore config commands in tests
+		return []byte(""), nil
+	}
 	expectations, ok := t.expectations[subCommand]
 	if !ok || len(expectations) == 0 {
 		assert.Fail(t, "unexpected command", subCommand)
@@ -86,6 +90,15 @@ func (t *CommandRunner) Expect(args []string) *ExpectedCommand {
 	return e
 }
 
+func (t *CommandRunner) VerifyCalled(args []string) bool {
+	for _, e := range t.expectations[args[0]] {
+		if slices.Equal(e.args, args) {
+			return e.called
+		}
+	}
+	return false
+}
+
 func (t *CommandRunner) Verify() {
 	for subCommand, subCommandExpectations := range t.expectations {
 		for _, e := range subCommandExpectations {
@@ -106,6 +119,5 @@ func NewTestCommandRunner(t *testing.T) *CommandRunner {
 func NewTestContext(commandRunner appContext.CommandRunner) *appContext.MainContext {
 	return &appContext.MainContext{
 		CommandRunner: commandRunner,
-		SelectedItem:  nil,
 	}
 }

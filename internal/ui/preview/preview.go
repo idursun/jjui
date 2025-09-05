@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"log"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -13,66 +14,73 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/common/list"
+	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 )
+
+const DebounceTime = 50 * time.Millisecond
 
 type viewRange struct {
 	start int
 	end   int
 }
 
-type previewState struct {
-	activeList context.ListId
-	pos        int
-}
-
-func (p *previewState) Equals(other *previewState) bool {
-	if p == nil || other == nil {
-		return false
-	}
-	if p == other {
-		return true
-	}
-	return p.activeList == other.activeList && p.pos == other.pos
-}
-
-type Model struct {
-	*common.Sizeable
-	tag              int
-	viewRange        *viewRange
-	help             help.Model
-	content          string
-	contentLineCount int
-	context          *context.MainContext
-	keyMap           config.KeyMappings[key.Binding]
-	borderStyle      lipgloss.Style
-	state            *previewState
-}
-
-const DebounceTime = 50 * time.Millisecond
+var _ tea.Model = (*Model)(nil)
+var _ view.IViewModel = (*Model)(nil)
 
 type previewMsg struct {
 	msg tea.Msg
 }
 
-// Allow a message to be targetted to this component.
-func PreviewCmd(msg tea.Msg) tea.Cmd {
-	return func() tea.Msg {
-		return previewMsg{msg: msg}
+type refreshPreviewContentMsg struct {
+	Tag uint64
+}
+
+type Model struct {
+	context.CommandRunner
+	*view.ViewNode
+	context          *context.MainContext
+	previewContext   *context.PreviewContext
+	tag              atomic.Uint64
+	viewRange        *viewRange
+	help             help.Model
+	content          string
+	contentLineCount int
+	keyMap           config.KeyMappings[key.Binding]
+	borderStyle      lipgloss.Style
+	previewed        models.IItem
+}
+
+func (m *Model) GetId() view.ViewId {
+	return view.PreviewViewId
+}
+
+func (m *Model) Mount(v *view.ViewNode) {
+	m.ViewNode = v
+	v.Id = m.GetId()
+	v.NeedsRefresh = true
+}
+
+func (m *Model) ShortHelp() []key.Binding {
+	return []key.Binding{
+		m.keyMap.Up,
+		m.keyMap.Down,
+		m.keyMap.Preview.Expand,
+		m.keyMap.Preview.Shrink,
+		m.keyMap.Preview.HalfPageUp,
+		m.keyMap.Preview.HalfPageDown,
 	}
 }
 
-type refreshPreviewContentMsg struct {
-	Tag int
+func (m *Model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{m.ShortHelp()}
 }
-
-func (m *Model) SetHeight(h int) {
-	m.viewRange.end = min(m.viewRange.start+h-3, m.contentLineCount)
-	m.Height = h
-}
-
 func (m *Model) Init() tea.Cmd {
-	return nil
+	return tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
+		return refreshPreviewContentMsg{Tag: m.tag.Load()}
+	})
 }
 
 func (m *Model) updatePreviewContent(content string) {
@@ -81,47 +89,76 @@ func (m *Model) updatePreviewContent(content string) {
 	m.reset()
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(previewMsg); ok {
 		msg = k.msg
 	}
+	if !m.Visible {
+		return m, nil
+	}
 	switch msg := msg.(type) {
 	case common.RefreshMsg:
-		if !m.context.Preview.Visible {
+		if current := m.getCurrentItem(); current != nil && (m.previewed == nil || !current.Equals(m.previewed)) {
+			tag := m.tag.Add(1)
+			m.previewed = current
+			log.Println("preview: scheduling refresh", tag)
+			return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
+				if tag == m.tag.Load() {
+					return refreshPreviewContentMsg{Tag: tag}
+				}
+				return nil
+			})
+		}
+	case refreshPreviewContentMsg:
+		if m.tag.Load() != msg.Tag {
 			return m, nil
 		}
 
-		m.tag++
-		tag := m.tag
-		m.state = capture(m.context)
-		log.Println("preview: scheduling refresh", m.state)
-		return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
-			return refreshPreviewContentMsg{Tag: tag}
-		})
-	case refreshPreviewContentMsg:
-		if m.tag == msg.Tag {
-			replacements := m.context.CreateReplacements()
-			switch m.state.activeList {
-			case context.ListRevisions:
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
-				m.updatePreviewContent(string(output))
-			case context.ListFiles:
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
-				m.updatePreviewContent(string(output))
-			case context.ListOplog:
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
-				m.updatePreviewContent(string(output))
-			}
-			m.state = capture(m.context)
+		log.Println("preview: updating ", msg.Tag)
+		replacements := m.context.CreateReplacements()
+		m.previewed = m.getCurrentItem()
+		focusedView := m.ViewManager.GetFocusedView()
+		if focusedView == nil {
+			return m, nil
+		}
+
+		switch focusedView.Id {
+		case view.RevisionsViewId:
+			output, _ := m.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
+			m.updatePreviewContent(string(output))
+		case view.EvologViewId:
+			args := []string{"show", "--color", "always", "-r", "$commit_id"}
+			output, _ := m.RunCommandImmediate(jj.TemplatedArgs(args, replacements))
+			m.updatePreviewContent(string(output))
+		case view.DetailsViewId:
+			output, _ := m.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
+			m.updatePreviewContent(string(output))
+		case view.OpLogViewId:
+			output, _ := m.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
+			m.updatePreviewContent(string(output))
 		}
 	case tea.KeyMsg:
 		switch {
+		case key.Matches(msg, m.keyMap.Cancel) && m.ViewManager.IsFocused(m.Id):
+			m.ViewManager.StopEditing()
+			m.ViewManager.RestorePreviousFocus()
+			return m, nil
 		case key.Matches(msg, m.keyMap.Preview.ScrollDown):
 			if m.viewRange.end < m.contentLineCount {
 				m.viewRange.start++
 				m.viewRange.end++
 			}
+		case key.Matches(msg, m.keyMap.Down) && m.ViewManager.IsFocused(m.Id):
+			if m.viewRange.end < m.contentLineCount {
+				m.viewRange.start++
+				m.viewRange.end++
+			}
 		case key.Matches(msg, m.keyMap.Preview.ScrollUp):
+			if m.viewRange.start > 0 {
+				m.viewRange.start--
+				m.viewRange.end--
+			}
+		case key.Matches(msg, m.keyMap.Up) && m.ViewManager.IsFocused(m.Id):
 			if m.viewRange.start > 0 {
 				m.viewRange.start--
 				m.viewRange.end--
@@ -139,19 +176,41 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			halfPageSize := min(m.Height/2, m.viewRange.start)
 			m.viewRange.start -= halfPageSize
 			m.viewRange.end -= halfPageSize
+		case key.Matches(msg, m.keyMap.Preview.Expand):
+			m.previewContext.Expand()
+			m.ViewManager.UpdateViewConstraint(m.Id, func(constraint *view.LayoutConstraint) {
+				constraint.Percentage = int(m.previewContext.WindowPercentage)
+			})
+			m.ViewManager.Layout()
+		case key.Matches(msg, m.keyMap.Preview.Shrink):
+			m.previewContext.Shrink()
+			m.ViewManager.UpdateViewConstraint(m.Id, func(constraint *view.LayoutConstraint) {
+				constraint.Percentage = int(m.previewContext.WindowPercentage)
+			})
+			m.ViewManager.Layout()
+		case key.Matches(msg, m.keyMap.Preview.ToggleBottom):
+			if container := m.ViewManager.GetViewContainer(m.Id); container != nil {
+				if container.Direction == view.Horizontal {
+					container.Direction = view.Vertical
+				} else {
+					container.Direction = view.Horizontal
+				}
+			}
+			m.ViewManager.Layout()
 		}
 	}
 	return m, nil
 }
 
 func (m *Model) View() string {
+	m.viewRange.end = min(m.viewRange.start+m.Height-2, m.contentLineCount)
 	var w strings.Builder
 	scanner := bufio.NewScanner(strings.NewReader(m.content))
 	current := 0
 	for scanner.Scan() {
 		line := scanner.Text()
 		line = strings.ReplaceAll(line, "\r", "")
-		if current >= m.viewRange.start && current <= m.viewRange.end {
+		if current >= m.viewRange.start && current < m.viewRange.end {
 			if current > m.viewRange.start {
 				w.WriteString("\n")
 			}
@@ -162,52 +221,40 @@ func (m *Model) View() string {
 			break
 		}
 	}
-	view := lipgloss.Place(m.Width-2, m.Height-2, 0, 0, w.String())
-	return m.borderStyle.Render(view)
+	content := w.String()
+	v := lipgloss.Place(m.Width-2, m.Height-2, 0, 0, content)
+	borderStyle := m.borderStyle
+	if m.ViewManager.IsFocused(m.Id) {
+		borderStyle = lipgloss.NewStyle().Border(lipgloss.DoubleBorder())
+	}
+	return borderStyle.Render(v)
 }
 
 func (m *Model) reset() {
 	m.viewRange.start, m.viewRange.end = 0, m.Height
 }
 
-func (m *Model) IsDirty() bool {
-	if !m.context.Preview.Visible {
-		return false
+func (m *Model) getCurrentItem() models.IItem {
+	if focusedView := m.ViewManager.GetFocusedView(); focusedView != nil {
+		if listProvider, ok := focusedView.Model.(list.IListProvider); ok {
+			return listProvider.CurrentItem()
+		}
 	}
-	newState := capture(m.context)
-	result := !newState.Equals(m.state)
-	return result
+	return nil
 }
 
-func capture(ctx *context.MainContext) *previewState {
-	var pos int
-	switch ctx.ActiveList {
-	case context.ListRevisions:
-		pos = ctx.Revisions.Revisions.Cursor
-	case context.ListFiles:
-		pos = ctx.Revisions.Files.Cursor
-	case context.ListOplog:
-		pos = ctx.OpLog.Cursor
-	case context.ListEvolog:
-		pos = ctx.Evolog.Cursor
-	}
-	return &previewState{
-		activeList: ctx.ActiveList,
-		pos:        pos,
-	}
-}
-
-func New(ctx *context.MainContext) Model {
+func New(ctx *context.MainContext, previewContext *context.PreviewContext) view.IViewModel {
 	borderStyle := common.DefaultPalette.GetBorder("preview border", lipgloss.NormalBorder())
 	borderStyle = borderStyle.Inherit(common.DefaultPalette.Get("preview text"))
 
-	return Model{
-		Sizeable:    &common.Sizeable{Width: 0, Height: 0},
-		state:       nil,
-		viewRange:   &viewRange{start: 0, end: 0},
-		context:     ctx,
-		keyMap:      config.Current.GetKeyMap(),
-		help:        help.New(),
-		borderStyle: borderStyle,
+	m := Model{
+		CommandRunner:  ctx.CommandRunner,
+		context:        ctx,
+		previewContext: previewContext,
+		viewRange:      &viewRange{start: 0, end: 0},
+		keyMap:         config.Current.GetKeyMap(),
+		help:           help.New(),
+		borderStyle:    borderStyle,
 	}
+	return &m
 }

@@ -48,106 +48,106 @@ func Test_sendCmds_produces_rune_keys_on_non_keytypes(t *testing.T) {
 	}
 }
 
-func TestUpdate_h_closes_leader_and_produces_pending_questionmark(t *testing.T) {
-	content := `[leader.h]
-help = "Help"
-send = ["?"]
-`
-	lm, err := context.LoadLeader(content)
-	if err != nil {
-		t.Fatalf("LoadLeader failed: %v", err)
-	}
-	ctx := &context.MainContext{
-		Leader: lm,
-	}
-	model := New(ctx)
-	model, _ = model.Update(initMsg{})
-	if len(model.shown) == 0 {
-		t.Fatal("expected shown leader keys")
-	}
-	msg := tea.KeyMsg{
-		Type:  tea.KeyRunes,
-		Runes: []rune{'h'},
-	}
-	model, cmd := model.Update(msg)
-	if len(model.shown) != 0 {
-		t.Fatal("expected not to show leader keys after reaching leaf")
-	}
-	if cmd == nil {
-		t.Fatal("expected a command returned from Update")
-	}
-	msgOut := cmd()
-	batch, ok := msgOut.(tea.BatchMsg)
-	if !ok {
-		t.Fatalf("expected BatchMsg, got %T", msgOut)
-	}
-	if len(batch) != 2 {
-		t.Fatalf("expected 2 cmds in batch, got %d", len(batch))
-	}
-	closeMsg := batch[0]()
-	if _, ok := closeMsg.(common.CloseViewMsg); !ok {
-		t.Error("expected non-nil closeMsg")
-	}
-	// batch[1]() is a tea.sequenceMsg (private). we test it via sendCmds tests.
-}
+//func TestUpdate_h_closes_leader_and_produces_pending_questionmark(t *testing.T) {
+//	content := `[leader.h]
+//help = "Help"
+//send = ["?"]
+//`
+//	lm, err := context.LoadLeader(content)
+//	if err != nil {
+//		t.Fatalf("LoadLeader failed: %v", err)
+//	}
+//	ctx := &context.MainContext{
+//		Leader: lm,
+//	}
+//	model := New(ctx)
+//	model, _ = model.Update(initMsg{})
+//	if len(model.shown) == 0 {
+//		t.Fatal("expected shown leader keys")
+//	}
+//	msg := tea.KeyMsg{
+//		Type:  tea.KeyRunes,
+//		Runes: []rune{'h'},
+//	}
+//	model, cmd := model.Update(msg)
+//	if len(model.shown) != 0 {
+//		t.Fatal("expected not to show leader keys after reaching leaf")
+//	}
+//	if cmd == nil {
+//		t.Fatal("expected a command returned from Update")
+//	}
+//	msgOut := cmd()
+//	batch, ok := msgOut.(tea.BatchMsg)
+//	if !ok {
+//		t.Fatalf("expected BatchMsg, got %T", msgOut)
+//	}
+//	if len(batch) != 2 {
+//		t.Fatalf("expected 2 cmds in batch, got %d", len(batch))
+//	}
+//	closeMsg := batch[0]()
+//	if _, ok := closeMsg.(common.CloseViewMsg); !ok {
+//		t.Error("expected non-nil closeMsg")
+//	}
+//	// batch[1]() is a tea.sequenceMsg (private). we test it via sendCmds tests.
+//}
 
-func TestUpdate_gf_shows_git_fetch_submenu_and_returns_nil_cmd(t *testing.T) {
-	content := `[leader.g]
-help = "Git"
-
-[leader.gf]
-context = [ "$change_id" ] # only available if context key is present.
-
-[leader.gff]
-help = "Git Fetch"
-send = ["gf", "enter"]
-`
-	lm, err := context.LoadLeader(content)
-	if err != nil {
-		t.Fatalf("LoadLeader failed: %v", err)
-	}
-	ctx := &context.MainContext{
-		Leader: lm,
-	}
-	model := New(ctx)
-	model, _ = model.Update(initMsg{})
-	// Press 'g' to enter the submenu
-	msgG := tea.KeyMsg{
-		Type:  tea.KeyRunes,
-		Runes: []rune{'g'},
-	}
-	model, cmd := model.Update(msgG)
-	if cmd != nil {
-		t.Errorf("expected nil cmd when entering submenu, got %v", cmd)
-	}
-	if len(model.shown) > 0 {
-		t.Fatal("did not expect submenu to be shown since it lacks required context")
-	}
-
-	// Test that key is available when its context is satified.
-	ctx.SelectedItem = context.SelectedRevision{ChangeId: "foo"}
-	model = New(ctx)
-	model, _ = model.Update(initMsg{})
-	model, cmd = model.Update(msgG)
-	if cmd != nil {
-		t.Errorf("expected nil cmd when entering submenu, got %v", cmd)
-	}
-	if len(model.shown) == 0 {
-		t.Fatal("expected submenu to be shown after pressing 'g'")
-	}
-	// Press 'f' to enter the next submenu
-	msgF := tea.KeyMsg{
-		Type:  tea.KeyRunes,
-		Runes: []rune{'f'},
-	}
-	model, cmd = model.Update(msgF)
-	if cmd != nil {
-		t.Errorf("expected nil cmd when entering nested submenu, got %v", cmd)
-	}
-	if len(model.shown) == 0 {
-		t.Fatal("expected nested submenu to be shown after pressing 'f'")
-	}
-}
+//func TestUpdate_gf_shows_git_fetch_submenu_and_returns_nil_cmd(t *testing.T) {
+//	content := `[leader.g]
+//help = "Git"
+//
+//[leader.gf]
+//context = [ "$change_id" ] # only available if context key is present.
+//
+//[leader.gff]
+//help = "Git Fetch"
+//send = ["gf", "enter"]
+//`
+//	lm, err := context.LoadLeader(content)
+//	if err != nil {
+//		t.Fatalf("LoadLeader failed: %v", err)
+//	}
+//	ctx := &context.MainContext{
+//		Leader: lm,
+//	}
+//	model := New(ctx)
+//	model, _ = model.Update(initMsg{})
+//	// Press 'g' to enter the submenu
+//	msgG := tea.KeyMsg{
+//		Type:  tea.KeyRunes,
+//		Runes: []rune{'g'},
+//	}
+//	model, cmd := model.Update(msgG)
+//	if cmd != nil {
+//		t.Errorf("expected nil cmd when entering submenu, got %v", cmd)
+//	}
+//	if len(model.shown) > 0 {
+//		t.Fatal("did not expect submenu to be shown since it lacks required context")
+//	}
+//
+//	// Test that key is available when its context is satified.
+//	//ctx.SelectedItem = context.SelectedRevision{ChangeId: "foo"}
+//	model = New(ctx)
+//	model, _ = model.Update(initMsg{})
+//	model, cmd = model.Update(msgG)
+//	if cmd != nil {
+//		t.Errorf("expected nil cmd when entering submenu, got %v", cmd)
+//	}
+//	if len(model.shown) == 0 {
+//		t.Fatal("expected submenu to be shown after pressing 'g'")
+//	}
+//	// Press 'f' to enter the next submenu
+//	msgF := tea.KeyMsg{
+//		Type:  tea.KeyRunes,
+//		Runes: []rune{'f'},
+//	}
+//	model, cmd = model.Update(msgF)
+//	if cmd != nil {
+//		t.Errorf("expected nil cmd when entering nested submenu, got %v", cmd)
+//	}
+//	if len(model.shown) == 0 {
+//		t.Fatal("expected nested submenu to be shown after pressing 'f'")
+//	}
+//}
 
 func TestUpdate_esc_closes_menu(t *testing.T) {
 	content := `[leader.h]

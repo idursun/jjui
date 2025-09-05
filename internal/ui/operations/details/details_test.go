@@ -3,9 +3,11 @@ package details
 import (
 	"bytes"
 	"testing"
-	"time"
 
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/common/models"
+	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 
 	"github.com/idursun/jjui/test"
 
@@ -29,7 +31,14 @@ func TestModel_Init_ExecutesStatusCommand(t *testing.T) {
 	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
 	defer commandRunner.Verify()
 
-	model := test.NewShell(New(test.NewTestContext(commandRunner), Commit))
+	appContext := context.NewAppContext(commandRunner, "")
+	appContext.Revisions.Revisions.SetItems([]*models.RevisionItem{
+		{Row: models.Row{Commit: Commit}},
+	})
+	appContext.Revisions.Revisions.Cursor = 0
+	model := NewOperation(appContext, Commit)
+	viewManager := view.NewViewManager()
+	_ = viewManager.CreateView(model)
 	tm := teatest.NewTestModel(t, model)
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("file.txt"))
@@ -43,7 +52,26 @@ func TestModel_Update_RestoresSelectedFiles(t *testing.T) {
 	commandRunner.Expect(jj.Restore(Revision, []string{"file.txt"}))
 	defer commandRunner.Verify()
 
-	tm := teatest.NewTestModel(t, test.NewShell(New(test.NewTestContext(commandRunner), Commit)))
+	appContext := context.NewAppContext(commandRunner, "")
+	appContext.Revisions.Revisions.SetItems([]*models.RevisionItem{
+		{Row: models.Row{Commit: Commit}},
+	})
+	appContext.Revisions.Revisions.Cursor = 0
+	appContext.Files.SetItems([]*models.RevisionFileItem{
+		{
+			Checkable: &models.Checkable{Checked: false},
+			Status:    0,
+			Name:      "file.txt",
+			FileName:  "file.txt",
+			Conflict:  false,
+		},
+	})
+	appContext.Files.Cursor = 0
+	model := NewOperation(appContext, Commit)
+	viewManager := view.NewViewManager()
+	_ = viewManager.CreateView(model)
+	viewManager.FocusView(model.Id)
+	tm := teatest.NewTestModel(t, model)
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("file.txt"))
 	})
@@ -51,7 +79,10 @@ func TestModel_Update_RestoresSelectedFiles(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeySpace})
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return model.confirmation == nil
+	})
+	tm.Quit()
 }
 
 func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
@@ -61,7 +92,16 @@ func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
 	commandRunner.Expect(jj.Split(Revision, []string{"file.txt"}))
 	defer commandRunner.Verify()
 
-	tm := teatest.NewTestModel(t, test.NewShell(New(test.NewTestContext(commandRunner), Commit)))
+	appContext := context.NewAppContext(commandRunner, "")
+	appContext.Revisions.Revisions.SetItems([]*models.RevisionItem{
+		{Row: models.Row{Commit: Commit}},
+	})
+	appContext.Revisions.Revisions.Cursor = 0
+	model := NewOperation(appContext, Commit)
+	viewManager := view.NewViewManager()
+	_ = viewManager.CreateView(model)
+	viewManager.FocusView(model.Id)
+	tm := teatest.NewTestModel(t, model)
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("file.txt"))
 	})
@@ -69,7 +109,10 @@ func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeySpace})
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return !viewManager.IsFocused(model.Id)
+	})
+	tm.Quit()
 }
 
 func TestModel_Update_HandlesMovedFiles(t *testing.T) {
@@ -79,7 +122,16 @@ func TestModel_Update_HandlesMovedFiles(t *testing.T) {
 	commandRunner.Expect(jj.Restore(Revision, []string{"internal/ui/file.go", "sub/newfile"}))
 	defer commandRunner.Verify()
 
-	tm := teatest.NewTestModel(t, test.NewShell(New(test.NewTestContext(commandRunner), Commit)))
+	appContext := context.NewAppContext(commandRunner, "")
+	appContext.Revisions.Revisions.SetItems([]*models.RevisionItem{
+		{Row: models.Row{Commit: Commit}},
+	})
+	appContext.Revisions.Revisions.Cursor = 0
+	model := NewOperation(appContext, Commit)
+	viewManager := view.NewViewManager()
+	_ = viewManager.CreateView(model)
+	viewManager.FocusView(model.Id)
+	tm := teatest.NewTestModel(t, model)
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("file.go"))
 	})
@@ -88,5 +140,8 @@ func TestModel_Update_HandlesMovedFiles(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeySpace})
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return model.confirmation == nil
+	})
+	tm.Quit()
 }

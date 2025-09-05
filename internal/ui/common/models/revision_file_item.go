@@ -11,6 +11,8 @@ var (
 	Renamed  Status = 3
 )
 
+var _ IItem = (*RevisionFileItem)(nil)
+
 type RevisionFileItem struct {
 	*Checkable
 	Status   Status
@@ -33,4 +35,12 @@ func (r *RevisionFileItem) Title() string {
 	}
 
 	return fmt.Sprintf("%s %s", status, r.Name)
+}
+
+func (r *RevisionFileItem) Equals(other IItem) bool {
+	otherFile, ok := other.(*RevisionFileItem)
+	if !ok || otherFile == nil {
+		return false
+	}
+	return r.FileName == otherFile.FileName && r.Name == otherFile.Name && r.Status == otherFile.Status && r.Conflict == otherFile.Conflict
 }

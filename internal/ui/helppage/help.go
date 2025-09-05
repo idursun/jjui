@@ -10,37 +10,35 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
+var _ view.IViewModel = (*Model)(nil)
+
 type Model struct {
-	width   int
-	height  int
+	*view.ViewNode
 	keyMap  config.KeyMappings[key.Binding]
 	context *context.MainContext
 	styles  styles
 }
+
+func (h *Model) GetId() view.ViewId {
+	return "help"
+}
+
+func (h *Model) Mount(v *view.ViewNode) {
+	h.ViewNode = v
+	v.Id = "help"
+	v.Sizeable.SetWidth(100)
+	v.Sizeable.SetHeight(30)
+}
+
 type styles struct {
 	border   lipgloss.Style
 	title    lipgloss.Style
 	text     lipgloss.Style
 	shortcut lipgloss.Style
 	dimmed   lipgloss.Style
-}
-
-func (h *Model) Width() int {
-	return h.width
-}
-
-func (h *Model) Height() int {
-	return h.height
-}
-
-func (h *Model) SetWidth(w int) {
-	h.width = w
-}
-
-func (h *Model) SetHeight(height int) {
-	h.height = height
 }
 
 func (h *Model) ShortHelp() []key.Binding {
@@ -60,7 +58,8 @@ func (h *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, h.keyMap.Help), key.Matches(msg, h.keyMap.Cancel):
-			return h, common.Close
+			h.ViewManager.UnregisterView(h.GetId())
+			return h, nil
 		}
 	}
 	return h, nil
@@ -209,7 +208,7 @@ func (h *Model) renderColumn(width int, height int, lines ...string) string {
 	return column
 }
 
-func New(context *context.MainContext) *Model {
+func New(context *context.MainContext) view.IViewModel {
 	styles := styles{
 		border:   common.DefaultPalette.GetBorder("help border", lipgloss.NormalBorder()).Padding(1),
 		title:    common.DefaultPalette.Get("help title").PaddingLeft(1),
@@ -217,9 +216,10 @@ func New(context *context.MainContext) *Model {
 		dimmed:   common.DefaultPalette.Get("help dimmed").PaddingLeft(1),
 		shortcut: common.DefaultPalette.Get("help shortcut"),
 	}
-	return &Model{
+	m := &Model{
 		context: context,
 		keyMap:  config.Current.GetKeyMap(),
 		styles:  styles,
 	}
+	return m
 }

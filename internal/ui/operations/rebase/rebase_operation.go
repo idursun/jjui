@@ -13,6 +13,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type Source int
@@ -45,7 +46,13 @@ var (
 	}
 )
 
+var _ tea.Model = (*Operation)(nil)
+var _ view.IViewModel = (*Operation)(nil)
+var _ view.IView = (*Operation)(nil)
+var _ operations.Operation = (*Operation)(nil)
+
 type Operation struct {
+	*view.ViewNode
 	context        *context.MainContext
 	From           jj.SelectedRevisions
 	InsertStart    *jj.Commit
@@ -55,6 +62,39 @@ type Operation struct {
 	keyMap         config.KeyMappings[key.Binding]
 	highlightedIds []string
 	styles         styles
+}
+
+func (r *Operation) Mount(v *view.ViewNode) {
+	r.ViewNode = v
+	v.Id = r.GetId()
+	keyDelegatedViewId := view.RevisionsViewId
+	v.KeyDelegation = &keyDelegatedViewId
+	v.NeedsRefresh = true
+}
+
+func (r *Operation) GetId() view.ViewId {
+	return "rebase"
+}
+
+func (r *Operation) Init() tea.Cmd {
+	return nil
+}
+
+func (r *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if cmd := r.HandleKey(msg); cmd != nil {
+			return r, cmd
+		}
+	case common.RefreshMsg:
+		r.setSelectedRevision()
+		return r, nil
+	}
+	return r, nil
+}
+
+func (r *Operation) View() string {
+	return ""
 }
 
 type styles struct {
@@ -84,21 +124,31 @@ func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		r.Target = TargetInsert
 		r.InsertStart = r.To
 	case key.Matches(msg, r.keyMap.Apply, r.keyMap.ForceApply):
+		r.ViewManager.UnregisterView(r.GetId())
 		ignoreImmutable := key.Matches(msg, r.keyMap.ForceApply)
 		if r.Target == TargetInsert {
-			return r.context.RunCommand(jj.RebaseInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId(), ignoreImmutable), common.RefreshAndSelect(r.From.Last()), common.Close)
+			return r.context.RunCommand(jj.RebaseInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId(), ignoreImmutable), common.RefreshAndSelect(r.From.Last()))
 		} else {
 			source := sourceToFlags[r.Source]
 			target := targetToFlags[r.Target]
-			return r.context.RunCommand(jj.Rebase(r.From, r.To.GetChangeId(), source, target, ignoreImmutable), common.RefreshAndSelect(r.From.Last()), common.Close)
+			return r.context.RunCommand(jj.Rebase(r.From, r.To.GetChangeId(), source, target, ignoreImmutable), common.RefreshAndSelect(r.From.Last()))
 		}
 	case key.Matches(msg, r.keyMap.Cancel):
-		return common.Close
+		r.ViewManager.UnregisterView(r.GetId())
+		return nil
 	}
 	return nil
 }
 
-func (r *Operation) SetSelectedRevision(commit *jj.Commit) {
+func (r *Operation) setSelectedRevision() {
+	current := r.context.Revisions.Current()
+	if current == nil {
+		return
+	}
+	commit := current.Commit
+	if commit == nil {
+		return
+	}
 	r.highlightedIds = nil
 	r.To = commit
 	revset := ""
@@ -218,11 +268,7 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	)
 }
 
-func (r *Operation) Name() string {
-	return "rebase"
-}
-
-func NewOperation(context *context.MainContext, from jj.SelectedRevisions, source Source, target Target) *Operation {
+func NewOperation(context *context.MainContext, from jj.SelectedRevisions, source Source, target Target) view.IViewModel {
 	styles := styles{
 		changeId:     common.DefaultPalette.Get("rebase change_id"),
 		shortcut:     common.DefaultPalette.Get("rebase shortcut"),

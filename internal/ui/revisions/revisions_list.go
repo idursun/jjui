@@ -7,10 +7,24 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/operations"
 )
+
+var _ list.IItemRenderer = (*RevisionList)(nil)
+
+type RevisionList struct {
+	*list.CheckableList[*models.RevisionItem]
+	renderer      *list.ListRenderer[*models.RevisionItem]
+	Tracer        parser.LaneTracer
+	getOpFn       func() operations.Operation
+	dimmedStyle   lipgloss.Style
+	checkStyle    lipgloss.Style
+	textStyle     lipgloss.Style
+	selectedStyle lipgloss.Style
+}
 
 func (r *RevisionList) GetItemHeight(index int) int {
 	return len(r.Items[index].Lines)
@@ -20,6 +34,7 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 	row := r.Items[index]
 	inLane := r.Tracer.IsInSameLane(index)
 	isHighlighted := index == r.Cursor
+	// render: before
 	if before := r.RenderBefore(row.Commit); before != "" {
 		extended := models.GraphGutter{}
 		if row.Previous != nil {
@@ -28,7 +43,8 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 		r.writeSection(w, index, extended, extended, false, before)
 	}
 
-	descriptionOverlay := r.Context.Op.Render(row.Commit, operations.RenderOverDescription)
+	// render: description overlay
+	descriptionOverlay := r.getOpFn().Render(row.Commit, operations.RenderOverDescription)
 	requiresDescriptionRendering := descriptionOverlay != "" && isHighlighted
 	descriptionRendered := false
 
@@ -59,6 +75,7 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 			}
 		}
 
+		// render: gutter
 		for i, segment := range segmentedLine.Gutter.Segments {
 			gutterInLane := r.Tracer.IsGutterInLane(index, lineIndex, i)
 			text := r.Tracer.UpdateGutterText(index, lineIndex, i, segment.Text)
@@ -71,12 +88,14 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 			fmt.Fprint(&lw, style.Render(text))
 		}
 
+		// render: before change id
 		if segmentedLine.Flags&models.Revision == models.Revision {
 			if decoration := r.RenderBeforeChangeId(index, row); decoration != "" {
 				fmt.Fprint(&lw, decoration)
 			}
 		}
 
+		// render: after change id
 		for _, segment := range segmentedLine.Segments {
 			if isHighlighted && segment.Text == row.Commit.CommitId {
 				if decoration := r.RenderBeforeCommitId(row.Commit); decoration != "" {
@@ -93,17 +112,20 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 				style = style.Inherit(r.dimmedStyle).Faint(true)
 			}
 
-			start, end := segment.FindSubstringRange(r.quickSearch)
-			if start != -1 {
-				mid := lipgloss.NewRange(start, end, style.Reverse(true))
-				fmt.Fprint(&lw, lipgloss.StyleRanges(style.Render(segment.Text), mid))
-			} else if aceIdx := r.aceJumpIndex(segment, row.Row); aceIdx > -1 {
-				mid := lipgloss.NewRange(aceIdx, aceIdx+1, style.Reverse(true))
-				fmt.Fprint(&lw, lipgloss.StyleRanges(style.Render(segment.Text), mid))
-			} else {
-				fmt.Fprint(&lw, style.Render(segment.Text))
+			op := r.getOpFn()
+			if sr, ok := op.(operations.SegmentRenderer); ok {
+				rendered := sr.RenderSegment(style, segment, row)
+				if rendered != "" {
+					fmt.Fprint(&lw, style.Render(rendered))
+					continue
+				}
 			}
+
+			// if the SegmentRenderer did not render anything, fall back to default rendering
+			fmt.Fprint(&lw, style.Render(segment.Text))
 		}
+
+		// render: affected by last operation
 		if segmentedLine.Flags&models.Revision == models.Revision && row.IsAffected {
 			style := r.dimmedStyle
 			if isHighlighted {
@@ -120,6 +142,7 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 		fmt.Fprint(r.renderer, "\n")
 	}
 
+	// render: description overlay if not yet rendered
 	if requiresDescriptionRendering && !descriptionRendered {
 		r.writeSection(r.renderer, index, row.Extend(), row.Extend(), true, descriptionOverlay)
 	}
@@ -128,11 +151,13 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 		return
 	}
 
+	// render: after
 	if afterSection := r.RenderAfter(row.Commit); afterSection != "" {
 		extended := row.Extend()
 		r.writeSection(r.renderer, index, extended, extended, false, afterSection)
 	}
 
+	// render: remaining lines (non-highlightable)
 	for lineIndex, segmentedLine := range row.RowLinesIter(models.Excluding(models.Highlightable)) {
 		var lw strings.Builder
 		for i, segment := range segmentedLine.Gutter.Segments {
@@ -178,18 +203,18 @@ func (r *RevisionList) writeSection(w io.Writer, index int, current models.Graph
 }
 
 func (r *RevisionList) RenderBefore(commit *jj.Commit) string {
-	return r.Context.Op.Render(commit, operations.RenderPositionBefore)
+	return r.getOpFn().Render(commit, operations.RenderPositionBefore)
 }
 
 func (r *RevisionList) RenderAfter(commit *jj.Commit) string {
-	return r.Context.Op.Render(commit, operations.RenderPositionAfter)
+	return r.getOpFn().Render(commit, operations.RenderPositionAfter)
 }
 
 func (r *RevisionList) RenderBeforeChangeId(index int, item *models.RevisionItem) string {
 	commit := item.Commit
 	isSelected := item.IsChecked()
 	isHighlighted := r.Cursor == index
-	opMarker := r.Context.Op.Render(commit, operations.RenderBeforeChangeId)
+	opMarker := r.getOpFn().Render(commit, operations.RenderBeforeChangeId)
 	selectedMarker := ""
 	if isSelected {
 		if isHighlighted {
@@ -218,24 +243,5 @@ func (r *RevisionList) RenderBeforeChangeId(index int, item *models.RevisionItem
 }
 
 func (r *RevisionList) RenderBeforeCommitId(commit *jj.Commit) string {
-	return r.Context.Op.Render(commit, operations.RenderBeforeCommitId)
-}
-
-func (r *RevisionList) aceJumpIndex(segment *screen.Segment, row models.Row) int {
-	aceJumpPrefix := r.aceJump.Prefix()
-	if aceJumpPrefix == nil || row.Commit == nil {
-		return -1
-	}
-	if !(segment.Text == row.Commit.ChangeId || segment.Text == row.Commit.CommitId) {
-		return -1
-	}
-	lowerText, lowerPrefix := strings.ToLower(segment.Text), strings.ToLower(*aceJumpPrefix)
-	if !strings.HasPrefix(lowerText, lowerPrefix) {
-		return -1
-	}
-	idx := len(lowerPrefix)
-	if idx == len(lowerText) {
-		idx-- // dont move past last character
-	}
-	return idx
+	return r.getOpFn().Render(commit, operations.RenderBeforeCommitId)
 }
