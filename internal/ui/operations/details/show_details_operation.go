@@ -9,12 +9,12 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type Operation struct {
-	*context.BaseView
+	*view.BaseView
 	context           *context.DetailsContext
-	Overlay           *Model
 	Current           *jj.Commit
 	keyMap            config.KeyMappings[key.Binding]
 	targetMarkerStyle lipgloss.Style
@@ -25,17 +25,18 @@ func (s *Operation) SetSelectedRevision(commit *jj.Commit) {
 	s.Current = commit
 }
 
-func (s *Operation) ShortHelp() []key.Binding {
-	return s.Overlay.ShortHelp()
-}
-
-func (s *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{s.ShortHelp()}
-}
+//
+//func (s *Operation) ShortHelp() []key.Binding {
+//	return s.Model.ShortHelp()
+//}
+//
+//func (s *Operation) FullHelp() [][]key.Binding {
+//	return [][]key.Binding{s.ShortHelp()}
+//}
 
 func (s *Operation) Update(msg tea.Msg) (operations.OperationWithOverlay, tea.Cmd) {
 	var cmd tea.Cmd
-	s.Overlay, cmd = s.Overlay.Update(msg)
+	s.Model, cmd = s.Model.Update(msg)
 	return s, cmd
 }
 
@@ -44,7 +45,7 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return ""
 	}
-	return s.Overlay.View()
+	return s.Model.View()
 }
 
 func (s *Operation) Name() string {
@@ -52,9 +53,9 @@ func (s *Operation) Name() string {
 }
 
 func NewOperation(ctx *context.DetailsContext, selected *jj.Commit) *Operation {
+	m := New(ctx.Main, selected)
 	op := &Operation{
-		BaseView:          &context.BaseView{Id: "details", Visible: true, Focused: true},
-		Overlay:           New(ctx.Main, selected),
+		BaseView:          &view.BaseView{Id: "details", Visible: true, Focused: true, Model: m},
 		context:           ctx,
 		selected:          selected,
 		keyMap:            config.Current.GetKeyMap(),

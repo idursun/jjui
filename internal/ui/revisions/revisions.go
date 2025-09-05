@@ -11,6 +11,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
 	"github.com/idursun/jjui/internal/ui/operations/megamerge"
 	"github.com/idursun/jjui/internal/ui/operations/revert"
+	"github.com/idursun/jjui/internal/ui/view"
 
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/operations/describe"
@@ -45,8 +46,7 @@ type RevisionList struct {
 }
 
 type Model struct {
-	*common.Sizeable
-	*appContext.BaseView
+	*view.BaseView
 	*appContext.RevisionsContext
 	*RevisionList
 	context         *appContext.MainContext
@@ -120,7 +120,7 @@ func (m *Model) Init() tea.Cmd {
 	return common.RefreshAndSelect("@")
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(revisionsMsg); ok {
 		msg = k.msg
 	}
@@ -194,6 +194,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.IsAceJumping() {
+			jump := m.HandleAceJump(msg)
+			return m, jump
+		}
 		switch {
 		case key.Matches(msg, m.keymap.Up):
 			if m.Cursor > 0 {
@@ -236,8 +240,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				return m, nil
 			case key.Matches(msg, m.keymap.Details.Mode):
 				op := details.NewOperation(m.Files, m.Revisions.Current().Commit)
-				m.context.ActiveList = appContext.ListFiles
-				m.context.Revisions.BaseView.Add(op.BaseView)
+				m.context.ActiveList = view.ListFiles
 				return m, tea.Sequence(m.Files.Load(), m.SetOperation(op), tea.WindowSize())
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
 				m.Op, cmd = describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
@@ -398,10 +401,6 @@ func (m *Model) search(startIndex int) int {
 	return m.Cursor
 }
 
-func (m *Model) CurrentOperation() operations.Operation {
-	return m.Op
-}
-
 func (m *Model) GetCommitIds() []string {
 	var commitIds []string
 	for _, row := range m.Items {
@@ -410,11 +409,10 @@ func (m *Model) GetCommitIds() []string {
 	return commitIds
 }
 
-func New(c *appContext.MainContext) Model {
+func New(c *appContext.MainContext) *view.BaseView {
 	keymap := config.Current.GetKeyMap()
 	l := c.Revisions.Revisions
 	size := common.NewSizeable(20, 10)
-	view := &appContext.BaseView{Id: "revisions", Visible: true, Focused: true}
 
 	rl := &RevisionList{
 		Context:       c.Revisions,
@@ -427,14 +425,17 @@ func New(c *appContext.MainContext) Model {
 		Tracer:        parser.NewNoopTracer(),
 	}
 	rl.renderer = list.NewRenderer[*models.RevisionItem](l.List, rl.RenderItem, rl.GetItemHeight, size)
-	return Model{
+
+	view := &view.BaseView{Id: "revisions", Visible: true, Focused: true, Sizeable: size}
+	m := Model{
 		BaseView:         view,
 		RevisionsContext: c.Revisions,
-		Sizeable:         size,
 		RevisionList:     rl,
 		context:          c,
 		keymap:           keymap,
 	}
+	view.Model = &m
+	return view
 }
 
 func (m *Model) updateOperation(msg tea.Msg) (tea.Cmd, bool) {

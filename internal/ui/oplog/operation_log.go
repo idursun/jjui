@@ -15,6 +15,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type updateOpLogMsg struct {
@@ -56,7 +57,7 @@ func (o *OpLogList) GetItemHeight(index int) int {
 }
 
 type Model struct {
-	*common.Sizeable
+	*view.BaseView
 	*OpLogList
 	context *context.MainContext
 	keymap  config.KeyMappings[key.Binding]
@@ -74,7 +75,7 @@ func (m *Model) Init() tea.Cmd {
 	return m.load()
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case updateOpLogMsg:
 		m.Items = msg.Rows
@@ -126,8 +127,8 @@ func (m *Model) load() tea.Cmd {
 	}
 }
 
-func New(ctx *context.MainContext, width int, height int) *Model {
-	ctx.ActiveList = context.ListOplog
+func New(ctx *context.MainContext, width int, height int) *view.BaseView {
+	ctx.ActiveList = view.ListOplog
 	size := common.NewSizeable(width, height)
 
 	keyMap := config.Current.GetKeyMap()
@@ -138,10 +139,12 @@ func New(ctx *context.MainContext, width int, height int) *Model {
 		textStyle:     common.DefaultPalette.Get("oplog text"),
 	}
 	ol.renderer = list.NewRenderer[*models.OperationLogItem](l, ol.RenderItem, ol.GetItemHeight, size)
-	return &Model{
+	m := &Model{
+		BaseView:  &view.BaseView{Id: "oplog", Visible: false, Focused: false, Sizeable: size},
 		OpLogList: ol,
-		Sizeable:  size,
 		context:   ctx,
 		keymap:    keyMap,
 	}
+	m.BaseView.Model = m
+	return m.BaseView
 }

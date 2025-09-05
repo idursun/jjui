@@ -14,6 +14,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type viewRange struct {
@@ -22,7 +23,7 @@ type viewRange struct {
 }
 
 type previewState struct {
-	activeList context.ListId
+	activeList view.ListId
 	pos        int
 }
 
@@ -37,8 +38,7 @@ func (p *previewState) Equals(other *previewState) bool {
 }
 
 type Model struct {
-	*common.Sizeable
-	*context.BaseView
+	*view.BaseView
 	tag              int
 	viewRange        *viewRange
 	help             help.Model
@@ -68,12 +68,13 @@ type refreshPreviewContentMsg struct {
 }
 
 func (m *Model) SetHeight(h int) {
-	m.viewRange.end = min(m.viewRange.start+h-3, m.contentLineCount)
 	m.Height = h
 }
 
 func (m *Model) Init() tea.Cmd {
-	return nil
+	return tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
+		return refreshPreviewContentMsg{Tag: m.tag}
+	})
 }
 
 func (m *Model) updatePreviewContent(content string) {
@@ -82,7 +83,7 @@ func (m *Model) updatePreviewContent(content string) {
 	m.reset()
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(previewMsg); ok {
 		msg = k.msg
 	}
@@ -102,14 +103,17 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case refreshPreviewContentMsg:
 		if m.tag == msg.Tag {
 			replacements := m.context.CreateReplacements()
+			if m.state == nil {
+				m.state = capture(m.context)
+			}
 			switch m.state.activeList {
-			case context.ListRevisions:
+			case view.ListRevisions:
 				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
 				m.updatePreviewContent(string(output))
-			case context.ListFiles:
+			case view.ListFiles:
 				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
 				m.updatePreviewContent(string(output))
-			case context.ListOplog:
+			case view.ListOplog:
 				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
 				m.updatePreviewContent(string(output))
 			}
@@ -146,13 +150,14 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
+	m.viewRange.end = min(m.viewRange.start+m.Height-2, m.contentLineCount)
 	var w strings.Builder
 	scanner := bufio.NewScanner(strings.NewReader(m.content))
 	current := 0
 	for scanner.Scan() {
 		line := scanner.Text()
 		line = strings.ReplaceAll(line, "\r", "")
-		if current >= m.viewRange.start && current <= m.viewRange.end {
+		if current >= m.viewRange.start && current < m.viewRange.end {
 			if current > m.viewRange.start {
 				w.WriteString("\n")
 			}
@@ -163,8 +168,14 @@ func (m *Model) View() string {
 			break
 		}
 	}
-	view := lipgloss.Place(m.Width-2, m.Height-2, 0, 0, w.String())
-	return m.borderStyle.Render(view)
+	content := w.String()
+	view := lipgloss.Place(m.Width-2, m.Height-2, 0, 0, content)
+	width, height := lipgloss.Size(view)
+	log.Println("preview: raw content size:", width, height, "size:", m.Width, m.Height)
+	view = m.borderStyle.Render(view)
+	width, height = lipgloss.Size(view)
+	log.Println("preview: bordered content size:", width, height, "size:", m.Width, m.Height)
+	return view
 }
 
 func (m *Model) reset() {
@@ -183,13 +194,13 @@ func (m *Model) IsDirty() bool {
 func capture(ctx *context.MainContext) *previewState {
 	var pos int
 	switch ctx.ActiveList {
-	case context.ListRevisions:
+	case view.ListRevisions:
 		pos = ctx.Revisions.Revisions.Cursor
-	case context.ListFiles:
+	case view.ListFiles:
 		pos = ctx.Revisions.Files.Cursor
-	case context.ListOplog:
+	case view.ListOplog:
 		pos = ctx.OpLog.Cursor
-	case context.ListEvolog:
+	case view.ListEvolog:
 		pos = ctx.Evolog.Cursor
 	}
 	return &previewState{
@@ -198,13 +209,12 @@ func capture(ctx *context.MainContext) *previewState {
 	}
 }
 
-func New(ctx *context.MainContext) Model {
+func New(ctx *context.MainContext) *view.BaseView {
 	borderStyle := common.DefaultPalette.GetBorder("preview border", lipgloss.NormalBorder())
 	borderStyle = borderStyle.Inherit(common.DefaultPalette.Get("preview text"))
 
-	return Model{
-		BaseView:    &context.BaseView{Id: "preview", Visible: ctx.Preview.Visible, Focused: false},
-		Sizeable:    &common.Sizeable{Width: 0, Height: 0},
+	m := Model{
+		BaseView:    &view.BaseView{Id: "preview", Visible: ctx.Preview.Visible, Focused: false, Sizeable: &common.Sizeable{Width: 0, Height: 0}},
 		state:       nil,
 		viewRange:   &viewRange{start: 0, end: 0},
 		context:     ctx,
@@ -212,4 +222,6 @@ func New(ctx *context.MainContext) Model {
 		help:        help.New(),
 		borderStyle: borderStyle,
 	}
+	m.BaseView.Model = &m
+	return m.BaseView
 }

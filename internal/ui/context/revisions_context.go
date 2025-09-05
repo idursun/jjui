@@ -15,10 +15,10 @@ import (
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type RevisionsContext struct {
-	*BaseView
 	CommandRunner
 	Files            *DetailsContext
 	Parent           *MainContext
@@ -33,7 +33,6 @@ type RevisionsContext struct {
 
 func NewRevisionsContext(ctx *MainContext) *RevisionsContext {
 	return &RevisionsContext{
-		BaseView:      &BaseView{Visible: true, Focused: false},
 		Parent:        ctx,
 		CommandRunner: ctx.CommandRunner,
 		Op:            operations.NewDefault(),
@@ -160,7 +159,7 @@ func (m *RevisionsContext) SetOperation(op operations.Operation, continuations .
 
 func (m *RevisionsContext) CloseOperation() tea.Cmd {
 	return func() tea.Msg {
-		m.Parent.ActiveList = ListRevisions
+		m.Parent.ActiveList = view.ListRevisions
 		m.Op = operations.NewDefault()
 		m.Files.SetItems(nil)
 		return nil

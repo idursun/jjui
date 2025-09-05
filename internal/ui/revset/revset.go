@@ -9,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type EditRevSetMsg struct {
@@ -16,7 +17,7 @@ type EditRevSetMsg struct {
 }
 
 type Model struct {
-	*common.Sizeable
+	*view.BaseView
 	Editing         bool
 	autoComplete    *autocompletion.AutoCompletionInput
 	keymap          keymap
@@ -54,22 +55,27 @@ func (k keymap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{k.ShortHelp()}
 }
 
-func New(context *appContext.MainContext) *Model {
+func New(ctx *appContext.MainContext) *view.BaseView {
 	styles := styles{
 		promptStyle: common.DefaultPalette.Get("revset title"),
 		textStyle:   common.DefaultPalette.Get("revset text"),
 	}
 
-	revsetAliases := context.JJConfig.RevsetAliases
+	revsetAliases := ctx.JJConfig.RevsetAliases
 	completionProvider := NewCompletionProvider(revsetAliases)
 	autoComplete := autocompletion.New(completionProvider, autocompletion.WithStylePrefix("revset"))
 
-	autoComplete.SetValue(context.DefaultRevset)
+	autoComplete.SetValue(ctx.DefaultRevset)
 	autoComplete.Focus()
 
-	return &Model{
-		Sizeable:        &common.Sizeable{Width: 0, Height: 0},
-		context:         context,
+	m := &Model{
+		BaseView: &view.BaseView{
+			Id:       "revset",
+			Visible:  true,
+			Focused:  false,
+			Sizeable: &common.Sizeable{Width: 0, Height: 1},
+		},
+		context:         ctx,
 		Editing:         false,
 		keymap:          keymap{},
 		autoComplete:    autoComplete,
@@ -78,6 +84,8 @@ func New(context *appContext.MainContext) *Model {
 		MaxHistoryItems: 50,
 		styles:          styles,
 	}
+	m.BaseView.Model = m
+	return m.BaseView
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -112,7 +120,7 @@ func (m *Model) SetHistory(history []string) {
 	m.historyActive = false
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if !m.Editing {

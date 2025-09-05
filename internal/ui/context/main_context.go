@@ -3,48 +3,16 @@ package context
 import (
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/common/models"
+	"github.com/idursun/jjui/internal/ui/view"
 )
-
-type ListId int
-
-const (
-	ListRevisions ListId = iota
-	ListFiles
-	ListOplog
-	ListEvolog
-)
-
-type ViewId string
-
-type BaseView struct {
-	tea.Model
-	Id      ViewId
-	Visible bool
-	Focused bool
-	Sub     map[ViewId]*BaseView
-}
-
-func (v *BaseView) Add(sub *BaseView) {
-	if v.Sub == nil {
-		v.Sub = make(map[ViewId]*BaseView)
-	}
-	v.Sub[sub.Id] = sub
-}
-
-func (v *BaseView) Remove(id ViewId) {
-	if v.Sub != nil {
-		delete(v.Sub, id)
-	}
-}
 
 type MainContext struct {
 	CommandRunner
-	ActiveList     ListId
+	ActiveList     view.ListId
 	Revisions      *RevisionsContext
 	Preview        *PreviewContext
 	OpLog          *list.List[*models.OperationLogItem]
@@ -56,6 +24,7 @@ type MainContext struct {
 	DefaultRevset  string
 	CurrentRevset  string
 	Histories      *config.Histories
+	Root           *view.LayoutContainer
 }
 
 func NewAppContext(location string) *MainContext {

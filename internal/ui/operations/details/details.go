@@ -17,6 +17,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations/squash"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type styles struct {
@@ -95,7 +96,7 @@ func (d *DetailsList) GetItemHeight(int) int {
 
 type Model struct {
 	*common.Sizeable
-	*context.BaseView
+	*view.BaseView
 	*DetailsList
 	context      *context.MainContext
 	revision     *jj.Commit
@@ -146,7 +147,7 @@ func New(ctx *context.MainContext, revision *jj.Commit) *Model {
 	dl.renderer = list.NewRenderer[*models.RevisionFileItem](dl.List, dl.RenderItem, dl.GetItemHeight, common.NewSizeable(5, 5))
 	return &Model{
 		Sizeable: size,
-		BaseView: &context.BaseView{
+		BaseView: &view.BaseView{
 			Id:      "details",
 			Visible: true,
 			Focused: true,
@@ -162,7 +163,7 @@ func (m *Model) Init() tea.Cmd {
 	return tea.WindowSize()
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.confirmation != nil {

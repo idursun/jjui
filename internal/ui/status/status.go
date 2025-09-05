@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/view"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -32,7 +33,7 @@ const (
 )
 
 type Model struct {
-	*context.BaseView
+	*view.BaseView
 	context    *context.MainContext
 	spinner    spinner.Model
 	input      textinput.Model
@@ -97,7 +98,7 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	km := config.Current.GetKeyMap()
 	switch msg := msg.(type) {
 	case clearMsg:
@@ -256,6 +257,9 @@ func (m *Model) SetMode(mode string) {
 }
 
 func (m *Model) helpView(keyMap help.KeyMap) string {
+	if keyMap == nil {
+		return ""
+	}
 	shortHelp := keyMap.ShortHelp()
 	var entries []string
 	for _, binding := range shortHelp {
@@ -269,7 +273,7 @@ func (m *Model) helpView(keyMap help.KeyMap) string {
 	return help
 }
 
-func New(ctx *context.MainContext) Model {
+func New(ctx *context.MainContext) *view.BaseView {
 	styles := styles{
 		shortcut: common.DefaultPalette.Get("status shortcut"),
 		dimmed:   common.DefaultPalette.Get("status dimmed"),
@@ -287,8 +291,9 @@ func New(ctx *context.MainContext) Model {
 	t.CompletionStyle = styles.dimmed
 	t.PlaceholderStyle = styles.dimmed
 
-	return Model{
-		BaseView: &context.BaseView{Id: "status", Visible: true, Focused: false},
+	size := common.NewSizeable(50, 1)
+	m := Model{
+		BaseView: &view.BaseView{Id: "status", Visible: true, Focused: false, Sizeable: size},
 		context:  ctx,
 		spinner:  s,
 		command:  "",
@@ -297,4 +302,6 @@ func New(ctx *context.MainContext) Model {
 		keyMap:   nil,
 		styles:   styles,
 	}
+	m.BaseView.Model = &m
+	return m.BaseView
 }

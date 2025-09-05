@@ -12,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/lipgloss"
@@ -198,7 +199,7 @@ func (o *Operation) load() tea.Msg {
 }
 
 func NewOperation(ctx *context.MainContext, revision *jj.Commit, width int, height int) (operations.Operation, tea.Cmd) {
-	ctx.ActiveList = context.ListEvolog
+	ctx.ActiveList = view.ListEvolog
 	size := common.NewSizeable(width, height)
 	l := ctx.Evolog
 	el := &EvologList{
