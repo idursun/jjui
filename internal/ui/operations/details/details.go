@@ -153,6 +153,7 @@ func (m Model) ShortHelp() []key.Binding {
 		m.keyMap.Details.Restore,
 		m.keyMap.Details.Absorb,
 		m.keyMap.Details.RevisionsChangingFile,
+		m.keyMap.Details.OpenFile,
 	}
 }
 
@@ -316,6 +317,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if item, ok := m.files.SelectedItem().(item); ok {
 				return m, tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(%s)", jj.EscapeFileName(item.fileName))))
 			}
+		case key.Matches(msg, m.keyMap.Details.OpenFile):
+			selectedFiles, _ := m.getSelectedFiles()
+			if len(selectedFiles) == 0 {
+				return m, nil
+			}
+
+			return m, tea.Batch(common.Close, common.OpenFiles(selectedFiles))
+
 		default:
 			if len(m.files.Items()) > 0 {
 				var cmd tea.Cmd

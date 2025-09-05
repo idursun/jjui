@@ -84,6 +84,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Diff:                  key.NewBinding(key.WithKeys(m.Details.Diff...), key.WithHelp(JoinKeys(m.Details.Diff), "diff")),
 			ToggleSelect:          key.NewBinding(key.WithKeys(m.Details.ToggleSelect...), key.WithHelp(JoinKeys(m.Details.ToggleSelect), "details toggle select")),
 			RevisionsChangingFile: key.NewBinding(key.WithKeys(m.Details.RevisionsChangingFile...), key.WithHelp(JoinKeys(m.Details.RevisionsChangingFile), "show revisions changing file")),
+			OpenFile:              key.NewBinding(key.WithKeys(m.Details.OpenFile...), key.WithHelp(JoinKeys(m.Details.OpenFile), "open file in editor")),
 		},
 		Bookmark: bookmarkModeKeys[key.Binding]{
 			Mode:    key.NewBinding(key.WithKeys(m.Bookmark.Mode...), key.WithHelp(JoinKeys(m.Bookmark.Mode), "bookmarks")),
@@ -256,6 +257,7 @@ type detailsModeKeys[T any] struct {
 	Diff                  T `toml:"diff"`
 	ToggleSelect          T `toml:"select"`
 	RevisionsChangingFile T `toml:"revisions_changing_file"`
+	OpenFile              T `toml:"open_file"`
 }
 
 type gitModeKeys[T any] struct {

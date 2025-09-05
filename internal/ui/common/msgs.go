@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 )
 
@@ -113,6 +114,20 @@ func JumpToParent(commit *jj.Commit) tea.Cmd {
 			return nil
 		}
 		return JumpToParentMsg{Commit: commit}
+	}
+}
+
+func OpenFiles(paths []string) tea.Cmd {
+	return func() tea.Msg {
+		line := config.GetDefaultEditor()
+		for _, path := range paths {
+			line = line + " " + path
+		}
+
+		return ExecMsg{
+			Line: line,
+			Mode: ExecShell,
+		}
 	}
 }
 
