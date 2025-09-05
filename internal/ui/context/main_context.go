@@ -34,6 +34,11 @@ type MainContext struct {
 	Histories      *config.Histories
 }
 
+type baseView struct {
+	Visible bool
+	Focused bool
+}
+
 func NewAppContext(location string) *MainContext {
 	commandRunner := &MainCommandRunner{
 		Location: location,
@@ -42,12 +47,11 @@ func NewAppContext(location string) *MainContext {
 		CommandRunner: commandRunner,
 		Location:      location,
 		Histories:     config.NewHistories(),
-		Revisions:     NewRevisionsContext(commandRunner),
 		OpLog:         list.NewList[*models.OperationLogItem](),
 		Evolog:        list.NewList[*models.RevisionItem](),
 		Preview:       NewPreviewContext(commandRunner),
 	}
-	m.Revisions.Parent = m
+	m.Revisions = NewRevisionsContext(m)
 
 	m.JJConfig = &config.JJConfig{}
 	if output, err := m.RunCommandImmediate(jj.ConfigListAll()); err == nil {

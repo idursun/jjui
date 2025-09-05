@@ -12,7 +12,7 @@ import (
 )
 
 type Operation struct {
-	context           *context.MainContext
+	context           *context.DetailsContext
 	Overlay           *Model
 	Current           *jj.Commit
 	keyMap            config.KeyMappings[key.Binding]
@@ -50,9 +50,9 @@ func (s *Operation) Name() string {
 	return "details"
 }
 
-func NewOperation(context *context.MainContext, selected *jj.Commit) operations.Operation {
+func NewOperation(context *context.DetailsContext, selected *jj.Commit) operations.Operation {
 	op := &Operation{
-		Overlay:           New(context, selected),
+		Overlay:           New(context.Main, selected),
 		context:           context,
 		selected:          selected,
 		keyMap:            config.Current.GetKeyMap(),

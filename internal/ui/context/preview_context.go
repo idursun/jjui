@@ -3,19 +3,21 @@ package context
 import "github.com/idursun/jjui/internal/config"
 
 type PreviewContext struct {
+	*baseView
 	CommandRunner
 	Current          any
 	AtBottom         bool
-	Visible          bool
-	Focused          bool
 	WindowPercentage float64
 }
 
 func NewPreviewContext(commandRunner CommandRunner) *PreviewContext {
 	return &PreviewContext{
+		baseView: &baseView{
+			Visible: config.Current.Preview.ShowAtStart,
+			Focused: false,
+		},
 		CommandRunner:    commandRunner,
 		AtBottom:         config.Current.Preview.ShowAtBottom,
-		Visible:          config.Current.Preview.ShowAtStart,
 		WindowPercentage: config.Current.Preview.WidthPercentage,
 	}
 }

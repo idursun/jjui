@@ -139,7 +139,7 @@ func New(context *context.MainContext, revision *jj.Commit) *Model {
 	size := common.NewSizeable(5, 5)
 	l := context.Revisions.Files
 	dl := &DetailsList{
-		CheckableList: l,
+		CheckableList: l.CheckableList,
 		styles:        s,
 	}
 	dl.renderer = list.NewRenderer[*models.RevisionFileItem](dl.List, dl.RenderItem, dl.GetItemHeight, common.NewSizeable(5, 5))

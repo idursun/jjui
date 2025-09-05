@@ -1,10 +1,8 @@
 package context
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
-	"path"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -20,10 +18,11 @@ import (
 )
 
 type RevisionsContext struct {
+	*baseView
 	CommandRunner
+	Files            *DetailsContext
 	Parent           *MainContext
 	Revisions        *list.CheckableList[*models.RevisionItem]
-	Files            *list.CheckableList[*models.RevisionFileItem]
 	Op               operations.Operation
 	tag              atomic.Uint64
 	revisionToSelect string
@@ -32,12 +31,14 @@ type RevisionsContext struct {
 	hasMore          bool
 }
 
-func NewRevisionsContext(commandRunner CommandRunner) *RevisionsContext {
+func NewRevisionsContext(ctx *MainContext) *RevisionsContext {
 	return &RevisionsContext{
-		CommandRunner: commandRunner,
+		baseView:      &baseView{Visible: true, Focused: false},
+		Parent:        ctx,
+		CommandRunner: ctx.CommandRunner,
 		Op:            operations.NewDefault(),
 		Revisions:     list.NewCheckableList[*models.RevisionItem](),
-		Files:         list.NewCheckableList[*models.RevisionFileItem](),
+		Files:         NewDetailsContext(ctx),
 	}
 }
 
@@ -172,88 +173,6 @@ func (m *RevisionsContext) JumpToParent(revisions jj.SelectedRevisions) {
 	if parentIndex != -1 {
 		m.Revisions.Cursor = parentIndex
 	}
-}
-
-func (m *RevisionsContext) LoadFiles() tea.Cmd {
-	current := m.Revisions.Current()
-	output, err := m.RunCommandImmediate(jj.Snapshot())
-	if err == nil {
-		output, err = m.RunCommandImmediate(jj.Status(current.Commit.GetChangeId()))
-		if err == nil {
-			return func() tea.Msg {
-				summary := string(output)
-				items := createListItems(summary)
-				m.Files.SetItems(items)
-				m.Files.Cursor = 0
-				return nil
-			}
-		}
-	}
-	return func() tea.Msg {
-		return common.CommandCompletedMsg{
-			Output: string(output),
-			Err:    err,
-		}
-	}
-}
-
-func createListItems(content string) []*models.RevisionFileItem {
-	items := make([]*models.RevisionFileItem, 0)
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	var conflicts []bool
-	if scanner.Scan() {
-		conflictsLine := strings.Split(scanner.Text(), " ")
-		for _, c := range conflictsLine {
-			conflicts = append(conflicts, c == "true")
-		}
-	} else {
-		return items
-	}
-
-	index := 0
-	for scanner.Scan() {
-		file := strings.TrimSpace(scanner.Text())
-		if file == "" {
-			continue
-		}
-		var status models.Status
-		switch file[0] {
-		case 'A':
-			status = models.Added
-		case 'D':
-			status = models.Deleted
-		case 'M':
-			status = models.Modified
-		case 'R':
-			status = models.Renamed
-		}
-		fileName := file[2:]
-
-		actualFileName := fileName
-		if status == models.Renamed && strings.Contains(actualFileName, "{") {
-			for strings.Contains(actualFileName, "{") {
-				start := strings.Index(actualFileName, "{")
-				end := strings.Index(actualFileName, "}")
-				if end == -1 {
-					break
-				}
-				replacement := actualFileName[start+1 : end]
-				parts := strings.Split(replacement, " => ")
-				replacement = parts[1]
-				actualFileName = path.Clean(actualFileName[:start] + replacement + actualFileName[end+1:])
-			}
-		}
-		items = append(items, &models.RevisionFileItem{
-			Checkable: &models.Checkable{Checked: false},
-			Status:    status,
-			Name:      fileName,
-			FileName:  actualFileName,
-			Conflict:  conflicts[index],
-		})
-		index++
-	}
-
-	return items
 }
 
 type AppendRowsBatchMsg struct {
