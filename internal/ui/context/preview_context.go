@@ -3,7 +3,7 @@ package context
 import "github.com/idursun/jjui/internal/config"
 
 type PreviewContext struct {
-	*baseView
+	*BaseView
 	CommandRunner
 	Current          any
 	AtBottom         bool
@@ -12,7 +12,7 @@ type PreviewContext struct {
 
 func NewPreviewContext(commandRunner CommandRunner) *PreviewContext {
 	return &PreviewContext{
-		baseView: &baseView{
+		BaseView: &BaseView{
 			Visible: config.Current.Preview.ShowAtStart,
 			Focused: false,
 		},

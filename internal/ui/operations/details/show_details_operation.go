@@ -12,6 +12,7 @@ import (
 )
 
 type Operation struct {
+	*context.BaseView
 	context           *context.DetailsContext
 	Overlay           *Model
 	Current           *jj.Commit
@@ -50,10 +51,11 @@ func (s *Operation) Name() string {
 	return "details"
 }
 
-func NewOperation(context *context.DetailsContext, selected *jj.Commit) operations.Operation {
+func NewOperation(ctx *context.DetailsContext, selected *jj.Commit) *Operation {
 	op := &Operation{
-		Overlay:           New(context.Main, selected),
-		context:           context,
+		BaseView:          &context.BaseView{Id: "details", Visible: true, Focused: true},
+		Overlay:           New(ctx.Main, selected),
+		context:           ctx,
 		selected:          selected,
 		keyMap:            config.Current.GetKeyMap(),
 		targetMarkerStyle: common.DefaultPalette.Get("details target_marker"),

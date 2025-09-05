@@ -3,6 +3,7 @@ package context
 import (
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common/list"
@@ -17,6 +18,29 @@ const (
 	ListOplog
 	ListEvolog
 )
+
+type ViewId string
+
+type BaseView struct {
+	tea.Model
+	Id      ViewId
+	Visible bool
+	Focused bool
+	Sub     map[ViewId]*BaseView
+}
+
+func (v *BaseView) Add(sub *BaseView) {
+	if v.Sub == nil {
+		v.Sub = make(map[ViewId]*BaseView)
+	}
+	v.Sub[sub.Id] = sub
+}
+
+func (v *BaseView) Remove(id ViewId) {
+	if v.Sub != nil {
+		delete(v.Sub, id)
+	}
+}
 
 type MainContext struct {
 	CommandRunner
@@ -34,11 +58,6 @@ type MainContext struct {
 	Histories      *config.Histories
 }
 
-type baseView struct {
-	Visible bool
-	Focused bool
-}
-
 func NewAppContext(location string) *MainContext {
 	commandRunner := &MainCommandRunner{
 		Location: location,
@@ -52,7 +71,6 @@ func NewAppContext(location string) *MainContext {
 		Preview:       NewPreviewContext(commandRunner),
 	}
 	m.Revisions = NewRevisionsContext(m)
-
 	m.JJConfig = &config.JJConfig{}
 	if output, err := m.RunCommandImmediate(jj.ConfigListAll()); err == nil {
 		m.JJConfig, _ = config.DefaultConfig(output)

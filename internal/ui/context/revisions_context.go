@@ -18,7 +18,7 @@ import (
 )
 
 type RevisionsContext struct {
-	*baseView
+	*BaseView
 	CommandRunner
 	Files            *DetailsContext
 	Parent           *MainContext
@@ -33,7 +33,7 @@ type RevisionsContext struct {
 
 func NewRevisionsContext(ctx *MainContext) *RevisionsContext {
 	return &RevisionsContext{
-		baseView:      &baseView{Visible: true, Focused: false},
+		BaseView:      &BaseView{Visible: true, Focused: false},
 		Parent:        ctx,
 		CommandRunner: ctx.CommandRunner,
 		Op:            operations.NewDefault(),

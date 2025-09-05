@@ -13,7 +13,6 @@ import (
 )
 
 type DetailsContext struct {
-	*baseView
 	CommandRunner
 	*list.CheckableList[*models.RevisionFileItem]
 	Main *MainContext
@@ -21,7 +20,6 @@ type DetailsContext struct {
 
 func NewDetailsContext(ctx *MainContext) *DetailsContext {
 	return &DetailsContext{
-		baseView:      &baseView{Visible: true, Focused: false},
 		CommandRunner: ctx.CommandRunner,
 		CheckableList: list.NewCheckableList[*models.RevisionFileItem](),
 		Main:          ctx,

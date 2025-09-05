@@ -95,6 +95,7 @@ func (d *DetailsList) GetItemHeight(int) int {
 
 type Model struct {
 	*common.Sizeable
+	*context.BaseView
 	*DetailsList
 	context      *context.MainContext
 	revision     *jj.Commit
@@ -122,7 +123,7 @@ func (m *Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{m.ShortHelp()}
 }
 
-func New(context *context.MainContext, revision *jj.Commit) *Model {
+func New(ctx *context.MainContext, revision *jj.Commit) *Model {
 	keyMap := config.Current.GetKeyMap()
 
 	s := styles{
@@ -137,17 +138,22 @@ func New(context *context.MainContext, revision *jj.Commit) *Model {
 	}
 
 	size := common.NewSizeable(5, 5)
-	l := context.Revisions.Files
+	l := ctx.Revisions.Files
 	dl := &DetailsList{
 		CheckableList: l.CheckableList,
 		styles:        s,
 	}
 	dl.renderer = list.NewRenderer[*models.RevisionFileItem](dl.List, dl.RenderItem, dl.GetItemHeight, common.NewSizeable(5, 5))
 	return &Model{
-		Sizeable:    size,
+		Sizeable: size,
+		BaseView: &context.BaseView{
+			Id:      "details",
+			Visible: true,
+			Focused: true,
+		},
 		DetailsList: dl,
 		revision:    revision,
-		context:     context,
+		context:     ctx,
 		keyMap:      keyMap,
 	}
 }

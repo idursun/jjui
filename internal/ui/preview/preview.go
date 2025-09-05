@@ -38,6 +38,7 @@ func (p *previewState) Equals(other *previewState) bool {
 
 type Model struct {
 	*common.Sizeable
+	*context.BaseView
 	tag              int
 	viewRange        *viewRange
 	help             help.Model
@@ -202,6 +203,7 @@ func New(ctx *context.MainContext) Model {
 	borderStyle = borderStyle.Inherit(common.DefaultPalette.Get("preview text"))
 
 	return Model{
+		BaseView:    &context.BaseView{Id: "preview", Visible: ctx.Preview.Visible, Focused: false},
 		Sizeable:    &common.Sizeable{Width: 0, Height: 0},
 		state:       nil,
 		viewRange:   &viewRange{start: 0, end: 0},

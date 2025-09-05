@@ -46,6 +46,7 @@ type RevisionList struct {
 
 type Model struct {
 	*common.Sizeable
+	*appContext.BaseView
 	*appContext.RevisionsContext
 	*RevisionList
 	context         *appContext.MainContext
@@ -236,6 +237,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.Details.Mode):
 				op := details.NewOperation(m.Files, m.Revisions.Current().Commit)
 				m.context.ActiveList = appContext.ListFiles
+				m.context.Revisions.BaseView.Add(op.BaseView)
 				return m, tea.Sequence(m.Files.Load(), m.SetOperation(op), tea.WindowSize())
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
 				m.Op, cmd = describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
@@ -412,6 +414,7 @@ func New(c *appContext.MainContext) Model {
 	keymap := config.Current.GetKeyMap()
 	l := c.Revisions.Revisions
 	size := common.NewSizeable(20, 10)
+	view := &appContext.BaseView{Id: "revisions", Visible: true, Focused: true}
 
 	rl := &RevisionList{
 		Context:       c.Revisions,
@@ -425,6 +428,7 @@ func New(c *appContext.MainContext) Model {
 	}
 	rl.renderer = list.NewRenderer[*models.RevisionItem](l.List, rl.RenderItem, rl.GetItemHeight, size)
 	return Model{
+		BaseView:         view,
 		RevisionsContext: c.Revisions,
 		Sizeable:         size,
 		RevisionList:     rl,

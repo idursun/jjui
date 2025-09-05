@@ -33,6 +33,7 @@ import (
 
 type Model struct {
 	*common.Sizeable
+	*context.BaseView
 	revisions    *revisions.Model
 	oplog        *oplog.Model
 	revsetModel  *revset.Model
@@ -420,8 +421,14 @@ func New(c *context.MainContext) tea.Model {
 	revisionsModel := revisions.New(c)
 	previewModel := preview.New(c)
 	statusModel := status.New(c)
-	return Model{
+	baseView := &context.BaseView{Id: "root", Visible: true, Focused: false}
+	baseView.Add(revisionsModel.BaseView)
+	baseView.Add(previewModel.BaseView)
+	baseView.Add(statusModel.BaseView)
+
+	m := Model{
 		Sizeable:     &common.Sizeable{Width: 80, Height: 24},
+		BaseView:     baseView,
 		context:      c,
 		keyMap:       config.Current.GetKeyMap(),
 		state:        common.Loading,
@@ -431,4 +438,6 @@ func New(c *context.MainContext) tea.Model {
 		revsetModel:  revset.New(c),
 		flash:        flash.New(c),
 	}
+
+	return m
 }

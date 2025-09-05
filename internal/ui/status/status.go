@@ -32,6 +32,7 @@ const (
 )
 
 type Model struct {
+	*context.BaseView
 	context    *context.MainContext
 	spinner    spinner.Model
 	input      textinput.Model
@@ -268,7 +269,7 @@ func (m *Model) helpView(keyMap help.KeyMap) string {
 	return help
 }
 
-func New(context *context.MainContext) Model {
+func New(ctx *context.MainContext) Model {
 	styles := styles{
 		shortcut: common.DefaultPalette.Get("status shortcut"),
 		dimmed:   common.DefaultPalette.Get("status dimmed"),
@@ -287,12 +288,13 @@ func New(context *context.MainContext) Model {
 	t.PlaceholderStyle = styles.dimmed
 
 	return Model{
-		context: context,
-		spinner: s,
-		command: "",
-		status:  none,
-		input:   t,
-		keyMap:  nil,
-		styles:  styles,
+		BaseView: &context.BaseView{Id: "status", Visible: true, Focused: false},
+		context:  ctx,
+		spinner:  s,
+		command:  "",
+		status:   none,
+		input:    t,
+		keyMap:   nil,
+		styles:   styles,
 	}
 }
