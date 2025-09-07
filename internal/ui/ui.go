@@ -131,14 +131,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
 			m.state = common.Ready
 			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Cancel) && m.previewModel.Visible():
-			m.previewModel.Close()
-			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Cancel) && m.stacked != nil:
 			m.stacked = nil
 			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Cancel) && m.flash.Any():
 			m.flash.DeleteOldest()
+			return m, tea.Batch(cmds...)
+		case key.Matches(msg, m.keyMap.Cancel) && m.previewModel.Visible():
+			m.previewModel.Close()
 			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Quit) && m.isSafeToQuit():
 			return m, tea.Quit
