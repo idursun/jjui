@@ -79,6 +79,10 @@ func (m *Model) ToggleVisible() {
 	}
 }
 
+func (m *Model) Close() {
+	m.previewVisible = false
+}
+
 func (m *Model) TogglePosition() {
 	m.previewAtBottom = !m.previewAtBottom
 }
