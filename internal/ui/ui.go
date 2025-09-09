@@ -164,7 +164,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Preview.Mode, m.keyMap.Preview.ToggleBottom):
 			if key.Matches(msg, m.keyMap.Preview.ToggleBottom) {
-				m.previewModel.TogglePosition()
+				previewPos := m.previewModel.AtBottom()
+				m.previewModel.SetPosition(false, !previewPos)
 				if m.previewModel.Visible() {
 					return m, tea.Batch(cmds...)
 				}
@@ -306,6 +307,13 @@ func (m Model) updateStatus() {
 	}
 }
 
+func (m Model) UpdatePreviewPosition() {
+	if m.previewModel.AutoPosition() {
+		atBottom := m.Height >= m.Width / 2
+		m.previewModel.SetPosition(true, atBottom)
+	}
+}
+
 func (m Model) View() string {
 	m.updateStatus()
 	footer := m.status.View()
@@ -318,6 +326,8 @@ func (m Model) View() string {
 
 	topView := m.revsetModel.View()
 	topViewHeight := lipgloss.Height(topView)
+
+	m.UpdatePreviewPosition()
 
 	bottomPreviewHeight := 0
 	if m.previewModel.Visible() && m.previewModel.AtBottom() {

@@ -133,14 +133,35 @@ type RevisionsConfig struct {
 	Revset      string `toml:"revset"`
 }
 
+type PreviewPosition int
+
+const (
+	PreviewPositionAuto PreviewPosition = iota
+	PreviewPositionBottom
+	PreviewPositionRight
+)
+
 type PreviewConfig struct {
 	RevisionCommand          []string `toml:"revision_command"`
 	OplogCommand             []string `toml:"oplog_command"`
 	FileCommand              []string `toml:"file_command"`
 	ShowAtStart              bool     `toml:"show_at_start"`
-	ShowAtBottom             bool     `toml:"show_at_bottom"`
+	Position                 string   `toml:"position"`
 	WidthPercentage          float64  `toml:"width_percentage"`
 	WidthIncrementPercentage float64  `toml:"width_increment_percentage"`
+}
+
+func GetPreviewPosition(c *Config) (PreviewPosition, error) {
+	switch value := c.Preview.Position; value {
+	case "auto":
+		return PreviewPositionAuto, nil
+	case "bottom":
+		return PreviewPositionBottom, nil
+	case "right":
+		return PreviewPositionRight, nil
+	default:
+		return PreviewPositionAuto, fmt.Errorf("invalid value for 'preview.position': %q (expected one of: auto, bottom, right)", value)
+	}
 }
 
 type OpLogConfig struct {

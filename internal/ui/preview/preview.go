@@ -2,6 +2,7 @@ package preview
 
 import (
 	"bufio"
+	"log"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -25,6 +26,7 @@ type Model struct {
 	*common.Sizeable
 	tag                     atomic.Uint64
 	previewVisible          bool
+	previewAutoPosition     bool
 	previewAtBottom         bool
 	previewWindowPercentage float64
 	viewRange               *viewRange
@@ -85,8 +87,13 @@ func (m *Model) ToggleVisible() {
 	}
 }
 
-func (m *Model) TogglePosition() {
-	m.previewAtBottom = !m.previewAtBottom
+func (m *Model) SetPosition(autoPos bool, atBottom bool) {
+	m.previewAutoPosition = autoPos
+	m.previewAtBottom = atBottom
+}
+
+func (m *Model) AutoPosition() bool {
+	return m.previewAutoPosition
 }
 
 func (m *Model) AtBottom() bool {
@@ -227,6 +234,19 @@ func New(context *context.MainContext) Model {
 	borderStyle := common.DefaultPalette.GetBorder("preview border", lipgloss.NormalBorder())
 	borderStyle = borderStyle.Inherit(common.DefaultPalette.Get("preview text"))
 
+	previewAutoPosition := false
+	previewAtBottom := false
+	previewPositionCfg, err := config.GetPreviewPosition(config.Current)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if previewPositionCfg == config.PreviewPositionAuto {
+		previewAutoPosition = true
+	} else if previewPositionCfg == config.PreviewPositionBottom {
+		previewAtBottom = true
+	}
+
 	return Model{
 		Sizeable:                &common.Sizeable{Width: 0, Height: 0},
 		viewRange:               &viewRange{start: 0, end: 0},
@@ -234,7 +254,8 @@ func New(context *context.MainContext) Model {
 		keyMap:                  config.Current.GetKeyMap(),
 		help:                    help.New(),
 		borderStyle:             borderStyle,
-		previewAtBottom:         config.Current.Preview.ShowAtBottom,
+		previewAutoPosition:     previewAutoPosition,
+		previewAtBottom:         previewAtBottom,
 		previewVisible:          config.Current.Preview.ShowAtStart,
 		previewWindowPercentage: config.Current.Preview.WidthPercentage,
 	}
