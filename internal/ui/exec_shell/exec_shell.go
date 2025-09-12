@@ -68,7 +68,9 @@ func (m *Model) GetId() view.ViewId {
 func (m *Model) Mount(v *view.ViewNode) {
 	m.ViewNode = v
 	v.Id = m.GetId()
-	m.SetWidth(v.Parent.Width - 20)
+	if v.Parent != nil {
+		m.SetWidth(v.Parent.Width - 20)
+	}
 }
 
 func (m *Model) saveEditingSuggestions() {
@@ -100,7 +102,7 @@ func (s source) Len() int {
 	return len(s.suggestions)
 }
 
-func NewShellExecuteModel(ctx *context.MainContext) view.IViewModel {
+func NewShellExecuteModel(ctx *context.MainContext) *Model {
 	i := textinput.New()
 	i.ShowSuggestions = false
 	i.SetSuggestions([]string{})
