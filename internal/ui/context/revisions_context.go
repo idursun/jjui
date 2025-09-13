@@ -100,7 +100,11 @@ func (m *RevisionsContext) RequestMoreRows() tea.Cmd {
 
 func (m *RevisionsContext) Load(revset string, selectedRevision string) tea.Cmd {
 	return func() tea.Msg {
-		output, err := m.RunCommandImmediate(jj.Log(revset, config.Current.Limit))
+		output, err := m.RunCommandImmediate(jj.Args(jj.LogArgs{
+			Revset:   revset,
+			Limit:    config.Current.Limit,
+			Template: config.Current.Revisions.Template,
+		}))
 		if err != nil {
 			return common.UpdateRevisionsFailedMsg{
 				Err:    err,

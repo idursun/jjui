@@ -5,219 +5,78 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/models"
 )
-
-const (
-	ChangeIdPlaceholder    = "$change_id"
-	CommitIdPlaceholder    = "$commit_id"
-	FilePlaceholder        = "$file"
-	OperationIdPlaceholder = "$operation_id"
-	RevsetPlaceholder      = "$revset"
-
-	// user checked file names, separated by `\t` tab.
-	// tab is a lot less common than spaces on filenames,
-	// and is also part of shell's IFS separator.
-	// this allows programs like `ls -l ${checked_files[@]}`
-	CheckedFilesPlaceholder = "$checked_files"
-
-	// user checked commit ids, separated by `|`.
-	// the reason is user can use checked commits as revsets
-	// given to jj commands.
-	CheckedCommitIdsPlaceholder = "$checked_commit_ids"
-)
-
-type CommandArgs []string
 
 func ConfigListAll() CommandArgs {
 	return []string{"config", "list", "--color", "never", "--include-defaults", "--ignore-working-copy"}
 }
 
-func Log(revset string, limit int) CommandArgs {
+type LogArgs struct {
+	Revset   string
+	Limit    int
+	Template string
+}
+
+func (l LogArgs) GetArgs() CommandArgs {
 	args := []string{"log", "--color", "always", "--quiet"}
-	if revset != "" {
-		args = append(args, "-r", revset)
+	if l.Revset != "" {
+		args = append(args, "-r", l.Revset)
 	}
-	if limit > 0 {
-		args = append(args, "--limit", strconv.Itoa(limit))
+	if l.Limit > 0 {
+		args = append(args, "--limit", strconv.Itoa(l.Limit))
 	}
-	if config.Current.Revisions.Template != "" {
-		args = append(args, "-T", config.Current.Revisions.Template)
+	if l.Template != "" {
+		args = append(args, "-T", l.Template)
+
 	}
 	return args
 }
 
-func New(revisions SelectedRevisions) CommandArgs {
+type NewArgs struct {
+	Revisions SelectedRevisions
+}
+
+func (n NewArgs) GetArgs() CommandArgs {
 	args := []string{"new"}
-	args = append(args, revisions.AsArgs()...)
+	args = append(args, n.Revisions.AsArgs()...)
 	return args
 }
 
-func CommitWorkingCopy() CommandArgs {
+type CommitArgs struct{}
+
+func (c CommitArgs) GetArgs() CommandArgs {
 	return []string{"commit"}
 }
 
-func Edit(changeId string, ignoreImmutable bool) CommandArgs {
-	args := []string{"edit", "-r", changeId}
-	if ignoreImmutable {
+type EditArgs struct {
+	Revision        models.RevisionItem
+	IgnoreImmutable bool
+}
+
+func (e EditArgs) GetArgs() CommandArgs {
+	args := []string{"edit", "-r", e.Revision.Commit.GetChangeId()}
+	if e.IgnoreImmutable {
 		args = append(args, "--ignore-immutable")
 	}
 	return args
 }
 
-func DiffEdit(changeId string) CommandArgs {
-	return []string{"diffedit", "-r", changeId}
+type DiffEditArgs struct {
+	Revision models.RevisionItem
 }
 
-func Split(revision string, files []string) CommandArgs {
-	args := []string{"split", "-r", revision}
-	var escapedFiles []string
-	for _, file := range files {
-		escapedFiles = append(escapedFiles, EscapeFileName(file))
-	}
-	args = append(args, escapedFiles...)
-	return args
+func (d DiffEditArgs) GetArgs() CommandArgs {
+	return []string{"diffedit", "-r", d.Revision.Commit.GetChangeId()}
 }
 
-func Describe(revisions SelectedRevisions) CommandArgs {
-	args := []string{"describe", "--edit"}
-	args = append(args, revisions.AsArgs()...)
-	return args
+type SplitArgs struct {
+	Revision models.RevisionItem
+	Files    []models.RevisionFileItem
 }
 
-func SetDescription(revision string, description string) CommandArgs {
-	return []string{"describe", "-r", revision, "-m", description}
-}
-
-func GetDescription(revision string) CommandArgs {
-	return []string{"log", "-r", revision, "--template", "description", "--no-graph", "--ignore-working-copy", "--color", "never", "--quiet"}
-}
-
-func Abandon(revision SelectedRevisions, ignoreImmutable bool) CommandArgs {
-	args := []string{"abandon", "--retain-bookmarks"}
-	args = append(args, revision.AsArgs()...)
-	if ignoreImmutable {
-		args = append(args, "--ignore-immutable")
-	}
-	return args
-}
-
-func Diff(revision string, fileName string, extraArgs ...string) CommandArgs {
-	args := []string{"diff", "-r", revision, "--color", "always", "--ignore-working-copy"}
-	if fileName != "" {
-		args = append(args, EscapeFileName(fileName))
-	}
-	if extraArgs != nil {
-		args = append(args, extraArgs...)
-	}
-	return args
-}
-
-func Restore(revision string, files []string) CommandArgs {
-	args := []string{"restore", "-c", revision}
-	var escapedFiles []string
-	for _, file := range files {
-		escapedFiles = append(escapedFiles, EscapeFileName(file))
-	}
-	args = append(args, escapedFiles...)
-	return args
-}
-
-func RestoreEvolog(from string, into string) CommandArgs {
-	args := []string{"restore", "--from", from, "--into", into, "--restore-descendants"}
-	return args
-}
-
-func Undo() CommandArgs {
-	return []string{"undo"}
-}
-
-func Snapshot() CommandArgs {
-	return []string{"debug", "snapshot"}
-}
-
-func Status(revision string) CommandArgs {
-	template := `separate(";", diff.files().map(|x| x.target().conflict())) ++ "\n"`
-	return []string{"log", "-r", revision, "--summary", "--no-graph", "--color", "never", "--quiet", "--template", template, "--ignore-working-copy"}
-}
-
-func BookmarkSet(revision string, name string) CommandArgs {
-	return []string{"bookmark", "set", "-r", revision, name}
-}
-
-func BookmarkMove(revision string, bookmark string, extraFlags ...string) CommandArgs {
-	args := []string{"bookmark", "move", bookmark, "--to", revision}
-	if extraFlags != nil {
-		args = append(args, extraFlags...)
-	}
-	return args
-}
-
-func BookmarkDelete(name string) CommandArgs {
-	return []string{"bookmark", "delete", name}
-}
-
-func BookmarkForget(name string) CommandArgs {
-	return []string{"bookmark", "forget", name}
-}
-
-func BookmarkTrack(name string) CommandArgs {
-	return []string{"bookmark", "track", name}
-}
-
-func BookmarkUntrack(name string) CommandArgs {
-	return []string{"bookmark", "untrack", name}
-}
-
-type IGetArgs interface {
-	GetArgs() CommandArgs
-}
-
-type SquashRevisionArgs struct {
-	From        SelectedRevisions
-	Into        models.RevisionItem
-	Interactive bool
-	KeepEmptied bool
-}
-
-func Convert[T any](items []*T) []T {
-	var result []T
-	for _, item := range items {
-		result = append(result, *item)
-	}
-	return result
-}
-
-func (s SquashRevisionArgs) GetArgs() CommandArgs {
-	args := []string{"squash"}
-	args = append(args, s.From.AsPrefixedArgs("--from")...)
-	args = append(args, "--into", s.Into.Commit.GetChangeId())
-	if s.KeepEmptied {
-		args = append(args, "--keep-emptied")
-	}
-	if s.Interactive {
-		args = append(args, "--interactive")
-	}
-	return args
-}
-
-type SquashFilesArgs struct {
-	From        models.RevisionItem
-	Into        models.RevisionItem
-	Files       []models.RevisionFileItem
-	Interactive bool
-	KeepEmptied bool
-}
-
-func (s SquashFilesArgs) GetArgs() CommandArgs {
-	args := []string{"squash", "--from", s.From.Commit.GetChangeId(), "--into", s.Into.Commit.GetChangeId(), "--use-destination-message"}
-	if s.KeepEmptied {
-		args = append(args, "--keep-emptied")
-	}
-	if s.Interactive {
-		args = append(args, "--interactive")
-	}
+func (s SplitArgs) GetArgs() CommandArgs {
+	args := []string{"split", "-r", s.Revision.Commit.GetChangeId()}
 	var escapedFiles []string
 	for _, file := range s.Files {
 		escapedFiles = append(escapedFiles, EscapeFileName(file.FileName))
@@ -226,108 +85,115 @@ func (s SquashFilesArgs) GetArgs() CommandArgs {
 	return args
 }
 
-func Squash(args IGetArgs) CommandArgs {
-	return args.GetArgs()
+type AbandonArgs struct {
+	Revisions       SelectedRevisions
+	IgnoreImmutable bool
+	RetainBookmarks bool
 }
 
-func BookmarkList(revset string) CommandArgs {
-	const template = `separate(";", name, if(remote, remote, "."), tracked, conflict, 'false', normal_target.commit_id().shortest(1)) ++ "\n"`
-	return []string{"bookmark", "list", "-a", "-r", revset, "--template", template, "--color", "never", "--ignore-working-copy"}
-}
-
-func BookmarkListMovable(revision string) CommandArgs {
-	revsetBefore := fmt.Sprintf("::%s", revision)
-	revsetAfter := fmt.Sprintf("%s::", revision)
-	revset := fmt.Sprintf("%s | %s", revsetBefore, revsetAfter)
-	template := fmt.Sprintf(moveBookmarkTemplate, revsetAfter)
-	return []string{"bookmark", "list", "-r", revset, "--template", template, "--color", "never", "--ignore-working-copy"}
-}
-
-func BookmarkListAll() CommandArgs {
-	return []string{"bookmark", "list", "-a", "--template", allBookmarkTemplate, "--color", "never", "--ignore-working-copy"}
-}
-
-func GitFetch(flags ...string) CommandArgs {
-	args := []string{"git", "fetch"}
-	if flags != nil {
-		args = append(args, flags...)
+func (a AbandonArgs) GetArgs() CommandArgs {
+	args := []string{"abandon"}
+	if a.RetainBookmarks {
+		args = append(args, "--retain-bookmarks")
 	}
-	return args
-}
-
-func GitPush(flags ...string) CommandArgs {
-	args := []string{"git", "push"}
-	if flags != nil {
-		args = append(args, flags...)
-	}
-	return args
-}
-
-func Show(revision string, extraArgs ...string) CommandArgs {
-	args := []string{"show", "-r", revision, "--color", "always", "--ignore-working-copy"}
-	if extraArgs != nil {
-		args = append(args, extraArgs...)
-	}
-	return args
-}
-
-func Rebase(from SelectedRevisions, to string, source string, target string, ignoreImmutable bool) CommandArgs {
-	args := []string{"rebase"}
-	args = append(args, from.AsPrefixedArgs(source)...)
-	args = append(args, target, to)
-	if ignoreImmutable {
+	args = append(args, a.Revisions.AsArgs()...)
+	if a.IgnoreImmutable {
 		args = append(args, "--ignore-immutable")
 	}
 	return args
 }
 
-func RebaseInsert(from SelectedRevisions, insertAfter string, insertBefore string, ignoreImmutable bool) CommandArgs {
-	args := []string{"rebase"}
-	args = append(args, from.AsArgs()...)
-	args = append(args, "--insert-before", insertBefore)
-	args = append(args, "--insert-after", insertAfter)
-	if ignoreImmutable {
-		args = append(args, "--ignore-immutable")
+type RestoreArgs struct {
+	Revision models.RevisionItem
+	Files    []models.RevisionFileItem
+}
+
+func (r RestoreArgs) GetArgs() CommandArgs {
+	args := []string{"restore", "-c", r.Revision.Commit.GetChangeId()}
+	var escapedFiles []string
+	for _, file := range r.Files {
+		escapedFiles = append(escapedFiles, EscapeFileName(file.FileName))
+	}
+	args = append(args, escapedFiles...)
+	return args
+}
+
+type RestoreEvologArgs struct {
+	From               models.RevisionItem
+	Into               models.RevisionItem
+	Files              []models.RevisionFileItem
+	RestoreDescendants bool
+}
+
+func (r RestoreEvologArgs) GetArgs() CommandArgs {
+	args := []string{"restore", "--from", r.From.Commit.CommitId, "--into", r.Into.Commit.GetChangeId()}
+	if r.RestoreDescendants {
+		args = append(args, "--restore-descendants")
 	}
 	return args
 }
 
-func SetParents(to string, parentsToAdd []string, parentsToRemove []string) CommandArgs {
-	var b strings.Builder
-	b.WriteString("parents(")
-	b.WriteString(to)
-	b.WriteString(") ")
-	for _, remove := range parentsToRemove {
-		b.WriteString(" ~ ")
-		b.WriteString(remove)
-	}
-	for _, add := range parentsToAdd {
-		b.WriteString(" | ")
-		b.WriteString(add)
-	}
-	args := []string{"rebase", "-s", to, "-d", b.String()}
-	return args
+type UndoArgs struct {
+	Steps int
 }
 
-func Revert(from SelectedRevisions, to string, source string, target string) CommandArgs {
+func (u UndoArgs) GetArgs() CommandArgs {
+	return []string{"undo"}
+}
+
+type SnapshotArgs struct{}
+
+func (s SnapshotArgs) GetArgs() CommandArgs {
+	return []string{"debug", "snapshot"}
+}
+
+type StatusArgs struct {
+	Revision models.RevisionItem
+}
+
+func (s StatusArgs) GetArgs() CommandArgs {
+	template := `separate(";", diff.files().map(|x| x.target().conflict())) ++ "\n"`
+	return []string{"log", "-r", s.Revision.Commit.GetChangeId(), "--summary", "--no-graph", "--color", "never", "--quiet", "--template", template, "--ignore-working-copy"}
+}
+
+type RevertArgs struct {
+	From            SelectedRevisions
+	To              models.RevisionItem
+	Target          Target
+	IgnoreImmutable bool
+}
+
+func (r RevertArgs) GetArgs() CommandArgs {
 	args := []string{"revert"}
-	args = append(args, from.AsPrefixedArgs(source)...)
-	args = append(args, target, to)
+	args = append(args, r.From.AsPrefixedArgs("-r")...)
+	args = append(args, targetToFlags[r.Target], r.To.Commit.GetChangeId())
 	return args
 }
 
-func RevertInsert(from SelectedRevisions, insertAfter string, insertBefore string) CommandArgs {
+type RevertInsertArgs struct {
+	From         SelectedRevisions
+	InsertAfter  models.RevisionItem
+	InsertBefore models.RevisionItem
+}
+
+func (r RevertInsertArgs) GetArgs() CommandArgs {
 	args := []string{"revert"}
-	args = append(args, from.AsArgs()...)
-	args = append(args, "--insert-before", insertBefore)
-	args = append(args, "--insert-after", insertAfter)
+	args = append(args, r.From.AsArgs()...)
+	args = append(args, "--insert-before", r.InsertBefore.Commit.GetChangeId())
+	args = append(args, "--insert-after", r.InsertAfter.Commit.GetChangeId())
 	return args
 }
 
-func Duplicate(from SelectedRevisions, to string, target string) CommandArgs {
+type DuplicateArgs struct {
+	From   SelectedRevisions
+	Target Target
+	To     models.RevisionItem
+}
+
+func (d DuplicateArgs) GetArgs() CommandArgs {
 	args := []string{"duplicate"}
-	args = append(args, from.AsPrefixedArgs("-r")...)
-	args = append(args, target, to)
+	args = append(args, d.From.AsPrefixedArgs("-r")...)
+	args = append(args, targetToFlags[d.Target], d.To.Commit.GetChangeId())
 	return args
 }
 
@@ -335,8 +201,8 @@ func Evolog(revision string) CommandArgs {
 	return []string{"evolog", "-r", revision, "--color", "always", "--quiet", "--ignore-working-copy"}
 }
 
-func Args(args ...string) CommandArgs {
-	return args
+func Args(args IGetArgs) CommandArgs {
+	return args.GetArgs()
 }
 
 func TemplatedArgs(templatedArgs []string, replacements map[string]string) CommandArgs {
@@ -354,13 +220,17 @@ func TemplatedArgs(templatedArgs []string, replacements map[string]string) Comma
 	return args
 }
 
-func Absorb(changeId string, files ...string) CommandArgs {
-	args := []string{"absorb", "--from", changeId, "--color", "never"}
-	var escapedFiles []string
-	for _, file := range files {
-		escapedFiles = append(escapedFiles, EscapeFileName(file))
+type AbsorbArgs struct {
+	From  models.RevisionItem
+	Into  models.RevisionItem
+	Files []*models.RevisionFileItem
+}
+
+func (a AbsorbArgs) GetArgs() CommandArgs {
+	args := []string{"absorb", "--from", a.From.Commit.GetChangeId(), "--color", "never"}
+	for _, file := range a.Files {
+		args = append(args, EscapeFileName(file.FileName))
 	}
-	args = append(args, escapedFiles...)
 	return args
 }
 

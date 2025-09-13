@@ -63,7 +63,7 @@ func NewModel(context *context.MainContext) view.IViewModel {
 	model := confirmation.New(
 		[]string{lastOperation, "Are you sure you want to undo last change?"},
 		confirmation.WithStylePrefix("undo"),
-		confirmation.WithOption("Yes", context.RunCommand(jj.Undo(), common.Refresh, m.close), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+		confirmation.WithOption("Yes", context.RunCommand(jj.Args(jj.UndoArgs{}), common.Refresh, m.close), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 		confirmation.WithOption("No", m.close, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 	)
 	model.Styles.Border = common.DefaultPalette.GetBorder("undo border", lipgloss.NormalBorder()).Padding(1)

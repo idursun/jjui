@@ -72,8 +72,8 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 			o.CursorDown()
 		case key.Matches(msg, o.keyMap.Evolog.Diff):
 			return func() tea.Msg {
-				selectedCommitId := o.getSelectedEvolog().CommitId
-				output, _ := o.context.RunCommandImmediate(jj.Diff(selectedCommitId, ""))
+				selectedEvolog := o.getSelectedEvolog()
+				output, _ := o.context.RunCommandImmediate(jj.Args(jj.DiffArgs{Revision: *selectedEvolog}))
 				return common.ShowDiffMsg(output)
 			}
 		case key.Matches(msg, o.keyMap.Evolog.Restore):
@@ -88,12 +88,10 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 			o.KeyDelegation = nil
 			return nil
 		case key.Matches(msg, o.keyMap.Apply):
-			from := o.getSelectedEvolog().CommitId
+			from := o.getSelectedEvolog()
 			if current := o.context.Revisions.Current(); current != nil {
-				target := current.Commit
-				into := target.GetChangeId()
 				o.ViewManager.UnregisterView(o.Id)
-				return o.context.RunCommand(jj.RestoreEvolog(from, into), common.Refresh)
+				return o.context.RunCommand(jj.Args(jj.RestoreEvologArgs{From: *from, Into: *current, RestoreDescendants: true}), common.Refresh)
 			}
 		}
 	}
@@ -123,8 +121,12 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return o, nil
 }
 
-func (o *Operation) getSelectedEvolog() *models.Commit {
-	return o.Items[o.Cursor].Commit
+func (o *Operation) getSelectedEvolog() *models.RevisionItem {
+	return &models.RevisionItem{
+		Checkable:  nil,
+		Row:        models.Row{Commit: o.Items[o.Cursor].Commit},
+		IsAffected: false,
+	}
 }
 
 func (o *Operation) View() string {
@@ -146,11 +148,11 @@ func (o *Operation) Render(commit *models.Commit, pos operations.RenderPosition)
 
 	target := current.Commit
 	if o.mode == restoreMode && pos == operations.RenderPositionBefore && target != nil && target.GetChangeId() == commit.GetChangeId() {
-		selectedCommitId := o.getSelectedEvolog().CommitId
+		selectedEvolog := o.getSelectedEvolog()
 		return lipgloss.JoinHorizontal(0,
 			o.markerStyle.Render("<< restore >>"),
 			o.dimmedStyle.PaddingLeft(1).Render("restore from "),
-			o.commitIdStyle.Render(selectedCommitId),
+			o.commitIdStyle.Render(selectedEvolog.Commit.CommitId),
 			o.dimmedStyle.Render(" into "),
 			o.changeIdStyle.Render(target.GetChangeId()),
 		)
@@ -177,7 +179,6 @@ func (o *Operation) load() tea.Msg {
 }
 
 func NewOperation(ctx *context.MainContext, revision *models.Commit, width int, height int) *Operation {
-	//size := view.NewSizeable(width, height)
 	l := ctx.Evolog
 	el := &EvologList{
 		List:          l,
@@ -190,7 +191,6 @@ func NewOperation(ctx *context.MainContext, revision *models.Commit, width int, 
 	}
 	el.renderer = list.NewRenderer[*models.RevisionItem](l, el, view.NewSizeable(width, height))
 	o := &Operation{
-		//Sizeable:   size,
 		EvologList: el,
 		context:    ctx,
 		keyMap:     config.Current.GetKeyMap(),

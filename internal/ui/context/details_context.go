@@ -7,30 +7,30 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
-	models2 "github.com/idursun/jjui/internal/models"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
 )
 
 type DetailsContext struct {
 	CommandRunner
-	*list.CheckableList[*models2.RevisionFileItem]
+	*list.CheckableList[*models.RevisionFileItem]
 	Main *MainContext
 }
 
 func NewDetailsContext(ctx *MainContext) *DetailsContext {
 	return &DetailsContext{
 		CommandRunner: ctx.CommandRunner,
-		CheckableList: list.NewCheckableList[*models2.RevisionFileItem](),
+		CheckableList: list.NewCheckableList[*models.RevisionFileItem](),
 		Main:          ctx,
 	}
 }
 
 func (m *DetailsContext) Load() tea.Cmd {
 	current := m.Main.Revisions.Current()
-	output, err := m.RunCommandImmediate(jj.Snapshot())
+	output, err := m.RunCommandImmediate(jj.Args(jj.SnapshotArgs{}))
 	if err == nil {
-		output, err = m.RunCommandImmediate(jj.Status(current.Commit.GetChangeId()))
+		output, err = m.RunCommandImmediate(jj.StatusArgs{Revision: *current}.GetArgs())
 		if err == nil {
 			return func() tea.Msg {
 				summary := string(output)
@@ -49,8 +49,8 @@ func (m *DetailsContext) Load() tea.Cmd {
 	}
 }
 
-func createListItems(content string) []*models2.RevisionFileItem {
-	items := make([]*models2.RevisionFileItem, 0)
+func createListItems(content string) []*models.RevisionFileItem {
+	items := make([]*models.RevisionFileItem, 0)
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var conflicts []bool
 	if scanner.Scan() {
@@ -68,21 +68,21 @@ func createListItems(content string) []*models2.RevisionFileItem {
 		if file == "" {
 			continue
 		}
-		var status models2.Status
+		var status models.Status
 		switch file[0] {
 		case 'A':
-			status = models2.Added
+			status = models.Added
 		case 'D':
-			status = models2.Deleted
+			status = models.Deleted
 		case 'M':
-			status = models2.Modified
+			status = models.Modified
 		case 'R':
-			status = models2.Renamed
+			status = models.Renamed
 		}
 		fileName := file[2:]
 
 		actualFileName := fileName
-		if status == models2.Renamed && strings.Contains(actualFileName, "{") {
+		if status == models.Renamed && strings.Contains(actualFileName, "{") {
 			for strings.Contains(actualFileName, "{") {
 				start := strings.Index(actualFileName, "{")
 				end := strings.Index(actualFileName, "}")
@@ -95,8 +95,8 @@ func createListItems(content string) []*models2.RevisionFileItem {
 				actualFileName = path.Clean(actualFileName[:start] + replacement + actualFileName[end+1:])
 			}
 		}
-		items = append(items, &models2.RevisionFileItem{
-			Checkable: &models2.Checkable{Checked: false},
+		items = append(items, &models.RevisionFileItem{
+			Checkable: &models.Checkable{Checked: false},
 			Status:    status,
 			Name:      fileName,
 			FileName:  actualFileName,

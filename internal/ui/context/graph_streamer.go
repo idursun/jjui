@@ -27,7 +27,11 @@ func NewGraphStreamer(ctx CommandRunner, revset string) (*GraphStreamer, error) 
 	streamerCtx, cancel := context.WithCancel(context.Background())
 	var commandError error
 
-	command, err := ctx.RunCommandStreaming(streamerCtx, jj.Log(revset, config.Current.Limit))
+	command, err := ctx.RunCommandStreaming(streamerCtx, jj.Args(jj.LogArgs{
+		Revset:   revset,
+		Limit:    config.Current.Limit,
+		Template: config.Current.Revisions.Template,
+	}))
 	if err != nil {
 		cancel()
 		return nil, err

@@ -15,7 +15,7 @@ import (
 func TestConfirm(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.OpLog(1))
-	commandRunner.Expect(jj.Undo())
+	commandRunner.Expect(jj.UndoArgs{}.GetArgs())
 	defer commandRunner.Verify()
 
 	model := NewModel(context.NewAppContext(commandRunner, ""))

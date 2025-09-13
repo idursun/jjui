@@ -39,7 +39,7 @@ type (
 		RawFileOut   []byte // raw output from `jj file list`
 	}
 	LoadDiffLayoutMsg struct {
-		Args jj.CommandArgs
+		Args jj.DiffArgs
 	}
 	LoadOplogLayoutMsg struct{}
 )

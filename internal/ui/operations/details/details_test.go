@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/idursun/jjui/internal/jj"
-	models2 "github.com/idursun/jjui/internal/models"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/view"
 
@@ -16,27 +16,37 @@ import (
 )
 
 const (
-	Revision     = "ignored"
 	StatusOutput = "false false\nM file.txt\nA newfile.txt\n"
 )
 
-var Commit = &models2.Commit{
-	ChangeId: Revision,
-	CommitId: Revision,
+var revision = models.RevisionItem{
+	Checkable: nil,
+	Row: models.Row{
+		Commit: &models.Commit{ChangeId: "abc", CommitId: "123"},
+	},
+	IsAffected: false,
+}
+
+var file = models.RevisionFileItem{
+	Checkable: &models.Checkable{Checked: false},
+	Status:    0,
+	Name:      "file.txt",
+	FileName:  "file.txt",
+	Conflict:  false,
 }
 
 func TestModel_Init_ExecutesStatusCommand(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Snapshot())
-	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
+	commandRunner.Expect(jj.SnapshotArgs{}.GetArgs())
+	commandRunner.Expect(jj.StatusArgs{Revision: revision}.GetArgs()).SetOutput([]byte(StatusOutput))
 	defer commandRunner.Verify()
 
 	appContext := context.NewAppContext(commandRunner, "")
-	appContext.Revisions.Revisions.SetItems([]*models2.RevisionItem{
-		{Row: models2.Row{Commit: Commit}},
+	appContext.Revisions.SetItems([]*models.RevisionItem{
+		&revision,
 	})
-	appContext.Revisions.Revisions.Cursor = 0
-	model := NewOperation(appContext, Commit)
+	appContext.Revisions.Cursor = 0
+	model := NewOperation(appContext, &revision)
 	viewManager := view.NewViewManager()
 	_ = viewManager.CreateView(model)
 	tm := teatest.NewTestModel(t, model)
@@ -47,19 +57,19 @@ func TestModel_Init_ExecutesStatusCommand(t *testing.T) {
 
 func TestModel_Update_RestoresSelectedFiles(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Snapshot())
-	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
-	commandRunner.Expect(jj.Restore(Revision, []string{"file.txt"}))
+	commandRunner.Expect(jj.SnapshotArgs{}.GetArgs())
+	commandRunner.Expect(jj.StatusArgs{Revision: revision}.GetArgs()).SetOutput([]byte(StatusOutput))
+	commandRunner.Expect(jj.RestoreArgs{Revision: revision, Files: []models.RevisionFileItem{file}}.GetArgs())
 	defer commandRunner.Verify()
 
 	appContext := context.NewAppContext(commandRunner, "")
-	appContext.Revisions.Revisions.SetItems([]*models2.RevisionItem{
-		{Row: models2.Row{Commit: Commit}},
+	appContext.Revisions.SetItems([]*models.RevisionItem{
+		&revision,
 	})
-	appContext.Revisions.Revisions.Cursor = 0
-	appContext.Files.SetItems([]*models2.RevisionFileItem{
+	appContext.Revisions.Cursor = 0
+	appContext.Files.SetItems([]*models.RevisionFileItem{
 		{
-			Checkable: &models2.Checkable{Checked: false},
+			Checkable: &models.Checkable{Checked: false},
 			Status:    0,
 			Name:      "file.txt",
 			FileName:  "file.txt",
@@ -67,7 +77,7 @@ func TestModel_Update_RestoresSelectedFiles(t *testing.T) {
 		},
 	})
 	appContext.Files.Cursor = 0
-	model := NewOperation(appContext, Commit)
+	model := NewOperation(appContext, &revision)
 	viewManager := view.NewViewManager()
 	_ = viewManager.CreateView(model)
 	viewManager.FocusView(model.Id)
@@ -87,17 +97,17 @@ func TestModel_Update_RestoresSelectedFiles(t *testing.T) {
 
 func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Snapshot())
-	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
-	commandRunner.Expect(jj.Split(Revision, []string{"file.txt"}))
+	commandRunner.Expect(jj.SnapshotArgs{}.GetArgs())
+	commandRunner.Expect(jj.StatusArgs{Revision: revision}.GetArgs()).SetOutput([]byte(StatusOutput))
+	commandRunner.Expect(jj.SplitArgs{Revision: revision, Files: []models.RevisionFileItem{file}}.GetArgs())
 	defer commandRunner.Verify()
 
 	appContext := context.NewAppContext(commandRunner, "")
-	appContext.Revisions.Revisions.SetItems([]*models2.RevisionItem{
-		{Row: models2.Row{Commit: Commit}},
+	appContext.Revisions.SetItems([]*models.RevisionItem{
+		&revision,
 	})
-	appContext.Revisions.Revisions.Cursor = 0
-	model := NewOperation(appContext, Commit)
+	appContext.Revisions.Cursor = 0
+	model := NewOperation(appContext, &revision)
 	viewManager := view.NewViewManager()
 	_ = viewManager.CreateView(model)
 	viewManager.FocusView(model.Id)
@@ -117,17 +127,33 @@ func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
 
 func TestModel_Update_HandlesMovedFiles(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Snapshot())
-	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte("false false\nR internal/ui/{revisions => }/file.go\nR {file => sub/newfile}\n"))
-	commandRunner.Expect(jj.Restore(Revision, []string{"internal/ui/file.go", "sub/newfile"}))
+	commandRunner.Expect(jj.SnapshotArgs{}.GetArgs())
+	commandRunner.Expect(jj.StatusArgs{Revision: revision}.GetArgs()).SetOutput([]byte("false false\nR internal/ui/{revisions => }/file.go\nR {file => sub/newfile}\n"))
+	files := []models.RevisionFileItem{
+		{
+			Checkable: &models.Checkable{Checked: false},
+			Status:    2,
+			Name:      "internal/ui/{revisions => }/file.go",
+			FileName:  "internal/ui/file.go",
+			Conflict:  false,
+		},
+		{
+			Checkable: &models.Checkable{Checked: false},
+			Status:    2,
+			Name:      "R {file => sub/newfile}",
+			FileName:  "sub/newfile",
+			Conflict:  false,
+		},
+	}
+	commandRunner.Expect(jj.RestoreArgs{Revision: revision, Files: files}.GetArgs())
 	defer commandRunner.Verify()
 
 	appContext := context.NewAppContext(commandRunner, "")
-	appContext.Revisions.Revisions.SetItems([]*models2.RevisionItem{
-		{Row: models2.Row{Commit: Commit}},
+	appContext.Revisions.SetItems([]*models.RevisionItem{
+		&revision,
 	})
-	appContext.Revisions.Revisions.Cursor = 0
-	model := NewOperation(appContext, Commit)
+	appContext.Revisions.Cursor = 0
+	model := NewOperation(appContext, &revision)
 	viewManager := view.NewViewManager()
 	_ = viewManager.CreateView(model)
 	viewManager.FocusView(model.Id)

@@ -21,7 +21,7 @@ type Model struct {
 	*view.ViewNode
 	view        viewport.Model
 	keymap      config.KeyMappings[key.Binding]
-	commandArgs jj.CommandArgs
+	commandArgs *jj.DiffArgs
 	context     *context.MainContext
 }
 
@@ -52,7 +52,7 @@ func (m *Model) FullHelp() [][]key.Binding {
 func (m *Model) Init() tea.Cmd {
 	if m.commandArgs != nil {
 		return func() tea.Msg {
-			output, _ := m.context.RunCommandImmediate(m.commandArgs)
+			output, _ := m.context.RunCommandImmediate(jj.Args(m.commandArgs))
 			return updateDiffContentMsg(output)
 		}
 	}
@@ -88,9 +88,9 @@ func (m *Model) View() string {
 
 type Option func(*Model)
 
-func WithCommand(args jj.CommandArgs) Option {
+func WithCommand(args jj.DiffArgs) Option {
 	return func(m *Model) {
-		m.commandArgs = args
+		m.commandArgs = &args
 	}
 }
 

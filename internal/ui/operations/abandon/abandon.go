@@ -85,7 +85,7 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 		message = fmt.Sprintf("Are you sure you want to abandon %d %srevisions?", len(selectedRevisions), conflictingWarning)
 	}
 	cmd := func(ignoreImmutable bool) tea.Cmd {
-		return context.RunCommand(jj.Abandon(selectedRevisions, ignoreImmutable), common.Refresh, op.close)
+		return context.RunCommand(jj.Args(jj.AbandonArgs{Revisions: selectedRevisions, IgnoreImmutable: ignoreImmutable, RetainBookmarks: true}), common.Refresh, op.close)
 	}
 	op.model = confirmation.New(
 		[]string{message},

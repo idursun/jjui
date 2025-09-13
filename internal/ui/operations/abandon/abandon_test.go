@@ -13,12 +13,19 @@ import (
 	"github.com/idursun/jjui/test"
 )
 
-var commit = &models.Commit{ChangeId: "a"}
-var revisions = jj.NewSelectedRevisions(commit)
+var revision = models.RevisionItem{
+	Checkable: nil,
+	Row: models.Row{
+		Commit: &models.Commit{ChangeId: "a"},
+	},
+	IsAffected: false,
+}
+
+var revisions = jj.NewSelectedRevisions(&revision)
 
 func Test_Accept(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Abandon(revisions, false))
+	commandRunner.Expect(jj.AbandonArgs{Revisions: revisions, RetainBookmarks: true}.GetArgs())
 	defer commandRunner.Verify()
 
 	appContext := context.NewAppContext(commandRunner, "")

@@ -24,7 +24,7 @@ type SetBookmarkOperation struct {
 	*view.ViewNode
 	context  *context.MainContext
 	keymap   config.KeyMappings[key.Binding]
-	revision string
+	revision *models.RevisionItem
 	name     textinput.Model
 }
 
@@ -50,7 +50,7 @@ func (s *SetBookmarkOperation) Mount(v *view.ViewNode) {
 }
 
 func (s *SetBookmarkOperation) Init() tea.Cmd {
-	if output, err := s.context.RunCommandImmediate(jj.BookmarkListMovable(s.revision)); err == nil {
+	if output, err := s.context.RunCommandImmediate(jj.Args(jj.BookmarkListMovableArgs{Revision: *s.revision})); err == nil {
 		bookmarks := jj.ParseBookmarkListOutput(string(output))
 		var suggestions []string
 		for _, b := range bookmarks {
@@ -77,7 +77,7 @@ func (s *SetBookmarkOperation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, nil
 		case key.Matches(msg, s.keymap.Apply):
 			s.ViewManager.UnregisterView(s.Id)
-			return s, s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), common.Refresh)
+			return s, s.context.RunCommand(jj.Args(jj.BookmarkSetArgs{Revision: *s.revision, Bookmark: s.name.Value()}), common.Refresh)
 		}
 	}
 	var cmd tea.Cmd
@@ -93,7 +93,7 @@ func (s *SetBookmarkOperation) Render(_ *models.Commit, pos operations.RenderPos
 	return s.name.View() + s.name.TextStyle.Render(" ")
 }
 
-func NewSetBookmarkOperation(context *context.MainContext, changeId string) view.IViewModel {
+func NewSetBookmarkOperation(context *context.MainContext, revision *models.RevisionItem) view.IViewModel {
 	dimmedStyle := common.DefaultPalette.Get("revisions dimmed").Inline(true)
 	textStyle := common.DefaultPalette.Get("revisions text").Inline(true)
 	t := textinput.New()
@@ -112,7 +112,7 @@ func NewSetBookmarkOperation(context *context.MainContext, changeId string) view
 	op := &SetBookmarkOperation{
 		name:     t,
 		keymap:   config.Current.GetKeyMap(),
-		revision: changeId,
+		revision: revision,
 		context:  context,
 	}
 	return op

@@ -16,31 +16,15 @@ import (
 	"github.com/idursun/jjui/internal/ui/view"
 )
 
-type Target int
-
-const (
-	TargetDestination Target = iota
-	TargetAfter
-	TargetBefore
-)
-
-var (
-	targetToFlags = map[Target]string{
-		TargetAfter:       "--insert-after",
-		TargetBefore:      "--insert-before",
-		TargetDestination: "--destination",
-	}
-)
-
 var _ view.IViewModel = (*Operation)(nil)
 
 type Operation struct {
 	*view.ViewNode
 	context        *appContext.MainContext
 	From           jj.SelectedRevisions
-	InsertStart    *models.Commit
-	To             *models.Commit
-	Target         Target
+	InsertStart    *models.RevisionItem
+	To             *models.RevisionItem
+	Target         jj.Target
 	keyMap         config.KeyMappings[key.Binding]
 	highlightedIds []string
 	styles         styles
@@ -90,15 +74,14 @@ type styles struct {
 func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, r.keyMap.Duplicate.Onto):
-		r.Target = TargetDestination
+		r.Target = jj.TargetDestination
 	case key.Matches(msg, r.keyMap.Duplicate.After):
-		r.Target = TargetAfter
+		r.Target = jj.TargetAfter
 	case key.Matches(msg, r.keyMap.Duplicate.Before):
-		r.Target = TargetBefore
+		r.Target = jj.TargetBefore
 	case key.Matches(msg, r.keyMap.Apply):
 		r.ViewManager.UnregisterView(r.GetId())
-		target := targetToFlags[r.Target]
-		return r.context.RunCommand(jj.Duplicate(r.From, r.To.GetChangeId(), target), common.RefreshAndSelect(r.From.Last()))
+		return r.context.RunCommand(jj.Args(jj.DuplicateArgs{From: r.From, To: *r.To, Target: r.Target}), common.RefreshAndSelect(r.From.Last()))
 	case key.Matches(msg, r.keyMap.Cancel):
 		r.ViewManager.UnregisterView(r.GetId())
 		return nil
@@ -114,7 +97,7 @@ func (r *Operation) setSelectedRevision() {
 		return
 	}
 	r.highlightedIds = nil
-	r.To = current.Commit
+	r.To = current
 	revset := ""
 	if output, err := r.context.RunCommandImmediate(jj.GetIdsFromRevset(revset)); err == nil {
 		ids := strings.Split(strings.TrimSpace(string(output)), "\n")
@@ -144,7 +127,7 @@ func (r *Operation) Render(commit *models.Commit, pos operations.RenderPosition)
 		return ""
 	}
 	expectedPos := operations.RenderPositionBefore
-	if r.Target == TargetBefore {
+	if r.Target == jj.TargetBefore {
 		expectedPos = operations.RenderPositionAfter
 	}
 
@@ -152,19 +135,19 @@ func (r *Operation) Render(commit *models.Commit, pos operations.RenderPosition)
 		return ""
 	}
 
-	isSelected := r.To != nil && r.To.GetChangeId() == commit.GetChangeId()
+	isSelected := r.To != nil && r.To.Commit.GetChangeId() == commit.GetChangeId()
 	if !isSelected {
 		return ""
 	}
 
 	var ret string
-	if r.Target == TargetDestination {
+	if r.Target == jj.TargetDestination {
 		ret = "onto"
 	}
-	if r.Target == TargetAfter {
+	if r.Target == jj.TargetAfter {
 		ret = "after"
 	}
-	if r.Target == TargetBefore {
+	if r.Target == jj.TargetBefore {
 		ret = "before"
 	}
 
@@ -174,11 +157,11 @@ func (r *Operation) Render(commit *models.Commit, pos operations.RenderPosition)
 		r.styles.dimmed.Render(" duplicate "),
 		r.styles.changeId.Render(strings.Join(r.From.GetIds(), " ")),
 		r.styles.dimmed.Render("", ret, ""),
-		r.styles.changeId.Render(r.To.GetChangeId()),
+		r.styles.changeId.Render(r.To.Commit.GetChangeId()),
 	)
 }
 
-func NewOperation(context *appContext.MainContext, from jj.SelectedRevisions, target Target) view.IViewModel {
+func NewOperation(context *appContext.MainContext, from jj.SelectedRevisions) view.IViewModel {
 	styles := styles{
 		changeId:     common.DefaultPalette.Get("duplicate change_id"),
 		dimmed:       common.DefaultPalette.Get("duplicate dimmed"),
@@ -189,7 +172,7 @@ func NewOperation(context *appContext.MainContext, from jj.SelectedRevisions, ta
 		context: context,
 		keyMap:  config.Current.GetKeyMap(),
 		From:    from,
-		Target:  target,
+		Target:  jj.TargetDestination,
 		styles:  styles,
 	}
 }

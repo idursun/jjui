@@ -228,7 +228,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				current.Toggle()
 				m.context.Revisions.JumpToParent(jj.NewSelectedRevisions(current))
 			case key.Matches(msg, m.keymap.Details.Mode):
-				op := details.NewOperation(m.context, m.context.Revisions.Current().Commit)
+				op := details.NewOperation(m.context, m.context.Revisions.Current())
 				v := m.ViewManager.CreateView(op)
 				m.ViewManager.FocusView(v.GetId())
 				return m, op.Init()
@@ -239,18 +239,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.ViewManager.StartEditing(v.GetId())
 				return m, op.Init()
 			case key.Matches(msg, m.keymap.New):
-				cmd = m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
+				cmd = m.context.RunCommand(jj.Args(jj.NewArgs{Revisions: m.SelectedRevisions()}), common.RefreshAndSelect("@"))
 			case key.Matches(msg, m.keymap.Commit):
-				cmd = m.context.RunInteractiveCommand(jj.CommitWorkingCopy(), common.Refresh)
+				cmd = m.context.RunInteractiveCommand(jj.Args(jj.CommitArgs{}), common.Refresh)
 			case key.Matches(msg, m.keymap.Edit, m.keymap.ForceEdit):
 				ignoreImmutable := key.Matches(msg, m.keymap.ForceEdit)
-				cmd = m.context.RunCommand(jj.Edit(m.SelectedRevision().GetChangeId(), ignoreImmutable), common.Refresh)
+				cmd = m.context.RunCommand(jj.Args(jj.EditArgs{Revision: *m.Current(), IgnoreImmutable: ignoreImmutable}), common.Refresh)
 			case key.Matches(msg, m.keymap.Diffedit):
-				changeId := m.SelectedRevision().GetChangeId()
-				cmd = m.context.RunInteractiveCommand(jj.DiffEdit(changeId), common.Refresh)
+				cmd = m.context.RunInteractiveCommand(jj.Args(jj.DiffEditArgs{Revision: *m.Current()}), common.Refresh)
 			case key.Matches(msg, m.keymap.Absorb):
-				changeId := m.SelectedRevision().GetChangeId()
-				cmd = m.context.RunCommand(jj.Absorb(changeId), common.Refresh)
+				cmd = m.context.RunCommand(jj.Args(jj.AbsorbArgs{From: *m.Current()}), common.Refresh)
 			case key.Matches(msg, m.keymap.Abandon):
 				selections := m.SelectedRevisions()
 				op := abandon.NewOperation(m.context, selections)
@@ -258,17 +256,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.ViewManager.FocusView(v.GetId())
 				return m, op.Init()
 			case key.Matches(msg, m.keymap.Bookmark.Set):
-				op := bookmark.NewSetBookmarkOperation(m.context, m.SelectedRevision().GetChangeId())
+				op := bookmark.NewSetBookmarkOperation(m.context, m.Current())
 				v := m.ViewManager.CreateChildView(m.GetId(), op)
 				m.ViewManager.StartEditing(v.Id)
 				m.ViewManager.FocusView(v.Id)
 				return m, op.Init()
 			case key.Matches(msg, m.keymap.Split):
-				currentRevision := m.SelectedRevision().GetChangeId()
-				return m, m.context.RunInteractiveCommand(jj.Split(currentRevision, []string{}), common.Refresh)
+				return m, m.context.RunInteractiveCommand(jj.Args(jj.SplitArgs{Revision: *m.Current()}), common.Refresh)
 			case key.Matches(msg, m.keymap.Describe):
-				selections := m.SelectedRevisions()
-				return m, m.context.RunInteractiveCommand(jj.Describe(selections), common.Refresh)
+				return m, m.context.RunInteractiveCommand(jj.Args(jj.DescribeArgs{Revisions: m.SelectedRevisions()}), common.Refresh)
 			case key.Matches(msg, m.keymap.Evolog.Mode):
 				op := evolog.NewOperation(m.context, m.SelectedRevision(), m.Width, m.Height)
 				v := m.ViewManager.CreateChildView(m.GetId(), op)
@@ -278,21 +274,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmd = common.Refresh
 			case key.Matches(msg, m.keymap.Diff):
 				current := m.context.Revisions.Current()
-				changeId := current.Commit.GetChangeId()
 				return m, func() tea.Msg {
 					return common.LoadDiffLayoutMsg{
-						Args: jj.Diff(changeId, ""),
+						Args: jj.DiffArgs{Revision: *current},
 					}
 				}
 			case key.Matches(msg, m.keymap.Git.Mode):
 				current := m.context.Revisions.Current()
-				model := git.NewModel(m.context, current.Commit)
+				model := git.NewModel(m.context, current)
 				m.createModalView(model)
 				return m, model.Init()
 			case key.Matches(msg, m.keymap.Bookmark.Mode):
 				changeIds := m.context.Revisions.GetCommitIds()
 				current := m.context.Revisions.Current()
-				model := bookmarks.NewModel(m.context, current.Commit, changeIds)
+				model := bookmarks.NewModel(m.context, current, changeIds)
 				m.createModalView(model)
 				return m, model.Init()
 			case key.Matches(msg, m.keymap.Undo):
@@ -317,22 +312,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.ViewManager.FocusView(v.GetId())
 				return m, op.Init()
 			case key.Matches(msg, m.keymap.Revert.Mode):
-				op := revert.NewOperation(m.context, m.SelectedRevisions(), revert.TargetDestination)
+				op := revert.NewOperation(m.context, m.SelectedRevisions())
 				v := m.ViewManager.CreateChildView(m.GetId(), op)
 				m.ViewManager.FocusView(v.GetId())
 				return m, op.Init()
 			case key.Matches(msg, m.keymap.Rebase.Mode):
-				op := rebase.NewOperation(m.context, m.SelectedRevisions(), rebase.SourceRevision, rebase.TargetDestination)
+				op := rebase.NewOperation(m.context, m.SelectedRevisions())
 				v := m.ViewManager.CreateChildView(m.GetId(), op)
 				m.ViewManager.FocusView(v.GetId())
 				return m, op.Init()
 			case key.Matches(msg, m.keymap.Duplicate.Mode):
-				op := duplicate.NewOperation(m.context, m.SelectedRevisions(), duplicate.TargetDestination)
+				op := duplicate.NewOperation(m.context, m.SelectedRevisions())
 				v := m.ViewManager.CreateChildView(m.GetId(), op)
 				m.ViewManager.FocusView(v.GetId())
 				return m, op.Init()
 			case key.Matches(msg, m.keymap.SetParents):
-				op := set_parents.NewOperation(m.context, m.SelectedRevision())
+				op := set_parents.NewOperation(m.context, m.Current())
 				v := m.ViewManager.CreateChildView(m.GetId(), op)
 				m.ViewManager.FocusView(v.GetId())
 				return m, op.Init()

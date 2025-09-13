@@ -28,7 +28,7 @@ var _ view.IViewModel = (*Model)(nil)
 type Model struct {
 	*view.ViewNode
 	context     *context.MainContext
-	current     *models.Commit
+	current     *models.RevisionItem
 	menu        menu.Menu
 	keymap      config.KeyMappings[key.Binding]
 	distanceMap map[string]int
@@ -81,7 +81,7 @@ type item struct {
 	name     string
 	priority commandType
 	dist     int
-	args     []string
+	args     jj.IGetArgs
 	key      string
 }
 
@@ -98,7 +98,7 @@ func (i item) Title() string {
 }
 
 func (i item) Description() string {
-	desc := strings.Join(i.args, " ")
+	desc := strings.Join(i.args.GetArgs(), " ")
 	return desc
 }
 
@@ -111,27 +111,25 @@ func (m *Model) filtered(filter string) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) loadMovables() tea.Msg {
-	output, _ := m.context.RunCommandImmediate(jj.BookmarkListMovable(m.current.GetChangeId()))
+	output, _ := m.context.RunCommandImmediate(jj.Args(jj.BookmarkListMovableArgs{Revision: *m.current}))
 	var bookmarkItems []list.Item
 	bookmarks := jj.ParseBookmarkListOutput(string(output))
 	for _, b := range bookmarks {
-		if !b.Conflict && b.CommitId == m.current.CommitId {
+		if !b.Conflict && b.CommitId == m.current.Commit.CommitId {
 			continue
 		}
 
-		name := fmt.Sprintf("move '%s' to %s", b.Name, m.current.GetChangeId())
+		name := fmt.Sprintf("move '%s' to %s", b.Name, m.current.Commit.GetChangeId())
 		if b.Conflict {
-			name = fmt.Sprintf("move conflicted '%s' to %s", b.Name, m.current.GetChangeId())
+			name = fmt.Sprintf("move conflicted '%s' to %s", b.Name, m.current.Commit.GetChangeId())
 		}
-		var extraFlags []string
 		if b.Backwards {
-			name = fmt.Sprintf("move '%s' backwards to %s", b.Name, m.current.GetChangeId())
-			extraFlags = append(extraFlags, "--allow-backwards")
+			name = fmt.Sprintf("move '%s' backwards to %s", b.Name, m.current.Commit.GetChangeId())
 		}
 		elem := item{
 			name:     name,
 			priority: moveCommand,
-			args:     jj.BookmarkMove(m.current.GetChangeId(), b.Name, extraFlags...),
+			args:     jj.BookmarkMoveArgs{Revision: *m.current, Bookmark: b.Name, AllowBackwards: b.Backwards},
 			dist:     m.distance(b.CommitId),
 		}
 		if b.Name == "main" || b.Name == "master" {
@@ -143,7 +141,7 @@ func (m *Model) loadMovables() tea.Msg {
 }
 
 func (m *Model) loadAll() tea.Msg {
-	if output, err := m.context.RunCommandImmediate(jj.BookmarkListAll()); err != nil {
+	if output, err := m.context.RunCommandImmediate(jj.Args(jj.BookmarkListAllArgs{})); err != nil {
 		return nil
 	} else {
 		bookmarks := jj.ParseBookmarkListOutput(string(output))
@@ -156,7 +154,7 @@ func (m *Model) loadAll() tea.Msg {
 					name:     fmt.Sprintf("delete '%s'", b.Name),
 					priority: deleteCommand,
 					dist:     distance,
-					args:     jj.BookmarkDelete(b.Name),
+					args:     jj.BookmarkDeleteArgs{Bookmark: b.Name},
 				})
 			}
 
@@ -164,7 +162,7 @@ func (m *Model) loadAll() tea.Msg {
 				name:     fmt.Sprintf("forget '%s'", b.Name),
 				priority: forgetCommand,
 				dist:     distance,
-				args:     jj.BookmarkForget(b.Name),
+				args:     jj.BookmarkForgetArgs{Bookmark: b.Name},
 			})
 
 			for _, remote := range b.Remotes {
@@ -174,14 +172,14 @@ func (m *Model) loadAll() tea.Msg {
 						name:     fmt.Sprintf("untrack '%s'", nameWithRemote),
 						priority: untrackCommand,
 						dist:     distance,
-						args:     jj.BookmarkUntrack(nameWithRemote),
+						args:     jj.BookmarkUntrackArgs{Bookmark: b.Name, Remote: remote.Remote},
 					})
 				} else {
 					items = append(items, item{
 						name:     fmt.Sprintf("track '%s'", nameWithRemote),
 						priority: trackCommand,
 						dist:     distance,
-						args:     jj.BookmarkTrack(nameWithRemote),
+						args:     jj.BookmarkTrackArgs{Bookmark: b.Name, Remote: remote.Remote},
 					})
 				}
 			}
@@ -211,7 +209,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			action := m.menu.List.SelectedItem().(item)
 			m.ViewManager.UnregisterView(m.GetId())
-			return m, m.context.RunCommand(action.args, common.Refresh)
+			return m, m.context.RunCommand(action.args.GetArgs(), common.Refresh)
 		case key.Matches(msg, m.keymap.Bookmark.Move) && m.menu.Filter != "move":
 			return m.filtered("move")
 		case key.Matches(msg, m.keymap.Bookmark.Delete) && m.menu.Filter != "delete":
@@ -225,7 +223,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			for _, listItem := range m.menu.List.Items() {
 				if item, ok := listItem.(item); ok && m.menu.Filter != "" && item.key == msg.String() {
-					return m, m.context.RunCommand(jj.Args(item.args...), common.Refresh, common.Close)
+					return m, m.context.RunCommand(jj.Args(item.args), common.Refresh, common.Close)
 				}
 			}
 		}
@@ -268,7 +266,7 @@ func (m *Model) distance(commitId string) int {
 	return math.MinInt32
 }
 
-func NewModel(c *context.MainContext, current *models.Commit, commitIds []string) view.IViewModel {
+func NewModel(c *context.MainContext, current *models.RevisionItem, commitIds []string) view.IViewModel {
 	var items []list.Item
 	keymap := config.Current.GetKeyMap()
 	size := view.NewSizeable(80, 25)
@@ -284,7 +282,7 @@ func NewModel(c *context.MainContext, current *models.Commit, commitIds []string
 		keymap:      keymap,
 		menu:        menu,
 		current:     current,
-		distanceMap: calcDistanceMap(current.CommitId, commitIds),
+		distanceMap: calcDistanceMap(current.Commit.CommitId, commitIds),
 	}
 	return m
 }

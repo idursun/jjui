@@ -3,7 +3,7 @@ package revisions
 import (
 	"testing"
 
-	models2 "github.com/idursun/jjui/internal/models"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/view"
 	"github.com/idursun/jjui/test"
@@ -13,9 +13,9 @@ import (
 func TestModel_highlightChanges(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	mainContext := context.NewAppContext(commandRunner, "")
-	mainContext.Revisions.Revisions.SetItems([]*models2.RevisionItem{
-		{IsAffected: false, Row: models2.Row{Commit: &models2.Commit{ChangeId: "someother"}}},
-		{IsAffected: false, Row: models2.Row{Commit: &models2.Commit{ChangeId: "nyqzpsmt"}}},
+	mainContext.Revisions.SetItems([]*models.RevisionItem{
+		{IsAffected: false, Row: models.Row{Commit: &models.Commit{ChangeId: "someother"}}},
+		{IsAffected: false, Row: models.Row{Commit: &models.Commit{ChangeId: "nyqzpsmt"}}},
 	})
 	viewManager := view.NewViewManager()
 	model := New(mainContext, viewManager).(*Model)
@@ -26,6 +26,6 @@ Working copy now at: okrwsxvv 5233c94f (empty) (no description set)
 Parent commit      : nyqzpsmt 8b1e95e3 change third file
 `
 	_ = model.highlightChanges()
-	assert.False(t, mainContext.Revisions.Revisions.List.Items[0].IsAffected)
-	assert.True(t, mainContext.Revisions.Revisions.List.Items[1].IsAffected)
+	assert.False(t, mainContext.Revisions.List.Items[0].IsAffected)
+	assert.True(t, mainContext.Revisions.List.Items[1].IsAffected)
 }

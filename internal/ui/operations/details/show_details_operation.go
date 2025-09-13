@@ -34,7 +34,7 @@ type Operation struct {
 	confirmation      *confirmation.Model
 	keyMap            config.KeyMappings[key.Binding]
 	targetMarkerStyle lipgloss.Style
-	selected          *models.Commit
+	selected          *models.RevisionItem
 }
 
 func (o *Operation) CurrentItem() models.IItem {
@@ -140,16 +140,11 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return o, nil
 			}
 			return o, func() tea.Msg {
-				output, _ := o.context.RunCommandImmediate(jj.Diff(o.revision.Commit.GetChangeId(), selected.FileName))
+				output, _ := o.context.RunCommandImmediate(jj.Args(jj.DiffArgs{Revision: *o.revision, Files: []models.RevisionFileItem{*selected}}))
 				return common.ShowDiffMsg(output)
 			}
 		case key.Matches(msg, o.keyMap.Details.Split):
-			selectedItems, isVirtuallySelected := o.getSelectedFiles()
-			var selectedFiles []string
-			for _, item := range selectedItems {
-				selectedFiles = append(selectedFiles, item.FileName)
-			}
-
+			selectedFiles, isVirtuallySelected := o.getSelectedFiles()
 			o.isVirtuallySelected = isVirtuallySelected
 			o.selectedHint = "stays as is"
 			o.unselectedHint = "moves to the new revision"
@@ -157,7 +152,7 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				[]string{"Are you sure you want to split the selected files?"},
 				confirmation.WithStylePrefix("revisions"),
 				confirmation.WithOption("Yes",
-					tea.Batch(o.context.RunInteractiveCommand(jj.Split(o.revision.Commit.GetChangeId(), selectedFiles), common.Refresh), o.close),
+					tea.Batch(o.context.RunInteractiveCommand(jj.Args(jj.SplitArgs{Revision: *o.revision, Files: jj.Convert(selectedFiles)}), common.Refresh), o.close),
 					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 				confirmation.WithOption("No",
 					confirmation.Close,
@@ -174,11 +169,7 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			o.ViewManager.FocusView(v.GetId())
 			return o, op.Init()
 		case key.Matches(msg, o.keyMap.Details.Restore):
-			selectedItems, isVirtuallySelected := o.getSelectedFiles()
-			var selectedFiles []string
-			for _, item := range selectedItems {
-				selectedFiles = append(selectedFiles, item.FileName)
-			}
+			selectedFiles, isVirtuallySelected := o.getSelectedFiles()
 			o.isVirtuallySelected = isVirtuallySelected
 			o.selectedHint = "gets restored"
 			o.unselectedHint = "stays as is"
@@ -186,7 +177,7 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				[]string{"Are you sure you want to restore the selected files?"},
 				confirmation.WithStylePrefix("revisions"),
 				confirmation.WithOption("Yes",
-					o.context.RunCommand(jj.Restore(o.revision.Commit.GetChangeId(), selectedFiles), common.Refresh, confirmation.Close),
+					o.context.RunCommand(jj.Args(jj.RestoreArgs{Revision: *o.revision, Files: jj.Convert(selectedFiles)}), common.Refresh, confirmation.Close),
 					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 				confirmation.WithOption("No",
 					confirmation.Close,
@@ -195,11 +186,7 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			o.confirmation = model
 			return o, o.confirmation.Init()
 		case key.Matches(msg, o.keyMap.Details.Absorb):
-			selectedItems, isVirtuallySelected := o.getSelectedFiles()
-			var selectedFiles []string
-			for _, item := range selectedItems {
-				selectedFiles = append(selectedFiles, item.FileName)
-			}
+			selectedFiles, isVirtuallySelected := o.getSelectedFiles()
 			o.isVirtuallySelected = isVirtuallySelected
 			o.selectedHint = "might get absorbed into parents"
 			o.unselectedHint = "stays as is"
@@ -208,7 +195,7 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				[]string{"Are you sure you want to absorb changes from the selected files?"},
 				confirmation.WithStylePrefix("revisions"),
 				confirmation.WithOption("Yes",
-					o.context.RunCommand(jj.Absorb(o.revision.Commit.GetChangeId(), selectedFiles...), common.Refresh, confirmation.Close),
+					o.context.RunCommand(jj.Args(jj.AbsorbArgs{From: *o.revision, Files: selectedFiles}), common.Refresh, confirmation.Close),
 					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 				confirmation.WithOption("No",
 					confirmation.Close,
@@ -243,7 +230,7 @@ func (o *Operation) close() tea.Msg {
 }
 
 func (o *Operation) Render(commit *models.Commit, pos operations.RenderPosition) string {
-	isSelected := o.selected.GetChangeId() == commit.GetChangeId()
+	isSelected := o.selected.Commit.GetChangeId() == commit.GetChangeId()
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return ""
 	}
@@ -278,7 +265,7 @@ func (o *Operation) View() string {
 	return lipgloss.Place(w, h, 0, 0, rendered, lipgloss.WithWhitespaceBackground(o.styles.Text.GetBackground()))
 }
 
-func NewOperation(ctx *context.MainContext, selected *models.Commit) *Operation {
+func NewOperation(ctx *context.MainContext, selected *models.RevisionItem) *Operation {
 	s := styles{
 		Added:    common.DefaultPalette.Get("revisions details added"),
 		Deleted:  common.DefaultPalette.Get("revisions details deleted"),
