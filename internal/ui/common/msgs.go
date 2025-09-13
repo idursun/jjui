@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 )
 
 type (
@@ -34,7 +35,7 @@ type (
 	FileSearchMsg struct {
 		Revset       string
 		PreviewShown bool
-		Commit       *jj.Commit
+		Commit       *models.Commit
 		RawFileOut   []byte // raw output from `jj file list`
 	}
 	LoadDiffLayoutMsg struct {

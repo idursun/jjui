@@ -5,8 +5,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	models2 "github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/screen"
-	"github.com/idursun/jjui/internal/ui/common/models"
 )
 
 type ControlMsg int
@@ -16,17 +16,17 @@ const (
 	Close
 )
 
-func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batchSize int) (<-chan models.RowBatch, error) {
-	rowsChan := make(chan models.RowBatch, 1)
+func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batchSize int) (<-chan models2.RowBatch, error) {
+	rowsChan := make(chan models2.RowBatch, 1)
 	go func() {
 		defer close(rowsChan)
-		var rows []models.Row
-		var row models.Row
+		var rows []models2.Row
+		var row models2.Row
 		rawSegments := screen.ParseFromReader(reader)
 		for segmentedLine := range screen.BreakNewLinesIter(rawSegments) {
-			rowLine := models.NewGraphRowLine(segmentedLine)
+			rowLine := models2.NewGraphRowLine(segmentedLine)
 			if changeIdIdx := rowLine.FindPossibleChangeIdIdx(); changeIdIdx != -1 && changeIdIdx != len(rowLine.Segments)-1 {
-				rowLine.Flags = models.Revision | models.Highlightable
+				rowLine.Flags = models2.Revision | models2.Highlightable
 				previousRow := row
 				if len(rows) > batchSize {
 					select {
@@ -35,17 +35,17 @@ func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batc
 						case Close:
 							return
 						case RequestMore:
-							var items []*models.RevisionItem
+							var items []*models2.RevisionItem
 							for _, r := range rows {
-								items = append(items, models.NewRevisionItem(r))
+								items = append(items, models2.NewRevisionItem(r))
 							}
-							rowsChan <- models.RowBatch{Items: items, HasMore: true}
+							rowsChan <- models2.RowBatch{Items: items, HasMore: true}
 							rows = nil
 							break
 						}
 					}
 				}
-				row = models.NewGraphRow()
+				row = models2.NewGraphRow()
 				if previousRow.Commit != nil {
 					rows = append(rows, previousRow)
 					row.Previous = &previousRow
@@ -77,11 +77,11 @@ func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batc
 				case Close:
 					return
 				case RequestMore:
-					var items []*models.RevisionItem
+					var items []*models2.RevisionItem
 					for _, r := range rows {
-						items = append(items, models.NewRevisionItem(r))
+						items = append(items, models2.NewRevisionItem(r))
 					}
-					rowsChan <- models.RowBatch{Items: items, HasMore: false}
+					rowsChan <- models2.RowBatch{Items: items, HasMore: false}
 					rows = nil
 					break
 				}

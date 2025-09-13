@@ -4,10 +4,10 @@ import (
 	"bytes"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
-	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/view"
 
@@ -38,7 +38,7 @@ type Operation struct {
 	*EvologList
 	*view.ViewNode
 	context  *context.MainContext
-	revision *jj.Commit
+	revision *models.Commit
 	mode     mode
 	keyMap   config.KeyMappings[key.Binding]
 }
@@ -123,7 +123,7 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return o, nil
 }
 
-func (o *Operation) getSelectedEvolog() *jj.Commit {
+func (o *Operation) getSelectedEvolog() *models.Commit {
 	return o.Items[o.Cursor].Commit
 }
 
@@ -138,7 +138,7 @@ func (o *Operation) View() string {
 	return content
 }
 
-func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
+func (o *Operation) Render(commit *models.Commit, pos operations.RenderPosition) string {
 	current := o.context.Revisions.Current()
 	if current == nil {
 		return ""
@@ -176,7 +176,7 @@ func (o *Operation) load() tea.Msg {
 	}
 }
 
-func NewOperation(ctx *context.MainContext, revision *jj.Commit, width int, height int) *Operation {
+func NewOperation(ctx *context.MainContext, revision *models.Commit, width int, height int) *Operation {
 	//size := view.NewSizeable(width, height)
 	l := ctx.Evolog
 	el := &EvologList{

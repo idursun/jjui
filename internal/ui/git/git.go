@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/menu"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -137,7 +138,7 @@ func loadBookmarks(c context.CommandRunner, changeId string) []jj.Bookmark {
 	return bookmarks
 }
 
-func NewModel(c *context.MainContext, commit *jj.Commit) view.IViewModel {
+func NewModel(c *context.MainContext, commit *models.Commit) view.IViewModel {
 	var items []list.Item
 	if commit != nil {
 		bookmarks := loadBookmarks(c, commit.GetChangeId())

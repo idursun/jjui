@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/common/models"
+	models2 "github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/view"
 
@@ -20,7 +20,7 @@ const (
 	StatusOutput = "false false\nM file.txt\nA newfile.txt\n"
 )
 
-var Commit = &jj.Commit{
+var Commit = &models2.Commit{
 	ChangeId: Revision,
 	CommitId: Revision,
 }
@@ -32,8 +32,8 @@ func TestModel_Init_ExecutesStatusCommand(t *testing.T) {
 	defer commandRunner.Verify()
 
 	appContext := context.NewAppContext(commandRunner, "")
-	appContext.Revisions.Revisions.SetItems([]*models.RevisionItem{
-		{Row: models.Row{Commit: Commit}},
+	appContext.Revisions.Revisions.SetItems([]*models2.RevisionItem{
+		{Row: models2.Row{Commit: Commit}},
 	})
 	appContext.Revisions.Revisions.Cursor = 0
 	model := NewOperation(appContext, Commit)
@@ -53,13 +53,13 @@ func TestModel_Update_RestoresSelectedFiles(t *testing.T) {
 	defer commandRunner.Verify()
 
 	appContext := context.NewAppContext(commandRunner, "")
-	appContext.Revisions.Revisions.SetItems([]*models.RevisionItem{
-		{Row: models.Row{Commit: Commit}},
+	appContext.Revisions.Revisions.SetItems([]*models2.RevisionItem{
+		{Row: models2.Row{Commit: Commit}},
 	})
 	appContext.Revisions.Revisions.Cursor = 0
-	appContext.Files.SetItems([]*models.RevisionFileItem{
+	appContext.Files.SetItems([]*models2.RevisionFileItem{
 		{
-			Checkable: &models.Checkable{Checked: false},
+			Checkable: &models2.Checkable{Checked: false},
 			Status:    0,
 			Name:      "file.txt",
 			FileName:  "file.txt",
@@ -93,8 +93,8 @@ func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
 	defer commandRunner.Verify()
 
 	appContext := context.NewAppContext(commandRunner, "")
-	appContext.Revisions.Revisions.SetItems([]*models.RevisionItem{
-		{Row: models.Row{Commit: Commit}},
+	appContext.Revisions.Revisions.SetItems([]*models2.RevisionItem{
+		{Row: models2.Row{Commit: Commit}},
 	})
 	appContext.Revisions.Revisions.Cursor = 0
 	model := NewOperation(appContext, Commit)
@@ -123,8 +123,8 @@ func TestModel_Update_HandlesMovedFiles(t *testing.T) {
 	defer commandRunner.Verify()
 
 	appContext := context.NewAppContext(commandRunner, "")
-	appContext.Revisions.Revisions.SetItems([]*models.RevisionItem{
-		{Row: models.Row{Commit: Commit}},
+	appContext.Revisions.Revisions.SetItems([]*models2.RevisionItem{
+		{Row: models2.Row{Commit: Commit}},
 	})
 	appContext.Revisions.Revisions.Cursor = 0
 	model := NewOperation(appContext, Commit)

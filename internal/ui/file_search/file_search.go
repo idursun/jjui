@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/exec_process"
@@ -36,7 +37,7 @@ type FuzzyFilesModel struct {
 
 	// restore
 	revset          string
-	commit          *jj.Commit
+	commit          *models.Commit
 	wasPreviewShown bool
 
 	// enabled with ctrl+t again

@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -51,7 +52,7 @@ func (a *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, cmd
 }
 
-func (a *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
+func (a *Operation) Render(commit *models.Commit, pos operations.RenderPosition) string {
 	current := a.context.Revisions.Current()
 
 	isSelected := commit != nil && current != nil && commit.GetChangeId() == current.Commit.GetChangeId()
@@ -73,15 +74,15 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 
 	var ids []string
 	var conflictingWarning string
-	for _, rev := range selectedRevisions.Revisions {
-		ids = append(ids, rev.GetChangeId())
-		if rev.IsConflicting() {
+	for _, rev := range selectedRevisions {
+		ids = append(ids, rev.Commit.GetChangeId())
+		if rev.Commit.IsConflicting() {
 			conflictingWarning = "conflicting "
 		}
 	}
 	message := fmt.Sprintf("Are you sure you want to abandon this %srevision?", conflictingWarning)
-	if len(selectedRevisions.Revisions) > 1 {
-		message = fmt.Sprintf("Are you sure you want to abandon %d %srevisions?", len(selectedRevisions.Revisions), conflictingWarning)
+	if len(selectedRevisions) > 1 {
+		message = fmt.Sprintf("Are you sure you want to abandon %d %srevisions?", len(selectedRevisions), conflictingWarning)
 	}
 	cmd := func(ignoreImmutable bool) tea.Cmd {
 		return context.RunCommand(jj.Abandon(selectedRevisions, ignoreImmutable), common.Refresh, op.close)

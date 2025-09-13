@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/view"
 	"github.com/idursun/jjui/test"
@@ -78,7 +79,7 @@ func Test_PushChange(t *testing.T) {
 	defer commandRunner.Verify()
 
 	ctx := context.NewAppContext(commandRunner, "")
-	model := NewModel(ctx, &jj.Commit{ChangeId: changeId})
+	model := NewModel(ctx, &models.Commit{ChangeId: changeId})
 	viewManager := view.NewViewManager()
 	_ = viewManager.CreateView(model)
 	viewManager.FocusView(model.GetId())

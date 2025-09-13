@@ -9,8 +9,8 @@ import (
 
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/parser"
-	"github.com/idursun/jjui/internal/ui/common/models"
 )
 
 const DefaultBatchSize = 50

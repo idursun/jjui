@@ -1,4 +1,4 @@
-package jj
+package models
 
 import "strings"
 

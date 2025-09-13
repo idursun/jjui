@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common/list"
-	"github.com/idursun/jjui/internal/ui/common/models"
 )
 
 type OpLogList struct {

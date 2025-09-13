@@ -8,15 +8,15 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	models2 "github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
-	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type updateOpLogMsg struct {
-	Rows []*models.OperationLogItem
+	Rows []*models2.OperationLogItem
 }
 
 var _ view.IViewModel = (*Model)(nil)
@@ -29,11 +29,11 @@ type Model struct {
 	keymap  config.KeyMappings[key.Binding]
 }
 
-func (m *Model) CurrentItem() models.IItem {
+func (m *Model) CurrentItem() models2.IItem {
 	return m.OpLogList.Current()
 }
 
-func (m *Model) CheckedItems() []models.IItem {
+func (m *Model) CheckedItems() []models2.IItem {
 	return nil
 }
 
@@ -133,7 +133,7 @@ func New(ctx *context.MainContext) view.IViewModel {
 		selectedStyle: common.DefaultPalette.Get("oplog selected"),
 		textStyle:     common.DefaultPalette.Get("oplog text"),
 	}
-	ol.renderer = list.NewRenderer[*models.OperationLogItem](l, ol, size)
+	ol.renderer = list.NewRenderer[*models2.OperationLogItem](l, ol, size)
 	m := &Model{
 		//Sizeable:    size,
 		OpLogList: ol,

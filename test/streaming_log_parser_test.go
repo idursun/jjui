@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/parser"
-	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -37,8 +38,8 @@ type Operation struct {
 	*view.ViewNode
 	context        *appContext.MainContext
 	From           jj.SelectedRevisions
-	InsertStart    *jj.Commit
-	To             *jj.Commit
+	InsertStart    *models.Commit
+	To             *models.Commit
 	Target         Target
 	keyMap         config.KeyMappings[key.Binding]
 	highlightedIds []string
@@ -134,7 +135,7 @@ func (r *Operation) FullHelp() [][]key.Binding {
 	return [][]key.Binding{r.ShortHelp()}
 }
 
-func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
+func (r *Operation) Render(commit *models.Commit, pos operations.RenderPosition) string {
 	if pos == operations.RenderBeforeChangeId {
 		changeId := commit.GetChangeId()
 		if slices.Contains(r.highlightedIds, changeId) {

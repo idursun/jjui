@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -38,8 +39,8 @@ type Operation struct {
 	*view.ViewNode
 	context        *context.MainContext
 	From           jj.SelectedRevisions
-	InsertStart    *jj.Commit
-	To             *jj.Commit
+	InsertStart    *models.Commit
+	To             *models.Commit
 	Target         Target
 	keyMap         config.KeyMappings[key.Binding]
 	highlightedIds []string
@@ -138,7 +139,7 @@ func (o *Operation) FullHelp() [][]key.Binding {
 	return [][]key.Binding{o.ShortHelp()}
 }
 
-func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
+func (o *Operation) Render(commit *models.Commit, pos operations.RenderPosition) string {
 	if pos == operations.RenderBeforeChangeId {
 		changeId := commit.GetChangeId()
 		if slices.Contains(o.highlightedIds, changeId) {
@@ -167,7 +168,7 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	}
 
 	var source string
-	isMany := len(o.From.Revisions) > 0
+	isMany := len(o.From) > 0
 	switch {
 	case isMany:
 		source = "revisions "

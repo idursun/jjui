@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/models"
 )
 
 const (
@@ -169,33 +170,64 @@ func BookmarkUntrack(name string) CommandArgs {
 	return []string{"bookmark", "untrack", name}
 }
 
-func Squash(from SelectedRevisions, destination string, keepEmptied bool, interactive bool) CommandArgs {
+type IGetArgs interface {
+	GetArgs() CommandArgs
+}
+
+type SquashRevisionArgs struct {
+	From        SelectedRevisions
+	Into        models.RevisionItem
+	Interactive bool
+	KeepEmptied bool
+}
+
+func Convert[T any](items []*T) []T {
+	var result []T
+	for _, item := range items {
+		result = append(result, *item)
+	}
+	return result
+}
+
+func (s SquashRevisionArgs) GetArgs() CommandArgs {
 	args := []string{"squash"}
-	args = append(args, from.AsPrefixedArgs("--from")...)
-	args = append(args, "--into", destination)
-	if keepEmptied {
+	args = append(args, s.From.AsPrefixedArgs("--from")...)
+	args = append(args, "--into", s.Into.Commit.GetChangeId())
+	if s.KeepEmptied {
 		args = append(args, "--keep-emptied")
 	}
-	if interactive {
+	if s.Interactive {
 		args = append(args, "--interactive")
 	}
 	return args
 }
 
-func SquashFiles(from string, into string, files []string, keepEmptied bool, interactive bool) CommandArgs {
-	args := []string{"squash", "--from", from, "--into", into, "--use-destination-message"}
-	if keepEmptied {
+type SquashFilesArgs struct {
+	From        models.RevisionItem
+	Into        models.RevisionItem
+	Files       []models.RevisionFileItem
+	Interactive bool
+	KeepEmptied bool
+}
+
+func (s SquashFilesArgs) GetArgs() CommandArgs {
+	args := []string{"squash", "--from", s.From.Commit.GetChangeId(), "--into", s.Into.Commit.GetChangeId(), "--use-destination-message"}
+	if s.KeepEmptied {
 		args = append(args, "--keep-emptied")
 	}
-	if interactive {
+	if s.Interactive {
 		args = append(args, "--interactive")
 	}
 	var escapedFiles []string
-	for _, file := range files {
-		escapedFiles = append(escapedFiles, EscapeFileName(file))
+	for _, file := range s.Files {
+		escapedFiles = append(escapedFiles, EscapeFileName(file.FileName))
 	}
 	args = append(args, escapedFiles...)
 	return args
+}
+
+func Squash(args IGetArgs) CommandArgs {
+	return args.GetArgs()
 }
 
 func BookmarkList(revset string) CommandArgs {
@@ -370,14 +402,14 @@ func GetParents(revision string) CommandArgs {
 	return args
 }
 
-func GetFirstChild(revision *Commit) CommandArgs {
+func GetFirstChild(revision *models.Commit) CommandArgs {
 	args := []string{"log", "-r"}
 	args = append(args, fmt.Sprintf("%s+", revision.CommitId))
 	args = append(args, "-n", "1", "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", "commit_id.shortest()")
 	return args
 }
 
-func FilesInRevision(revision *Commit) CommandArgs {
+func FilesInRevision(revision *models.Commit) CommandArgs {
 	args := []string{"file", "list", "-r", revision.CommitId,
 		"--color", "never", "--no-pager", "--quiet", "--ignore-working-copy",
 		"--template", "self.path() ++ \"\n\""}

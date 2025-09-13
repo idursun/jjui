@@ -6,15 +6,15 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	models2 "github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common/list"
-	"github.com/idursun/jjui/internal/ui/common/models"
 )
 
 var _ list.IItemRenderer = (*EvologList)(nil)
 
 type EvologList struct {
-	*list.List[*models.RevisionItem]
-	renderer      *list.ListRenderer[*models.RevisionItem]
+	*list.List[*models2.RevisionItem]
+	renderer      *list.ListRenderer[*models2.RevisionItem]
 	selectedStyle lipgloss.Style
 	textStyle     lipgloss.Style
 	dimmedStyle   lipgloss.Style
@@ -43,7 +43,7 @@ func (e *EvologList) RenderItem(w io.Writer, index int) {
 			fmt.Fprint(&lw, style.Render(segment.Text))
 		}
 		line := lw.String()
-		if isHighlighted && segmentedLine.Flags&models.Highlightable == models.Highlightable {
+		if isHighlighted && segmentedLine.Flags&models2.Highlightable == models2.Highlightable {
 			fmt.Fprint(w, lipgloss.PlaceHorizontal(e.renderer.Width, 0, line, lipgloss.WithWhitespaceBackground(e.selectedStyle.GetBackground())))
 		} else {
 			fmt.Fprint(w, lipgloss.PlaceHorizontal(e.renderer.Width, 0, line, lipgloss.WithWhitespaceBackground(e.textStyle.GetBackground())))

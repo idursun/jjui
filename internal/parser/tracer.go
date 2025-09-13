@@ -3,8 +3,8 @@ package parser
 import (
 	"log"
 
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common/list"
-	"github.com/idursun/jjui/internal/ui/common/models"
 )
 
 type LaneTracer interface {

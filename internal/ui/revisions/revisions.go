@@ -4,9 +4,9 @@ import (
 	"log"
 	"strings"
 
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/bookmarks"
 	"github.com/idursun/jjui/internal/ui/common/list"
-	"github.com/idursun/jjui/internal/ui/common/models"
 	customcommands "github.com/idursun/jjui/internal/ui/custom_commands"
 	"github.com/idursun/jjui/internal/ui/exec_shell"
 	"github.com/idursun/jjui/internal/ui/file_search"
@@ -82,7 +82,7 @@ type revisionsMsg struct {
 	msg tea.Msg
 }
 
-func (m *Model) SelectedRevision() *jj.Commit {
+func (m *Model) SelectedRevision() *models.Commit {
 	if current := m.Current(); current != nil {
 		return current.Commit
 	}
@@ -95,11 +95,7 @@ func (m *Model) SelectedRevisions() jj.SelectedRevisions {
 		checked = append(checked, m.Current())
 	}
 
-	var selected []*jj.Commit
-	for _, item := range checked {
-		selected = append(selected, item.Commit)
-	}
-	return jj.NewSelectedRevisions(selected...)
+	return checked
 }
 
 func (m *Model) ShortHelp() []key.Binding {
@@ -230,8 +226,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.ToggleSelect):
 				current := m.Current()
 				current.Toggle()
-				commit := current.Commit
-				m.context.Revisions.JumpToParent(jj.NewSelectedRevisions(commit))
+				m.context.Revisions.JumpToParent(jj.NewSelectedRevisions(current))
 			case key.Matches(msg, m.keymap.Details.Mode):
 				op := details.NewOperation(m.context, m.context.Revisions.Current().Commit)
 				v := m.ViewManager.CreateView(op)
@@ -441,7 +436,7 @@ var _ operations.Operation = (*noop)(nil)
 
 type noop struct{}
 
-func (n noop) Render(*jj.Commit, operations.RenderPosition) string {
+func (n noop) Render(*models.Commit, operations.RenderPosition) string {
 	return ""
 }
 
@@ -450,7 +445,6 @@ func New(c *appContext.MainContext, viewManager *view.ViewManager) view.IViewMod
 	l := c.Revisions
 
 	rl := &RevisionList{
-		Context:       c.Revisions,
 		CheckableList: l.CheckableList,
 		textStyle:     common.DefaultPalette.Get("revisions text"),
 		selectedStyle: common.DefaultPalette.Get("revisions selected").Inline(true),

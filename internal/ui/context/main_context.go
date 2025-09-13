@@ -5,15 +5,15 @@ import (
 
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	models2 "github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common/list"
-	"github.com/idursun/jjui/internal/ui/common/models"
 )
 
 type MainContext struct {
 	CommandRunner
-	OpLog          *list.List[*models.OperationLogItem]
+	OpLog          *list.List[*models2.OperationLogItem]
 	Revisions      *RevisionsContext
-	Evolog         *list.List[*models.RevisionItem]
+	Evolog         *list.List[*models2.RevisionItem]
 	Files          *DetailsContext
 	Preview        *PreviewContext
 	Location       string
@@ -30,11 +30,11 @@ func NewAppContext(commandRunner CommandRunner, location string) *MainContext {
 		CommandRunner: commandRunner,
 		Location:      location,
 		Histories:     config.NewHistories(),
-		OpLog:         list.NewList[*models.OperationLogItem](),
+		OpLog:         list.NewList[*models2.OperationLogItem](),
 	}
 	m.Revisions = NewRevisionsContext(m)
 	m.Files = NewDetailsContext(m)
-	m.Evolog = list.NewList[*models.RevisionItem]()
+	m.Evolog = list.NewList[*models2.RevisionItem]()
 	m.Preview = NewPreviewContext(commandRunner)
 
 	m.JJConfig = &config.JJConfig{}

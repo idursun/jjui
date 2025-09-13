@@ -1,6 +1,8 @@
 package list
 
-import "github.com/idursun/jjui/internal/ui/common/models"
+import (
+	"github.com/idursun/jjui/internal/models"
+)
 
 type CheckableList[T models.ICheckable] struct {
 	*List[T]

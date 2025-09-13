@@ -3,7 +3,7 @@ package parser
 import (
 	"io"
 
-	"github.com/idursun/jjui/internal/ui/common/models"
+	"github.com/idursun/jjui/internal/models"
 )
 
 func ParseRows(reader io.Reader) []*models.RevisionItem {

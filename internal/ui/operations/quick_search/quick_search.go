@@ -10,9 +10,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/screen"
-	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/view"
@@ -116,7 +115,7 @@ func (o *Operation) RenderSegment(currenStyle lipgloss.Style, segment *screen.Se
 	return segment.Text
 }
 
-func (o *Operation) Render(*jj.Commit, operations.RenderPosition) string {
+func (o *Operation) Render(*models.Commit, operations.RenderPosition) string {
 	return ""
 }
 

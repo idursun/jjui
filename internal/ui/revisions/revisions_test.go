@@ -3,8 +3,7 @@ package revisions
 import (
 	"testing"
 
-	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/common/models"
+	models2 "github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/view"
 	"github.com/idursun/jjui/test"
@@ -14,9 +13,9 @@ import (
 func TestModel_highlightChanges(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	mainContext := context.NewAppContext(commandRunner, "")
-	mainContext.Revisions.Revisions.SetItems([]*models.RevisionItem{
-		{IsAffected: false, Row: models.Row{Commit: &jj.Commit{ChangeId: "someother"}}},
-		{IsAffected: false, Row: models.Row{Commit: &jj.Commit{ChangeId: "nyqzpsmt"}}},
+	mainContext.Revisions.Revisions.SetItems([]*models2.RevisionItem{
+		{IsAffected: false, Row: models2.Row{Commit: &models2.Commit{ChangeId: "someother"}}},
+		{IsAffected: false, Row: models2.Row{Commit: &models2.Commit{ChangeId: "nyqzpsmt"}}},
 	})
 	viewManager := view.NewViewManager()
 	model := New(mainContext, viewManager).(*Model)

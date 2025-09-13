@@ -4,7 +4,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/screen"
 )
 
@@ -17,7 +16,7 @@ const (
 )
 
 type Row struct {
-	Commit   *jj.Commit
+	Commit   *Commit
 	Lines    []*GraphRowLine
 	Indent   int
 	Previous *Row
@@ -25,7 +24,7 @@ type Row struct {
 
 func NewGraphRow() Row {
 	return Row{
-		Commit: &jj.Commit{},
+		Commit: &Commit{},
 		Lines:  make([]*GraphRowLine, 0),
 	}
 }

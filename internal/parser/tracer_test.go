@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
+	models2 "github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common/list"
-	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -89,20 +89,20 @@ func TestMultiBranchTraceMask(t *testing.T) {
 }
 
 func TestTracer_IsGutterInLane(t *testing.T) {
-	row1 := models.NewGraphRow()
+	row1 := models2.NewGraphRow()
 	row1.Lines = append(row1.Lines,
-		&models.GraphRowLine{
-			Gutter: models.GraphGutter{
+		&models2.GraphRowLine{
+			Gutter: models2.GraphGutter{
 				Segments: []*screen.Segment{
 					{Text: "│", Style: lipgloss.NewStyle()},
 					{Text: " ", Style: lipgloss.NewStyle()},
 					{Text: "◆", Style: lipgloss.NewStyle()},
 				},
 			},
-			Flags: models.Revision | models.Highlightable,
+			Flags: models2.Revision | models2.Highlightable,
 		},
-		&models.GraphRowLine{
-			Gutter: models.GraphGutter{
+		&models2.GraphRowLine{
+			Gutter: models2.GraphGutter{
 				Segments: []*screen.Segment{
 					{Text: "│", Style: lipgloss.NewStyle()},
 					{Text: " ", Style: lipgloss.NewStyle()},
@@ -110,8 +110,8 @@ func TestTracer_IsGutterInLane(t *testing.T) {
 				},
 			},
 		},
-		&models.GraphRowLine{
-			Gutter: models.GraphGutter{
+		&models2.GraphRowLine{
+			Gutter: models2.GraphGutter{
 				Segments: []*screen.Segment{
 					{Text: "│", Style: lipgloss.NewStyle()},
 					{Text: " ", Style: lipgloss.NewStyle()},
@@ -119,8 +119,8 @@ func TestTracer_IsGutterInLane(t *testing.T) {
 				},
 			},
 		},
-		&models.GraphRowLine{
-			Gutter: models.GraphGutter{
+		&models2.GraphRowLine{
+			Gutter: models2.GraphGutter{
 				Segments: []*screen.Segment{
 					{Text: "├", Style: lipgloss.NewStyle()},
 					{Text: "─", Style: lipgloss.NewStyle()},
@@ -129,9 +129,9 @@ func TestTracer_IsGutterInLane(t *testing.T) {
 			},
 		})
 
-	var rows []*models.RevisionItem
-	rows = append(rows, models.NewRevisionItem(row1))
-	l := list.NewList[*models.RevisionItem]()
+	var rows []*models2.RevisionItem
+	rows = append(rows, models2.NewRevisionItem(row1))
+	l := list.NewList[*models2.RevisionItem]()
 	l.SetItems(rows)
 	tracer := NewTracer(l, 0, 0, len(rows))
 
@@ -139,11 +139,11 @@ func TestTracer_IsGutterInLane(t *testing.T) {
 	assert.True(t, tracer.IsGutterInLane(0, 3, 0))
 }
 
-func createLaneMap(rows []models.Row, cursor, start int) string {
-	l := list.NewList[*models.RevisionItem]()
-	var items []*models.RevisionItem
+func createLaneMap(rows []models2.Row, cursor, start int) string {
+	l := list.NewList[*models2.RevisionItem]()
+	var items []*models2.RevisionItem
 	for _, row := range rows {
-		items = append(items, models.NewRevisionItem(row))
+		items = append(items, models2.NewRevisionItem(row))
 	}
 	l.SetItems(items)
 	_ = NewTracer(l, cursor, start, len(rows))
@@ -165,9 +165,9 @@ func createLaneMap(rows []models.Row, cursor, start int) string {
 	return sb.String()
 }
 
-func newTestTraceableRow(lines []string) models.Row {
-	row := models.Row{
-		Lines: make([]*models.GraphRowLine, 0),
+func newTestTraceableRow(lines []string) models2.Row {
+	row := models2.Row{
+		Lines: make([]*models2.GraphRowLine, 0),
 	}
 	for i, line := range lines {
 		line = strings.TrimSpace(line)
@@ -181,22 +181,22 @@ func newTestTraceableRow(lines []string) models.Row {
 				Style: lipgloss.NewStyle(),
 			})
 		}
-		gutter := models.GraphGutter{
+		gutter := models2.GraphGutter{
 			Segments: segments,
 		}
-		flags := models.RowLineFlags(0)
+		flags := models2.RowLineFlags(0)
 		if i == 0 {
-			flags |= models.Revision
+			flags |= models2.Revision
 		}
-		row.Lines = append(row.Lines, &models.GraphRowLine{Gutter: gutter, Flags: flags})
+		row.Lines = append(row.Lines, &models2.GraphRowLine{Gutter: gutter, Flags: flags})
 	}
 	return row
 }
 
-func createRows(g string) []models.Row {
+func createRows(g string) []models2.Row {
 	g = strings.TrimSpace(g)
 	scanner := bufio.NewScanner(strings.NewReader(g))
-	var ret []models.Row
+	var ret []models2.Row
 	var lines []string
 	for scanner.Scan() {
 		line := scanner.Text()

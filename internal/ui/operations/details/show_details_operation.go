@@ -11,9 +11,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
-	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -30,11 +30,11 @@ type Operation struct {
 	*DetailsList
 	*view.ViewNode
 	context           *context.MainContext
-	revision          *jj.Commit
+	revision          *models.RevisionItem
 	confirmation      *confirmation.Model
 	keyMap            config.KeyMappings[key.Binding]
 	targetMarkerStyle lipgloss.Style
-	selected          *jj.Commit
+	selected          *models.Commit
 }
 
 func (o *Operation) CurrentItem() models.IItem {
@@ -140,7 +140,7 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return o, nil
 			}
 			return o, func() tea.Msg {
-				output, _ := o.context.RunCommandImmediate(jj.Diff(o.revision.GetChangeId(), selected.FileName))
+				output, _ := o.context.RunCommandImmediate(jj.Diff(o.revision.Commit.GetChangeId(), selected.FileName))
 				return common.ShowDiffMsg(output)
 			}
 		case key.Matches(msg, o.keyMap.Details.Split):
@@ -157,7 +157,7 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				[]string{"Are you sure you want to split the selected files?"},
 				confirmation.WithStylePrefix("revisions"),
 				confirmation.WithOption("Yes",
-					tea.Batch(o.context.RunInteractiveCommand(jj.Split(o.revision.GetChangeId(), selectedFiles), common.Refresh), o.close),
+					tea.Batch(o.context.RunInteractiveCommand(jj.Split(o.revision.Commit.GetChangeId(), selectedFiles), common.Refresh), o.close),
 					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 				confirmation.WithOption("No",
 					confirmation.Close,
@@ -186,7 +186,7 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				[]string{"Are you sure you want to restore the selected files?"},
 				confirmation.WithStylePrefix("revisions"),
 				confirmation.WithOption("Yes",
-					o.context.RunCommand(jj.Restore(o.revision.GetChangeId(), selectedFiles), common.Refresh, confirmation.Close),
+					o.context.RunCommand(jj.Restore(o.revision.Commit.GetChangeId(), selectedFiles), common.Refresh, confirmation.Close),
 					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 				confirmation.WithOption("No",
 					confirmation.Close,
@@ -208,7 +208,7 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				[]string{"Are you sure you want to absorb changes from the selected files?"},
 				confirmation.WithStylePrefix("revisions"),
 				confirmation.WithOption("Yes",
-					o.context.RunCommand(jj.Absorb(o.revision.GetChangeId(), selectedFiles...), common.Refresh, confirmation.Close),
+					o.context.RunCommand(jj.Absorb(o.revision.Commit.GetChangeId(), selectedFiles...), common.Refresh, confirmation.Close),
 					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 				confirmation.WithOption("No",
 					confirmation.Close,
@@ -242,7 +242,7 @@ func (o *Operation) close() tea.Msg {
 	return nil
 }
 
-func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
+func (o *Operation) Render(commit *models.Commit, pos operations.RenderPosition) string {
 	isSelected := o.selected.GetChangeId() == commit.GetChangeId()
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return ""
@@ -278,7 +278,7 @@ func (o *Operation) View() string {
 	return lipgloss.Place(w, h, 0, 0, rendered, lipgloss.WithWhitespaceBackground(o.styles.Text.GetBackground()))
 }
 
-func NewOperation(ctx *context.MainContext, selected *jj.Commit) *Operation {
+func NewOperation(ctx *context.MainContext, selected *models.Commit) *Operation {
 	s := styles{
 		Added:    common.DefaultPalette.Get("revisions details added"),
 		Deleted:  common.DefaultPalette.Get("revisions details deleted"),
@@ -297,7 +297,7 @@ func NewOperation(ctx *context.MainContext, selected *jj.Commit) *Operation {
 	}
 	dl.renderer = list.NewRenderer[*models.RevisionFileItem](dl.List, dl, view.NewSizeable(30, 20))
 	m := &Operation{
-		revision:          ctx.Revisions.Current().Commit,
+		revision:          ctx.Revisions.Current(),
 		DetailsList:       dl,
 		context:           ctx,
 		selected:          selected,

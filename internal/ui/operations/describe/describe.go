@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -88,7 +89,7 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return o, cmd
 }
 
-func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
+func (o *Operation) Render(commit *models.Commit, pos operations.RenderPosition) string {
 	if pos != operations.RenderOverDescription {
 		return ""
 	}

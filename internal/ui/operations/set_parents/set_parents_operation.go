@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -21,8 +22,8 @@ var _ view.IViewModel = (*Operation)(nil)
 type Operation struct {
 	*view.ViewNode
 	context  *context.MainContext
-	target   *jj.Commit
-	current  *jj.Commit
+	target   *models.Commit
+	current  *models.Commit
 	toRemove map[string]bool
 	toAdd    map[string]bool
 	keyMap   config.KeyMappings[key.Binding]
@@ -136,7 +137,7 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-func (o *Operation) Render(commit *jj.Commit, renderPosition operations.RenderPosition) string {
+func (o *Operation) Render(commit *models.Commit, renderPosition operations.RenderPosition) string {
 	if renderPosition != operations.RenderBeforeChangeId {
 		return ""
 	}
@@ -156,7 +157,7 @@ func (o *Operation) Render(commit *jj.Commit, renderPosition operations.RenderPo
 	return ""
 }
 
-func NewOperation(ctx *context.MainContext, to *jj.Commit) view.IViewModel {
+func NewOperation(ctx *context.MainContext, to *models.Commit) view.IViewModel {
 	styles := styles{
 		sourceMarker: common.DefaultPalette.Get("set_parents source_marker"),
 		targetMarker: common.DefaultPalette.Get("set_parents target_marker"),

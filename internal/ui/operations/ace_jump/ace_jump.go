@@ -9,11 +9,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/jj"
+	models2 "github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/ace_jump"
 	"github.com/idursun/jjui/internal/ui/common/list"
-	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/view"
@@ -28,13 +27,13 @@ var (
 
 type Operation struct {
 	*view.ViewNode
-	renderer *list.ListRenderer[*models.RevisionItem]
+	renderer *list.ListRenderer[*models2.RevisionItem]
 	context  *context.MainContext
 	aceJump  *ace_jump.AceJump
 	keymap   config.KeyMappings[key.Binding]
 }
 
-func NewOperation(ctx *context.MainContext, renderer *list.ListRenderer[*models.RevisionItem]) view.IViewModel {
+func NewOperation(ctx *context.MainContext, renderer *list.ListRenderer[*models2.RevisionItem]) view.IViewModel {
 	return &Operation{
 		context:  ctx,
 		renderer: renderer,
@@ -43,7 +42,7 @@ func NewOperation(ctx *context.MainContext, renderer *list.ListRenderer[*models.
 	}
 }
 
-func (o *Operation) RenderSegment(currentStyle lipgloss.Style, segment *screen.Segment, row *models.RevisionItem) string {
+func (o *Operation) RenderSegment(currentStyle lipgloss.Style, segment *screen.Segment, row *models2.RevisionItem) string {
 	style := currentStyle
 	if aceIdx := o.aceJumpIndex(segment.Text, row.Row); aceIdx > -1 {
 		mid := lipgloss.NewRange(aceIdx, aceIdx+1, style.Reverse(true))
@@ -52,7 +51,7 @@ func (o *Operation) RenderSegment(currentStyle lipgloss.Style, segment *screen.S
 	return ""
 }
 
-func (o *Operation) aceJumpIndex(text string, row models.Row) int {
+func (o *Operation) aceJumpIndex(text string, row models2.Row) int {
 	aceJumpPrefix := o.aceJump.Prefix()
 	if aceJumpPrefix == nil || row.Commit == nil {
 		return -1
@@ -130,7 +129,7 @@ func (o *Operation) GetId() view.ViewId {
 	return "ace jump"
 }
 
-func (o *Operation) Render(*jj.Commit, operations.RenderPosition) string {
+func (o *Operation) Render(*models2.Commit, operations.RenderPosition) string {
 	return ""
 }
 

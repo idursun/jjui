@@ -6,18 +6,17 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/idursun/jjui/internal/jj"
+	models2 "github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/common/list"
-	"github.com/idursun/jjui/internal/ui/common/models"
 	"github.com/idursun/jjui/internal/ui/operations"
 )
 
 var _ list.IItemRenderer = (*RevisionList)(nil)
 
 type RevisionList struct {
-	*list.CheckableList[*models.RevisionItem]
-	renderer      *list.ListRenderer[*models.RevisionItem]
+	*list.CheckableList[*models2.RevisionItem]
+	renderer      *list.ListRenderer[*models2.RevisionItem]
 	Tracer        parser.LaneTracer
 	getOpFn       func() operations.Operation
 	dimmedStyle   lipgloss.Style
@@ -36,7 +35,7 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 	isHighlighted := index == r.Cursor
 	// render: before
 	if before := r.RenderBefore(row.Commit); before != "" {
-		extended := models.GraphGutter{}
+		extended := models2.GraphGutter{}
 		if row.Previous != nil {
 			extended = row.Previous.Extend()
 		}
@@ -54,17 +53,17 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 	// Elided: this is usually the last line of the row, it is not highlightable
 	for lineIndex := 0; lineIndex < len(row.Lines); lineIndex++ {
 		segmentedLine := row.Lines[lineIndex]
-		if segmentedLine.Flags&models.Elided == models.Elided {
+		if segmentedLine.Flags&models2.Elided == models2.Elided {
 			break
 		}
 		lw := strings.Builder{}
-		if segmentedLine.Flags&models.Revision != models.Revision && isHighlighted {
+		if segmentedLine.Flags&models2.Revision != models2.Revision && isHighlighted {
 			if requiresDescriptionRendering {
 				r.writeSection(w, index, segmentedLine.Gutter, row.Extend(), true, descriptionOverlay)
 				descriptionRendered = true
 				// skip all remaining highlightable lines
 				for lineIndex < len(row.Lines) {
-					if row.Lines[lineIndex].Flags&models.Highlightable == models.Highlightable {
+					if row.Lines[lineIndex].Flags&models2.Highlightable == models2.Highlightable {
 						lineIndex++
 						continue
 					} else {
@@ -89,7 +88,7 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 		}
 
 		// render: before change id
-		if segmentedLine.Flags&models.Revision == models.Revision {
+		if segmentedLine.Flags&models2.Revision == models2.Revision {
 			if decoration := r.RenderBeforeChangeId(index, row); decoration != "" {
 				fmt.Fprint(&lw, decoration)
 			}
@@ -126,7 +125,7 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 		}
 
 		// render: affected by last operation
-		if segmentedLine.Flags&models.Revision == models.Revision && row.IsAffected {
+		if segmentedLine.Flags&models2.Revision == models2.Revision && row.IsAffected {
 			style := r.dimmedStyle
 			if isHighlighted {
 				style = r.dimmedStyle.Background(r.selectedStyle.GetBackground())
@@ -134,7 +133,7 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 			fmt.Fprint(&lw, style.Render(" (affected by last operation)"))
 		}
 		line := lw.String()
-		if isHighlighted && segmentedLine.Flags&models.Highlightable == models.Highlightable {
+		if isHighlighted && segmentedLine.Flags&models2.Highlightable == models2.Highlightable {
 			fmt.Fprint(r.renderer, lipgloss.PlaceHorizontal(r.renderer.Width, 0, line, lipgloss.WithWhitespaceBackground(r.selectedStyle.GetBackground())))
 		} else {
 			fmt.Fprint(r.renderer, lipgloss.PlaceHorizontal(r.renderer.Width, 0, line, lipgloss.WithWhitespaceBackground(r.textStyle.GetBackground())))
@@ -158,7 +157,7 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 	}
 
 	// render: remaining lines (non-highlightable)
-	for lineIndex, segmentedLine := range row.RowLinesIter(models.Excluding(models.Highlightable)) {
+	for lineIndex, segmentedLine := range row.RowLinesIter(models2.Excluding(models2.Highlightable)) {
 		var lw strings.Builder
 		for i, segment := range segmentedLine.Gutter.Segments {
 			gutterInLane := r.Tracer.IsGutterInLane(index, lineIndex, i)
@@ -181,7 +180,7 @@ func (r *RevisionList) RenderItem(w io.Writer, index int) {
 
 }
 
-func (r *RevisionList) writeSection(w io.Writer, index int, current models.GraphGutter, extended models.GraphGutter, highlight bool, section string) {
+func (r *RevisionList) writeSection(w io.Writer, index int, current models2.GraphGutter, extended models2.GraphGutter, highlight bool, section string) {
 	isHighlighted := index == r.Cursor
 	lines := strings.Split(section, "\n")
 	for _, sectionLine := range lines {
@@ -202,15 +201,15 @@ func (r *RevisionList) writeSection(w io.Writer, index int, current models.Graph
 	}
 }
 
-func (r *RevisionList) RenderBefore(commit *jj.Commit) string {
+func (r *RevisionList) RenderBefore(commit *models2.Commit) string {
 	return r.getOpFn().Render(commit, operations.RenderPositionBefore)
 }
 
-func (r *RevisionList) RenderAfter(commit *jj.Commit) string {
+func (r *RevisionList) RenderAfter(commit *models2.Commit) string {
 	return r.getOpFn().Render(commit, operations.RenderPositionAfter)
 }
 
-func (r *RevisionList) RenderBeforeChangeId(index int, item *models.RevisionItem) string {
+func (r *RevisionList) RenderBeforeChangeId(index int, item *models2.RevisionItem) string {
 	commit := item.Commit
 	isSelected := item.IsChecked()
 	isHighlighted := r.Cursor == index
@@ -242,6 +241,6 @@ func (r *RevisionList) RenderBeforeChangeId(index int, item *models.RevisionItem
 	return lipgloss.JoinHorizontal(0, sections...)
 }
 
-func (r *RevisionList) RenderBeforeCommitId(commit *jj.Commit) string {
+func (r *RevisionList) RenderBeforeCommitId(commit *models2.Commit) string {
 	return r.getOpFn().Render(commit, operations.RenderBeforeCommitId)
 }

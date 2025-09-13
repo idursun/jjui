@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -55,8 +56,8 @@ type Operation struct {
 	*view.ViewNode
 	context        *context.MainContext
 	From           jj.SelectedRevisions
-	InsertStart    *jj.Commit
-	To             *jj.Commit
+	InsertStart    *models.RevisionItem
+	To             *models.RevisionItem
 	Source         Source
 	Target         Target
 	keyMap         config.KeyMappings[key.Binding]
@@ -127,11 +128,11 @@ func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		r.ViewManager.UnregisterView(r.GetId())
 		ignoreImmutable := key.Matches(msg, r.keyMap.ForceApply)
 		if r.Target == TargetInsert {
-			return r.context.RunCommand(jj.RebaseInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId(), ignoreImmutable), common.RefreshAndSelect(r.From.Last()))
+			return r.context.RunCommand(jj.RebaseInsert(r.From, r.InsertStart.Commit.GetChangeId(), r.To.Commit.GetChangeId(), ignoreImmutable), common.RefreshAndSelect(r.From.Last()))
 		} else {
 			source := sourceToFlags[r.Source]
 			target := targetToFlags[r.Target]
-			return r.context.RunCommand(jj.Rebase(r.From, r.To.GetChangeId(), source, target, ignoreImmutable), common.RefreshAndSelect(r.From.Last()))
+			return r.context.RunCommand(jj.Rebase(r.From, r.To.Commit.GetChangeId(), source, target, ignoreImmutable), common.RefreshAndSelect(r.From.Last()))
 		}
 	case key.Matches(msg, r.keyMap.Cancel):
 		r.ViewManager.UnregisterView(r.GetId())
@@ -145,19 +146,15 @@ func (r *Operation) setSelectedRevision() {
 	if current == nil {
 		return
 	}
-	commit := current.Commit
-	if commit == nil {
-		return
-	}
 	r.highlightedIds = nil
-	r.To = commit
+	r.To = current
 	revset := ""
 	switch r.Source {
 	case SourceRevision:
 		r.highlightedIds = r.From.GetIds()
 		return
 	case SourceBranch:
-		revset = fmt.Sprintf("(%s..(%s))::", r.To.GetChangeId(), strings.Join(r.From.GetIds(), "|"))
+		revset = fmt.Sprintf("(%s..(%s))::", r.To.Commit.GetChangeId(), strings.Join(r.From.GetIds(), "|"))
 	case SourceDescendants:
 		revset = fmt.Sprintf("(%s)::", strings.Join(r.From.GetIds(), "|"))
 	}
@@ -183,16 +180,16 @@ func (r *Operation) FullHelp() [][]key.Binding {
 	return [][]key.Binding{r.ShortHelp()}
 }
 
-func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
+func (r *Operation) Render(commit *models.Commit, pos operations.RenderPosition) string {
 	if pos == operations.RenderBeforeChangeId {
 		changeId := commit.GetChangeId()
 		if slices.Contains(r.highlightedIds, changeId) {
 			return r.styles.sourceMarker.Render("<< move >>")
 		}
-		if r.Target == TargetInsert && r.InsertStart.GetChangeId() == commit.GetChangeId() {
+		if r.Target == TargetInsert && r.InsertStart.Commit.GetChangeId() == commit.GetChangeId() {
 			return r.styles.sourceMarker.Render("<< after this >>")
 		}
-		if r.Target == TargetInsert && r.To.GetChangeId() == commit.GetChangeId() {
+		if r.Target == TargetInsert && r.To.Commit.GetChangeId() == commit.GetChangeId() {
 			return r.styles.sourceMarker.Render("<< before this >>")
 		}
 		return ""
@@ -206,13 +203,13 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		return ""
 	}
 
-	isSelected := r.To != nil && r.To.GetChangeId() == commit.GetChangeId()
+	isSelected := r.To != nil && r.To.Commit.GetChangeId() == commit.GetChangeId()
 	if !isSelected {
 		return ""
 	}
 
 	var source string
-	isMany := len(r.From.Revisions) > 0
+	isMany := len(r.From) > 0
 	switch {
 	case r.Source == SourceBranch && isMany:
 		source = "branches of "
@@ -249,9 +246,9 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 			r.styles.dimmed.Render(source),
 			r.styles.changeId.Render(strings.Join(r.From.GetIds(), " ")),
 			r.styles.dimmed.Render(" between "),
-			r.styles.changeId.Render(r.InsertStart.GetChangeId()),
+			r.styles.changeId.Render(r.InsertStart.Commit.GetChangeId()),
 			r.styles.dimmed.Render(" and "),
-			r.styles.changeId.Render(r.To.GetChangeId()),
+			r.styles.changeId.Render(r.To.Commit.GetChangeId()),
 		)
 	}
 
@@ -264,7 +261,7 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		r.styles.dimmed.Render(" "),
 		r.styles.dimmed.Render(ret),
 		r.styles.dimmed.Render(" "),
-		r.styles.changeId.Render(r.To.GetChangeId()),
+		r.styles.changeId.Render(r.To.Commit.GetChangeId()),
 	)
 }
 

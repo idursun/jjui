@@ -4,7 +4,7 @@ import (
 	"slices"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/idursun/jjui/internal/ui/common/models"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/view"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -23,7 +23,7 @@ type Operation struct {
 	context     *context.MainContext
 	from        jj.SelectedRevisions
 	files       []*models.RevisionFileItem
-	current     *jj.Commit
+	current     *models.RevisionItem
 	keyMap      config.KeyMappings[key.Binding]
 	keepEmptied bool
 	interactive bool
@@ -73,14 +73,24 @@ func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, s.keyMap.Apply):
 		s.ViewManager.UnregisterView(s.GetId())
+		var args jj.IGetArgs
 		if len(s.files) > 0 {
-			var fileNames []string
-			for _, f := range s.files {
-				fileNames = append(fileNames, f.Name)
+			args = jj.SquashFilesArgs{
+				From:        *s.from[0],
+				Into:        *s.current,
+				Files:       jj.Convert(s.files),
+				Interactive: false,
+				KeepEmptied: false,
 			}
-			return s.context.RunInteractiveCommand(jj.SquashFiles(s.from.Revisions[0].GetChangeId(), s.current.GetChangeId(), fileNames, s.keepEmptied, s.interactive), common.RefreshAndSelect(s.current.GetChangeId()))
+		} else {
+			args = jj.SquashRevisionArgs{
+				From:        s.from,
+				Into:        *s.current,
+				Interactive: s.interactive,
+				KeepEmptied: s.keepEmptied,
+			}
 		}
-		return s.context.RunInteractiveCommand(jj.Squash(s.from, s.current.GetChangeId(), s.keepEmptied, s.interactive), common.RefreshAndSelect(s.current.GetChangeId()))
+		return s.context.RunInteractiveCommand(jj.Squash(args), common.RefreshAndSelect(s.current.Commit.GetChangeId()))
 	case key.Matches(msg, s.keyMap.Cancel):
 		s.ViewManager.UnregisterView(s.GetId())
 		return nil
@@ -94,16 +104,16 @@ func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 
 func (s *Operation) setSelectedRevision() {
 	if current := s.context.Revisions.Current(); current != nil {
-		s.current = current.Commit
+		s.current = current
 	}
 }
 
-func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
+func (s *Operation) Render(commit *models.Commit, pos operations.RenderPosition) string {
 	if pos != operations.RenderBeforeChangeId {
 		return ""
 	}
 
-	isSelected := s.current != nil && s.current.GetChangeId() == commit.GetChangeId()
+	isSelected := s.current != nil && s.current.Commit.GetChangeId() == commit.GetChangeId()
 	if isSelected {
 		return s.styles.targetMarker.Render("<< into >>")
 	}

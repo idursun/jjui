@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/view"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -85,7 +86,7 @@ func (s *SetBookmarkOperation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, cmd
 }
 
-func (s *SetBookmarkOperation) Render(_ *jj.Commit, pos operations.RenderPosition) string {
+func (s *SetBookmarkOperation) Render(_ *models.Commit, pos operations.RenderPosition) string {
 	if pos != operations.RenderBeforeCommitId {
 		return ""
 	}
