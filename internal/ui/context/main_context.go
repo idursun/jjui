@@ -1,61 +1,21 @@
 package context
 
 import (
-	"reflect"
-	"slices"
 	"strings"
 
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/common"
-
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/models"
+	"github.com/idursun/jjui/internal/ui/common/list"
 )
-
-type SelectedItem interface {
-	Equal(other SelectedItem) bool
-}
-
-type SelectedRevision struct {
-	ChangeId string
-	CommitId string
-}
-
-func (s SelectedRevision) Equal(other SelectedItem) bool {
-	if o, ok := other.(SelectedRevision); ok {
-		return s.ChangeId == o.ChangeId && s.CommitId == o.CommitId
-	}
-	return false
-}
-
-type SelectedFile struct {
-	ChangeId string
-	CommitId string
-	File     string
-}
-
-func (s SelectedFile) Equal(other SelectedItem) bool {
-	if o, ok := other.(SelectedFile); ok {
-		return s.ChangeId == o.ChangeId && s.CommitId == o.CommitId && s.File == o.File
-	}
-	return false
-}
-
-type SelectedOperation struct {
-	OperationId string
-}
-
-func (s SelectedOperation) Equal(other SelectedItem) bool {
-	if o, ok := other.(SelectedOperation); ok {
-		return s.OperationId == o.OperationId
-	}
-	return false
-}
 
 type MainContext struct {
 	CommandRunner
-	SelectedItem   SelectedItem   // Single item where cursor is hover.
-	CheckedItems   []SelectedItem // Items checked ✓ by the user.
+	OpLog          *list.List[*models.OperationLogItem]
+	Revisions      *RevisionsContext
+	Evolog         *list.List[*models.RevisionItem]
+	Files          *DetailsContext
+	Preview        *PreviewContext
 	Location       string
 	CustomCommands map[string]CustomCommand
 	Leader         LeaderMap
@@ -65,85 +25,47 @@ type MainContext struct {
 	Histories      *config.Histories
 }
 
-func NewAppContext(location string) *MainContext {
+func NewAppContext(commandRunner CommandRunner, location string) *MainContext {
 	m := &MainContext{
-		CommandRunner: &MainCommandRunner{
-			Location: location,
-		},
-		Location:  location,
-		Histories: config.NewHistories(),
+		CommandRunner: commandRunner,
+		Location:      location,
+		Histories:     config.NewHistories(),
+		OpLog:         list.NewList[*models.OperationLogItem](),
 	}
+	m.Revisions = NewRevisionsContext(m)
+	m.Files = NewDetailsContext(m)
+	m.Evolog = list.NewList[*models.RevisionItem]()
+	m.Preview = NewPreviewContext(commandRunner)
 
 	m.JJConfig = &config.JJConfig{}
-	if output, err := m.RunCommandImmediate(jj.ConfigListAll()); err == nil {
+	if output, err := m.RunCommandImmediate(jj.Args(jj.ConfigListAllArgs{})); err == nil {
 		m.JJConfig, _ = config.DefaultConfig(output)
 	}
 	return m
 }
 
-func (ctx *MainContext) ClearCheckedItems(ofType reflect.Type) {
-	ctx.CheckedItems = slices.DeleteFunc(ctx.CheckedItems, func(i SelectedItem) bool {
-		return ofType == nil || ofType == reflect.TypeOf(i)
-	})
-}
-
-func (ctx *MainContext) AddCheckedItem(item SelectedItem) {
-	exists := slices.ContainsFunc(ctx.CheckedItems, func(i SelectedItem) bool {
-		return i.Equal(item)
-	})
-	if !exists {
-		ctx.CheckedItems = append(ctx.CheckedItems, item)
-	}
-}
-
-func (ctx *MainContext) RemoveCheckedItem(item SelectedItem) {
-	ctx.CheckedItems = slices.DeleteFunc(ctx.CheckedItems, func(i SelectedItem) bool {
-		return i.Equal(item)
-	})
-}
-
-func (ctx *MainContext) SetSelectedItem(item SelectedItem) tea.Cmd {
-	if item == nil {
-		return nil
-	}
-	if item.Equal(ctx.SelectedItem) {
-		return nil
-	}
-	ctx.SelectedItem = item
-	return common.SelectionChanged
-}
-
 // CreateReplacements context aware replacements for custom commands and exec input.
 func (ctx *MainContext) CreateReplacements() map[string]string {
-	selectedItem := ctx.SelectedItem
 	replacements := make(map[string]string)
 	replacements[jj.RevsetPlaceholder] = ctx.CurrentRevset
 
-	switch selectedItem := selectedItem.(type) {
-	case SelectedRevision:
-		replacements[jj.ChangeIdPlaceholder] = selectedItem.ChangeId
-		replacements[jj.CommitIdPlaceholder] = selectedItem.CommitId
-	case SelectedFile:
-		replacements[jj.ChangeIdPlaceholder] = selectedItem.ChangeId
-		replacements[jj.CommitIdPlaceholder] = selectedItem.CommitId
-		replacements[jj.FilePlaceholder] = selectedItem.File
-	case SelectedOperation:
-		replacements[jj.OperationIdPlaceholder] = selectedItem.OperationId
+	if current := ctx.Revisions.Current(); current != nil {
+		replacements[jj.ChangeIdPlaceholder] = current.Commit.ChangeId
+		replacements[jj.CommitIdPlaceholder] = current.Commit.CommitId
+	}
+	if current := ctx.Files.Current(); current != nil {
+		replacements[jj.FilePlaceholder] = current.FileName
+	}
+	if current := ctx.OpLog.Current(); current != nil {
+		replacements[jj.OperationIdPlaceholder] = current.OperationId
+	}
+	if current := ctx.Evolog.Current(); current != nil {
+		replacements[jj.CommitIdPlaceholder] = current.Commit.CommitId
 	}
 
-	var checkedFiles []string
 	var checkedRevisions []string
-	for _, checked := range ctx.CheckedItems {
-		switch c := checked.(type) {
-		case SelectedRevision:
-			checkedRevisions = append(checkedRevisions, c.CommitId)
-		case SelectedFile:
-			checkedFiles = append(checkedFiles, c.File)
-		}
-	}
-
-	if len(checkedFiles) > 0 {
-		replacements[jj.CheckedFilesPlaceholder] = strings.Join(checkedFiles, "\t")
+	for _, item := range ctx.Revisions.GetCheckedItems() {
+		checkedRevisions = append(checkedRevisions, item.Commit.CommitId)
 	}
 
 	if len(checkedRevisions) == 0 {
@@ -152,25 +74,14 @@ func (ctx *MainContext) CreateReplacements() map[string]string {
 		replacements[jj.CheckedCommitIdsPlaceholder] = strings.Join(checkedRevisions, "|")
 	}
 
+	var checkedFiles []string
+	for _, item := range ctx.Files.GetCheckedItems() {
+		checkedFiles = append(checkedFiles, item.FileName)
+	}
+
+	if len(checkedFiles) > 0 {
+		replacements[jj.CheckedFilesPlaceholder] = strings.Join(checkedFiles, "\t")
+	}
+
 	return replacements
-}
-
-func (ctx *MainContext) ToggleCheckedItem(item SelectedRevision) {
-	for i, checked := range ctx.CheckedItems {
-		if checked.Equal(item) {
-			ctx.CheckedItems = slices.Delete(ctx.CheckedItems, i, i+1)
-			return
-		}
-	}
-	ctx.CheckedItems = append(ctx.CheckedItems, item)
-}
-
-func (ctx *MainContext) GetSelectedRevisions() map[string]bool {
-	selectedRevisions := make(map[string]bool)
-	for _, item := range ctx.CheckedItems {
-		if rev, ok := item.(SelectedRevision); ok {
-			selectedRevisions[rev.ChangeId] = true
-		}
-	}
-	return selectedRevisions
 }

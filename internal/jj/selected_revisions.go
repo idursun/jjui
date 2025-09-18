@@ -1,13 +1,11 @@
 package jj
 
-type SelectedRevisions struct {
-	Revisions []*Commit
-}
+import "github.com/idursun/jjui/internal/models"
 
-func NewSelectedRevisions(revisions ...*Commit) SelectedRevisions {
-	return SelectedRevisions{
-		Revisions: revisions,
-	}
+type SelectedRevisions []*models.RevisionItem
+
+func NewSelectedRevisions(revision *models.RevisionItem) SelectedRevisions {
+	return []*models.RevisionItem{revision}
 }
 
 func (s SelectedRevisions) Contains(revision *Commit) bool {
@@ -24,16 +22,16 @@ func (s SelectedRevisions) Contains(revision *Commit) bool {
 
 func (s SelectedRevisions) GetIds() []string {
 	var ret []string
-	for _, revision := range s.Revisions {
-		ret = append(ret, revision.GetChangeId())
+	for _, revision := range s {
+		ret = append(ret, revision.Commit.GetChangeId())
 	}
 	return ret
 }
 
 func (s SelectedRevisions) AsPrefixedArgs(prefix string) []string {
 	var ret []string
-	for _, revision := range s.Revisions {
-		ret = append(ret, prefix, revision.GetChangeId())
+	for _, revision := range s {
+		ret = append(ret, prefix, revision.Commit.GetChangeId())
 	}
 	return ret
 }
@@ -43,9 +41,9 @@ func (s SelectedRevisions) AsArgs() []string {
 }
 
 func (s SelectedRevisions) Last() string {
-	if len(s.Revisions) == 0 {
+	if len(s) == 0 {
 		return ""
 	}
-	last := s.Revisions[len(s.Revisions)-1]
-	return last.GetChangeId()
+	last := s[len(s)-1]
+	return last.Commit.GetChangeId()
 }

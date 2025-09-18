@@ -1,6 +1,7 @@
 package fuzzy_search
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 
@@ -18,13 +19,126 @@ type Styles struct {
 	SelectedMatch lipgloss.Style
 }
 
-type Model interface {
-	fuzzy.Source
-	tea.Model
-	Max() int
-	Matches() fuzzy.Matches
-	SelectedMatch() int
-	Styles() Styles
+type Model struct {
+	Source  fuzzy.Source
+	Matches fuzzy.Matches
+	max     int
+	Cursor  int
+	styles  Styles
+}
+
+func NewModel(source fuzzy.Source, max int) *Model {
+	return &Model{
+		Source: source,
+		max:    max,
+		Cursor: 0,
+		styles: NewStyles(),
+	}
+}
+
+func (m *Model) Init() tea.Cmd {
+	return nil
+}
+
+func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+	return m, nil
+}
+
+func (m *Model) View() string {
+	var shown []string
+	selected := m.Cursor
+	for i, match := range m.Matches {
+		if i == m.max {
+			break
+		}
+		sel := " "
+		selStyle := m.styles.SelectedMatch
+		lineStyle := m.styles.Dimmed
+		matchStyle := m.styles.DimmedMatch
+
+		entry := m.Source.String(match.Index)
+		if i == selected {
+			sel = "◆"
+			lineStyle = m.styles.Selected
+			matchStyle = m.styles.SelectedMatch
+		}
+
+		entry = HighlightMatched(entry, match, lineStyle, matchStyle)
+		shown = append(shown, selStyle.Render(sel)+" "+entry)
+	}
+	slices.Reverse(shown)
+	entries := lipgloss.JoinVertical(0, shown...)
+	return entries
+}
+
+func (m *Model) Search(input string) {
+	input = strings.TrimSpace(input)
+	if len(input) == 0 {
+		m.Matches = fuzzy.Matches{}
+		n := m.Source.Len()
+		for i := range m.max {
+			if i == n {
+				break
+			}
+			m.Matches = append(m.Matches, fuzzy.Match{
+				Index: i,
+				Str:   m.Source.String(i),
+			})
+		}
+		return
+	}
+
+	m.Matches = fuzzy.FindFrom(input, m.Source)
+}
+
+func (m *Model) SearchRegex(input string) fuzzy.Matches {
+	matches := fuzzy.Matches{}
+	re, err := regexp.CompilePOSIX(input)
+	if err != nil {
+		return matches
+	}
+	for i := range m.Source.Len() {
+		str := m.Source.String(i)
+		loc := re.FindStringIndex(str)
+		if loc == nil {
+			continue
+		}
+		var indexes []int
+		for i := range loc[1] - loc[0] {
+			indexes = append(indexes, i+loc[0])
+		}
+		matches = append(matches, fuzzy.Match{
+			Index:          i,
+			Str:            str,
+			MatchedIndexes: indexes,
+		})
+	}
+	return matches
+}
+
+func (m *Model) SelectedMatch() string {
+	idx := m.Cursor
+	matches := m.Matches
+	n := len(matches)
+	if idx < 0 || idx >= n {
+		return ""
+	}
+	match := matches[idx]
+	return m.Source.String(match.Index)
+}
+
+func (m *Model) MoveCursor(delta int) {
+	n := len(m.Matches)
+	if n == 0 {
+		m.Cursor = 0
+		return
+	}
+	m.Cursor += delta
+	if m.Cursor < 0 {
+		m.Cursor = 0
+	} else if m.Cursor >= n {
+		m.Cursor = n - 1
+	}
 }
 
 type SearchMsg struct {
@@ -41,116 +155,7 @@ func NewStyles() Styles {
 	}
 }
 
-func Search(input string, key tea.KeyMsg) tea.Cmd {
-	return func() tea.Msg {
-		return SearchMsg{
-			Input:   input,
-			Pressed: key,
-		}
-	}
-}
-
-func SelectedMatch(model Model) string {
-	idx := model.SelectedMatch()
-	matches := model.Matches()
-	n := len(matches)
-	if idx < 0 || idx >= n {
-		return ""
-	}
-	m := matches[idx]
-	return model.String(m.Index)
-}
-
-// helper to upcast: Model => tea.Model => Model
-func Update(model Model, msg tea.Msg) (Model, tea.Cmd) {
-	m, c := model.Update(msg)
-	if m, ok := m.(Model); ok {
-		return m, c
-	}
-	return model, c // should never happen.
-}
-
-func View(fzf Model) string {
-	shown := []string{}
-	max := fzf.Max()
-	styles := fzf.Styles()
-	selected := fzf.SelectedMatch()
-	for i, match := range fzf.Matches() {
-		if i == max {
-			break
-		}
-		sel := " "
-		selStyle := styles.SelectedMatch
-		lineStyle := styles.Dimmed
-		matchStyle := styles.DimmedMatch
-
-		entry := fzf.String(match.Index)
-		if i == selected {
-			sel = "◆"
-			lineStyle = styles.Selected
-			matchStyle = styles.SelectedMatch
-		}
-
-		entry = HighlightMatched(entry, match, lineStyle, matchStyle)
-		shown = append(shown, selStyle.Render(sel)+" "+entry)
-	}
-	slices.Reverse(shown)
-	entries := lipgloss.JoinVertical(0, shown...)
-	return entries
-}
-
-type RefinedSource struct {
-	Source  fuzzy.Source
-	matches fuzzy.Matches
-}
-
-// each space on input creates a refined search: filtering on previous matches
-func (fzf *RefinedSource) Search(input string, max int) fuzzy.Matches {
-	input = strings.TrimSpace(input)
-	if len(input) == 0 {
-		fzf.matches = fuzzy.Matches{}
-		flen := fzf.Source.Len()
-		for i := range max {
-			if i == flen {
-				return fzf.matches
-			}
-			fzf.matches = append(fzf.matches, fuzzy.Match{
-				Index: i,
-				Str:   fzf.Source.String(i),
-			})
-		}
-		return fzf.matches
-	}
-	for i, input := range strings.Fields(input) {
-		if i == 0 {
-			fzf.matches = fuzzy.FindFrom(input, fzf.Source)
-		} else {
-			matches := fuzzy.Matches{}
-			for _, m := range fuzzy.FindFrom(input, fzf) {
-				prev := fzf.matches[m.Index]
-				matches = append(matches, fuzzy.Match{
-					Str:            m.Str,
-					MatchedIndexes: m.MatchedIndexes,
-					Score:          m.Score,
-					Index:          prev.Index,
-				})
-			}
-			fzf.matches = matches
-		}
-	}
-	return fzf.matches
-}
-
-func (fzf *RefinedSource) Len() int {
-	return len(fzf.matches)
-}
-
-func (fzf *RefinedSource) String(i int) string {
-	match := fzf.matches[i]
-	return fzf.Source.String(match.Index)
-}
-
-// Adapted from gum/filter.go
+// HighlightMatched Adapted from gum/filter.go
 func HighlightMatched(line string, match fuzzy.Match, lineStyle lipgloss.Style, matchStyle lipgloss.Style) string {
 	var ranges []lipgloss.Range
 	for _, rng := range matchedRanges(match.MatchedIndexes) {

@@ -2,7 +2,9 @@ package preview
 
 import (
 	"bufio"
+	"log"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -11,84 +13,74 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 )
+
+const DebounceTime = 200 * time.Millisecond
 
 type viewRange struct {
 	start int
 	end   int
 }
 
-type Model struct {
-	*common.Sizeable
-	tag                     int
-	previewVisible          bool
-	previewAtBottom         bool
-	previewWindowPercentage float64
-	viewRange               *viewRange
-	help                    help.Model
-	content                 string
-	contentLineCount        int
-	context                 *context.MainContext
-	keyMap                  config.KeyMappings[key.Binding]
-	borderStyle             lipgloss.Style
-}
-
-const DebounceTime = 50 * time.Millisecond
+var _ tea.Model = (*Model)(nil)
+var _ view.IViewModel = (*Model)(nil)
 
 type previewMsg struct {
 	msg tea.Msg
 }
 
-// Allow a message to be targetted to this component.
-func PreviewCmd(msg tea.Msg) tea.Cmd {
-	return func() tea.Msg {
-		return previewMsg{msg: msg}
-	}
-}
-
 type refreshPreviewContentMsg struct {
-	Tag int
+	Tag uint64
 }
 
-func (m *Model) SetHeight(h int) {
-	m.viewRange.end = min(m.viewRange.start+h-3, m.contentLineCount)
-	m.Height = h
+type Model struct {
+	context.CommandRunner
+	*view.ViewNode
+	context          *context.MainContext
+	previewContext   *context.PreviewContext
+	tag              atomic.Uint64
+	viewRange        *viewRange
+	help             help.Model
+	content          string
+	contentLineCount int
+	keyMap           config.KeyMappings[key.Binding]
+	borderStyle      lipgloss.Style
+	previewed        models.IItem
 }
 
+func (m *Model) GetId() view.ViewId {
+	return view.PreviewViewId
+}
+
+func (m *Model) Mount(v *view.ViewNode) {
+	m.ViewNode = v
+	v.Id = m.GetId()
+	v.NeedsRefresh = true
+}
+
+func (m *Model) ShortHelp() []key.Binding {
+	return []key.Binding{
+		m.keyMap.Up,
+		m.keyMap.Down,
+		m.keyMap.Preview.Expand,
+		m.keyMap.Preview.Shrink,
+		m.keyMap.Preview.HalfPageUp,
+		m.keyMap.Preview.HalfPageDown,
+	}
+}
+
+func (m *Model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{m.ShortHelp()}
+}
 func (m *Model) Init() tea.Cmd {
-	return nil
-}
-
-func (m *Model) Visible() bool {
-	return m.previewVisible
-}
-
-func (m *Model) SetVisible(visible bool) {
-	m.previewVisible = visible
-	if m.previewVisible {
-		m.reset()
-	}
-}
-
-func (m *Model) ToggleVisible() {
-	m.previewVisible = !m.previewVisible
-	if m.previewVisible {
-		m.reset()
-	}
-}
-
-func (m *Model) TogglePosition() {
-	m.previewAtBottom = !m.previewAtBottom
-}
-
-func (m *Model) AtBottom() bool {
-	return m.previewAtBottom
-}
-
-func (m *Model) WindowPercentage() float64 {
-	return m.previewWindowPercentage
+	return tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
+		return refreshPreviewContentMsg{Tag: m.tag.Load()}
+	})
 }
 
 func (m *Model) updatePreviewContent(content string) {
@@ -97,54 +89,76 @@ func (m *Model) updatePreviewContent(content string) {
 	m.reset()
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(previewMsg); ok {
 		msg = k.msg
 	}
+	if !m.Visible {
+		return m, nil
+	}
 	switch msg := msg.(type) {
-	case common.SelectionChangedMsg, common.RefreshMsg:
-		m.tag++
-		tag := m.tag
-		return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
-			return refreshPreviewContentMsg{Tag: tag}
-		})
+	case common.RefreshMsg:
+		log.Printf("preview will be read at %d", m.tag.Load())
+		if current := m.getCurrentItem(); current != nil && (m.previewed == nil || !current.Equals(m.previewed)) {
+			tag := m.tag.Add(1)
+			log.Printf("previewed updated by %d", tag)
+			m.previewed = current
+			log.Println("preview: scheduling refresh", tag)
+			return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
+				if tag == m.tag.Load() {
+					return refreshPreviewContentMsg{Tag: tag}
+				}
+				return nil
+			})
+		}
 	case refreshPreviewContentMsg:
-		if m.tag == msg.Tag {
-			switch msg := m.context.SelectedItem.(type) {
-			case context.SelectedFile:
-				replacements := map[string]string{
-					jj.RevsetPlaceholder:   m.context.CurrentRevset,
-					jj.ChangeIdPlaceholder: msg.ChangeId,
-					jj.CommitIdPlaceholder: msg.CommitId,
-					jj.FilePlaceholder:     msg.File,
-				}
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
-				m.updatePreviewContent(string(output))
-			case context.SelectedRevision:
-				replacements := map[string]string{
-					jj.RevsetPlaceholder:   m.context.CurrentRevset,
-					jj.ChangeIdPlaceholder: msg.ChangeId,
-					jj.CommitIdPlaceholder: msg.CommitId,
-				}
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
-				m.updatePreviewContent(string(output))
-			case context.SelectedOperation:
-				replacements := map[string]string{
-					jj.RevsetPlaceholder:      m.context.CurrentRevset,
-					jj.OperationIdPlaceholder: msg.OperationId,
-				}
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
-				m.updatePreviewContent(string(output))
-			}
+		if m.tag.Load() != msg.Tag {
+			return m, nil
+		}
+
+		log.Println("preview: updating ", msg.Tag)
+		replacements := m.context.CreateReplacements()
+		m.previewed = m.getCurrentItem()
+		focusedView := m.ViewManager.GetFocusedView()
+		if focusedView == nil {
+			return m, nil
+		}
+
+		switch item := m.previewed.(type) {
+		case *models.RevisionItem:
+			replacements[jj.ChangeIdPlaceholder] = item.Commit.CommitId
+			replacements[jj.CommitIdPlaceholder] = item.Commit.CommitId
+			output, _ := m.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
+			m.updatePreviewContent(string(output))
+		case *models.RevisionFileItem:
+			output, _ := m.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
+			m.updatePreviewContent(string(output))
+		case *models.OperationLogItem:
+			output, _ := m.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
+			m.updatePreviewContent(string(output))
 		}
 	case tea.KeyMsg:
 		switch {
+		case key.Matches(msg, m.keyMap.Cancel) && m.ViewManager.IsFocused(m.Id):
+			m.ViewManager.StopEditing()
+			m.ViewManager.RestorePreviousFocus()
+			return m, nil
 		case key.Matches(msg, m.keyMap.Preview.ScrollDown):
 			if m.viewRange.end < m.contentLineCount {
 				m.viewRange.start++
 				m.viewRange.end++
 			}
+		case key.Matches(msg, m.keyMap.Down) && m.ViewManager.IsFocused(m.Id):
+			if m.viewRange.end < m.contentLineCount {
+				m.viewRange.start++
+				m.viewRange.end++
+			}
 		case key.Matches(msg, m.keyMap.Preview.ScrollUp):
+			if m.viewRange.start > 0 {
+				m.viewRange.start--
+				m.viewRange.end--
+			}
+		case key.Matches(msg, m.keyMap.Up) && m.ViewManager.IsFocused(m.Id):
 			if m.viewRange.start > 0 {
 				m.viewRange.start--
 				m.viewRange.end--
@@ -162,19 +176,41 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			halfPageSize := min(m.Height/2, m.viewRange.start)
 			m.viewRange.start -= halfPageSize
 			m.viewRange.end -= halfPageSize
+		case key.Matches(msg, m.keyMap.Preview.Expand):
+			m.previewContext.Expand()
+			m.ViewManager.UpdateViewConstraint(m.Id, func(constraint *view.LayoutConstraint) {
+				constraint.Percentage = int(m.previewContext.WindowPercentage)
+			})
+			m.ViewManager.Layout()
+		case key.Matches(msg, m.keyMap.Preview.Shrink):
+			m.previewContext.Shrink()
+			m.ViewManager.UpdateViewConstraint(m.Id, func(constraint *view.LayoutConstraint) {
+				constraint.Percentage = int(m.previewContext.WindowPercentage)
+			})
+			m.ViewManager.Layout()
+		case key.Matches(msg, m.keyMap.Preview.ToggleBottom):
+			if container := m.ViewManager.GetViewContainer(m.Id); container != nil {
+				if container.Direction == view.Horizontal {
+					container.Direction = view.Vertical
+				} else {
+					container.Direction = view.Horizontal
+				}
+			}
+			m.ViewManager.Layout()
 		}
 	}
 	return m, nil
 }
 
 func (m *Model) View() string {
+	m.viewRange.end = min(m.viewRange.start+m.Height-2, m.contentLineCount)
 	var w strings.Builder
 	scanner := bufio.NewScanner(strings.NewReader(m.content))
 	current := 0
 	for scanner.Scan() {
 		line := scanner.Text()
 		line = strings.ReplaceAll(line, "\r", "")
-		if current >= m.viewRange.start && current <= m.viewRange.end {
+		if current >= m.viewRange.start && current < m.viewRange.end {
 			if current > m.viewRange.start {
 				w.WriteString("\n")
 			}
@@ -185,41 +221,47 @@ func (m *Model) View() string {
 			break
 		}
 	}
-	view := lipgloss.Place(m.Width-2, m.Height-2, 0, 0, w.String())
-	return m.borderStyle.Render(view)
+	content := w.String()
+	v := lipgloss.Place(m.Width-2, m.Height-2, 0, 0, content)
+	borderStyle := m.borderStyle
+	if m.ViewManager.IsFocused(m.Id) {
+		borderStyle = lipgloss.NewStyle().Border(lipgloss.DoubleBorder())
+	}
+	return borderStyle.Render(v)
 }
 
 func (m *Model) reset() {
 	m.viewRange.start, m.viewRange.end = 0, m.Height
 }
 
-func (m *Model) Expand() {
-	m.previewWindowPercentage += config.Current.Preview.WidthIncrementPercentage
-	if m.previewWindowPercentage > 95 {
-		m.previewWindowPercentage = 95
+func (m *Model) getCurrentItem() models.IItem {
+	focusedViews := m.ViewManager.GetFocusedViews()
+	if len(focusedViews) == 0 {
+		return nil
 	}
+	var ret models.IItem
+	for _, v := range focusedViews {
+		if listProvider, ok := v.Model.(list.IListProvider); ok {
+			if currentItem := listProvider.CurrentItem(); currentItem != nil {
+				ret = currentItem
+			}
+		}
+	}
+	return ret
 }
 
-func (m *Model) Shrink() {
-	m.previewWindowPercentage -= config.Current.Preview.WidthIncrementPercentage
-	if m.previewWindowPercentage < 10 {
-		m.previewWindowPercentage = 10
-	}
-}
-
-func New(context *context.MainContext) Model {
+func New(ctx *context.MainContext, previewContext *context.PreviewContext) view.IViewModel {
 	borderStyle := common.DefaultPalette.GetBorder("preview border", lipgloss.NormalBorder())
 	borderStyle = borderStyle.Inherit(common.DefaultPalette.Get("preview text"))
 
-	return Model{
-		Sizeable:                &common.Sizeable{Width: 0, Height: 0},
-		viewRange:               &viewRange{start: 0, end: 0},
-		context:                 context,
-		keyMap:                  config.Current.GetKeyMap(),
-		help:                    help.New(),
-		borderStyle:             borderStyle,
-		previewAtBottom:         config.Current.Preview.ShowAtBottom,
-		previewVisible:          config.Current.Preview.ShowAtStart,
-		previewWindowPercentage: config.Current.Preview.WidthPercentage,
+	m := Model{
+		CommandRunner:  ctx.CommandRunner,
+		context:        ctx,
+		previewContext: previewContext,
+		viewRange:      &viewRange{start: 0, end: 0},
+		keyMap:         config.Current.GetKeyMap(),
+		help:           help.New(),
+		borderStyle:    borderStyle,
 	}
+	return &m
 }

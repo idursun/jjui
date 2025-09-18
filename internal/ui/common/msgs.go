@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 )
 
 type (
@@ -20,32 +21,27 @@ type (
 		Err    error
 	}
 	UpdateRevisionsSuccessMsg struct{}
-	UpdateBookmarksMsg        struct {
-		Bookmarks []string
-		Revision  string
-	}
-	CommandRunningMsg   string
-	CommandCompletedMsg struct {
+	CommandRunningMsg         string
+	CommandCompletedMsg       struct {
 		Output string
 		Err    error
 	}
-	SelectionChangedMsg struct{}
-	QuickSearchMsg      string
-	UpdateRevSetMsg     string
-	ExecMsg             struct {
+	QuickSearchMsg  string
+	UpdateRevSetMsg string
+	ExecMsg         struct {
 		Line string
 		Mode ExecMode
 	}
 	FileSearchMsg struct {
 		Revset       string
 		PreviewShown bool
-		Commit       *jj.Commit
+		Commit       *models.Commit
 		RawFileOut   []byte // raw output from `jj file list`
 	}
-	ShowPreview     bool
-	JumpToParentMsg struct {
-		Commit *jj.Commit
+	LoadDiffLayoutMsg struct {
+		Args jj.DiffCommandArgs
 	}
+	LoadOplogLayoutMsg struct{}
 )
 
 type State int
@@ -58,10 +54,6 @@ const (
 
 func Close() tea.Msg {
 	return CloseViewMsg{}
-}
-
-func SelectionChanged() tea.Msg {
-	return SelectionChangedMsg{}
 }
 
 func RefreshAndSelect(selectedRevision string) tea.Cmd {
@@ -78,10 +70,6 @@ func Refresh() tea.Msg {
 	return RefreshMsg{}
 }
 
-func ToggleHelp() tea.Msg {
-	return ToggleHelpMsg{}
-}
-
 func CommandRunning(args []string) tea.Cmd {
 	return func() tea.Msg {
 		command := "jj " + strings.Join(args, " ")
@@ -92,26 +80,6 @@ func CommandRunning(args []string) tea.Cmd {
 func UpdateRevSet(revset string) tea.Cmd {
 	return func() tea.Msg {
 		return UpdateRevSetMsg(revset)
-	}
-}
-
-func FileSearch(revset string, preview bool, commit *jj.Commit, rawFileOut []byte) tea.Cmd {
-	return func() tea.Msg {
-		return FileSearchMsg{
-			Commit:       commit,
-			RawFileOut:   rawFileOut,
-			Revset:       revset,
-			PreviewShown: preview,
-		}
-	}
-}
-
-func JumpToParent(commit *jj.Commit) tea.Cmd {
-	return func() tea.Msg {
-		if commit == nil {
-			return nil
-		}
-		return JumpToParentMsg{Commit: commit}
 	}
 }
 

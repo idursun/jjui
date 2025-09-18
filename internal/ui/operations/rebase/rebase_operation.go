@@ -10,51 +10,62 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/models"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
-type Source int
-
-const (
-	SourceRevision Source = iota
-	SourceBranch
-	SourceDescendants
-)
-
-type Target int
-
-const (
-	TargetDestination Target = iota
-	TargetAfter
-	TargetBefore
-	TargetInsert
-)
-
-var (
-	sourceToFlags = map[Source]string{
-		SourceBranch:      "--branch",
-		SourceRevision:    "--revisions",
-		SourceDescendants: "--source",
-	}
-	targetToFlags = map[Target]string{
-		TargetAfter:       "--insert-after",
-		TargetBefore:      "--insert-before",
-		TargetDestination: "--destination",
-	}
-)
+var _ tea.Model = (*Operation)(nil)
+var _ view.IViewModel = (*Operation)(nil)
+var _ view.IView = (*Operation)(nil)
+var _ operations.Operation = (*Operation)(nil)
 
 type Operation struct {
+	*view.ViewNode
 	context        *context.MainContext
 	From           jj.SelectedRevisions
-	InsertStart    *jj.Commit
-	To             *jj.Commit
-	Source         Source
-	Target         Target
+	InsertStart    *models.RevisionItem
+	To             *models.RevisionItem
+	Source         jj.Source
+	Target         jj.Target
 	keyMap         config.KeyMappings[key.Binding]
 	highlightedIds []string
 	styles         styles
+}
+
+func (r *Operation) Mount(v *view.ViewNode) {
+	r.ViewNode = v
+	v.Id = r.GetId()
+	keyDelegatedViewId := view.RevisionsViewId
+	v.KeyDelegation = &keyDelegatedViewId
+	v.NeedsRefresh = true
+}
+
+func (r *Operation) GetId() view.ViewId {
+	return "rebase"
+}
+
+func (r *Operation) Init() tea.Cmd {
+	return nil
+}
+
+func (r *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if cmd := r.HandleKey(msg); cmd != nil {
+			return r, cmd
+		}
+	case common.RefreshMsg:
+		r.setSelectedRevision()
+		return r, nil
+	}
+	return r, nil
+}
+
+func (r *Operation) View() string {
+	return ""
 }
 
 type styles struct {
@@ -69,49 +80,53 @@ type styles struct {
 func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, r.keyMap.Rebase.Revision):
-		r.Source = SourceRevision
+		r.Source = jj.SourceRevision
 	case key.Matches(msg, r.keyMap.Rebase.Branch):
-		r.Source = SourceBranch
+		r.Source = jj.SourceBranch
 	case key.Matches(msg, r.keyMap.Rebase.Source):
-		r.Source = SourceDescendants
+		r.Source = jj.SourceDescendants
 	case key.Matches(msg, r.keyMap.Rebase.Onto):
-		r.Target = TargetDestination
+		r.Target = jj.TargetDestination
 	case key.Matches(msg, r.keyMap.Rebase.After):
-		r.Target = TargetAfter
+		r.Target = jj.TargetAfter
 	case key.Matches(msg, r.keyMap.Rebase.Before):
-		r.Target = TargetBefore
+		r.Target = jj.TargetBefore
 	case key.Matches(msg, r.keyMap.Rebase.Insert):
-		r.Target = TargetInsert
+		r.Target = jj.TargetInsert
 		r.InsertStart = r.To
 	case key.Matches(msg, r.keyMap.Apply, r.keyMap.ForceApply):
+		r.ViewManager.UnregisterView(r.GetId())
 		ignoreImmutable := key.Matches(msg, r.keyMap.ForceApply)
-		if r.Target == TargetInsert {
-			return r.context.RunCommand(jj.RebaseInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId(), ignoreImmutable), common.RefreshAndSelect(r.From.Last()), common.Close)
+		if r.Target == jj.TargetInsert {
+			return r.context.RunCommand(jj.Args(jj.RebaseInsertArgs{From: r.From, InsertAfter: *r.InsertStart, InsertBefore: *r.To, IgnoreImmutable: ignoreImmutable}), common.RefreshAndSelect(r.From.Last()))
 		} else {
-			source := sourceToFlags[r.Source]
-			target := targetToFlags[r.Target]
-			return r.context.RunCommand(jj.Rebase(r.From, r.To.GetChangeId(), source, target, ignoreImmutable), common.RefreshAndSelect(r.From.Last()), common.Close)
+			return r.context.RunCommand(jj.Args(jj.RebaseCommandArgs{From: r.From, To: *r.To, Source: r.Source, Target: r.Target, IgnoreImmutable: ignoreImmutable}), common.RefreshAndSelect(r.From.Last()))
 		}
 	case key.Matches(msg, r.keyMap.Cancel):
-		return common.Close
+		r.ViewManager.UnregisterView(r.GetId())
+		return nil
 	}
 	return nil
 }
 
-func (r *Operation) SetSelectedRevision(commit *jj.Commit) {
+func (r *Operation) setSelectedRevision() {
+	current := r.context.Revisions.Current()
+	if current == nil {
+		return
+	}
 	r.highlightedIds = nil
-	r.To = commit
+	r.To = current
 	revset := ""
 	switch r.Source {
-	case SourceRevision:
+	case jj.SourceRevision:
 		r.highlightedIds = r.From.GetIds()
 		return
-	case SourceBranch:
-		revset = fmt.Sprintf("(%s..(%s))::", r.To.GetChangeId(), strings.Join(r.From.GetIds(), "|"))
-	case SourceDescendants:
+	case jj.SourceBranch:
+		revset = fmt.Sprintf("(%s..(%s))::", r.To.Commit.GetChangeId(), strings.Join(r.From.GetIds(), "|"))
+	case jj.SourceDescendants:
 		revset = fmt.Sprintf("(%s)::", strings.Join(r.From.GetIds(), "|"))
 	}
-	if output, err := r.context.RunCommandImmediate(jj.GetIdsFromRevset(revset)); err == nil {
+	if output, err := r.context.RunCommandImmediate(jj.GetIdsFromRevset(revset).GetArgs()); err == nil {
 		ids := strings.Split(strings.TrimSpace(string(output)), "\n")
 		r.highlightedIds = ids
 	}
@@ -133,22 +148,22 @@ func (r *Operation) FullHelp() [][]key.Binding {
 	return [][]key.Binding{r.ShortHelp()}
 }
 
-func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
+func (r *Operation) Render(commit *models.Commit, pos operations.RenderPosition) string {
 	if pos == operations.RenderBeforeChangeId {
 		changeId := commit.GetChangeId()
 		if slices.Contains(r.highlightedIds, changeId) {
 			return r.styles.sourceMarker.Render("<< move >>")
 		}
-		if r.Target == TargetInsert && r.InsertStart.GetChangeId() == commit.GetChangeId() {
+		if r.Target == jj.TargetInsert && r.InsertStart.Commit.GetChangeId() == commit.GetChangeId() {
 			return r.styles.sourceMarker.Render("<< after this >>")
 		}
-		if r.Target == TargetInsert && r.To.GetChangeId() == commit.GetChangeId() {
+		if r.Target == jj.TargetInsert && r.To.Commit.GetChangeId() == commit.GetChangeId() {
 			return r.styles.sourceMarker.Render("<< before this >>")
 		}
 		return ""
 	}
 	expectedPos := operations.RenderPositionBefore
-	if r.Target == TargetBefore || r.Target == TargetInsert {
+	if r.Target == jj.TargetBefore || r.Target == jj.TargetInsert {
 		expectedPos = operations.RenderPositionAfter
 	}
 
@@ -156,42 +171,42 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		return ""
 	}
 
-	isSelected := r.To != nil && r.To.GetChangeId() == commit.GetChangeId()
+	isSelected := r.To != nil && r.To.Commit.GetChangeId() == commit.GetChangeId()
 	if !isSelected {
 		return ""
 	}
 
 	var source string
-	isMany := len(r.From.Revisions) > 0
+	isMany := len(r.From) > 0
 	switch {
-	case r.Source == SourceBranch && isMany:
+	case r.Source == jj.SourceBranch && isMany:
 		source = "branches of "
-	case r.Source == SourceBranch:
+	case r.Source == jj.SourceBranch:
 		source = "branch of "
-	case r.Source == SourceDescendants && isMany:
+	case r.Source == jj.SourceDescendants && isMany:
 		source = "itself and descendants of each "
-	case r.Source == SourceDescendants:
+	case r.Source == jj.SourceDescendants:
 		source = "itself and descendants of "
-	case r.Source == SourceRevision && isMany:
+	case r.Source == jj.SourceRevision && isMany:
 		source = "revisions "
-	case r.Source == SourceRevision:
+	case r.Source == jj.SourceRevision:
 		source = "revision "
 	}
 	var ret string
-	if r.Target == TargetDestination {
+	if r.Target == jj.TargetDestination {
 		ret = "onto"
 	}
-	if r.Target == TargetAfter {
+	if r.Target == jj.TargetAfter {
 		ret = "after"
 	}
-	if r.Target == TargetBefore {
+	if r.Target == jj.TargetBefore {
 		ret = "before"
 	}
-	if r.Target == TargetInsert {
+	if r.Target == jj.TargetInsert {
 		ret = "insert"
 	}
 
-	if r.Target == TargetInsert {
+	if r.Target == jj.TargetInsert {
 		return lipgloss.JoinHorizontal(
 			lipgloss.Left,
 			r.styles.targetMarker.Render("<< insert >>"),
@@ -199,9 +214,9 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 			r.styles.dimmed.Render(source),
 			r.styles.changeId.Render(strings.Join(r.From.GetIds(), " ")),
 			r.styles.dimmed.Render(" between "),
-			r.styles.changeId.Render(r.InsertStart.GetChangeId()),
+			r.styles.changeId.Render(r.InsertStart.Commit.GetChangeId()),
 			r.styles.dimmed.Render(" and "),
-			r.styles.changeId.Render(r.To.GetChangeId()),
+			r.styles.changeId.Render(r.To.Commit.GetChangeId()),
 		)
 	}
 
@@ -214,15 +229,11 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		r.styles.dimmed.Render(" "),
 		r.styles.dimmed.Render(ret),
 		r.styles.dimmed.Render(" "),
-		r.styles.changeId.Render(r.To.GetChangeId()),
+		r.styles.changeId.Render(r.To.Commit.GetChangeId()),
 	)
 }
 
-func (r *Operation) Name() string {
-	return "rebase"
-}
-
-func NewOperation(context *context.MainContext, from jj.SelectedRevisions, source Source, target Target) *Operation {
+func NewOperation(context *context.MainContext, from jj.SelectedRevisions) view.IViewModel {
 	styles := styles{
 		changeId:     common.DefaultPalette.Get("rebase change_id"),
 		shortcut:     common.DefaultPalette.Get("rebase shortcut"),
@@ -234,8 +245,8 @@ func NewOperation(context *context.MainContext, from jj.SelectedRevisions, sourc
 		context: context,
 		keyMap:  config.Current.GetKeyMap(),
 		From:    from,
-		Source:  source,
-		Target:  target,
+		Source:  jj.SourceRevision,
+		Target:  jj.TargetDestination,
 		styles:  styles,
 	}
 }

@@ -119,19 +119,22 @@ func main() {
 		config.Current.Limit = limit
 	}
 
-	appContext := context.NewAppContext(rootLocation)
+	commandRunner := &context.MainCommandRunner{
+		Location: rootLocation,
+	}
+	appContext := context.NewAppContext(commandRunner, rootLocation)
 	defer appContext.Histories.Flush()
 	if output, err := config.LoadConfigFile(); err == nil {
 		if err := config.Current.Load(string(output)); err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
 			os.Exit(1)
 		}
-		if registry, err := context.LoadCustomCommands(string(output)); err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading custom commands: %v\n", err)
-			os.Exit(1)
-		} else {
-			appContext.CustomCommands = registry
-		}
+		//if registry, err := context.LoadCustomCommands(string(output)); err != nil {
+		//	fmt.Fprintf(os.Stderr, "Error loading custom commands: %v\n", err)
+		//	os.Exit(1)
+		//} else {
+		//	appContext.CustomCommands = registry
+		//}
 		if registry, err := context.LoadLeader(string(output)); err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading leader keys: %v\n", err)
 			os.Exit(1)
