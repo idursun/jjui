@@ -8,10 +8,9 @@ import (
 )
 
 type (
-	CloseViewMsg   struct{}
-	ToggleHelpMsg  struct{}
-	AutoRefreshMsg struct{}
-	RefreshMsg     struct {
+	CloseViewMsg  struct{}
+	ToggleHelpMsg struct{}
+	RefreshMsg    struct {
 		SelectedRevision string
 		KeepSelections   bool
 	}

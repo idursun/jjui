@@ -38,7 +38,6 @@ func getVersion() string {
 
 var (
 	revset     string
-	period     int
 	limit      int
 	version    bool
 	editConfig bool
@@ -48,8 +47,6 @@ var (
 func init() {
 	flag.StringVar(&revset, "revset", "", "Set default revset")
 	flag.StringVar(&revset, "r", "", "Set default revset (same as --revset)")
-	flag.IntVar(&period, "period", -1, "Override auto-refresh interval (seconds, set to 0 to disable)")
-	flag.IntVar(&period, "p", -1, "Override auto-refresh interval (alias for --period)")
 	flag.IntVar(&limit, "limit", 0, "Number of revisions to show (default: 0)")
 	flag.IntVar(&limit, "n", 0, "Number of revisions to show (alias for --limit)")
 	flag.BoolVar(&version, "version", false, "Show version information")
@@ -180,9 +177,6 @@ func main() {
 	common.DefaultPalette.Update(appContext.JJConfig.GetApplicableColors())
 	common.DefaultPalette.Update(config.Current.UI.Colors)
 
-	if period >= 0 {
-		config.Current.UI.AutoRefreshInterval = period
-	}
 	if revset != "" {
 		appContext.DefaultRevset = revset
 	} else if config.Current.Revisions.Revset != "" {
@@ -192,7 +186,7 @@ func main() {
 	}
 	appContext.CurrentRevset = appContext.DefaultRevset
 
-	p := tea.NewProgram(ui.New(appContext), tea.WithAltScreen())
+	p := tea.NewProgram(ui.New(appContext), tea.WithAltScreen(), tea.WithReportFocus())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error running program: %v\n", err)
 		os.Exit(1)

@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync/atomic"
 
 	"github.com/idursun/jjui/internal/ui/ace_jump"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
@@ -37,7 +38,7 @@ import (
 type Model struct {
 	*common.Sizeable
 	rows             []parser.Row
-	tag              uint64
+	tag              atomic.Uint64
 	revisionToSelect string
 	offScreenRows    []parser.Row
 	streamer         *graph.GraphStreamer
@@ -50,7 +51,6 @@ type Model struct {
 	err              error
 	aceJump          *ace_jump.AceJump
 	quickSearch      string
-	previousOpLogId  string
 	isLoading        bool
 	w                *graph.Renderer
 	textStyle        lipgloss.Style
@@ -160,14 +160,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		m.output = msg.Output
 		m.err = msg.Err
 		return m, nil
-	case common.AutoRefreshMsg:
-		id, _ := m.context.RunCommandImmediate(jj.OpLogId(true))
-		currentOperationId := string(id)
-		log.Println("Previous operation ID:", m.previousOpLogId, "Current operation ID:", currentOperationId)
-		if currentOperationId != m.previousOpLogId {
-			m.previousOpLogId = currentOperationId
-			return m, common.RefreshAndKeepSelections
-		}
 	case common.RefreshMsg:
 		if !msg.KeepSelections {
 			m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
@@ -175,8 +167,8 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		m.isLoading = true
 		cmd, _ := m.updateOperation(msg)
 		if config.Current.Revisions.LogBatching {
-			m.tag += 1
-			return m, tea.Batch(m.loadStreaming(m.context.CurrentRevset, msg.SelectedRevision, m.tag), cmd)
+			currentTag := m.tag.Add(1)
+			return m, tea.Batch(m.loadStreaming(m.context.CurrentRevset, msg.SelectedRevision, currentTag), cmd)
 		} else {
 			return m, tea.Batch(m.load(m.context.CurrentRevset, msg.SelectedRevision), cmd)
 		}
@@ -202,7 +194,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		log.Println("Starting streaming revisions message received with tag:", msg.tag, "revision to select:", msg.selectedRevision)
 		return m, m.requestMoreRows(msg.tag)
 	case appendRowsBatchMsg:
-		if msg.tag != m.tag {
+		if msg.tag != m.tag.Load() {
 			return m, nil
 		}
 		m.offScreenRows = append(m.offScreenRows, msg.rows...)
@@ -275,7 +267,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if m.cursor < len(m.rows)-1 {
 				m.cursor++
 			} else if m.hasMore {
-				return m, m.requestMoreRows(m.tag)
+				return m, m.requestMoreRows(m.tag.Load())
 			}
 		case key.Matches(msg, m.keymap.JumpToParent):
 			m.jumpToParent(m.SelectedRevisions())
@@ -488,7 +480,7 @@ func (m *Model) load(revset string, selectedRevision string) tea.Cmd {
 }
 
 func (m *Model) loadStreaming(revset string, selectedRevision string, tag uint64) tea.Cmd {
-	if m.tag != tag {
+	if m.tag.Load() != tag {
 		return nil
 	}
 
@@ -525,8 +517,12 @@ func (m *Model) requestMoreRows(tag uint64) tea.Cmd {
 		if m.streamer == nil || !m.hasMore {
 			return nil
 		}
-		batch := m.streamer.RequestMore()
-		return appendRowsBatchMsg{batch.Rows, batch.HasMore, tag}
+		if tag == m.tag.Load() {
+			batch := m.streamer.RequestMore()
+			return appendRowsBatchMsg{batch.Rows, batch.HasMore, tag}
+		}
+		log.Println("cancelling request more revisions, tag mismatch:", tag, m.tag.Load())
+		return nil
 	}
 }
 

@@ -326,14 +326,6 @@ func Absorb(changeId string, files ...string) CommandArgs {
 	return args
 }
 
-func OpLogId(snapshot bool) CommandArgs {
-	args := []string{"op", "log", "--color", "never", "--quiet", "--no-graph", "--limit", "1", "--template", "id"}
-	if !snapshot {
-		args = append(args, "--ignore-working-copy")
-	}
-	return args
-}
-
 func OpLog(limit int) CommandArgs {
 	args := []string{"op", "log", "--color", "always", "--quiet", "--ignore-working-copy"}
 	if limit > 0 {
