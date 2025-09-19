@@ -134,6 +134,7 @@ func (h *Model) View() string {
 		h.printKeyBinding(h.keyMap.Details.Squash),
 		h.printKeyBinding(h.keyMap.Details.Diff),
 		h.printKeyBinding(h.keyMap.Details.RevisionsChangingFile),
+		h.printKeyBinding(h.keyMap.Details.OpenFile),
 		"",
 		h.printMode(h.keyMap.Evolog.Mode, "Evolog"),
 		h.printKeyBinding(h.keyMap.Evolog.Diff),

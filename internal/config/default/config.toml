@@ -68,6 +68,7 @@ limit = 0
     diff = ["d"]
     select = ["m", " "]
     revisions_changing_file = ["*"]
+    open_file = ["v"]
   [keys.evolog]
     mode = ["v"]
     diff = ["d"]
