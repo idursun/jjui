@@ -109,6 +109,7 @@ limit = 0
 
 [ui]
   theme = ""
+  auto_refresh_interval = 0
 
 [ui.tracer]
   enabled = false

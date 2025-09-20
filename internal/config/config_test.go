@@ -46,6 +46,17 @@ light = "light-theme"
 	assert.Equal(t, "light-theme", config.UI.Theme.Light)
 }
 
+func TestLoad_AutoRefreshInterval(t *testing.T) {
+	content := `
+[ui]
+auto_refresh_interval = 5000
+`
+	config := &Config{}
+	err := config.Load(content)
+	assert.NoError(t, err)
+	assert.Equal(t, 5000, config.UI.AutoRefreshInterval)
+}
+
 func TestLoad_Colors_StringAndObject(t *testing.T) {
 	content := `
 [ui.colors]

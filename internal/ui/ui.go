@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 
@@ -46,8 +47,10 @@ type Model struct {
 	stacked      tea.Model
 }
 
+type triggerAutoRefreshMsg struct{}
+
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init())
+	return tea.Sequence(tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.scheduleAutoRefresh())
 }
 
 func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
@@ -123,8 +126,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.FocusMsg:
-		return m, common.RefreshAndKeepSelections
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
@@ -224,6 +225,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.diff.Init()
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
+	case triggerAutoRefreshMsg:
+		return m, tea.Batch(m.scheduleAutoRefresh(), func() tea.Msg {
+			return common.AutoRefreshMsg{}
+		})
 	case common.UpdateRevSetMsg:
 		m.context.CurrentRevset = string(msg)
 		m.revsetModel.AddToHistory(m.context.CurrentRevset)
@@ -380,6 +385,16 @@ func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreview
 		leftView = m.revisions.View()
 	}
 	return leftView
+}
+
+func (m Model) scheduleAutoRefresh() tea.Cmd {
+	interval := config.Current.UI.AutoRefreshInterval
+	if interval > 0 {
+		return tea.Tick(time.Duration(interval)*time.Second, func(time.Time) tea.Msg {
+			return triggerAutoRefreshMsg{}
+		})
+	}
+	return nil
 }
 
 func (m Model) isSafeToQuit() bool {
