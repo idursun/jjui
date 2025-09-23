@@ -25,7 +25,9 @@ func (s SelectedRevisions) Contains(revision *Commit) bool {
 func (s SelectedRevisions) GetIds() []string {
 	var ret []string
 	for _, revision := range s.Revisions {
-		ret = append(ret, revision.GetChangeId())
+		if revision != nil {
+			ret = append(ret, revision.GetChangeId())
+		}
 	}
 	return ret
 }

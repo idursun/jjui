@@ -110,24 +110,35 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		})
 	case refreshPreviewContentMsg:
 		if m.tag == msg.Tag {
+			switch m.context.CurrentScope() {
+			case common.ScopeRevisions:
+				replacements := m.context.Get(common.ScopeRevisions)
+				if _, ok := replacements[jj.FilePlaceholder]; ok {
+					output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
+					m.updatePreviewContent(string(output))
+				} else {
+					output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
+					m.updatePreviewContent(string(output))
+				}
+			}
 			switch msg := m.context.SelectedItem.(type) {
-			case context.SelectedFile:
-				replacements := map[string]string{
-					jj.RevsetPlaceholder:   m.context.CurrentRevset,
-					jj.ChangeIdPlaceholder: msg.ChangeId,
-					jj.CommitIdPlaceholder: msg.CommitId,
-					jj.FilePlaceholder:     msg.File,
-				}
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
-				m.updatePreviewContent(string(output))
-			case context.SelectedRevision:
-				replacements := map[string]string{
-					jj.RevsetPlaceholder:   m.context.CurrentRevset,
-					jj.ChangeIdPlaceholder: msg.ChangeId,
-					jj.CommitIdPlaceholder: msg.CommitId,
-				}
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
-				m.updatePreviewContent(string(output))
+			//case context.SelectedFile:
+			//	replacements := map[string]string{
+			//		jj.RevsetPlaceholder:   m.context.CurrentRevset,
+			//		jj.ChangeIdPlaceholder: msg.ChangeId,
+			//		jj.CommitIdPlaceholder: msg.CommitId,
+			//		jj.FilePlaceholder:     msg.File,
+			//	}
+			//	output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
+			//	m.updatePreviewContent(string(output))
+			//case context.SelectedRevision:
+			//	replacements := map[string]string{
+			//		jj.RevsetPlaceholder:   m.context.CurrentRevset,
+			//		jj.ChangeIdPlaceholder: msg.ChangeId,
+			//		jj.CommitIdPlaceholder: msg.CommitId,
+			//	}
+			//	output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
+			//	m.updatePreviewContent(string(output))
 			case context.SelectedOperation:
 				replacements := map[string]string{
 					jj.RevsetPlaceholder:      m.context.CurrentRevset,

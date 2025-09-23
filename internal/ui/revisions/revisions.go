@@ -237,6 +237,28 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	var nm *Model
 	nm, cmd = m.internalUpdate(msg)
 
+	//TODO: refactor to avoid code duplication
+	if nm.InNormalMode() {
+		if selected := nm.SelectedRevision(); selected != nil {
+			m.context.Set(common.ScopeRevisions, map[string]string{
+				jj.ChangeIdPlaceholder: selected.GetChangeId(),
+				jj.CommitIdPlaceholder: selected.CommitId,
+			})
+		}
+	} else {
+		if selected := nm.SelectedRevision(); selected != nil {
+			m.context.Update(common.ScopeRevisions, jj.ChangeIdPlaceholder, selected.GetChangeId())
+			m.context.Update(common.ScopeRevisions, jj.CommitIdPlaceholder, selected.CommitId)
+		}
+	}
+
+	checkedRevisions := nm.SelectedRevisions().GetIds()
+	if len(checkedRevisions) == 0 {
+		m.context.Update(common.ScopeRevisions, jj.CheckedCommitIdsPlaceholder, "none()")
+	} else {
+		m.context.Update(common.ScopeRevisions, jj.CheckedCommitIdsPlaceholder, strings.Join(checkedRevisions, "|"))
+	}
+
 	if curSelected := m.SelectedRevision(); curSelected != nil {
 		if op, ok := m.op.(operations.TracksSelectedRevision); ok {
 			op.SetSelectedRevision(curSelected)
@@ -289,7 +311,6 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			return m, nil
 		}
 	case common.CloseViewMsg:
-		m.context.PopScope()
 		m.op = operations.NewDefault()
 		if m.waiter != nil {
 			if msg.Cancelled {

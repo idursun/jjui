@@ -49,6 +49,24 @@ func (s *Operation) Init() tea.Cmd {
 }
 
 func (s *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	oldCursor := s.cursor
+	var cmd tea.Cmd
+	var newModel *Operation
+	newModel, cmd = s.internalUpdate(msg)
+	if s.cursor != oldCursor {
+		cmd = tea.Batch(cmd, s.context.SetSelectedItem(context.SelectedFile{
+			ChangeId: s.revision.GetChangeId(),
+			CommitId: s.revision.CommitId,
+			File:     s.current().fileName,
+		}))
+	}
+	selectedFiles := newModel.getSelectedFiles()
+	s.context.Update(common.ScopeRevisions, jj.CheckedFilesPlaceholder, strings.Join(selectedFiles, "|"))
+	s.context.Update(common.ScopeRevisions, jj.FilePlaceholder, newModel.current().fileName)
+	return newModel, cmd
+}
+
+func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 	switch msg := msg.(type) {
 	case confirmation.CloseMsg:
 		s.confirmation = nil
@@ -80,24 +98,6 @@ func (s *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		s.setItems(items)
 		return s, selectionChangedCmd
-	default:
-		oldCursor := s.cursor
-		var cmd tea.Cmd
-		var newModel *Operation
-		newModel, cmd = s.internalUpdate(msg)
-		if s.cursor != oldCursor {
-			cmd = tea.Batch(cmd, s.context.SetSelectedItem(context.SelectedFile{
-				ChangeId: s.revision.GetChangeId(),
-				CommitId: s.revision.CommitId,
-				File:     s.current().fileName,
-			}))
-		}
-		return newModel, cmd
-	}
-}
-
-func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
-	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if s.confirmation != nil {
 			model, cmd := s.confirmation.Update(msg)
