@@ -125,7 +125,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case common.InvokeActionMsg:
-		if msg.Scope != common.ActionScopeRevset {
+		if msg.Scope != common.ScopeRevset {
 			return m, nil
 		}
 		switch msg := msg.Action.(type) {

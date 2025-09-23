@@ -47,7 +47,6 @@ type Model struct {
 	context      *context.MainContext
 	keyMap       config.KeyMappings[key.Binding]
 	stacked      tea.Model
-	scope        common.ActionScope
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -73,7 +72,7 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		}
 		if m.oplog != nil {
 			m.oplog = nil
-			m.scope = common.ActionScopeRevisions
+			m.context.PopScope()
 			return m, common.SelectionChanged, true
 		}
 		return m, nil, false
@@ -94,6 +93,7 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		if m.revsetModel.Editing {
 			m.revsetModel, cmd = m.revsetModel.Update(msg)
 			m.state = common.Loading
+			m.context.PopScope()
 			return m, cmd, true
 		}
 
@@ -102,7 +102,7 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			return m, cmd, true
 		}
 
-		if m.revisions.IsFocused() || m.revisions.IsEditing() {
+		if m.revisions.IsEditing() {
 			m.revisions, cmd = m.revisions.Update(msg)
 			return m, cmd, true
 		}
@@ -151,14 +151,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case common.InvokeActionMsg:
 		switch msg.Scope {
-		case common.ActionScopeUI:
+		case common.ScopeUI:
 			switch msg.Action.(type) {
 			case common.SwitchToOplogAction:
-				m.scope = common.ActionScopeOplog
+				m.context.PushScope(common.ScopeOplog)
 				m.oplog = oplog.New(m.context, m.Width, m.Height)
 				return m, m.oplog.Init()
 			case common.EditRevsetAction:
-				m.scope = common.ActionScopeRevset
+				m.context.PushScope(common.ScopeRevset)
 				m.revsetModel, _ = m.revsetModel.Update(revset.EditRevSetMsg{Clear: m.state != common.Error})
 				return m, nil
 			}
@@ -170,23 +170,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.oplog, oplogCmd = m.oplog.Update(msg)
 			}
 			return m, tea.Batch(cmd, revisionsCmd, revsetCmd, oplogCmd)
-		case common.ActionScopeRevisions:
-			m.revisions, cmd = m.revisions.Update(msg)
-			return m, cmd
-		case common.ActionScopeOplog:
-			return m, nil
 		}
 
 	case tea.FocusMsg:
 		return m, common.RefreshAndKeepSelections
 	case tea.KeyMsg:
+		scope := m.context.CurrentScope()
 		switch {
-		case key.Matches(msg, m.keyMap.InlineDescribe.Mode) && m.scope == common.ActionScopeRevisions:
-			return m, common.InvokeAction(common.ActionScopeRevisions, common.InlineDescribeAction{ChangeId: m.revisions.SelectedRevision().GetChangeId()})
 		case key.Matches(msg, m.keyMap.Up):
-			return m, common.InvokeAction(m.scope, common.CursorUpAction{Amount: 1})
+			return m, common.InvokeAction(scope, common.CursorUpAction{Amount: 1})
 		case key.Matches(msg, m.keyMap.Down):
-			return m, common.InvokeAction(m.scope, common.CursorDownAction{Amount: 1})
+			return m, common.InvokeAction(scope, common.CursorDownAction{Amount: 1})
+		default:
+			switch scope {
+			case common.ScopeRevisions:
+				switch {
+				case key.Matches(msg, m.keyMap.InlineDescribe.Mode) && m.revisions.InNormalMode():
+					return m, common.InvokeAction(common.ScopeRevisions, common.InlineDescribeAction{ChangeId: m.revisions.SelectedRevision().GetChangeId()})
+				case key.Matches(msg, m.keyMap.Details.Mode) && m.revisions.InNormalMode():
+					return m, common.InvokeAction(common.ScopeRevisions, common.ShowDetailsAction{})
+				case key.Matches(msg, m.keyMap.Squash.Mode) && m.revisions.InNormalMode():
+					return m, common.InvokeAction(common.ScopeRevisions, common.SquashAction{})
+				case key.Matches(msg, m.keyMap.Rebase.Mode) && m.revisions.InNormalMode():
+					return m, common.InvokeAction(common.ScopeRevisions, common.RebaseAction{})
+				case key.Matches(msg, m.keyMap.Revset) && m.revisions.InNormalMode():
+					m.context.PushScope(common.ScopeRevset)
+					return m, common.InvokeAction(common.ScopeRevset, common.EditRevsetAction{Clear: m.state != common.Error})
+				}
+			}
+		}
+
+		switch {
 		case key.Matches(msg, runScriptKey):
 			scrpt, err := script.Parse([]byte(`
 [script.nn]
@@ -217,9 +231,7 @@ steps = [
 		case key.Matches(msg, m.keyMap.Quit) && m.isSafeToQuit():
 			return m, tea.Quit
 		case key.Matches(msg, m.keyMap.OpLog.Mode):
-			return m, common.InvokeAction(common.ActionScopeUI, common.SwitchToOplogAction{})
-		case key.Matches(msg, m.keyMap.Revset) && m.revisions.InNormalMode():
-			return m, common.InvokeAction(common.ActionScopeRevset, common.EditRevsetAction{Clear: m.state != common.Error})
+			return m, common.InvokeAction(common.ScopeUI, common.SwitchToOplogAction{})
 		case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
 			m.stacked = git.NewModel(m.context, m.revisions.SelectedRevisions(), m.Width, m.Height)
 			return m, m.stacked.Init()
@@ -499,6 +511,5 @@ func New(c *context.MainContext) tea.Model {
 		status:       &statusModel,
 		revsetModel:  revset.New(c),
 		flash:        flash.New(c),
-		scope:        common.ActionScopeRevisions,
 	}
 }

@@ -45,11 +45,7 @@ type (
 		Commit       *jj.Commit
 		RawFileOut   []byte // raw output from `jj file list`
 	}
-	ShowPreview             bool
-	StartSquashOperationMsg struct {
-		Revision *jj.Commit
-		Files    []string
-	}
+	ShowPreview bool
 )
 
 type State int

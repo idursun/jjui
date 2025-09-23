@@ -139,9 +139,7 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 			s.confirmation = model
 			return s, s.confirmation.Init()
 		case key.Matches(msg, s.keyMap.Details.Squash):
-			return s, func() tea.Msg {
-				return common.StartSquashOperationMsg{Revision: s.revision, Files: s.getSelectedFiles()}
-			}
+			return s, tea.Sequence(common.CloseAndCancel, common.InvokeAction(common.ScopeRevisions, common.SquashAction{Files: s.getSelectedFiles()}))
 		case key.Matches(msg, s.keyMap.Details.Restore):
 			selectedFiles := s.getSelectedFiles()
 			s.selectedHint = "gets restored"

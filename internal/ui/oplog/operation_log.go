@@ -64,7 +64,7 @@ func (m *Model) Init() tea.Cmd {
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case common.InvokeActionMsg:
-		if msg.Scope != common.ActionScopeOplog {
+		if msg.Scope != common.ScopeOplog {
 			return m, nil
 		}
 		switch a := msg.Action.(type) {

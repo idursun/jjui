@@ -11,17 +11,17 @@ const (
 
 type WaitChannel chan WaitResult
 
-type ActionScope int
+type Scope int
 
 const (
-	ActionScopeUI ActionScope = iota
-	ActionScopeRevisions
-	ActionScopeOplog
-	ActionScopeRevset
+	ScopeUI Scope = iota
+	ScopeRevisions
+	ScopeOplog
+	ScopeRevset
 )
 
 type InvokeActionMsg struct {
-	Scope  ActionScope
+	Scope  Scope
 	Action any
 }
 
@@ -41,9 +41,17 @@ type EditRevsetAction struct {
 	Clear bool
 }
 
+type ShowDetailsAction struct{}
+type SquashAction struct {
+	ChangeId string
+	Files    []string
+}
+type RebaseAction struct {
+}
+
 type SwitchToOplogAction struct{}
 
-func InvokeAction(scope ActionScope, action any) tea.Cmd {
+func InvokeAction(scope Scope, action any) tea.Cmd {
 	return func() tea.Msg {
 		return InvokeActionMsg{Scope: scope, Action: action}
 	}

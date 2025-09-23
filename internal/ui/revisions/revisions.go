@@ -249,23 +249,39 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case common.InvokeActionMsg:
-		if msg.Scope != common.ActionScopeRevisions {
+		if msg.Scope != common.ScopeRevisions {
 			return m, nil
 		}
-		switch a := msg.Action.(type) {
+		switch msg := msg.Action.(type) {
 		case common.InlineDescribeAction:
-			var cmd tea.Cmd
-			m.op = describe.NewOperation(m.context, a.ChangeId, m.Width)
-			return m, cmd
+			m.op = describe.NewOperation(m.context, msg.ChangeId, m.Width)
+			return m, m.op.Init()
+		case common.ShowDetailsAction:
+			m.op = details.NewOperation(m.context, m.SelectedRevision(), m.Height)
+			return m, m.op.Init()
+		case common.SquashAction:
+			selectedRevisions := m.SelectedRevisions()
+			parent, _ := m.context.RunCommandImmediate(jj.GetParent(selectedRevisions))
+			parentIdx := m.selectRevision(string(parent))
+			if parentIdx != -1 {
+				m.cursor = parentIdx
+			} else if m.cursor < len(m.rows)-1 {
+				m.cursor++
+			}
+			m.op = squash.NewOperation(m.context, selectedRevisions, squash.WithFiles(msg.Files))
+			return m, m.op.Init()
+		case common.RebaseAction:
+			m.op = rebase.NewOperation(m.context, m.SelectedRevisions(), rebase.SourceRevision, rebase.TargetDestination)
+			return m, m.op.Init()
 		case common.CursorUpAction:
-			if m.cursor >= a.Amount {
-				m.cursor -= a.Amount
+			if m.cursor >= msg.Amount {
+				m.cursor -= msg.Amount
 				return m, m.updateSelection()
 			}
 			return m, nil
 		case common.CursorDownAction:
-			if m.cursor+a.Amount < len(m.rows) {
-				m.cursor += a.Amount
+			if m.cursor+msg.Amount < len(m.rows) {
+				m.cursor += msg.Amount
 				return m, m.updateSelection()
 			} else if m.hasMore {
 				return m, m.requestMoreRows(m.tag.Load())
@@ -273,6 +289,7 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			return m, nil
 		}
 	case common.CloseViewMsg:
+		m.context.PopScope()
 		m.op = operations.NewDefault()
 		if m.waiter != nil {
 			if msg.Cancelled {
@@ -375,8 +392,6 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			})
 		}
 		return m, tea.Batch(cmds...)
-	case common.StartSquashOperationMsg:
-		return m.startSquash(jj.NewSelectedRevisions(msg.Revision), msg.Files)
 	}
 
 	if len(m.rows) == 0 {
@@ -438,9 +453,6 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 				m.cursor = m.search(m.cursor + 1)
 				m.renderer.Reset()
 				return m, nil
-			case key.Matches(msg, m.keymap.Details.Mode):
-				m.op = details.NewOperation(m.context, m.SelectedRevision(), m.Height)
-				return m, m.op.Init()
 			case key.Matches(msg, m.keymap.New):
 				return m, m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
 			case key.Matches(msg, m.keymap.Commit):
@@ -478,13 +490,8 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 				}
 			case key.Matches(msg, m.keymap.Refresh):
 				return m, common.Refresh
-			case key.Matches(msg, m.keymap.Squash.Mode):
-				return m.startSquash(m.SelectedRevisions(), nil)
 			case key.Matches(msg, m.keymap.Revert.Mode):
 				m.op = revert.NewOperation(m.context, m.SelectedRevisions(), revert.TargetDestination)
-				return m, m.op.Init()
-			case key.Matches(msg, m.keymap.Rebase.Mode):
-				m.op = rebase.NewOperation(m.context, m.SelectedRevisions(), rebase.SourceRevision, rebase.TargetDestination)
 				return m, m.op.Init()
 			case key.Matches(msg, m.keymap.Duplicate.Mode):
 				m.op = duplicate.NewOperation(m.context, m.SelectedRevisions(), duplicate.TargetDestination)
@@ -497,18 +504,6 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 	}
 
 	return m, cmd
-}
-
-func (m *Model) startSquash(selectedRevisions jj.SelectedRevisions, files []string) (*Model, tea.Cmd) {
-	parent, _ := m.context.RunCommandImmediate(jj.GetParent(selectedRevisions))
-	parentIdx := m.selectRevision(string(parent))
-	if parentIdx != -1 {
-		m.cursor = parentIdx
-	} else if m.cursor < len(m.rows)-1 {
-		m.cursor++
-	}
-	m.op = squash.NewOperation(m.context, selectedRevisions, squash.WithFiles(files))
-	return m, m.op.Init()
 }
 
 func (m *Model) updateSelection() tea.Cmd {

@@ -63,6 +63,7 @@ type MainContext struct {
 	DefaultRevset  string
 	CurrentRevset  string
 	Histories      *config.Histories
+	Scopes         []common.Scope
 }
 
 func NewAppContext(location string) *MainContext {
@@ -72,6 +73,7 @@ func NewAppContext(location string) *MainContext {
 		},
 		Location:  location,
 		Histories: config.NewHistories(),
+		Scopes:    []common.Scope{common.ScopeRevisions},
 	}
 
 	m.JJConfig = &config.JJConfig{}
@@ -79,6 +81,23 @@ func NewAppContext(location string) *MainContext {
 		m.JJConfig, _ = config.DefaultConfig(output)
 	}
 	return m
+}
+
+func (ctx *MainContext) CurrentScope() common.Scope {
+	return ctx.Scopes[len(ctx.Scopes)-1]
+}
+
+func (ctx *MainContext) PushScope(scope common.Scope) {
+	ctx.Scopes = append(ctx.Scopes, scope)
+}
+
+func (ctx *MainContext) PopScope() common.Scope {
+	if len(ctx.Scopes) <= 1 {
+		return ctx.Scopes[0]
+	}
+	popped := ctx.Scopes[len(ctx.Scopes)-1]
+	ctx.Scopes = ctx.Scopes[:len(ctx.Scopes)-1]
+	return popped
 }
 
 func (ctx *MainContext) ClearCheckedItems(ofType reflect.Type) {
