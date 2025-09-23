@@ -124,6 +124,21 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case common.InvokeActionMsg:
+		if msg.Scope != common.ActionScopeRevset {
+			return m, nil
+		}
+		switch msg := msg.Action.(type) {
+		case common.EditRevsetAction:
+			m.Editing = true
+			m.autoComplete.Focus()
+			if msg.Clear {
+				m.autoComplete.SetValue("")
+			}
+			m.historyActive = false
+			m.historyIndex = -1
+			return m, m.autoComplete.Init()
+		}
 	case tea.KeyMsg:
 		if !m.Editing {
 			return m, nil
@@ -170,15 +185,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		if m.Editing {
 			m.Editing = false
 		}
-	case EditRevSetMsg:
-		m.Editing = true
-		m.autoComplete.Focus()
-		if msg.Clear {
-			m.autoComplete.SetValue("")
-		}
-		m.historyActive = false
-		m.historyIndex = -1
-		return m, m.autoComplete.Init()
 	}
 
 	var cmd tea.Cmd

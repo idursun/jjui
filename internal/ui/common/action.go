@@ -11,7 +11,17 @@ const (
 
 type WaitChannel chan WaitResult
 
+type ActionScope int
+
+const (
+	ActionScopeUI ActionScope = iota
+	ActionScopeRevisions
+	ActionScopeOplog
+	ActionScopeRevset
+)
+
 type InvokeActionMsg struct {
+	Scope  ActionScope
 	Action any
 }
 
@@ -19,8 +29,22 @@ type InlineDescribeAction struct {
 	ChangeId string
 }
 
-func InvokeAction(action any) tea.Cmd {
+type CursorUpAction struct {
+	Amount int
+}
+
+type CursorDownAction struct {
+	Amount int
+}
+
+type EditRevsetAction struct {
+	Clear bool
+}
+
+type SwitchToOplogAction struct{}
+
+func InvokeAction(scope ActionScope, action any) tea.Cmd {
 	return func() tea.Msg {
-		return InvokeActionMsg{Action: action}
+		return InvokeActionMsg{Scope: scope, Action: action}
 	}
 }

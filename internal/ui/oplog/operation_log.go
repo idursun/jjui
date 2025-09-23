@@ -63,6 +63,24 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case common.InvokeActionMsg:
+		if msg.Scope != common.ActionScopeOplog {
+			return m, nil
+		}
+		switch a := msg.Action.(type) {
+		case common.CursorUpAction:
+			if m.cursor >= a.Amount {
+				m.cursor -= a.Amount
+				return m, m.updateSelection()
+			}
+			return m, nil
+		case common.CursorDownAction:
+			if m.cursor+a.Amount < len(m.rows) {
+				m.cursor += a.Amount
+				return m, m.updateSelection()
+			}
+			return m, nil
+		}
 	case updateOpLogMsg:
 		m.rows = msg.Rows
 		m.renderer.Reset()
@@ -70,14 +88,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keymap.Cancel):
 			return m, common.Close
-		case key.Matches(msg, m.keymap.Up):
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case key.Matches(msg, m.keymap.Down):
-			if m.cursor < len(m.rows)-1 {
-				m.cursor++
-			}
 		case key.Matches(msg, m.keymap.Diff):
 			return m, func() tea.Msg {
 				output, _ := m.context.RunCommandImmediate(jj.OpShow(m.rows[m.cursor].OperationId))

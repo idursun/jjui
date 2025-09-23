@@ -249,11 +249,28 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case common.InvokeActionMsg:
+		if msg.Scope != common.ActionScopeRevisions {
+			return m, nil
+		}
 		switch a := msg.Action.(type) {
 		case common.InlineDescribeAction:
 			var cmd tea.Cmd
 			m.op = describe.NewOperation(m.context, a.ChangeId, m.Width)
 			return m, cmd
+		case common.CursorUpAction:
+			if m.cursor >= a.Amount {
+				m.cursor -= a.Amount
+				return m, m.updateSelection()
+			}
+			return m, nil
+		case common.CursorDownAction:
+			if m.cursor+a.Amount < len(m.rows) {
+				m.cursor += a.Amount
+				return m, m.updateSelection()
+			} else if m.hasMore {
+				return m, m.requestMoreRows(m.tag.Load())
+			}
+			return m, nil
 		}
 	case common.CloseViewMsg:
 		m.op = operations.NewDefault()
@@ -376,18 +393,6 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, m.keymap.Up):
-			if m.cursor > 0 {
-				m.cursor--
-			}
-			return m, m.updateSelection()
-		case key.Matches(msg, m.keymap.Down):
-			if m.cursor < len(m.rows)-1 {
-				m.cursor++
-			} else if m.hasMore {
-				return m, m.requestMoreRows(m.tag.Load())
-			}
-			return m, m.updateSelection()
 		case key.Matches(msg, m.keymap.JumpToParent):
 			m.jumpToParent(m.SelectedRevisions())
 			return m, m.updateSelection()
