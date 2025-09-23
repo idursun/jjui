@@ -8,7 +8,9 @@ import (
 )
 
 type (
-	CloseViewMsg   struct{}
+	CloseViewMsg struct {
+		Cancelled bool
+	}
 	ToggleHelpMsg  struct{}
 	AutoRefreshMsg struct{}
 	RefreshMsg     struct {
@@ -60,6 +62,10 @@ const (
 
 func Close() tea.Msg {
 	return CloseViewMsg{}
+}
+
+func CloseAndCancel() tea.Msg {
+	return CloseViewMsg{Cancelled: true}
 }
 
 func SelectionChanged() tea.Msg {

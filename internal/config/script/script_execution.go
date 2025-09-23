@@ -4,6 +4,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/ui/common"
 )
 
 type ResumeScriptExecutionMsg struct {
@@ -46,10 +47,16 @@ func (se *ScriptExecution) Wait(seconds int) (chan tea.Msg, tea.Cmd) {
 	done := make(chan tea.Msg, 1)
 	return done, func() tea.Msg {
 		select {
-		case <-done:
-			return se.Resume()
+		case result := <-done:
+			switch result {
+			case common.WaitResultContinue:
+				return se.Resume()
+			case common.WaitResultCancel:
+				break
+			}
 		case <-time.After(time.Duration(seconds) * time.Second):
-			return CancelSkipScriptExecutionMsg{}
+			break
 		}
+		return CancelSkipScriptExecutionMsg{}
 	}
 }

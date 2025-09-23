@@ -251,7 +251,11 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 	case common.CloseViewMsg:
 		m.op = operations.NewDefault()
 		if m.waiter != nil {
-			m.waiter <- "continue"
+			if msg.Cancelled {
+				m.waiter <- common.WaitResultCancel
+			} else {
+				m.waiter <- common.WaitResultContinue
+			}
 			close(m.waiter)
 			m.waiter = nil
 		}

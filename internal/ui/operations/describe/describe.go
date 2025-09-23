@@ -73,17 +73,7 @@ func (o Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch {
 		case key.Matches(keyMsg, o.keyMap.Cancel):
-			return o, common.Close
-		case key.Matches(keyMsg, o.keyMap.InlineDescribe.Editor):
-			commit := &jj.Commit{
-				ChangeId: o.revision,
-			}
-			selectedRevisions := jj.NewSelectedRevisions(commit)
-			return o, o.context.RunCommand(
-				jj.SetDescription(o.revision, o.input.Value()),
-				common.Close,
-				o.context.RunInteractiveCommand(jj.Describe(selectedRevisions), common.Refresh),
-			)
+			return o, common.CloseAndCancel
 		case key.Matches(keyMsg, o.keyMap.InlineDescribe.Accept):
 			return o, o.context.RunCommand(jj.SetDescription(o.revision, o.input.Value()), common.Close, common.Refresh)
 		}
