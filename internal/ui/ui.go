@@ -114,7 +114,8 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	return m, nil, false
 }
 
-var runScriptKey = key.NewBinding(key.WithKeys("f2"))
+var editDescriptionKey = key.NewBinding(key.WithKeys("f2"))
+var runScriptKey = key.NewBinding(key.WithKeys("f3"))
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if msg, ok := msg.(script.ResumeScriptExecutionMsg); ok {
@@ -150,6 +151,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, common.RefreshAndKeepSelections
 	case tea.KeyMsg:
 		switch {
+		case key.Matches(msg, m.keyMap.InlineDescribe.Mode) && m.revisions.InNormalMode():
+			return m, common.InvokeAction(common.InlineDescribeAction{ChangeId: m.revisions.SelectedRevision().GetChangeId()})
 		case key.Matches(msg, runScriptKey):
 			scrpt, err := script.Parse([]byte(`
 [script.nn]

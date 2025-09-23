@@ -248,6 +248,13 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case common.InvokeActionMsg:
+		switch a := msg.Action.(type) {
+		case common.InlineDescribeAction:
+			var cmd tea.Cmd
+			m.op = describe.NewOperation(m.context, a.ChangeId, m.Width)
+			return m, cmd
+		}
 	case common.CloseViewMsg:
 		m.op = operations.NewDefault()
 		if m.waiter != nil {
@@ -428,9 +435,6 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 				return m, nil
 			case key.Matches(msg, m.keymap.Details.Mode):
 				m.op = details.NewOperation(m.context, m.SelectedRevision(), m.Height)
-				return m, m.op.Init()
-			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
-				m.op = describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
 				return m, m.op.Init()
 			case key.Matches(msg, m.keymap.New):
 				return m, m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
