@@ -27,7 +27,7 @@ func (JJStep) isScriptStep() {}
 func (UIStep) isScriptStep() {}
 
 type JJStep struct {
-	JJ []string `toml:"jj"`
+	Args []string `toml:"jj"`
 }
 
 type UIStep struct {
@@ -71,7 +71,7 @@ func processRawSteps(script *Script) error {
 			}
 
 			jjStep := &JJStep{
-				JJ: make([]string, len(jjCmdSlice)),
+				Args: make([]string, len(jjCmdSlice)),
 			}
 
 			for i, cmd := range jjCmdSlice {
@@ -79,7 +79,7 @@ func processRawSteps(script *Script) error {
 				if !ok {
 					return fmt.Errorf("jj command elements must be strings")
 				}
-				jjStep.JJ[i] = cmdStr
+				jjStep.Args[i] = cmdStr
 			}
 
 			script.Steps = append(script.Steps, jjStep)

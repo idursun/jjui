@@ -2,9 +2,11 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
+	"github.com/idursun/jjui/internal/config/script"
 
 	"github.com/idursun/jjui/internal/ui/flash"
 
@@ -112,7 +114,30 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	return m, nil, false
 }
 
+var runScriptKey = key.NewBinding(key.WithKeys("f2"))
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if msg, ok := msg.(script.ResumeScriptExecutionMsg); ok {
+		step := msg.Execution.Current()
+		switch step := step.(type) {
+		case *script.JJStep:
+			immediate, err := m.context.RunCommandImmediate(jj.TemplatedArgs(step.Args, m.context.CreateReplacements()))
+			return m, tea.Batch(func() tea.Msg {
+				return common.CommandCompletedMsg{Output: string(immediate), Err: err}
+			}, msg.Execution.Resume)
+		case *script.UIStep:
+			var cmd tea.Cmd
+			switch {
+			case step.UI.Action == "refresh":
+				return m, tea.Sequence(common.RefreshAndKeepSelections, msg.Execution.Resume)
+			case strings.HasPrefix(step.UI.Action, "revset"):
+				m.revsetModel, cmd = m.revsetModel.Update(msg)
+			case strings.HasPrefix(step.UI.Action, "revisions"):
+				m.revisions, cmd = m.revisions.Update(msg)
+			}
+			return m, cmd
+		}
+	}
 	if m, cmd, handled := m.handleFocusInputMessage(msg); handled {
 		return m, cmd
 	}
@@ -125,6 +150,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, common.RefreshAndKeepSelections
 	case tea.KeyMsg:
 		switch {
+		case key.Matches(msg, runScriptKey):
+			scrpt, err := script.Parse([]byte(`
+[script.nn]
+name = "Example Script"
+steps = [
+  #{ jj = ["log", "-r", "main"] },
+  #{ ui = { action = "revisions.inline_describe" } },
+  #{ jj = ["new", "-A", "$change_id" ] },
+  #{ ui = { action = "refresh" } },
+  { ui = { action = "revset.set", params = { "revset" = "main::$change_id" } } },
+]
+`))
+			if err != nil {
+				return m, func() tea.Msg {
+					return common.CommandCompletedMsg{Err: err}
+				}
+			}
+			return m, script.StartScript(scrpt)
 		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
 			m.state = common.Ready
 			return m, tea.Batch(cmds...)

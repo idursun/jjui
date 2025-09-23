@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/idursun/jjui/internal/config/script"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
@@ -62,6 +63,7 @@ type Model struct {
 	textStyle        lipgloss.Style
 	dimmedStyle      lipgloss.Style
 	selectedStyle    lipgloss.Style
+	waiter           chan tea.Msg
 }
 
 func (m *Model) Cursor() int {
@@ -218,6 +220,19 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	if k, ok := msg.(revisionsMsg); ok {
 		msg = k.msg
 	}
+
+	if msg, ok := msg.(script.ResumeScriptExecutionMsg); ok {
+		switch step := msg.Execution.Current().(type) {
+		case *script.UIStep:
+			if step.UI.Action == "inline_describe" {
+				var cmd tea.Cmd
+				m.waiter, cmd = msg.Execution.Wait(10)
+				m.op = describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
+				return m, tea.Batch(m.op.Init(), cmd)
+			}
+		}
+	}
+
 	var cmd tea.Cmd
 	var nm *Model
 	nm, cmd = m.internalUpdate(msg)
@@ -235,6 +250,11 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case common.CloseViewMsg:
 		m.op = operations.NewDefault()
+		if m.waiter != nil {
+			m.waiter <- "continue"
+			close(m.waiter)
+			m.waiter = nil
+		}
 		return m, m.updateSelection()
 	case common.QuickSearchMsg:
 		m.quickSearch = string(msg)
