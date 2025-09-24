@@ -17,6 +17,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type updateCommitStatusMsg struct {
@@ -24,8 +25,17 @@ type updateCommitStatusMsg struct {
 	selectedFiles []string
 }
 
+var ActionMap = map[string]common.Action{
+	"esc": {Id: "details.close", Switch: common.ScopeRevisions},
+	"h":   {Id: "details.close", Switch: common.ScopeRevisions},
+	"j":   {Id: "details.down"},
+	"k":   {Id: "details.up"},
+}
+
 var _ operations.Operation = (*Operation)(nil)
 var _ common.Editable = (*Operation)(nil)
+var _ common.ContextProvider = (*Operation)(nil)
+var _ view.IHasActionMap = (*Operation)(nil)
 
 type Operation struct {
 	*DetailsList
@@ -38,6 +48,20 @@ type Operation struct {
 	confirmation      *confirmation.Model
 	keyMap            config.KeyMappings[key.Binding]
 	styles            styles
+}
+
+func (s *Operation) GetActionMap() map[string]common.Action {
+	return ActionMap
+}
+
+func (s *Operation) GetContext() map[string]string {
+	if current := s.current(); current != nil {
+		return map[string]string{
+			jj.FilePlaceholder:         s.current().fileName,
+			jj.CheckedFilesPlaceholder: strings.Join(s.getSelectedFiles(), "|"),
+		}
+	}
+	return map[string]string{}
 }
 
 func (s *Operation) IsEditing() bool {
@@ -60,14 +84,24 @@ func (s *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			File:     s.current().fileName,
 		}))
 	}
-	selectedFiles := newModel.getSelectedFiles()
-	s.context.Update(common.ScopeRevisions, jj.CheckedFilesPlaceholder, strings.Join(selectedFiles, "|"))
-	s.context.Update(common.ScopeRevisions, jj.FilePlaceholder, newModel.current().fileName)
 	return newModel, cmd
 }
 
 func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 	switch msg := msg.(type) {
+	case common.InvokeActionMsg:
+		switch msg.Action.Id {
+		case "details.up":
+			if s.cursor > 0 {
+				s.cursor--
+			}
+		case "details.down":
+			if s.cursor < s.Len()-1 {
+				s.cursor++
+			}
+		case "details.close":
+			return s, common.Close
+		}
 	case confirmation.CloseMsg:
 		s.confirmation = nil
 		s.selectedHint = ""
@@ -138,8 +172,8 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 			)
 			s.confirmation = model
 			return s, s.confirmation.Init()
-		case key.Matches(msg, s.keyMap.Details.Squash):
-			return s, tea.Sequence(common.CloseAndCancel, common.InvokeAction(common.ScopeRevisions, common.SquashAction{Files: s.getSelectedFiles()}))
+		//case key.Matches(msg, s.keyMap.Details.Squash):
+		//	return s, tea.Sequence(common.CloseAndCancel, common.InvokeAction(common.SquashAction{Files: s.getSelectedFiles()}))
 		case key.Matches(msg, s.keyMap.Details.Restore):
 			selectedFiles := s.getSelectedFiles()
 			s.selectedHint = "gets restored"

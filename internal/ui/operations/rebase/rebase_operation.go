@@ -13,6 +13,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type Source int
@@ -56,6 +57,7 @@ type styles struct {
 
 var _ operations.Operation = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
+var _ view.IHasActionMap = (*Operation)(nil)
 
 type Operation struct {
 	context        *context.MainContext
@@ -70,6 +72,24 @@ type Operation struct {
 	SkipEmptied    bool
 }
 
+func (r *Operation) GetActionMap() map[string]common.Action {
+	return map[string]common.Action{
+		"j":           {Id: "revisions.down", Args: nil},
+		"k":           {Id: "revisions.up", Args: nil},
+		"r":           {Id: "rebase.revision", Args: nil},
+		"B":           {Id: "rebase.branch", Args: nil},
+		"s":           {Id: "rebase.source", Args: nil},
+		"o":           {Id: "rebase.onto", Args: nil},
+		"a":           {Id: "rebase.after", Args: nil},
+		"b":           {Id: "rebase.before", Args: nil},
+		"i":           {Id: "rebase.insert", Args: nil},
+		"E":           {Id: "rebase.skip_emptied", Args: nil},
+		"enter":       {Id: "apply", Switch: common.ScopeRevisions, Args: nil},
+		"shift+enter": {Id: "force_apply", Switch: common.ScopeRevisions, Args: nil},
+		"esc":         {Id: "close rebase", Switch: common.ScopeNone, Args: nil},
+	}
+}
+
 func (r *Operation) IsFocused() bool {
 	return true
 }
@@ -79,52 +99,42 @@ func (r *Operation) Init() tea.Cmd {
 }
 
 func (r *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(tea.KeyMsg); ok {
-		return r, r.HandleKey(msg)
+	if msg, ok := msg.(common.InvokeActionMsg); ok {
+		switch msg.Action.Id {
+		case "rebase.revision":
+			r.Source = SourceRevision
+		case "rebase.branch":
+			r.Source = SourceBranch
+		case "rebase.source":
+			r.Source = SourceDescendants
+		case "rebase.onto":
+			r.Target = TargetDestination
+		case "rebase.after":
+			r.Target = TargetAfter
+		case "rebase.before":
+			r.Target = TargetBefore
+		case "rebase.insert":
+			r.Target = TargetInsert
+			r.InsertStart = r.To
+		case "rebase.skip_emptied":
+			r.SkipEmptied = !r.SkipEmptied
+		case "apply", "force_apply":
+			ignoreImmutable := msg.Action.Id == "force_apply"
+			skipEmptied := r.SkipEmptied
+			if r.Target == TargetInsert {
+				return r, r.context.RunCommand(jj.RebaseInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId(), skipEmptied, ignoreImmutable), common.RefreshAndSelect(r.From.Last()), common.Close)
+			} else {
+				source := sourceToFlags
+				target := targetToFlags
+				return r, r.context.RunCommand(jj.Rebase(r.From, r.To.GetChangeId(), source[r.Source], target[r.Target], skipEmptied, ignoreImmutable), common.RefreshAndSelect(r.From.Last()), common.Close)
+			}
+		}
 	}
 	return r, nil
 }
 
 func (r *Operation) View() string {
 	return ""
-}
-
-func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	switch {
-	case key.Matches(msg, r.keyMap.Rebase.Revision):
-		r.Source = SourceRevision
-	case key.Matches(msg, r.keyMap.Rebase.Branch):
-		r.Source = SourceBranch
-	case key.Matches(msg, r.keyMap.Rebase.Source):
-		r.Source = SourceDescendants
-	case key.Matches(msg, r.keyMap.Rebase.Onto):
-		r.Target = TargetDestination
-	case key.Matches(msg, r.keyMap.Rebase.After):
-		r.Target = TargetAfter
-	case key.Matches(msg, r.keyMap.Rebase.Before):
-		r.Target = TargetBefore
-	case key.Matches(msg, r.keyMap.Rebase.Insert):
-		r.Target = TargetInsert
-		r.InsertStart = r.To
-	case key.Matches(msg, r.keyMap.Rebase.Insert):
-		r.Target = TargetInsert
-		r.InsertStart = r.To
-	case key.Matches(msg, r.keyMap.Rebase.SkipEmptied):
-		r.SkipEmptied = !r.SkipEmptied
-	case key.Matches(msg, r.keyMap.Apply, r.keyMap.ForceApply):
-		ignoreImmutable := key.Matches(msg, r.keyMap.ForceApply)
-		skipEmptied := r.SkipEmptied
-		if r.Target == TargetInsert {
-			return r.context.RunCommand(jj.RebaseInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId(), skipEmptied, ignoreImmutable), common.RefreshAndSelect(r.From.Last()), common.Close)
-		} else {
-			source := sourceToFlags[r.Source]
-			target := targetToFlags[r.Target]
-			return r.context.RunCommand(jj.Rebase(r.From, r.To.GetChangeId(), source, target, skipEmptied, ignoreImmutable), common.RefreshAndSelect(r.From.Last()), common.Close)
-		}
-	case key.Matches(msg, r.keyMap.Cancel):
-		return common.Close
-	}
-	return nil
 }
 
 func (r *Operation) SetSelectedRevision(commit *jj.Commit) {

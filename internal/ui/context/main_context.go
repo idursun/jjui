@@ -64,7 +64,7 @@ type MainContext struct {
 	CurrentRevset  string
 	Histories      *config.Histories
 	Scopes         []common.Scope
-	ScopeValues    map[common.Scope]map[string]string
+	ScopeValues    map[string]string
 }
 
 func NewAppContext(location string) *MainContext {
@@ -75,7 +75,7 @@ func NewAppContext(location string) *MainContext {
 		Location:    location,
 		Histories:   config.NewHistories(),
 		Scopes:      []common.Scope{common.ScopeRevisions},
-		ScopeValues: make(map[common.Scope]map[string]string),
+		ScopeValues: make(map[string]string),
 	}
 
 	m.JJConfig = &config.JJConfig{}
@@ -83,6 +83,12 @@ func NewAppContext(location string) *MainContext {
 		m.JJConfig, _ = config.DefaultConfig(output)
 	}
 	return m
+}
+
+func (ctx *MainContext) UpdateScopeValues(values map[string]string) {
+	for k, v := range values {
+		ctx.ScopeValues[k] = v
+	}
 }
 
 func (ctx *MainContext) CurrentScope() common.Scope {
@@ -194,22 +200,4 @@ func (ctx *MainContext) GetSelectedRevisions() map[string]bool {
 		}
 	}
 	return selectedRevisions
-}
-
-func (ctx *MainContext) Set(scope common.Scope, values map[string]string) {
-	ctx.ScopeValues[scope] = values
-}
-
-func (ctx *MainContext) Update(scope common.Scope, key, value string) {
-	if _, ok := ctx.ScopeValues[scope]; !ok {
-		ctx.ScopeValues[scope] = make(map[string]string)
-	}
-	ctx.ScopeValues[scope][key] = value
-}
-
-func (ctx *MainContext) Get(scope common.Scope) map[string]string {
-	if existing, ok := ctx.ScopeValues[scope]; ok {
-		return existing
-	}
-	return map[string]string{}
 }

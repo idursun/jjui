@@ -11,6 +11,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type updateOpLogMsg struct {
@@ -18,6 +19,8 @@ type updateOpLogMsg struct {
 }
 
 var _ list.IList = (*Model)(nil)
+var _ common.ContextProvider = (*Model)(nil)
+var _ view.IHasActionMap = (*Model)(nil)
 
 type Model struct {
 	*common.Sizeable
@@ -28,6 +31,21 @@ type Model struct {
 	keymap        config.KeyMappings[key.Binding]
 	textStyle     lipgloss.Style
 	selectedStyle lipgloss.Style
+}
+
+func (m *Model) GetActionMap() map[string]common.Action {
+	return map[string]common.Action{
+		"k":   {Id: "oplog.up", Args: nil},
+		"j":   {Id: "oplog.down", Args: nil},
+		"esc": {Id: "close oplog", Switch: common.ScopeRevisions},
+	}
+}
+
+func (m *Model) GetContext() map[string]string {
+	if len(m.rows) == 0 {
+		return map[string]string{}
+	}
+	return map[string]string{jj.OperationIdPlaceholder: m.rows[m.cursor].OperationId}
 }
 
 func (m *Model) Len() int {
@@ -61,22 +79,18 @@ func (m *Model) Init() tea.Cmd {
 	return m.load()
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case common.InvokeActionMsg:
-		if msg.Scope != common.ScopeOplog {
-			return m, nil
-		}
-		switch a := msg.Action.(type) {
-		case common.CursorUpAction:
-			if m.cursor >= a.Amount {
-				m.cursor -= a.Amount
+		switch msg.Action.Id {
+		case "oplog.up":
+			if m.cursor > 0 {
+				m.cursor -= 1
 				return m, m.updateSelection()
 			}
-			return m, nil
-		case common.CursorDownAction:
-			if m.cursor+a.Amount < len(m.rows) {
-				m.cursor += a.Amount
+		case "oplog.down":
+			if m.cursor+1 < len(m.rows) {
+				m.cursor += 1
 				return m, m.updateSelection()
 			}
 			return m, nil
@@ -132,7 +146,7 @@ func (m *Model) load() tea.Cmd {
 	}
 }
 
-func New(context *context.MainContext, width int, height int) *Model {
+func New(context *context.MainContext, width int, height int) tea.Model {
 	keyMap := config.Current.GetKeyMap()
 	m := &Model{
 		Sizeable:      &common.Sizeable{Width: width, Height: height},

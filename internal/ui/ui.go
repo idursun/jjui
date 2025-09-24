@@ -2,11 +2,11 @@ package ui
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/idursun/jjui/internal/config/script"
+	"github.com/idursun/jjui/internal/ui/view"
 
 	"github.com/idursun/jjui/internal/ui/flash"
 
@@ -35,11 +35,9 @@ import (
 
 type Model struct {
 	*common.Sizeable
+	router       view.Router
 	revisions    *revisions.Model
-	oplog        *oplog.Model
-	revsetModel  *revset.Model
 	previewModel *preview.Model
-	diff         *diff.Model
 	leader       *leader.Model
 	flash        *flash.Model
 	state        common.State
@@ -52,7 +50,7 @@ type Model struct {
 type triggerAutoRefreshMsg struct{}
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.scheduleAutoRefresh())
+	return tea.Batch(m.router.Init(), tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.scheduleAutoRefresh())
 }
 
 func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
@@ -62,19 +60,19 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			m.leader = nil
 			return m, nil, true
 		}
-		if m.diff != nil {
-			m.diff = nil
-			return m, nil, true
-		}
+		//if m.diff != nil {
+		//	m.diff = nil
+		//	return m, nil, true
+		//}
 		if m.stacked != nil {
 			m.stacked = nil
 			return m, nil, true
 		}
-		if m.oplog != nil {
-			m.oplog = nil
-			m.context.PopScope()
-			return m, common.SelectionChanged, true
-		}
+		//if m.oplog != nil {
+		//	m.oplog = nil
+		//	m.context.PopScope()
+		//	return m, common.SelectionChanged, true
+		//}
 		return m, nil, false
 	}
 
@@ -85,25 +83,18 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if m.diff != nil {
-			m.diff, cmd = m.diff.Update(msg)
-			return m, cmd, true
-		}
+		//if m.diff != nil {
+		//	m.diff, cmd = m.diff.Update(msg)
+		//	return m, cmd, true
+		//}
 
-		if m.revsetModel.Editing {
-			m.revsetModel, cmd = m.revsetModel.Update(msg)
-			m.state = common.Loading
-			m.context.PopScope()
-			return m, cmd, true
-		}
+		//if IsEditing(m.Views[m.Scope]) {
+		//	m.Views[m.Scope], cmd = m.Views[m.Scope].Update(msg)
+		//	return m, cmd, true
+		//}
 
 		if m.status.IsFocused() {
 			m.status, cmd = m.status.Update(msg)
-			return m, cmd, true
-		}
-
-		if m.revisions.IsEditing() {
-			m.revisions, cmd = m.revisions.Update(msg)
 			return m, cmd, true
 		}
 
@@ -116,10 +107,28 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	return m, nil, false
 }
 
-var editDescriptionKey = key.NewBinding(key.WithKeys("f2"))
 var runScriptKey = key.NewBinding(key.WithKeys("f3"))
 
+func IsEditing(m tea.Model) bool {
+	if editable, ok := m.(common.Editable); ok {
+		return editable.IsEditing()
+	}
+	return false
+}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	var nm tea.Model
+	nm, cmd = m.internalUpdate(msg)
+	m.context.ScopeValues = map[string]string{}
+	m.context.UpdateScopeValues(m.revisions.GetContext())
+	//if m.oplog != nil {
+	//	m.context.UpdateScopeValues(m.oplog.GetContext())
+	//}
+	return nm, cmd
+}
+
+func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if msg, ok := msg.(script.ResumeScriptExecutionMsg); ok {
 		step := msg.Execution.Current()
 		switch step := step.(type) {
@@ -133,16 +142,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch {
 			case step.UI.Action == "refresh":
 				return m, tea.Sequence(common.RefreshAndKeepSelections, msg.Execution.Resume)
-			case strings.HasPrefix(step.UI.Action, "revset"):
-				m.revsetModel, cmd = m.revsetModel.Update(msg)
-			case strings.HasPrefix(step.UI.Action, "revisions"):
-				m.revisions, cmd = m.revisions.Update(msg)
+				//case strings.HasPrefix(step.UI.Action, "revset"):
+				//	m.revsetModel, cmd = m.revsetModel.Update(msg)
+				//case strings.HasPrefix(step.UI.Action, "revisions"):
+				//	m.revisions, cmd = m.revisions.Update(msg)
 			}
 			return m, cmd
 		}
-	}
-	if m, cmd, handled := m.handleFocusInputMessage(msg); handled {
-		return m, cmd
 	}
 
 	var cmd tea.Cmd
@@ -150,56 +156,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case common.InvokeActionMsg:
-		switch msg.Scope {
-		case common.ScopeUI:
-			switch msg.Action.(type) {
-			case common.SwitchToOplogAction:
-				m.context.PushScope(common.ScopeOplog)
-				m.oplog = oplog.New(m.context, m.Width, m.Height)
-				return m, m.oplog.Init()
-			case common.EditRevsetAction:
-				m.context.PushScope(common.ScopeRevset)
-				m.revsetModel, _ = m.revsetModel.Update(revset.EditRevSetMsg{Clear: m.state != common.Error})
-				return m, nil
-			}
-		default:
-			var revisionsCmd, revsetCmd, oplogCmd tea.Cmd
-			m.revisions, cmd = m.revisions.Update(msg)
-			m.revsetModel, revsetCmd = m.revsetModel.Update(msg)
-			if m.oplog != nil {
-				m.oplog, oplogCmd = m.oplog.Update(msg)
-			}
-			return m, tea.Batch(cmd, revisionsCmd, revsetCmd, oplogCmd)
+		switch msg.Action.Id {
+		case "ui.oplog":
+			oplog := oplog.New(m.context, m.Width, m.Height)
+			m.router.Scope = common.ScopeOplog
+			m.router.Views[common.ScopeOplog] = oplog
+			return m, oplog.Init()
+		case "ui.diff":
+			m.router.Scope = common.ScopeDiff
+			m.router.Views[common.ScopeDiff] = diff.New("", m.Width, m.Height)
+			return m, m.router.Views[m.router.Scope].Init()
 		}
 
 	case tea.FocusMsg:
 		return m, common.RefreshAndKeepSelections
 	case tea.KeyMsg:
-		scope := m.context.CurrentScope()
-		switch {
-		case key.Matches(msg, m.keyMap.Up):
-			return m, common.InvokeAction(scope, common.CursorUpAction{Amount: 1})
-		case key.Matches(msg, m.keyMap.Down):
-			return m, common.InvokeAction(scope, common.CursorDownAction{Amount: 1})
-		default:
-			switch scope {
-			case common.ScopeRevisions:
-				switch {
-				case key.Matches(msg, m.keyMap.InlineDescribe.Mode) && m.revisions.InNormalMode():
-					return m, common.InvokeAction(common.ScopeRevisions, common.InlineDescribeAction{ChangeId: m.revisions.SelectedRevision().GetChangeId()})
-				case key.Matches(msg, m.keyMap.Details.Mode) && m.revisions.InNormalMode():
-					return m, common.InvokeAction(common.ScopeRevisions, common.ShowDetailsAction{})
-				case key.Matches(msg, m.keyMap.Squash.Mode) && m.revisions.InNormalMode():
-					return m, common.InvokeAction(common.ScopeRevisions, common.SquashAction{})
-				case key.Matches(msg, m.keyMap.Rebase.Mode) && m.revisions.InNormalMode():
-					return m, common.InvokeAction(common.ScopeRevisions, common.RebaseAction{})
-				case key.Matches(msg, m.keyMap.Revset) && m.revisions.InNormalMode():
-					m.context.PushScope(common.ScopeRevset)
-					return m, common.InvokeAction(common.ScopeRevset, common.EditRevsetAction{Clear: m.state != common.Error})
-				}
-			}
-		}
-
 		switch {
 		case key.Matches(msg, runScriptKey):
 			scrpt, err := script.Parse([]byte(`
@@ -230,8 +201,6 @@ steps = [
 			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Quit) && m.isSafeToQuit():
 			return m, tea.Quit
-		case key.Matches(msg, m.keyMap.OpLog.Mode):
-			return m, common.InvokeAction(common.ScopeUI, common.SwitchToOplogAction{})
 		case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
 			m.stacked = git.NewModel(m.context, m.revisions.SelectedRevisions(), m.Width, m.Height)
 			return m, m.stacked.Init()
@@ -279,20 +248,14 @@ steps = [
 			}
 			out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
 			return m, common.FileSearch(m.context.CurrentRevset, m.previewModel.Visible(), rev, out)
-		case key.Matches(msg, m.keyMap.QuickSearch) && m.oplog != nil:
-			// HACK: prevents quick search from activating in op log view
-			return m, nil
+		//case key.Matches(msg, m.keyMap.QuickSearch) && m.oplog != nil:
+		//	// HACK: prevents quick search from activating in op log view
+		//	return m, nil
 		case key.Matches(msg, m.keyMap.Suspend):
 			return m, tea.Suspend
 		default:
-			for _, command := range m.context.CustomCommands {
-				if !command.IsApplicableTo(m.context.SelectedItem) {
-					continue
-				}
-				if key.Matches(msg, command.Binding()) {
-					return m, command.Prepare(m.context)
-				}
-			}
+			m.router, cmd = m.router.Update(msg)
+			return m, cmd
 		}
 	case common.ExecMsg:
 		return m, exec_process.ExecLine(m.context, msg)
@@ -307,9 +270,6 @@ steps = [
 			m.stacked = nil
 		}
 		return m, nil
-	case common.ShowDiffMsg:
-		m.diff = diff.New(string(msg), m.Width, m.Height)
-		return m, m.diff.Init()
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
 	case triggerAutoRefreshMsg:
@@ -318,7 +278,7 @@ steps = [
 		})
 	case common.UpdateRevSetMsg:
 		m.context.CurrentRevset = string(msg)
-		m.revsetModel.AddToHistory(m.context.CurrentRevset)
+		//m.revsetModel.AddToHistory(m.context.CurrentRevset)
 		return m, common.Refresh
 	case common.ShowPreview:
 		m.previewModel.SetVisible(bool(msg))
@@ -334,14 +294,12 @@ steps = [
 		m.status.SetWidth(m.Width)
 		m.revisions.SetHeight(m.Height)
 		m.revisions.SetWidth(m.Width)
-		m.revsetModel.SetWidth(m.Width)
-		m.revsetModel.SetHeight(1)
+		//m.revsetModel.SetWidth(m.Width)
+		//m.revsetModel.SetHeight(1)
 	}
 
-	if m.revsetModel.Editing {
-		m.revsetModel, cmd = m.revsetModel.Update(msg)
-		cmds = append(cmds, cmd)
-	}
+	m.router, cmd = m.router.Update(msg)
+	cmds = append(cmds, cmd)
 
 	m.status, cmd = m.status.Update(msg)
 	cmds = append(cmds, cmd)
@@ -351,14 +309,6 @@ steps = [
 
 	if m.stacked != nil {
 		m.stacked, cmd = m.stacked.Update(msg)
-		cmds = append(cmds, cmd)
-	}
-
-	if m.oplog != nil {
-		m.oplog, cmd = m.oplog.Update(msg)
-		cmds = append(cmds, cmd)
-	} else {
-		m.revisions, cmd = m.revisions.Update(msg)
 		cmds = append(cmds, cmd)
 	}
 
@@ -372,12 +322,12 @@ steps = [
 
 func (m Model) updateStatus() {
 	switch {
-	case m.diff != nil:
-		m.status.SetMode("diff")
-		m.status.SetHelp(m.diff)
-	case m.oplog != nil:
-		m.status.SetMode("oplog")
-		m.status.SetHelp(m.oplog)
+	//case m.diff != nil:
+	//	m.status.SetMode("diff")
+	//	m.status.SetHelp(m.diff)
+	//case m.oplog != nil:
+	//	m.status.SetMode("oplog")
+	//	//m.status.SetHelp(m.oplog)
 	case m.stacked != nil:
 		if s, ok := m.stacked.(help.KeyMap); ok {
 			m.status.SetHelp(s)
@@ -386,8 +336,14 @@ func (m Model) updateStatus() {
 		m.status.SetMode("leader")
 		m.status.SetHelp(m.leader)
 	default:
-		m.status.SetHelp(m.revisions)
-		m.status.SetMode(m.revisions.CurrentOperation().Name())
+		model := m.router.Views[m.router.Scope]
+		if h, ok := model.(help.KeyMap); ok {
+			m.status.SetMode(string(m.router.Scope))
+			m.status.SetHelp(h)
+		} else {
+			m.status.SetHelp(m.revisions)
+			m.status.SetMode(m.revisions.CurrentOperation().Name())
+		}
 	}
 }
 
@@ -396,12 +352,15 @@ func (m Model) View() string {
 	footer := m.status.View()
 	footerHeight := lipgloss.Height(footer)
 
-	if m.diff != nil {
-		m.diff.SetHeight(m.Height - footerHeight)
-		return lipgloss.JoinVertical(0, m.diff.View(), footer)
+	if diffView, ok := m.router.Views[common.ScopeDiff]; ok {
+		if d, ok := diffView.(common.ISizeable); ok {
+			d.SetWidth(m.Width)
+			d.SetHeight(m.Height - footerHeight)
+		}
+		return lipgloss.JoinVertical(0, diffView.View(), footer)
 	}
 
-	topView := m.revsetModel.View()
+	topView := m.router.Views[common.ScopeRevset].View()
 	topViewHeight := lipgloss.Height(topView)
 
 	bottomPreviewHeight := 0
@@ -450,28 +409,30 @@ func (m Model) View() string {
 }
 
 func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreviewHeight int) string {
-	leftView := ""
-	w := m.Width
-	h := 0
+	//w := m.Width
+	//h := 0
+	//
+	//if m.previewModel.Visible() {
+	//	if m.previewModel.AtBottom() {
+	//		h = bottomPreviewHeight
+	//	} else {
+	//		w = m.Width - int(float64(m.Width)*(m.previewModel.WindowPercentage()/100.0))
+	//	}
+	//}
 
-	if m.previewModel.Visible() {
-		if m.previewModel.AtBottom() {
-			h = bottomPreviewHeight
-		} else {
-			w = m.Width - int(float64(m.Width)*(m.previewModel.WindowPercentage()/100.0))
-		}
-	}
+	var model tea.Model
 
-	if m.oplog != nil {
-		m.oplog.SetWidth(w)
-		m.oplog.SetHeight(m.Height - footerHeight - topViewHeight - h)
-		leftView = m.oplog.View()
+	if oplog, ok := m.router.Views[common.ScopeOplog]; ok {
+		model = oplog
 	} else {
-		m.revisions.SetWidth(w)
-		m.revisions.SetHeight(m.Height - footerHeight - topViewHeight - h)
-		leftView = m.revisions.View()
+		model = m.router.Views[common.ScopeRevisions]
 	}
-	return leftView
+
+	if s, ok := model.(common.ISizeable); ok {
+		s.SetWidth(m.Width)
+		s.SetHeight(m.Height - footerHeight - topViewHeight - bottomPreviewHeight)
+	}
+	return model.View()
 }
 
 func (m Model) scheduleAutoRefresh() tea.Cmd {
@@ -488,9 +449,9 @@ func (m Model) isSafeToQuit() bool {
 	if m.stacked != nil {
 		return false
 	}
-	if m.oplog != nil {
-		return false
-	}
+	//if m.oplog != nil {
+	//	return false
+	//}
 	if m.revisions.CurrentOperation().Name() == "normal" {
 		return true
 	}
@@ -501,6 +462,12 @@ func New(c *context.MainContext) tea.Model {
 	revisionsModel := revisions.New(c)
 	previewModel := preview.New(c)
 	statusModel := status.New(c)
+	revsetModel := revset.New(c)
+	router := view.NewRouter(common.ScopeRevisions)
+	router.Views = map[common.Scope]tea.Model{
+		common.ScopeRevisions: revisionsModel,
+		common.ScopeRevset:    revsetModel,
+	}
 	return Model{
 		Sizeable:     &common.Sizeable{Width: 0, Height: 0},
 		context:      c,
@@ -509,7 +476,7 @@ func New(c *context.MainContext) tea.Model {
 		revisions:    revisionsModel,
 		previewModel: &previewModel,
 		status:       &statusModel,
-		revsetModel:  revset.New(c),
 		flash:        flash.New(c),
+		router:       router,
 	}
 }

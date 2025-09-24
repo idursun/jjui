@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/idursun/jjui/internal/ui/view"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
@@ -14,11 +15,19 @@ import (
 
 var _ operations.Operation = (*SetBookmarkOperation)(nil)
 var _ common.Editable = (*SetBookmarkOperation)(nil)
+var _ view.IHasActionMap = (*SetBookmarkOperation)(nil)
 
 type SetBookmarkOperation struct {
 	context  *context.MainContext
 	revision string
 	name     textinput.Model
+}
+
+func (s *SetBookmarkOperation) GetActionMap() map[string]common.Action {
+	return map[string]common.Action{
+		"esc":   {Id: "close set_bookmark", Args: nil, Switch: ""},
+		"enter": {Id: "set_bookmark.accept", Args: nil, Switch: ""},
+	}
 }
 
 func (s *SetBookmarkOperation) IsEditing() bool {
@@ -27,11 +36,9 @@ func (s *SetBookmarkOperation) IsEditing() bool {
 
 func (s *SetBookmarkOperation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
-			return s, common.Close
-		case "enter":
+	case common.InvokeActionMsg:
+		switch msg.Action.Id {
+		case "set_bookmark.accept":
 			return s, s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), common.Close, common.Refresh)
 		}
 	}

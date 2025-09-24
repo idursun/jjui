@@ -11,18 +11,56 @@ const (
 
 type WaitChannel chan WaitResult
 
-type Scope int
+type Scope string
 
 const (
-	ScopeUI Scope = iota
-	ScopeRevisions
-	ScopeOplog
-	ScopeRevset
+	ScopeNone      Scope = ""
+	ScopeUI        Scope = "ui"
+	ScopeRevisions Scope = "revisions"
+	ScopeOplog     Scope = "oplog"
+	ScopeDiff      Scope = "diff"
+	ScopeRevset    Scope = "revset"
 )
 
+type SetScopeMsg struct {
+	Scope Scope
+}
+
+func SetScope(scope Scope) tea.Cmd {
+	return func() tea.Msg {
+		return SetScopeMsg{Scope: scope}
+	}
+}
+
+type Action struct {
+	Id     string
+	Args   map[string]any
+	Switch Scope
+}
+
+func (a Action) Get(name string, defaultValue any) any {
+	if v, ok := a.Args[name]; ok {
+		return v
+	}
+	return defaultValue
+}
+
+func NewAction(id string, args map[string]any) tea.Cmd {
+	return func() tea.Msg {
+		return InvokeActionMsg{
+			Action: Action{Id: id, Args: args},
+		}
+	}
+}
+
+func InvokeAction(action Action) tea.Cmd {
+	return func() tea.Msg {
+		return InvokeActionMsg{Action: action}
+	}
+}
+
 type InvokeActionMsg struct {
-	Scope  Scope
-	Action any
+	Action Action
 }
 
 type InlineDescribeAction struct {
@@ -37,22 +75,7 @@ type CursorDownAction struct {
 	Amount int
 }
 
-type EditRevsetAction struct {
-	Clear bool
-}
-
-type ShowDetailsAction struct{}
 type SquashAction struct {
 	ChangeId string
 	Files    []string
-}
-type RebaseAction struct {
-}
-
-type SwitchToOplogAction struct{}
-
-func InvokeAction(scope Scope, action any) tea.Cmd {
-	return func() tea.Msg {
-		return InvokeActionMsg{Scope: scope, Action: action}
-	}
 }

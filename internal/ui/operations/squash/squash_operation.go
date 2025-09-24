@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/ui/view"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -16,6 +17,7 @@ import (
 
 var _ operations.Operation = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
+var _ view.IHasActionMap = (*Operation)(nil)
 
 type Operation struct {
 	context     *context.MainContext
@@ -26,6 +28,15 @@ type Operation struct {
 	keepEmptied bool
 	interactive bool
 	styles      styles
+}
+
+func (s *Operation) GetActionMap() map[string]common.Action {
+	return map[string]common.Action{
+		"j":     {Id: "revisions.down"},
+		"k":     {Id: "revisions.up"},
+		"esc":   {Id: "close squash", Args: nil, Switch: common.ScopeRevisions},
+		"enter": {Id: "squash.apply", Args: nil, Switch: common.ScopeRevisions},
+	}
 }
 
 func (s *Operation) IsFocused() bool {
@@ -43,29 +54,21 @@ func (s *Operation) Init() tea.Cmd {
 }
 
 func (s *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(tea.KeyMsg); ok {
-		return s, s.HandleKey(msg)
+	if msg, ok := msg.(common.InvokeActionMsg); ok {
+		switch msg.Action.Id {
+		case "squash.apply":
+			return s, tea.Batch(common.InvokeAction(common.Action{Id: "close squash"}), s.context.RunInteractiveCommand(jj.Squash(s.from, s.current.GetChangeId(), s.files, s.keepEmptied, s.interactive), common.RefreshAndSelect(s.current.GetChangeId())))
+		case "squash.keep_emptied":
+			s.keepEmptied = !s.keepEmptied
+		case "squash.interactive":
+			s.interactive = !s.interactive
+		}
 	}
 	return s, nil
 }
 
 func (s *Operation) View() string {
 	return ""
-}
-
-func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	switch {
-	case key.Matches(msg, s.keyMap.Apply, s.keyMap.ForceApply):
-		ignoreImmutable := key.Matches(msg, s.keyMap.ForceApply)
-		return tea.Batch(common.Close, s.context.RunInteractiveCommand(jj.Squash(s.from, s.current.GetChangeId(), s.files, s.keepEmptied, s.interactive, ignoreImmutable), common.RefreshAndSelect(s.current.GetChangeId())))
-	case key.Matches(msg, s.keyMap.Cancel):
-		return common.Close
-	case key.Matches(msg, s.keyMap.Squash.KeepEmptied):
-		s.keepEmptied = !s.keepEmptied
-	case key.Matches(msg, s.keyMap.Squash.Interactive):
-		s.interactive = !s.interactive
-	}
-	return nil
 }
 
 func (s *Operation) SetSelectedRevision(commit *jj.Commit) {
