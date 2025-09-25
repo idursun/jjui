@@ -25,8 +25,8 @@ type SetBookmarkOperation struct {
 
 func (s *SetBookmarkOperation) GetActionMap() map[string]common.Action {
 	return map[string]common.Action{
-		"esc":   {Id: "close set_bookmark", Args: nil, Switch: ""},
-		"enter": {Id: "set_bookmark.accept", Args: nil, Switch: ""},
+		"esc":   {Id: "close set_bookmark", Args: nil},
+		"enter": {Id: "set_bookmark.accept", Args: nil},
 	}
 }
 

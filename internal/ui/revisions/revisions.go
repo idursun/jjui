@@ -95,22 +95,27 @@ func (m *Model) GetActionMap() map[string]common.Action {
 var ActionMap = map[string]common.Action{
 	"@":     {Id: "revisions.jump_to_working_copy"},
 	"enter": {Id: "revisions.inline_describe"},
-	"j":     {Id: "revisions.down"},
-	"k":     {Id: "revisions.up"},
-	"l":     {Id: "revisions.details", Switch: scopeDetails},
-	"S":     {Id: "revisions.squash"},
-	"r":     {Id: "revisions.rebase"},
-	"u":     {Id: "revisions.undo"},
-	"B":     {Id: "revisions.set_bookmark"},
-	"c":     {Id: "revisions.commit"},
-	"n":     {Id: "revisions.new"},
-	"A":     {Id: "revisions.absorb"},
-	"a":     {Id: "revisions.abandon"},
-	"s":     {Id: "revisions.split"},
-	"d":     {Id: "revisions.diff"},
-	"f":     {Id: "revisions.ace_jump"},
-	"L":     {Id: "revset.edit", Switch: common.ScopeRevset},
-	"o":     {Id: "ui.oplog", Switch: common.ScopeOplog},
+	" ": {Id: "revisions.toggle_select", Next: []common.Action{
+		{Id: "revisions.down"},
+	}},
+	"j": {Id: "revisions.down"},
+	"J": {Id: "revisions.jump_to_parent"},
+	"k": {Id: "revisions.up"},
+	"K": {Id: "revisions.jump_to_children"},
+	"l": {Id: "revisions.details", Switch: scopeDetails},
+	"S": {Id: "revisions.squash"},
+	"r": {Id: "revisions.rebase"},
+	"B": {Id: "revisions.set_bookmark"},
+	"c": {Id: "revisions.commit"},
+	"n": {Id: "revisions.new"},
+	"A": {Id: "revisions.absorb"},
+	"a": {Id: "revisions.abandon"},
+	"s": {Id: "revisions.split"},
+	"d": {Id: "revisions.diff"},
+	"f": {Id: "revisions.ace_jump"},
+	"L": {Id: "revset.edit", Switch: common.ScopeRevset},
+	"o": {Id: "ui.oplog", Switch: common.ScopeOplog},
+	"u": {Id: "ui.undo"},
 }
 
 func (m *Model) GetContext() map[string]string {
@@ -320,7 +325,7 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case common.InvokeActionMsg:
 		switch msg.Action.Id {
-		case "revisions.toggle":
+		case "revisions.toggle_select":
 			commit := m.rows[m.cursor].Commit
 			changeId := commit.GetChangeId()
 			item := appContext.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
@@ -428,9 +433,12 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			} else if m.cursor < len(m.rows)-1 {
 				m.cursor++
 			}
-			//TODO: allow passing arguments
-			//m.op = squash.NewOperation(m.context, selectedRevisions, squash.WithFiles(msg.Files))
-			m.op = squash.NewOperation(m.context, selectedRevisions)
+			files := msg.Action.Get("files", nil).([]string)
+			if files != nil {
+				m.op = squash.NewOperation(m.context, selectedRevisions, squash.WithFiles(files))
+			} else {
+				m.op = squash.NewOperation(m.context, selectedRevisions)
+			}
 			m.router.Scope = scopeSquash
 			m.router.Views[m.router.Scope] = m.op
 			return m, m.op.Init()

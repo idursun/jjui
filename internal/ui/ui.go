@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/idursun/jjui/internal/config/script"
+	"github.com/idursun/jjui/internal/ui/undo"
 	"github.com/idursun/jjui/internal/ui/view"
 
 	"github.com/idursun/jjui/internal/ui/flash"
@@ -21,7 +22,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/exec_process"
-	"github.com/idursun/jjui/internal/ui/helppage"
 	"github.com/idursun/jjui/internal/ui/leader"
 	"github.com/idursun/jjui/internal/ui/oplog"
 	"github.com/idursun/jjui/internal/ui/preview"
@@ -41,7 +41,6 @@ type Model struct {
 	status       *status.Model
 	context      *context.MainContext
 	keyMap       config.KeyMappings[key.Binding]
-	stacked      tea.Model
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -57,19 +56,6 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			m.leader = nil
 			return m, nil, true
 		}
-		//if m.diff != nil {
-		//	m.diff = nil
-		//	return m, nil, true
-		//}
-		if m.stacked != nil {
-			m.stacked = nil
-			return m, nil, true
-		}
-		//if m.oplog != nil {
-		//	m.oplog = nil
-		//	m.context.PopScope()
-		//	return m, common.SelectionChanged, true
-		//}
 		return m, nil, false
 	}
 
@@ -80,23 +66,8 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		//if m.diff != nil {
-		//	m.diff, cmd = m.diff.Update(msg)
-		//	return m, cmd, true
-		//}
-
-		//if IsEditing(m.Views[m.Scope]) {
-		//	m.Views[m.Scope], cmd = m.Views[m.Scope].Update(msg)
-		//	return m, cmd, true
-		//}
-
 		if m.status.IsFocused() {
 			m.status, cmd = m.status.Update(msg)
-			return m, cmd, true
-		}
-
-		if m.stacked != nil {
-			m.stacked, cmd = m.stacked.Update(msg)
 			return m, cmd, true
 		}
 	}
@@ -106,17 +77,13 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 
 var runScriptKey = key.NewBinding(key.WithKeys("f3"))
 
-func IsEditing(m tea.Model) bool {
-	if editable, ok := m.(common.Editable); ok {
-		return editable.IsEditing()
-	}
-	return false
-}
-
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var nm tea.Model
 	nm, cmd = m.internalUpdate(msg)
+	if msg, ok := msg.(common.InvokeActionMsg); ok {
+		cmd = tea.Sequence(cmd, msg.Action.GetNext())
+	}
 	m.context.ScopeValues = map[string]string{}
 	m.context.UpdateScopeValues(m.revisions.GetContext())
 	//if m.oplog != nil {
@@ -163,6 +130,15 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.router.Scope = common.ScopeDiff
 			m.router.Views[common.ScopeDiff] = diff.New("", m.Width, m.Height)
 			return m, m.router.Views[m.router.Scope].Init()
+		case "ui.undo":
+			m.router.Views[common.ScopeUndo] = undo.NewModel(m.context)
+			m.router.Scope = common.ScopeUndo
+			return m, m.router.Views[m.router.Scope].Init()
+		case "ui.quit":
+			if m.isSafeToQuit() {
+				return m, tea.Quit
+			}
+			return m, nil
 		}
 
 	case tea.FocusMsg:
@@ -190,14 +166,11 @@ steps = [
 		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
 			m.state = common.Ready
 			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Cancel) && m.stacked != nil:
-			m.stacked = nil
-			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Cancel) && m.flash.Any():
 			m.flash.DeleteOldest()
 			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Quit) && m.isSafeToQuit():
-			return m, tea.Quit
+		case key.Matches(msg, m.keyMap.Quit):
+			return m, common.InvokeAction(common.Action{Id: "ui.quit"})
 		//case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
 		//	m.stacked = git.NewModel(m.context, m.revisions.SelectedRevision(), m.Width, m.Height)
 		//	return m, m.stacked.Init()
@@ -207,9 +180,9 @@ steps = [
 		//	return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Bookmark.Mode) && m.revisions.InNormalMode():
 			changeIds := m.revisions.GetCommitIds()
-			m.stacked = bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds, m.Width, m.Height)
-			cmds = append(cmds, m.stacked.Init())
-			return m, tea.Batch(cmds...)
+			m.router.Scope = common.ScopeBookmarks
+			m.router.Views[common.ScopeBookmarks] = bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds, m.Width, m.Height)
+			return m, m.router.Views[m.router.Scope].Init()
 		case key.Matches(msg, m.keyMap.Help):
 			cmds = append(cmds, common.ToggleHelp)
 			return m, tea.Batch(cmds...)
@@ -256,17 +229,17 @@ steps = [
 		}
 	case common.ExecMsg:
 		return m, exec_process.ExecLine(m.context, msg)
-	case common.ToggleHelpMsg:
-		if m.stacked == nil {
-			m.stacked = helppage.New(m.context)
-			if p, ok := m.stacked.(common.ISizeable); ok {
-				p.SetHeight(m.Height - 2)
-				p.SetWidth(m.Width)
-			}
-		} else {
-			m.stacked = nil
-		}
-		return m, nil
+	//case common.ToggleHelpMsg:
+	//	if m.stacked == nil {
+	//		m.stacked = helppage.New(m.context)
+	//		if p, ok := m.stacked.(common.ISizeable); ok {
+	//			p.SetHeight(m.Height - 2)
+	//			p.SetWidth(m.Width)
+	//		}
+	//	} else {
+	//		m.stacked = nil
+	//	}
+	//	return m, nil
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
 	case triggerAutoRefreshMsg:
@@ -284,10 +257,10 @@ steps = [
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
-		if s, ok := m.stacked.(common.ISizeable); ok {
-			s.SetWidth(m.Width - 2)
-			s.SetHeight(m.Height - 2)
-		}
+		//if s, ok := m.stacked.(common.ISizeable); ok {
+		//	s.SetWidth(m.Width - 2)
+		//	s.SetHeight(m.Height - 2)
+		//}
 		m.status.SetWidth(m.Width)
 		m.revisions.SetHeight(m.Height)
 		m.revisions.SetWidth(m.Width)
@@ -304,10 +277,10 @@ steps = [
 	m.flash, cmd = m.flash.Update(msg)
 	cmds = append(cmds, cmd)
 
-	if m.stacked != nil {
-		m.stacked, cmd = m.stacked.Update(msg)
-		cmds = append(cmds, cmd)
-	}
+	//if m.stacked != nil {
+	//	m.stacked, cmd = m.stacked.Update(msg)
+	//	cmds = append(cmds, cmd)
+	//}
 
 	if m.previewModel.Visible() {
 		m.previewModel, cmd = m.previewModel.Update(msg)
@@ -319,16 +292,6 @@ steps = [
 
 func (m Model) updateStatus() {
 	switch {
-	//case m.diff != nil:
-	//	m.status.SetMode("diff")
-	//	m.status.SetHelp(m.diff)
-	//case m.oplog != nil:
-	//	m.status.SetMode("oplog")
-	//	//m.status.SetHelp(m.oplog)
-	case m.stacked != nil:
-		if s, ok := m.stacked.(help.KeyMap); ok {
-			m.status.SetHelp(s)
-		}
 	case m.leader != nil:
 		m.status.SetMode("leader")
 		m.status.SetHelp(m.leader)
@@ -383,8 +346,13 @@ func (m Model) View() string {
 		}
 	}
 
-	if m.stacked != nil {
-		stackedView := m.stacked.View()
+	var stacked tea.Model
+	if v, ok := m.router.Views[common.ScopeUndo]; ok {
+		stacked = v
+	}
+
+	if stacked != nil {
+		stackedView := stacked.View()
 		w, h := lipgloss.Size(stackedView)
 		sx := (m.Width - w) / 2
 		sy := (m.Height - h) / 2
@@ -443,9 +411,9 @@ func (m Model) scheduleAutoRefresh() tea.Cmd {
 }
 
 func (m Model) isSafeToQuit() bool {
-	if m.stacked != nil {
-		return false
-	}
+	//if m.stacked != nil {
+	//	return false
+	//}
 	//if m.oplog != nil {
 	//	return false
 	//}

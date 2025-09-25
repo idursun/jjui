@@ -135,7 +135,10 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 			s.confirmation = model
 			return s, s.confirmation.Init()
 		case "details.squash":
-		//	return s, tea.Sequence(common.CloseAndCancel, common.InvokeAction(common.SquashAction{Files: s.getSelectedFiles()}))
+			a := common.Action{Id: "revisions.squash", Args: map[string]any{
+				"files": s.getSelectedFiles(),
+			}}
+			return s, common.InvokeAction(a)
 		case "details.absorb":
 			selectedFiles := s.getSelectedFiles()
 			s.selectedHint = "might get absorbed into parents"

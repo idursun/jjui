@@ -25,10 +25,10 @@ type Operation struct {
 
 func (a *Operation) GetActionMap() map[string]common.Action {
 	return map[string]common.Action{
-		"y":         {Id: "abandon.accept", Args: nil, Switch: ""},
-		"alt+enter": {Id: "abandon.force_apply", Args: nil, Switch: ""},
-		"n":         {Id: "close abandon", Args: nil, Switch: ""},
-		"esc":       {Id: "close abandon", Args: nil, Switch: ""},
+		"y":         {Id: "abandon.accept", Args: nil},
+		"alt+enter": {Id: "abandon.force_apply", Args: nil},
+		"n":         {Id: "close abandon", Args: nil},
+		"esc":       {Id: "close abandon", Args: nil},
 	}
 }
 

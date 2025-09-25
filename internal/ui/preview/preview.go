@@ -10,7 +10,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 )
@@ -110,20 +109,20 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		})
 	case refreshPreviewContentMsg:
 		if m.tag == msg.Tag {
-			replacements := m.context.ScopeValues
-			switch m.context.CurrentScope() {
-			case common.ScopeRevisions:
-				if _, ok := replacements[jj.FilePlaceholder]; ok {
-					output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
-					m.updatePreviewContent(string(output))
-				} else {
-					output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
-					m.updatePreviewContent(string(output))
-				}
-			case common.ScopeOplog:
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
-				m.updatePreviewContent(string(output))
-			}
+			//replacements := m.context.ScopeValues
+			//switch m.context.CurrentScope() {
+			//case common.ScopeRevisions:
+			//	if _, ok := replacements[jj.FilePlaceholder]; ok {
+			//		output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
+			//		m.updatePreviewContent(string(output))
+			//	} else {
+			//		output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
+			//		m.updatePreviewContent(string(output))
+			//	}
+			//case common.ScopeOplog:
+			//	output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
+			//	m.updatePreviewContent(string(output))
+			//}
 		}
 	case tea.KeyMsg:
 		switch {

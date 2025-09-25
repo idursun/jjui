@@ -63,7 +63,6 @@ type MainContext struct {
 	DefaultRevset  string
 	CurrentRevset  string
 	Histories      *config.Histories
-	Scopes         []common.Scope
 	ScopeValues    map[string]string
 }
 
@@ -74,7 +73,6 @@ func NewAppContext(location string) *MainContext {
 		},
 		Location:    location,
 		Histories:   config.NewHistories(),
-		Scopes:      []common.Scope{common.ScopeRevisions},
 		ScopeValues: make(map[string]string),
 	}
 
@@ -89,23 +87,6 @@ func (ctx *MainContext) UpdateScopeValues(values map[string]string) {
 	for k, v := range values {
 		ctx.ScopeValues[k] = v
 	}
-}
-
-func (ctx *MainContext) CurrentScope() common.Scope {
-	return ctx.Scopes[len(ctx.Scopes)-1]
-}
-
-func (ctx *MainContext) PushScope(scope common.Scope) {
-	ctx.Scopes = append(ctx.Scopes, scope)
-}
-
-func (ctx *MainContext) PopScope() common.Scope {
-	if len(ctx.Scopes) <= 1 {
-		return ctx.Scopes[0]
-	}
-	popped := ctx.Scopes[len(ctx.Scopes)-1]
-	ctx.Scopes = ctx.Scopes[:len(ctx.Scopes)-1]
-	return popped
 }
 
 func (ctx *MainContext) ClearCheckedItems(ofType reflect.Type) {

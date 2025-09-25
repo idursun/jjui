@@ -20,22 +20,28 @@ const (
 	ScopeOplog     Scope = "oplog"
 	ScopeDiff      Scope = "diff"
 	ScopeRevset    Scope = "revset"
+	ScopeUndo      Scope = "undo"
+	ScopeBookmarks Scope = "bookmarks"
 )
 
 type SetScopeMsg struct {
 	Scope Scope
 }
 
-func SetScope(scope Scope) tea.Cmd {
-	return func() tea.Msg {
-		return SetScopeMsg{Scope: scope}
-	}
-}
-
 type Action struct {
 	Id     string
 	Args   map[string]any
 	Switch Scope
+	Next   []Action
+}
+
+func (a Action) GetNext() tea.Cmd {
+	if len(a.Next) == 0 {
+		return nil
+	}
+	nextAction := a.Next[0]
+	nextAction.Next = a.Next[1:]
+	return InvokeAction(nextAction)
 }
 
 func (a Action) Get(name string, defaultValue any) any {
@@ -43,14 +49,6 @@ func (a Action) Get(name string, defaultValue any) any {
 		return v
 	}
 	return defaultValue
-}
-
-func NewAction(id string, args map[string]any) tea.Cmd {
-	return func() tea.Msg {
-		return InvokeActionMsg{
-			Action: Action{Id: id, Args: args},
-		}
-	}
 }
 
 func InvokeAction(action Action) tea.Cmd {
@@ -61,21 +59,4 @@ func InvokeAction(action Action) tea.Cmd {
 
 type InvokeActionMsg struct {
 	Action Action
-}
-
-type InlineDescribeAction struct {
-	ChangeId string
-}
-
-type CursorUpAction struct {
-	Amount int
-}
-
-type CursorDownAction struct {
-	Amount int
-}
-
-type SquashAction struct {
-	ChangeId string
-	Files    []string
 }

@@ -42,6 +42,14 @@ func (r Router) UpdateTargetView(action common.InvokeActionMsg) (Router, tea.Cmd
 		}
 	}
 
+	if strings.HasPrefix(action.Action.Id, "switch") {
+		viewId := common.Scope(strings.TrimPrefix(action.Action.Id, "switch "))
+		if _, ok := r.Views[viewId]; ok {
+			r.Scope = viewId
+			return r, nil
+		}
+	}
+
 	var cmds []tea.Cmd
 	for k := range r.Views {
 		var cmd tea.Cmd
