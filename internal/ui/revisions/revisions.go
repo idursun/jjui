@@ -347,6 +347,8 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 		case "revisions.abandon":
 			selections := m.SelectedRevisions()
 			m.op = abandon.NewOperation(m.context, selections)
+			m.router.Scope = scopeAbandon
+			m.router.Views[m.router.Scope] = m.op
 			return m, m.op.Init()
 		case "revisions.set_bookmark":
 			m.op = bookmark.NewSetBookmarkOperation(m.context, m.SelectedRevision().GetChangeId())

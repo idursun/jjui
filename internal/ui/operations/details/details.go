@@ -25,13 +25,6 @@ type updateCommitStatusMsg struct {
 	selectedFiles []string
 }
 
-var ActionMap = map[string]common.Action{
-	"esc": {Id: "details.close", Switch: common.ScopeRevisions},
-	"h":   {Id: "details.close", Switch: common.ScopeRevisions},
-	"j":   {Id: "details.down"},
-	"k":   {Id: "details.up"},
-}
-
 var _ operations.Operation = (*Operation)(nil)
 var _ common.Editable = (*Operation)(nil)
 var _ common.ContextProvider = (*Operation)(nil)
@@ -51,7 +44,19 @@ type Operation struct {
 }
 
 func (s *Operation) GetActionMap() map[string]common.Action {
-	return ActionMap
+	return map[string]common.Action{
+		"esc": {Id: "close details"},
+		"h":   {Id: "close details"},
+		" ":   {Id: "details.toggle_select"},
+		"j":   {Id: "details.down"},
+		"k":   {Id: "details.up"},
+		"d":   {Id: "details.diff"},
+		"r":   {Id: "details.restore"},
+		"s":   {Id: "details.split"},
+		"S":   {Id: "details.squash"},
+		"*":   {Id: "details.show_revisions_changing_file"},
+		"A":   {Id: "details.absorb"},
+	}
 }
 
 func (s *Operation) GetContext() map[string]string {
@@ -92,15 +97,96 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 	case common.InvokeActionMsg:
 		switch msg.Action.Id {
 		case "details.up":
-			if s.cursor > 0 {
-				s.cursor--
-			}
+			s.cursorUp()
+			return s, nil
 		case "details.down":
-			if s.cursor < s.Len()-1 {
-				s.cursor++
+			s.cursorDown()
+			return s, nil
+		case "details.split":
+			selectedFiles := s.getSelectedFiles()
+			s.selectedHint = "stays as is"
+			s.unselectedHint = "moves to the new revision"
+			model := confirmation.New(
+				[]string{"Are you sure you want to split the selected files?"},
+				confirmation.WithStylePrefix("revisions"),
+				confirmation.WithOption("Yes",
+					tea.Batch(s.context.RunInteractiveCommand(jj.Split(s.revision.GetChangeId(), selectedFiles), common.Refresh), common.Close),
+					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+				confirmation.WithOption("No",
+					confirmation.Close,
+					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+			)
+			s.confirmation = model
+			return s, s.confirmation.Init()
+		case "details.restore":
+			selectedFiles := s.getSelectedFiles()
+			s.selectedHint = "gets restored"
+			s.unselectedHint = "stays as is"
+			model := confirmation.New(
+				[]string{"Are you sure you want to restore the selected files?"},
+				confirmation.WithStylePrefix("revisions"),
+				confirmation.WithOption("Yes",
+					s.context.RunCommand(jj.Restore(s.revision.GetChangeId(), selectedFiles), common.Refresh, confirmation.Close),
+					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+				confirmation.WithOption("No",
+					confirmation.Close,
+					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+			)
+			s.confirmation = model
+			return s, s.confirmation.Init()
+		case "details.squash":
+		//	return s, tea.Sequence(common.CloseAndCancel, common.InvokeAction(common.SquashAction{Files: s.getSelectedFiles()}))
+		case "details.absorb":
+			selectedFiles := s.getSelectedFiles()
+			s.selectedHint = "might get absorbed into parents"
+			s.unselectedHint = "stays as is"
+			model := confirmation.New(
+				[]string{"Are you sure you want to absorb changes from the selected files?"},
+				confirmation.WithStylePrefix("revisions"),
+				confirmation.WithOption("Yes",
+					s.context.RunCommand(jj.Absorb(s.revision.GetChangeId(), selectedFiles...), common.Refresh, confirmation.Close),
+					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+				confirmation.WithOption("No",
+					confirmation.Close,
+					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+			)
+			s.confirmation = model
+			return s, s.confirmation.Init()
+
+		case "details.show_revisions_changing_file":
+			if current := s.current(); current != nil {
+				return s, tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(%s)", jj.EscapeFileName(current.fileName))))
 			}
-		case "details.close":
-			return s, common.Close
+
+		case "details.toggle_select":
+			if current := s.current(); current != nil {
+				isChecked := !current.selected
+				current.selected = isChecked
+
+				checkedFile := context.SelectedFile{
+					ChangeId: s.revision.GetChangeId(),
+					CommitId: s.revision.CommitId,
+					File:     current.fileName,
+				}
+				if isChecked {
+					s.context.AddCheckedItem(checkedFile)
+				} else {
+					s.context.RemoveCheckedItem(checkedFile)
+				}
+
+				s.cursorDown()
+			}
+			return s, nil
+
+		case "details.diff":
+			selected := s.current()
+			if selected == nil {
+				return s, nil
+			}
+			return s, tea.Sequence(common.InvokeAction(common.Action{Id: "ui.diff"}), func() tea.Msg {
+				output, _ := s.context.RunCommandImmediate(jj.Diff(s.revision.GetChangeId(), selected.fileName))
+				return common.ShowDiffMsg(output)
+			})
 		}
 	case confirmation.CloseMsg:
 		s.confirmation = nil
@@ -137,98 +223,6 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 			model, cmd := s.confirmation.Update(msg)
 			s.confirmation = model
 			return s, cmd
-		}
-		switch {
-		case key.Matches(msg, s.keyMap.Up):
-			s.cursorUp()
-			return s, nil
-		case key.Matches(msg, s.keyMap.Down):
-			s.cursorDown()
-			return s, nil
-		case key.Matches(msg, s.keyMap.Cancel), key.Matches(msg, s.keyMap.Details.Close):
-			return s, common.Close
-		case key.Matches(msg, s.keyMap.Details.Diff):
-			selected := s.current()
-			if selected == nil {
-				return s, nil
-			}
-			return s, func() tea.Msg {
-				output, _ := s.context.RunCommandImmediate(jj.Diff(s.revision.GetChangeId(), selected.fileName))
-				return common.ShowDiffMsg(output)
-			}
-		case key.Matches(msg, s.keyMap.Details.Split):
-			selectedFiles := s.getSelectedFiles()
-			s.selectedHint = "stays as is"
-			s.unselectedHint = "moves to the new revision"
-			model := confirmation.New(
-				[]string{"Are you sure you want to split the selected files?"},
-				confirmation.WithStylePrefix("revisions"),
-				confirmation.WithOption("Yes",
-					tea.Batch(s.context.RunInteractiveCommand(jj.Split(s.revision.GetChangeId(), selectedFiles), common.Refresh), common.Close),
-					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-				confirmation.WithOption("No",
-					confirmation.Close,
-					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
-			)
-			s.confirmation = model
-			return s, s.confirmation.Init()
-		//case key.Matches(msg, s.keyMap.Details.Squash):
-		//	return s, tea.Sequence(common.CloseAndCancel, common.InvokeAction(common.SquashAction{Files: s.getSelectedFiles()}))
-		case key.Matches(msg, s.keyMap.Details.Restore):
-			selectedFiles := s.getSelectedFiles()
-			s.selectedHint = "gets restored"
-			s.unselectedHint = "stays as is"
-			model := confirmation.New(
-				[]string{"Are you sure you want to restore the selected files?"},
-				confirmation.WithStylePrefix("revisions"),
-				confirmation.WithOption("Yes",
-					s.context.RunCommand(jj.Restore(s.revision.GetChangeId(), selectedFiles), common.Refresh, confirmation.Close),
-					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-				confirmation.WithOption("No",
-					confirmation.Close,
-					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
-			)
-			s.confirmation = model
-			return s, s.confirmation.Init()
-		case key.Matches(msg, s.keyMap.Details.Absorb):
-			selectedFiles := s.getSelectedFiles()
-			s.selectedHint = "might get absorbed into parents"
-			s.unselectedHint = "stays as is"
-			model := confirmation.New(
-				[]string{"Are you sure you want to absorb changes from the selected files?"},
-				confirmation.WithStylePrefix("revisions"),
-				confirmation.WithOption("Yes",
-					s.context.RunCommand(jj.Absorb(s.revision.GetChangeId(), selectedFiles...), common.Refresh, confirmation.Close),
-					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-				confirmation.WithOption("No",
-					confirmation.Close,
-					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
-			)
-			s.confirmation = model
-			return s, s.confirmation.Init()
-		case key.Matches(msg, s.keyMap.Details.ToggleSelect):
-			if current := s.current(); current != nil {
-				isChecked := !current.selected
-				current.selected = isChecked
-
-				checkedFile := context.SelectedFile{
-					ChangeId: s.revision.GetChangeId(),
-					CommitId: s.revision.CommitId,
-					File:     current.fileName,
-				}
-				if isChecked {
-					s.context.AddCheckedItem(checkedFile)
-				} else {
-					s.context.RemoveCheckedItem(checkedFile)
-				}
-
-				s.cursorDown()
-			}
-			return s, nil
-		case key.Matches(msg, s.keyMap.Details.RevisionsChangingFile):
-			if current := s.current(); current != nil {
-				return s, tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(%s)", jj.EscapeFileName(current.fileName))))
-			}
 		}
 	}
 	return s, nil

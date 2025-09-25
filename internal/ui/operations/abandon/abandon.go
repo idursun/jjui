@@ -10,15 +10,26 @@ import (
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 var _ operations.Operation = (*Operation)(nil)
 var _ common.Editable = (*Operation)(nil)
+var _ view.IHasActionMap = (*Operation)(nil)
 
 type Operation struct {
 	model   *confirmation.Model
 	current *jj.Commit
 	context *context.MainContext
+}
+
+func (a *Operation) GetActionMap() map[string]common.Action {
+	return map[string]common.Action{
+		"y":         {Id: "abandon.accept", Args: nil, Switch: ""},
+		"alt+enter": {Id: "abandon.force_apply", Args: nil, Switch: ""},
+		"n":         {Id: "close abandon", Args: nil, Switch: ""},
+		"esc":       {Id: "close abandon", Args: nil, Switch: ""},
+	}
 }
 
 func (a *Operation) IsEditing() bool {
@@ -30,6 +41,13 @@ func (a *Operation) Init() tea.Cmd {
 }
 
 func (a *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if msg, ok := msg.(common.InvokeActionMsg); ok {
+		switch msg.Action.Id {
+		case "abandon.accept", "abandon.force_apply":
+			ignoreImmutable := msg.Action.Id == "abandon.force_apply"
+			return a, a.context.RunCommand(jj.Abandon(jj.SelectedRevisions{Revisions: []*jj.Commit{a.current}}, ignoreImmutable), common.Refresh)
+		}
+	}
 	var cmd tea.Cmd
 	a.model, cmd = a.model.Update(msg)
 	return a, cmd

@@ -84,9 +84,9 @@ func (r *Operation) GetActionMap() map[string]common.Action {
 		"b":           {Id: "rebase.before", Args: nil},
 		"i":           {Id: "rebase.insert", Args: nil},
 		"E":           {Id: "rebase.skip_emptied", Args: nil},
-		"enter":       {Id: "apply", Switch: common.ScopeRevisions, Args: nil},
-		"shift+enter": {Id: "force_apply", Switch: common.ScopeRevisions, Args: nil},
-		"esc":         {Id: "close rebase", Switch: common.ScopeNone, Args: nil},
+		"enter":       {Id: "rebase.apply", Switch: common.ScopeRevisions, Args: nil},
+		"shift+enter": {Id: "rebase.force_apply", Switch: common.ScopeRevisions, Args: nil},
+		"esc":         {Id: "close rebase"},
 	}
 }
 
@@ -118,8 +118,8 @@ func (r *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			r.InsertStart = r.To
 		case "rebase.skip_emptied":
 			r.SkipEmptied = !r.SkipEmptied
-		case "apply", "force_apply":
-			ignoreImmutable := msg.Action.Id == "force_apply"
+		case "rebase.apply", "rebase.force_apply":
+			ignoreImmutable := msg.Action.Id == "rebase.force_apply"
 			skipEmptied := r.SkipEmptied
 			if r.Target == TargetInsert {
 				return r, r.context.RunCommand(jj.RebaseInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId(), skipEmptied, ignoreImmutable), common.RefreshAndSelect(r.From.Last()), common.Close)

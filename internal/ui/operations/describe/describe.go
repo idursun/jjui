@@ -10,16 +10,25 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 var _ operations.Operation = (*Operation)(nil)
 var _ common.Editable = (*Operation)(nil)
+var _ view.IHasActionMap = (*Operation)(nil)
 
 type Operation struct {
 	context  *context.MainContext
 	keyMap   config.KeyMappings[key.Binding]
 	input    textarea.Model
 	revision string
+}
+
+func (o Operation) GetActionMap() map[string]common.Action {
+	return map[string]common.Action{
+		"esc":       {Id: "close inline_describe", Args: nil},
+		"alt+enter": {Id: "inline_describe.accept", Args: nil},
+	}
 }
 
 func (o Operation) IsEditing() bool {
@@ -70,14 +79,13 @@ func (o Operation) Name() string {
 }
 
 func (o Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch {
-		case key.Matches(keyMsg, o.keyMap.Cancel):
-			return o, common.CloseAndCancel
-		case key.Matches(keyMsg, o.keyMap.InlineDescribe.Accept):
+	if msg, ok := msg.(common.InvokeActionMsg); ok {
+		switch msg.Action.Id {
+		case "inline_describe.accept":
 			return o, o.context.RunCommand(jj.SetDescription(o.revision, o.input.Value()), common.Close, common.Refresh)
 		}
 	}
+
 	var cmd tea.Cmd
 	o.input, cmd = o.input.Update(msg)
 
