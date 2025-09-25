@@ -116,6 +116,7 @@ var ActionMap = map[string]common.Action{
 	"L": {Id: "revset.edit", Switch: common.ScopeRevset},
 	"o": {Id: "ui.oplog", Switch: common.ScopeOplog},
 	"u": {Id: "ui.undo"},
+	"p": {Id: "ui.toggle_preview"},
 }
 
 func (m *Model) GetContext() map[string]string {

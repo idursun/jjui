@@ -96,7 +96,7 @@ func (m *Model) updatePreviewContent(content string) {
 	m.reset()
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(previewMsg); ok {
 		msg = k.msg
 	}
@@ -194,11 +194,11 @@ func (m *Model) Shrink() {
 	}
 }
 
-func New(context *context.MainContext) Model {
+func New(context *context.MainContext) tea.Model {
 	borderStyle := common.DefaultPalette.GetBorder("preview border", lipgloss.NormalBorder())
 	borderStyle = borderStyle.Inherit(common.DefaultPalette.Get("preview text"))
 
-	return Model{
+	return &Model{
 		Sizeable:                &common.Sizeable{Width: 0, Height: 0},
 		viewRange:               &viewRange{start: 0, end: 0},
 		context:                 context,

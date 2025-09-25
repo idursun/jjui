@@ -20,6 +20,7 @@ const (
 	ScopeOplog     Scope = "oplog"
 	ScopeDiff      Scope = "diff"
 	ScopeRevset    Scope = "revset"
+	ScopePreview   Scope = "preview"
 	ScopeUndo      Scope = "undo"
 	ScopeBookmarks Scope = "bookmarks"
 )

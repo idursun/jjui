@@ -75,6 +75,20 @@ func (s *Operation) View() string {
 	return ""
 }
 
+func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
+	switch {
+	case key.Matches(msg, s.keyMap.Apply):
+		return tea.Batch(common.Close, s.context.RunInteractiveCommand(jj.Squash(s.from, s.current.GetChangeId(), s.files, s.keepEmptied, s.interactive), common.RefreshAndSelect(s.current.GetChangeId())))
+	case key.Matches(msg, s.keyMap.Cancel):
+		return common.Close
+	case key.Matches(msg, s.keyMap.Squash.KeepEmptied):
+		s.keepEmptied = !s.keepEmptied
+	case key.Matches(msg, s.keyMap.Squash.Interactive):
+		s.interactive = !s.interactive
+	}
+	return nil
+}
+
 func (s *Operation) SetSelectedRevision(commit *jj.Commit) {
 	s.current = commit
 }

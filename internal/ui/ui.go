@@ -32,15 +32,14 @@ import (
 
 type Model struct {
 	*common.Sizeable
-	router       view.Router
-	revisions    *revisions.Model
-	previewModel *preview.Model
-	leader       *leader.Model
-	flash        *flash.Model
-	state        common.State
-	status       *status.Model
-	context      *context.MainContext
-	keyMap       config.KeyMappings[key.Binding]
+	router    view.Router
+	revisions *revisions.Model
+	leader    *leader.Model
+	flash     *flash.Model
+	state     common.State
+	status    *status.Model
+	context   *context.MainContext
+	keyMap    config.KeyMappings[key.Binding]
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -134,6 +133,15 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.router.Views[common.ScopeUndo] = undo.NewModel(m.context)
 			m.router.Scope = common.ScopeUndo
 			return m, m.router.Views[m.router.Scope].Init()
+		case "ui.toggle_preview":
+			if m.router.Views[common.ScopePreview] != nil {
+				delete(m.router.Views, common.ScopePreview)
+				m.router.Scope = common.ScopeRevisions
+				return m, nil
+			}
+			model := preview.New(m.context)
+			m.router.Views[common.ScopePreview] = model
+			return m, model.Init()
 		case "ui.quit":
 			if m.isSafeToQuit() {
 				return m, tea.Quit
@@ -217,7 +225,7 @@ steps = [
 				return m, nil
 			}
 			out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
-			return m, common.FileSearch(m.context.CurrentRevset, m.previewModel.Visible(), rev, out)
+			return m, common.FileSearch(m.context.CurrentRevset, false, rev, out)
 		//case key.Matches(msg, m.keyMap.QuickSearch) && m.oplog != nil:
 		//	// HACK: prevents quick search from activating in op log view
 		//	return m, nil
@@ -250,10 +258,10 @@ steps = [
 		m.context.CurrentRevset = string(msg)
 		//m.revsetModel.AddToHistory(m.context.CurrentRevset)
 		return m, common.Refresh
-	case common.ShowPreview:
-		m.previewModel.SetVisible(bool(msg))
-		cmds = append(cmds, common.SelectionChanged)
-		return m, tea.Batch(cmds...)
+	//case common.ShowPreview:
+	//	m.previewModel.SetVisible(bool(msg))
+	//	cmds = append(cmds, common.SelectionChanged)
+	//	return m, tea.Batch(cmds...)
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
@@ -282,10 +290,10 @@ steps = [
 	//	cmds = append(cmds, cmd)
 	//}
 
-	if m.previewModel.Visible() {
-		m.previewModel, cmd = m.previewModel.Update(msg)
-		cmds = append(cmds, cmd)
-	}
+	//if m.previewModel.Visible() {
+	//	m.previewModel, cmd = m.previewModel.Update(msg)
+	//	cmds = append(cmds, cmd)
+	//}
 
 	return m, tea.Batch(cmds...)
 }
@@ -324,26 +332,31 @@ func (m Model) View() string {
 	topViewHeight := lipgloss.Height(topView)
 
 	bottomPreviewHeight := 0
-	if m.previewModel.Visible() && m.previewModel.AtBottom() {
-		bottomPreviewHeight = int(float64(m.Height) * (m.previewModel.WindowPercentage() / 100.0))
-	}
+	//if m.previewModel.Visible() && m.previewModel.AtBottom() {
+	//	bottomPreviewHeight = int(float64(m.Height) * (m.previewModel.WindowPercentage() / 100.0))
+	//}
 	leftView := m.renderLeftView(footerHeight, topViewHeight, bottomPreviewHeight)
 	centerView := leftView
+	previewModel := m.router.Views[common.ScopePreview]
 
-	if m.previewModel.Visible() {
-		if m.previewModel.AtBottom() {
-			m.previewModel.SetWidth(m.Width)
-			m.previewModel.SetHeight(bottomPreviewHeight)
-		} else {
-			m.previewModel.SetWidth(m.Width - lipgloss.Width(leftView))
-			m.previewModel.SetHeight(m.Height - footerHeight - topViewHeight)
+	if previewModel != nil {
+		if p, ok := previewModel.(common.ISizeable); ok {
+			p.SetWidth(m.Width - lipgloss.Width(leftView))
+			p.SetHeight(m.Height - footerHeight - topViewHeight)
 		}
-		previewView := m.previewModel.View()
-		if m.previewModel.AtBottom() {
-			centerView = lipgloss.JoinVertical(lipgloss.Top, leftView, previewView)
-		} else {
-			centerView = lipgloss.JoinHorizontal(lipgloss.Left, leftView, previewView)
-		}
+		//if m.previewModel.AtBottom() {
+		//	m.previewModel.SetWidth(m.Width)
+		//	m.previewModel.SetHeight(bottomPreviewHeight)
+		//} else {
+		//	m.previewModel.SetWidth(m.Width - lipgloss.Width(leftView))
+		//	m.previewModel.SetHeight(m.Height - footerHeight - topViewHeight)
+		//}
+		previewView := previewModel.View()
+		//if m.previewModel.AtBottom() {
+		//	centerView = lipgloss.JoinVertical(lipgloss.Top, leftView, previewView)
+		//} else {
+		centerView = lipgloss.JoinHorizontal(lipgloss.Left, leftView, previewView)
+		//}
 	}
 
 	var stacked tea.Model
@@ -425,7 +438,6 @@ func (m Model) isSafeToQuit() bool {
 
 func New(c *context.MainContext) tea.Model {
 	revisionsModel := revisions.New(c)
-	previewModel := preview.New(c)
 	statusModel := status.New(c)
 	revsetModel := revset.New(c)
 	router := view.NewRouter(common.ScopeRevisions)
@@ -434,14 +446,13 @@ func New(c *context.MainContext) tea.Model {
 		common.ScopeRevset:    revsetModel,
 	}
 	return Model{
-		Sizeable:     &common.Sizeable{Width: 0, Height: 0},
-		context:      c,
-		keyMap:       config.Current.GetKeyMap(),
-		state:        common.Loading,
-		revisions:    revisionsModel,
-		previewModel: &previewModel,
-		status:       &statusModel,
-		flash:        flash.New(c),
-		router:       router,
+		Sizeable:  &common.Sizeable{Width: 0, Height: 0},
+		context:   c,
+		keyMap:    config.Current.GetKeyMap(),
+		state:     common.Loading,
+		revisions: revisionsModel,
+		status:    &statusModel,
+		flash:     flash.New(c),
+		router:    router,
 	}
 }
