@@ -108,6 +108,7 @@ var ActionMap = map[string]common.Action{
 	"a":     {Id: "revisions.abandon"},
 	"s":     {Id: "revisions.split"},
 	"d":     {Id: "revisions.diff"},
+	"f":     {Id: "revisions.ace_jump"},
 	"L":     {Id: "revset.edit", Switch: common.ScopeRevset},
 	"o":     {Id: "ui.oplog", Switch: common.ScopeOplog},
 }
@@ -331,6 +332,14 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			//	return m, m.updateSelection()
 			//}
 			return m, nil
+		case "revisions.ace_jump":
+			op := ace_jump.NewOperation(m, func(index int) parser.Row {
+				return m.rows[index]
+			}, m.renderer.FirstRowIndex, m.renderer.LastRowIndex)
+			m.op = op
+			m.router.Scope = scopeAceJump
+			m.router.Views[m.router.Scope] = m.op
+			return m, op.Init()
 		case "revisions.new":
 			return m, m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
 		case "revisions.commit":
@@ -575,18 +584,9 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.keymap.AceJump):
-			op := ace_jump.NewOperation(m, func(index int) parser.Row {
-				return m.rows[index]
-			}, m.renderer.FirstRowIndex, m.renderer.LastRowIndex)
-			m.op = op
-			return m, op.Init()
-		default:
-			if len(m.router.Views) > 0 {
-				m.router, cmd = m.router.Update(msg)
-				return m, cmd
-			}
+		if len(m.router.Views) > 0 {
+			m.router, cmd = m.router.Update(msg)
+			return m, cmd
 		}
 	}
 

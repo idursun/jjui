@@ -14,6 +14,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 var (
@@ -22,6 +23,7 @@ var (
 	_ common.Focusable           = (*Operation)(nil)
 	_ common.Editable            = (*Operation)(nil)
 	_ help.KeyMap                = (*Operation)(nil)
+	_ view.IHasActionMap         = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -30,6 +32,13 @@ type Operation struct {
 	keymap      config.KeyMappings[key.Binding]
 	getItemFn   func(index int) parser.Row
 	first, last int
+}
+
+func (o *Operation) GetActionMap() map[string]common.Action {
+	return map[string]common.Action{
+		"esc":   {Id: "close ace_jump"},
+		"enter": {Id: "ace_jump.apply"},
+	}
 }
 
 func (o *Operation) IsEditing() bool {
@@ -109,19 +118,16 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 }
 
 func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, o.keymap.Cancel):
-			o.aceJump = nil
-			return o, common.Close
-		case key.Matches(msg, o.keymap.Apply):
+	if msg, ok := msg.(common.InvokeActionMsg); ok {
+		switch msg.Action.Id {
+		case "ace_jump.apply":
 			o.cursor.SetCursor(o.aceJump.First().RowIdx)
 			o.aceJump = nil
-			return o, nil
-		default:
-			return o, o.HandleKey(msg)
+			return o, tea.Sequence(common.InvokeAction(common.Action{Id: "close ace_jump"}))
 		}
+	}
+	if msg, ok := msg.(tea.KeyMsg); ok {
+		return o, o.HandleKey(msg)
 	}
 	return o, nil
 }

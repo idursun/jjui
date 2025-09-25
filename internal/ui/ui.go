@@ -213,22 +213,22 @@ steps = [
 		case key.Matches(msg, m.keyMap.Help):
 			cmds = append(cmds, common.ToggleHelp)
 			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Preview.Mode, m.keyMap.Preview.ToggleBottom):
-			if key.Matches(msg, m.keyMap.Preview.ToggleBottom) {
-				m.previewModel.TogglePosition()
-				if m.previewModel.Visible() {
-					return m, tea.Batch(cmds...)
-				}
-			}
-			m.previewModel.ToggleVisible()
-			cmds = append(cmds, common.SelectionChanged)
-			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Preview.Expand) && m.previewModel.Visible():
-			m.previewModel.Expand()
-			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Preview.Shrink) && m.previewModel.Visible():
-			m.previewModel.Shrink()
-			return m, tea.Batch(cmds...)
+		//case key.Matches(msg, m.keyMap.Preview.Mode, m.keyMap.Preview.ToggleBottom):
+		//	if key.Matches(msg, m.keyMap.Preview.ToggleBottom) {
+		//		m.previewModel.TogglePosition()
+		//		if m.previewModel.Visible() {
+		//			return m, tea.Batch(cmds...)
+		//		}
+		//	}
+		//	m.previewModel.ToggleVisible()
+		//	cmds = append(cmds, common.SelectionChanged)
+		//	return m, tea.Batch(cmds...)
+		//case key.Matches(msg, m.keyMap.Preview.Expand) && m.previewModel.Visible():
+		//	m.previewModel.Expand()
+		//	return m, tea.Batch(cmds...)
+		//case key.Matches(msg, m.keyMap.Preview.Shrink) && m.previewModel.Visible():
+		//	m.previewModel.Shrink()
+		//	return m, tea.Batch(cmds...)
 		//case key.Matches(msg, m.keyMap.CustomCommands):
 		//	m.stacked = customcommands.NewModel(m.context, m.Width, m.Height)
 		//	cmds = append(cmds, m.stacked.Init())
