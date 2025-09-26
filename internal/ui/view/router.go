@@ -11,6 +11,8 @@ type IHasActionMap interface {
 	GetActionMap() map[string]common.Action
 }
 
+var _ common.ContextProvider = (*Router)(nil)
+
 type Router struct {
 	Scope common.Scope
 	Views map[common.Scope]tea.Model
@@ -89,5 +91,17 @@ func (r Router) Update(msg tea.Msg) (Router, tea.Cmd) {
 }
 
 func (r Router) View() string {
+	return ""
+}
+
+func (r Router) Read(value string) string {
+	for _, v := range r.Views {
+		if v, ok := v.(common.ContextProvider); ok {
+			ret := v.Read(value)
+			if ret != "" {
+				return ret
+			}
+		}
+	}
 	return ""
 }

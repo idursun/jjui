@@ -42,6 +42,18 @@ type Operation struct {
 	styles            styles
 }
 
+func (s *Operation) Read(value string) string {
+	switch value {
+	case jj.FilePlaceholder:
+		if current := s.current(); current != nil {
+			return current.fileName
+		}
+	case jj.CheckedFilesPlaceholder:
+		return strings.Join(s.getSelectedFiles(), ", ")
+	}
+	return ""
+}
+
 func (s *Operation) GetActionMap() map[string]common.Action {
 	return map[string]common.Action{
 		"esc": {Id: "close details"},

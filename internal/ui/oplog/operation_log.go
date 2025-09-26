@@ -33,6 +33,16 @@ type Model struct {
 	selectedStyle lipgloss.Style
 }
 
+func (m *Model) Read(value string) string {
+	switch value {
+	case jj.OperationIdPlaceholder:
+		if len(m.rows) > 0 {
+			return m.rows[m.cursor].OperationId
+		}
+	}
+	return ""
+}
+
 func (m *Model) GetActionMap() map[string]common.Action {
 	return map[string]common.Action{
 		"k": {Id: "oplog.up"},

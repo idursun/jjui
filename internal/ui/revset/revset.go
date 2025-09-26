@@ -40,6 +40,13 @@ type Model struct {
 	styles          styles
 }
 
+func (m *Model) Read(value string) string {
+	if value == "$revset" {
+		return m.context.CurrentRevset
+	}
+	return ""
+}
+
 func (m *Model) ShortHelp() []key.Binding {
 	return m.keymap.ShortHelp()
 }

@@ -133,13 +133,20 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, model.Init()
 		case "ui.refresh":
 			return m, common.RefreshAndKeepSelections
+		case "ui.set_revset":
+			rs := msg.Action.Get("revset", m.context.CurrentRevset).(string)
+			//example syntax: $revset | ancestors($change_id, 1)
+			// it should read $revset and $change_id variables from the active views and then replace them with actual values
+			rs = strings.ReplaceAll(rs, "$revset", m.router.Read("$revset"))
+			rs = strings.ReplaceAll(rs, "$change_id", m.router.Read("$change_id"))
+			m.context.CurrentRevset = rs
+			return m, common.RefreshAndSelect("")
 		case "ui.quit":
 			if m.isSafeToQuit() {
 				return m, tea.Quit
 			}
 			return m, nil
 		}
-
 	case tea.FocusMsg:
 		return m, common.RefreshAndKeepSelections
 	case tea.KeyMsg:

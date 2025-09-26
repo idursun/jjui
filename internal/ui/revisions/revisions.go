@@ -122,6 +122,18 @@ var ActionMap = map[string]common.Action{
 		{Id: "revisions.new"},
 	}},
 	"ctrl+r": {Id: "ui.refresh"},
+	"+": {Id: "ui.set_revset", Args: map[string]any{
+		"revset": "$revset | ancestors($change_id, 2)",
+	}},
+}
+
+func (m *Model) Read(value string) string {
+	if value == "$change_id" {
+		if current := m.SelectedRevision(); current != nil {
+			return current.GetChangeId()
+		}
+	}
+	return m.router.Read(value)
 }
 
 func (m *Model) GetContext() map[string]string {
