@@ -16,7 +16,6 @@ import (
 )
 
 var _ operations.Operation = (*Operation)(nil)
-var _ common.Focusable = (*Operation)(nil)
 var _ view.IHasActionMap = (*Operation)(nil)
 
 type Operation struct {
@@ -44,10 +43,6 @@ func (s *Operation) GetActionMap() map[string]common.Action {
 			{Id: "close squash"},
 		}},
 	}
-}
-
-func (s *Operation) IsFocused() bool {
-	return true
 }
 
 type styles struct {

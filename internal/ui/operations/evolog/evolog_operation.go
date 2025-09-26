@@ -29,7 +29,6 @@ const (
 
 var _ list.IList = (*Operation)(nil)
 var _ operations.Operation = (*Operation)(nil)
-var _ common.Focusable = (*Operation)(nil)
 
 type Operation struct {
 	*common.Sizeable
@@ -42,10 +41,6 @@ type Operation struct {
 	keyMap   config.KeyMappings[key.Binding]
 	target   *jj.Commit
 	styles   styles
-}
-
-func (o *Operation) IsFocused() bool {
-	return true
 }
 
 func (o *Operation) Init() tea.Cmd {

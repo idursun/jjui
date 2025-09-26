@@ -41,7 +41,6 @@ type styles struct {
 }
 
 var _ operations.Operation = (*Operation)(nil)
-var _ common.Focusable = (*Operation)(nil)
 
 type Operation struct {
 	context        *context.MainContext
@@ -52,10 +51,6 @@ type Operation struct {
 	keyMap         config.KeyMappings[key.Binding]
 	highlightedIds []string
 	styles         styles
-}
-
-func (r *Operation) IsFocused() bool {
-	return true
 }
 
 func (r *Operation) Init() tea.Cmd {

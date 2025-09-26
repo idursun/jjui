@@ -16,7 +16,6 @@ import (
 )
 
 var _ operations.Operation = (*Model)(nil)
-var _ common.Focusable = (*Model)(nil)
 
 type Model struct {
 	context  *context.MainContext
@@ -27,10 +26,6 @@ type Model struct {
 	keyMap   config.KeyMappings[key.Binding]
 	styles   styles
 	parents  []string
-}
-
-func (m *Model) IsFocused() bool {
-	return true
 }
 
 func (m *Model) Init() tea.Cmd {

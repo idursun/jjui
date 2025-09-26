@@ -39,7 +39,6 @@ type styles struct {
 }
 
 var _ operations.Operation = (*Operation)(nil)
-var _ common.Focusable = (*Operation)(nil)
 var _ view.IHasActionMap = (*Operation)(nil)
 
 type Operation struct {
@@ -62,10 +61,6 @@ func (r *Operation) GetActionMap() map[string]common.Action {
 		"esc":   {Id: "close duplicate"},
 		"enter": {Id: "duplicate.apply"},
 	}
-}
-
-func (r *Operation) IsFocused() bool {
-	return true
 }
 
 func (r *Operation) Init() tea.Cmd {
