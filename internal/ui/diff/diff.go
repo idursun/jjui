@@ -20,15 +20,7 @@ type Model struct {
 }
 
 func (m *Model) GetActionMap() map[string]actions.Action {
-	return map[string]actions.Action{
-		"j":      {Id: "diff.down"},
-		"k":      {Id: "diff.up"},
-		"ctrl+d": {Id: "diff.halfpagedown"},
-		"ctrl+u": {Id: "diff.halfpageup"},
-		"f":      {Id: "diff.pagedown"},
-		"b":      {Id: "diff.pageup"},
-		"esc":    {Id: "close diff", Next: []actions.Action{{Id: "switch revisions"}}},
-	}
+	return config.Current.GetBindings("diff")
 }
 
 func (m *Model) ShortHelp() []key.Binding {

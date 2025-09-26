@@ -160,6 +160,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, common.UpdateRevSet(value)
 			}
 			return m, nil
+		case "revset.set":
+			rs := msg.Action.Get("revset", m.context.CurrentRevset).(string)
+			//example syntax: $revset | ancestors($change_id, 1)
+			// it should read $revset and $change_id variables from the active views and then replace them with actual values
+			rs = strings.ReplaceAll(rs, "$revset", m.context.Read("$revset"))
+			rs = strings.ReplaceAll(rs, "$change_id", m.context.Read("$change_id"))
+			m.context.CurrentRevset = rs
+			return m, common.RefreshAndSelect("")
 		case "revset.edit":
 			shouldClear := msg.Action.Get("clear", false).(bool)
 			m.Editing = true

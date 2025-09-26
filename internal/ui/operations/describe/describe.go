@@ -25,12 +25,7 @@ type Operation struct {
 }
 
 func (o Operation) GetActionMap() map[string]actions.Action {
-	return map[string]actions.Action{
-		"esc": {Id: "close inline_describe", Args: nil},
-		"alt+enter": {Id: "inline_describe.accept", Next: []actions.Action{
-			{Id: "close inline_describe"},
-		}},
-	}
+	return config.Current.GetBindings("inline_describe")
 }
 
 func (o Operation) ShortHelp() []key.Binding {

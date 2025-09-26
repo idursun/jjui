@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -24,16 +25,7 @@ type Operation struct {
 }
 
 func (a *Operation) GetActionMap() map[string]actions.Action {
-	return map[string]actions.Action{
-		"y": {Id: "abandon.accept", Next: []actions.Action{
-			{Id: "close abandon"},
-		}},
-		"alt+enter": {Id: "abandon.force_apply", Next: []actions.Action{
-			{Id: "close abandon"},
-		}},
-		"n":   {Id: "close abandon"},
-		"esc": {Id: "close abandon"},
-	}
+	return config.Current.GetBindings("abandon")
 }
 
 func (a *Operation) Init() tea.Cmd {
@@ -43,7 +35,7 @@ func (a *Operation) Init() tea.Cmd {
 func (a *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		switch msg.Action.Id {
-		case "abandon.accept", "abandon.force_apply":
+		case "abandon.apply", "abandon.force_apply":
 			ignoreImmutable := msg.Action.Id == "abandon.force_apply"
 			return a, a.context.RunCommand(jj.Abandon(jj.SelectedRevisions{Revisions: []*jj.Commit{a.current}}, ignoreImmutable), common.Refresh)
 		}
@@ -94,18 +86,16 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 	if len(selectedRevisions.Revisions) > 1 {
 		message = fmt.Sprintf("Are you sure you want to abandon %d %srevisions?", len(selectedRevisions.Revisions), conflictingWarning)
 	}
-	cmd := func(ignoreImmutable bool) tea.Cmd {
-		return context.RunCommand(jj.Abandon(selectedRevisions, ignoreImmutable), common.Refresh, common.Close)
-	}
 	model := confirmation.New(
 		[]string{message},
-		confirmation.WithAltOption("Yes", cmd(false), cmd(true), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-		confirmation.WithOption("No", actions.InvokeAction(actions.Action{Id: "close abandon", Next: []actions.Action{{Id: "switch revisions"}}}), key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+		confirmation.WithAltOption("Yes", actions.InvokeAction(actions.Action{Id: "abandon.apply"}), actions.InvokeAction(actions.Action{Id: "abandon.force_apply"}), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+		confirmation.WithOption("No", actions.InvokeAction(actions.Action{Id: "abandon.close"}), key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 		confirmation.WithStylePrefix("abandon"),
 	)
 
 	op := &Operation{
-		model: model,
+		context: context,
+		model:   model,
 	}
 	return op
 }

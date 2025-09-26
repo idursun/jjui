@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"github.com/BurntSushi/toml"
+	"github.com/idursun/jjui/internal/ui/actions"
 )
 
 func getConfigFilePath() string {
@@ -71,6 +72,14 @@ func (c *Config) Load(data string) error {
 	if err != nil {
 		return err
 	}
+	for id, action := range c.Actions {
+		if action.Id == "" {
+			action.Id = id
+			c.Actions[id] = action
+		}
+	}
+
+	actions.Registry = c.Actions
 
 	return nil
 }

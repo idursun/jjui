@@ -45,16 +45,7 @@ func (m *Model) Read(value string) string {
 }
 
 func (m *Model) GetActionMap() map[string]actions.Action {
-	return map[string]actions.Action{
-		"k": {Id: "oplog.up"},
-		"j": {Id: "oplog.down"},
-		"d": {Id: "oplog.diff"},
-		"r": {Id: "oplog.restore", Next: []actions.Action{
-			{Id: "close oplog"},
-			{Id: "switch revisions"},
-		}},
-		"esc": {Id: "close oplog", Next: []actions.Action{{Id: "switch revisions"}}},
-	}
+	return config.Current.GetBindings("oplog")
 }
 
 func (m *Model) GetContext() map[string]string {

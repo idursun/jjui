@@ -52,6 +52,8 @@ func (s SelectedOperation) Equal(other SelectedItem) bool {
 	return false
 }
 
+var _ common.ContextProvider = (*MainContext)(nil)
+
 type MainContext struct {
 	CommandRunner
 	SelectedItem   SelectedItem   // Single item where cursor is hover.
@@ -64,6 +66,14 @@ type MainContext struct {
 	CurrentRevset  string
 	Histories      *config.Histories
 	ScopeValues    map[string]string
+	ReadFn         func(value string) string
+}
+
+func (ctx *MainContext) Read(value string) string {
+	if ctx.ReadFn != nil {
+		return ctx.ReadFn(value)
+	}
+	return value
 }
 
 func NewAppContext(location string) *MainContext {

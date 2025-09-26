@@ -134,14 +134,6 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, model.Init()
 		case "ui.refresh":
 			return m, common.RefreshAndKeepSelections
-		case "ui.set_revset":
-			rs := msg.Action.Get("revset", m.context.CurrentRevset).(string)
-			//example syntax: $revset | ancestors($change_id, 1)
-			// it should read $revset and $change_id variables from the active views and then replace them with actual values
-			rs = strings.ReplaceAll(rs, "$revset", m.router.Read("$revset"))
-			rs = strings.ReplaceAll(rs, "$change_id", m.router.Read("$change_id"))
-			m.context.CurrentRevset = rs
-			return m, common.RefreshAndSelect("")
 		case "ui.quit":
 			if m.isSafeToQuit() {
 				return m, tea.Quit
@@ -213,17 +205,6 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case common.ExecMsg:
 		return m, exec_process.ExecLine(m.context, msg)
-	//case common.ToggleHelpMsg:
-	//	if m.stacked == nil {
-	//		m.stacked = helppage.New(m.context)
-	//		if p, ok := m.stacked.(common.ISizeable); ok {
-	//			p.SetHeight(m.Height - 2)
-	//			p.SetWidth(m.Width)
-	//		}
-	//	} else {
-	//		m.stacked = nil
-	//	}
-	//	return m, nil
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
 	case triggerAutoRefreshMsg:
@@ -234,10 +215,6 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.context.CurrentRevset = string(msg)
 		//m.revsetModel.AddToHistory(m.context.CurrentRevset)
 		return m, common.Refresh
-	//case common.ShowPreview:
-	//	m.previewModel.SetVisible(bool(msg))
-	//	cmds = append(cmds, common.SelectionChanged)
-	//	return m, tea.Batch(cmds...)
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
@@ -408,7 +385,7 @@ func New(c *context.MainContext) tea.Model {
 		actions.ScopeRevisions: revisionsModel,
 		actions.ScopeRevset:    revsetModel,
 	}
-	return Model{
+	m := Model{
 		Sizeable:  &common.Sizeable{Width: 0, Height: 0},
 		context:   c,
 		keyMap:    config.Current.GetKeyMap(),
@@ -419,4 +396,8 @@ func New(c *context.MainContext) tea.Model {
 		waiters:   make(map[string]actions.WaitChannel),
 		router:    router,
 	}
+	c.ReadFn = func(value string) string {
+		return m.router.Read(value)
+	}
+	return m
 }

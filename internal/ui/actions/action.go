@@ -1,6 +1,10 @@
 package actions
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+var Registry = make(map[string]Action)
 
 type WaitResult int
 
@@ -29,6 +33,30 @@ type Action struct {
 	Id   string         `toml:"id"`
 	Args map[string]any `toml:"args,omitempty"`
 	Next []Action       `toml:"next,omitempty"`
+}
+
+func (a *Action) UnmarshalTOML(data any) error {
+	switch value := data.(type) {
+	case string:
+		a.Id = value
+	case map[string]interface{}:
+		if id, ok := value["id"]; ok {
+			a.Id = id.(string)
+		}
+
+		if next, ok := value["next"]; ok {
+			a.Next = []Action{}
+			for _, v := range next.([]interface{}) {
+				newAction := Action{}
+				newAction.UnmarshalTOML(v)
+				a.Next = append(a.Next, newAction)
+			}
+		}
+		if args, ok := value["args"]; ok {
+			a.Args = args.(map[string]interface{})
+		}
+	}
+	return nil
 }
 
 func (a Action) GetNext() tea.Cmd {
@@ -63,6 +91,10 @@ func (a Action) Get(name string, defaultValue any) any {
 }
 
 func InvokeAction(action Action) tea.Cmd {
+	if existing, ok := Registry[action.Id]; ok {
+		action = existing
+	}
+
 	return func() tea.Msg {
 		return InvokeActionMsg{Action: action}
 	}

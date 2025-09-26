@@ -32,14 +32,7 @@ type Model struct {
 }
 
 func (m *Model) GetActionMap() map[string]actions.Action {
-	return map[string]actions.Action{
-		"j":      {Id: "revisions.down"},
-		"k":      {Id: "revisions.up"},
-		" ":      {Id: "set_parents.toggle_select"},
-		"enter":  {Id: "set_parents.apply", Next: []actions.Action{{Id: "close set_parents"}}},
-		"esc":    {Id: "close set_parents"},
-		"ctrl+c": {Id: "close set_parents"},
-	}
+	return config.Current.GetBindings("set_parents")
 }
 
 func (m *Model) Init() tea.Cmd {

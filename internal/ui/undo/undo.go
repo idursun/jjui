@@ -4,6 +4,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -20,15 +21,7 @@ type Model struct {
 }
 
 func (m Model) GetActionMap() map[string]actions.Action {
-	return map[string]actions.Action{
-		"y": {Id: "undo.accept", Next: []actions.Action{{Id: "close undo"}}},
-		"n": {Id: "close undo", Next: []actions.Action{
-			{Id: "switch revisions"},
-		}},
-		"esc": {Id: "close undo", Next: []actions.Action{
-			{Id: "switch revisions"},
-		}},
-	}
+	return config.Current.GetBindings("undo")
 }
 
 func (m Model) ShortHelp() []key.Binding {
@@ -65,8 +58,8 @@ func NewModel(context *context.MainContext) Model {
 	model := confirmation.New(
 		[]string{lastOperation, "Are you sure you want to undo last change?"},
 		confirmation.WithStylePrefix("undo"),
-		confirmation.WithOption("Yes", actions.InvokeAction(actions.Action{Id: "undo.accept", Next: []actions.Action{{Id: "close undo"}, {Id: "switch revisions"}}}), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-		confirmation.WithOption("No", actions.InvokeAction(actions.Action{Id: "close undo"}), key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+		confirmation.WithOption("Yes", actions.InvokeAction(actions.Action{Id: "undo.accept"}), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+		confirmation.WithOption("No", actions.InvokeAction(actions.Action{Id: "undo.close"}), key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 	)
 	model.Styles.Border = common.DefaultPalette.GetBorder("undo border", lipgloss.NormalBorder()).Padding(1)
 	return Model{

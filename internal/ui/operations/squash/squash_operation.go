@@ -31,19 +31,7 @@ type Operation struct {
 }
 
 func (s *Operation) GetActionMap() map[string]actions.Action {
-	return map[string]actions.Action{
-		"j":   {Id: "revisions.down"},
-		"k":   {Id: "revisions.up"},
-		"i":   {Id: "squash.interactive"},
-		"e":   {Id: "squash.keep_emptied"},
-		"esc": {Id: "close squash"},
-		"enter": {Id: "squash.apply", Next: []actions.Action{
-			{Id: "close squash"},
-		}},
-		"alt+enter": {Id: "squash.force_apply", Next: []actions.Action{
-			{Id: "close squash"},
-		}},
-	}
+	return config.Current.GetBindings("squash")
 }
 
 type styles struct {

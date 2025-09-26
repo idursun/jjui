@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path"
+
+	"github.com/idursun/jjui/internal/ui/actions"
 )
 
 //go:embed default/*.toml
@@ -15,13 +17,29 @@ var configFS embed.FS
 var Current = loadDefaultConfig()
 
 type Config struct {
-	Keys      KeyMappings[keys] `toml:"keys"`
-	UI        UIConfig          `toml:"ui"`
-	Revisions RevisionsConfig   `toml:"revisions"`
-	Preview   PreviewConfig     `toml:"preview"`
-	OpLog     OpLogConfig       `toml:"oplog"`
-	Graph     GraphConfig       `toml:"graph"`
-	Limit     int               `toml:"limit"`
+	Keys      KeyMappings[keys]            `toml:"keys"`
+	UI        UIConfig                     `toml:"ui"`
+	Revisions RevisionsConfig              `toml:"revisions"`
+	Preview   PreviewConfig                `toml:"preview"`
+	OpLog     OpLogConfig                  `toml:"oplog"`
+	Graph     GraphConfig                  `toml:"graph"`
+	Limit     int                          `toml:"limit"`
+	Actions   map[string]actions.Action    `toml:"actions"`
+	Bindings  map[string]map[string]string `toml:"bindings"`
+}
+
+func (c *Config) GetBindings(scope string) map[string]actions.Action {
+	actionMap := make(map[string]actions.Action)
+	if existing, ok := c.Bindings[scope]; ok {
+		for k, actionId := range existing {
+			if overridden, ok := c.Actions[actionId]; ok {
+				actionMap[k] = overridden
+			} else {
+				actionMap[k] = actions.Action{Id: actionId}
+			}
+		}
+	}
+	return actionMap
 }
 
 type Color struct {

@@ -135,11 +135,106 @@ limit = 0
 [oplog]
   limit = 200
 
-
 [graph]
   batch_size = 50
 
 [actions]
-  "revset.edit" = { Args = { clear = true }, Next = ["switch revset"]}
+  "revset.edit" = { args = { clear = true }, next = ["switch revset"]}
+  "revisions.toggle_select" = { next = ["revisions.down"] }
+  "inline_describe.accept" = { next = ["close inline_describe"] }
+  "revisions.my_inline_describe" = { next = ["revisions.inline_describe", "wait close inline_describe", "revisions.new" ] }
+  "oplog.restore" = { next = ["close oplog", "switch revisions" ] }
+  "oplog.close" = { next = ["close oplog", "switch revisions" ] }
+  "oplog.diff" = { next = ["ui.diff", "wait close diff", "switch oplog"] }
+  "diff.close" = { next = ["close diff", "switch revisions"] }
+  "set_parents.apply" = { next = ["close set_parents"] } 
+  "abandon.apply" = { next = ["close abandon", "switch revisions" ] }
+  "abandon.force_apply" = { next = ["close abandon", "switch revisions" ] }
+  "abandon.close" = { next = ["close abandon", "switch revisions"] }
+  "revisions.append_current_as_ancestor" = { id = "revset.set", args = { "revset" = "$revset | ancestors($change_id, 2)" },  next = [] }
+  "squash.apply" = { next = [ "close squash", "switch revisions" ] }
+  "squash.force_apply" = { id = "squash.apply", args = { "force" = true }, next = ["close squash", "switch revisions"] }
+  "undo.close" = { next = ["close undo", "switch revisions"] }
+  "undo.accept" = { next = ["close undo", "switch revisions"] }
 
-
+[bindings.revisions]
+  "@" = "revisions.jump_to_working_copy"
+  "enter" = "revisions.inline_describe"
+  "j" = "revisions.down"
+  "k" = "revisions.up"
+  " " = "revisions.toggle_select"
+  "J" = "revisions.jump_to_parent"
+  "K" = "revisions.jump_to_children"
+  "l" = "revisions.details"
+  "S" = "revisions.squash"
+  "r" = "revisions.rebase"
+  "B" = "revisions.set_bookmark"
+  "c" = "revisions.commit"
+  "n" = "revisions.new"
+  "A" = "revisions.absorb"
+  "a" = "revisions.abandon"
+  "s" = "revisions.split"
+  "d" = "revisions.diff"
+  "f" = "revisions.ace_jump"
+  "v" = "revisions.evolog"
+  "M" = "revisions.set_parents"
+  "L" = "revset.edit"
+  "ctrl+r" = "ui.refresh"
+  "q" = "ui.quit"
+  "o" = "ui.oplog"
+  "u" = "ui.undo"
+  "X" = "revisions.my_inline_describe"
+  "+" = "revisions.append_current_as_ancestor"
+[bindings.oplog]
+  "k" = "oplog.up"
+  "j" = "oplog.down"
+  "d" = "oplog.diff"
+  "r" = "oplog.restore"
+  "esc" = "oplog.close"
+  "q" = "ui.quit"
+[bindings.details]
+  "esc" = "close details"
+  "h" =   "close details"
+  " " =   "details.toggle_select"
+  "j" =   "details.down"
+  "k" =   "details.up"
+  "d" =   "details.diff"
+  "r" =   "details.restore"
+  "s" =   "details.split"
+  "S" =   "details.squash"
+  "*" =   "details.show_revisions_changing_file"
+  "A" =   "details.absorb"
+[bindings.diff]
+  "j" =      "diff.down"
+  "k" =      "diff.up"
+  "ctrl+d" = "diff.halfpagedown"
+  "ctrl+u" = "diff.halfpageup"
+  "f" =      "diff.pagedown"
+  "b" =      "diff.pageup"
+  "esc" =    "diff.close"
+[bindings.set_parents]
+  "j" =      "revisions.down"
+  "k" =      "revisions.up"
+  " " =      "set_parents.toggle_select"
+  "enter" =  "set_parents.apply"
+  "esc" =    "close set_parents"
+[bindings.abandon]
+  "y" = "abandon.accept"
+  "alt+enter" = "abandon.force_apply"
+  "n" =   "abandon.close"
+  "esc" = "abandon.close"
+[bindings.inline_describe]
+  "esc" = "close inline_describe"
+  "alt+enter" = "inline_describe.accept"
+[bindings.squash]
+  "j" = "revisions.down"
+  "k" = "revisions.up"
+  "i" = "squash.interactive"
+  "e" = "squash.keep_emptied"
+  "esc" = "close squash"
+  "enter" = "squash.apply"
+  "alt+enter" = "squash.force_apply"
+[bindings.undo]
+  "y" = "undo.accept"
+  "n" = "undo.close"
+  "esc" = "undo.close"

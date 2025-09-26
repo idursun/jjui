@@ -56,19 +56,7 @@ func (s *Operation) Read(value string) string {
 }
 
 func (s *Operation) GetActionMap() map[string]actions.Action {
-	return map[string]actions.Action{
-		"esc": {Id: "close details"},
-		"h":   {Id: "close details"},
-		" ":   {Id: "details.toggle_select"},
-		"j":   {Id: "details.down"},
-		"k":   {Id: "details.up"},
-		"d":   {Id: "details.diff"},
-		"r":   {Id: "details.restore"},
-		"s":   {Id: "details.split"},
-		"S":   {Id: "details.squash"},
-		"*":   {Id: "details.show_revisions_changing_file"},
-		"A":   {Id: "details.absorb"},
-	}
+	return config.Current.GetBindings("details")
 }
 
 func (s *Operation) GetContext() map[string]string {
