@@ -1,4 +1,4 @@
-package common
+package actions
 
 import tea "github.com/charmbracelet/bubbletea"
 
@@ -26,9 +26,9 @@ const (
 )
 
 type Action struct {
-	Id   string
-	Args map[string]any
-	Next []Action
+	Id   string         `toml:"id"`
+	Args map[string]any `toml:"args,omitempty"`
+	Next []Action       `toml:"next,omitempty"`
 }
 
 func (a Action) GetNext() tea.Cmd {

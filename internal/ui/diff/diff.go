@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/view"
 )
@@ -18,15 +19,15 @@ type Model struct {
 	keymap config.KeyMappings[key.Binding]
 }
 
-func (m *Model) GetActionMap() map[string]common.Action {
-	return map[string]common.Action{
+func (m *Model) GetActionMap() map[string]actions.Action {
+	return map[string]actions.Action{
 		"j":      {Id: "diff.down"},
 		"k":      {Id: "diff.up"},
 		"ctrl+d": {Id: "diff.halfpagedown"},
 		"ctrl+u": {Id: "diff.halfpageup"},
 		"f":      {Id: "diff.pagedown"},
 		"b":      {Id: "diff.pageup"},
-		"esc":    {Id: "close diff", Next: []common.Action{{Id: "switch revisions"}}},
+		"esc":    {Id: "close diff", Next: []actions.Action{{Id: "switch revisions"}}},
 	}
 }
 
@@ -51,7 +52,7 @@ func (m *Model) SetHeight(h int) {
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case common.InvokeActionMsg:
+	case actions.InvokeActionMsg:
 		switch msg.Action.Id {
 		case "diff.up":
 			m.view.ScrollUp(1)

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/view"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,8 +23,8 @@ type SetBookmarkOperation struct {
 	name     textinput.Model
 }
 
-func (s *SetBookmarkOperation) GetActionMap() map[string]common.Action {
-	return map[string]common.Action{
+func (s *SetBookmarkOperation) GetActionMap() map[string]actions.Action {
+	return map[string]actions.Action{
 		"esc":   {Id: "close set_bookmark", Args: nil},
 		"enter": {Id: "set_bookmark.accept", Args: nil},
 	}
@@ -31,7 +32,7 @@ func (s *SetBookmarkOperation) GetActionMap() map[string]common.Action {
 
 func (s *SetBookmarkOperation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case common.InvokeActionMsg:
+	case actions.InvokeActionMsg:
 		switch msg.Action.Id {
 		case "set_bookmark.accept":
 			return s, s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), common.Close, common.Refresh)

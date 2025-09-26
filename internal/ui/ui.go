@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/undo"
 	"github.com/idursun/jjui/internal/ui/view"
 
@@ -39,7 +40,7 @@ type Model struct {
 	status    *status.Model
 	context   *context.MainContext
 	keyMap    config.KeyMappings[key.Binding]
-	waiters   map[string]common.WaitChannel
+	waiters   map[string]actions.WaitChannel
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -78,11 +79,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var nm tea.Model
 	nm, cmd = m.internalUpdate(msg)
-	if msg, ok := msg.(common.InvokeActionMsg); ok {
+	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		if len(m.waiters) > 0 {
 			for k, ch := range m.waiters {
 				if k == msg.Action.Id {
-					ch <- common.WaitResultContinue
+					ch <- actions.WaitResultContinue
 					close(ch)
 					delete(m.waiters, k)
 					return m, cmd
@@ -107,29 +108,29 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case common.InvokeActionMsg:
+	case actions.InvokeActionMsg:
 		switch msg.Action.Id {
 		case "ui.oplog":
 			oplog := oplog.New(m.context, m.Width, m.Height)
-			m.router.Scope = common.ScopeOplog
-			m.router.Views[common.ScopeOplog] = oplog
+			m.router.Scope = actions.ScopeOplog
+			m.router.Views[actions.ScopeOplog] = oplog
 			return m, oplog.Init()
 		case "ui.diff":
-			m.router.Scope = common.ScopeDiff
-			m.router.Views[common.ScopeDiff] = diff.New("", m.Width, m.Height)
+			m.router.Scope = actions.ScopeDiff
+			m.router.Views[actions.ScopeDiff] = diff.New("", m.Width, m.Height)
 			return m, m.router.Views[m.router.Scope].Init()
 		case "ui.undo":
-			m.router.Views[common.ScopeUndo] = undo.NewModel(m.context)
-			m.router.Scope = common.ScopeUndo
+			m.router.Views[actions.ScopeUndo] = undo.NewModel(m.context)
+			m.router.Scope = actions.ScopeUndo
 			return m, m.router.Views[m.router.Scope].Init()
 		case "ui.toggle_preview":
-			if m.router.Views[common.ScopePreview] != nil {
-				delete(m.router.Views, common.ScopePreview)
-				m.router.Scope = common.ScopeRevisions
+			if m.router.Views[actions.ScopePreview] != nil {
+				delete(m.router.Views, actions.ScopePreview)
+				m.router.Scope = actions.ScopeRevisions
 				return m, nil
 			}
 			model := preview.New(m.context)
-			m.router.Views[common.ScopePreview] = model
+			m.router.Views[actions.ScopePreview] = model
 			return m, model.Init()
 		case "ui.refresh":
 			return m, common.RefreshAndKeepSelections
@@ -285,7 +286,7 @@ func (m Model) View() string {
 	footer := m.status.View()
 	footerHeight := lipgloss.Height(footer)
 
-	if diffView, ok := m.router.Views[common.ScopeDiff]; ok {
+	if diffView, ok := m.router.Views[actions.ScopeDiff]; ok {
 		if d, ok := diffView.(common.ISizeable); ok {
 			d.SetWidth(m.Width)
 			d.SetHeight(m.Height - footerHeight)
@@ -293,7 +294,7 @@ func (m Model) View() string {
 		return lipgloss.JoinVertical(0, diffView.View(), footer)
 	}
 
-	topView := m.router.Views[common.ScopeRevset].View()
+	topView := m.router.Views[actions.ScopeRevset].View()
 	topViewHeight := lipgloss.Height(topView)
 
 	bottomPreviewHeight := 0
@@ -302,7 +303,7 @@ func (m Model) View() string {
 	//}
 	leftView := m.renderLeftView(footerHeight, topViewHeight, bottomPreviewHeight)
 	centerView := leftView
-	previewModel := m.router.Views[common.ScopePreview]
+	previewModel := m.router.Views[actions.ScopePreview]
 
 	if previewModel != nil {
 		if p, ok := previewModel.(common.ISizeable); ok {
@@ -325,7 +326,7 @@ func (m Model) View() string {
 	}
 
 	var stacked tea.Model
-	if v, ok := m.router.Views[common.ScopeUndo]; ok {
+	if v, ok := m.router.Views[actions.ScopeUndo]; ok {
 		stacked = v
 	}
 
@@ -355,7 +356,7 @@ func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreview
 	w := m.Width
 	//h := 0
 
-	if _, ok := m.router.Views[common.ScopePreview]; ok {
+	if _, ok := m.router.Views[actions.ScopePreview]; ok {
 		w = m.Width - int(float64(m.Width)*(50/100.0))
 	}
 	//if m.previewModel.Visible() {
@@ -368,10 +369,10 @@ func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreview
 
 	var model tea.Model
 
-	if oplog, ok := m.router.Views[common.ScopeOplog]; ok {
+	if oplog, ok := m.router.Views[actions.ScopeOplog]; ok {
 		model = oplog
 	} else {
-		model = m.router.Views[common.ScopeRevisions]
+		model = m.router.Views[actions.ScopeRevisions]
 	}
 
 	if s, ok := model.(common.ISizeable); ok {
@@ -402,10 +403,10 @@ func New(c *context.MainContext) tea.Model {
 	revisionsModel := revisions.New(c)
 	statusModel := status.New(c)
 	revsetModel := revset.New(c)
-	router := view.NewRouter(common.ScopeRevisions)
-	router.Views = map[common.Scope]tea.Model{
-		common.ScopeRevisions: revisionsModel,
-		common.ScopeRevset:    revsetModel,
+	router := view.NewRouter(actions.ScopeRevisions)
+	router.Views = map[actions.Scope]tea.Model{
+		actions.ScopeRevisions: revisionsModel,
+		actions.ScopeRevset:    revsetModel,
 	}
 	return Model{
 		Sizeable:  &common.Sizeable{Width: 0, Height: 0},
@@ -415,7 +416,7 @@ func New(c *context.MainContext) tea.Model {
 		revisions: revisionsModel,
 		status:    &statusModel,
 		flash:     flash.New(c),
-		waiters:   make(map[string]common.WaitChannel),
+		waiters:   make(map[string]actions.WaitChannel),
 		router:    router,
 	}
 }

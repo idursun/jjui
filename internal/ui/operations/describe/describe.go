@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -23,10 +24,10 @@ type Operation struct {
 	revision string
 }
 
-func (o Operation) GetActionMap() map[string]common.Action {
-	return map[string]common.Action{
+func (o Operation) GetActionMap() map[string]actions.Action {
+	return map[string]actions.Action{
 		"esc": {Id: "close inline_describe", Args: nil},
-		"alt+enter": {Id: "inline_describe.accept", Next: []common.Action{
+		"alt+enter": {Id: "inline_describe.accept", Next: []actions.Action{
 			{Id: "close inline_describe"},
 		}},
 	}
@@ -76,7 +77,7 @@ func (o Operation) Name() string {
 }
 
 func (o Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(common.InvokeActionMsg); ok {
+	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		switch msg.Action.Id {
 		case "inline_describe.accept":
 			return o, o.context.RunCommand(jj.SetDescription(o.revision, o.input.Value()), common.Refresh)

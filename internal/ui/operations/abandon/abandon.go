@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -22,12 +23,12 @@ type Operation struct {
 	context *context.MainContext
 }
 
-func (a *Operation) GetActionMap() map[string]common.Action {
-	return map[string]common.Action{
-		"y": {Id: "abandon.accept", Next: []common.Action{
+func (a *Operation) GetActionMap() map[string]actions.Action {
+	return map[string]actions.Action{
+		"y": {Id: "abandon.accept", Next: []actions.Action{
 			{Id: "close abandon"},
 		}},
-		"alt+enter": {Id: "abandon.force_apply", Next: []common.Action{
+		"alt+enter": {Id: "abandon.force_apply", Next: []actions.Action{
 			{Id: "close abandon"},
 		}},
 		"n":   {Id: "close abandon"},
@@ -40,7 +41,7 @@ func (a *Operation) Init() tea.Cmd {
 }
 
 func (a *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(common.InvokeActionMsg); ok {
+	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		switch msg.Action.Id {
 		case "abandon.accept", "abandon.force_apply":
 			ignoreImmutable := msg.Action.Id == "abandon.force_apply"
@@ -99,7 +100,7 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 	model := confirmation.New(
 		[]string{message},
 		confirmation.WithAltOption("Yes", cmd(false), cmd(true), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-		confirmation.WithOption("No", common.InvokeAction(common.Action{Id: "close abandon", Next: []common.Action{{Id: "switch revisions"}}}), key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+		confirmation.WithOption("No", actions.InvokeAction(actions.Action{Id: "close abandon", Next: []actions.Action{{Id: "switch revisions"}}}), key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 		confirmation.WithStylePrefix("abandon"),
 	)
 

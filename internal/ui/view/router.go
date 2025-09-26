@@ -4,24 +4,25 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
 type IHasActionMap interface {
-	GetActionMap() map[string]common.Action
+	GetActionMap() map[string]actions.Action
 }
 
 var _ common.ContextProvider = (*Router)(nil)
 
 type Router struct {
-	Scope common.Scope
-	Views map[common.Scope]tea.Model
+	Scope actions.Scope
+	Views map[actions.Scope]tea.Model
 }
 
-func NewRouter(scope common.Scope) Router {
+func NewRouter(scope actions.Scope) Router {
 	return Router{
 		Scope: scope,
-		Views: make(map[common.Scope]tea.Model),
+		Views: make(map[actions.Scope]tea.Model),
 	}
 }
 
@@ -33,17 +34,17 @@ func (r Router) Init() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (r Router) UpdateTargetView(action common.InvokeActionMsg) (Router, tea.Cmd) {
+func (r Router) UpdateTargetView(action actions.InvokeActionMsg) (Router, tea.Cmd) {
 	if strings.HasPrefix(action.Action.Id, "close") {
 		viewId := strings.TrimPrefix(action.Action.Id, "close ")
-		if _, ok := r.Views[common.Scope(viewId)]; ok {
-			delete(r.Views, common.Scope(viewId))
+		if _, ok := r.Views[actions.Scope(viewId)]; ok {
+			delete(r.Views, actions.Scope(viewId))
 			return r, nil
 		}
 	}
 
 	if strings.HasPrefix(action.Action.Id, "switch") {
-		viewId := common.Scope(strings.TrimPrefix(action.Action.Id, "switch "))
+		viewId := actions.Scope(strings.TrimPrefix(action.Action.Id, "switch "))
 		if _, ok := r.Views[viewId]; ok {
 			r.Scope = viewId
 			return r, nil
@@ -61,7 +62,7 @@ func (r Router) UpdateTargetView(action common.InvokeActionMsg) (Router, tea.Cmd
 
 func (r Router) Update(msg tea.Msg) (Router, tea.Cmd) {
 	switch msg := msg.(type) {
-	case common.InvokeActionMsg:
+	case actions.InvokeActionMsg:
 		return r.UpdateTargetView(msg)
 	case tea.KeyMsg:
 		var cmd tea.Cmd
@@ -69,7 +70,7 @@ func (r Router) Update(msg tea.Msg) (Router, tea.Cmd) {
 			if hasActionMap, ok := currentView.(IHasActionMap); ok {
 				actionMap := hasActionMap.GetActionMap()
 				if action, ok := actionMap[msg.String()]; ok {
-					return r, common.InvokeAction(action)
+					return r, actions.InvokeAction(action)
 				}
 			}
 			r.Views[r.Scope], cmd = r.Views[r.Scope].Update(msg)

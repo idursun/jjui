@@ -5,6 +5,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -18,13 +19,13 @@ type Model struct {
 	context      *context.MainContext
 }
 
-func (m Model) GetActionMap() map[string]common.Action {
-	return map[string]common.Action{
-		"y": {Id: "undo.accept", Next: []common.Action{{Id: "close undo"}}},
-		"n": {Id: "close undo", Next: []common.Action{
+func (m Model) GetActionMap() map[string]actions.Action {
+	return map[string]actions.Action{
+		"y": {Id: "undo.accept", Next: []actions.Action{{Id: "close undo"}}},
+		"n": {Id: "close undo", Next: []actions.Action{
 			{Id: "switch revisions"},
 		}},
-		"esc": {Id: "close undo", Next: []common.Action{
+		"esc": {Id: "close undo", Next: []actions.Action{
 			{Id: "switch revisions"},
 		}},
 	}
@@ -43,7 +44,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(common.InvokeActionMsg); ok {
+	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		switch msg.Action.Id {
 		case "undo.accept":
 			return m, m.context.RunCommand(jj.Undo(), common.Refresh)
@@ -64,8 +65,8 @@ func NewModel(context *context.MainContext) Model {
 	model := confirmation.New(
 		[]string{lastOperation, "Are you sure you want to undo last change?"},
 		confirmation.WithStylePrefix("undo"),
-		confirmation.WithOption("Yes", common.InvokeAction(common.Action{Id: "undo.accept", Next: []common.Action{{Id: "close undo"}, {Id: "switch revisions"}}}), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-		confirmation.WithOption("No", common.InvokeAction(common.Action{Id: "close undo"}), key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+		confirmation.WithOption("Yes", actions.InvokeAction(actions.Action{Id: "undo.accept", Next: []actions.Action{{Id: "close undo"}, {Id: "switch revisions"}}}), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+		confirmation.WithOption("No", actions.InvokeAction(actions.Action{Id: "close undo"}), key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 	)
 	model.Styles.Border = common.DefaultPalette.GetBorder("undo border", lipgloss.NormalBorder()).Padding(1)
 	return Model{

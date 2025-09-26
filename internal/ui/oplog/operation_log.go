@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -43,16 +44,16 @@ func (m *Model) Read(value string) string {
 	return ""
 }
 
-func (m *Model) GetActionMap() map[string]common.Action {
-	return map[string]common.Action{
+func (m *Model) GetActionMap() map[string]actions.Action {
+	return map[string]actions.Action{
 		"k": {Id: "oplog.up"},
 		"j": {Id: "oplog.down"},
 		"d": {Id: "oplog.diff"},
-		"r": {Id: "oplog.restore", Next: []common.Action{
+		"r": {Id: "oplog.restore", Next: []actions.Action{
 			{Id: "close oplog"},
 			{Id: "switch revisions"},
 		}},
-		"esc": {Id: "close oplog", Next: []common.Action{{Id: "switch revisions"}}},
+		"esc": {Id: "close oplog", Next: []actions.Action{{Id: "switch revisions"}}},
 	}
 }
 
@@ -96,7 +97,7 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case common.InvokeActionMsg:
+	case actions.InvokeActionMsg:
 		switch msg.Action.Id {
 		case "oplog.up":
 			if m.cursor > 0 {

@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -54,8 +55,8 @@ func (s *Operation) Read(value string) string {
 	return ""
 }
 
-func (s *Operation) GetActionMap() map[string]common.Action {
-	return map[string]common.Action{
+func (s *Operation) GetActionMap() map[string]actions.Action {
+	return map[string]actions.Action{
 		"esc": {Id: "close details"},
 		"h":   {Id: "close details"},
 		" ":   {Id: "details.toggle_select"},
@@ -101,7 +102,7 @@ func (s *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 	switch msg := msg.(type) {
-	case common.InvokeActionMsg:
+	case actions.InvokeActionMsg:
 		switch msg.Action.Id {
 		case "details.up":
 			s.cursorUp()
@@ -142,10 +143,10 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 			s.confirmation = model
 			return s, s.confirmation.Init()
 		case "details.squash":
-			a := common.Action{Id: "revisions.squash", Args: map[string]any{
+			a := actions.Action{Id: "revisions.squash", Args: map[string]any{
 				"files": s.getSelectedFiles(),
 			}}
-			return s, common.InvokeAction(a)
+			return s, actions.InvokeAction(a)
 		case "details.absorb":
 			selectedFiles := s.getSelectedFiles()
 			s.selectedHint = "might get absorbed into parents"
@@ -193,7 +194,7 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 			if selected == nil {
 				return s, nil
 			}
-			return s, tea.Sequence(common.InvokeAction(common.Action{Id: "ui.diff"}), func() tea.Msg {
+			return s, tea.Sequence(actions.InvokeAction(actions.Action{Id: "ui.diff"}), func() tea.Msg {
 				output, _ := s.context.RunCommandImmediate(jj.Diff(s.revision.GetChangeId(), selected.fileName))
 				return common.ShowDiffMsg(output)
 			})

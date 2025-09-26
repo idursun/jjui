@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
@@ -44,17 +45,17 @@ var _ view.IHasActionMap = (*Model)(nil)
 var _ help.KeyMap = (*Model)(nil)
 
 const (
-	scopeDetails        common.Scope = "details"
-	scopeSquash         common.Scope = "squash"
-	scopeRebase         common.Scope = "rebase"
-	scopeInlineDescribe common.Scope = "inline_describe"
-	scopeEvolog         common.Scope = "evolog"
-	scopeRevert         common.Scope = "revert"
-	scopeSetParents     common.Scope = "set_parents"
-	scopeDuplicate      common.Scope = "duplicate"
-	scopeAbandon        common.Scope = "abandon"
-	scopeAceJump        common.Scope = "ace_jump"
-	scopeSetBookmark    common.Scope = "set_bookmark"
+	scopeDetails        actions.Scope = "details"
+	scopeSquash         actions.Scope = "squash"
+	scopeRebase         actions.Scope = "rebase"
+	scopeInlineDescribe actions.Scope = "inline_describe"
+	scopeEvolog         actions.Scope = "evolog"
+	scopeRevert         actions.Scope = "revert"
+	scopeSetParents     actions.Scope = "set_parents"
+	scopeDuplicate      actions.Scope = "duplicate"
+	scopeAbandon        actions.Scope = "abandon"
+	scopeAceJump        actions.Scope = "ace_jump"
+	scopeSetBookmark    actions.Scope = "set_bookmark"
 )
 
 type Model struct {
@@ -81,7 +82,7 @@ type Model struct {
 	router           view.Router
 }
 
-func (m *Model) GetActionMap() map[string]common.Action {
+func (m *Model) GetActionMap() map[string]actions.Action {
 	if len(m.router.Views) > 0 {
 		if op, ok := m.router.Views[m.router.Scope].(view.IHasActionMap); ok {
 			return op.GetActionMap()
@@ -90,10 +91,10 @@ func (m *Model) GetActionMap() map[string]common.Action {
 	return ActionMap
 }
 
-var ActionMap = map[string]common.Action{
+var ActionMap = map[string]actions.Action{
 	"@":     {Id: "revisions.jump_to_working_copy"},
 	"enter": {Id: "revisions.inline_describe"},
-	" ": {Id: "revisions.toggle_select", Next: []common.Action{
+	" ": {Id: "revisions.toggle_select", Next: []actions.Action{
 		{Id: "revisions.down"},
 	}},
 	"j": {Id: "revisions.down"},
@@ -112,12 +113,12 @@ var ActionMap = map[string]common.Action{
 	"d": {Id: "revisions.diff"},
 	"f": {Id: "revisions.ace_jump"},
 	"v": {Id: "revisions.evolog"},
-	"L": {Id: "revset.edit", Args: map[string]any{"clear": true}, Next: []common.Action{{Id: "switch revset"}}},
+	"L": {Id: "revset.edit", Args: map[string]any{"clear": true}, Next: []actions.Action{{Id: "switch revset"}}},
 	"o": {Id: "ui.oplog"},
 	"u": {Id: "ui.undo"},
 	"p": {Id: "ui.toggle_preview"},
 	"q": {Id: "ui.quit"},
-	"U": {Id: "revisions.inline_describe", Next: []common.Action{
+	"U": {Id: "revisions.inline_describe", Next: []actions.Action{
 		{Id: "wait close inline_describe"},
 		{Id: "revisions.new"},
 	}},
@@ -344,7 +345,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case common.InvokeActionMsg:
+	case actions.InvokeActionMsg:
 		switch msg.Action.Id {
 		case "revisions.toggle_select":
 			commit := m.rows[m.cursor].Commit
@@ -394,7 +395,7 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			m.renderer.Reset()
 			return m, nil
 		case "revisions.diff":
-			return m, tea.Sequence(common.InvokeAction(common.Action{Id: "ui.diff"}), func() tea.Msg {
+			return m, tea.Sequence(actions.InvokeAction(actions.Action{Id: "ui.diff"}), func() tea.Msg {
 				changeId := m.SelectedRevision().GetChangeId()
 				output, _ := m.context.RunCommandImmediate(jj.Diff(changeId, ""))
 				return common.ShowDiffMsg(output)
@@ -489,9 +490,9 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 	case common.CloseViewMsg:
 		if m.waiter != nil {
 			if msg.Cancelled {
-				m.waiter <- common.WaitResultCancel
+				m.waiter <- actions.WaitResultCancel
 			} else {
-				m.waiter <- common.WaitResultContinue
+				m.waiter <- actions.WaitResultContinue
 			}
 			close(m.waiter)
 			m.waiter = nil

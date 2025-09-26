@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -30,12 +31,12 @@ type Model struct {
 	parents  []string
 }
 
-func (m *Model) GetActionMap() map[string]common.Action {
-	return map[string]common.Action{
+func (m *Model) GetActionMap() map[string]actions.Action {
+	return map[string]actions.Action{
 		"j":      {Id: "revisions.down"},
 		"k":      {Id: "revisions.up"},
 		" ":      {Id: "set_parents.toggle_select"},
-		"enter":  {Id: "set_parents.apply", Next: []common.Action{{Id: "close set_parents"}}},
+		"enter":  {Id: "set_parents.apply", Next: []actions.Action{{Id: "close set_parents"}}},
 		"esc":    {Id: "close set_parents"},
 		"ctrl+c": {Id: "close set_parents"},
 	}
@@ -46,7 +47,7 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(common.InvokeActionMsg); ok {
+	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		switch msg.Action.Id {
 		case "set_parents.toggle_select":
 			if m.current.GetChangeId() == m.target.GetChangeId() {

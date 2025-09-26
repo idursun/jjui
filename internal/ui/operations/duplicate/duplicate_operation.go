@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -51,8 +52,8 @@ type Operation struct {
 	styles      styles
 }
 
-func (r *Operation) GetActionMap() map[string]common.Action {
-	return map[string]common.Action{
+func (r *Operation) GetActionMap() map[string]actions.Action {
+	return map[string]actions.Action{
 		"j":     {Id: "revisions.down"},
 		"k":     {Id: "revisions.up"},
 		"d":     {Id: "duplicate.onto"},
@@ -68,7 +69,7 @@ func (r *Operation) Init() tea.Cmd {
 }
 
 func (r *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(common.InvokeActionMsg); ok {
+	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		switch msg.Action.Id {
 		case "duplicate.apply":
 			target := targetToFlags[r.Target]

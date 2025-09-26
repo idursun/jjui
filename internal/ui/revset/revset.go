@@ -7,15 +7,16 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/view"
 )
 
-var actionMap = map[string]common.Action{
-	"esc": {Id: "revset.cancel", Next: []common.Action{{Id: "switch revisions"}}},
-	"enter": {Id: "revset.accept", Next: []common.Action{
+var actionMap = map[string]actions.Action{
+	"esc": {Id: "revset.cancel", Next: []actions.Action{{Id: "switch revisions"}}},
+	"enter": {Id: "revset.accept", Next: []actions.Action{
 		{Id: "switch revisions"},
 	}},
 }
@@ -56,7 +57,7 @@ func (m *Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{m.keymap.ShortHelp()}
 }
 
-func (m *Model) GetActionMap() map[string]common.Action {
+func (m *Model) GetActionMap() map[string]actions.Action {
 	return actionMap
 }
 
@@ -145,7 +146,7 @@ func (m *Model) SetHistory(history []string) {
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case common.InvokeActionMsg:
+	case actions.InvokeActionMsg:
 		switch msg.Action.Id {
 		case "revset.cancel":
 			m.Editing = false

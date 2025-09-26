@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/view"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -29,17 +30,17 @@ type Operation struct {
 	styles      styles
 }
 
-func (s *Operation) GetActionMap() map[string]common.Action {
-	return map[string]common.Action{
+func (s *Operation) GetActionMap() map[string]actions.Action {
+	return map[string]actions.Action{
 		"j":   {Id: "revisions.down"},
 		"k":   {Id: "revisions.up"},
 		"i":   {Id: "squash.interactive"},
 		"e":   {Id: "squash.keep_emptied"},
 		"esc": {Id: "close squash"},
-		"enter": {Id: "squash.apply", Next: []common.Action{
+		"enter": {Id: "squash.apply", Next: []actions.Action{
 			{Id: "close squash"},
 		}},
-		"alt+enter": {Id: "squash.force_apply", Next: []common.Action{
+		"alt+enter": {Id: "squash.force_apply", Next: []actions.Action{
 			{Id: "close squash"},
 		}},
 	}
@@ -56,7 +57,7 @@ func (s *Operation) Init() tea.Cmd {
 }
 
 func (s *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(common.InvokeActionMsg); ok {
+	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		switch msg.Action.Id {
 		case "squash.apply", "squash.force_apply":
 			ignoreImmutable := msg.Action.Id == "squash.force_apply"

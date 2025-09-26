@@ -135,5 +135,11 @@ limit = 0
 [oplog]
   limit = 200
 
+
 [graph]
   batch_size = 50
+
+[actions]
+  "revset.edit" = { Args = { clear = true }, Next = ["switch revset"]}
+
+

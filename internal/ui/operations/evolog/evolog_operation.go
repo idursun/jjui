@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -45,9 +46,9 @@ type Operation struct {
 	styles   styles
 }
 
-func (o *Operation) GetActionMap() map[string]common.Action {
+func (o *Operation) GetActionMap() map[string]actions.Action {
 	if o.mode == selectMode {
-		return map[string]common.Action{
+		return map[string]actions.Action{
 			"j":   {Id: "evolog.down"},
 			"k":   {Id: "evolog.up"},
 			"esc": {Id: "close evolog"},
@@ -55,9 +56,9 @@ func (o *Operation) GetActionMap() map[string]common.Action {
 			"r":   {Id: "evolog.restore"},
 		}
 	} else {
-		return map[string]common.Action{
+		return map[string]actions.Action{
 			"esc": {Id: "close evolog"},
-			"enter": {Id: "evolog.apply", Next: []common.Action{
+			"enter": {Id: "evolog.apply", Next: []actions.Action{
 				{Id: "close evolog"},
 				{Id: "ui.refresh"},
 			}},
@@ -122,7 +123,7 @@ func (o *Operation) FullHelp() [][]key.Binding {
 }
 
 func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(common.InvokeActionMsg); ok {
+	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		switch msg.Action.Id {
 		case "evolog.up":
 			if o.cursor > 0 {
@@ -137,7 +138,7 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "evolog.restore":
 			o.mode = restoreMode
 		case "evolog.diff":
-			return o, tea.Sequence(common.InvokeAction(common.Action{Id: "ui.diff"}), func() tea.Msg {
+			return o, tea.Sequence(actions.InvokeAction(actions.Action{Id: "ui.diff"}), func() tea.Msg {
 				output, _ := o.context.RunCommandImmediate(jj.Diff(o.getSelectedEvolog().CommitId, ""))
 				return common.ShowDiffMsg(output)
 			})
