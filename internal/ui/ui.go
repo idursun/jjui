@@ -78,7 +78,31 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var nm tea.Model
+
+	if msg, ok := msg.(actions.InvokeActionMsg); ok {
+		if msg.Action.Id == "run" {
+			return m, func() tea.Msg {
+				args := msg.Action.GetArgs("jj")
+				output, _ := m.context.RunCommandImmediate(jj.Args(args...))
+				if msg.Action.Output != "" {
+					if msg.Action.Outputs == nil {
+						msg.Action.Outputs = make(map[string]string)
+					}
+					msg.Action.Outputs[msg.Action.Output] = string(output)
+				}
+				if len(msg.Action.Next) > 0 {
+					next := msg.Action.Next[0]
+					next.Next = msg.Action.Next[1:]
+					next.Outputs = msg.Action.Outputs
+					return actions.InvokeActionMsg{Action: next}
+				}
+				return nil
+			}
+		}
+	}
+
 	nm, cmd = m.internalUpdate(msg)
+
 	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		if len(m.waiters) > 0 {
 			for k, ch := range m.waiters {
@@ -86,7 +110,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					ch <- actions.WaitResultContinue
 					close(ch)
 					delete(m.waiters, k)
-					return m, cmd
+					//return nm, cmd
 				}
 			}
 		}
@@ -94,7 +118,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			message := strings.TrimPrefix(msg.Action.Id, "wait ")
 			var waitCmd tea.Cmd
 			m.waiters[message], waitCmd = msg.Action.Wait()
-			return m, tea.Batch(cmd, waitCmd)
+			return nm, tea.Batch(cmd, waitCmd)
 		}
 		cmd = tea.Sequence(cmd, msg.Action.GetNext())
 	}
@@ -107,6 +131,27 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case actions.InvokeActionMsg:
+		if strings.HasPrefix(msg.Action.Id, "list ") {
+			scope := strings.TrimPrefix(msg.Action.Id, "list ")
+			var items []string
+			if arg, ok := msg.Action.Args["items"]; ok {
+				switch arg := arg.(type) {
+				case string:
+					items = strings.Split(msg.Action.Process(arg), "\n")
+				case []string:
+					items = arg
+				case []interface{}:
+					items = msg.Action.GetArgs("items")
+				}
+			}
+			for i := range items {
+				items[i] = msg.Action.Process(items[i])
+			}
+			m.router.Scope = actions.Scope(scope)
+			m.router.Views[actions.Scope(scope)] = view.NewSimpleList(scope, items)
+			return m, m.router.Views[m.router.Scope].Init()
+		}
+
 		switch msg.Action.Id {
 		case "ui.oplog":
 			oplog := oplog.New(m.context, m.Width, m.Height)
@@ -302,6 +347,9 @@ func (m Model) View() string {
 
 	var stacked tea.Model
 	if v, ok := m.router.Views[actions.ScopeUndo]; ok {
+		stacked = v
+	}
+	if v, ok := m.router.Views[actions.Scope("bookmark_list")]; ok {
 		stacked = v
 	}
 

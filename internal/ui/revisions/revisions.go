@@ -93,9 +93,12 @@ func (m *Model) GetActionMap() map[string]actions.Action {
 }
 
 func (m *Model) Read(value string) string {
-	if value == "$change_id" {
-		if current := m.SelectedRevision(); current != nil {
+	if current := m.SelectedRevision(); current != nil {
+		switch value {
+		case jj.ChangeIdPlaceholder:
 			return current.GetChangeId()
+		case jj.CommitIdPlaceholder:
+			return current.CommitId
 		}
 	}
 	return m.router.Read(value)
@@ -258,18 +261,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		msg = k.msg
 	}
 
-	//if msg, ok := msg.(script.ResumeScriptExecutionMsg); ok {
-	//	switch step := msg.Execution.Current().(type) {
-	//	case *script.UIStep:
-	//		if step.UI.Action == "inline_describe" {
-	//			var cmd tea.Cmd
-	//			m.waiter, cmd = msg.Execution.Wait(10)
-	//			m.op = describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
-	//			return m, tea.Batch(m.op.Init(), cmd)
-	//		}
-	//	}
-	//}
-
 	var cmd tea.Cmd
 	var nm *Model
 	nm, cmd = m.internalUpdate(msg)
@@ -293,12 +284,6 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			changeId := commit.GetChangeId()
 			item := appContext.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
 			m.context.ToggleCheckedItem(item)
-			//immediate, _ := m.context.RunCommandImmediate(jj.GetParent(jj.NewSelectedRevisions(commit)))
-			//parentIndex := m.selectRevision(string(immediate))
-			//if parentIndex != -1 {
-			//	m.cursor = parentIndex
-			//	return m, m.updateSelection()
-			//}
 			return m, nil
 		case "revisions.ace_jump":
 			op := ace_jump.NewOperation(m, func(index int) parser.Row {
@@ -535,19 +520,13 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 		return m, nil
 	}
 
-	//if op, ok := m.op.(common.Editable); ok && op.IsEditing() {
-	//	var cmd tea.Cmd
-	//	m.op, cmd = m.op.Update(msg)
-	//	return m, cmd
-	//}
-
 	var cmd tea.Cmd
 	m.router, cmd = m.router.Update(msg)
 	return m, cmd
 }
 
 func (m *Model) updateSelection() tea.Cmd {
-	return nil
+	return actions.InvokeAction(actions.Action{Id: "preview.update", Args: map[string]any{"item": "revision"}})
 }
 
 func (m *Model) highlightChanges() tea.Msg {

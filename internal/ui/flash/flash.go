@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/actions"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -39,6 +40,16 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case actions.InvokeActionMsg:
+		switch msg.Action.Id {
+		case "flash.add":
+			payload := msg.Action.Get("message", "").(string)
+			if payload != "" {
+				payload = msg.Action.Process(payload)
+				m.add(payload, nil)
+			}
+			return m, nil
+		}
 	case expireMessageMsg:
 		for i, message := range m.messages {
 			if message.id == msg.id {

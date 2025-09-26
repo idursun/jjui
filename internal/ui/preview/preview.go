@@ -10,6 +10,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 )
@@ -32,6 +34,7 @@ type Model struct {
 	context                 *context.MainContext
 	keyMap                  config.KeyMappings[key.Binding]
 	borderStyle             lipgloss.Style
+	commitId                string
 }
 
 const DebounceTime = 50 * time.Millisecond
@@ -48,7 +51,8 @@ func PreviewCmd(msg tea.Msg) tea.Cmd {
 }
 
 type refreshPreviewContentMsg struct {
-	Tag int
+	item string
+	Tag  int
 }
 
 func (m *Model) SetHeight(h int) {
@@ -100,15 +104,36 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(previewMsg); ok {
 		msg = k.msg
 	}
+
 	switch msg := msg.(type) {
-	case common.SelectionChangedMsg, common.RefreshMsg:
-		m.tag++
-		tag := m.tag
-		return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
-			return refreshPreviewContentMsg{Tag: tag}
-		})
+	case actions.InvokeActionMsg:
+		switch msg.Action.Id {
+		case "preview.update":
+			//changeId := m.context.Read(jj.ChangeIdPlaceholder)
+			commitId := m.context.Read(jj.CommitIdPlaceholder)
+			m.commitId = commitId
+			m.tag++
+			tag := m.tag
+			item := msg.Action.Get("item", "").(string)
+			switch item {
+			case "revision":
+				return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
+					return refreshPreviewContentMsg{Tag: tag}
+				})
+			}
+		}
 	case refreshPreviewContentMsg:
 		if m.tag == msg.Tag {
+			changeId := m.context.Read(jj.ChangeIdPlaceholder)
+			commitId := m.context.Read(jj.CommitIdPlaceholder)
+			replacements := map[string]string{
+				jj.CommitIdPlaceholder: commitId,
+				jj.ChangeIdPlaceholder: changeId,
+			}
+			output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
+			m.commitId = commitId
+			m.updatePreviewContent(string(output))
+
 			//replacements := m.context.ScopeValues
 			//switch m.context.CurrentScope() {
 			//case common.ScopeRevisions:
