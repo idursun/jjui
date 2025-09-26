@@ -90,43 +90,6 @@ func (m *Model) GetActionMap() map[string]actions.Action {
 	}
 
 	return config.Current.GetBindings("revisions")
-	//
-	//return map[string]actions.Action{
-	//	"@":     {Id: "revisions.jump_to_working_copy"},
-	//	"enter": {Id: "revisions.inline_describe"},
-	//	" ": {Id: "revisions.toggle_select", Next: []actions.Action{
-	//		{Id: "revisions.down"},
-	//	}},
-	//	"j": {Id: "revisions.down"},
-	//	"J": {Id: "revisions.jump_to_parent"},
-	//	"k": {Id: "revisions.up"},
-	//	"K": {Id: "revisions.jump_to_children"},
-	//	"l": {Id: "revisions.details"},
-	//	"S": {Id: "revisions.squash"},
-	//	"r": {Id: "revisions.rebase"},
-	//	"B": {Id: "revisions.set_bookmark"},
-	//	"c": {Id: "revisions.commit"},
-	//	"n": {Id: "revisions.new"},
-	//	"A": {Id: "revisions.absorb"},
-	//	"a": {Id: "revisions.abandon"},
-	//	"s": {Id: "revisions.split"},
-	//	"d": {Id: "revisions.diff"},
-	//	"f": {Id: "revisions.ace_jump"},
-	//	"v": {Id: "revisions.evolog"},
-	//	"L": {Id: "revset.edit", Args: map[string]any{"clear": true}, Next: []actions.Action{{Id: "switch revset"}}},
-	//	"o": {Id: "ui.oplog"},
-	//	"u": {Id: "ui.undo"},
-	//	"p": {Id: "ui.toggle_preview"},
-	//	"q": {Id: "ui.quit"},
-	//	"U": {Id: "revisions.inline_describe", Next: []actions.Action{
-	//		{Id: "wait close inline_describe"},
-	//		{Id: "revisions.new"},
-	//	}},
-	//	"ctrl+r": {Id: "ui.refresh"},
-	//	"+": {Id: "ui.set_revset", Args: map[string]any{
-	//		"revset": "$revset | ancestors($change_id, 2)",
-	//	}},
-	//}
 }
 
 func (m *Model) Read(value string) string {
@@ -136,29 +99,6 @@ func (m *Model) Read(value string) string {
 		}
 	}
 	return m.router.Read(value)
-}
-
-func (m *Model) GetContext() map[string]string {
-	context := map[string]string{}
-	if current := m.SelectedRevision(); current != nil {
-		context[jj.ChangeIdPlaceholder] = current.GetChangeId()
-		context[jj.CommitIdPlaceholder] = current.CommitId
-		checkedRevisions := m.SelectedRevisions().GetIds()
-		if len(checkedRevisions) == 0 {
-			context[jj.CheckedCommitIdsPlaceholder] = "none()"
-		} else {
-			context[jj.CheckedCommitIdsPlaceholder] = strings.Join(checkedRevisions, "|")
-		}
-	}
-
-	//if op, ok := m.op.(common.ContextProvider); ok {
-	//	if opContext := op.GetContext(); context != nil {
-	//		for k, v := range opContext {
-	//			context[k] = v
-	//		}
-	//	}
-	//}
-	return context
 }
 
 func (m *Model) Cursor() int {

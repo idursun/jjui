@@ -98,8 +98,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		cmd = tea.Sequence(cmd, msg.Action.GetNext())
 	}
-	m.context.ScopeValues = map[string]string{}
-	m.context.UpdateScopeValues(m.revisions.GetContext())
 	return nm, cmd
 }
 
@@ -117,7 +115,7 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, oplog.Init()
 		case "ui.diff":
 			m.router.Scope = actions.ScopeDiff
-			m.router.Views[actions.ScopeDiff] = diff.New("", m.Width, m.Height)
+			m.router.Views[actions.ScopeDiff] = diff.New(m.context, m.Width, m.Height)
 			return m, m.router.Views[m.router.Scope].Init()
 		case "ui.undo":
 			m.router.Views[actions.ScopeUndo] = undo.NewModel(m.context)

@@ -90,6 +90,25 @@ func (a Action) Get(name string, defaultValue any) any {
 	return defaultValue
 }
 
+func (a Action) GetArgs(name string) []string {
+	if a.Args == nil {
+		return []string{}
+	}
+	if v, ok := a.Args[name]; ok {
+		if args, ok := v.([]any); ok {
+			result := make([]string, len(args))
+			for i, arg := range args {
+				result[i] = arg.(string)
+			}
+			return result
+		}
+		if args, ok := v.([]string); ok {
+			return args
+		}
+	}
+	return []string{}
+}
+
 func InvokeAction(action Action) tea.Cmd {
 	if existing, ok := Registry[action.Id]; ok {
 		action = existing

@@ -7,16 +7,19 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/view"
 )
 
 var _ view.IHasActionMap = (*Model)(nil)
 
 type Model struct {
-	view   viewport.Model
-	keymap config.KeyMappings[key.Binding]
+	view    viewport.Model
+	keymap  config.KeyMappings[key.Binding]
+	context *context.MainContext
 }
 
 func (m *Model) GetActionMap() map[string]actions.Action {
@@ -58,6 +61,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.view.PageUp()
 		case "diff.pagedown":
 			m.view.PageDown()
+		case "diff.show":
+			args := msg.Action.GetArgs("jj")
+			replacements := make(map[string]string)
+			replacements[jj.ChangeIdPlaceholder] = m.context.Read(jj.ChangeIdPlaceholder)
+			return m, func() tea.Msg {
+				output, err := m.context.RunCommandImmediate(jj.TemplatedArgs(args, replacements))
+				if err != nil {
+					return common.ShowDiffMsg(err.Error())
+				}
+				return common.ShowDiffMsg(output)
+			}
 		}
 	case common.ShowDiffMsg:
 		content := strings.ReplaceAll(string(msg), "\r", "")
@@ -75,15 +89,12 @@ func (m *Model) View() string {
 	return m.view.View()
 }
 
-func New(output string, width int, height int) tea.Model {
+func New(ctx *context.MainContext, width int, height int) tea.Model {
 	view := viewport.New(width, height)
-	content := strings.ReplaceAll(output, "\r", "")
-	if content == "" {
-		content = "(empty)"
-	}
-	view.SetContent(content)
+	view.SetContent("(empty)")
 	return &Model{
-		view:   view,
-		keymap: config.Current.GetKeyMap(),
+		context: ctx,
+		view:    view,
+		keymap:  config.Current.GetKeyMap(),
 	}
 }

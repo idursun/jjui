@@ -102,10 +102,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "oplog.diff":
-			return m, func() tea.Msg {
-				output, _ := m.context.RunCommandImmediate(jj.OpShow(m.rows[m.cursor].OperationId))
-				return common.ShowDiffMsg(output)
-			}
+			return m, actions.InvokeAction(actions.Action{
+				Id: "ui.diff",
+				Next: []actions.Action{
+					{Id: "diff.show", Args: map[string]any{
+						"jj": jj.OpShow(m.rows[m.cursor].OperationId),
+					}},
+					{Id: "wait close diff"},
+					{Id: "switch oplog"},
+				},
+			})
 		case "oplog.restore":
 			return m, tea.Batch(m.context.RunCommand(jj.OpRestore(m.rows[m.cursor].OperationId), common.Refresh))
 		}
