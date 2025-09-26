@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -39,6 +40,7 @@ type Model struct {
 	status    *status.Model
 	context   *context.MainContext
 	keyMap    config.KeyMappings[key.Binding]
+	waiters   map[string]common.WaitChannel
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -80,13 +82,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var nm tea.Model
 	nm, cmd = m.internalUpdate(msg)
 	if msg, ok := msg.(common.InvokeActionMsg); ok {
+		if len(m.waiters) > 0 {
+			for k, ch := range m.waiters {
+				if k == msg.Action.Id {
+					ch <- common.WaitResultContinue
+					close(ch)
+					delete(m.waiters, k)
+					return m, cmd
+				}
+			}
+		}
+		if strings.HasPrefix(msg.Action.Id, "wait") {
+			message := strings.TrimPrefix(msg.Action.Id, "wait ")
+			var waitCmd tea.Cmd
+			m.waiters[message], waitCmd = msg.Action.Wait()
+			return m, tea.Batch(cmd, waitCmd)
+		}
 		cmd = tea.Sequence(cmd, msg.Action.GetNext())
 	}
 	m.context.ScopeValues = map[string]string{}
 	m.context.UpdateScopeValues(m.revisions.GetContext())
-	//if m.oplog != nil {
-	//	m.context.UpdateScopeValues(m.oplog.GetContext())
-	//}
 	return nm, cmd
 }
 
@@ -425,12 +440,6 @@ func (m Model) scheduleAutoRefresh() tea.Cmd {
 }
 
 func (m Model) isSafeToQuit() bool {
-	//if m.stacked != nil {
-	//	return false
-	//}
-	//if m.oplog != nil {
-	//	return false
-	//}
 	if m.revisions.CurrentOperation().Name() == "normal" {
 		return true
 	}
@@ -454,6 +463,7 @@ func New(c *context.MainContext) tea.Model {
 		revisions: revisionsModel,
 		status:    &statusModel,
 		flash:     flash.New(c),
+		waiters:   make(map[string]common.WaitChannel),
 		router:    router,
 	}
 }

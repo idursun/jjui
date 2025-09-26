@@ -24,7 +24,9 @@ type Operation struct {
 
 func (a *Operation) GetActionMap() map[string]common.Action {
 	return map[string]common.Action{
-		"y": {Id: "abandon.accept"},
+		"y": {Id: "abandon.accept", Next: []common.Action{
+			{Id: "close abandon"},
+		}},
 		"alt+enter": {Id: "abandon.force_apply", Next: []common.Action{
 			{Id: "close abandon"},
 		}},

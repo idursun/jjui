@@ -45,6 +45,18 @@ func (a Action) GetNext() tea.Cmd {
 	return InvokeAction(nextAction)
 }
 
+func (a Action) Wait() (WaitChannel, tea.Cmd) {
+	ch := make(WaitChannel, 1)
+	return ch, func() tea.Msg {
+		select {
+		case <-ch:
+			nextAction := a.Next[0]
+			nextAction.Next = a.Next[1:]
+			return InvokeActionMsg{Action: nextAction}
+		}
+	}
+}
+
 func (a Action) Get(name string, defaultValue any) any {
 	if a.Args == nil {
 		return defaultValue
