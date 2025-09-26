@@ -14,7 +14,6 @@ import (
 )
 
 var _ operations.Operation = (*SetBookmarkOperation)(nil)
-var _ common.Editable = (*SetBookmarkOperation)(nil)
 var _ view.IHasActionMap = (*SetBookmarkOperation)(nil)
 
 type SetBookmarkOperation struct {
@@ -28,10 +27,6 @@ func (s *SetBookmarkOperation) GetActionMap() map[string]common.Action {
 		"esc":   {Id: "close set_bookmark", Args: nil},
 		"enter": {Id: "set_bookmark.accept", Args: nil},
 	}
-}
-
-func (s *SetBookmarkOperation) IsEditing() bool {
-	return true
 }
 
 func (s *SetBookmarkOperation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

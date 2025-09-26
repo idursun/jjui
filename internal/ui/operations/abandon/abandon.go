@@ -14,7 +14,6 @@ import (
 )
 
 var _ operations.Operation = (*Operation)(nil)
-var _ common.Editable = (*Operation)(nil)
 var _ view.IHasActionMap = (*Operation)(nil)
 
 type Operation struct {
@@ -32,10 +31,6 @@ func (a *Operation) GetActionMap() map[string]common.Action {
 		"n":   {Id: "close abandon"},
 		"esc": {Id: "close abandon"},
 	}
-}
-
-func (a *Operation) IsEditing() bool {
-	return true
 }
 
 func (a *Operation) Init() tea.Cmd {

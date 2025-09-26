@@ -26,7 +26,6 @@ type updateCommitStatusMsg struct {
 }
 
 var _ operations.Operation = (*Operation)(nil)
-var _ common.Editable = (*Operation)(nil)
 var _ common.ContextProvider = (*Operation)(nil)
 var _ view.IHasActionMap = (*Operation)(nil)
 
@@ -67,10 +66,6 @@ func (s *Operation) GetContext() map[string]string {
 		}
 	}
 	return map[string]string{}
-}
-
-func (s *Operation) IsEditing() bool {
-	return true
 }
 
 func (s *Operation) Init() tea.Cmd {

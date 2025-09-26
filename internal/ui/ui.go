@@ -17,7 +17,6 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/screen"
-	"github.com/idursun/jjui/internal/ui/bookmarks"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/diff"
@@ -142,6 +141,8 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			model := preview.New(m.context)
 			m.router.Views[common.ScopePreview] = model
 			return m, model.Init()
+		case "ui.refresh":
+			return m, common.RefreshAndKeepSelections
 		case "ui.quit":
 			if m.isSafeToQuit() {
 				return m, tea.Quit
@@ -177,10 +178,8 @@ steps = [
 		case key.Matches(msg, m.keyMap.Cancel) && m.flash.Any():
 			m.flash.DeleteOldest()
 			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Refresh):
-			return m, common.RefreshAndKeepSelections
-		case key.Matches(msg, m.keyMap.Quit):
-			return m, common.InvokeAction(common.Action{Id: "ui.quit"})
+		//case key.Matches(msg, m.keyMap.Quit):
+		//	return m, common.InvokeAction(common.Action{Id: "ui.quit"})
 		//case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
 		//	m.stacked = git.NewModel(m.context, m.revisions.SelectedRevision(), m.Width, m.Height)
 		//	return m, m.stacked.Init()
@@ -188,11 +187,11 @@ steps = [
 		//	m.stacked = undo.NewModel(m.context)
 		//	cmds = append(cmds, m.stacked.Init())
 		//	return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Bookmark.Mode):
-			changeIds := m.revisions.GetCommitIds()
-			m.router.Scope = common.ScopeBookmarks
-			m.router.Views[common.ScopeBookmarks] = bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds, m.Width, m.Height)
-			return m, m.router.Views[m.router.Scope].Init()
+		//case key.Matches(msg, m.keyMap.Bookmark.Mode):
+		//	changeIds := m.revisions.GetCommitIds()
+		//	m.router.Scope = common.ScopeBookmarks
+		//	m.router.Views[common.ScopeBookmarks] = bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds, m.Width, m.Height)
+		//	return m, m.router.Views[m.router.Scope].Init()
 		case key.Matches(msg, m.keyMap.Help):
 			cmds = append(cmds, common.ToggleHelp)
 			return m, tea.Batch(cmds...)

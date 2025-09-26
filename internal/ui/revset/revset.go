@@ -24,7 +24,6 @@ type EditRevSetMsg struct {
 	Clear bool
 }
 
-var _ common.Editable = (*Model)(nil)
 var _ view.IHasActionMap = (*Model)(nil)
 var _ help.KeyMap = (*Model)(nil)
 
@@ -52,10 +51,6 @@ func (m *Model) FullHelp() [][]key.Binding {
 
 func (m *Model) GetActionMap() map[string]common.Action {
 	return actionMap
-}
-
-func (m *Model) IsEditing() bool {
-	return m.Editing
 }
 
 type styles struct {

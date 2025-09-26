@@ -21,7 +21,6 @@ var (
 	_ operations.Operation       = (*Operation)(nil)
 	_ operations.SegmentRenderer = (*Operation)(nil)
 	_ common.Focusable           = (*Operation)(nil)
-	_ common.Editable            = (*Operation)(nil)
 	_ help.KeyMap                = (*Operation)(nil)
 	_ view.IHasActionMap         = (*Operation)(nil)
 )
@@ -39,10 +38,6 @@ func (o *Operation) GetActionMap() map[string]common.Action {
 		"esc":   {Id: "close ace_jump"},
 		"enter": {Id: "ace_jump.apply"},
 	}
-}
-
-func (o *Operation) IsEditing() bool {
-	return true
 }
 
 func (o *Operation) IsFocused() bool {

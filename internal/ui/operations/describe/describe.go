@@ -14,7 +14,6 @@ import (
 )
 
 var _ operations.Operation = (*Operation)(nil)
-var _ common.Editable = (*Operation)(nil)
 var _ view.IHasActionMap = (*Operation)(nil)
 
 type Operation struct {
@@ -31,10 +30,6 @@ func (o Operation) GetActionMap() map[string]common.Action {
 			{Id: "close inline_describe"},
 		}},
 	}
-}
-
-func (o Operation) IsEditing() bool {
-	return true
 }
 
 func (o Operation) ShortHelp() []key.Binding {
