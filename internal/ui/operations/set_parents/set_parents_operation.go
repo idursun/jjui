@@ -13,9 +13,11 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 var _ operations.Operation = (*Model)(nil)
+var _ view.IHasActionMap = (*Model)(nil)
 
 type Model struct {
 	context  *context.MainContext
@@ -28,13 +30,61 @@ type Model struct {
 	parents  []string
 }
 
+func (m *Model) GetActionMap() map[string]common.Action {
+	return map[string]common.Action{
+		"j":      {Id: "revisions.down"},
+		"k":      {Id: "revisions.up"},
+		" ":      {Id: "set_parents.toggle_select"},
+		"enter":  {Id: "set_parents.apply", Next: []common.Action{{Id: "close set_parents"}}},
+		"esc":    {Id: "close set_parents"},
+		"ctrl+c": {Id: "close set_parents"},
+	}
+}
+
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(tea.KeyMsg); ok {
-		return m, m.HandleKey(msg)
+	if msg, ok := msg.(common.InvokeActionMsg); ok {
+		switch msg.Action.Id {
+		case "set_parents.toggle_select":
+			if m.current.GetChangeId() == m.target.GetChangeId() {
+				return m, nil
+			}
+
+			if slices.Contains(m.parents, m.current.CommitId) {
+				if m.toRemove[m.current.GetChangeId()] {
+					delete(m.toRemove, m.current.GetChangeId())
+				} else {
+					m.toRemove[m.current.GetChangeId()] = true
+				}
+			} else {
+				if m.toAdd[m.current.GetChangeId()] {
+					delete(m.toAdd, m.current.GetChangeId())
+				} else {
+					m.toAdd[m.current.GetChangeId()] = true
+				}
+			}
+			return m, nil
+		case "set_parents.apply":
+			if len(m.toAdd) == 0 && len(m.toRemove) == 0 {
+				return m, nil
+			}
+
+			var parentsToAdd []string
+			var parentsToRemove []string
+
+			for changeId := range m.toAdd {
+				parentsToAdd = append(parentsToAdd, changeId)
+			}
+
+			for changeId := range m.toRemove {
+				parentsToRemove = append(parentsToRemove, changeId)
+			}
+
+			return m, m.context.RunCommand(jj.SetParents(m.target.GetChangeId(), parentsToAdd, parentsToRemove), common.RefreshAndSelect(m.target.GetChangeId()))
+		}
 	}
 	return m, nil
 }
@@ -65,49 +115,6 @@ type styles struct {
 
 func (m *Model) SetSelectedRevision(commit *jj.Commit) {
 	m.current = commit
-}
-
-func (m *Model) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	switch {
-	case key.Matches(msg, m.keyMap.ToggleSelect):
-		if m.current.GetChangeId() == m.target.GetChangeId() {
-			return nil
-		}
-
-		if slices.Contains(m.parents, m.current.CommitId) {
-			if m.toRemove[m.current.GetChangeId()] {
-				delete(m.toRemove, m.current.GetChangeId())
-			} else {
-				m.toRemove[m.current.GetChangeId()] = true
-			}
-		} else {
-			if m.toAdd[m.current.GetChangeId()] {
-				delete(m.toAdd, m.current.GetChangeId())
-			} else {
-				m.toAdd[m.current.GetChangeId()] = true
-			}
-		}
-	case key.Matches(msg, m.keyMap.Apply):
-		if len(m.toAdd) == 0 && len(m.toRemove) == 0 {
-			return common.Close
-		}
-
-		var parentsToAdd []string
-		var parentsToRemove []string
-
-		for changeId := range m.toAdd {
-			parentsToAdd = append(parentsToAdd, changeId)
-		}
-
-		for changeId := range m.toRemove {
-			parentsToRemove = append(parentsToRemove, changeId)
-		}
-
-		return m.context.RunCommand(jj.SetParents(m.target.GetChangeId(), parentsToAdd, parentsToRemove), common.RefreshAndSelect(m.target.GetChangeId()), common.Close)
-	case key.Matches(msg, m.keyMap.Cancel):
-		return common.Close
-	}
-	return nil
 }
 
 func (m *Model) Render(commit *jj.Commit, renderPosition operations.RenderPosition) string {

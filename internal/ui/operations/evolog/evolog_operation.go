@@ -8,6 +8,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/lipgloss"
@@ -29,6 +30,7 @@ const (
 
 var _ list.IList = (*Operation)(nil)
 var _ operations.Operation = (*Operation)(nil)
+var _ view.IHasActionMap = (*Operation)(nil)
 
 type Operation struct {
 	*common.Sizeable
@@ -41,6 +43,26 @@ type Operation struct {
 	keyMap   config.KeyMappings[key.Binding]
 	target   *jj.Commit
 	styles   styles
+}
+
+func (o *Operation) GetActionMap() map[string]common.Action {
+	if o.mode == selectMode {
+		return map[string]common.Action{
+			"j":   {Id: "evolog.down"},
+			"k":   {Id: "evolog.up"},
+			"esc": {Id: "close evolog"},
+			"d":   {Id: "evolog.diff"},
+			"r":   {Id: "evolog.restore"},
+		}
+	} else {
+		return map[string]common.Action{
+			"esc": {Id: "close evolog"},
+			"enter": {Id: "evolog.apply", Next: []common.Action{
+				{Id: "close evolog"},
+				{Id: "ui.refresh"},
+			}},
+		}
+	}
 }
 
 func (o *Operation) Init() tea.Cmd {
@@ -75,45 +97,6 @@ func (o *Operation) GetItemRenderer(index int) list.IItemRenderer {
 	}
 }
 
-func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	switch o.mode {
-	case selectMode:
-		switch {
-		case key.Matches(msg, o.keyMap.Cancel):
-			return common.Close
-		case key.Matches(msg, o.keyMap.Up):
-			if o.cursor > 0 {
-				o.cursor--
-				return o.updateSelection()
-			}
-		case key.Matches(msg, o.keyMap.Down):
-			if o.cursor < len(o.rows)-1 {
-				o.cursor++
-				return o.updateSelection()
-			}
-		case key.Matches(msg, o.keyMap.Evolog.Diff):
-			return func() tea.Msg {
-				selectedCommitId := o.getSelectedEvolog().CommitId
-				output, _ := o.context.RunCommandImmediate(jj.Diff(selectedCommitId, ""))
-				return common.ShowDiffMsg(output)
-			}
-		case key.Matches(msg, o.keyMap.Evolog.Restore):
-			o.mode = restoreMode
-		}
-	case restoreMode:
-		switch {
-		case key.Matches(msg, o.keyMap.Cancel):
-			o.mode = selectMode
-			return nil
-		case key.Matches(msg, o.keyMap.Apply):
-			from := o.getSelectedEvolog().CommitId
-			into := o.target.GetChangeId()
-			return o.context.RunCommand(jj.RestoreEvolog(from, into), common.Close, common.Refresh)
-		}
-	}
-	return nil
-}
-
 type styles struct {
 	dimmedStyle   lipgloss.Style
 	commitIdStyle lipgloss.Style
@@ -139,14 +122,36 @@ func (o *Operation) FullHelp() [][]key.Binding {
 }
 
 func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if msg, ok := msg.(common.InvokeActionMsg); ok {
+		switch msg.Action.Id {
+		case "evolog.up":
+			if o.cursor > 0 {
+				o.cursor--
+			}
+			return o, nil
+		case "evolog.down":
+			if o.cursor < len(o.rows)-1 {
+				o.cursor++
+			}
+			return o, nil
+		case "evolog.restore":
+			o.mode = restoreMode
+		case "evolog.diff":
+			return o, tea.Sequence(common.InvokeAction(common.Action{Id: "ui.diff"}), func() tea.Msg {
+				output, _ := o.context.RunCommandImmediate(jj.Diff(o.getSelectedEvolog().CommitId, ""))
+				return common.ShowDiffMsg(output)
+			})
+		case "evolog.apply":
+			from := o.getSelectedEvolog().CommitId
+			into := o.target.GetChangeId()
+			return o, o.context.RunCommand(jj.RestoreEvolog(from, into))
+		}
+	}
 	switch msg := msg.(type) {
 	case updateEvologMsg:
 		o.rows = msg.rows
 		o.cursor = 0
 		return o, o.updateSelection()
-	case tea.KeyMsg:
-		cmd := o.HandleKey(msg)
-		return o, cmd
 	}
 	return o, nil
 }

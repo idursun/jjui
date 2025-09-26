@@ -35,8 +35,13 @@ type Model struct {
 
 func (m *Model) GetActionMap() map[string]common.Action {
 	return map[string]common.Action{
-		"k":   {Id: "oplog.up", Args: nil},
-		"j":   {Id: "oplog.down", Args: nil},
+		"k": {Id: "oplog.up"},
+		"j": {Id: "oplog.down"},
+		"d": {Id: "oplog.diff"},
+		"r": {Id: "oplog.restore", Next: []common.Action{
+			{Id: "close oplog"},
+			{Id: "switch revisions"},
+		}},
 		"esc": {Id: "close oplog", Switch: common.ScopeRevisions},
 	}
 }
@@ -94,22 +99,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.updateSelection()
 			}
 			return m, nil
-		}
-	case updateOpLogMsg:
-		m.rows = msg.Rows
-		m.renderer.Reset()
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.keymap.Cancel):
-			return m, common.Close
-		case key.Matches(msg, m.keymap.Diff):
+		case "oplog.diff":
 			return m, func() tea.Msg {
 				output, _ := m.context.RunCommandImmediate(jj.OpShow(m.rows[m.cursor].OperationId))
 				return common.ShowDiffMsg(output)
 			}
-		case key.Matches(msg, m.keymap.OpLog.Restore):
-			return m, tea.Batch(common.Close, m.context.RunCommand(jj.OpRestore(m.rows[m.cursor].OperationId), common.Refresh))
+		case "oplog.restore":
+			return m, tea.Batch(m.context.RunCommand(jj.OpRestore(m.rows[m.cursor].OperationId), common.Refresh))
 		}
+	case updateOpLogMsg:
+		m.rows = msg.Rows
+		m.renderer.Reset()
 	}
 	return m, m.updateSelection()
 }

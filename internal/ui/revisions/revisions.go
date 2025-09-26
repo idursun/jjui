@@ -100,7 +100,7 @@ var ActionMap = map[string]common.Action{
 	"J": {Id: "revisions.jump_to_parent"},
 	"k": {Id: "revisions.up"},
 	"K": {Id: "revisions.jump_to_children"},
-	"l": {Id: "revisions.details", Switch: scopeDetails},
+	"l": {Id: "revisions.details"},
 	"S": {Id: "revisions.squash"},
 	"r": {Id: "revisions.rebase"},
 	"B": {Id: "revisions.set_bookmark"},
@@ -111,8 +111,9 @@ var ActionMap = map[string]common.Action{
 	"s": {Id: "revisions.split"},
 	"d": {Id: "revisions.diff"},
 	"f": {Id: "revisions.ace_jump"},
+	"v": {Id: "revisions.evolog"},
 	"L": {Id: "revset.edit", Switch: common.ScopeRevset},
-	"o": {Id: "ui.oplog", Switch: common.ScopeOplog},
+	"o": {Id: "ui.oplog"},
 	"u": {Id: "ui.undo"},
 	"p": {Id: "ui.toggle_preview"},
 	"q": {Id: "ui.quit"},
@@ -405,7 +406,7 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			m.router.Scope = scopeSetParents
 			m.router.Views[m.router.Scope] = op
 			return m, op.Init()
-		case "revisions.evolog_mode":
+		case "revisions.evolog":
 			op := evolog.NewOperation(m.context, m.SelectedRevision(), m.Width, m.Height)
 			m.router.Scope = scopeEvolog
 			m.router.Views[m.router.Scope] = op

@@ -60,7 +60,7 @@ func (s *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Action.Id {
 		case "squash.apply", "squash.force_apply":
 			ignoreImmutable := msg.Action.Id == "squash.force_apply"
-			return s, tea.Batch(common.InvokeAction(common.Action{Id: "close squash"}), s.context.RunInteractiveCommand(jj.Squash(s.from, s.current.GetChangeId(), s.files, s.keepEmptied, s.interactive, ignoreImmutable), common.RefreshAndSelect(s.current.GetChangeId())))
+			return s, tea.Batch(s.context.RunInteractiveCommand(jj.Squash(s.from, s.current.GetChangeId(), s.files, s.keepEmptied, s.interactive, ignoreImmutable), common.RefreshAndSelect(s.current.GetChangeId())))
 		case "squash.keep_emptied":
 			s.keepEmptied = !s.keepEmptied
 		case "squash.interactive":
@@ -73,21 +73,6 @@ func (s *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (s *Operation) View() string {
 	return ""
 }
-
-func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	switch {
-	case key.Matches(msg, s.keyMap.Apply):
-		return tea.Batch(common.Close, s.context.RunInteractiveCommand(jj.Squash(s.from, s.current.GetChangeId(), s.files, s.keepEmptied, s.interactive), common.RefreshAndSelect(s.current.GetChangeId())))
-	case key.Matches(msg, s.keyMap.Cancel):
-		return common.Close
-	case key.Matches(msg, s.keyMap.Squash.KeepEmptied):
-		s.keepEmptied = !s.keepEmptied
-	case key.Matches(msg, s.keyMap.Squash.Interactive):
-		s.interactive = !s.interactive
-	}
-	return nil
-}
-
 func (s *Operation) SetSelectedRevision(commit *jj.Commit) {
 	s.current = commit
 }
