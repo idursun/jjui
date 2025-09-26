@@ -20,13 +20,13 @@ type Model struct {
 
 func (m *Model) GetActionMap() map[string]common.Action {
 	return map[string]common.Action{
-		"j":      {Id: "diff.down", Args: nil},
-		"k":      {Id: "diff.up", Args: nil},
-		"ctrl+d": {Id: "diff.halfpagedown", Args: nil},
-		"ctrl+u": {Id: "diff.halfpageup", Args: nil},
-		"f":      {Id: "diff.pagedown", Args: nil},
-		"b":      {Id: "diff.pageup", Args: nil},
-		"esc":    {Id: "close diff", Switch: common.ScopeRevisions},
+		"j":      {Id: "diff.down"},
+		"k":      {Id: "diff.up"},
+		"ctrl+d": {Id: "diff.halfpagedown"},
+		"ctrl+u": {Id: "diff.halfpageup"},
+		"f":      {Id: "diff.pagedown"},
+		"b":      {Id: "diff.pageup"},
+		"esc":    {Id: "close diff", Next: []common.Action{{Id: "switch revisions"}}},
 	}
 }
 

@@ -14,9 +14,10 @@ import (
 )
 
 var actionMap = map[string]common.Action{
-	"esc":   {Id: "revset.close", Args: map[string]any{"clear": false}, Switch: common.ScopeRevisions},
-	"tab":   {Id: "revset.complete", Args: nil},
-	"enter": {Id: "revset.accept", Switch: common.ScopeRevisions},
+	"esc": {Id: "revset.cancel", Next: []common.Action{{Id: "switch revisions"}}},
+	"enter": {Id: "revset.accept", Next: []common.Action{
+		{Id: "switch revisions"},
+	}},
 }
 
 type EditRevSetMsg struct {
@@ -146,19 +147,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case common.InvokeActionMsg:
 		switch msg.Action.Id {
-		case "revset.close":
-			if m.Editing {
-				m.Editing = false
-				m.autoComplete.Blur()
-				return m, common.Close
-			}
+		case "revset.cancel":
+			m.Editing = false
+			m.autoComplete.Blur()
 			return m, nil
 		case "revset.accept":
 			if m.Editing {
 				m.Editing = false
 				m.autoComplete.Blur()
 				value := m.autoComplete.Value()
-				return m, tea.Batch(common.Close, common.UpdateRevSet(value))
+				return m, common.UpdateRevSet(value)
 			}
 			return m, nil
 		case "revset.edit":
@@ -171,7 +169,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.historyActive = false
 			m.historyIndex = -1
 			return m, m.autoComplete.Init()
-
 		}
 	case tea.KeyMsg:
 		if !m.Editing {

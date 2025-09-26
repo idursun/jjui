@@ -38,7 +38,6 @@ func (r Router) UpdateTargetView(action common.InvokeActionMsg) (Router, tea.Cmd
 		viewId := strings.TrimPrefix(action.Action.Id, "close ")
 		if _, ok := r.Views[common.Scope(viewId)]; ok {
 			delete(r.Views, common.Scope(viewId))
-			r.Scope = action.Action.Switch
 			return r, nil
 		}
 	}
@@ -56,9 +55,6 @@ func (r Router) UpdateTargetView(action common.InvokeActionMsg) (Router, tea.Cmd
 		var cmd tea.Cmd
 		r.Views[k], cmd = r.Views[k].Update(action)
 		cmds = append(cmds, cmd)
-	}
-	if _, ok := r.Views[action.Action.Switch]; ok {
-		r.Scope = action.Action.Switch
 	}
 	return r, tea.Batch(cmds...)
 }

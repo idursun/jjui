@@ -25,15 +25,10 @@ const (
 	ScopeBookmarks Scope = "bookmarks"
 )
 
-type SetScopeMsg struct {
-	Scope Scope
-}
-
 type Action struct {
-	Id     string
-	Args   map[string]any
-	Switch Scope
-	Next   []Action
+	Id   string
+	Args map[string]any
+	Next []Action
 }
 
 func (a Action) GetNext() tea.Cmd {

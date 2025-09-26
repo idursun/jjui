@@ -112,7 +112,7 @@ var ActionMap = map[string]common.Action{
 	"d": {Id: "revisions.diff"},
 	"f": {Id: "revisions.ace_jump"},
 	"v": {Id: "revisions.evolog"},
-	"L": {Id: "revset.edit", Switch: common.ScopeRevset},
+	"L": {Id: "revset.edit", Args: map[string]any{"clear": true}, Next: []common.Action{{Id: "switch revset"}}},
 	"o": {Id: "ui.oplog"},
 	"u": {Id: "ui.undo"},
 	"p": {Id: "ui.toggle_preview"},

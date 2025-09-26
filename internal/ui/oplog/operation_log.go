@@ -52,7 +52,7 @@ func (m *Model) GetActionMap() map[string]common.Action {
 			{Id: "close oplog"},
 			{Id: "switch revisions"},
 		}},
-		"esc": {Id: "close oplog", Switch: common.ScopeRevisions},
+		"esc": {Id: "close oplog", Next: []common.Action{{Id: "switch revisions"}}},
 	}
 }
 
