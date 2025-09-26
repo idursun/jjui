@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
-	"github.com/idursun/jjui/internal/config/script"
 	"github.com/idursun/jjui/internal/ui/undo"
 	"github.com/idursun/jjui/internal/ui/view"
 
@@ -75,8 +74,6 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	return m, nil, false
 }
 
-var runScriptKey = key.NewBinding(key.WithKeys("f3"))
-
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var nm tea.Model
@@ -106,28 +103,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(script.ResumeScriptExecutionMsg); ok {
-		step := msg.Execution.Current()
-		switch step := step.(type) {
-		case *script.JJStep:
-			immediate, err := m.context.RunCommandImmediate(jj.TemplatedArgs(step.Args, m.context.CreateReplacements()))
-			return m, tea.Batch(func() tea.Msg {
-				return common.CommandCompletedMsg{Output: string(immediate), Err: err}
-			}, msg.Execution.Resume)
-		case *script.UIStep:
-			var cmd tea.Cmd
-			switch {
-			case step.UI.Action == "refresh":
-				return m, tea.Sequence(common.RefreshAndKeepSelections, msg.Execution.Resume)
-				//case strings.HasPrefix(step.UI.Action, "revset"):
-				//	m.revsetModel, cmd = m.revsetModel.Update(msg)
-				//case strings.HasPrefix(step.UI.Action, "revisions"):
-				//	m.revisions, cmd = m.revisions.Update(msg)
-			}
-			return m, cmd
-		}
-	}
-
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
@@ -169,32 +144,12 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, common.RefreshAndKeepSelections
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, runScriptKey):
-			scrpt, err := script.Parse([]byte(`
-[script.nn]
-name = "Example Script"
-steps = [
-  #{ jj = ["log", "-r", "main"] },
-  #{ ui = { action = "revisions.inline_describe" } },
-  #{ jj = ["new", "-A", "$change_id" ] },
-  #{ ui = { action = "refresh" } },
-  { ui = { action = "revset.set", params = { "revset" = "main::$change_id" } } },
-]
-`))
-			if err != nil {
-				return m, func() tea.Msg {
-					return common.CommandCompletedMsg{Err: err}
-				}
-			}
-			return m, script.StartScript(scrpt)
 		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
 			m.state = common.Ready
 			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Cancel) && m.flash.Any():
 			m.flash.DeleteOldest()
 			return m, tea.Batch(cmds...)
-		//case key.Matches(msg, m.keyMap.Quit):
-		//	return m, common.InvokeAction(common.Action{Id: "ui.quit"})
 		//case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
 		//	m.stacked = git.NewModel(m.context, m.revisions.SelectedRevision(), m.Width, m.Height)
 		//	return m, m.stacked.Init()
@@ -242,9 +197,6 @@ steps = [
 			}
 			out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
 			return m, common.FileSearch(m.context.CurrentRevset, false, rev, out)
-		//case key.Matches(msg, m.keyMap.QuickSearch) && m.oplog != nil:
-		//	// HACK: prevents quick search from activating in op log view
-		//	return m, nil
 		case key.Matches(msg, m.keyMap.Suspend):
 			return m, tea.Suspend
 		default:
@@ -300,16 +252,6 @@ steps = [
 
 	m.flash, cmd = m.flash.Update(msg)
 	cmds = append(cmds, cmd)
-
-	//if m.stacked != nil {
-	//	m.stacked, cmd = m.stacked.Update(msg)
-	//	cmds = append(cmds, cmd)
-	//}
-
-	//if m.previewModel.Visible() {
-	//	m.previewModel, cmd = m.previewModel.Update(msg)
-	//	cmds = append(cmds, cmd)
-	//}
 
 	return m, tea.Batch(cmds...)
 }
@@ -403,9 +345,12 @@ func (m Model) View() string {
 }
 
 func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreviewHeight int) string {
-	//w := m.Width
+	w := m.Width
 	//h := 0
-	//
+
+	if _, ok := m.router.Views[common.ScopePreview]; ok {
+		w = m.Width - int(float64(m.Width)*(50/100.0))
+	}
 	//if m.previewModel.Visible() {
 	//	if m.previewModel.AtBottom() {
 	//		h = bottomPreviewHeight
@@ -423,7 +368,7 @@ func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreview
 	}
 
 	if s, ok := model.(common.ISizeable); ok {
-		s.SetWidth(m.Width)
+		s.SetWidth(w)
 		s.SetHeight(m.Height - footerHeight - topViewHeight - bottomPreviewHeight)
 	}
 	return model.View()

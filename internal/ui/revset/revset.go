@@ -7,7 +7,6 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/idursun/jjui/internal/config/script"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
@@ -137,15 +136,6 @@ func (m *Model) SetHistory(history []string) {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(script.ResumeScriptExecutionMsg); ok {
-		switch step := msg.Execution.Current().(type) {
-		case *script.UIStep:
-			if step.UI.Action == "revset.set" {
-				return m, tea.Sequence(common.UpdateRevSet(step.UI.Params["revset"].(string)), msg.Execution.Resume)
-			}
-		}
-	}
-
 	switch msg := msg.(type) {
 	case common.InvokeActionMsg:
 		switch msg.Action.Id {
