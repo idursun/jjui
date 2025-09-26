@@ -93,6 +93,7 @@ limit = 0
   [keys.inline_describe]
     mode = ["enter"]
     accept = ["alt+enter", "ctrl+s"]
+    editor = ["alt+e"]
   [keys.git]
     mode = ["g"]
     push = ["p"]

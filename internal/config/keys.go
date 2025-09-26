@@ -117,6 +117,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		InlineDescribe: inlineDescribeModeKeys[key.Binding]{
 			Mode:   key.NewBinding(key.WithKeys(m.InlineDescribe.Mode...), key.WithHelp(JoinKeys(m.InlineDescribe.Mode), "inline describe")),
 			Accept: key.NewBinding(key.WithKeys(m.InlineDescribe.Accept...), key.WithHelp(JoinKeys(m.InlineDescribe.Accept), "accept")),
+			Editor: key.NewBinding(key.WithKeys(m.InlineDescribe.Editor...), key.WithHelp(JoinKeys(m.InlineDescribe.Editor), "open in editor")),
 		},
 		FileSearch: fileSearchKeys[key.Binding]{
 			Toggle: key.NewBinding(key.WithKeys(m.FileSearch.Toggle...), key.WithHelp(JoinKeys(m.FileSearch.Toggle), "fuzzy files search")),
@@ -285,6 +286,7 @@ type opLogModeKeys[T any] struct {
 type inlineDescribeModeKeys[T any] struct {
 	Mode   T `toml:"mode"`
 	Accept T `toml:"accept"`
+	Editor T `toml:"editor"`
 }
 
 type fileSearchKeys[T any] struct {
