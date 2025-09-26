@@ -157,8 +157,17 @@ limit = 0
   "undo.close" = { next = ["close undo", "switch revisions"] }
   "undo.accept" = { next = ["close undo", "switch revisions"] }
   "diff_until_here" = { id = "ui.diff", next = [{ id = "diff.show", args = { "jj" = ["diff", "-r", "main..$change_id"] } }, "wait close diff", "switch revisions"] }
+  "list_bookmarks" = { id = "run", args = { "jj" = ["bookmark", "list"]}, output = "$output" , next = [{id = "flash.add", args = { "message" = "$output" }}, {id = "list bookmark_list", args = { "items" = "$output"}}]}
+  "bookmark_list.accept" = { id = "close bookmark_list", next = ["switch revisions"] }
+
+[bindings."bookmark_list"]
+  "j" = "list.down"
+  "k" = "list.up"
+  "enter" = "bookmark_list.accept"
+  "esc" = "close bookmark_list"
 
 [bindings.revisions]
+  "-"     = "list_bookmarks"
   "@" = "revisions.jump_to_working_copy"
   "enter" = "revisions.inline_describe"
   "j" = "revisions.down"
@@ -187,6 +196,7 @@ limit = 0
   "X" = "revisions.my_inline_describe"
   "+" = "revisions.append_current_as_ancestor"
   "ctrl+d"  = "diff_until_here"
+  "p" = "ui.toggle_preview"
 [bindings.oplog]
   "k" = "oplog.up"
   "j" = "oplog.down"
