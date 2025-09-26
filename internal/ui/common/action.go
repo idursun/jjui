@@ -46,6 +46,9 @@ func (a Action) GetNext() tea.Cmd {
 }
 
 func (a Action) Get(name string, defaultValue any) any {
+	if a.Args == nil {
+		return defaultValue
+	}
 	if v, ok := a.Args[name]; ok {
 		return v
 	}

@@ -25,10 +25,12 @@ type Operation struct {
 
 func (a *Operation) GetActionMap() map[string]common.Action {
 	return map[string]common.Action{
-		"y":         {Id: "abandon.accept", Args: nil},
-		"alt+enter": {Id: "abandon.force_apply", Args: nil},
-		"n":         {Id: "close abandon", Args: nil},
-		"esc":       {Id: "close abandon", Args: nil},
+		"y": {Id: "abandon.accept"},
+		"alt+enter": {Id: "abandon.force_apply", Next: []common.Action{
+			{Id: "close abandon"},
+		}},
+		"n":   {Id: "close abandon"},
+		"esc": {Id: "close abandon"},
 	}
 }
 
@@ -100,7 +102,7 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 	model := confirmation.New(
 		[]string{message},
 		confirmation.WithAltOption("Yes", cmd(false), cmd(true), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-		confirmation.WithOption("No", common.Close, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+		confirmation.WithOption("No", common.InvokeAction(common.Action{Id: "close abandon", Next: []common.Action{{Id: "switch revisions"}}}), key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 		confirmation.WithStylePrefix("abandon"),
 	)
 

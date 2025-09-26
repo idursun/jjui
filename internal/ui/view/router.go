@@ -1,7 +1,6 @@
 package view
 
 import (
-	"log"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -68,19 +67,15 @@ func (r Router) Update(msg tea.Msg) (Router, tea.Cmd) {
 		return r.UpdateTargetView(msg)
 	case tea.KeyMsg:
 		var cmd tea.Cmd
-		currentView := r.Views[r.Scope]
-		if hasActionMap, ok := currentView.(IHasActionMap); ok {
-			actionMap := hasActionMap.GetActionMap()
-			if action, ok := actionMap[msg.String()]; ok {
-				return r, common.InvokeAction(action)
+		if currentView, ok := r.Views[r.Scope]; ok {
+			if hasActionMap, ok := currentView.(IHasActionMap); ok {
+				actionMap := hasActionMap.GetActionMap()
+				if action, ok := actionMap[msg.String()]; ok {
+					return r, common.InvokeAction(action)
+				}
 			}
-		}
-
-		if _, ok := r.Views[r.Scope]; ok {
 			r.Views[r.Scope], cmd = r.Views[r.Scope].Update(msg)
 			return r, cmd
-		} else {
-			log.Fatalf("no view found for key: %s %T", r.Scope, msg)
 		}
 	}
 

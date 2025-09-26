@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/idursun/jjui/internal/config/script"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
@@ -40,8 +39,6 @@ import (
 
 var _ list.IList = (*Model)(nil)
 var _ list.IListCursor = (*Model)(nil)
-var _ common.Focusable = (*Model)(nil)
-var _ common.Editable = (*Model)(nil)
 var _ common.ContextProvider = (*Model)(nil)
 var _ view.IHasActionMap = (*Model)(nil)
 var _ help.KeyMap = (*Model)(nil)
@@ -68,7 +65,6 @@ type Model struct {
 	offScreenRows    []parser.Row
 	streamer         *graph.GraphStreamer
 	hasMore          bool
-	op               tea.Model
 	cursor           int
 	context          *appContext.MainContext
 	keymap           config.KeyMappings[key.Binding]
@@ -86,8 +82,10 @@ type Model struct {
 }
 
 func (m *Model) GetActionMap() map[string]common.Action {
-	if op, ok := m.op.(view.IHasActionMap); ok {
-		return op.GetActionMap()
+	if len(m.router.Views) > 0 {
+		if op, ok := m.router.Views[m.router.Scope].(view.IHasActionMap); ok {
+			return op.GetActionMap()
+		}
 	}
 	return ActionMap
 }
@@ -132,13 +130,13 @@ func (m *Model) GetContext() map[string]string {
 		}
 	}
 
-	if op, ok := m.op.(common.ContextProvider); ok {
-		if opContext := op.GetContext(); context != nil {
-			for k, v := range opContext {
-				context[k] = v
-			}
-		}
-	}
+	//if op, ok := m.op.(common.ContextProvider); ok {
+	//	if opContext := op.GetContext(); context != nil {
+	//		for k, v := range opContext {
+	//			context[k] = v
+	//		}
+	//	}
+	//}
 	return context
 }
 
@@ -164,7 +162,14 @@ func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
 	inLane := m.renderer.tracer.IsInSameLane(index)
 	isHighlighted := index == m.cursor
 
-	if op, ok := m.op.(operations.Operation); ok {
+	var op tea.Model
+	if len(m.router.Views) > 0 {
+		op = m.router.Views[m.router.Scope]
+	} else {
+		op = operations.NewDefault()
+	}
+
+	if op, ok := op.(operations.Operation); ok {
 		before = op.Render(row.Commit, operations.RenderPositionBefore)
 		after = op.Render(row.Commit, operations.RenderPositionAfter)
 		renderOverDescription = ""
@@ -195,7 +200,7 @@ func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
 			return m.renderer.tracer.UpdateGutterText(index, lineIndex, segmentIndex, text)
 		},
 		inLane: inLane,
-		op:     m.op.(operations.Operation),
+		op:     op.(operations.Operation),
 	}
 }
 
@@ -226,37 +231,25 @@ type appendRowsBatchMsg struct {
 	tag     uint64
 }
 
-func (m *Model) IsEditing() bool {
-	if f, ok := m.op.(common.Editable); ok {
-		return f.IsEditing()
-	}
-	return false
-}
-
-func (m *Model) IsFocused() bool {
-	if f, ok := m.op.(common.Focusable); ok {
-		return f.IsFocused()
-	}
-	return false
-}
-
-func (m *Model) InNormalMode() bool {
-	if _, ok := m.op.(*operations.Default); ok {
-		return true
-	}
-	return false
-}
-
 func (m *Model) ShortHelp() []key.Binding {
-	if op, ok := m.op.(help.KeyMap); ok {
+	var op tea.Model
+	if len(m.router.Views) > 0 {
+		op = m.router.Views[m.router.Scope]
+	} else {
+		op = operations.NewDefault()
+	}
+	if op, ok := op.(help.KeyMap); ok {
 		return op.ShortHelp()
 	}
-	return (&operations.Default{}).ShortHelp()
+	return []key.Binding{}
 }
 
 func (m *Model) FullHelp() [][]key.Binding {
-	if op, ok := m.op.(help.KeyMap); ok {
-		return op.FullHelp()
+	if len(m.router.Views) > 0 {
+		op := m.router.Views[m.router.Scope]
+		if op, ok := op.(help.KeyMap); ok {
+			return op.FullHelp()
+		}
 	}
 	return [][]key.Binding{m.ShortHelp()}
 }
@@ -292,29 +285,37 @@ func (m *Model) Init() tea.Cmd {
 	return common.RefreshAndSelect("@")
 }
 
+func (m *Model) getCurrentOp() tea.Model {
+	if len(m.router.Views) > 0 {
+		return m.router.Views[m.router.Scope]
+	}
+	return operations.NewDefault()
+}
+
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(revisionsMsg); ok {
 		msg = k.msg
 	}
 
-	if msg, ok := msg.(script.ResumeScriptExecutionMsg); ok {
-		switch step := msg.Execution.Current().(type) {
-		case *script.UIStep:
-			if step.UI.Action == "inline_describe" {
-				var cmd tea.Cmd
-				m.waiter, cmd = msg.Execution.Wait(10)
-				m.op = describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
-				return m, tea.Batch(m.op.Init(), cmd)
-			}
-		}
-	}
+	//if msg, ok := msg.(script.ResumeScriptExecutionMsg); ok {
+	//	switch step := msg.Execution.Current().(type) {
+	//	case *script.UIStep:
+	//		if step.UI.Action == "inline_describe" {
+	//			var cmd tea.Cmd
+	//			m.waiter, cmd = msg.Execution.Wait(10)
+	//			m.op = describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
+	//			return m, tea.Batch(m.op.Init(), cmd)
+	//		}
+	//	}
+	//}
 
 	var cmd tea.Cmd
 	var nm *Model
 	nm, cmd = m.internalUpdate(msg)
 
 	if curSelected := m.SelectedRevision(); curSelected != nil {
-		if op, ok := m.op.(operations.TracksSelectedRevision); ok {
+		op := m.getCurrentOp()
+		if op, ok := op.(operations.TracksSelectedRevision); ok {
 			op.SetSelectedRevision(curSelected)
 		}
 	}
@@ -342,9 +343,8 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			op := ace_jump.NewOperation(m, func(index int) parser.Row {
 				return m.rows[index]
 			}, m.renderer.FirstRowIndex, m.renderer.LastRowIndex)
-			m.op = op
 			m.router.Scope = scopeAceJump
-			m.router.Views[m.router.Scope] = m.op
+			m.router.Views[m.router.Scope] = op
 			return m, op.Init()
 		case "revisions.new":
 			return m, m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
@@ -361,15 +361,15 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			return m, m.context.RunCommand(jj.Absorb(changeId), common.Refresh)
 		case "revisions.abandon":
 			selections := m.SelectedRevisions()
-			m.op = abandon.NewOperation(m.context, selections)
+			op := abandon.NewOperation(m.context, selections)
 			m.router.Scope = scopeAbandon
-			m.router.Views[m.router.Scope] = m.op
-			return m, m.op.Init()
+			m.router.Views[m.router.Scope] = op
+			return m, op.Init()
 		case "revisions.set_bookmark":
-			m.op = bookmark.NewSetBookmarkOperation(m.context, m.SelectedRevision().GetChangeId())
+			op := bookmark.NewSetBookmarkOperation(m.context, m.SelectedRevision().GetChangeId())
 			m.router.Scope = scopeSetBookmark
-			m.router.Views[m.router.Scope] = m.op
-			return m, m.op.Init()
+			m.router.Views[m.router.Scope] = op
+			return m, op.Init()
 		case "revisions.quick_search_cycle":
 			m.cursor = m.search(m.cursor + 1)
 			m.renderer.Reset()
@@ -387,21 +387,23 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			selections := m.SelectedRevisions()
 			return m, m.context.RunInteractiveCommand(jj.Describe(selections), common.Refresh)
 		case "revisions.revert":
-			m.op = revert.NewOperation(m.context, m.SelectedRevisions(), revert.TargetDestination)
-			return m, m.op.Init()
+			op := revert.NewOperation(m.context, m.SelectedRevisions(), revert.TargetDestination)
+			return m, op.Init()
 		case "revisions.duplicate":
-			m.op = duplicate.NewOperation(m.context, m.SelectedRevisions(), duplicate.TargetDestination)
-			return m, m.op.Init()
+			op := duplicate.NewOperation(m.context, m.SelectedRevisions(), duplicate.TargetDestination)
+			m.router.Scope = scopeDuplicate
+			m.router.Views[m.router.Scope] = op
+			return m, op.Init()
 		case "revisions.set_parents":
-			m.op = set_parents.NewModel(m.context, m.SelectedRevision())
+			op := set_parents.NewModel(m.context, m.SelectedRevision())
 			m.router.Scope = scopeSetParents
-			m.router.Views[m.router.Scope] = m.op
-			return m, m.op.Init()
+			m.router.Views[m.router.Scope] = op
+			return m, op.Init()
 		case "revisions.evolog_mode":
-			m.op = evolog.NewOperation(m.context, m.SelectedRevision(), m.Width, m.Height)
+			op := evolog.NewOperation(m.context, m.SelectedRevision(), m.Width, m.Height)
 			m.router.Scope = scopeEvolog
-			m.router.Views[m.router.Scope] = m.op
-			return m, m.op.Init()
+			m.router.Views[m.router.Scope] = op
+			return m, op.Init()
 		case "revisions.jump_to_parent":
 			m.jumpToParent(m.SelectedRevisions())
 			return m, m.updateSelection()
@@ -421,10 +423,10 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 		case "revisions.refresh":
 			return m, common.Refresh
 		case "revisions.inline_describe":
-			m.op = describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
+			op := describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
 			m.router.Scope = scopeInlineDescribe
-			m.router.Views[m.router.Scope] = m.op
-			return m, m.op.Init()
+			m.router.Views[m.router.Scope] = op
+			return m, op.Init()
 		case "revisions.squash":
 			selectedRevisions := m.SelectedRevisions()
 			parent, _ := m.context.RunCommandImmediate(jj.GetParent(selectedRevisions))
@@ -434,25 +436,22 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			} else if m.cursor < len(m.rows)-1 {
 				m.cursor++
 			}
-			files := msg.Action.Get("files", nil).([]string)
-			if files != nil {
-				m.op = squash.NewOperation(m.context, selectedRevisions, squash.WithFiles(files))
-			} else {
-				m.op = squash.NewOperation(m.context, selectedRevisions)
-			}
+			files := msg.Action.Get("files", []string{}).([]string)
+			var op tea.Model
+			op = squash.NewOperation(m.context, selectedRevisions, squash.WithFiles(files))
 			m.router.Scope = scopeSquash
-			m.router.Views[m.router.Scope] = m.op
-			return m, m.op.Init()
+			m.router.Views[m.router.Scope] = op
+			return m, op.Init()
 		case "revisions.details":
-			m.op = details.NewOperation(m.context, m.SelectedRevision(), m.Height)
+			op := details.NewOperation(m.context, m.SelectedRevision(), m.Height)
 			m.router.Scope = scopeDetails
-			m.router.Views[scopeDetails] = m.op
-			return m, m.op.Init()
+			m.router.Views[scopeDetails] = op
+			return m, op.Init()
 		case "revisions.rebase":
-			m.op = rebase.NewOperation(m.context, m.SelectedRevisions(), rebase.SourceRevision, rebase.TargetDestination)
+			op := rebase.NewOperation(m.context, m.SelectedRevisions(), rebase.SourceRevision, rebase.TargetDestination)
 			m.router.Scope = scopeRebase
-			m.router.Views[scopeRebase] = m.op
-			return m, m.op.Init()
+			m.router.Views[scopeRebase] = op
+			return m, op.Init()
 		case "revisions.up":
 			if m.cursor >= 1 {
 				m.cursor -= 1
@@ -467,16 +466,8 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 				return m, m.requestMoreRows(m.tag.Load())
 			}
 			return m, nil
-		default:
-			var cmd tea.Cmd
-			m.router, cmd = m.router.Update(msg)
-			if m.router.Scope == "" {
-				m.op = operations.NewDefault()
-			}
-			return m, cmd
 		}
 	case common.CloseViewMsg:
-		m.op = operations.NewDefault()
 		if m.waiter != nil {
 			if msg.Cancelled {
 				m.waiter <- common.WaitResultCancel
@@ -490,7 +481,6 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 	case common.QuickSearchMsg:
 		m.quickSearch = string(msg)
 		m.cursor = m.search(0)
-		m.op = operations.NewDefault()
 		m.renderer.Reset()
 		return m, nil
 	case common.CommandCompletedMsg:
@@ -511,7 +501,7 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 		m.isLoading = true
 		var cmd tea.Cmd
-		m.op, cmd = m.op.Update(msg)
+		m.router, cmd = m.router.Update(msg)
 		if config.Current.Revisions.LogBatching {
 			currentTag := m.tag.Add(1)
 			return m, tea.Batch(m.loadStreaming(m.context.CurrentRevset, msg.SelectedRevision, currentTag), cmd)
@@ -584,21 +574,14 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if op, ok := m.op.(common.Editable); ok && op.IsEditing() {
-		var cmd tea.Cmd
-		m.op, cmd = m.op.Update(msg)
-		return m, cmd
-	}
+	//if op, ok := m.op.(common.Editable); ok && op.IsEditing() {
+	//	var cmd tea.Cmd
+	//	m.op, cmd = m.op.Update(msg)
+	//	return m, cmd
+	//}
 
 	var cmd tea.Cmd
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if len(m.router.Views) > 0 {
-			m.router, cmd = m.router.Update(msg)
-			return m, cmd
-		}
-	}
-
+	m.router, cmd = m.router.Update(msg)
 	return m, cmd
 }
 
@@ -776,7 +759,11 @@ func (m *Model) search(startIndex int) int {
 }
 
 func (m *Model) CurrentOperation() operations.Operation {
-	return m.op.(operations.Operation)
+	current := m.getCurrentOp()
+	if op, ok := current.(operations.Operation); ok {
+		return op
+	}
+	return operations.NewDefault()
 }
 
 func (m *Model) GetCommitIds() []string {
@@ -796,7 +783,6 @@ func New(c *appContext.MainContext) *Model {
 		keymap:        keymap,
 		rows:          nil,
 		offScreenRows: nil,
-		op:            operations.NewDefault(),
 		cursor:        0,
 		textStyle:     common.DefaultPalette.Get("revisions text"),
 		dimmedStyle:   common.DefaultPalette.Get("revisions dimmed"),

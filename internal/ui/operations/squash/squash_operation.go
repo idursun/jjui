@@ -32,13 +32,17 @@ type Operation struct {
 
 func (s *Operation) GetActionMap() map[string]common.Action {
 	return map[string]common.Action{
-		"j":         {Id: "revisions.down"},
-		"k":         {Id: "revisions.up"},
-		"i":         {Id: "squash.interactive"},
-		"e":         {Id: "squash.keep_emptied"},
-		"esc":       {Id: "close squash"},
-		"enter":     {Id: "squash.apply"},
-		"alt+enter": {Id: "squash.force_apply"},
+		"j":   {Id: "revisions.down"},
+		"k":   {Id: "revisions.up"},
+		"i":   {Id: "squash.interactive"},
+		"e":   {Id: "squash.keep_emptied"},
+		"esc": {Id: "close squash"},
+		"enter": {Id: "squash.apply", Next: []common.Action{
+			{Id: "close squash"},
+		}},
+		"alt+enter": {Id: "squash.force_apply", Next: []common.Action{
+			{Id: "close squash"},
+		}},
 	}
 }
 

@@ -26,8 +26,10 @@ type Operation struct {
 
 func (o Operation) GetActionMap() map[string]common.Action {
 	return map[string]common.Action{
-		"esc":       {Id: "close inline_describe", Args: nil},
-		"alt+enter": {Id: "inline_describe.accept", Args: nil},
+		"esc": {Id: "close inline_describe", Args: nil},
+		"alt+enter": {Id: "inline_describe.accept", Next: []common.Action{
+			{Id: "close inline_describe"},
+		}},
 	}
 }
 
@@ -82,7 +84,7 @@ func (o Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if msg, ok := msg.(common.InvokeActionMsg); ok {
 		switch msg.Action.Id {
 		case "inline_describe.accept":
-			return o, o.context.RunCommand(jj.SetDescription(o.revision, o.input.Value()), common.Close, common.Refresh)
+			return o, o.context.RunCommand(jj.SetDescription(o.revision, o.input.Value()), common.Refresh)
 		}
 	}
 

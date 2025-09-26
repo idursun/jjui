@@ -74,19 +74,23 @@ type Operation struct {
 
 func (r *Operation) GetActionMap() map[string]common.Action {
 	return map[string]common.Action{
-		"j":           {Id: "revisions.down", Args: nil},
-		"k":           {Id: "revisions.up", Args: nil},
-		"r":           {Id: "rebase.revision", Args: nil},
-		"B":           {Id: "rebase.branch", Args: nil},
-		"s":           {Id: "rebase.source", Args: nil},
-		"o":           {Id: "rebase.onto", Args: nil},
-		"a":           {Id: "rebase.after", Args: nil},
-		"b":           {Id: "rebase.before", Args: nil},
-		"i":           {Id: "rebase.insert", Args: nil},
-		"E":           {Id: "rebase.skip_emptied", Args: nil},
-		"enter":       {Id: "rebase.apply", Switch: common.ScopeRevisions, Args: nil},
-		"shift+enter": {Id: "rebase.force_apply", Switch: common.ScopeRevisions, Args: nil},
-		"esc":         {Id: "close rebase"},
+		"j": {Id: "revisions.down"},
+		"k": {Id: "revisions.up"},
+		"r": {Id: "rebase.revision"},
+		"B": {Id: "rebase.branch"},
+		"s": {Id: "rebase.source"},
+		"o": {Id: "rebase.onto"},
+		"a": {Id: "rebase.after"},
+		"b": {Id: "rebase.before"},
+		"i": {Id: "rebase.insert"},
+		"E": {Id: "rebase.skip_emptied"},
+		"enter": {Id: "rebase.apply", Next: []common.Action{
+			{Id: "close rebase"},
+		}},
+		"shift+enter": {Id: "rebase.force_apply", Next: []common.Action{
+			{Id: "close rebase"},
+		}},
+		"esc": {Id: "close rebase"},
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type Target int
@@ -39,6 +40,7 @@ type styles struct {
 
 var _ operations.Operation = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
+var _ view.IHasActionMap = (*Operation)(nil)
 
 type Operation struct {
 	context     *appContext.MainContext
@@ -50,6 +52,18 @@ type Operation struct {
 	styles      styles
 }
 
+func (r *Operation) GetActionMap() map[string]common.Action {
+	return map[string]common.Action{
+		"j":     {Id: "revisions.down"},
+		"k":     {Id: "revisions.up"},
+		"d":     {Id: "duplicate.onto"},
+		"a":     {Id: "duplicate.after"},
+		"b":     {Id: "duplicate.before"},
+		"esc":   {Id: "close duplicate"},
+		"enter": {Id: "duplicate.apply"},
+	}
+}
+
 func (r *Operation) IsFocused() bool {
 	return true
 }
@@ -59,31 +73,24 @@ func (r *Operation) Init() tea.Cmd {
 }
 
 func (r *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(tea.KeyMsg); ok {
-		return r, r.HandleKey(msg)
+	if msg, ok := msg.(common.InvokeActionMsg); ok {
+		switch msg.Action.Id {
+		case "duplicate.apply":
+			target := targetToFlags[r.Target]
+			return r, r.context.RunCommand(jj.Duplicate(r.From, r.To.GetChangeId(), target), common.RefreshAndSelect(r.From.Last()), common.Close)
+		case "duplicate.onto":
+			r.Target = TargetDestination
+		case "duplicate.after":
+			r.Target = TargetAfter
+		case "duplicate.before":
+			r.Target = TargetBefore
+		}
 	}
 	return r, nil
 }
 
 func (r *Operation) View() string {
 	return ""
-}
-
-func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	switch {
-	case key.Matches(msg, r.keyMap.Duplicate.Onto):
-		r.Target = TargetDestination
-	case key.Matches(msg, r.keyMap.Duplicate.After):
-		r.Target = TargetAfter
-	case key.Matches(msg, r.keyMap.Duplicate.Before):
-		r.Target = TargetBefore
-	case key.Matches(msg, r.keyMap.Apply):
-		target := targetToFlags[r.Target]
-		return r.context.RunCommand(jj.Duplicate(r.From, r.To.GetChangeId(), target), common.RefreshAndSelect(r.From.Last()), common.Close)
-	case key.Matches(msg, r.keyMap.Cancel):
-		return common.Close
-	}
-	return nil
 }
 
 func (r *Operation) SetSelectedRevision(commit *jj.Commit) {
