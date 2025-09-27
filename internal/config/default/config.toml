@@ -158,6 +158,7 @@ limit = 0
   "diff_until_here" = { id = "open diff", next = [{ id = "diff.show", args = { "jj" = ["diff", "-r", "main..$change_id"] } }, "wait close diff", "switch revisions"] }
   "list_bookmarks" = { id = "run", args = { "jj" = ["bookmark", "list"]}, output = "$output" , next = [{id = "list bookmark_list", args = { "items" = "$output"}, output = "$selected"}, "wait close bookmark_list", {id = "flash.add", args = { "message" = "$selected" }} ]}
   "bookmark_list.accept" = { id = "close bookmark_list", next = ["switch revisions"] }
+  "bookmarks.apply" = { id = "close bookmarks" }
 
 [bindings."bookmark_list"]
   "j" = "list.down"
@@ -168,7 +169,7 @@ limit = 0
 [bindings.revisions]
   "-"     = "list_bookmarks"
   "@" = "revisions.jump_to_working_copy"
-  "enter" = "revisions.inline_describe"
+  "enter" = "open inline_describe"
   "j" = "revisions.down"
   "k" = "revisions.up"
   " " = "revisions.toggle_select"
@@ -177,6 +178,7 @@ limit = 0
   "l" = "open details"
   "S" = "open squash"
   "r" = "open rebase"
+  "b" = "open bookmarks"
   "B" = "open set_bookmark"
   "c" = "revisions.commit"
   "n" = "revisions.new"
@@ -249,3 +251,14 @@ limit = 0
   "y" = "undo.accept"
   "n" = "undo.close"
   "esc" = "undo.close"
+[bindings.bookmarks]
+  "j" = "bookmarks.down"
+  "k" = "bookmarks.up"
+  "B" = "bookmarks.set"
+  "d" = "bookmarks.filter_delete"
+  "m" = "bookmarks.filter_move"
+  "f" = "bookmarks.filter_forget"
+  "t" = "bookmarks.filter_track"
+  "u" = "bookmarks.filter_untrack"
+  "enter" = "bookmarks.apply"
+  "esc" = "close bookmarks"

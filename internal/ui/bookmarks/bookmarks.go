@@ -6,7 +6,9 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common/menu"
+	"github.com/idursun/jjui/internal/ui/view"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -21,12 +23,18 @@ type updateItemsMsg struct {
 	items []list.Item
 }
 
+var _ view.IHasActionMap = (*Model)(nil)
+
 type Model struct {
 	context     *context.MainContext
 	current     *jj.Commit
 	menu        menu.Menu
 	keymap      config.KeyMappings[key.Binding]
 	distanceMap map[string]int
+}
+
+func (m *Model) GetActionMap() map[string]actions.Action {
+	return config.Current.GetBindings("bookmarks")
 }
 
 func (m *Model) ShortHelp() []key.Binding {
@@ -189,38 +197,44 @@ func (m *Model) loadAll() tea.Msg {
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if m.menu.List.SettingFilter() {
-			break
-		}
-		switch {
-		case key.Matches(msg, m.keymap.Cancel):
-			if m.menu.Filter != "" || m.menu.List.IsFiltered() {
-				m.menu.List.ResetFilter()
-				return m.filtered("")
-			}
-			return m, common.Close
-		case key.Matches(msg, m.keymap.Apply):
+	case actions.InvokeActionMsg:
+		switch msg.Action.Id {
+		case "bookmarks.up":
+			m.menu.List.CursorUp()
+			return m, nil
+		case "bookmarks.down":
+			m.menu.List.CursorDown()
+			return m, nil
+		case "bookmarks.filter_track":
+			return m.filtered("track")
+		case "bookmarks.filter_untrack":
+			return m.filtered("untrack")
+		case "bookmarks.filter_move":
+			return m.filtered("move")
+		case "bookmarks.filter_delete":
+			return m.filtered("delete")
+		case "bookmarks.filter_forget":
+			return m.filtered("forget")
+		case "bookmarks.apply":
 			if m.menu.List.SelectedItem() == nil {
 				break
 			}
 			action := m.menu.List.SelectedItem().(item)
 			return m, m.context.RunCommand(action.args, common.Refresh, common.Close)
-		case key.Matches(msg, m.keymap.Bookmark.Move) && m.menu.Filter != "move":
-			return m.filtered("move")
-		case key.Matches(msg, m.keymap.Bookmark.Delete) && m.menu.Filter != "delete":
-			return m.filtered("delete")
-		case key.Matches(msg, m.keymap.Bookmark.Forget) && m.menu.Filter != "forget":
-			return m.filtered("forget")
-		case key.Matches(msg, m.keymap.Bookmark.Track) && m.menu.Filter != "track":
-			return m.filtered("track")
-		case key.Matches(msg, m.keymap.Bookmark.Untrack) && m.menu.Filter != "untrack":
-			return m.filtered("untrack")
-		default:
-			for _, listItem := range m.menu.List.Items() {
-				if item, ok := listItem.(item); ok && m.menu.Filter != "" && item.key == msg.String() {
-					return m, m.context.RunCommand(jj.Args(item.args...), common.Refresh, common.Close)
-				}
+		case "bookmarks.cancel":
+			if m.menu.Filter != "" || m.menu.List.IsFiltered() {
+				m.menu.List.ResetFilter()
+				return m.filtered("")
+			}
+			return m, common.Close
+		}
+	case tea.KeyMsg:
+		if m.menu.List.SettingFilter() {
+			break
+		}
+		for _, listItem := range m.menu.List.Items() {
+			if item, ok := listItem.(item); ok && m.menu.Filter != "" && item.key == msg.String() {
+				return m, m.context.RunCommand(jj.Args(item.args...), common.Refresh, common.Close)
 			}
 		}
 	case updateItemsMsg:
