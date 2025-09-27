@@ -45,7 +45,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		case "flash.add":
 			payload := msg.Action.Get("message", "").(string)
 			if payload != "" {
-				payload = msg.Action.Process(payload)
 				m.add(payload, nil)
 			}
 			return m, nil

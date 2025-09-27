@@ -192,7 +192,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Editing = false
 			m.autoComplete.Blur()
 			value := m.autoComplete.Value()
-			return m, tea.Batch(common.Close, common.UpdateRevSet(value))
+			return m, common.UpdateRevSet(value)
 		case tea.KeyUp:
 			if len(m.History) > 0 {
 				if !m.historyActive {

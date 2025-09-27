@@ -63,10 +63,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.view.PageDown()
 		case "diff.show":
 			args := msg.Action.GetArgs("jj")
-			replacements := make(map[string]string)
-			replacements[jj.ChangeIdPlaceholder] = m.context.Read(jj.ChangeIdPlaceholder)
 			return m, func() tea.Msg {
-				output, err := m.context.RunCommandImmediate(jj.TemplatedArgs(args, replacements))
+				output, err := m.context.RunCommandImmediate(jj.Args(args...))
 				if err != nil {
 					return common.ShowDiffMsg(err.Error())
 				}

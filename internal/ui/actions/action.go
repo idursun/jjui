@@ -1,8 +1,6 @@
 package actions
 
 import (
-	"strings"
-
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -32,11 +30,9 @@ const (
 )
 
 type Action struct {
-	Id      string         `toml:"id"`
-	Args    map[string]any `toml:"args,omitempty"`
-	Next    []Action       `toml:"next,omitempty"`
-	Output  string         `toml:"output,omitempty"`
-	Outputs map[string]string
+	Id   string         `toml:"id"`
+	Args map[string]any `toml:"args,omitempty"`
+	Next []Action       `toml:"next,omitempty"`
 }
 
 func (a *Action) UnmarshalTOML(data any) error {
@@ -60,22 +56,8 @@ func (a *Action) UnmarshalTOML(data any) error {
 		if args, ok := value["args"]; ok {
 			a.Args = args.(map[string]interface{})
 		}
-
-		if output, ok := value["output"]; ok {
-			a.Output = output.(string)
-		}
 	}
 	return nil
-}
-
-func (a Action) Process(input string) string {
-	if a.Outputs == nil {
-		return input
-	}
-	for k, v := range a.Outputs {
-		input = strings.ReplaceAll(input, k, v)
-	}
-	return input
 }
 
 func (a Action) GetNext() tea.Cmd {
@@ -84,7 +66,6 @@ func (a Action) GetNext() tea.Cmd {
 	}
 	nextAction := a.Next[0]
 	nextAction.Next = a.Next[1:]
-	nextAction.Outputs = a.Outputs
 	return InvokeAction(nextAction)
 }
 
@@ -95,7 +76,6 @@ func (a Action) Wait() (WaitChannel, tea.Cmd) {
 		case <-ch:
 			nextAction := a.Next[0]
 			nextAction.Next = a.Next[1:]
-			nextAction.Outputs = a.Outputs
 			return InvokeActionMsg{Action: nextAction}
 		}
 	}

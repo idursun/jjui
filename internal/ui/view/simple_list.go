@@ -48,12 +48,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "list.select":
-			if msg.Action.Output != "" {
-				if msg.Action.Outputs == nil {
-					msg.Action.Outputs = make(map[string]string)
-				}
-				msg.Action.Outputs[msg.Action.Output] = m.items[m.current]
-			}
 			return m, nil
 		}
 	}

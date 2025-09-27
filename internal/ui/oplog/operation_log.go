@@ -103,13 +103,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "oplog.diff":
 			return m, actions.InvokeAction(actions.Action{
-				Id: "ui.diff",
-				Next: []actions.Action{
-					{Id: "diff.show", Args: map[string]any{
-						"jj": jj.OpShow(m.rows[m.cursor].OperationId),
-					}},
-					{Id: "wait close diff"},
-					{Id: "switch oplog"},
+				Id: "diff.show",
+				Args: map[string]any{
+					"jj": jj.OpShow(m.rows[m.cursor].OperationId),
 				},
 			})
 		case "oplog.restore":
