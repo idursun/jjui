@@ -89,7 +89,7 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 	model := confirmation.New(
 		[]string{message},
 		confirmation.WithAltOption("Yes", actions.InvokeAction(actions.Action{Id: "abandon.apply"}), actions.InvokeAction(actions.Action{Id: "abandon.force_apply"}), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-		confirmation.WithOption("No", actions.InvokeAction(actions.Action{Id: "abandon.close"}), key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+		confirmation.WithOption("No", actions.InvokeAction(actions.Action{Id: "close abandon"}), key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 		confirmation.WithStylePrefix("abandon"),
 	)
 

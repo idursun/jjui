@@ -139,28 +139,29 @@ limit = 0
   batch_size = 50
 
 [actions]
-  "revset.edit" = { args = { clear = true }, next = ["switch revset"]}
+  "revset.edit" = { args = { clear = true }}
   "revisions.toggle_select" = { next = ["revisions.down"] }
   "inline_describe.accept" = { next = ["close inline_describe"] }
-  "revisions.my_inline_describe" = { next = ["open inline_describe", "wait close inline_describe", "revisions.new" ] }
-  "oplog.restore" = { next = ["close oplog", "switch revisions" ] }
-  "oplog.close" = { next = ["close oplog", "switch revisions" ] }
+  "oplog.restore" = { next = ["close oplog"] }
+  "oplog.close" = { next = ["close oplog"] }
   "oplog.diff" = { next = ["open diff"] }
   "set_parents.apply" = { next = ["close set_parents"] }
-  "abandon.apply" = { next = ["close abandon", "switch revisions" ] }
-  "abandon.force_apply" = { next = ["close abandon", "switch revisions" ] }
-  "abandon.close" = { next = ["close abandon", "switch revisions"] }
-  "revisions.append_current_as_ancestor" = { id = "revset.set", args = { "revset" = "$revset | ancestors($change_id, 2)" }}
-  "squash.apply" = { next = [ "close squash", "switch revisions" ] }
+  "abandon.apply" = { next = ["close abandon"] }
+  "abandon.force_apply" = { next = ["close abandon"] }
+  "squash.apply" = { next = [ "close squash"] }
   "squash.force_apply" = { id = "squash.apply", args = { "force" = true }, next = ["close squash", "switch revisions"] }
-  "undo.close" = { next = ["close undo", "switch revisions"] }
-  "undo.accept" = { next = ["close undo", "switch revisions"] }
-  "diff_until_here" = { id = "open diff", next = [{ id = "diff.show", args = { "jj" = ["diff", "-r", "main..$change_id"] } }, "wait close diff", "switch revisions"] }
-  "list_bookmarks" = { id = "run", args = { "jj" = ["bookmark", "list"]}, output = "$output" , next = [{id = "list bookmark_list", args = { "items" = "$output"}, output = "$selected"}, "wait close bookmark_list", {id = "flash.add", args = { "message" = "$selected" }} ]}
+  "undo.close" = { next = ["close undo"] }
+  "undo.accept" = { next = ["close undo"] }
   "bookmark_list.accept" = { next = ["list.select", "close bookmark_list"] }
   "bookmarks.apply" = { next = ["close bookmarks"] }
   "git.apply" = { next = ["close git"] }
   "revert.apply" = { next = ["close revert"] }
+  # custom actions
+  "revisions.append_current_as_ancestor" = { id = "revset.set", args = { "revset" = "$revset | ancestors($change_id, 2)" }}
+  "revisions.my_inline_describe" = { next = ["open inline_describe", "wait close inline_describe", "revisions.new" ] }
+  "new_note_commit"     = { next = [{ id = "run", args = { "jj" = ["new", "-A", "$change_id"]}}, "refresh", "revisions.up", "open inline_describe"]}
+  "diff_until_here" = { id = "open diff", next = [{ id = "diff.show", args = { "jj" = ["diff", "-r", "main..$change_id"] } }, "wait close diff", "switch revisions"] }
+  "list_bookmarks" = { id = "run", args = { "jj" = ["bookmark", "list"]}, output = "$output" , next = [{id = "list bookmark_list", args = { "items" = "$output"}, output = "$selected"}, "wait close bookmark_list", {id = "flash.add", args = { "message" = "$selected" }} ]}
 
 [bindings."bookmark_list"]
   "j" = "list.down"
@@ -169,6 +170,7 @@ limit = 0
   "esc" = "close bookmark_list"
 
 [bindings.revisions]
+  "N"    = "new_note_commit"
   "-"     = "list_bookmarks"
   "@" = "revisions.jump_to_working_copy"
   "enter" = "open inline_describe"
@@ -239,8 +241,8 @@ limit = 0
 [bindings.abandon]
   "y" = "abandon.accept"
   "alt+enter" = "abandon.force_apply"
-  "n" =   "abandon.close"
-  "esc" = "abandon.close"
+  "n" =   "close abandon"
+  "esc" = "close abandon"
 [bindings.inline_describe]
   "esc" = "close inline_describe"
   "alt+enter" = "inline_describe.accept"

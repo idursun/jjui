@@ -51,11 +51,14 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if selected := m.revisions.SelectedRevision(); selected != nil {
+		m.context.Set(jj.ChangeIdPlaceholder, selected.GetChangeId())
+	}
 	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		if msg.Action.Id == "run" {
 			return m, func() tea.Msg {
 				args := msg.Action.GetArgs("jj")
-				output, _ := m.context.RunCommandImmediate(jj.Args(args...))
+				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(args, m.context.GetVariables()))
 				m.context.Set("$output", string(output))
 				if len(msg.Action.Next) > 0 {
 					next := msg.Action.Next[0]
