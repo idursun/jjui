@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/idursun/jjui/internal/ui/actions"
+	"github.com/idursun/jjui/internal/ui/bookmarks"
 	"github.com/idursun/jjui/internal/ui/undo"
 	"github.com/idursun/jjui/internal/ui/view"
 
@@ -148,6 +149,11 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.router, cmd = m.router.Open(actions.ScopeUndo, undo.NewModel(m.context))
 			return m, cmd
+		case "open bookmarks":
+			changeIds := m.revisions.GetCommitIds()
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(actions.ScopeBookmarks, bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds, m.Width, m.Height))
+			return m, cmd
 		case "toggle preview":
 			if m.router.Views[actions.ScopePreview] != nil {
 				delete(m.router.Views, actions.ScopePreview)
@@ -183,10 +189,6 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 		//	cmds = append(cmds, m.stacked.Init())
 		//	return m, tea.Batch(cmds...)
 		//case key.Matches(msg, m.keyMap.Bookmark.Mode):
-		//	changeIds := m.revisions.GetCommitIds()
-		//	m.router.Scope = common.ScopeBookmarks
-		//	m.router.Views[common.ScopeBookmarks] = bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds, m.Width, m.Height)
-		//	return m, m.router.Views[m.router.Scope].Init()
 		//case key.Matches(msg, m.keyMap.Help):
 		//	cmds = append(cmds, common.ToggleHelp)
 		//	return m, nil
@@ -318,6 +320,9 @@ func (m Model) View() string {
 		stacked = v
 	}
 	if v, ok := m.router.Views[actions.Scope("bookmark_list")]; ok {
+		stacked = v
+	}
+	if v, ok := m.router.Views[actions.ScopeBookmarks]; ok {
 		stacked = v
 	}
 
