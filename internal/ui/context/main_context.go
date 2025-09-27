@@ -65,13 +65,25 @@ type MainContext struct {
 	CurrentRevset string
 	Histories     *config.Histories
 	ReadFn        func(value string) string
+	variables     map[string]string
+}
+
+func (ctx *MainContext) Set(key string, value string) {
+	ctx.variables[key] = value
 }
 
 func (ctx *MainContext) Read(value string) string {
 	if ctx.ReadFn != nil {
 		return ctx.ReadFn(value)
 	}
+	if v, ok := ctx.variables[value]; ok {
+		return v
+	}
 	return value
+}
+
+func (ctx *MainContext) GetVariables() map[string]string {
+	return ctx.variables
 }
 
 func NewAppContext(location string) *MainContext {
@@ -81,6 +93,7 @@ func NewAppContext(location string) *MainContext {
 		},
 		Location:  location,
 		Histories: config.NewHistories(),
+		variables: make(map[string]string),
 	}
 
 	m.JJConfig = &config.JJConfig{}

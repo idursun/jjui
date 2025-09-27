@@ -73,7 +73,6 @@ func (r Router) handleAndRouteAction(action actions.InvokeActionMsg) (Router, te
 	}
 
 	var cmds []tea.Cmd
-	//cmds = append(cmds, action.Action.GetNext())
 	for k := range r.Views {
 		var cmd tea.Cmd
 		r.Views[k], cmd = r.Views[k].Update(action)

@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/actions"
+	"github.com/idursun/jjui/internal/ui/context"
 )
 
 var _ tea.Model = (*model)(nil)
@@ -15,14 +16,16 @@ type model struct {
 	items   []string
 	current int
 	scope   string
+	context *context.MainContext
 }
 
 func (m model) GetActionMap() map[string]actions.Action {
 	return config.Current.GetBindings(m.scope)
 }
 
-func NewSimpleList(scope string, items []string) tea.Model {
+func NewSimpleList(ctx *context.MainContext, scope string, items []string) tea.Model {
 	return model{
+		context: ctx,
 		scope:   scope,
 		items:   items,
 		current: 0,
@@ -48,6 +51,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "list.select":
+			m.context.Set("$selected", m.items[m.current])
 			return m, nil
 		}
 	}

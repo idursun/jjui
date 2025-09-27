@@ -50,38 +50,13 @@ func (m Model) Init() tea.Cmd {
 	return tea.Batch(m.router.Init(), tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.scheduleAutoRefresh())
 }
 
-func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
-	var cmd tea.Cmd
-	if _, ok := msg.(common.CloseViewMsg); ok {
-		if m.leader != nil {
-			m.leader = nil
-			return m, nil, true
-		}
-		return m, nil, false
-	}
-
-	if m.leader != nil {
-		m.leader, cmd = m.leader.Update(msg)
-		return m, cmd, true
-	}
-
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if m.status.IsFocused() {
-			m.status, cmd = m.status.Update(msg)
-			return m, cmd, true
-		}
-	}
-
-	return m, nil, false
-}
-
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		if msg.Action.Id == "run" {
 			return m, func() tea.Msg {
 				args := msg.Action.GetArgs("jj")
-				_, _ = m.context.RunCommandImmediate(jj.Args(args...))
+				output, _ := m.context.RunCommandImmediate(jj.Args(args...))
+				m.context.Set("$output", string(output))
 				if len(msg.Action.Next) > 0 {
 					next := msg.Action.Next[0]
 					next.Next = msg.Action.Next[1:]
@@ -108,7 +83,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.flash, cmd = m.flash.Update(msg)
 	cmds = append(cmds, cmd)
 
-	if action, ok := msg.(actions.InvokeActionMsg); ok {
+	if action, ok := msg.(actions.InvokeActionMsg); ok && strings.HasPrefix(action.Action.Id, "wait") == false {
 		// scheduling the next action in the chain. This needs to be done outside the router so that the sub routers don't double schedule it
 		cmds = append(cmds, action.Action.GetNext())
 	}
@@ -125,6 +100,10 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 			if arg, ok := msg.Action.Args["items"]; ok {
 				switch arg := arg.(type) {
 				case string:
+					vars := m.context.GetVariables()
+					for k, v := range vars {
+						arg = strings.ReplaceAll(arg, k, v)
+					}
 					items = strings.Split(arg, "\n")
 				case []string:
 					items = arg
@@ -133,7 +112,7 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 				}
 			}
 			var cmd tea.Cmd
-			m.router, cmd = m.router.Open(actions.Scope(scope), view.NewSimpleList(scope, items))
+			m.router, cmd = m.router.Open(actions.Scope(scope), view.NewSimpleList(m.context, scope, items))
 			return m, cmd
 		}
 
@@ -187,17 +166,6 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.keyMap.Cancel) && m.flash.Any():
 			m.flash.DeleteOldest()
 			return m, nil
-		//case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
-		//	m.stacked = git.NewModel(m.context, m.revisions.SelectedRevision(), m.Width, m.Height)
-		//	return m, m.stacked.Init()
-		//case key.Matches(msg, m.keyMap.Undo) && m.revisions.InNormalMode():
-		//	m.stacked = undo.NewModel(m.context)
-		//	cmds = append(cmds, m.stacked.Init())
-		//	return m, tea.Batch(cmds...)
-		//case key.Matches(msg, m.keyMap.Bookmark.Mode):
-		//case key.Matches(msg, m.keyMap.Help):
-		//	cmds = append(cmds, common.ToggleHelp)
-		//	return m, nil
 		//case key.Matches(msg, m.keyMap.Preview.Mode, m.keyMap.Preview.ToggleBottom):
 		//	if key.Matches(msg, m.keyMap.Preview.ToggleBottom) {
 		//		m.previewModel.TogglePosition()
@@ -213,10 +181,6 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 		//	return m, tea.Batch(cmds...)
 		//case key.Matches(msg, m.keyMap.Preview.Shrink) && m.previewModel.Visible():
 		//	m.previewModel.Shrink()
-		//	return m, tea.Batch(cmds...)
-		//case key.Matches(msg, m.keyMap.CustomCommands):
-		//	m.stacked = customcommands.NewModel(m.context, m.Width, m.Height)
-		//	cmds = append(cmds, m.stacked.Init())
 		//	return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Leader):
 			m.leader = leader.New(m.context)

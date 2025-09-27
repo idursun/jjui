@@ -44,6 +44,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		switch msg.Action.Id {
 		case "flash.add":
 			payload := msg.Action.Get("message", "").(string)
+			variables := m.context.GetVariables()
+			for k, v := range variables {
+				payload = strings.ReplaceAll(payload, k, v)
+			}
 			if payload != "" {
 				m.add(payload, nil)
 			}

@@ -76,9 +76,12 @@ func (a Action) Wait() (WaitChannel, tea.Cmd) {
 	return ch, func() tea.Msg {
 		select {
 		case <-ch:
-			nextAction := a.Next[0]
-			nextAction.Next = a.Next[1:]
-			return InvokeActionMsg{Action: nextAction}
+			if len(a.Next) > 0 {
+				nextAction := a.Next[0]
+				nextAction.Next = a.Next[1:]
+				return InvokeActionMsg{Action: nextAction}
+			}
+			return nil
 		}
 	}
 }

@@ -157,7 +157,7 @@ limit = 0
   "undo.accept" = { next = ["close undo", "switch revisions"] }
   "diff_until_here" = { id = "open diff", next = [{ id = "diff.show", args = { "jj" = ["diff", "-r", "main..$change_id"] } }, "wait close diff", "switch revisions"] }
   "list_bookmarks" = { id = "run", args = { "jj" = ["bookmark", "list"]}, output = "$output" , next = [{id = "list bookmark_list", args = { "items" = "$output"}, output = "$selected"}, "wait close bookmark_list", {id = "flash.add", args = { "message" = "$selected" }} ]}
-  "bookmark_list.accept" = { id = "close bookmark_list", next = ["switch revisions"] }
+  "bookmark_list.accept" = { next = ["list.select", "close bookmark_list"] }
   "bookmarks.apply" = { next = ["close bookmarks"] }
   "git.apply" = { next = ["close git"] }
   "revert.apply" = { next = ["close revert"] }
