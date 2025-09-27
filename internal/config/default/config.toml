@@ -158,7 +158,8 @@ limit = 0
   "diff_until_here" = { id = "open diff", next = [{ id = "diff.show", args = { "jj" = ["diff", "-r", "main..$change_id"] } }, "wait close diff", "switch revisions"] }
   "list_bookmarks" = { id = "run", args = { "jj" = ["bookmark", "list"]}, output = "$output" , next = [{id = "list bookmark_list", args = { "items" = "$output"}, output = "$selected"}, "wait close bookmark_list", {id = "flash.add", args = { "message" = "$selected" }} ]}
   "bookmark_list.accept" = { id = "close bookmark_list", next = ["switch revisions"] }
-  "bookmarks.apply" = { id = "close bookmarks" }
+  "bookmarks.apply" = { next = ["close bookmarks"] }
+  "git.apply" = { next = ["close git"] }
 
 [bindings."bookmark_list"]
   "j" = "list.down"
@@ -179,6 +180,7 @@ limit = 0
   "S" = "open squash"
   "r" = "open rebase"
   "b" = "open bookmarks"
+  "g" = "open git"
   "B" = "open set_bookmark"
   "c" = "revisions.commit"
   "n" = "revisions.new"
@@ -262,3 +264,10 @@ limit = 0
   "u" = "bookmarks.filter_untrack"
   "enter" = "bookmarks.apply"
   "esc" = "close bookmarks"
+[bindings.git]
+  "j" = "git.down"
+  "k" = "git.up"
+  "p" = "git.push"
+  "f" = "git.fetch"
+  "enter" = "git.apply"
+  "esc" = "close git"

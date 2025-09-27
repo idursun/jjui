@@ -9,9 +9,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/menu"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type itemCategory string
@@ -45,10 +47,16 @@ func (i item) Description() string {
 	return i.desc
 }
 
+var _ view.IHasActionMap = (*Model)(nil)
+
 type Model struct {
 	context *context.MainContext
 	keymap  config.KeyMappings[key.Binding]
 	menu    menu.Menu
+}
+
+func (m *Model) GetActionMap() map[string]actions.Action {
+	return config.Current.GetBindings("git")
 }
 
 func (m *Model) ShortHelp() []key.Binding {
@@ -87,29 +95,35 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if m.menu.List.SettingFilter() {
-			break
-		}
-		switch {
-		case key.Matches(msg, m.keymap.Apply):
+	case actions.InvokeActionMsg:
+		switch msg.Action.Id {
+		case "git.up":
+			m.menu.List.CursorUp()
+			return m, nil
+		case "git.down":
+			m.menu.List.CursorDown()
+			return m, nil
+		case "git.push":
+			return m.filtered(string(itemCategoryPush))
+		case "git.fetch":
+			return m.filtered(string(itemCategoryFetch))
+		case "git.apply":
 			action := m.menu.List.SelectedItem().(item)
 			return m, m.context.RunCommand(jj.Args(action.command...), common.Refresh, common.Close)
-		case key.Matches(msg, m.keymap.Cancel):
+		case "git.cancel":
 			if m.menu.Filter != "" || m.menu.List.IsFiltered() {
 				m.menu.List.ResetFilter()
 				return m.filtered("")
 			}
-			return m, common.Close
-		case key.Matches(msg, m.keymap.Git.Push) && m.menu.Filter != string(itemCategoryPush):
-			return m.filtered(string(itemCategoryPush))
-		case key.Matches(msg, m.keymap.Git.Fetch) && m.menu.Filter != string(itemCategoryFetch):
-			return m.filtered(string(itemCategoryFetch))
-		default:
-			for _, listItem := range m.menu.List.Items() {
-				if item, ok := listItem.(item); ok && m.menu.Filter != "" && item.key == msg.String() {
-					return m, m.context.RunCommand(jj.Args(item.command...), common.Refresh, common.Close)
-				}
+			return m, nil
+		}
+	case tea.KeyMsg:
+		if m.menu.List.SettingFilter() {
+			break
+		}
+		for _, listItem := range m.menu.List.Items() {
+			if item, ok := listItem.(item); ok && m.menu.Filter != "" && item.key == msg.String() {
+				return m, m.context.RunCommand(jj.Args(item.command...), common.Refresh, common.Close)
 			}
 		}
 	}

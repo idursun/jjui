@@ -27,6 +27,7 @@ const (
 	ScopePreview   Scope = "preview"
 	ScopeUndo      Scope = "undo"
 	ScopeBookmarks Scope = "bookmarks"
+	ScopeGit       Scope = "git"
 )
 
 type Action struct {
