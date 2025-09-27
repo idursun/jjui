@@ -8,9 +8,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 )
+
+var _ view.IHasActionMap = (*Model)(nil)
 
 type Model struct {
 	width   int
@@ -19,6 +23,11 @@ type Model struct {
 	context *context.MainContext
 	styles  styles
 }
+
+func (h *Model) GetActionMap() map[string]actions.Action {
+	return config.Current.GetBindings("help")
+}
+
 type styles struct {
 	border   lipgloss.Style
 	title    lipgloss.Style
