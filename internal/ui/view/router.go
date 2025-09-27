@@ -35,19 +35,19 @@ func (r Router) Init() tea.Cmd {
 }
 
 func (r Router) UpdateTargetView(action actions.InvokeActionMsg) (Router, tea.Cmd) {
-	if strings.HasPrefix(action.Action.Id, "close") {
+	if strings.HasPrefix(action.Action.Id, "close ") {
 		viewId := strings.TrimPrefix(action.Action.Id, "close ")
 		if _, ok := r.Views[actions.Scope(viewId)]; ok {
 			delete(r.Views, actions.Scope(viewId))
-			return r, nil
+			return r, action.Action.GetNext()
 		}
 	}
 
-	if strings.HasPrefix(action.Action.Id, "switch") {
+	if strings.HasPrefix(action.Action.Id, "switch ") {
 		viewId := actions.Scope(strings.TrimPrefix(action.Action.Id, "switch "))
 		if _, ok := r.Views[viewId]; ok {
 			r.Scope = viewId
-			return r, nil
+			return r, action.Action.GetNext()
 		}
 	}
 
