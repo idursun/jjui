@@ -12,7 +12,6 @@ import (
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/actions"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/view"
@@ -34,10 +33,7 @@ type Operation struct {
 }
 
 func (o *Operation) GetActionMap() map[string]actions.Action {
-	return map[string]actions.Action{
-		"esc":   {Id: "close ace_jump"},
-		"enter": {Id: "ace_jump.apply"},
-	}
+	return config.Current.GetBindings("ace_jump")
 }
 
 func (o *Operation) Name() string {
@@ -103,7 +99,7 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	if found := o.aceJump.Narrow(msg); found != nil {
 		o.cursor.SetCursor(found.RowIdx)
 		o.aceJump = nil
-		return common.Close
+		return actions.InvokeAction(actions.Action{Id: "close ace_jump"})
 	}
 	return nil
 }
@@ -114,7 +110,7 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ace_jump.apply":
 			o.cursor.SetCursor(o.aceJump.First().RowIdx)
 			o.aceJump = nil
-			return o, tea.Sequence(actions.InvokeAction(actions.Action{Id: "close ace_jump"}))
+			return o, nil
 		}
 	}
 	if msg, ok := msg.(tea.KeyMsg); ok {

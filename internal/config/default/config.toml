@@ -189,7 +189,7 @@ limit = 0
   "a" = "open abandon"
   "s" = "revisions.split"
   "d" = "revisions.diff"
-  "f" = "revisions.ace_jump"
+  "f" = "open ace_jump"
   "v" = "open evolog"
   "M" = "open set_parents"
   "L" = "revset.edit"
@@ -264,6 +264,9 @@ limit = 0
   "y" = "undo.accept"
   "n" = "undo.close"
   "esc" = "undo.close"
+[bindings.ace_jump]
+  "esc" = "close ace_jump"
+  "enter" = "ace_jump.apply"
 [bindings.bookmarks]
   "j" = "bookmarks.down"
   "k" = "bookmarks.up"
