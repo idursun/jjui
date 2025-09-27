@@ -197,13 +197,6 @@ func (h *Model) View() string {
 		h.printMode(h.keyMap.CustomCommands, "Custom Commands"),
 	)
 
-	var customCommands []string
-	for _, command := range h.context.CustomCommands {
-		customCommands = append(customCommands, h.printKeyBinding(command.Binding()))
-	}
-
-	right = append(right, customCommands...)
-
 	maxHeight := max(len(left), len(right), len(middle))
 	content := lipgloss.JoinHorizontal(lipgloss.Left,
 		h.renderColumn(1+lipgloss.Width(strings.Join(left, "\n")), maxHeight, left...),

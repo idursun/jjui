@@ -129,12 +129,6 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
 			os.Exit(1)
 		}
-		if registry, err := context.LoadCustomCommands(string(output)); err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading custom commands: %v\n", err)
-			os.Exit(1)
-		} else {
-			appContext.CustomCommands = registry
-		}
 		if registry, err := context.LoadLeader(string(output)); err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading leader keys: %v\n", err)
 			os.Exit(1)
