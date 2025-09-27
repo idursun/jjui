@@ -56,16 +56,15 @@ var _ common.ContextProvider = (*MainContext)(nil)
 
 type MainContext struct {
 	CommandRunner
-	SelectedItem   SelectedItem   // Single item where cursor is hover.
-	CheckedItems   []SelectedItem // Items checked ✓ by the user.
-	Location       string
-	CustomCommands map[string]CustomCommand
-	Leader         LeaderMap
-	JJConfig       *config.JJConfig
-	DefaultRevset  string
-	CurrentRevset  string
-	Histories      *config.Histories
-	ReadFn         func(value string) string
+	SelectedItem  SelectedItem   // Single item where cursor is hover.
+	CheckedItems  []SelectedItem // Items checked ✓ by the user.
+	Location      string
+	Leader        LeaderMap
+	JJConfig      *config.JJConfig
+	DefaultRevset string
+	CurrentRevset string
+	Histories     *config.Histories
+	ReadFn        func(value string) string
 }
 
 func (ctx *MainContext) Read(value string) string {
