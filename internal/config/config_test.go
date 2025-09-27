@@ -108,6 +108,21 @@ func TestLoad_Actions_Next(t *testing.T) {
 	assert.Equal(t, []actions.Action{{Id: "refresh"}}, action.Next)
 }
 
+func TestLoad_Actions_NestedNext(t *testing.T) {
+	content := `
+[actions]
+  "new commit" = { next = [{ id = "run", args = { "jj" = ["log"] }, next = ["refresh"] }, "wait refresh", "close commit"] }
+`
+	config := &Config{}
+	err := config.Load(content)
+	assert.NoError(t, err)
+	assert.Len(t, config.Actions, 1)
+	action, exists := config.Actions["new commit"]
+	assert.True(t, exists)
+	assert.Len(t, action.Next, 3)
+	assert.Len(t, action.Next[0].Next, 1)
+}
+
 func TestLoad_ActionMap(t *testing.T) {
 	content := `
 [actions]

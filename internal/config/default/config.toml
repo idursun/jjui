@@ -159,7 +159,7 @@ limit = 0
   # custom actions
   "revisions.append_current_as_ancestor" = { id = "revset.set", args = { "revset" = "$revset | ancestors($change_id, 2)" }}
   "revisions.my_inline_describe" = { next = ["open inline_describe", "wait close inline_describe", "revisions.new" ] }
-  "new_note_commit"     = { next = [{ id = "run", args = { "jj" = ["new", "-A", "$change_id"]}}, "refresh", "revisions.up", "open inline_describe"]}
+  "new_note_commit"     = { next = [{ id = "run", args = { "jj" = ["new", "-A", "$change_id"]}, next = ["refresh"]}, "wait @refresh", "revisions.up", "open inline_describe"]}
   "diff_until_here" = { id = "open diff", next = [{ id = "diff.show", args = { "jj" = ["diff", "-r", "main..$change_id"] } }, "wait close diff", "switch revisions"] }
   "list_bookmarks" = { id = "run", args = { "jj" = ["bookmark", "list"]}, output = "$output" , next = [{id = "list bookmark_list", args = { "items" = "$output"}, output = "$selected"}, "wait close bookmark_list", {id = "flash.add", args = { "message" = "$selected" }} ]}
 

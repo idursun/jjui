@@ -1,9 +1,5 @@
 package parser
 
-import (
-	"log"
-)
-
 type LaneTracer interface {
 	IsInSameLane(current int) bool
 	IsGutterInLane(current int, lineIndex int, segmentIndex int) bool
@@ -40,7 +36,7 @@ func NewTracer(rows []Row, cursor int, start int, end int) LaneTracer {
 		rows:       rows,
 		nextLaneId: 0,
 	}
-	log.Println("Tracing lanes from", start, "to", end)
+	//log.Println("Tracing lanes from", start, "to", end)
 	t.traceLanes(start, end)
 
 	if cursor >= 0 && cursor < len(t.rows) {

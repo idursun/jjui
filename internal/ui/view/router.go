@@ -1,11 +1,13 @@
 package view
 
 import (
+	"log"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/context"
 )
 
 type IHasActionMap interface {
@@ -15,18 +17,18 @@ type IHasActionMap interface {
 var _ common.ContextProvider = (*Router)(nil)
 
 type Router struct {
+	context *context.MainContext
 	scopes  []actions.Scope
 	Scope   actions.Scope
 	Views   map[actions.Scope]tea.Model
-	waiters map[string]actions.WaitChannel
 }
 
-func NewRouter(scope actions.Scope) Router {
+func NewRouter(ctx *context.MainContext, scope actions.Scope) Router {
 	return Router{
+		context: ctx,
 		scopes:  []actions.Scope{scope},
 		Scope:   scope,
 		Views:   make(map[actions.Scope]tea.Model),
-		waiters: make(map[string]actions.WaitChannel),
 	}
 }
 
@@ -39,6 +41,7 @@ func (r Router) Init() tea.Cmd {
 }
 
 func (r Router) handleAndRouteAction(action actions.InvokeActionMsg) (Router, tea.Cmd) {
+	log.Println("handling action:", action.Action.Id)
 	if strings.HasPrefix(action.Action.Id, "close ") {
 		viewId := strings.TrimPrefix(action.Action.Id, "close ")
 		if _, ok := r.Views[actions.Scope(viewId)]; ok {
@@ -55,20 +58,12 @@ func (r Router) handleAndRouteAction(action actions.InvokeActionMsg) (Router, te
 		}
 	}
 
-	if len(r.waiters) > 0 {
-		for k, ch := range r.waiters {
-			if k == action.Action.Id {
-				ch <- actions.WaitResultContinue
-				close(ch)
-				delete(r.waiters, k)
-			}
-		}
-	}
-
 	if strings.HasPrefix(action.Action.Id, "wait") {
+		log.Println("Waiting for action:", action.Action.Id)
 		message := strings.TrimPrefix(action.Action.Id, "wait ")
+
 		var waitCmd tea.Cmd
-		r.waiters[message], waitCmd = action.Action.Wait()
+		r.context.Waiters[message], waitCmd = action.Action.Wait()
 		return r, waitCmd
 	}
 
@@ -78,6 +73,9 @@ func (r Router) handleAndRouteAction(action actions.InvokeActionMsg) (Router, te
 		r.Views[k], cmd = r.Views[k].Update(action)
 		cmds = append(cmds, cmd)
 	}
+
+	r.context.ContinueAction(action.Action.Id)
+
 	return r, tea.Batch(cmds...)
 }
 

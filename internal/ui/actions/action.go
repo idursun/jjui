@@ -1,6 +1,8 @@
 package actions
 
 import (
+	"log"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -67,6 +69,10 @@ func (a Action) GetNext() tea.Cmd {
 		return nil
 	}
 	nextAction := a.Next[0]
+	if len(nextAction.Next) > 0 {
+		a.Next = a.Next[1:]
+		return tea.Sequence(InvokeAction(nextAction), a.GetNext())
+	}
 	nextAction.Next = a.Next[1:]
 	return InvokeAction(nextAction)
 }
@@ -77,6 +83,7 @@ func (a Action) Wait() (WaitChannel, tea.Cmd) {
 		select {
 		case <-ch:
 			if len(a.Next) > 0 {
+				log.Printf("Continuing action chain for %s", a.Id)
 				nextAction := a.Next[0]
 				nextAction.Next = a.Next[1:]
 				return InvokeActionMsg{Action: nextAction}

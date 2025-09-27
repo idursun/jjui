@@ -371,7 +371,7 @@ func New(c *context.MainContext) tea.Model {
 	revisionsModel := revisions.New(c)
 	statusModel := status.New(c)
 	revsetModel := revset.New(c)
-	router := view.NewRouter(actions.ScopeRevisions)
+	router := view.NewRouter(c, actions.ScopeRevisions)
 	router.Views = map[actions.Scope]tea.Model{
 		actions.ScopeRevisions: revisionsModel,
 		actions.ScopeRevset:    revsetModel,

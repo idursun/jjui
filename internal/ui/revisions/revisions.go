@@ -430,6 +430,7 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 		case "revisions.up":
 			if m.cursor >= 1 {
 				m.cursor -= 1
+				log.Println("action: revisions.up handled ", m.cursor)
 				return m, m.updateSelection()
 			}
 			return m, nil
@@ -525,6 +526,7 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			m.cursor = 0
 		}
 
+		m.context.ContinueAction("@refresh")
 		cmds := []tea.Cmd{m.highlightChanges, m.updateSelection()}
 		if !m.hasMore {
 			cmds = append(cmds, func() tea.Msg {
@@ -609,7 +611,7 @@ func (m *Model) View() string {
 
 	if config.Current.UI.Tracer.Enabled {
 		start, end := m.renderer.FirstRowIndex, m.renderer.LastRowIndex+1 // +1 because the last row is inclusive in the view range
-		log.Println("Visible row range:", start, end, "Cursor:", m.cursor, "Total rows:", len(m.rows))
+		//log.Println("Visible row range:", start, end, "Cursor:", m.cursor, "Total rows:", len(m.rows))
 		m.renderer.tracer = parser.NewTracer(m.rows, m.cursor, start, end)
 	} else {
 		m.renderer.tracer = parser.NewNoopTracer()
@@ -726,7 +728,7 @@ func (m *Model) GetCommitIds() []string {
 
 func New(c *appContext.MainContext) *Model {
 	keymap := config.Current.GetKeyMap()
-	router := view.NewRouter("")
+	router := view.NewRouter(c, "")
 	m := Model{
 		Sizeable:      &common.Sizeable{Width: 0, Height: 0},
 		context:       c,
