@@ -40,7 +40,6 @@ type Model struct {
 	status    *status.Model
 	context   *context.MainContext
 	keyMap    config.KeyMappings[key.Binding]
-	waiters   map[string]actions.WaitChannel
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -76,24 +75,14 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-	var nm tea.Model
-
 	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		if msg.Action.Id == "run" {
 			return m, func() tea.Msg {
 				args := msg.Action.GetArgs("jj")
-				output, _ := m.context.RunCommandImmediate(jj.Args(args...))
-				if msg.Action.Output != "" {
-					if msg.Action.Outputs == nil {
-						msg.Action.Outputs = make(map[string]string)
-					}
-					msg.Action.Outputs[msg.Action.Output] = string(output)
-				}
+				_, _ = m.context.RunCommandImmediate(jj.Args(args...))
 				if len(msg.Action.Next) > 0 {
 					next := msg.Action.Next[0]
 					next.Next = msg.Action.Next[1:]
-					next.Outputs = msg.Action.Outputs
 					return actions.InvokeActionMsg{Action: next}
 				}
 				return nil
@@ -101,34 +90,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	var cmd tea.Cmd
+	var nm Model
 	nm, cmd = m.internalUpdate(msg)
 
-	if msg, ok := msg.(actions.InvokeActionMsg); ok {
-		if len(m.waiters) > 0 {
-			for k, ch := range m.waiters {
-				if k == msg.Action.Id {
-					ch <- actions.WaitResultContinue
-					close(ch)
-					delete(m.waiters, k)
-					//return nm, cmd
-				}
-			}
-		}
-		if strings.HasPrefix(msg.Action.Id, "wait") {
-			message := strings.TrimPrefix(msg.Action.Id, "wait ")
-			var waitCmd tea.Cmd
-			m.waiters[message], waitCmd = msg.Action.Wait()
-			return nm, tea.Batch(cmd, waitCmd)
-		}
-		cmd = tea.Sequence(cmd, msg.Action.GetNext())
+	var cmds []tea.Cmd
+	cmds = append(cmds, cmd)
+
+	nm.router, cmd = nm.router.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.status, cmd = m.status.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.flash, cmd = m.flash.Update(msg)
+	cmds = append(cmds, cmd)
+
+	if action, ok := msg.(actions.InvokeActionMsg); ok {
+		// scheduling the next action in the chain. This needs to be done outside the router so that the sub routers don't double schedule it
+		cmds = append(cmds, action.Action.GetNext())
 	}
-	return nm, cmd
+
+	return nm, tea.Batch(cmds...)
 }
 
-func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-	var cmds []tea.Cmd
-
+func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case actions.InvokeActionMsg:
 		if strings.HasPrefix(msg.Action.Id, "list ") {
@@ -137,36 +123,32 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if arg, ok := msg.Action.Args["items"]; ok {
 				switch arg := arg.(type) {
 				case string:
-					items = strings.Split(msg.Action.Process(arg), "\n")
+					items = strings.Split(arg, "\n")
 				case []string:
 					items = arg
 				case []interface{}:
 					items = msg.Action.GetArgs("items")
 				}
 			}
-			for i := range items {
-				items[i] = msg.Action.Process(items[i])
-			}
-			m.router.Scope = actions.Scope(scope)
-			m.router.Views[actions.Scope(scope)] = view.NewSimpleList(scope, items)
-			return m, m.router.Views[m.router.Scope].Init()
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(actions.Scope(scope), view.NewSimpleList(scope, items))
+			return m, cmd
 		}
 
 		switch msg.Action.Id {
-		case "ui.oplog":
-			oplog := oplog.New(m.context, m.Width, m.Height)
-			m.router.Scope = actions.ScopeOplog
-			m.router.Views[actions.ScopeOplog] = oplog
-			return m, oplog.Init()
-		case "ui.diff":
-			m.router.Scope = actions.ScopeDiff
-			m.router.Views[actions.ScopeDiff] = diff.New(m.context, m.Width, m.Height)
-			return m, m.router.Views[m.router.Scope].Init()
-		case "ui.undo":
-			m.router.Views[actions.ScopeUndo] = undo.NewModel(m.context)
-			m.router.Scope = actions.ScopeUndo
-			return m, m.router.Views[m.router.Scope].Init()
-		case "ui.toggle_preview":
+		case "open oplog":
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(actions.ScopeOplog, oplog.New(m.context, m.Width, m.Height))
+			return m, cmd
+		case "open diff":
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(actions.ScopeDiff, diff.New(m.context, m.Width, m.Height))
+			return m, cmd
+		case "open undo":
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(actions.ScopeUndo, undo.NewModel(m.context))
+			return m, cmd
+		case "toggle preview":
 			if m.router.Views[actions.ScopePreview] != nil {
 				delete(m.router.Views, actions.ScopePreview)
 				m.router.Scope = actions.ScopeRevisions
@@ -175,9 +157,9 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			model := preview.New(m.context)
 			m.router.Views[actions.ScopePreview] = model
 			return m, model.Init()
-		case "ui.refresh":
+		case "refresh":
 			return m, common.RefreshAndKeepSelections
-		case "ui.quit":
+		case "quit":
 			if m.isSafeToQuit() {
 				return m, tea.Quit
 			}
@@ -189,10 +171,10 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
 			m.state = common.Ready
-			return m, tea.Batch(cmds...)
+			return m, nil
 		case key.Matches(msg, m.keyMap.Cancel) && m.flash.Any():
 			m.flash.DeleteOldest()
-			return m, tea.Batch(cmds...)
+			return m, nil
 		//case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
 		//	m.stacked = git.NewModel(m.context, m.revisions.SelectedRevision(), m.Width, m.Height)
 		//	return m, m.stacked.Init()
@@ -205,9 +187,9 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		//	m.router.Scope = common.ScopeBookmarks
 		//	m.router.Views[common.ScopeBookmarks] = bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds, m.Width, m.Height)
 		//	return m, m.router.Views[m.router.Scope].Init()
-		case key.Matches(msg, m.keyMap.Help):
-			cmds = append(cmds, common.ToggleHelp)
-			return m, tea.Batch(cmds...)
+		//case key.Matches(msg, m.keyMap.Help):
+		//	cmds = append(cmds, common.ToggleHelp)
+		//	return m, nil
 		//case key.Matches(msg, m.keyMap.Preview.Mode, m.keyMap.Preview.ToggleBottom):
 		//	if key.Matches(msg, m.keyMap.Preview.ToggleBottom) {
 		//		m.previewModel.TogglePosition()
@@ -230,8 +212,7 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		//	return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Leader):
 			m.leader = leader.New(m.context)
-			cmds = append(cmds, leader.InitCmd)
-			return m, tea.Batch(cmds...)
+			return m, leader.InitCmd
 		case key.Matches(msg, m.keyMap.FileSearch.Toggle):
 			rev := m.revisions.SelectedRevision()
 			if rev == nil {
@@ -242,9 +223,6 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, common.FileSearch(m.context.CurrentRevset, false, rev, out)
 		case key.Matches(msg, m.keyMap.Suspend):
 			return m, tea.Suspend
-		default:
-			m.router, cmd = m.router.Update(msg)
-			return m, cmd
 		}
 	case common.ExecMsg:
 		return m, exec_process.ExecLine(m.context, msg)
@@ -271,17 +249,7 @@ func (m Model) internalUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		//m.revsetModel.SetWidth(m.Width)
 		//m.revsetModel.SetHeight(1)
 	}
-
-	m.router, cmd = m.router.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.status, cmd = m.status.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.flash, cmd = m.flash.Update(msg)
-	cmds = append(cmds, cmd)
-
-	return m, tea.Batch(cmds...)
+	return m, nil
 }
 
 func (m Model) updateStatus() {
@@ -439,7 +407,6 @@ func New(c *context.MainContext) tea.Model {
 		revisions: revisionsModel,
 		status:    &statusModel,
 		flash:     flash.New(c),
-		waiters:   make(map[string]actions.WaitChannel),
 		router:    router,
 	}
 	c.ReadFn = func(value string) string {

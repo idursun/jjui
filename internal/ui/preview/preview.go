@@ -108,8 +108,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case actions.InvokeActionMsg:
 		switch msg.Action.Id {
+		case "open oplog":
+			oplogId := m.context.Read(jj.OperationIdPlaceholder)
+			m.commitId = oplogId
+			m.tag++
+			tag := m.tag
+			item := msg.Action.Get("item", "").(string)
+			switch item {
+			case "revision":
+				return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
+					return refreshPreviewContentMsg{Tag: tag}
+				})
+			}
+
 		case "preview.update":
-			//changeId := m.context.Read(jj.ChangeIdPlaceholder)
 			commitId := m.context.Read(jj.CommitIdPlaceholder)
 			m.commitId = commitId
 			m.tag++

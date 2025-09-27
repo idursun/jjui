@@ -74,17 +74,9 @@ func (s *Operation) Init() tea.Cmd {
 }
 
 func (s *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	//oldCursor := s.cursor
 	var cmd tea.Cmd
 	var newModel *Operation
 	newModel, cmd = s.internalUpdate(msg)
-	//if s.cursor != oldCursor {
-	//	cmd = tea.Batch(cmd, s.context.SetSelectedItem(context.SelectedFile{
-	//		ChangeId: s.revision.GetChangeId(),
-	//		CommitId: s.revision.CommitId,
-	//		File:     s.current().fileName,
-	//	}))
-	//}
 	return newModel, cmd
 }
 
@@ -182,7 +174,7 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 			if selected == nil {
 				return s, nil
 			}
-			return s, tea.Sequence(actions.InvokeAction(actions.Action{Id: "ui.diff"}), func() tea.Msg {
+			return s, tea.Sequence(actions.InvokeAction(actions.Action{Id: "open diff"}), func() tea.Msg {
 				output, _ := s.context.RunCommandImmediate(jj.Diff(s.revision.GetChangeId(), selected.fileName))
 				return common.ShowDiffMsg(output)
 			})

@@ -78,7 +78,6 @@ type Model struct {
 	textStyle        lipgloss.Style
 	dimmedStyle      lipgloss.Style
 	selectedStyle    lipgloss.Style
-	waiter           chan tea.Msg
 	router           view.Router
 }
 
@@ -285,13 +284,12 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			item := appContext.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
 			m.context.ToggleCheckedItem(item)
 			return m, nil
-		case "revisions.ace_jump":
-			op := ace_jump.NewOperation(m, func(index int) parser.Row {
+		case "open ace_jump":
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(scopeAceJump, ace_jump.NewOperation(m, func(index int) parser.Row {
 				return m.rows[index]
-			}, m.renderer.FirstRowIndex, m.renderer.LastRowIndex)
-			m.router.Scope = scopeAceJump
-			m.router.Views[m.router.Scope] = op
-			return m, op.Init()
+			}, m.renderer.FirstRowIndex, m.renderer.LastRowIndex))
+			return m, cmd
 		case "revisions.new":
 			return m, m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
 		case "revisions.commit":
@@ -305,23 +303,20 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 		case "revisions.absorb":
 			changeId := m.SelectedRevision().GetChangeId()
 			return m, m.context.RunCommand(jj.Absorb(changeId), common.Refresh)
-		case "revisions.abandon":
-			selections := m.SelectedRevisions()
-			op := abandon.NewOperation(m.context, selections)
-			m.router.Scope = scopeAbandon
-			m.router.Views[m.router.Scope] = op
-			return m, op.Init()
-		case "revisions.set_bookmark":
-			op := bookmark.NewSetBookmarkOperation(m.context, m.SelectedRevision().GetChangeId())
-			m.router.Scope = scopeSetBookmark
-			m.router.Views[m.router.Scope] = op
-			return m, op.Init()
+		case "open abandon":
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(scopeAbandon, abandon.NewOperation(m.context, m.SelectedRevisions()))
+			return m, cmd
+		case "open set_bookmark":
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(scopeSetBookmark, bookmark.NewSetBookmarkOperation(m.context, m.SelectedRevision().GetChangeId()))
+			return m, cmd
 		case "revisions.quick_search_cycle":
 			m.cursor = m.search(m.cursor + 1)
 			m.renderer.Reset()
 			return m, nil
 		case "revisions.diff":
-			return m, tea.Sequence(actions.InvokeAction(actions.Action{Id: "ui.diff"}), func() tea.Msg {
+			return m, tea.Sequence(actions.InvokeAction(actions.Action{Id: "open diff"}), func() tea.Msg {
 				changeId := m.SelectedRevision().GetChangeId()
 				output, _ := m.context.RunCommandImmediate(jj.Diff(changeId, ""))
 				return common.ShowDiffMsg(output)
@@ -335,21 +330,18 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 		case "revisions.revert":
 			op := revert.NewOperation(m.context, m.SelectedRevisions(), revert.TargetDestination)
 			return m, op.Init()
-		case "revisions.duplicate":
-			op := duplicate.NewOperation(m.context, m.SelectedRevisions(), duplicate.TargetDestination)
-			m.router.Scope = scopeDuplicate
-			m.router.Views[m.router.Scope] = op
-			return m, op.Init()
-		case "revisions.set_parents":
-			op := set_parents.NewModel(m.context, m.SelectedRevision())
-			m.router.Scope = scopeSetParents
-			m.router.Views[m.router.Scope] = op
-			return m, op.Init()
-		case "revisions.evolog":
-			op := evolog.NewOperation(m.context, m.SelectedRevision(), m.Width, m.Height)
-			m.router.Scope = scopeEvolog
-			m.router.Views[m.router.Scope] = op
-			return m, op.Init()
+		case "open duplicate":
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(scopeDuplicate, duplicate.NewOperation(m.context, m.SelectedRevisions(), duplicate.TargetDestination))
+			return m, cmd
+		case "open set_parents":
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(scopeSetParents, set_parents.NewModel(m.context, m.SelectedRevision()))
+			return m, cmd
+		case "open evolog":
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(scopeEvolog, evolog.NewOperation(m.context, m.SelectedRevision(), m.Width, m.Height))
+			return m, cmd
 		case "revisions.jump_to_parent":
 			m.jumpToParent(m.SelectedRevisions())
 			return m, m.updateSelection()
@@ -366,14 +358,13 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 				m.cursor = workingCopyIndex
 			}
 			return m, m.updateSelection()
-		case "revisions.refresh":
+		case "refresh":
 			return m, common.Refresh
-		case "revisions.inline_describe":
-			op := describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
-			m.router.Scope = scopeInlineDescribe
-			m.router.Views[m.router.Scope] = op
-			return m, op.Init()
-		case "revisions.squash":
+		case "open inline_describe":
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(scopeInlineDescribe, describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width))
+			return m, cmd
+		case "open squash":
 			selectedRevisions := m.SelectedRevisions()
 			parent, _ := m.context.RunCommandImmediate(jj.GetParent(selectedRevisions))
 			parentIdx := m.selectRevision(string(parent))
@@ -383,21 +374,17 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 				m.cursor++
 			}
 			files := msg.Action.Get("files", []string{}).([]string)
-			var op tea.Model
-			op = squash.NewOperation(m.context, selectedRevisions, squash.WithFiles(files))
-			m.router.Scope = scopeSquash
-			m.router.Views[m.router.Scope] = op
-			return m, op.Init()
-		case "revisions.details":
-			op := details.NewOperation(m.context, m.SelectedRevision(), m.Height)
-			m.router.Scope = scopeDetails
-			m.router.Views[scopeDetails] = op
-			return m, op.Init()
-		case "revisions.rebase":
-			op := rebase.NewOperation(m.context, m.SelectedRevisions(), rebase.SourceRevision, rebase.TargetDestination)
-			m.router.Scope = scopeRebase
-			m.router.Views[scopeRebase] = op
-			return m, op.Init()
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(scopeSquash, squash.NewOperation(m.context, selectedRevisions, squash.WithFiles(files)))
+			return m, cmd
+		case "open details":
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(scopeDetails, details.NewOperation(m.context, m.SelectedRevision(), m.Height))
+			return m, cmd
+		case "open rebase":
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(scopeRebase, rebase.NewOperation(m.context, m.SelectedRevisions(), rebase.SourceRevision, rebase.TargetDestination))
+			return m, cmd
 		case "revisions.up":
 			if m.cursor >= 1 {
 				m.cursor -= 1
@@ -413,17 +400,6 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-	case common.CloseViewMsg:
-		if m.waiter != nil {
-			if msg.Cancelled {
-				m.waiter <- actions.WaitResultCancel
-			} else {
-				m.waiter <- actions.WaitResultContinue
-			}
-			close(m.waiter)
-			m.waiter = nil
-		}
-		return m, nil
 	case common.QuickSearchMsg:
 		m.quickSearch = string(msg)
 		m.cursor = m.search(0)
@@ -526,7 +502,7 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 }
 
 func (m *Model) updateSelection() tea.Cmd {
-	return actions.InvokeAction(actions.Action{Id: "preview.update", Args: map[string]any{"item": "revision"}})
+	return nil
 }
 
 func (m *Model) highlightChanges() tea.Msg {
