@@ -9,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/bookmarks"
 	"github.com/idursun/jjui/internal/ui/git"
+	"github.com/idursun/jjui/internal/ui/helppage"
 	"github.com/idursun/jjui/internal/ui/undo"
 	"github.com/idursun/jjui/internal/ui/view"
 
@@ -158,6 +159,10 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 		case "open git":
 			var cmd tea.Cmd
 			m.router, cmd = m.router.Open(actions.ScopeGit, git.NewModel(m.context, m.revisions.SelectedRevision(), m.Width, m.Height))
+			return m, cmd
+		case "open help":
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(actions.ScopeHelp, helppage.New(m.context))
 			return m, cmd
 		case "toggle preview":
 			if m.router.Views[actions.ScopePreview] != nil {
@@ -331,6 +336,9 @@ func (m Model) View() string {
 		stacked = v
 	}
 	if v, ok := m.router.Views[actions.ScopeGit]; ok {
+		stacked = v
+	}
+	if v, ok := m.router.Views[actions.ScopeHelp]; ok {
 		stacked = v
 	}
 

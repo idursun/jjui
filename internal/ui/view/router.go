@@ -50,7 +50,7 @@ func (r Router) handleAndRouteAction(action actions.InvokeActionMsg) (Router, te
 
 	if strings.HasPrefix(action.Action.Id, "switch ") {
 		viewId := actions.Scope(strings.TrimPrefix(action.Action.Id, "switch "))
-		if _, ok := r.Views[viewId]; ok {
+		if _, ok := r.Views[viewId]; ok && r.Scope != viewId {
 			r.Scope = viewId
 		}
 	}
