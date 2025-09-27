@@ -28,7 +28,7 @@ type itemRenderer struct {
 	isGutterInLane   func(lineIndex, segmentIndex int) bool
 	updateGutterText func(lineIndex, segmentIndex int, text string) string
 	inLane           bool
-	op               operations.Operation
+	segmentRenderer  operations.SegmentRenderer
 	SearchText       string
 	AceJumpPrefix    *string
 	isChecked        bool
@@ -137,7 +137,7 @@ func (ir itemRenderer) Render(w io.Writer, width int) {
 				style = style.Inherit(ir.dimmedStyle).Faint(true)
 			}
 
-			op := ir.op
+			op := ir.segmentRenderer
 			if sr, ok := op.(operations.SegmentRenderer); ok {
 				rendered := sr.RenderSegment(style, segment, row)
 				if rendered != "" {

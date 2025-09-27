@@ -9,12 +9,19 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/view"
 )
+
+var _ view.IStatus = (*Model)(nil)
 
 type Model struct {
 	cancel  key.Binding
 	shown   context.LeaderMap
 	context *context.MainContext
+}
+
+func (m *Model) Name() string {
+	return "leader"
 }
 
 func New(ctx *context.MainContext) *Model {

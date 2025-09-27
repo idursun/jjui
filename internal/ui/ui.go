@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/help"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/bookmarks"
 	"github.com/idursun/jjui/internal/ui/git"
@@ -176,10 +175,7 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 		case "refresh":
 			return m, common.RefreshAndKeepSelections
 		case "quit":
-			if m.isSafeToQuit() {
-				return m, tea.Quit
-			}
-			return m, nil
+			return m, tea.Quit
 		}
 	case tea.FocusMsg:
 		return m, common.RefreshAndKeepSelections
@@ -271,12 +267,12 @@ func (m Model) updateStatus() {
 		m.status.SetHelp(m.leader)
 	default:
 		model := m.router.Views[m.router.Scope]
-		if h, ok := model.(help.KeyMap); ok {
-			m.status.SetMode(string(m.router.Scope))
+		if h, ok := model.(view.IStatus); ok {
+			m.status.SetMode(h.Name())
 			m.status.SetHelp(h)
 		} else {
 			m.status.SetHelp(m.revisions)
-			m.status.SetMode(m.revisions.CurrentOperation().Name())
+			m.status.SetMode(m.revisions.Name())
 		}
 	}
 }
@@ -402,13 +398,6 @@ func (m Model) scheduleAutoRefresh() tea.Cmd {
 		})
 	}
 	return nil
-}
-
-func (m Model) isSafeToQuit() bool {
-	if m.revisions.CurrentOperation().Name() == "normal" {
-		return true
-	}
-	return false
 }
 
 func New(c *context.MainContext) tea.Model {

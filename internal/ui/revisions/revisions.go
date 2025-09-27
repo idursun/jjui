@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
@@ -38,12 +39,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/squash"
 )
 
-var _ list.IList = (*Model)(nil)
-var _ list.IListCursor = (*Model)(nil)
-var _ common.ContextProvider = (*Model)(nil)
-var _ view.IHasActionMap = (*Model)(nil)
-var _ help.KeyMap = (*Model)(nil)
-
 const (
 	scopeDetails        actions.Scope = "details"
 	scopeSquash         actions.Scope = "squash"
@@ -57,6 +52,12 @@ const (
 	scopeAceJump        actions.Scope = "ace_jump"
 	scopeSetBookmark    actions.Scope = "set_bookmark"
 )
+
+var _ list.IList = (*Model)(nil)
+var _ list.IListCursor = (*Model)(nil)
+var _ common.ContextProvider = (*Model)(nil)
+var _ view.IStatus = (*Model)(nil)
+var _ view.IHasActionMap = (*Model)(nil)
 
 type Model struct {
 	*common.Sizeable
@@ -79,6 +80,15 @@ type Model struct {
 	dimmedStyle      lipgloss.Style
 	selectedStyle    lipgloss.Style
 	router           view.Router
+}
+
+func (m *Model) Name() string {
+	if len(m.router.Views) > 0 {
+		if status, ok := m.router.Views[m.router.Scope].(view.IStatus); ok {
+			return status.Name()
+		}
+	}
+	return "revisions"
 }
 
 func (m *Model) GetActionMap() map[string]actions.Action {
@@ -117,6 +127,14 @@ func (m *Model) Len() int {
 	return len(m.rows)
 }
 
+var _ operations.SegmentRenderer = (*nullSegmentRenderer)(nil)
+
+type nullSegmentRenderer struct{}
+
+func (n nullSegmentRenderer) RenderSegment(currentStyle lipgloss.Style, segment *screen.Segment, row parser.Row) string {
+	return currentStyle.Render(segment.Text)
+}
+
 func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
 	var (
 		before, after, renderOverDescription, beforeCommitId, beforeChangeId string
@@ -128,19 +146,27 @@ func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
 	var op tea.Model
 	if len(m.router.Views) > 0 {
 		op = m.router.Views[m.router.Scope]
-	} else {
-		op = operations.NewDefault()
+		if op, ok := op.(operations.Operation); ok {
+			before = op.Render(row.Commit, operations.RenderPositionBefore)
+			after = op.Render(row.Commit, operations.RenderPositionAfter)
+			renderOverDescription = ""
+			if isHighlighted {
+				renderOverDescription = op.Render(row.Commit, operations.RenderOverDescription)
+			}
+			beforeCommitId = op.Render(row.Commit, operations.RenderBeforeCommitId)
+			beforeChangeId = op.Render(row.Commit, operations.RenderBeforeChangeId)
+		}
 	}
 
-	if op, ok := op.(operations.Operation); ok {
-		before = op.Render(row.Commit, operations.RenderPositionBefore)
-		after = op.Render(row.Commit, operations.RenderPositionAfter)
-		renderOverDescription = ""
-		if isHighlighted {
-			renderOverDescription = op.Render(row.Commit, operations.RenderOverDescription)
+	var segmentRenderer operations.SegmentRenderer
+	if op != nil {
+		if sr, ok := op.(operations.SegmentRenderer); ok {
+			segmentRenderer = sr
 		}
-		beforeCommitId = op.Render(row.Commit, operations.RenderBeforeCommitId)
-		beforeChangeId = op.Render(row.Commit, operations.RenderBeforeChangeId)
+	}
+
+	if segmentRenderer == nil {
+		segmentRenderer = nullSegmentRenderer{}
 	}
 
 	return &itemRenderer{
@@ -162,8 +188,8 @@ func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
 		updateGutterText: func(lineIndex, segmentIndex int, text string) string {
 			return m.renderer.tracer.UpdateGutterText(index, lineIndex, segmentIndex, text)
 		},
-		inLane: inLane,
-		op:     op.(operations.Operation),
+		inLane:          inLane,
+		segmentRenderer: segmentRenderer,
 	}
 }
 
@@ -195,16 +221,28 @@ type appendRowsBatchMsg struct {
 }
 
 func (m *Model) ShortHelp() []key.Binding {
-	var op tea.Model
 	if len(m.router.Views) > 0 {
-		op = m.router.Views[m.router.Scope]
-	} else {
-		op = operations.NewDefault()
+		if status, ok := m.router.Views[m.router.Scope].(view.IStatus); ok {
+			return status.ShortHelp()
+		}
 	}
-	if op, ok := op.(help.KeyMap); ok {
-		return op.ShortHelp()
+
+	return []key.Binding{
+		m.keymap.Up,
+		m.keymap.Down,
+		m.keymap.Quit,
+		m.keymap.Help,
+		m.keymap.Refresh,
+		m.keymap.Preview.Mode,
+		m.keymap.Revset,
+		m.keymap.Details.Mode,
+		m.keymap.Evolog.Mode,
+		m.keymap.Rebase.Mode,
+		m.keymap.Squash.Mode,
+		m.keymap.Bookmark.Mode,
+		m.keymap.Git.Mode,
+		m.keymap.OpLog.Mode,
 	}
-	return []key.Binding{}
 }
 
 func (m *Model) FullHelp() [][]key.Binding {
@@ -252,7 +290,7 @@ func (m *Model) getCurrentOp() tea.Model {
 	if len(m.router.Views) > 0 {
 		return m.router.Views[m.router.Scope]
 	}
-	return operations.NewDefault()
+	return nil
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -676,14 +714,6 @@ func (m *Model) search(startIndex int) int {
 		}
 	}
 	return m.cursor
-}
-
-func (m *Model) CurrentOperation() operations.Operation {
-	current := m.getCurrentOp()
-	if op, ok := current.(operations.Operation); ok {
-		return op
-	}
-	return operations.NewDefault()
 }
 
 func (m *Model) GetCommitIds() []string {

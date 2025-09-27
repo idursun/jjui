@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/view"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -244,8 +245,9 @@ func (m *Model) View() string {
 	return lipgloss.Place(m.width, height, 0, 0, ret, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
 }
 
-func (m *Model) SetHelp(keyMap help.KeyMap) {
-	m.keyMap = keyMap
+func (m *Model) SetHelp(status view.IStatus) {
+	m.keyMap = status
+	m.mode = status.Name()
 }
 
 func (m *Model) SetMode(mode string) {
