@@ -160,6 +160,7 @@ limit = 0
   "bookmark_list.accept" = { id = "close bookmark_list", next = ["switch revisions"] }
   "bookmarks.apply" = { next = ["close bookmarks"] }
   "git.apply" = { next = ["close git"] }
+  "revert.apply" = { next = ["close revert"] }
 
 [bindings."bookmark_list"]
   "j" = "list.down"
@@ -176,6 +177,7 @@ limit = 0
   " " = "revisions.toggle_select"
   "J" = "revisions.jump_to_parent"
   "K" = "revisions.jump_to_children"
+  "R" = "open revert"
   "l" = "open details"
   "S" = "open squash"
   "r" = "open rebase"
@@ -250,6 +252,15 @@ limit = 0
   "esc" = "close squash"
   "enter" = "squash.apply"
   "alt+enter" = "squash.force_apply"
+[bindings.revert]
+  "j" = "revisions.down"
+  "k" = "revisions.up"
+  "i" = "revert.insert"
+  "a" = "revert.after"
+  "b" = "revert.before"
+  "d" = "revert.onto"
+  "esc" = "close revert"
+  "enter" = "revert.apply"
 [bindings.undo]
   "y" = "undo.accept"
   "n" = "undo.close"

@@ -364,6 +364,10 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.router, cmd = m.router.Open(scopeInlineDescribe, describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width))
 			return m, cmd
+		case "open revert":
+			var cmd tea.Cmd
+			m.router, cmd = m.router.Open(scopeRevert, revert.NewOperation(m.context, m.SelectedRevisions(), revert.TargetDestination))
+			return m, cmd
 		case "open squash":
 			selectedRevisions := m.SelectedRevisions()
 			parent, _ := m.context.RunCommandImmediate(jj.GetParent(selectedRevisions))

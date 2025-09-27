@@ -9,9 +9,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/view"
 )
 
 type Target int
@@ -41,6 +43,7 @@ type styles struct {
 }
 
 var _ operations.Operation = (*Operation)(nil)
+var _ view.IHasActionMap = (*Operation)(nil)
 
 type Operation struct {
 	context        *context.MainContext
@@ -53,44 +56,42 @@ type Operation struct {
 	styles         styles
 }
 
+func (r *Operation) GetActionMap() map[string]actions.Action {
+	return config.Current.GetBindings("revert")
+}
+
 func (r *Operation) Init() tea.Cmd {
 	return nil
 }
 
 func (r *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(tea.KeyMsg); ok {
-		return r, r.HandleKey(msg)
+	switch msg := msg.(type) {
+	case actions.InvokeActionMsg:
+		switch msg.Action.Id {
+		case "revert.onto":
+			r.Target = TargetDestination
+		case "revert.after":
+			r.Target = TargetAfter
+		case "revert.before":
+			r.Target = TargetBefore
+		case "revert.insert":
+			r.Target = TargetInsert
+			r.InsertStart = r.To
+		case "revert.apply":
+			if r.Target == TargetInsert {
+				return r, r.context.RunCommand(jj.RevertInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId()), common.RefreshAndSelect(r.From.Last()), common.Close)
+			} else {
+				source := "--revisions"
+				target := targetToFlags[r.Target]
+				return r, r.context.RunCommand(jj.Revert(r.From, r.To.GetChangeId(), source, target), common.RefreshAndSelect(r.From.Last()), common.Close)
+			}
+		}
 	}
 	return r, nil
 }
 
 func (r *Operation) View() string {
 	return ""
-}
-
-func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	switch {
-	case key.Matches(msg, r.keyMap.Revert.Onto):
-		r.Target = TargetDestination
-	case key.Matches(msg, r.keyMap.Revert.After):
-		r.Target = TargetAfter
-	case key.Matches(msg, r.keyMap.Revert.Before):
-		r.Target = TargetBefore
-	case key.Matches(msg, r.keyMap.Revert.Insert):
-		r.Target = TargetInsert
-		r.InsertStart = r.To
-	case key.Matches(msg, r.keyMap.Apply):
-		if r.Target == TargetInsert {
-			return r.context.RunCommand(jj.RevertInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId()), common.RefreshAndSelect(r.From.Last()), common.Close)
-		} else {
-			source := "--revisions"
-			target := targetToFlags[r.Target]
-			return r.context.RunCommand(jj.Revert(r.From, r.To.GetChangeId(), source, target), common.RefreshAndSelect(r.From.Last()), common.Close)
-		}
-	case key.Matches(msg, r.keyMap.Cancel):
-		return common.Close
-	}
-	return nil
 }
 
 func (r *Operation) SetSelectedRevision(commit *jj.Commit) {
