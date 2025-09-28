@@ -3,6 +3,7 @@ package actions
 import (
 	"errors"
 	"log"
+	"sync/atomic"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -89,11 +90,15 @@ func (a Action) GetNext() tea.Cmd {
 	return InvokeAction(nextAction)
 }
 
+var ChannelCount atomic.Int32
+
 func (a Action) Wait() (WaitChannel, tea.Cmd) {
 	ch := make(WaitChannel, 1)
+	ChannelCount.Add(1)
 	return ch, func() tea.Msg {
 		select {
 		case <-ch:
+			ChannelCount.Add(-1)
 			if len(a.Next) > 0 {
 				log.Printf("Continuing action chain for %s", a.Id)
 				nextAction := a.Next[0]

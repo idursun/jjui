@@ -137,6 +137,14 @@ limit = 0
 [graph]
   batch_size = 50
 
+#[actions."#track-revisions"]
+#  on = ["revisions.down", "revisions.up", "revisions.find"]
+#  next = [{ id = "flash.add", message = "Auto action triggered" }, "register auto"]
+#
+#[actions."#refresh"]
+#  on = ["@refresh"]
+#  next = [{ id = "flash.add", message = "refresh completed" }, "register auto-refresh"]
+
 [actions."revset.cancel"]
   next = ["switch revisions"]
 

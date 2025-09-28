@@ -47,7 +47,23 @@ type Model struct {
 type triggerAutoRefreshMsg struct{}
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(m.router.Init(), tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.scheduleAutoRefresh())
+	return tea.Batch(m.router.Init(), tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.scheduleAutoRefresh(), m.RegisterAutoEvents())
+}
+
+func (m Model) RegisterAutoEvents() tea.Cmd {
+	var cmds []tea.Cmd
+	for k, action := range actions.Registry {
+		if !strings.HasPrefix(k, "#") {
+			continue
+		}
+		events := action.GetArgs("on")
+		for _, event := range events {
+			var waitCmd tea.Cmd
+			m.context.Waiters[event], waitCmd = action.Wait()
+			cmds = append(cmds, waitCmd)
+		}
+	}
+	return tea.Batch(cmds...)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -72,6 +88,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return nil
 			}
+		}
+		if strings.HasPrefix(msg.Action.Id, "register ") {
+			//event := strings.TrimPrefix(msg.Action.Id, "register ")
+			return m, m.RegisterAutoEvents()
 		}
 	}
 
@@ -247,6 +267,7 @@ func (m Model) updateStatus() {
 
 func (m Model) View() string {
 	m.updateStatus()
+	//footer := fmt.Sprintf("waiters: %d channels: %d", len(m.context.Waiters), actions.ChannelCount.Load())
 	footer := m.status.View()
 	footerHeight := lipgloss.Height(footer)
 
