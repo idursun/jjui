@@ -137,8 +137,15 @@ limit = 0
 [graph]
   batch_size = 50
 
+[actions."revset.cancel"]
+  next = ["switch revisions"]
+
+[actions."revset.accept"]
+  next = ["switch revisions"]
+
 [actions."revset.edit"]
   args = { clear = true }
+  next = ["switch revset"]
 
 [actions."revisions.toggle_select"]
   next = ["revisions.down"]
@@ -265,6 +272,9 @@ limit = 0
   "enter" = "bookmark_list.accept"
   "esc" = "close bookmark_list"
 
+[bindings.revset]
+  "enter" = "revset.accept"
+  "esc"  = "revset.cancel"
 [bindings.revisions]
   "2" = "show_root"
   "3" = "show_context_variables"
