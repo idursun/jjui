@@ -232,29 +232,27 @@ limit = 0
   ]
 
 [actions."list_bookmarks"]
-  id = "run"
-  args = { "jj" = ["bookmark", "list"]}
+  jj = ["bookmark", "list"]
   next = [
-    {id = "list bookmark_list", args = { "items" = "$output"}},
-    "wait close bookmark_list",
-    {id = "flash.add", args = { "message" = "$selected" }}
+    { id = "choose bookmark_list", items = "$output"},
+    { wait = "close bookmark_list" },
+    { id = "flash.add", message = "$selected" },
   ]
 
 [actions."show_root"]
-  id = "run"
-  args = { "jj" = ["root"] }
+  jj = ["root"]
   next = [
-      { id = "flash.add", args = { "message" = "$output" } },
-      "refresh",
-      "wait @refresh",
-      { id = "flash.add", args = { "message" = "hello" } },
+    { id = "flash.add", message = "$output" },
+    "refresh",
+    "wait @refresh",
+    { id = "flash.add", message = "hello" },
   ]
 
 [actions."show_context_variables"]
   id = "flash.add"
-  args = { "message" = "checked commit ids: $checked_commit_ids" }
+  message = "checked commit ids: $checked_commit_ids"
   next = [
-      { id = "flash.add", args = { "message" = "file: $file" } },
+    { id = "flash.add", message = "file: $file" },
   ]
 
 [bindings."bookmark_list"]

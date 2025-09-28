@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"errors"
 	"log"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -48,6 +49,23 @@ func (a *Action) UnmarshalTOML(data any) error {
 			a.Id = id.(string)
 		}
 
+		if wait, ok := value["wait"]; ok {
+			if message, ok := wait.(string); ok {
+				a.Id = "wait " + message
+			}
+		}
+
+		if jjRunCommandArgs, ok := value["jj"]; ok {
+			a.Id = "run"
+			if args, ok := jjRunCommandArgs.([]interface{}); ok {
+				a.Args = map[string]any{
+					"jj": args,
+				}
+			} else {
+				return errors.New("jj arguments needs to an array")
+			}
+		}
+
 		if next, ok := value["next"]; ok {
 			a.Next = []Action{}
 			for _, v := range next.([]interface{}) {
@@ -59,6 +77,16 @@ func (a *Action) UnmarshalTOML(data any) error {
 
 		if args, ok := value["args"]; ok {
 			a.Args = args.(map[string]interface{})
+		}
+
+		// Implicit args
+		if a.Args == nil {
+			a.Args = make(map[string]any)
+		}
+		for k, v := range value {
+			if k != "id" && k != "next" && k != "args" && k != "wait" && k != "jj" {
+				a.Args[k] = v
+			}
 		}
 	}
 	return nil

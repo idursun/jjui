@@ -142,6 +142,27 @@ func TestLoad_Actions_TableSyntax(t *testing.T) {
 	assert.Len(t, action.Next, 2)
 }
 
+func TestLoad_Actions_Shorthand(t *testing.T) {
+	content := `
+[actions."shorthand"]
+  id = "run"
+  args = { "jj" = ["root"] }
+  next = [
+    { choose = "simple_list", floating = "true" },
+    { wait = { close = "simple_list" } },
+	"refresh"
+  ]
+`
+	config := &Config{}
+	err := config.Load(content)
+	assert.NoError(t, err)
+	assert.Len(t, config.Actions, 1)
+	action, exists := config.Actions["shorthand"]
+	assert.True(t, exists)
+	assert.Len(t, action.Next, 3)
+	assert.Equal(t, "choose simple_list", action.Next[0].Id)
+}
+
 func TestLoad_ActionMap(t *testing.T) {
 	content := `
 [actions]
