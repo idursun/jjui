@@ -116,44 +116,44 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 				}
 			}
 			var cmd tea.Cmd
-			m.router, cmd = m.router.Open(actions.Scope(scope), view.NewSimpleList(m.context, scope, items))
+			m.router, cmd = m.router.Open(view.Scope(scope), view.NewSimpleList(m.context, scope, items))
 			return m, cmd
 		}
 
 		switch msg.Action.Id {
 		case "open oplog":
 			var cmd tea.Cmd
-			m.router, cmd = m.router.Open(actions.ScopeOplog, oplog.New(m.context, m.Width, m.Height))
+			m.router, cmd = m.router.Open(view.ScopeOplog, oplog.New(m.context, m.Width, m.Height))
 			return m, cmd
 		case "open diff":
 			var cmd tea.Cmd
-			m.router, cmd = m.router.Open(actions.ScopeDiff, diff.New(m.context, m.Width, m.Height))
+			m.router, cmd = m.router.Open(view.ScopeDiff, diff.New(m.context, m.Width, m.Height))
 			return m, cmd
 		case "open undo":
 			var cmd tea.Cmd
-			m.router, cmd = m.router.Open(actions.ScopeUndo, undo.NewModel(m.context))
+			m.router, cmd = m.router.Open(view.ScopeUndo, undo.NewModel(m.context))
 			return m, cmd
 		case "open bookmarks":
 			changeIds := m.revisions.GetCommitIds()
 			var cmd tea.Cmd
-			m.router, cmd = m.router.Open(actions.ScopeBookmarks, bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds, m.Width, m.Height))
+			m.router, cmd = m.router.Open(view.ScopeBookmarks, bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds, m.Width, m.Height))
 			return m, cmd
 		case "open git":
 			var cmd tea.Cmd
-			m.router, cmd = m.router.Open(actions.ScopeGit, git.NewModel(m.context, m.revisions.SelectedRevision(), m.Width, m.Height))
+			m.router, cmd = m.router.Open(view.ScopeGit, git.NewModel(m.context, m.revisions.SelectedRevisions(), m.Width, m.Height))
 			return m, cmd
 		case "open help":
 			var cmd tea.Cmd
-			m.router, cmd = m.router.Open(actions.ScopeHelp, helppage.New(m.context))
+			m.router, cmd = m.router.Open(view.ScopeHelp, helppage.New(m.context))
 			return m, cmd
 		case "toggle preview":
-			if m.router.Views[actions.ScopePreview] != nil {
-				delete(m.router.Views, actions.ScopePreview)
-				m.router.Scope = actions.ScopeRevisions
+			if m.router.Views[view.ScopePreview] != nil {
+				delete(m.router.Views, view.ScopePreview)
+				m.router.Scope = view.ScopeRevisions
 				return m, nil
 			}
 			model := preview.New(m.context)
-			m.router.Views[actions.ScopePreview] = model
+			m.router.Views[view.ScopePreview] = model
 			return m, model.Init()
 		case "refresh":
 			return m, common.RefreshAndKeepSelections
@@ -250,7 +250,7 @@ func (m Model) View() string {
 	footer := m.status.View()
 	footerHeight := lipgloss.Height(footer)
 
-	if diffView, ok := m.router.Views[actions.ScopeDiff]; ok {
+	if diffView, ok := m.router.Views[view.ScopeDiff]; ok {
 		if d, ok := diffView.(common.ISizeable); ok {
 			d.SetWidth(m.Width)
 			d.SetHeight(m.Height - footerHeight)
@@ -258,7 +258,7 @@ func (m Model) View() string {
 		return lipgloss.JoinVertical(0, diffView.View(), footer)
 	}
 
-	topView := m.router.Views[actions.ScopeRevset].View()
+	topView := m.router.Views[view.ScopeRevset].View()
 	topViewHeight := lipgloss.Height(topView)
 
 	bottomPreviewHeight := 0
@@ -267,7 +267,7 @@ func (m Model) View() string {
 	//}
 	leftView := m.renderLeftView(footerHeight, topViewHeight, bottomPreviewHeight)
 	centerView := leftView
-	previewModel := m.router.Views[actions.ScopePreview]
+	previewModel := m.router.Views[view.ScopePreview]
 
 	if previewModel != nil {
 		if p, ok := previewModel.(common.ISizeable); ok {
@@ -290,19 +290,19 @@ func (m Model) View() string {
 	}
 
 	var stacked tea.Model
-	if v, ok := m.router.Views[actions.ScopeUndo]; ok {
+	if v, ok := m.router.Views[view.ScopeUndo]; ok {
 		stacked = v
 	}
-	if v, ok := m.router.Views[actions.Scope("bookmark_list")]; ok {
+	if v, ok := m.router.Views[view.Scope("bookmark_list")]; ok {
 		stacked = v
 	}
-	if v, ok := m.router.Views[actions.ScopeBookmarks]; ok {
+	if v, ok := m.router.Views[view.ScopeBookmarks]; ok {
 		stacked = v
 	}
-	if v, ok := m.router.Views[actions.ScopeGit]; ok {
+	if v, ok := m.router.Views[view.ScopeGit]; ok {
 		stacked = v
 	}
-	if v, ok := m.router.Views[actions.ScopeHelp]; ok {
+	if v, ok := m.router.Views[view.ScopeHelp]; ok {
 		stacked = v
 	}
 
@@ -332,7 +332,7 @@ func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreview
 	w := m.Width
 	//h := 0
 
-	if _, ok := m.router.Views[actions.ScopePreview]; ok {
+	if _, ok := m.router.Views[view.ScopePreview]; ok {
 		w = m.Width - int(float64(m.Width)*(50/100.0))
 	}
 	//if m.previewModel.Visible() {
@@ -345,10 +345,10 @@ func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreview
 
 	var model tea.Model
 
-	if oplog, ok := m.router.Views[actions.ScopeOplog]; ok {
+	if oplog, ok := m.router.Views[view.ScopeOplog]; ok {
 		model = oplog
 	} else {
-		model = m.router.Views[actions.ScopeRevisions]
+		model = m.router.Views[view.ScopeRevisions]
 	}
 
 	if s, ok := model.(common.ISizeable); ok {
@@ -372,10 +372,10 @@ func New(c *context.MainContext) tea.Model {
 	revisionsModel := revisions.New(c)
 	statusModel := status.New(c)
 	revsetModel := revset.New(c)
-	router := view.NewRouter(c, actions.ScopeRevisions)
-	router.Views = map[actions.Scope]tea.Model{
-		actions.ScopeRevisions: revisionsModel,
-		actions.ScopeRevset:    revsetModel,
+	router := view.NewRouter(c, view.ScopeRevisions)
+	router.Views = map[view.Scope]tea.Model{
+		view.ScopeRevisions: revisionsModel,
+		view.ScopeRevset:    revsetModel,
 	}
 	m := Model{
 		Sizeable:  &common.Sizeable{Width: 0, Height: 0},

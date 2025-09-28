@@ -18,17 +18,17 @@ var _ common.ContextProvider = (*Router)(nil)
 
 type Router struct {
 	context *context.MainContext
-	scopes  []actions.Scope
-	Scope   actions.Scope
-	Views   map[actions.Scope]tea.Model
+	scopes  []Scope
+	Scope   Scope
+	Views   map[Scope]tea.Model
 }
 
-func NewRouter(ctx *context.MainContext, scope actions.Scope) Router {
+func NewRouter(ctx *context.MainContext, scope Scope) Router {
 	return Router{
 		context: ctx,
-		scopes:  []actions.Scope{scope},
+		scopes:  []Scope{scope},
 		Scope:   scope,
-		Views:   make(map[actions.Scope]tea.Model),
+		Views:   make(map[Scope]tea.Model),
 	}
 }
 
@@ -44,15 +44,15 @@ func (r Router) handleAndRouteAction(action actions.InvokeActionMsg) (Router, te
 	log.Println("handling action:", action.Action.Id)
 	if strings.HasPrefix(action.Action.Id, "close ") {
 		viewId := strings.TrimPrefix(action.Action.Id, "close ")
-		if _, ok := r.Views[actions.Scope(viewId)]; ok {
-			delete(r.Views, actions.Scope(viewId))
+		if _, ok := r.Views[Scope(viewId)]; ok {
+			delete(r.Views, Scope(viewId))
 			r.scopes = r.scopes[:len(r.scopes)-1]
 			r.Scope = r.scopes[len(r.scopes)-1]
 		}
 	}
 
 	if strings.HasPrefix(action.Action.Id, "switch ") {
-		viewId := actions.Scope(strings.TrimPrefix(action.Action.Id, "switch "))
+		viewId := Scope(strings.TrimPrefix(action.Action.Id, "switch "))
 		if _, ok := r.Views[viewId]; ok && r.Scope != viewId {
 			r.Scope = viewId
 		}
@@ -122,7 +122,7 @@ func (r Router) Read(value string) string {
 	return ""
 }
 
-func (r Router) Open(scope actions.Scope, model tea.Model) (Router, tea.Cmd) {
+func (r Router) Open(scope Scope, model tea.Model) (Router, tea.Cmd) {
 	r.scopes = append(r.scopes, scope)
 	r.Scope = scope
 	r.Views[scope] = model

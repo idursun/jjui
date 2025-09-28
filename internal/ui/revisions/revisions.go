@@ -40,17 +40,17 @@ import (
 )
 
 const (
-	scopeDetails        actions.Scope = "details"
-	scopeSquash         actions.Scope = "squash"
-	scopeRebase         actions.Scope = "rebase"
-	scopeInlineDescribe actions.Scope = "inline_describe"
-	scopeEvolog         actions.Scope = "evolog"
-	scopeRevert         actions.Scope = "revert"
-	scopeSetParents     actions.Scope = "set_parents"
-	scopeDuplicate      actions.Scope = "duplicate"
-	scopeAbandon        actions.Scope = "abandon"
-	scopeAceJump        actions.Scope = "ace_jump"
-	scopeSetBookmark    actions.Scope = "set_bookmark"
+	scopeDetails        view.Scope = "details"
+	scopeSquash         view.Scope = "squash"
+	scopeRebase         view.Scope = "rebase"
+	scopeInlineDescribe view.Scope = "inline_describe"
+	scopeEvolog         view.Scope = "evolog"
+	scopeRevert         view.Scope = "revert"
+	scopeSetParents     view.Scope = "set_parents"
+	scopeDuplicate      view.Scope = "duplicate"
+	scopeAbandon        view.Scope = "abandon"
+	scopeAceJump        view.Scope = "ace_jump"
+	scopeSetBookmark    view.Scope = "set_bookmark"
 )
 
 var _ list.IList = (*Model)(nil)
