@@ -138,11 +138,9 @@ limit = 0
   batch_size = 50
 
 [actions."revset.edit"]
-  id = "revset.edit"
   args = { clear = true }
 
 [actions."revisions.toggle_select"]
-  id = "revisions.toggle_select"
   next = ["revisions.down"]
 
 [actions."revisions.jump_to_working_copy"]
@@ -150,23 +148,18 @@ limit = 0
   change_id = "@"
 
 [actions."inline_describe.accept"]
-  id = "inline_describe.accept"
   next = ["close inline_describe"]
 
 [actions."oplog.restore"]
-  id = "oplog.restore"
   next = ["close oplog"]
 
 [actions."oplog.close"]
-  id = "oplog.close"
   next = ["close oplog"]
 
 [actions."oplog.diff"]
-  id = "oplog.diff"
   next = ["open diff"]
 
 [actions."set_parents.apply"]
-  id = "set_parents.apply"
   next = ["close set_parents"]
 
 [actions."abandon.apply"]
@@ -183,31 +176,25 @@ limit = 0
 
 [actions."squash.force_apply"]
   id = "squash.apply"
-  args = { "force" = true }
+  force = true
   next = ["close squash"]
 
 [actions."undo.close"]
-  id = "undo.close"
   next = ["close undo"]
 
 [actions."undo.accept"]
-  id = "undo.accept"
   next = ["close undo"]
 
 [actions."bookmark_list.accept"]
-  id = "bookmark_list.accept"
   next = ["list.select", "close bookmark_list"]
 
 [actions."bookmarks.apply"]
-  id = "bookmarks.apply"
   next = ["close bookmarks"]
 
 [actions."git.apply"]
-  id = "git.apply"
   next = ["close git"]
 
 [actions."revert.apply"]
-  id = "revert.apply"
   next = ["close revert"]
 
 [actions."details.split.apply"]
@@ -218,11 +205,9 @@ limit = 0
   args = { "revset" = "$revset | ancestors($change_id, 2)" }
 
 [actions."revisions.my_inline_describe"]
-  id = "revisions.my_inline_describe"
   next = ["open inline_describe", "wait close inline_describe", "revisions.new"]
 
 [actions."new_note_commit"]
-  id = "new_note_commit"
   next = [
     { id = "run", args = { "jj" = ["new", "-A", "$change_id"]}, next = ["refresh"]},
     "wait @refresh",
