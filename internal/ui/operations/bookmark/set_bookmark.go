@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/view"
 
@@ -24,10 +25,7 @@ type SetBookmarkOperation struct {
 }
 
 func (s *SetBookmarkOperation) GetActionMap() map[string]actions.Action {
-	return map[string]actions.Action{
-		"esc":   {Id: "close set_bookmark", Args: nil},
-		"enter": {Id: "set_bookmark.accept", Args: nil},
-	}
+	return config.Current.GetBindings("set_bookmark")
 }
 
 func (s *SetBookmarkOperation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

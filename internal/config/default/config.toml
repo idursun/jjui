@@ -385,4 +385,6 @@ limit = 0
   "esc" = "close git"
 [bindings.help]
   "esc" = "close help"
-
+[bindings.set_bookmark]
+  "esc"   = "close set_bookmark"
+  "enter" = "set_bookmark.accept"
