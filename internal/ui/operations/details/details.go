@@ -90,15 +90,17 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 		case "details.down":
 			s.cursorDown()
 			return s, nil
-		case "details.split":
+		case "details.split.apply":
 			selectedFiles := s.getSelectedFiles()
+			return s, s.context.RunInteractiveCommand(jj.Split(s.revision.GetChangeId(), selectedFiles), common.Refresh)
+		case "details.split":
 			s.selectedHint = "stays as is"
 			s.unselectedHint = "moves to the new revision"
 			model := confirmation.New(
 				[]string{"Are you sure you want to split the selected files?"},
 				confirmation.WithStylePrefix("revisions"),
 				confirmation.WithOption("Yes",
-					tea.Batch(s.context.RunInteractiveCommand(jj.Split(s.revision.GetChangeId(), selectedFiles), common.Refresh), common.Close),
+					actions.InvokeAction(actions.Action{Id: "details.split.apply"}),
 					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 				confirmation.WithOption("No",
 					confirmation.Close,

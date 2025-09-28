@@ -210,6 +210,9 @@ limit = 0
   id = "revert.apply"
   next = ["close revert"]
 
+[actions."details.split.apply"]
+  next = ["close details", "refresh"]
+
 [actions."revisions.append_current_as_ancestor"]
   id = "revset.set"
   args = { "revset" = "$revset | ancestors($change_id, 2)" }
