@@ -145,6 +145,10 @@ limit = 0
   id = "revisions.toggle_select"
   next = ["revisions.down"]
 
+[actions."revisions.jump_to_working_copy"]
+  id = "revisions.find"
+  change_id = "@"
+
 [actions."inline_describe.accept"]
   id = "inline_describe.accept"
   next = ["close inline_describe"]
@@ -262,10 +266,10 @@ limit = 0
   "esc" = "close bookmark_list"
 
 [bindings.revisions]
-  "2"     = "show_root"
-  "3"     = "show_context_variables"
-  "N"    = "new_note_commit"
-  "-"     = "list_bookmarks"
+  "2" = "show_root"
+  "3" = "show_context_variables"
+  "N" = "new_note_commit"
+  "-" = "list_bookmarks"
   "@" = "revisions.jump_to_working_copy"
   "enter" = "open inline_describe"
   "j" = "revisions.down"
@@ -286,6 +290,7 @@ limit = 0
   "a" = "open abandon"
   "s" = "revisions.split"
   "d" = "revisions.diff"
+  "E" = "revisions.diffedit"
   "f" = "open ace_jump"
   "v" = "open evolog"
   "M" = "open set_parents"

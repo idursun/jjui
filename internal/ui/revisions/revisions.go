@@ -362,6 +362,25 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.router, cmd = m.router.Open(scopeSetBookmark, bookmark.NewSetBookmarkOperation(m.context, m.SelectedRevision().GetChangeId()))
 			return m, cmd
+		case "revisions.find":
+			changeId := msg.Action.Get("change_id", "").(string)
+			index := m.selectRevision(changeId)
+			if index != -1 {
+				m.cursor = index
+			}
+			return m, nil
+		case "revisions.jump_to_parent":
+			m.jumpToParent(m.SelectedRevisions())
+			return m, m.updateSelection()
+		case "revisions.jump_to_children":
+			immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.SelectedRevision()))
+			index := m.selectRevision(string(immediate))
+			if index != -1 {
+				m.cursor = index
+			}
+			return m, m.updateSelection()
+		case "refresh":
+			return m, common.Refresh
 		case "revisions.quick_search_cycle":
 			m.cursor = m.search(m.cursor + 1)
 			m.renderer.Reset()
@@ -393,24 +412,6 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.router, cmd = m.router.Open(scopeEvolog, evolog.NewOperation(m.context, m.SelectedRevision(), m.Width, m.Height))
 			return m, cmd
-		case "revisions.jump_to_parent":
-			m.jumpToParent(m.SelectedRevisions())
-			return m, m.updateSelection()
-		case "revisions.jump_to_children":
-			immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.SelectedRevision()))
-			index := m.selectRevision(string(immediate))
-			if index != -1 {
-				m.cursor = index
-			}
-			return m, m.updateSelection()
-		case "revisions.jump_to_working_copy":
-			workingCopyIndex := m.selectRevision("@")
-			if workingCopyIndex != -1 {
-				m.cursor = workingCopyIndex
-			}
-			return m, m.updateSelection()
-		case "refresh":
-			return m, common.Refresh
 		case "open inline_describe":
 			var cmd tea.Cmd
 			m.router, cmd = m.router.Open(scopeInlineDescribe, describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width))
