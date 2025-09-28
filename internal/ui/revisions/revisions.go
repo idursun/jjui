@@ -102,11 +102,24 @@ func (m *Model) GetActionMap() map[string]actions.Action {
 }
 
 func (m *Model) Read(value string) string {
-	if current := m.SelectedRevision(); current != nil {
-		switch value {
-		case jj.ChangeIdPlaceholder:
+	if revisions := m.SelectedRevisions(); len(revisions.Revisions) > 1 {
+
+	}
+	switch value {
+	case jj.CheckedCommitIdsPlaceholder:
+		if selectedRevisions := m.SelectedRevisions(); len(selectedRevisions.Revisions) > 0 {
+			var commitIds []string
+			for _, rev := range selectedRevisions.Revisions {
+				commitIds = append(commitIds, rev.CommitId)
+			}
+			return strings.Join(commitIds, " | ")
+		}
+	case jj.ChangeIdPlaceholder:
+		if current := m.SelectedRevision(); current != nil {
 			return current.GetChangeId()
-		case jj.CommitIdPlaceholder:
+		}
+	case jj.CommitIdPlaceholder:
+		if current := m.SelectedRevision(); current != nil {
 			return current.CommitId
 		}
 	}

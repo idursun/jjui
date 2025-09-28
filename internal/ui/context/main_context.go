@@ -102,6 +102,13 @@ func (ctx *MainContext) GetVariables() map[string]string {
 	return ctx.variables
 }
 
+func (ctx *MainContext) ReplaceWithVariables(input string) string {
+	for k, v := range ctx.variables {
+		input = strings.ReplaceAll(input, k, v)
+	}
+	return input
+}
+
 func NewAppContext(location string) *MainContext {
 	m := &MainContext{
 		CommandRunner: &MainCommandRunner{

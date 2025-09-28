@@ -64,7 +64,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "diff.show":
 			args := msg.Action.GetArgs("jj")
 			return m, func() tea.Msg {
-				output, err := m.context.RunCommandImmediate(jj.Args(args...))
+				output, err := m.context.RunCommandImmediate(jj.TemplatedArgs(args, m.context.GetVariables()))
 				if err != nil {
 					return common.ShowDiffMsg(err.Error())
 				}

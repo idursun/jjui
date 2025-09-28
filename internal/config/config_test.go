@@ -123,6 +123,25 @@ func TestLoad_Actions_NestedNext(t *testing.T) {
 	assert.Len(t, action.Next[0].Next, 1)
 }
 
+func TestLoad_Actions_TableSyntax(t *testing.T) {
+	content := `
+[actions."show_root"]
+  id = "run"
+  args = { "jj" = ["root"] }
+  next = [
+    { id = "flash.add", args = { "message" = "$output" } },
+    { id = "flash.add", args = { "message" = "hello" } },
+  ]
+`
+	config := &Config{}
+	err := config.Load(content)
+	assert.NoError(t, err)
+	assert.Len(t, config.Actions, 1)
+	action, exists := config.Actions["show_root"]
+	assert.True(t, exists)
+	assert.Len(t, action.Next, 2)
+}
+
 func TestLoad_ActionMap(t *testing.T) {
 	content := `
 [actions]

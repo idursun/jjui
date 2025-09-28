@@ -53,6 +53,11 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if selected := m.revisions.SelectedRevision(); selected != nil {
 		m.context.Set(jj.ChangeIdPlaceholder, selected.GetChangeId())
+		m.context.Set(jj.RevsetPlaceholder, m.context.CurrentRevset)
+		m.context.Set(jj.OperationIdPlaceholder, m.router.Read(jj.OperationIdPlaceholder))
+		m.context.Set(jj.FilePlaceholder, m.router.Read(jj.FilePlaceholder))
+		m.context.Set(jj.CheckedFilesPlaceholder, m.router.Read(jj.CheckedFilesPlaceholder))
+		m.context.Set(jj.CheckedCommitIdsPlaceholder, m.router.Read(jj.CheckedCommitIdsPlaceholder))
 	}
 	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		if msg.Action.Id == "run" {
@@ -103,11 +108,7 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 			if arg, ok := msg.Action.Args["items"]; ok {
 				switch arg := arg.(type) {
 				case string:
-					vars := m.context.GetVariables()
-					for k, v := range vars {
-						arg = strings.ReplaceAll(arg, k, v)
-					}
-					items = strings.Split(arg, "\n")
+					items = strings.Split(m.context.ReplaceWithVariables(arg), "\n")
 				case []string:
 					items = arg
 				case []interface{}:
