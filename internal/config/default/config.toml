@@ -179,6 +179,14 @@ limit = 0
   force = true
   next = ["close squash"]
 
+[actions."rebase.apply"]
+  next = ["close rebase", "refresh"]
+
+[actions."rebase.force_apply"]
+  id =  "rebase.apply"
+  force = true
+  next = ["close rebase", "refresh"]
+
 [actions."undo.close"]
   next = ["close undo"]
 
@@ -190,6 +198,10 @@ limit = 0
 
 [actions."bookmarks.apply"]
   next = ["close bookmarks"]
+
+[actions."evolog.restore.apply"]
+  id = "evolog.apply"
+  next = ["close evolog", "refresh"]
 
 [actions."git.apply"]
   next = ["close git"]
@@ -381,3 +393,36 @@ limit = 0
 [bindings.set_bookmark]
   "esc"   = "close set_bookmark"
   "enter" = "set_bookmark.accept"
+[bindings.evolog]
+  "j" = "evolog.down"
+  "k" = "evolog.up"
+  "d" = "evolog.diff"
+  "r" = "evolog.restore"
+  "esc" = "close evolog"
+
+[bindings."evolog.restore"]
+  "enter" = "evolog.restore.apply"
+  "esc"   = "close evolog"
+[bindings.duplicate]
+  "j" =     "revisions.down"
+  "k" =     "revisions.up"
+  "d" =     "duplicate.onto"
+  "a" =     "duplicate.after"
+  "b" =     "duplicate.before"
+  "esc" =   "close duplicate"
+  "enter" = "duplicate.apply"
+
+[bindings.rebase]
+  "j" = "revisions.down"
+  "k" = "revisions.up"
+  "r" = "rebase.revision"
+  "B" = "rebase.branch"
+  "s" = "rebase.source"
+  "o" = "rebase.onto"
+  "a" = "rebase.after"
+  "b" = "rebase.before"
+  "i" = "rebase.insert"
+  "E" = "rebase.skip_emptied"
+  "enter" = "rebase.apply"
+  "alt+enter" = "rebase.force_apply"
+  "esc"= "close rebase"

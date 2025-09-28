@@ -73,25 +73,7 @@ type Operation struct {
 }
 
 func (r *Operation) GetActionMap() map[string]actions.Action {
-	return map[string]actions.Action{
-		"j": {Id: "revisions.down"},
-		"k": {Id: "revisions.up"},
-		"r": {Id: "rebase.revision"},
-		"B": {Id: "rebase.branch"},
-		"s": {Id: "rebase.source"},
-		"o": {Id: "rebase.onto"},
-		"a": {Id: "rebase.after"},
-		"b": {Id: "rebase.before"},
-		"i": {Id: "rebase.insert"},
-		"E": {Id: "rebase.skip_emptied"},
-		"enter": {Id: "rebase.apply", Next: []actions.Action{
-			{Id: "close rebase"},
-		}},
-		"shift+enter": {Id: "rebase.force_apply", Next: []actions.Action{
-			{Id: "close rebase"},
-		}},
-		"esc": {Id: "close rebase"},
-	}
+	return config.Current.GetBindings("rebase")
 }
 
 func (r *Operation) Init() tea.Cmd {
@@ -118,8 +100,8 @@ func (r *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			r.InsertStart = r.To
 		case "rebase.skip_emptied":
 			r.SkipEmptied = !r.SkipEmptied
-		case "rebase.apply", "rebase.force_apply":
-			ignoreImmutable := msg.Action.Id == "rebase.force_apply"
+		case "rebase.apply":
+			ignoreImmutable := msg.Action.Get("force", false).(bool)
 			skipEmptied := r.SkipEmptied
 			if r.Target == TargetInsert {
 				return r, r.context.RunCommand(jj.RebaseInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId(), skipEmptied, ignoreImmutable), common.RefreshAndSelect(r.From.Last()), common.Close)

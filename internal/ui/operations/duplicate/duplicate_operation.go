@@ -53,15 +53,7 @@ type Operation struct {
 }
 
 func (r *Operation) GetActionMap() map[string]actions.Action {
-	return map[string]actions.Action{
-		"j":     {Id: "revisions.down"},
-		"k":     {Id: "revisions.up"},
-		"d":     {Id: "duplicate.onto"},
-		"a":     {Id: "duplicate.after"},
-		"b":     {Id: "duplicate.before"},
-		"esc":   {Id: "close duplicate"},
-		"enter": {Id: "duplicate.apply"},
-	}
+	return config.Current.GetBindings("duplicate")
 }
 
 func (r *Operation) Init() tea.Cmd {

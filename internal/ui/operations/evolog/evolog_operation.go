@@ -47,23 +47,11 @@ type Operation struct {
 }
 
 func (o *Operation) GetActionMap() map[string]actions.Action {
-	if o.mode == selectMode {
-		return map[string]actions.Action{
-			"j":   {Id: "evolog.down"},
-			"k":   {Id: "evolog.up"},
-			"esc": {Id: "close evolog"},
-			"d":   {Id: "evolog.diff"},
-			"r":   {Id: "evolog.restore"},
-		}
-	} else {
-		return map[string]actions.Action{
-			"esc": {Id: "close evolog"},
-			"enter": {Id: "evolog.apply", Next: []actions.Action{
-				{Id: "close evolog"},
-				{Id: "ui.refresh"},
-			}},
-		}
+	if o.mode == restoreMode {
+		return config.Current.GetBindings("evolog.restore")
 	}
+
+	return config.Current.GetBindings("evolog")
 }
 
 func (o *Operation) Init() tea.Cmd {
