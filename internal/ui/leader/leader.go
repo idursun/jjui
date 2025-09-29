@@ -82,7 +82,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 func contextEnabled(ctx *context.MainContext, bnds context.LeaderMap) context.LeaderMap {
 	bnds = maps.Clone(bnds)
-	replacementKeys := slices.Collect(maps.Keys(ctx.CreateReplacements()))
+	replacementKeys := slices.Collect(maps.Keys(ctx.GetVariables()))
 	maps.DeleteFunc(bnds, func(k string, v *context.Leader) bool {
 		if v == nil {
 			return true

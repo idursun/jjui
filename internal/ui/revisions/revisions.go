@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-	"reflect"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -80,6 +79,7 @@ type Model struct {
 	dimmedStyle      lipgloss.Style
 	selectedStyle    lipgloss.Style
 	router           view.Router
+	checkedRevisions map[string]bool
 }
 
 func (m *Model) Name() string {
@@ -102,9 +102,6 @@ func (m *Model) GetActionMap() map[string]actions.Action {
 }
 
 func (m *Model) Read(value string) string {
-	if revisions := m.SelectedRevisions(); len(revisions.Revisions) > 1 {
-
-	}
 	switch value {
 	case jj.CheckedCommitIdsPlaceholder:
 		if selectedRevisions := m.SelectedRevisions(); len(selectedRevisions.Revisions) > 0 {
@@ -278,10 +275,8 @@ func (m *Model) SelectedRevision() *jj.Commit {
 func (m *Model) SelectedRevisions() jj.SelectedRevisions {
 	var selected []*jj.Commit
 	ids := make(map[string]bool)
-	for _, ci := range m.context.CheckedItems {
-		if rev, ok := ci.(appContext.SelectedRevision); ok {
-			ids[rev.CommitId] = true
-		}
+	for commitId := range m.checkedRevisions {
+		ids[commitId] = true
 	}
 	for _, row := range m.rows {
 		if _, ok := ids[row.Commit.CommitId]; ok {
@@ -332,8 +327,11 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 		case "revisions.toggle_select":
 			commit := m.rows[m.cursor].Commit
 			changeId := commit.GetChangeId()
-			item := appContext.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
-			m.context.ToggleCheckedItem(item)
+			if _, ok := m.checkedRevisions[changeId]; ok {
+				delete(m.checkedRevisions, changeId)
+			} else {
+				m.checkedRevisions[changeId] = true
+			}
 			return m, nil
 		case "open ace_jump":
 			var cmd tea.Cmd
@@ -476,7 +474,7 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 	case common.RefreshMsg:
 		if !msg.KeepSelections {
-			m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
+			m.checkedRevisions = make(map[string]bool)
 		}
 		m.isLoading = true
 		var cmd tea.Cmd
@@ -499,11 +497,8 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 
 		// If the revision to select is not set, use the currently selected item
 		if m.revisionToSelect == "" {
-			switch selected := m.context.SelectedItem.(type) {
-			case appContext.SelectedRevision:
-				m.revisionToSelect = selected.CommitId
-			case appContext.SelectedFile:
-				m.revisionToSelect = selected.CommitId
+			if current := m.SelectedRevision(); current != nil {
+				m.revisionToSelect = current.GetChangeId()
 			}
 		}
 		log.Println("Starting streaming revisions message received with tag:", msg.tag, "revision to select:", msg.selectedRevision)
@@ -631,7 +626,7 @@ func (m *Model) View() string {
 		m.renderer.tracer = parser.NewNoopTracer()
 	}
 
-	m.renderer.selections = m.context.GetSelectedRevisions()
+	m.renderer.selections = m.checkedRevisions
 
 	output := m.renderer.Render(m.cursor)
 	output = m.textStyle.MaxWidth(m.Width).Render(output)
@@ -744,16 +739,17 @@ func New(c *appContext.MainContext) *Model {
 	keymap := config.Current.GetKeyMap()
 	router := view.NewRouter(c, "")
 	m := Model{
-		Sizeable:      &common.Sizeable{Width: 0, Height: 0},
-		context:       c,
-		keymap:        keymap,
-		rows:          nil,
-		offScreenRows: nil,
-		cursor:        0,
-		textStyle:     common.DefaultPalette.Get("revisions text"),
-		dimmedStyle:   common.DefaultPalette.Get("revisions dimmed"),
-		selectedStyle: common.DefaultPalette.Get("revisions selected"),
-		router:        router,
+		Sizeable:         &common.Sizeable{Width: 0, Height: 0},
+		context:          c,
+		keymap:           keymap,
+		rows:             nil,
+		offScreenRows:    nil,
+		cursor:           0,
+		textStyle:        common.DefaultPalette.Get("revisions text"),
+		dimmedStyle:      common.DefaultPalette.Get("revisions dimmed"),
+		selectedStyle:    common.DefaultPalette.Get("revisions selected"),
+		checkedRevisions: make(map[string]bool),
+		router:           router,
 	}
 	m.renderer = newRevisionListRenderer(&m, m.Sizeable)
 	return &m

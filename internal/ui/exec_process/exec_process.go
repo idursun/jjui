@@ -31,7 +31,7 @@ func ExecMsgFromLine(prompt string, line string) common.ExecMsg {
 }
 
 func ExecLine(ctx *context.MainContext, msg common.ExecMsg) tea.Cmd {
-	replacements := ctx.CreateReplacements()
+	replacements := ctx.GetVariables()
 	switch msg.Mode {
 	case common.ExecJJ:
 		args := strings.Fields(msg.Line)

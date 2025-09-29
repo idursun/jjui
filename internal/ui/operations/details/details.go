@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"path"
-	"reflect"
 	"slices"
 	"strings"
 
@@ -155,18 +154,6 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 			if current := s.current(); current != nil {
 				isChecked := !current.selected
 				current.selected = isChecked
-
-				checkedFile := context.SelectedFile{
-					ChangeId: s.revision.GetChangeId(),
-					CommitId: s.revision.CommitId,
-					File:     current.fileName,
-				}
-				if isChecked {
-					s.context.AddCheckedItem(checkedFile)
-				} else {
-					s.context.RemoveCheckedItem(checkedFile)
-				}
-
 				s.cursorDown()
 			}
 			return s, nil
@@ -190,27 +177,8 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 		return s, s.load(s.revision.GetChangeId())
 	case updateCommitStatusMsg:
 		items := s.createListItems(msg.summary, msg.selectedFiles)
-		var selectionChangedCmd tea.Cmd
-		s.context.ClearCheckedItems(reflect.TypeFor[context.SelectedFile]())
-		if len(items) > 0 {
-			var first context.SelectedItem
-			for _, it := range items {
-				sel := context.SelectedFile{
-					ChangeId: s.revision.GetChangeId(),
-					CommitId: s.revision.CommitId,
-					File:     it.fileName,
-				}
-				if first == nil {
-					first = sel
-				}
-				if it.selected {
-					s.context.AddCheckedItem(sel)
-				}
-			}
-			selectionChangedCmd = s.context.SetSelectedItem(first)
-		}
 		s.setItems(items)
-		return s, selectionChangedCmd
+		return s, nil
 	case tea.KeyMsg:
 		if s.confirmation != nil {
 			model, cmd := s.confirmation.Update(msg)

@@ -140,25 +140,13 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case updateEvologMsg:
 		o.rows = msg.rows
 		o.cursor = 0
-		return o, o.updateSelection()
+		return o, nil
 	}
 	return o, nil
 }
 
 func (o *Operation) getSelectedEvolog() *jj.Commit {
 	return o.rows[o.cursor].Commit
-}
-
-func (o *Operation) updateSelection() tea.Cmd {
-	if o.rows == nil {
-		return nil
-	}
-
-	selected := o.getSelectedEvolog()
-	return o.context.SetSelectedItem(context.SelectedRevision{
-		ChangeId: selected.GetChangeId(),
-		CommitId: selected.CommitId,
-	})
 }
 
 func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {

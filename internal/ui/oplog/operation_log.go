@@ -93,12 +93,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "oplog.up":
 			if m.cursor > 0 {
 				m.cursor -= 1
-				return m, m.updateSelection()
+				return m, nil
 			}
 		case "oplog.down":
 			if m.cursor+1 < len(m.rows) {
 				m.cursor += 1
-				return m, m.updateSelection()
+				return m, nil
 			}
 			return m, nil
 		case "oplog.diff":
@@ -115,14 +115,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rows = msg.Rows
 		m.renderer.Reset()
 	}
-	return m, m.updateSelection()
-}
-
-func (m *Model) updateSelection() tea.Cmd {
-	if m.rows == nil {
-		return nil
-	}
-	return m.context.SetSelectedItem(context.SelectedOperation{OperationId: m.rows[m.cursor].OperationId})
+	return m, nil
 }
 
 func (m *Model) View() string {
