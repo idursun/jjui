@@ -58,9 +58,7 @@ func (m Model) RegisterAutoEvents() tea.Cmd {
 		}
 		events := action.GetArgs("on")
 		for _, event := range events {
-			var waitCmd tea.Cmd
-			m.context.Waiters[event], waitCmd = action.Wait()
-			cmds = append(cmds, waitCmd)
+			cmds = append(cmds, m.context.AddWaiter(event, action))
 		}
 	}
 	return tea.Batch(cmds...)
@@ -90,7 +88,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if strings.HasPrefix(msg.Action.Id, "register ") {
-			//event := strings.TrimPrefix(msg.Action.Id, "register ")
+			//action := strings.TrimPrefix(msg.Action.Id, "register ")
 			return m, m.RegisterAutoEvents()
 		}
 	}
@@ -267,8 +265,8 @@ func (m Model) updateStatus() {
 
 func (m Model) View() string {
 	m.updateStatus()
-	//footer := fmt.Sprintf("waiters: %d channels: %d", len(m.context.Waiters), actions.ChannelCount.Load())
-	footer := m.status.View()
+	footer := fmt.Sprintf("waiters: %d channels: %d", 0, actions.ChannelCount.Load())
+	//footer := m.status.View()
 	footerHeight := lipgloss.Height(footer)
 
 	if diffView, ok := m.router.Views[view.ScopeDiff]; ok {
