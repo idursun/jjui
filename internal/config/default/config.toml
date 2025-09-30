@@ -278,6 +278,14 @@ limit = 0
     { id = "flash.add", message = "file: $file" },
   ]
 
+[actions."move commit down"]
+  jj = ["rebase", "-r", "$change_id", "--insert-before", "$change_id-"]
+  next = ["refresh"]
+
+[actions."move commit up"]
+  jj = ["rebase", "-r", "$change_id", "--insert-after", "$change_id+"]
+  next = ["refresh"]
+
 [bindings."bookmark_list"]
   "j" = "list.down"
   "k" = "list.up"
@@ -288,6 +296,8 @@ limit = 0
   "enter" = "revset.accept"
   "esc"  = "revset.cancel"
 [bindings.revisions]
+  "ctrl+j"  = "move commit down"
+  "ctrl+k"  = "move commit up"
   "2" = "show_root"
   "3" = "show_context_variables"
   "N" = "new_note_commit"
