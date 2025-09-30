@@ -130,6 +130,7 @@ func (m *Model) Cursor() int {
 func (m *Model) SetCursor(index int) {
 	if index >= 0 && index < len(m.rows) {
 		m.cursor = index
+		m.context.ContinueAction("@revisions.select")
 	}
 }
 
@@ -273,6 +274,9 @@ func (m *Model) SelectedRevision() *jj.Commit {
 }
 
 func (m *Model) SelectedRevisions() jj.SelectedRevisions {
+	if len(m.rows) == 0 || m.cursor == -1 {
+		return jj.SelectedRevisions{}
+	}
 	var selected []*jj.Commit
 	ids := make(map[string]bool)
 	for commitId := range m.checkedRevisions {
@@ -364,23 +368,23 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			changeId := msg.Action.Get("change_id", "").(string)
 			index := m.selectRevision(changeId)
 			if index != -1 {
-				m.cursor = index
+				m.SetCursor(index)
 			}
 			return m, nil
 		case "revisions.jump_to_parent":
 			m.jumpToParent(m.SelectedRevisions())
-			return m, m.updateSelection()
+			return m, nil
 		case "revisions.jump_to_children":
 			immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.SelectedRevision()))
 			index := m.selectRevision(string(immediate))
 			if index != -1 {
-				m.cursor = index
+				m.SetCursor(index)
 			}
-			return m, m.updateSelection()
+			return m, nil
 		case "refresh":
 			return m, common.Refresh
 		case "revisions.quick_search_cycle":
-			m.cursor = m.search(m.cursor + 1)
+			m.SetCursor(m.search(m.cursor + 1))
 			m.renderer.Reset()
 			return m, nil
 		case "revisions.diff":
@@ -423,7 +427,7 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			parent, _ := m.context.RunCommandImmediate(jj.GetParent(selectedRevisions))
 			parentIdx := m.selectRevision(string(parent))
 			if parentIdx != -1 {
-				m.cursor = parentIdx
+				m.SetCursor(parentIdx)
 			} else if m.cursor < len(m.rows)-1 {
 				m.cursor++
 			}
@@ -441,15 +445,15 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			return m, cmd
 		case "revisions.up":
 			if m.cursor >= 1 {
-				m.cursor -= 1
+				m.SetCursor(m.cursor - 1)
 				log.Println("action: revisions.up handled ", m.cursor)
-				return m, m.updateSelection()
+				return m, nil
 			}
 			return m, nil
 		case "revisions.down":
 			if m.cursor+1 < len(m.rows) {
-				m.cursor += 1
-				return m, m.updateSelection()
+				m.SetCursor(m.cursor + 1)
+				return m, nil
 			} else if m.hasMore {
 				return m, m.requestMoreRows(m.tag.Load())
 			}
@@ -457,7 +461,7 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 	case common.QuickSearchMsg:
 		m.quickSearch = string(msg)
-		m.cursor = m.search(0)
+		m.SetCursor(m.search(0))
 		m.renderer.Reset()
 		return m, nil
 	case common.CommandCompletedMsg:
@@ -488,7 +492,7 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 	case updateRevisionsMsg:
 		m.isLoading = false
 		m.updateGraphRows(msg.rows, msg.selectedRevision)
-		return m, tea.Batch(m.highlightChanges, m.updateSelection(), func() tea.Msg {
+		return m, tea.Batch(m.highlightChanges, func() tea.Msg {
 			return common.UpdateRevisionsSuccessMsg{}
 		})
 	case startRowsStreamingMsg:
@@ -523,20 +527,20 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 		currentSelectedRevision := m.SelectedRevision()
 		m.rows = m.offScreenRows
 		if m.revisionToSelect != "" {
-			m.cursor = m.selectRevision(m.revisionToSelect)
+			m.SetCursor(m.selectRevision(m.revisionToSelect))
 			m.revisionToSelect = ""
 		}
 
 		if m.cursor == -1 && currentSelectedRevision != nil {
-			m.cursor = m.selectRevision(currentSelectedRevision.GetChangeId())
+			m.SetCursor(m.selectRevision(currentSelectedRevision.GetChangeId()))
 		}
 
 		if (m.cursor < 0 || m.cursor >= len(m.rows)) && len(m.rows) > 0 {
-			m.cursor = 0
+			m.SetCursor(0)
 		}
 
 		m.context.ContinueAction("@refresh")
-		cmds := []tea.Cmd{m.highlightChanges, m.updateSelection()}
+		cmds := []tea.Cmd{m.highlightChanges}
 		if !m.hasMore {
 			cmds = append(cmds, func() tea.Msg {
 				return common.UpdateRevisionsSuccessMsg{}
@@ -552,10 +556,6 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.router, cmd = m.router.Update(msg)
 	return m, cmd
-}
-
-func (m *Model) updateSelection() tea.Cmd {
-	return nil
 }
 
 func (m *Model) highlightChanges() tea.Msg {
@@ -600,13 +600,13 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 	if len(m.rows) > 0 {
 		m.cursor = m.selectRevision(currentSelectedRevision)
 		if m.cursor == -1 {
-			m.cursor = m.selectRevision("@")
+			m.SetCursor(m.selectRevision("@"))
 		}
 		if m.cursor == -1 {
-			m.cursor = 0
+			m.SetCursor(0)
 		}
 	} else {
-		m.cursor = 0
+		m.SetCursor(0)
 	}
 }
 
@@ -759,6 +759,6 @@ func (m *Model) jumpToParent(revisions jj.SelectedRevisions) {
 	immediate, _ := m.context.RunCommandImmediate(jj.GetParent(revisions))
 	parentIndex := m.selectRevision(string(immediate))
 	if parentIndex != -1 {
-		m.cursor = parentIndex
+		m.SetCursor(parentIndex)
 	}
 }

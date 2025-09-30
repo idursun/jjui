@@ -137,13 +137,14 @@ limit = 0
 [graph]
   batch_size = 50
 
-[actions."#track-revisions"]
-    on = ["revisions.down", "revisions.up", "revisions.find"]
-    next = [{ id = "flash.add", message = "Auto action triggered" }, "register #track-revisions"]
+# example auto command
+[actions."#update-preview"]
+    on = ["@refresh", "@revisions.select"]
+    next = [{ id = "preview.update", revision = "$commit_id" }, "register #update-preview"]
 
 [actions."#refresh"]
   on = ["@refresh"]
-  next = [{ id = "flash.add", message = "refresh completed" }, "register #refresh"]
+  next = [{ id = "flash.add", message = "refreshed" }, "register #refresh"]
 
 [actions."revset.cancel"]
   next = ["switch revisions"]
@@ -226,6 +227,9 @@ limit = 0
 
 [actions."details.split.apply"]
   next = ["close details", "refresh"]
+
+[actions."toggle preview"]
+    next = [{ id = "preview.update", revision = "$commit_id" }]
 
 [actions."revisions.append_current_as_ancestor"]
   id = "revset.set"

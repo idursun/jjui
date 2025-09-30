@@ -65,14 +65,14 @@ func (m Model) RegisterAutoEvents() tea.Cmd {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if selected := m.revisions.SelectedRevision(); selected != nil {
-		m.context.Set(jj.ChangeIdPlaceholder, selected.GetChangeId())
-		m.context.Set(jj.RevsetPlaceholder, m.context.CurrentRevset)
-		m.context.Set(jj.OperationIdPlaceholder, m.router.Read(jj.OperationIdPlaceholder))
-		m.context.Set(jj.FilePlaceholder, m.router.Read(jj.FilePlaceholder))
-		m.context.Set(jj.CheckedFilesPlaceholder, m.router.Read(jj.CheckedFilesPlaceholder))
-		m.context.Set(jj.CheckedCommitIdsPlaceholder, m.router.Read(jj.CheckedCommitIdsPlaceholder))
-	}
+	m.context.Set(jj.RevsetPlaceholder, m.context.CurrentRevset)
+	m.context.Set(jj.ChangeIdPlaceholder, m.router.Read(jj.ChangeIdPlaceholder))
+	m.context.Set(jj.CommitIdPlaceholder, m.router.Read(jj.CommitIdPlaceholder))
+	m.context.Set(jj.OperationIdPlaceholder, m.router.Read(jj.OperationIdPlaceholder))
+	m.context.Set(jj.FilePlaceholder, m.router.Read(jj.FilePlaceholder))
+	m.context.Set(jj.CheckedFilesPlaceholder, m.router.Read(jj.CheckedFilesPlaceholder))
+	m.context.Set(jj.CheckedCommitIdsPlaceholder, m.router.Read(jj.CheckedCommitIdsPlaceholder))
+
 	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		if msg.Action.Id == "run" {
 			return m, func() tea.Msg {
