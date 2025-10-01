@@ -21,7 +21,6 @@ type Waiter struct {
 type MainContext struct {
 	CommandRunner
 	Location      string
-	Leader        LeaderMap
 	JJConfig      *config.JJConfig
 	DefaultRevset string
 	CurrentRevset string

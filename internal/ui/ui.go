@@ -24,7 +24,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/exec_process"
-	"github.com/idursun/jjui/internal/ui/leader"
 	"github.com/idursun/jjui/internal/ui/oplog"
 	"github.com/idursun/jjui/internal/ui/preview"
 	"github.com/idursun/jjui/internal/ui/revisions"
@@ -36,7 +35,6 @@ type Model struct {
 	*common.Sizeable
 	router    view.Router
 	revisions *revisions.Model
-	leader    *leader.Model
 	flash     *flash.Model
 	state     common.State
 	status    *status.Model
@@ -204,9 +202,6 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 		//case key.Matches(msg, m.keyMap.Preview.Shrink) && m.previewModel.Visible():
 		//	m.previewModel.Shrink()
 		//	return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Leader):
-			m.leader = leader.New(m.context)
-			return m, leader.InitCmd
 		case key.Matches(msg, m.keyMap.FileSearch.Toggle):
 			rev := m.revisions.SelectedRevision()
 			if rev == nil {
@@ -247,19 +242,13 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m Model) updateStatus() {
-	switch {
-	case m.leader != nil:
-		m.status.SetMode("leader")
-		m.status.SetHelp(m.leader)
-	default:
-		model := m.router.Views[m.router.Scope]
-		if h, ok := model.(view.IStatus); ok {
-			m.status.SetMode(h.Name())
-			m.status.SetHelp(h)
-		} else {
-			m.status.SetHelp(m.revisions)
-			m.status.SetMode(m.revisions.Name())
-		}
+	model := m.router.Views[m.router.Scope]
+	if h, ok := model.(view.IStatus); ok {
+		m.status.SetMode(h.Name())
+		m.status.SetHelp(h)
+	} else {
+		m.status.SetHelp(m.revisions)
+		m.status.SetMode(m.revisions.Name())
 	}
 }
 
