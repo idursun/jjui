@@ -265,8 +265,8 @@ func (m Model) updateStatus() {
 
 func (m Model) View() string {
 	m.updateStatus()
-	footer := fmt.Sprintf("waiters: %d channels: %d", 0, actions.ChannelCount.Load())
-	//footer := m.status.View()
+	//footer := fmt.Sprintf("waiters: %d channels: %d", 0, actions.ChannelCount.Load())
+	footer := m.status.View()
 	footerHeight := lipgloss.Height(footer)
 
 	if diffView, ok := m.router.Views[view.ScopeDiff]; ok {
