@@ -49,7 +49,13 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				payload = strings.ReplaceAll(payload, k, v)
 			}
 			if payload != "" {
-				m.add(payload, nil)
+				id := m.add(payload, nil)
+				sticky := msg.Action.Get("sticky", false).(bool)
+				if !sticky {
+					return m, tea.Tick(expiringMessageTimeout, func(t time.Time) tea.Msg {
+						return expireMessageMsg{id: id}
+					})
+				}
 			}
 			return m, nil
 		}
