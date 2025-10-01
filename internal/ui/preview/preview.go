@@ -38,7 +38,7 @@ type Model struct {
 	borderStyle             lipgloss.Style
 }
 
-const DebounceTime = 100 * time.Millisecond
+const DebounceTime = 200 * time.Millisecond
 
 type previewMsg struct {
 	msg tea.Msg
@@ -111,13 +111,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case actions.InvokeActionMsg:
 		switch msg.Action.Id {
 		case "preview.update":
-			commitId := m.context.ReplaceWithVariables(msg.Action.Get("revision", "").(string))
+			log.Printf("preview update action received tag: %d", m.tag.Load())
 			currentTag := m.tag.Add(1)
-			log.Printf("Scheduling preview refresh for (tag %d)", currentTag)
+			commitId := m.context.ReplaceWithVariables(msg.Action.Get("revision", "").(string))
 			return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
 				if currentTag == m.tag.Load() {
+					log.Printf("Scheduling preview refresh for (tag %d)", currentTag)
 					return refreshPreviewContentMsg{Tag: currentTag, commitId: commitId}
 				}
+				log.Printf("Not scheduling preview refresh for (tag %d)", currentTag)
 				return nil
 			})
 		}
