@@ -7,12 +7,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
+	"github.com/idursun/jjui/internal/ui/context"
 )
 
 var _ list.IList = (*DetailsList)(nil)
+var _ list.IListCursor = (*DetailsList)(nil)
 
 type DetailsList struct {
 	*common.Sizeable
+
+	context        *context.MainContext
 	files          []*item
 	cursor         int
 	renderer       *list.ListRenderer
@@ -21,8 +25,9 @@ type DetailsList struct {
 	styles         styles
 }
 
-func NewDetailsList(styles styles, size *common.Sizeable) *DetailsList {
+func NewDetailsList(ctx *context.MainContext, styles styles, size *common.Sizeable) *DetailsList {
 	d := &DetailsList{
+		context:        ctx,
 		Sizeable:       size,
 		files:          []*item{},
 		cursor:         -1,
@@ -32,6 +37,15 @@ func NewDetailsList(styles styles, size *common.Sizeable) *DetailsList {
 	}
 	d.renderer = list.NewRenderer(d, size)
 	return d
+}
+
+func (d *DetailsList) Cursor() int {
+	return d.cursor
+}
+
+func (d *DetailsList) SetCursor(index int) {
+	d.cursor = index
+	d.context.ContinueAction("@details.cursor")
 }
 
 func (d *DetailsList) setItems(files []*item) {
@@ -47,13 +61,13 @@ func (d *DetailsList) setItems(files []*item) {
 
 func (d *DetailsList) cursorUp() {
 	if d.cursor > 0 {
-		d.cursor--
+		d.SetCursor(d.cursor - 1)
 	}
 }
 
 func (d *DetailsList) cursorDown() {
 	if d.cursor < len(d.files)-1 {
-		d.cursor++
+		d.SetCursor(d.cursor + 1)
 	}
 }
 

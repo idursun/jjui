@@ -139,8 +139,8 @@ limit = 0
 
 # example auto command
 [actions."#update-preview"]
-    on = ["@refresh", "@revisions.select"]
-    next = [{ id = "preview.update", revision = "$commit_id" }, "register #update-preview"]
+    on = ["@refresh", "@revisions.select", "@oplog.cursor", "@details.cursor", "open details", "close details", "open oplog", "close oplog"]
+    next = ["preview.update", "register #update-preview"]
 
 [actions."#refresh"]
   on = ["@refresh"]

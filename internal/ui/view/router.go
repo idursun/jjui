@@ -58,7 +58,7 @@ func (r Router) handleAndRouteAction(action actions.InvokeActionMsg) (Router, te
 		}
 	}
 
-	if strings.HasPrefix(action.Action.Id, "wait") {
+	if strings.HasPrefix(action.Action.Id, "wait ") {
 		log.Println("Waiting for action:", action.Action.Id)
 		message := strings.TrimPrefix(action.Action.Id, "wait ")
 		return r, r.context.AddWaiter(message, action.Action)

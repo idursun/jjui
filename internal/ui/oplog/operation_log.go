@@ -20,6 +20,7 @@ type updateOpLogMsg struct {
 }
 
 var _ list.IList = (*Model)(nil)
+var _ list.IListCursor = (*Model)(nil)
 var _ common.ContextProvider = (*Model)(nil)
 var _ view.IHasActionMap = (*Model)(nil)
 
@@ -32,6 +33,15 @@ type Model struct {
 	keymap        config.KeyMappings[key.Binding]
 	textStyle     lipgloss.Style
 	selectedStyle lipgloss.Style
+}
+
+func (m *Model) Cursor() int {
+	return m.cursor
+}
+
+func (m *Model) SetCursor(index int) {
+	m.cursor = index
+	m.context.ContinueAction("@oplog.cursor")
 }
 
 func (m *Model) Read(value string) string {
@@ -92,12 +102,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Action.Id {
 		case "oplog.up":
 			if m.cursor > 0 {
-				m.cursor -= 1
+				m.SetCursor(m.cursor - 1)
 				return m, nil
 			}
 		case "oplog.down":
 			if m.cursor+1 < len(m.rows) {
-				m.cursor += 1
+				m.SetCursor(m.cursor + 1)
 				return m, nil
 			}
 			return m, nil

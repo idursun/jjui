@@ -363,7 +363,7 @@ func NewOperation(context *context.MainContext, selected *jj.Commit, height int)
 		Conflict: common.DefaultPalette.Get("revisions details conflict"),
 	}
 
-	l := NewDetailsList(s, common.NewSizeable(0, height))
+	l := NewDetailsList(context, s, common.NewSizeable(0, height))
 	op := &Operation{
 		DetailsList:       l,
 		context:           context,

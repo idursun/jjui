@@ -52,9 +52,9 @@ func PreviewCmd(msg tea.Msg) tea.Cmd {
 }
 
 type refreshPreviewContentMsg struct {
-	item     string
-	Tag      uint64
-	commitId string
+	item      string
+	Tag       uint64
+	variables map[string]string
 }
 
 func (m *Model) SetHeight(h int) {
@@ -113,11 +113,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "preview.update":
 			log.Printf("preview update action received tag: %d", m.tag.Load())
 			currentTag := m.tag.Add(1)
-			commitId := m.context.ReplaceWithVariables(msg.Action.Get("revision", "").(string))
+			variables := m.context.GetVariables()
+
 			return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
 				if currentTag == m.tag.Load() {
 					log.Printf("Scheduling preview refresh for (tag %d)", currentTag)
-					return refreshPreviewContentMsg{Tag: currentTag, commitId: commitId}
+					return refreshPreviewContentMsg{Tag: currentTag, variables: variables}
 				}
 				log.Printf("Not scheduling preview refresh for (tag %d)", currentTag)
 				return nil
@@ -130,27 +131,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		log.Printf("Refreshing preview for %d", msg.Tag)
-		replacements := map[string]string{
-			jj.CommitIdPlaceholder: msg.commitId,
-			jj.ChangeIdPlaceholder: msg.commitId,
-		}
-		output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
-		m.updatePreviewContent(string(output))
 
-		//replacements := m.context.ScopeValues
-		//switch m.context.CurrentScope() {
-		//case common.ScopeRevisions:
-		//	if _, ok := replacements[jj.FilePlaceholder]; ok {
-		//		output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
-		//		m.updatePreviewContent(string(output))
-		//	} else {
-		//		output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
-		//		m.updatePreviewContent(string(output))
-		//	}
-		//case common.ScopeOplog:
-		//	output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
-		//	m.updatePreviewContent(string(output))
-		//}
+		if v, ok := msg.variables[jj.FilePlaceholder]; ok && v != "" {
+			output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, msg.variables))
+			m.updatePreviewContent(string(output))
+		} else if v, ok := msg.variables[jj.OperationIdPlaceholder]; ok && v != "" {
+			output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, msg.variables))
+			m.updatePreviewContent(string(output))
+		} else {
+			output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, msg.variables))
+			m.updatePreviewContent(string(output))
+		}
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Preview.ScrollDown):
