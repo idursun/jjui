@@ -214,7 +214,7 @@ limit = 0
   next = ["close undo"]
 
 [actions."bookmark_list.accept"]
-  next = ["list.select", "close bookmark_list"]
+  next = ["list.select", "close list bookmark_list"]
 
 [actions."bookmarks.apply"]
   next = ["close bookmarks"]
@@ -261,8 +261,8 @@ limit = 0
 [actions."list_bookmarks"]
   jj = ["bookmark", "list"]
   next = [
-    { id = "choose bookmark_list", items = "$output"},
-    { wait = "close bookmark_list" },
+    { id = "choose list bookmark_list", items = "$output"},
+    { wait = "close list bookmark_list" },
     { id = "flash.add", message = "$selected" },
   ]
 
@@ -290,15 +290,16 @@ limit = 0
   jj = ["rebase", "-r", "$change_id", "--insert-after", "$change_id+"]
   next = ["refresh"]
 
-[bindings."bookmark_list"]
+[bindings."list bookmark_list"]
   "j" = "list.down"
   "k" = "list.up"
   "enter" = "bookmark_list.accept"
-  "esc" = "close bookmark_list"
+  "esc" = "close list bookmark_list"
 
 [bindings.revset]
   "enter" = "revset.accept"
   "esc"  = "revset.cancel"
+
 [bindings.revisions]
   "ctrl+j"  = "move commit down"
   "ctrl+k"  = "move commit up"

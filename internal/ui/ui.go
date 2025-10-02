@@ -118,10 +118,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	nm.router, cmd = nm.router.Update(msg)
 	cmds = append(cmds, cmd)
 
-	m.status, cmd = m.status.Update(msg)
+	nm.status, cmd = nm.status.Update(msg)
 	cmds = append(cmds, cmd)
 
-	m.flash, cmd = m.flash.Update(msg)
+	nm.flash, cmd = nm.flash.Update(msg)
 	cmds = append(cmds, cmd)
 
 	if action, ok := msg.(actions.InvokeActionMsg); ok && strings.HasPrefix(action.Action.Id, "wait") == false {
@@ -135,8 +135,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case actions.InvokeActionMsg:
-		if strings.HasPrefix(msg.Action.Id, "list ") {
-			scope := strings.TrimPrefix(msg.Action.Id, "list ")
+		if strings.HasPrefix(msg.Action.Id, "choose ") {
+			scope := strings.TrimPrefix(msg.Action.Id, "choose ")
 			var items []string
 			if arg, ok := msg.Action.Args["items"]; ok {
 				switch arg := arg.(type) {
@@ -311,19 +311,15 @@ func (m Model) View() string {
 	}
 
 	var stacked tea.Model
-	if v, ok := m.router.Views[view.ScopeUndo]; ok {
+	if strings.HasPrefix(string(m.router.Scope), "list ") {
+		stacked = m.router.Views[m.router.Scope]
+	} else if v, ok := m.router.Views[view.ScopeUndo]; ok {
 		stacked = v
-	}
-	if v, ok := m.router.Views[view.Scope("bookmark_list")]; ok {
+	} else if v, ok := m.router.Views[view.ScopeBookmarks]; ok {
 		stacked = v
-	}
-	if v, ok := m.router.Views[view.ScopeBookmarks]; ok {
+	} else if v, ok := m.router.Views[view.ScopeGit]; ok {
 		stacked = v
-	}
-	if v, ok := m.router.Views[view.ScopeGit]; ok {
-		stacked = v
-	}
-	if v, ok := m.router.Views[view.ScopeHelp]; ok {
+	} else if v, ok := m.router.Views[view.ScopeHelp]; ok {
 		stacked = v
 	}
 
