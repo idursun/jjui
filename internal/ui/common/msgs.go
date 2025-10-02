@@ -11,9 +11,8 @@ type (
 	CloseViewMsg struct {
 		Cancelled bool
 	}
-	ToggleHelpMsg  struct{}
-	AutoRefreshMsg struct{}
-	RefreshMsg     struct {
+	ToggleHelpMsg struct{}
+	RefreshMsg    struct {
 		SelectedRevision string
 		KeepSelections   bool
 	}

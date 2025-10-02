@@ -146,6 +146,10 @@ limit = 0
   on = ["@refresh"]
   next = [{ id = "flash.add", message = "refreshed" }, "register #refresh"]
 
+#[actions."#auto-refresh"]
+#   interval = 10
+#   next = ["refresh", "register #auto-refresh"]
+
 [actions."revset.cancel"]
   next = ["switch revisions"]
 

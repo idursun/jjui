@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -42,21 +43,37 @@ type Model struct {
 	keyMap    config.KeyMappings[key.Binding]
 }
 
-type triggerAutoRefreshMsg struct{}
-
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(m.router.Init(), tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.scheduleAutoRefresh(), m.RegisterAutoEvents())
+	return tea.Batch(m.router.Init(), tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.registerAutoEvents())
 }
 
-func (m Model) RegisterAutoEvents() tea.Cmd {
+func (m Model) registerAutoEvents() tea.Cmd {
 	var cmds []tea.Cmd
-	for k, action := range actions.Registry {
+	for k := range actions.Registry {
 		if !strings.HasPrefix(k, "#") {
 			continue
 		}
+		cmds = append(cmds, m.registerAutoEvent(k))
+	}
+	return tea.Batch(cmds...)
+}
+
+func (m Model) registerAutoEvent(autoEvent string) tea.Cmd {
+	var cmds []tea.Cmd
+	if action, ok := actions.Registry[autoEvent]; ok {
 		events := action.GetArgs("on")
 		for _, event := range events {
 			cmds = append(cmds, m.context.AddWaiter(event, action))
+		}
+		if v, ok := action.Args["interval"]; ok {
+			interval := v.(int64)
+			if interval > 0 {
+				cmds = append(cmds, tea.Tick(time.Duration(interval)*time.Second, func(time.Time) tea.Msg {
+					log.Printf("Scheduling action %s on interval %d", action.Id, interval)
+					return action.GetNextMsg()
+				}))
+			}
+
 		}
 	}
 	return tea.Batch(cmds...)
@@ -86,8 +103,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if strings.HasPrefix(msg.Action.Id, "register ") {
-			//action := strings.TrimPrefix(msg.Action.Id, "register ")
-			return m, m.RegisterAutoEvents()
+			action := strings.TrimPrefix(msg.Action.Id, "register ")
+			return m, m.registerAutoEvent(action)
 		}
 	}
 
@@ -109,7 +126,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if action, ok := msg.(actions.InvokeActionMsg); ok && strings.HasPrefix(action.Action.Id, "wait") == false {
 		// scheduling the next action in the chain. This needs to be done outside the router so that the sub routers don't double schedule it
-		cmds = append(cmds, action.Action.GetNext())
+		cmds = append(cmds, action.Action.GetNextCmd())
 	}
 
 	return nm, tea.Batch(cmds...)
@@ -217,10 +234,6 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 		return m, exec_process.ExecLine(m.context, msg)
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
-	case triggerAutoRefreshMsg:
-		return m, tea.Batch(m.scheduleAutoRefresh(), func() tea.Msg {
-			return common.AutoRefreshMsg{}
-		})
 	case common.UpdateRevSetMsg:
 		m.context.CurrentRevset = string(msg)
 		//m.revsetModel.AddToHistory(m.context.CurrentRevset)
@@ -364,16 +377,6 @@ func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreview
 		s.SetHeight(m.Height - footerHeight - topViewHeight - bottomPreviewHeight)
 	}
 	return model.View()
-}
-
-func (m Model) scheduleAutoRefresh() tea.Cmd {
-	interval := config.Current.UI.AutoRefreshInterval
-	if interval > 0 {
-		return tea.Tick(time.Duration(interval)*time.Second, func(time.Time) tea.Msg {
-			return triggerAutoRefreshMsg{}
-		})
-	}
-	return nil
 }
 
 func New(c *context.MainContext) tea.Model {

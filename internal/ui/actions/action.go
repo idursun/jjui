@@ -77,17 +77,26 @@ func (a *Action) UnmarshalTOML(data any) error {
 	return nil
 }
 
-func (a Action) GetNext() tea.Cmd {
+func (a Action) GetNextCmd() tea.Cmd {
 	if len(a.Next) == 0 {
 		return nil
 	}
 	nextAction := a.Next[0]
 	if len(nextAction.Next) > 0 {
 		a.Next = a.Next[1:]
-		return tea.Sequence(InvokeAction(nextAction), a.GetNext())
+		return tea.Sequence(InvokeAction(nextAction), a.GetNextCmd())
 	}
 	nextAction.Next = a.Next[1:]
 	return InvokeAction(nextAction)
+}
+
+func (a Action) GetNextMsg() tea.Msg {
+	if len(a.Next) == 0 {
+		return nil
+	}
+	nextAction := a.Next[0]
+	nextAction.Next = a.Next[1:]
+	return InvokeActionMsg{Action: nextAction}
 }
 
 var ChannelCount atomic.Int32
@@ -101,9 +110,7 @@ func (a Action) Wait() (WaitChannel, tea.Cmd) {
 			ChannelCount.Add(-1)
 			if len(a.Next) > 0 {
 				log.Printf("Continuing action chain for %s", a.Id)
-				nextAction := a.Next[0]
-				nextAction.Next = a.Next[1:]
-				return InvokeActionMsg{Action: nextAction}
+				return a.GetNextMsg()
 			}
 			return nil
 		}
