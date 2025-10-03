@@ -19,10 +19,16 @@ type ExpectedCommand struct {
 	args   []string
 	output []byte
 	called bool
+	err    error
 }
 
 func (e *ExpectedCommand) SetOutput(output []byte) *ExpectedCommand {
 	e.output = output
+	return e
+}
+
+func (e *ExpectedCommand) SetError(err error) *ExpectedCommand {
+	e.err = err
 	return e
 }
 
@@ -45,7 +51,7 @@ func (t *CommandRunner) RunCommandImmediate(args []string) ([]byte, error) {
 	for _, e := range expectations {
 		if slices.Equal(e.args, args) {
 			e.called = true
-			return e.output, nil
+			return e.output, e.err
 		}
 	}
 	assert.Fail(t, "unexpected command", subCommand)
@@ -63,8 +69,8 @@ func (t *CommandRunner) RunCommandStreaming(_ context.Context, args []string) (*
 func (t *CommandRunner) RunCommand(args []string, continuations ...tea.Cmd) tea.Cmd {
 	cmds := make([]tea.Cmd, 0)
 	cmds = append(cmds, func() tea.Msg {
-		_, _ = t.RunCommandImmediate(args)
-		return common.CommandCompletedMsg{}
+		output, err := t.RunCommandImmediate(args)
+		return common.CommandCompletedMsg{Output: string(output), Err: err}
 	})
 	cmds = append(cmds, continuations...)
 	return tea.Batch(cmds...)
