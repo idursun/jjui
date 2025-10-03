@@ -112,11 +112,13 @@ limit = 0
 [ui]
   theme = ""
   auto_refresh_interval = 0
+  [ui.tracer]
+    enabled = false
+  [ui.colors]
 
-[ui.tracer]
-  enabled = false
-
-[ui.colors]
+[suggest]
+  [suggest.exec]
+    mode = "off"
 
 [revisions]
   log_batching = true

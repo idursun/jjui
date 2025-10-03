@@ -2,6 +2,7 @@ package fuzzy_input
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,14 +17,6 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-type suggestMode int
-
-const (
-	suggestOff suggestMode = iota
-	suggestFuzzy
-	suggestRegex
-)
-
 const ctrl_r = "ctrl+r"
 
 type model struct {
@@ -33,7 +26,7 @@ type model struct {
 	max         int
 	matches     fuzzy.Matches
 	styles      fuzzy_search.Styles
-	suggestMode suggestMode
+	suggestMode config.SuggestMode
 }
 
 type initMsg struct{}
@@ -70,14 +63,14 @@ func (fzf *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case ctrl_r == msg.String():
 		switch fzf.suggestMode {
-		case suggestOff:
-			fzf.suggestMode = suggestFuzzy
+		case config.SuggestModeOff:
+			fzf.suggestMode = config.SuggestModeFuzzy
 			return nil
-		case suggestFuzzy:
-			fzf.suggestMode = suggestRegex
+		case config.SuggestModeFuzzy:
+			fzf.suggestMode = config.SuggestModeRegex
 			return nil
-		case suggestRegex:
-			fzf.suggestMode = suggestOff
+		case config.SuggestModeRegex:
+			fzf.suggestMode = config.SuggestModeOff
 			fzf.cursor = 0
 			fzf.matches = nil
 			return skipSearch
@@ -109,9 +102,7 @@ func (fzf *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-func (fzf *model) suggestEnabled() bool {
-	return fzf.suggestMode != suggestOff
-}
+func (fzf *model) suggestEnabled() bool { return fzf.suggestMode != config.SuggestModeOff }
 
 func (fzf *model) hasSuggestions() bool {
 	return fzf.suggestEnabled() && len(fzf.matches) > 0
@@ -172,9 +163,9 @@ func (fzf *model) search(input string) {
 	if len(input) == 0 {
 		return
 	}
-	if fzf.suggestMode == suggestFuzzy {
+	if fzf.suggestMode == config.SuggestModeFuzzy {
 		fzf.matches = fuzzy.FindFrom(input, fzf)
-	} else if fzf.suggestMode == suggestRegex {
+	} else if fzf.suggestMode == config.SuggestModeRegex {
 		fzf.matches = fzf.searchRegex(input)
 	}
 }
@@ -231,11 +222,11 @@ func (fzf *model) ShortHelp() []key.Binding {
 	moveOnSuggestions := bind(upDown, "move on suggest")
 
 	switch fzf.suggestMode {
-	case suggestOff:
+	case config.SuggestModeOff:
 		shortHelp = append(shortHelp, bind(ctrl_r, "suggest: off"), moveOnHistory)
-	case suggestFuzzy:
+	case config.SuggestModeFuzzy:
 		shortHelp = append(shortHelp, bind(ctrl_r, "suggest: fuzzy"), moveOnSuggestions)
-	case suggestRegex:
+	case config.SuggestModeRegex:
 		shortHelp = append(shortHelp, bind(ctrl_r, "suggest: regex"), moveOnSuggestions)
 	}
 	return shortHelp
@@ -254,11 +245,18 @@ func (fzf *model) editStatus() (help.KeyMap, string) {
 func NewModel(input *textinput.Model, suggestions []string) (fuzzy_search.Model, editStatus) {
 	input.ShowSuggestions = false
 	input.SetSuggestions([]string{})
+
+	suggestMode, err := config.GetSuggestExecMode(config.Current)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	fzf := &model{
 		input:       input,
 		suggestions: suggestions,
 		max:         30,
 		styles:      fuzzy_search.NewStyles(),
+		suggestMode: suggestMode,
 	}
 	return fzf, fzf.editStatus
 }

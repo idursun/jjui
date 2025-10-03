@@ -17,6 +17,7 @@ var Current = loadDefaultConfig()
 type Config struct {
 	Keys      KeyMappings[keys] `toml:"keys"`
 	UI        UIConfig          `toml:"ui"`
+	Suggest   SuggestConfig     `toml:"suggest"`
 	Revisions RevisionsConfig   `toml:"revisions"`
 	Preview   PreviewConfig     `toml:"preview"`
 	OpLog     OpLogConfig       `toml:"oplog"`
@@ -221,4 +222,33 @@ func Edit() int {
 	cmd.Stderr = os.Stderr
 	_ = cmd.Run()
 	return cmd.ProcessState.ExitCode()
+}
+
+type SuggestMode int
+
+const (
+	SuggestModeOff SuggestMode = iota
+	SuggestModeFuzzy
+	SuggestModeRegex
+)
+
+type SuggestConfig struct {
+	Exec SuggestExecConfig `toml:"exec"`
+}
+
+type SuggestExecConfig struct {
+	Mode string `toml:"mode"`
+}
+
+func GetSuggestExecMode(c *Config) (SuggestMode, error) {
+	switch value := c.Suggest.Exec.Mode; value {
+	case "off":
+		return SuggestModeOff, nil
+	case "fuzzy":
+		return SuggestModeFuzzy, nil
+	case "regex":
+		return SuggestModeRegex, nil
+	default:
+		return SuggestModeOff, fmt.Errorf("invalid value for 'suggest.exec.mode': %q (expected one of: off, fuzzy, regex)", value)
+	}
 }
