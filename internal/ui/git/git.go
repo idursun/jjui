@@ -2,6 +2,7 @@ package git
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -131,9 +132,9 @@ func loadBookmarks(c context.CommandRunner, changeId string) []jj.Bookmark {
 	return bookmarks
 }
 
-func NewModel(c *context.MainContext, commit *jj.Commit, width int, height int) *Model {
+func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int, height int) *Model {
 	var items []list.Item
-	if commit != nil {
+	for _, commit := range revisions.Revisions {
 		bookmarks := loadBookmarks(c, commit.GetChangeId())
 		for _, b := range bookmarks {
 			if b.Conflict {
@@ -157,21 +158,39 @@ func NewModel(c *context.MainContext, commit *jj.Commit, width int, height int) 
 			}
 		}
 	}
+
 	items = append(items,
 		item{name: "git push", desc: "Push tracking bookmarks in the current revset", command: jj.GitPush(), category: itemCategoryPush, key: "p"},
 		item{name: "git push --all", desc: "Push all bookmarks (including new and deleted bookmarks)", command: jj.GitPush("--all"), category: itemCategoryPush, key: "a"},
 	)
-	if commit != nil {
+
+	hasMultipleRevisions := len(revisions.Revisions) > 1
+
+	if hasMultipleRevisions {
 		items = append(items,
 			item{
 				key:      "c",
 				category: itemCategoryPush,
-				name:     fmt.Sprintf("git push --change %s", commit.GetChangeId()),
-				desc:     fmt.Sprintf("Push the current change (%s)", commit.GetChangeId()),
-				command:  jj.GitPush("--change", commit.GetChangeId()),
-			},
-		)
+				name:     fmt.Sprintf("git push %s", strings.Join(revisions.AsPrefixedArgs("--change"), " ")),
+				desc:     fmt.Sprintf("Push selected changes (%s)", strings.Join(revisions.GetIds(), " ")),
+				command:  jj.GitPush(revisions.AsPrefixedArgs("--change")...),
+			})
 	}
+
+	for _, commit := range revisions.Revisions {
+		item := item{
+			category: itemCategoryPush,
+			name:     fmt.Sprintf("git push --change %s", commit.GetChangeId()),
+			desc:     fmt.Sprintf("Push the current change (%s)", commit.GetChangeId()),
+			command:  jj.GitPush("--change", commit.GetChangeId()),
+		}
+
+		if !hasMultipleRevisions {
+			item.key = "c"
+		}
+		items = append(items, item)
+	}
+
 	items = append(items,
 		item{name: "git push --deleted", desc: "Push all deleted bookmarks", command: jj.GitPush("--deleted"), category: itemCategoryPush, key: "d"},
 		item{name: "git push --tracked", desc: "Push all tracked bookmarks (including deleted bookmarks)", command: jj.GitPush("--tracked"), category: itemCategoryPush, key: "t"},

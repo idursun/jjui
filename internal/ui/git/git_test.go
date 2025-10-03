@@ -16,7 +16,7 @@ func Test_Push(t *testing.T) {
 	commandRunner.Expect(jj.GitPush())
 	defer commandRunner.Verify()
 
-	op := NewModel(test.NewTestContext(commandRunner), nil, 0, 0)
+	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(), 0, 0)
 	tm := teatest.NewTestModel(t, op)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
@@ -31,7 +31,7 @@ func Test_Fetch(t *testing.T) {
 	commandRunner.Expect(jj.GitFetch())
 	defer commandRunner.Verify()
 
-	op := NewModel(test.NewTestContext(commandRunner), nil, 0, 0)
+	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(), 0, 0)
 	tm := teatest.NewTestModel(t, op)
 	tm.Type("/")
 	tm.Type("fetch")
@@ -68,7 +68,7 @@ func Test_PushChange(t *testing.T) {
 	commandRunner.Expect(jj.GitPush("--change", changeId))
 	defer commandRunner.Verify()
 
-	op := NewModel(test.NewTestContext(commandRunner), &jj.Commit{ChangeId: changeId}, 0, 0)
+	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(&jj.Commit{ChangeId: changeId}), 0, 0)
 	tm := teatest.NewTestModel(t, op)
 	// Filter for the exact item and ensure selection is at index 0
 	tm.Type("/")
