@@ -24,6 +24,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Diff:              key.NewBinding(key.WithKeys(m.Diff...), key.WithHelp(JoinKeys(m.Diff), "diff")),
 		Describe:          key.NewBinding(key.WithKeys(m.Describe...), key.WithHelp(JoinKeys(m.Describe), "describe")),
 		Undo:              key.NewBinding(key.WithKeys(m.Undo...), key.WithHelp(JoinKeys(m.Undo), "undo")),
+		Redo:              key.NewBinding(key.WithKeys(m.Redo...), key.WithHelp(JoinKeys(m.Redo), "redo")),
 		Abandon:           key.NewBinding(key.WithKeys(m.Abandon...), key.WithHelp(JoinKeys(m.Abandon), "abandon")),
 		Edit:              key.NewBinding(key.WithKeys(m.Edit...), key.WithHelp(JoinKeys(m.Edit), "edit")),
 		ForceEdit:         key.NewBinding(key.WithKeys(m.ForceEdit...), key.WithHelp(JoinKeys(m.ForceEdit), "force edit")),
@@ -176,6 +177,7 @@ type KeyMappings[T any] struct {
 	Absorb            T                         `toml:"absorb"`
 	Split             T                         `toml:"split"`
 	Undo              T                         `toml:"undo"`
+	Redo              T                         `toml:"redo"`
 	Revset            T                         `toml:"revset"`
 	ExecJJ            T                         `toml:"exec_jj"`
 	ExecShell         T                         `toml:"exec_shell"`

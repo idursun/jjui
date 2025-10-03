@@ -25,6 +25,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/leader"
 	"github.com/idursun/jjui/internal/ui/oplog"
 	"github.com/idursun/jjui/internal/ui/preview"
+	"github.com/idursun/jjui/internal/ui/redo"
 	"github.com/idursun/jjui/internal/ui/revisions"
 	"github.com/idursun/jjui/internal/ui/revset"
 	"github.com/idursun/jjui/internal/ui/status"
@@ -147,6 +148,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.stacked.Init()
 		case key.Matches(msg, m.keyMap.Undo) && m.revisions.InNormalMode():
 			m.stacked = undo.NewModel(m.context)
+			cmds = append(cmds, m.stacked.Init())
+			return m, tea.Batch(cmds...)
+		case key.Matches(msg, m.keyMap.Redo) && m.revisions.InNormalMode():
+			m.stacked = redo.NewModel(m.context)
 			cmds = append(cmds, m.stacked.Init())
 			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Bookmark.Mode) && m.revisions.InNormalMode():

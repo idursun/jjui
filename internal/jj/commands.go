@@ -142,6 +142,10 @@ func Undo() CommandArgs {
 	return []string{"undo"}
 }
 
+func Redo() CommandArgs {
+	return []string{"redo"}
+}
+
 func Snapshot() CommandArgs {
 	return []string{"debug", "snapshot"}
 }
@@ -388,9 +392,11 @@ func GetFirstChild(revision *Commit) CommandArgs {
 }
 
 func FilesInRevision(revision *Commit) CommandArgs {
-	args := []string{"file", "list", "-r", revision.CommitId,
+	args := []string{
+		"file", "list", "-r", revision.CommitId,
 		"--color", "never", "--no-pager", "--quiet", "--ignore-working-copy",
-		"--template", "self.path() ++ \"\n\""}
+		"--template", "self.path() ++ \"\n\"",
+	}
 	return args
 }
 

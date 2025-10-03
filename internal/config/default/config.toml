@@ -24,6 +24,7 @@ limit = 0
   absorb = ["A"]
   split = ["s"]
   undo = ["u"]
+  redo = ["R"]
   revset = ["L"]
   exec_jj = [":"]
   exec_shell = ["$"]
