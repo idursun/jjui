@@ -70,6 +70,7 @@ Additionally,
 * _Edit_ a revision by pressing `e`
 * Git _push_/_fetch_ by pressing `g`
 * Undo the last change by pressing `u`
+* Redo the last change by pressing `R`
 * Show evolog of a revision by pressing `v`
 
 ## Configuration
