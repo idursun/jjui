@@ -31,6 +31,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Diffedit:          key.NewBinding(key.WithKeys(m.Diffedit...), key.WithHelp(JoinKeys(m.Diffedit), "diff edit")),
 		Absorb:            key.NewBinding(key.WithKeys(m.Absorb...), key.WithHelp(JoinKeys(m.Absorb), "absorb")),
 		Split:             key.NewBinding(key.WithKeys(m.Split...), key.WithHelp(JoinKeys(m.Split), "split")),
+		SplitParallel:     key.NewBinding(key.WithKeys(m.SplitParallel...), key.WithHelp(JoinKeys(m.SplitParallel), "split (parallel)")),
 		Help:              key.NewBinding(key.WithKeys(m.Help...), key.WithHelp(JoinKeys(m.Help), "help")),
 		Evolog: evologModeKeys[key.Binding]{
 			Mode:    key.NewBinding(key.WithKeys(m.Evolog.Mode...), key.WithHelp(JoinKeys(m.Evolog.Mode), "evolog")),
@@ -80,6 +81,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Mode:                  key.NewBinding(key.WithKeys(m.Details.Mode...), key.WithHelp(JoinKeys(m.Details.Mode), "details")),
 			Close:                 key.NewBinding(key.WithKeys(m.Details.Close...), key.WithHelp(JoinKeys(m.Details.Close), "close")),
 			Split:                 key.NewBinding(key.WithKeys(m.Details.Split...), key.WithHelp(JoinKeys(m.Details.Split), "split")),
+			SplitParallel:         key.NewBinding(key.WithKeys(m.Details.SplitParallel...), key.WithHelp(JoinKeys(m.Details.SplitParallel), "split (parallel)")),
 			Squash:                key.NewBinding(key.WithKeys(m.Details.Squash...), key.WithHelp(JoinKeys(m.Details.Squash), "squash")),
 			Restore:               key.NewBinding(key.WithKeys(m.Details.Restore...), key.WithHelp(JoinKeys(m.Details.Restore), "restore")),
 			Absorb:                key.NewBinding(key.WithKeys(m.Details.Absorb...), key.WithHelp(JoinKeys(m.Details.Absorb), "absorb")),
@@ -176,6 +178,7 @@ type KeyMappings[T any] struct {
 	Diffedit          T                         `toml:"diffedit"`
 	Absorb            T                         `toml:"absorb"`
 	Split             T                         `toml:"split"`
+	SplitParallel     T                         `toml:"split_parallel"`
 	Undo              T                         `toml:"undo"`
 	Redo              T                         `toml:"redo"`
 	Revset            T                         `toml:"revset"`
@@ -255,6 +258,7 @@ type detailsModeKeys[T any] struct {
 	Mode                  T `toml:"mode"`
 	Close                 T `toml:"close"`
 	Split                 T `toml:"split"`
+	SplitParallel         T `toml:"split_parallel"`
 	Restore               T `toml:"restore"`
 	Absorb                T `toml:"absorb"`
 	Squash                T `toml:"squash"`

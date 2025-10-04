@@ -130,7 +130,23 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 				[]string{"Are you sure you want to split the selected files?"},
 				confirmation.WithStylePrefix("revisions"),
 				confirmation.WithOption("Yes",
-					tea.Batch(s.context.RunInteractiveCommand(jj.Split(s.revision.GetChangeId(), selectedFiles), common.Refresh), common.Close),
+					tea.Batch(s.context.RunInteractiveCommand(jj.Split(s.revision.GetChangeId(), selectedFiles, false), common.Refresh), common.Close),
+					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+				confirmation.WithOption("No",
+					confirmation.Close,
+					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+			)
+			s.confirmation = model
+			return s, s.confirmation.Init()
+		case key.Matches(msg, s.keyMap.Details.SplitParallel):
+			selectedFiles := s.getSelectedFiles()
+			s.selectedHint = "stays as is"
+			s.unselectedHint = "moves to the new revision"
+			model := confirmation.New(
+				[]string{"Are you sure you want to split the selected files?"},
+				confirmation.WithStylePrefix("revisions"),
+				confirmation.WithOption("Yes",
+					tea.Batch(s.context.RunInteractiveCommand(jj.Split(s.revision.GetChangeId(), selectedFiles, true), common.Refresh), common.Close),
 					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 				confirmation.WithOption("No",
 					confirmation.Close,
@@ -243,6 +259,7 @@ func (s *Operation) ShortHelp() []key.Binding {
 		s.keyMap.Details.Diff,
 		s.keyMap.Details.ToggleSelect,
 		s.keyMap.Details.Split,
+		s.keyMap.Details.SplitParallel,
 		s.keyMap.Details.Squash,
 		s.keyMap.Details.Restore,
 		s.keyMap.Details.Absorb,

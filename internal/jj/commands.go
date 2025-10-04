@@ -69,8 +69,11 @@ func DiffEdit(changeId string) CommandArgs {
 	return []string{"diffedit", "-r", changeId}
 }
 
-func Split(revision string, files []string) CommandArgs {
+func Split(revision string, files []string, parallel bool) CommandArgs {
 	args := []string{"split", "-r", revision}
+	if parallel {
+		args = append(args, "--parallel")
+	}
 	var escapedFiles []string
 	for _, file := range files {
 		escapedFiles = append(escapedFiles, EscapeFileName(file))
