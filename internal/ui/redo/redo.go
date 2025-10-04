@@ -41,11 +41,11 @@ func NewModel(context *context.MainContext) Model {
 	lastOperation := lipgloss.NewStyle().PaddingBottom(1).Render(string(output))
 	model := confirmation.New(
 		[]string{lastOperation, "Are you sure you want to redo last change?"},
-		confirmation.WithStylePrefix("undo"),
+		confirmation.WithStylePrefix("redo"),
 		confirmation.WithOption("Yes", context.RunCommand(jj.Redo(), common.Refresh, common.Close), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 		confirmation.WithOption("No", common.Close, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 	)
-	model.Styles.Border = common.DefaultPalette.GetBorder("undo border", lipgloss.NormalBorder()).Padding(1)
+	model.Styles.Border = common.DefaultPalette.GetBorder("redo border", lipgloss.NormalBorder()).Padding(1)
 	return Model{
 		confirmation: model,
 	}
