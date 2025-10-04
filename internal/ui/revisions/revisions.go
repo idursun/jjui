@@ -430,7 +430,10 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 				return m, m.op.Init()
 			case key.Matches(msg, m.keymap.Split):
 				currentRevision := m.SelectedRevision().GetChangeId()
-				return m, m.context.RunInteractiveCommand(jj.Split(currentRevision, []string{}), common.Refresh)
+				return m, m.context.RunInteractiveCommand(jj.Split(currentRevision, []string{}, false), common.Refresh)
+			case key.Matches(msg, m.keymap.SplitParallel):
+				currentRevision := m.SelectedRevision().GetChangeId()
+				return m, m.context.RunInteractiveCommand(jj.Split(currentRevision, []string{}, true), common.Refresh)
 			case key.Matches(msg, m.keymap.Describe):
 				selections := m.SelectedRevisions()
 				return m, m.context.RunInteractiveCommand(jj.Describe(selections), common.Refresh)
