@@ -428,12 +428,10 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.Bookmark.Set):
 				m.op = bookmark.NewSetBookmarkOperation(m.context, m.SelectedRevision().GetChangeId())
 				return m, m.op.Init()
-			case key.Matches(msg, m.keymap.Split):
+			case key.Matches(msg, m.keymap.Split, m.keymap.SplitParallel):
+				isParallel := key.Matches(msg, m.keymap.SplitParallel)
 				currentRevision := m.SelectedRevision().GetChangeId()
-				return m, m.context.RunInteractiveCommand(jj.Split(currentRevision, []string{}, false), common.Refresh)
-			case key.Matches(msg, m.keymap.SplitParallel):
-				currentRevision := m.SelectedRevision().GetChangeId()
-				return m, m.context.RunInteractiveCommand(jj.Split(currentRevision, []string{}, true), common.Refresh)
+				return m, m.context.RunInteractiveCommand(jj.Split(currentRevision, []string{}, isParallel), common.Refresh)
 			case key.Matches(msg, m.keymap.Describe):
 				selections := m.SelectedRevisions()
 				return m, m.context.RunInteractiveCommand(jj.Describe(selections), common.Refresh)
