@@ -4,7 +4,6 @@ package helppage
 import (
 	"fmt"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -33,10 +32,10 @@ type styles struct {
 }
 
 type helpEntry struct {
-	view   string
-	search string
-	group  string
-	isMode bool
+	view        string
+	search      string
+	group       string
+	isModeEntry bool
 }
 
 func newHelpEntry(view string, isMode bool, parts ...string) helpEntry {
@@ -51,9 +50,9 @@ func newHelpEntry(view string, isMode bool, parts ...string) helpEntry {
 		search = strings.ToLower(strings.Join(normalized, " "))
 	}
 	return helpEntry{
-		view:   view,
-		search: search,
-		isMode: isMode,
+		view:        view,
+		search:      search,
+		isModeEntry: isMode,
 	}
 }
 
@@ -118,9 +117,10 @@ func (h *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case tea.KeyRunes:
 				h.searchQuery += msg.String()
 			case tea.KeyBackspace, tea.KeyCtrlH, tea.KeyDelete:
-				if len(h.searchQuery) > 0 {
-					_, size := utf8.DecodeLastRuneInString(h.searchQuery)
-					h.searchQuery = h.searchQuery[:len(h.searchQuery)-size]
+				runes := []rune(h.searchQuery)
+				if len(runes) > 0 {
+					runes = runes[:len(runes)-1]
+					h.searchQuery = string(runes)
 				}
 			default:
 				// ignore other keys while in search mode
@@ -193,7 +193,7 @@ func (h *Model) View() string {
 
 	if h.searchActive {
 		// only display the left column in search mode
-		leftStrings = h.searchColumn(maxHeight, left, middle, right)
+		leftStrings = h.searchEntries(maxHeight, left, middle, right)
 		middleStrings = make([]string, maxHeight)
 		rightStrings = make([]string, maxHeight)
 	} else {
@@ -308,6 +308,7 @@ func (h *Model) defaultColumns() ([]helpEntry, []helpEntry, []helpEntry) {
 		h.keyBindingEntry(h.keyMap.Bookmark.Untrack),
 		h.keyBindingEntry(h.keyMap.Bookmark.Track),
 		h.keyBindingEntry(h.keyMap.Bookmark.Forget),
+		h.blankEntry(),
 		h.modeEntry(h.keyMap.OpLog.Mode, "Oplog"),
 		h.keyBindingEntry(h.keyMap.Diff),
 		h.keyBindingEntry(h.keyMap.OpLog.Restore),
@@ -320,7 +321,7 @@ func (h *Model) defaultColumns() ([]helpEntry, []helpEntry, []helpEntry) {
 		right = append(right, h.keyBindingEntry(command.Binding()))
 	}
 
-	return assignGroups(left), assignGroups(middle), assignGroups(right)
+	return left, middle, right
 }
 
 func entriesToStrings(entries []helpEntry) []string {
@@ -331,58 +332,46 @@ func entriesToStrings(entries []helpEntry) []string {
 	return lines
 }
 
-func (h *Model) searchColumn(height int, columns ...[]helpEntry) []string {
+func (h *Model) searchEntries(menuHeight int, columns ...[]helpEntry) []string {
 	var allEntries []helpEntry
 	for _, column := range columns {
 		allEntries = append(allEntries, column...)
 	}
+	allEntries = assignGroups(allEntries)
 
-	lines := make([]string, 0, height)
-	header := fmt.Sprintf("Search: %s", h.searchQuery)
-	lines = append(lines, h.styles.title.Render(header))
-
-	if len(lines) < height {
-		lines = append(lines, h.styles.dimmed.Render("Esc to cancel. Type to filter help entries."))
+	header := []string{
+		h.styles.title.Render(fmt.Sprintf("Search: %s", h.searchQuery)),
+		h.styles.dimmed.Render("Esc to cancel. Type to filter help entries."),
 	}
+	lines := header
 
 	query := strings.ToLower(h.searchQuery)
-	start := len(lines)
-	if query == "" {
-		for _, entry := range allEntries {
-			if len(lines) >= height {
-				break
-			}
+	matchedGroups := make(map[string]bool)
+
+	for _, entry := range allEntries {
+		if query == "" || entry.matches(query) || (entry.group != "" && matchedGroups[entry.group]) {
+			// include entry if: no query, direct match, or belongs to a matched group
 			lines = append(lines, entry.view)
-		}
-	} else {
-		matchedGroups := make(map[string]bool)
-		for _, entry := range allEntries {
-			if len(lines) >= height {
-				break
+			if entry.isModeEntry && entry.group != "" && entry.matches(query) {
+				matchedGroups[entry.group] = true
 			}
-			if entry.matches(query) {
-				lines = append(lines, entry.view)
-				if entry.isMode && entry.group != "" {
-					matchedGroups[entry.group] = true
-				}
-				continue
-			}
-			if entry.group != "" && matchedGroups[entry.group] {
-				lines = append(lines, entry.view)
-			}
-		}
-		if len(lines) == start && len(lines) < height {
-			lines = append(lines, h.styles.dimmed.Render("No matching help entries."))
 		}
 	}
 
-	if len(lines) < height {
-		lines = append(lines, make([]string, height-len(lines))...)
+	if len(lines) == len(header) && query != "" {
+		lines = append(lines, h.styles.dimmed.Render("No matching help entries."))
 	}
-	return lines[:height]
+
+	lines = padHeight(lines, menuHeight)
+
+	return lines
 }
 
 func padHeight(lines []string, target int) []string {
+	if len(lines) >= target {
+		// shows all entries until the menu is full
+		return lines[:target]
+	}
 	out := make([]string, target)
 	copy(out, lines)
 	return out
@@ -395,7 +384,7 @@ func assignGroups(entries []helpEntry) []helpEntry {
 	for i := range result {
 		entry := &result[i]
 		switch {
-		case entry.isMode:
+		case entry.isModeEntry:
 			currentGroup = fmt.Sprintf("mode:%d", i)
 			entry.group = currentGroup
 		case entry.view == "":
