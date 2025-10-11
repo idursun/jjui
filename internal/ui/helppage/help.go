@@ -35,9 +35,11 @@ type styles struct {
 type helpEntry struct {
 	view   string
 	search string
+	group  string
+	isMode bool
 }
 
-func newHelpEntry(view string, parts ...string) helpEntry {
+func newHelpEntry(view string, isMode bool, parts ...string) helpEntry {
 	var normalized []string
 	for _, part := range parts {
 		if trimmed := strings.TrimSpace(part); trimmed != "" {
@@ -51,6 +53,7 @@ func newHelpEntry(view string, parts ...string) helpEntry {
 	return helpEntry{
 		view:   view,
 		search: search,
+		isMode: isMode,
 	}
 }
 
@@ -145,21 +148,21 @@ func (h *Model) keyBindingEntry(k key.Binding) helpEntry {
 
 func (h *Model) keyEntry(key string, desc string) helpEntry {
 	view := h.printKey(key, desc)
-	return newHelpEntry(view, key, desc)
+	return newHelpEntry(view, false, key, desc)
 }
 
 func (h *Model) titleEntry(header string) helpEntry {
-	return newHelpEntry(h.printTitle(header), header)
+	return newHelpEntry(h.printTitle(header), false, header)
 }
 
 func (h *Model) modeEntry(binding key.Binding, name string) helpEntry {
 	help := binding.Help()
 	view := h.printMode(binding, name)
-	return newHelpEntry(view, help.Key, help.Desc, name)
+	return newHelpEntry(view, true, help.Key, name)
 }
 
 func (h *Model) blankEntry() helpEntry {
-	return newHelpEntry("")
+	return newHelpEntry("", false)
 }
 
 func (h *Model) printKey(key string, desc string) string {
@@ -317,7 +320,7 @@ func (h *Model) defaultColumns() ([]helpEntry, []helpEntry, []helpEntry) {
 		right = append(right, h.keyBindingEntry(command.Binding()))
 	}
 
-	return left, middle, right
+	return assignGroups(left), assignGroups(middle), assignGroups(right)
 }
 
 func entriesToStrings(entries []helpEntry) []string {
@@ -346,17 +349,25 @@ func (h *Model) searchColumn(height int, columns ...[]helpEntry) []string {
 	start := len(lines)
 	if query == "" {
 		for _, entry := range allEntries {
-			if len(lines) == height {
+			if len(lines) >= height {
 				break
 			}
 			lines = append(lines, entry.view)
 		}
 	} else {
+		matchedGroups := make(map[string]bool)
 		for _, entry := range allEntries {
+			if len(lines) >= height {
+				break
+			}
 			if entry.matches(query) {
-				if len(lines) == height {
-					break
+				lines = append(lines, entry.view)
+				if entry.isMode && entry.group != "" {
+					matchedGroups[entry.group] = true
 				}
+				continue
+			}
+			if entry.group != "" && matchedGroups[entry.group] {
 				lines = append(lines, entry.view)
 			}
 		}
@@ -375,6 +386,25 @@ func padHeight(lines []string, target int) []string {
 	out := make([]string, target)
 	copy(out, lines)
 	return out
+}
+
+func assignGroups(entries []helpEntry) []helpEntry {
+	result := make([]helpEntry, len(entries))
+	copy(result, entries)
+	var currentGroup string
+	for i := range result {
+		entry := &result[i]
+		switch {
+		case entry.isMode:
+			currentGroup = fmt.Sprintf("mode:%d", i)
+			entry.group = currentGroup
+		case entry.view == "":
+			currentGroup = ""
+		case currentGroup != "":
+			entry.group = currentGroup
+		}
+	}
+	return result
 }
 
 func (h *Model) renderColumn(width int, height int, lines ...string) string {
