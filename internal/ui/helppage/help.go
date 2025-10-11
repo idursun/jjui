@@ -4,6 +4,7 @@ package helppage
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -14,18 +15,53 @@ import (
 )
 
 type Model struct {
-	width   int
-	height  int
-	keyMap  config.KeyMappings[key.Binding]
-	context *context.MainContext
-	styles  styles
+	width        int
+	height       int
+	keyMap       config.KeyMappings[key.Binding]
+	context      *context.MainContext
+	styles       styles
+	searchActive bool
+	searchQuery  string
 }
+
 type styles struct {
 	border   lipgloss.Style
 	title    lipgloss.Style
 	text     lipgloss.Style
 	shortcut lipgloss.Style
 	dimmed   lipgloss.Style
+}
+
+type helpEntry struct {
+	view   string
+	search string
+}
+
+func newHelpEntry(view string, parts ...string) helpEntry {
+	var normalized []string
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			normalized = append(normalized, trimmed)
+		}
+	}
+	var search string
+	if len(normalized) > 0 {
+		search = strings.ToLower(strings.Join(normalized, " "))
+	}
+	return helpEntry{
+		view:   view,
+		search: search,
+	}
+}
+
+func (e helpEntry) matches(query string) bool {
+	if query == "" {
+		return false
+	}
+	if e.search == "" {
+		return false
+	}
+	return strings.Contains(e.search, query)
 }
 
 func (h *Model) Width() int {
@@ -57,8 +93,44 @@ func (h *Model) Init() tea.Cmd {
 }
 
 func (h *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	clearSearch := func() {
+		h.searchActive = false
+		h.searchQuery = ""
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if h.searchActive {
+			switch {
+			case key.Matches(msg, h.keyMap.Help):
+				return h, common.Close
+			case key.Matches(msg, h.keyMap.Cancel):
+				clearSearch()
+				return h, nil
+			}
+
+			switch msg.Type {
+			case tea.KeyEsc:
+				clearSearch()
+			case tea.KeyRunes:
+				h.searchQuery += msg.String()
+			case tea.KeyBackspace, tea.KeyCtrlH, tea.KeyDelete:
+				if len(h.searchQuery) > 0 {
+					_, size := utf8.DecodeLastRuneInString(h.searchQuery)
+					h.searchQuery = h.searchQuery[:len(h.searchQuery)-size]
+				}
+			default:
+				// ignore other keys while in search mode
+			}
+			return h, nil
+		}
+
+		if msg.Type == tea.KeyRunes && msg.String() == "/" {
+			h.searchActive = true
+			h.searchQuery = ""
+			return h, nil
+		}
+
 		switch {
 		case key.Matches(msg, h.keyMap.Help), key.Matches(msg, h.keyMap.Cancel):
 			return h, common.Close
@@ -67,8 +139,27 @@ func (h *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return h, nil
 }
 
-func (h *Model) printKeyBinding(k key.Binding) string {
-	return h.printKey(k.Help().Key, k.Help().Desc)
+func (h *Model) keyBindingEntry(k key.Binding) helpEntry {
+	return h.keyEntry(k.Help().Key, k.Help().Desc)
+}
+
+func (h *Model) keyEntry(key string, desc string) helpEntry {
+	view := h.printKey(key, desc)
+	return newHelpEntry(view, key, desc)
+}
+
+func (h *Model) titleEntry(header string) helpEntry {
+	return newHelpEntry(h.printTitle(header), header)
+}
+
+func (h *Model) modeEntry(binding key.Binding, name string) helpEntry {
+	help := binding.Help()
+	view := h.printMode(binding, name)
+	return newHelpEntry(view, help.Key, help.Desc, name)
+}
+
+func (h *Model) blankEntry() helpEntry {
+	return newHelpEntry("")
 }
 
 func (h *Model) printKey(key string, desc string) string {
@@ -86,124 +177,204 @@ func (h *Model) printMode(key key.Binding, name string) string {
 }
 
 func (h *Model) View() string {
-	var left []string
+	left, middle, right := h.defaultColumns()
+	leftStrings := entriesToStrings(left)
+	middleStrings := entriesToStrings(middle)
+	rightStrings := entriesToStrings(right)
+
+	maxHeight := max(len(leftStrings), len(rightStrings), len(middleStrings))
+
+	leftWidth := 1 + lipgloss.Width(strings.Join(leftStrings, "\n"))
+	middleWidth := 1 + lipgloss.Width(strings.Join(middleStrings, "\n"))
+	rightWidth := 1 + lipgloss.Width(strings.Join(rightStrings, "\n"))
+
+	if h.searchActive {
+		// only display the left column in search mode
+		leftStrings = h.searchColumn(maxHeight, left, middle, right)
+		middleStrings = make([]string, maxHeight)
+		rightStrings = make([]string, maxHeight)
+	} else {
+		leftStrings = padHeight(leftStrings, maxHeight)
+		middleStrings = padHeight(middleStrings, maxHeight)
+		rightStrings = padHeight(rightStrings, maxHeight)
+	}
+
+	content := lipgloss.JoinHorizontal(lipgloss.Left,
+		h.renderColumn(leftWidth, maxHeight, leftStrings...),
+		h.renderColumn(middleWidth, maxHeight, middleStrings...),
+		h.renderColumn(rightWidth, maxHeight, rightStrings...),
+	)
+	return h.styles.border.Render(content)
+}
+
+func (h *Model) defaultColumns() ([]helpEntry, []helpEntry, []helpEntry) {
+	var left []helpEntry
 	left = append(left,
-		h.printTitle("UI"),
-		h.printKeyBinding(h.keyMap.Refresh),
-		h.printKeyBinding(h.keyMap.Help),
-		h.printKeyBinding(h.keyMap.Cancel),
-		h.printKeyBinding(h.keyMap.Quit),
-		h.printKeyBinding(h.keyMap.Suspend),
-		h.printKeyBinding(h.keyMap.Revset),
-		h.printTitle("Exec"),
-		h.printKeyBinding(h.keyMap.ExecJJ),
-		h.printKeyBinding(h.keyMap.ExecShell),
-		h.printTitle("Revisions"),
-		h.printKey(fmt.Sprintf("%s/%s/%s",
+		h.titleEntry("UI"),
+		h.keyBindingEntry(h.keyMap.Refresh),
+		h.keyBindingEntry(h.keyMap.Help),
+		h.keyBindingEntry(h.keyMap.Cancel),
+		h.keyBindingEntry(h.keyMap.Quit),
+		h.keyBindingEntry(h.keyMap.Suspend),
+		h.keyBindingEntry(h.keyMap.Revset),
+		h.titleEntry("Exec"),
+		h.keyBindingEntry(h.keyMap.ExecJJ),
+		h.keyBindingEntry(h.keyMap.ExecShell),
+		h.titleEntry("Revisions"),
+		h.keyEntry(fmt.Sprintf("%s/%s/%s",
 			h.keyMap.JumpToParent.Help().Key,
 			h.keyMap.JumpToChildren.Help().Key,
 			h.keyMap.JumpToWorkingCopy.Help().Key,
 		), "jump to parent/child/working-copy"),
-		h.printKeyBinding(h.keyMap.ToggleSelect),
-		h.printKeyBinding(h.keyMap.AceJump),
-		h.printKeyBinding(h.keyMap.QuickSearch),
-		h.printKeyBinding(h.keyMap.QuickSearchCycle),
-		h.printKeyBinding(h.keyMap.FileSearch.Toggle),
-		h.printKeyBinding(h.keyMap.New),
-		h.printKeyBinding(h.keyMap.Commit),
-		h.printKeyBinding(h.keyMap.Describe),
-		h.printKeyBinding(h.keyMap.Edit),
-		h.printKeyBinding(h.keyMap.Diff),
-		h.printKeyBinding(h.keyMap.Diffedit),
-		h.printKeyBinding(h.keyMap.Split),
-		h.printKeyBinding(h.keyMap.Abandon),
-		h.printKeyBinding(h.keyMap.Absorb),
-		h.printKeyBinding(h.keyMap.Undo),
-		h.printKeyBinding(h.keyMap.Redo),
-		h.printKeyBinding(h.keyMap.Details.Mode),
-		h.printKeyBinding(h.keyMap.Bookmark.Set),
-		h.printKeyBinding(h.keyMap.InlineDescribe.Mode),
-		h.printKeyBinding(h.keyMap.SetParents),
+		h.keyBindingEntry(h.keyMap.ToggleSelect),
+		h.keyBindingEntry(h.keyMap.AceJump),
+		h.keyBindingEntry(h.keyMap.QuickSearch),
+		h.keyBindingEntry(h.keyMap.QuickSearchCycle),
+		h.keyBindingEntry(h.keyMap.FileSearch.Toggle),
+		h.keyBindingEntry(h.keyMap.New),
+		h.keyBindingEntry(h.keyMap.Commit),
+		h.keyBindingEntry(h.keyMap.Describe),
+		h.keyBindingEntry(h.keyMap.Edit),
+		h.keyBindingEntry(h.keyMap.Diff),
+		h.keyBindingEntry(h.keyMap.Diffedit),
+		h.keyBindingEntry(h.keyMap.Split),
+		h.keyBindingEntry(h.keyMap.Abandon),
+		h.keyBindingEntry(h.keyMap.Absorb),
+		h.keyBindingEntry(h.keyMap.Undo),
+		h.keyBindingEntry(h.keyMap.Redo),
+		h.keyBindingEntry(h.keyMap.Details.Mode),
+		h.keyBindingEntry(h.keyMap.Bookmark.Set),
+		h.keyBindingEntry(h.keyMap.InlineDescribe.Mode),
+		h.keyBindingEntry(h.keyMap.SetParents),
 	)
 
-	var middle []string
+	var middle []helpEntry
 	middle = append(middle,
-		h.printMode(h.keyMap.Details.Mode, "Details"),
-		h.printKeyBinding(h.keyMap.Details.Close),
-		h.printKeyBinding(h.keyMap.Details.ToggleSelect),
-		h.printKeyBinding(h.keyMap.Details.Restore),
-		h.printKeyBinding(h.keyMap.Details.Split),
-		h.printKeyBinding(h.keyMap.Details.Squash),
-		h.printKeyBinding(h.keyMap.Details.Diff),
-		h.printKeyBinding(h.keyMap.Details.RevisionsChangingFile),
-		"",
-		h.printMode(h.keyMap.Evolog.Mode, "Evolog"),
-		h.printKeyBinding(h.keyMap.Evolog.Diff),
-		h.printKeyBinding(h.keyMap.Evolog.Restore),
-		"",
-		h.printMode(h.keyMap.Squash.Mode, "Squash"),
-		h.printKeyBinding(h.keyMap.Squash.KeepEmptied),
-		h.printKeyBinding(h.keyMap.Squash.Interactive),
-		"",
-		h.printMode(h.keyMap.Revert.Mode, "Revert"),
-		"",
-		h.printMode(h.keyMap.Rebase.Mode, "Rebase"),
-		h.printKeyBinding(h.keyMap.Rebase.Revision),
-		h.printKeyBinding(h.keyMap.Rebase.Source),
-		h.printKeyBinding(h.keyMap.Rebase.Branch),
-		h.printKeyBinding(h.keyMap.Rebase.Before),
-		h.printKeyBinding(h.keyMap.Rebase.After),
-		h.printKeyBinding(h.keyMap.Rebase.Onto),
-		h.printKeyBinding(h.keyMap.Rebase.Insert),
-		"",
-		h.printMode(h.keyMap.Duplicate.Mode, "Duplicate"),
-		h.printKeyBinding(h.keyMap.Duplicate.Onto),
-		h.printKeyBinding(h.keyMap.Duplicate.Before),
-		h.printKeyBinding(h.keyMap.Duplicate.After),
+		h.modeEntry(h.keyMap.Details.Mode, "Details"),
+		h.keyBindingEntry(h.keyMap.Details.Close),
+		h.keyBindingEntry(h.keyMap.Details.ToggleSelect),
+		h.keyBindingEntry(h.keyMap.Details.Restore),
+		h.keyBindingEntry(h.keyMap.Details.Split),
+		h.keyBindingEntry(h.keyMap.Details.Squash),
+		h.keyBindingEntry(h.keyMap.Details.Diff),
+		h.keyBindingEntry(h.keyMap.Details.RevisionsChangingFile),
+		h.blankEntry(),
+		h.modeEntry(h.keyMap.Evolog.Mode, "Evolog"),
+		h.keyBindingEntry(h.keyMap.Evolog.Diff),
+		h.keyBindingEntry(h.keyMap.Evolog.Restore),
+		h.blankEntry(),
+		h.modeEntry(h.keyMap.Squash.Mode, "Squash"),
+		h.keyBindingEntry(h.keyMap.Squash.KeepEmptied),
+		h.keyBindingEntry(h.keyMap.Squash.Interactive),
+		h.blankEntry(),
+		h.modeEntry(h.keyMap.Revert.Mode, "Revert"),
+		h.blankEntry(),
+		h.modeEntry(h.keyMap.Rebase.Mode, "Rebase"),
+		h.keyBindingEntry(h.keyMap.Rebase.Revision),
+		h.keyBindingEntry(h.keyMap.Rebase.Source),
+		h.keyBindingEntry(h.keyMap.Rebase.Branch),
+		h.keyBindingEntry(h.keyMap.Rebase.Before),
+		h.keyBindingEntry(h.keyMap.Rebase.After),
+		h.keyBindingEntry(h.keyMap.Rebase.Onto),
+		h.keyBindingEntry(h.keyMap.Rebase.Insert),
+		h.blankEntry(),
+		h.modeEntry(h.keyMap.Duplicate.Mode, "Duplicate"),
+		h.keyBindingEntry(h.keyMap.Duplicate.Onto),
+		h.keyBindingEntry(h.keyMap.Duplicate.Before),
+		h.keyBindingEntry(h.keyMap.Duplicate.After),
 	)
 
-	var right []string
+	var right []helpEntry
 	right = append(right,
-		h.printMode(h.keyMap.Preview.Mode, "Preview"),
-		h.printKeyBinding(h.keyMap.Preview.ScrollUp),
-		h.printKeyBinding(h.keyMap.Preview.ScrollDown),
-		h.printKeyBinding(h.keyMap.Preview.HalfPageDown),
-		h.printKeyBinding(h.keyMap.Preview.HalfPageUp),
-		h.printKeyBinding(h.keyMap.Preview.Expand),
-		h.printKeyBinding(h.keyMap.Preview.Shrink),
-		h.printKeyBinding(h.keyMap.Preview.ToggleBottom),
-		"",
-		h.printMode(h.keyMap.Git.Mode, "Git"),
-		h.printKeyBinding(h.keyMap.Git.Push),
-		h.printKeyBinding(h.keyMap.Git.Fetch),
-		"",
-		h.printMode(h.keyMap.Bookmark.Mode, "Bookmarks"),
-		h.printKeyBinding(h.keyMap.Bookmark.Move),
-		h.printKeyBinding(h.keyMap.Bookmark.Delete),
-		h.printKeyBinding(h.keyMap.Bookmark.Untrack),
-		h.printKeyBinding(h.keyMap.Bookmark.Track),
-		h.printKeyBinding(h.keyMap.Bookmark.Forget),
-		h.printMode(h.keyMap.OpLog.Mode, "Oplog"),
-		h.printKeyBinding(h.keyMap.Diff),
-		h.printKeyBinding(h.keyMap.OpLog.Restore),
-		h.printMode(h.keyMap.Leader, "Leader"),
-		h.printMode(h.keyMap.CustomCommands, "Custom Commands"),
+		h.modeEntry(h.keyMap.Preview.Mode, "Preview"),
+		h.keyBindingEntry(h.keyMap.Preview.ScrollUp),
+		h.keyBindingEntry(h.keyMap.Preview.ScrollDown),
+		h.keyBindingEntry(h.keyMap.Preview.HalfPageDown),
+		h.keyBindingEntry(h.keyMap.Preview.HalfPageUp),
+		h.keyBindingEntry(h.keyMap.Preview.Expand),
+		h.keyBindingEntry(h.keyMap.Preview.Shrink),
+		h.keyBindingEntry(h.keyMap.Preview.ToggleBottom),
+		h.blankEntry(),
+		h.modeEntry(h.keyMap.Git.Mode, "Git"),
+		h.keyBindingEntry(h.keyMap.Git.Push),
+		h.keyBindingEntry(h.keyMap.Git.Fetch),
+		h.blankEntry(),
+		h.modeEntry(h.keyMap.Bookmark.Mode, "Bookmarks"),
+		h.keyBindingEntry(h.keyMap.Bookmark.Move),
+		h.keyBindingEntry(h.keyMap.Bookmark.Delete),
+		h.keyBindingEntry(h.keyMap.Bookmark.Untrack),
+		h.keyBindingEntry(h.keyMap.Bookmark.Track),
+		h.keyBindingEntry(h.keyMap.Bookmark.Forget),
+		h.modeEntry(h.keyMap.OpLog.Mode, "Oplog"),
+		h.keyBindingEntry(h.keyMap.Diff),
+		h.keyBindingEntry(h.keyMap.OpLog.Restore),
+		h.blankEntry(),
+		h.modeEntry(h.keyMap.Leader, "Leader"),
+		h.modeEntry(h.keyMap.CustomCommands, "Custom Commands"),
 	)
 
-	var customCommands []string
 	for _, command := range h.context.CustomCommands {
-		customCommands = append(customCommands, h.printKeyBinding(command.Binding()))
+		right = append(right, h.keyBindingEntry(command.Binding()))
 	}
 
-	right = append(right, customCommands...)
+	return left, middle, right
+}
 
-	maxHeight := max(len(left), len(right), len(middle))
-	content := lipgloss.JoinHorizontal(lipgloss.Left,
-		h.renderColumn(1+lipgloss.Width(strings.Join(left, "\n")), maxHeight, left...),
-		h.renderColumn(1+lipgloss.Width(strings.Join(middle, "\n")), maxHeight, middle...),
-		h.renderColumn(1+lipgloss.Width(strings.Join(right, "\n")), maxHeight, right...),
-	)
-	return h.styles.border.Render(content)
+func entriesToStrings(entries []helpEntry) []string {
+	lines := make([]string, len(entries))
+	for i, entry := range entries {
+		lines[i] = entry.view
+	}
+	return lines
+}
+
+func (h *Model) searchColumn(height int, columns ...[]helpEntry) []string {
+	var allEntries []helpEntry
+	for _, column := range columns {
+		allEntries = append(allEntries, column...)
+	}
+
+	lines := make([]string, 0, height)
+	header := fmt.Sprintf("Search: %s", h.searchQuery)
+	lines = append(lines, h.styles.title.Render(header))
+
+	if len(lines) < height {
+		lines = append(lines, h.styles.dimmed.Render("Esc to cancel. Type to filter help entries."))
+	}
+
+	query := strings.ToLower(h.searchQuery)
+	start := len(lines)
+	if query == "" {
+		for _, entry := range allEntries {
+			if len(lines) == height {
+				break
+			}
+			lines = append(lines, entry.view)
+		}
+	} else {
+		for _, entry := range allEntries {
+			if entry.matches(query) {
+				if len(lines) == height {
+					break
+				}
+				lines = append(lines, entry.view)
+			}
+		}
+		if len(lines) == start && len(lines) < height {
+			lines = append(lines, h.styles.dimmed.Render("No matching help entries."))
+		}
+	}
+
+	if len(lines) < height {
+		lines = append(lines, make([]string, height-len(lines))...)
+	}
+	return lines[:height]
+}
+
+func padHeight(lines []string, target int) []string {
+	out := make([]string, target)
+	copy(out, lines)
+	return out
 }
 
 func (h *Model) renderColumn(width int, height int, lines ...string) string {
