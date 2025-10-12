@@ -56,13 +56,6 @@ func (m *Model) GetActionMap() actions.ActionMap {
 	return config.Current.GetBindings("oplog")
 }
 
-func (m *Model) GetContext() map[string]string {
-	if len(m.rows) == 0 {
-		return map[string]string{}
-	}
-	return map[string]string{jj.OperationIdPlaceholder: m.rows[m.cursor].OperationId}
-}
-
 func (m *Model) Len() int {
 	if m.rows == nil {
 		return 0

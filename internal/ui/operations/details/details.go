@@ -59,16 +59,6 @@ func (s *Operation) GetActionMap() actions.ActionMap {
 	return config.Current.GetBindings("details")
 }
 
-func (s *Operation) GetContext() map[string]string {
-	if current := s.current(); current != nil {
-		return map[string]string{
-			jj.FilePlaceholder:         s.current().fileName,
-			jj.CheckedFilesPlaceholder: strings.Join(s.getSelectedFiles(), "|"),
-		}
-	}
-	return map[string]string{}
-}
-
 func (s *Operation) Init() tea.Cmd {
 	return s.load(s.revision.GetChangeId())
 }
