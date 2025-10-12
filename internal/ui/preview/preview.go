@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
@@ -34,7 +33,6 @@ type Model struct {
 	content                 string
 	contentLineCount        int
 	context                 *context.MainContext
-	keyMap                  config.KeyMappings[key.Binding]
 	borderStyle             lipgloss.Style
 }
 
@@ -144,29 +142,29 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, m.keyMap.Preview.ScrollDown):
-			if m.viewRange.end < m.contentLineCount {
-				m.viewRange.start++
-				m.viewRange.end++
-			}
-		case key.Matches(msg, m.keyMap.Preview.ScrollUp):
-			if m.viewRange.start > 0 {
-				m.viewRange.start--
-				m.viewRange.end--
-			}
-		case key.Matches(msg, m.keyMap.Preview.HalfPageDown):
-			contentHeight := m.contentLineCount
-			halfPageSize := m.Height / 2
-			if halfPageSize+m.viewRange.end > contentHeight {
-				halfPageSize = contentHeight - m.viewRange.end
-			}
-
-			m.viewRange.start += halfPageSize
-			m.viewRange.end += halfPageSize
-		case key.Matches(msg, m.keyMap.Preview.HalfPageUp):
-			halfPageSize := min(m.Height/2, m.viewRange.start)
-			m.viewRange.start -= halfPageSize
-			m.viewRange.end -= halfPageSize
+		//case key.Matches(msg, m.keyMap.Preview.ScrollDown):
+		//	if m.viewRange.end < m.contentLineCount {
+		//		m.viewRange.start++
+		//		m.viewRange.end++
+		//	}
+		//case key.Matches(msg, m.keyMap.Preview.ScrollUp):
+		//	if m.viewRange.start > 0 {
+		//		m.viewRange.start--
+		//		m.viewRange.end--
+		//	}
+		//case key.Matches(msg, m.keyMap.Preview.HalfPageDown):
+		//	contentHeight := m.contentLineCount
+		//	halfPageSize := m.Height / 2
+		//	if halfPageSize+m.viewRange.end > contentHeight {
+		//		halfPageSize = contentHeight - m.viewRange.end
+		//	}
+		//
+		//	m.viewRange.start += halfPageSize
+		//	m.viewRange.end += halfPageSize
+		//case key.Matches(msg, m.keyMap.Preview.HalfPageUp):
+		//	halfPageSize := min(m.Height/2, m.viewRange.start)
+		//	m.viewRange.start -= halfPageSize
+		//	m.viewRange.end -= halfPageSize
 		}
 	}
 	return m, nil
@@ -220,7 +218,6 @@ func New(context *context.MainContext) tea.Model {
 		Sizeable:                &common.Sizeable{Width: 0, Height: 0},
 		viewRange:               &viewRange{start: 0, end: 0},
 		context:                 context,
-		keyMap:                  config.Current.GetKeyMap(),
 		help:                    help.New(),
 		borderStyle:             borderStyle,
 		previewAtBottom:         config.Current.Preview.ShowAtBottom,

@@ -7,7 +7,6 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
@@ -15,7 +14,6 @@ type Menu struct {
 	List          list.Model
 	Items         []list.Item
 	Filter        string
-	KeyMap        config.KeyMappings[key.Binding]
 	width         int
 	height        int
 	FilterMatches func(item list.Item, filter string) bool
@@ -62,10 +60,9 @@ func createStyles(prefix string) styles {
 	}
 }
 
-func NewMenu(items []list.Item, width int, height int, keyMap config.KeyMappings[key.Binding], options ...Option) Menu {
+func NewMenu(items []list.Item, width int, height int, options ...Option) Menu {
 	m := Menu{
 		Items:         items,
-		KeyMap:        keyMap,
 		FilterMatches: DefaultFilterMatch,
 		styles:        createStyles(""),
 	}
@@ -164,7 +161,7 @@ func (m *Menu) renderHelpView(helpKeys []key.Binding) string {
 	}
 
 	if m.List.IsFiltered() {
-		bindings = append(bindings, m.renderKey(m.KeyMap.Cancel))
+		//bindings = append(bindings, m.renderKey(m.KeyMap.Cancel))
 	} else {
 		bindings = append(bindings, m.renderKey(m.List.KeyMap.Filter))
 	}

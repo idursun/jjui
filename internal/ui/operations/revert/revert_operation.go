@@ -4,7 +4,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
@@ -51,7 +50,6 @@ type Operation struct {
 	InsertStart    *jj.Commit
 	To             *jj.Commit
 	Target         Target
-	keyMap         config.KeyMappings[key.Binding]
 	highlightedIds []string
 	styles         styles
 }
@@ -98,19 +96,6 @@ func (r *Operation) SetSelectedRevision(commit *jj.Commit) {
 	r.highlightedIds = nil
 	r.To = commit
 	r.highlightedIds = r.From.GetIds()
-}
-
-func (r *Operation) ShortHelp() []key.Binding {
-	return []key.Binding{
-		r.keyMap.Revert.Before,
-		r.keyMap.Revert.After,
-		r.keyMap.Revert.Onto,
-		r.keyMap.Revert.Insert,
-	}
-}
-
-func (r *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{r.ShortHelp()}
 }
 
 func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
@@ -204,7 +189,6 @@ func NewOperation(context *context.MainContext, from jj.SelectedRevisions, targe
 	}
 	return &Operation{
 		context: context,
-		keyMap:  config.Current.GetKeyMap(),
 		From:    from,
 		Target:  target,
 		styles:  styles,

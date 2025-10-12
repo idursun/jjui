@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
@@ -51,26 +50,11 @@ var _ view.IHasActionMap = (*Model)(nil)
 
 type Model struct {
 	context *context.MainContext
-	keymap  config.KeyMappings[key.Binding]
 	menu    menu.Menu
 }
 
 func (m *Model) GetActionMap() actions.ActionMap {
 	return config.Current.GetBindings("git")
-}
-
-func (m *Model) ShortHelp() []key.Binding {
-	return []key.Binding{
-		m.keymap.Cancel,
-		m.keymap.Apply,
-		m.keymap.Git.Push,
-		m.keymap.Git.Fetch,
-		m.menu.List.KeyMap.Filter,
-	}
-}
-
-func (m *Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{m.ShortHelp()}
 }
 
 func (m *Model) Width() int {
@@ -213,8 +197,7 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int,
 		item{name: "git fetch --all-remotes", desc: "Fetch from all remotes", command: jj.GitFetch("--all-remotes"), category: itemCategoryFetch, key: "a"},
 	)
 
-	keymap := config.Current.GetKeyMap()
-	menu := menu.NewMenu(items, width, height, keymap, menu.WithStylePrefix("git"))
+	menu := menu.NewMenu(items, width, height, menu.WithStylePrefix("git"))
 	menu.Title = "Git Operations"
 	menu.FilterMatches = func(i list.Item, filter string) bool {
 		if gitItem, ok := i.(item); ok {
@@ -226,7 +209,6 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int,
 	m := &Model{
 		context: c,
 		menu:    menu,
-		keymap:  keymap,
 	}
 	m.SetWidth(width)
 	m.SetHeight(height)

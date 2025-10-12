@@ -1,619 +1,518 @@
 limit = 0
 
-[keys]
-  up = ["up", "k"]
-  down = ["down", "j"]
-  jump_to_parent = ["J"]
-  jump_to_children = ["K"]
-  jump_to_working_copy = ["@"]
-  apply = ["enter"]
-  force_apply = ["alt+enter"]
-  cancel = ["esc"]
-  toggle_select = [" "]
-  new = ["n"]
-  commit = ["c"]
-  refresh = ["ctrl+r"]
-  abandon = ["a"]
-  diff = ["d"]
-  quit = ["q"]
-  help = ["?"]
-  describe = ["D"]
-  edit = ["e"]
-  force_edit = ["alt+e"]
-  diffedit = ["E"]
-  absorb = ["A"]
-  split = ["s"]
-  split_parallel = ["alt+s"]
-  undo = ["u"]
-  redo = ["U"]
-  revset = ["L"]
-  exec_jj = [":"]
-  exec_shell = ["$"]
-  ace_jump = ["f"]
-  quick_search = ["/"]
-  quick_search_cycle = ["'"]
-  custom_commands = ["x"]
-  leader = ["\\"]
-  suspend = ["ctrl+z"]
-  set_parents = ["M"]
-  [keys.rebase]
-    mode = ["r"]
-    revision = ["r"]
-    source = ["s"]
-    branch = ["B"]
-    after = ["a"]
-    before = ["b"]
-    onto = ["d"]
-    insert = ["i"]
-    skip_emptied = ["e"]
-    [keys.revert]
-    mode = ["R"]
-    after = ["a"]
-    before = ["b"]
-    onto = ["d"]
-    insert = ["i"]
-    [keys.duplicate]
-    mode = ["y"]
-    after = ["a"]
-    before = ["b"]
-    onto = ["d"]
-    [keys.squash]
-    mode = ["S"]
-    keep_emptied = ["e"]
-    interactive = ["i"]
-    [keys.details]
-    mode = ["l"]
-    close = ["h"]
-    split = ["s"]
-    split_parallel = ["alt+s"]
-    squash = ["S"]
-    restore = ["r"]
-    absorb = ["A"]
-    diff = ["d"]
-    select = ["m", " "]
-    revisions_changing_file = ["*"]
-    [keys.evolog]
-    mode = ["v"]
-    diff = ["d"]
-    restore = ["r"]
-    [keys.preview]
-    mode = ["p"]
-    toggle_bottom = ["P"]
-    scroll_up = ["ctrl+p"]
-    scroll_down = ["ctrl+n"]
-    half_page_down = ["ctrl+d"]
-    half_page_up = ["ctrl+u"]
-    expand = ["ctrl+h"]
-    shrink = ["ctrl+l"]
-    [keys.bookmark]
-    mode = ["b"]
-    set = ["B"]
-    delete = ["d"]
-    move = ["m"]
-    forget = ["f"]
-    track = ["t"]
-    untrack = ["u"]
-    [keys.inline_describe]
-    mode = ["enter"]
-    accept = ["alt+enter", "ctrl+s"]
-    editor = ["alt+e"]
-    [keys.git]
-    mode = ["g"]
-    push = ["p"]
-    fetch = ["f"]
-    [keys.oplog]
-    mode = ["o"]
-    restore = ["r"]
-    [keys.file_search]
-    toggle = ["ctrl+t"]
-    up = ["up"]
-    down = ["down"]
-    accept = ["enter"]
-    edit = ["alt+e"]
-
 [ui]
-  theme = ""
-  auto_refresh_interval = 0
-  [ui.tracer]
-    enabled = false
-  [ui.colors]
+theme = ""
+auto_refresh_interval = 0
+[ui.tracer]
+enabled = false
+[ui.colors]
 
 [suggest]
-  [suggest.exec]
-    mode = "off"
+[suggest.exec]
+mode = "off"
 
 [revisions]
-  log_batching = true
-  # template = 'builtin_log_compact' # overrides jj's templates.log
-  # revset = "zzzzzzz"               # overrides jj's revsets.log
+log_batching = true
+# template = 'builtin_log_compact' # overrides jj's templates.log
+# revset = "zzzzzzz"               # overrides jj's revsets.log
 
-    [preview]
-    revision_command = ["show", "--color", "always", "-r", "$commit_id"]
-    oplog_command = ["op", "show", "$operation_id", "--color", "always"]
-    file_command = ["diff", "--color", "always", "-r", "$change_id", "$file"]
-    show_at_bottom = false
-    show_at_start = false
-    width_percentage = 50.0
-    width_increment_percentage = 5.0
+[preview]
+revision_command = ["show", "--color", "always", "-r", "$commit_id"]
+oplog_command = ["op", "show", "$operation_id", "--color", "always"]
+file_command = ["diff", "--color", "always", "-r", "$change_id", "$file"]
+show_at_bottom = false
+show_at_start = false
+width_percentage = 50.0
+width_increment_percentage = 5.0
 
-    [oplog]
-    limit = 200
+[oplog]
+limit = 200
 
-    [graph]
-    batch_size = 50
+[graph]
+batch_size = 50
 
-    # example auto command
-    [actions."#update-preview"]
-    on = ["@refresh", "@revisions.select", "@oplog.cursor", "@details.cursor", "@evolog.cursor", "open details", "close details", "open oplog", "close oplog", "open evolog", "close evolog"]
-    next = ["preview.update", "register #update-preview"]
+# example auto command
+[actions."#update-preview"]
+on = ["@refresh", "@revisions.select", "@oplog.cursor", "@details.cursor", "@evolog.cursor", "open details", "close details", "open oplog", "close oplog", "open evolog", "close evolog"]
+next = ["preview.update", "register #update-preview"]
 
-    [actions."#refresh"]
-    on = ["@refresh"]
-    next = [{ id = "flash.add", message = "refreshed" }, "register #refresh"]
+[actions."#refresh"]
+on = ["@refresh"]
+next = [{ id = "flash.add", message = "refreshed" }, "register #refresh"]
 
-    #[actions."#auto-refresh"]
-    #   interval = 10
-    #   next = ["refresh", "register #auto-refresh"]
+#[actions."#auto-refresh"]
+#   interval = 10
+#   next = ["refresh", "register #auto-refresh"]
 
-    [actions."quit"]
-    desc = "Quit"
+[actions."quit"]
+desc = "Quit"
 
-    [actions."revset.cancel"]
-    desc = "Cancel the current revset operation"
-    next = ["switch revisions"]
+[actions."revset.cancel"]
+desc = "Cancel the current revset operation"
+next = ["switch revisions"]
 
-    [actions."revset.accept"]
-    desc = "Apply the current revset"
-    next = ["switch revisions"]
+[actions."revset.accept"]
+desc = "Apply the current revset"
+next = ["switch revisions"]
 
-    [actions."revset.edit"]
-    desc = "Edit the current revset"
-    args = { clear = true }
-    next = ["switch revset"]
+[actions."revset.edit"]
+desc = "Edit the current revset"
+args = { clear = true }
+next = ["switch revset"]
 
-    [actions."revisions.up"]
-    desc = "Up"
+[actions."revisions.up"]
+desc = "Up"
 
-    [actions."revisions.down"]
-    desc = "Down"
+[actions."revisions.down"]
+desc = "Down"
 
-    [actions."revisions.toggle_select"]
-    desc = "Toggle selection of current revision"
-    next = ["revisions.down"]
+[actions."revisions.toggle_select"]
+desc = "Toggle selection of current revision"
+next = ["revisions.down"]
 
-    [actions."revisions.find_files"]
-    desc = "Find files in the current revision"
-    next = ["switch status"]
+[actions."revisions.find_files"]
+desc = "Find files in the current revision"
+next = ["switch status"]
 
-    [actions."revisions.diffedit"]
-    id = "run"
-    desc = "Diff edit"
-    args = { "jj" = ["diffedit", "-r", "$change_id"], "interactive" = true }
+[actions."revisions.diffedit"]
+id = "run"
+desc = "Diff edit"
+args = { "jj" = ["diffedit", "-r", "$change_id"], "interactive" = true }
 
-    [actions."revisions.absorb"]
-    desc = "Absorb changes"
-    id = "run"
-    args = { "jj" = ["absorb", "-r", "$change_id"] }
-    next = ["refresh"]
+[actions."revisions.absorb"]
+desc = "Absorb changes"
+id = "run"
+args = { "jj" = ["absorb", "-r", "$change_id"] }
+next = ["refresh"]
 
-    [actions."revisions.squash"]
-    desc = "Squash"
-    id = "open squash"
-    next = ["revisions.jump_to_parent"]
+[actions."revisions.squash"]
+desc = "Squash"
+id = "open squash"
+next = ["revisions.jump_to_parent"]
 
-    [actions."revisions.jump_to_working_copy"]
-    desc = "Jump to working copy"
-    id = "revisions.find"
-    change_id = "@"
+[actions."revisions.jump_to_working_copy"]
+desc = "Jump to working copy"
+id = "revisions.find"
+change_id = "@"
 
-    [actions."details.down"]
-    desc = "Down"
+[actions."details.down"]
+desc = "Down"
 
-    [actions."details.up"]
-    desc = "Up"
+[actions."details.up"]
+desc = "Up"
 
-    [actions."details.toggle_select"]
-    desc = "Toggle selection"
-    next = ["details.down"]
+[actions."details.toggle_select"]
+desc = "Toggle selection"
+next = ["details.down"]
 
-    [actions."details.show_revisions_changing_file"]
-    desc = "Show revisions changing the current file"
+[actions."details.show_revisions_changing_file"]
+desc = "Show revisions changing the current file"
 
-    [actions."details.split"]
-    desc = "Split"
+[actions."details.split"]
+desc = "Split"
 
-    [actions."details.squash"]
-    desc = "Squash"
+[actions."details.squash"]
+desc = "Squash"
 
-    [actions."details.restore"]
-    desc = "Restore"
+[actions."details.restore"]
+desc = "Restore"
 
-    [actions."details.absorb"]
-    desc = "Absorb"
+[actions."details.absorb"]
+desc = "Absorb"
 
-    [actions."details.diff"]
-    desc = "Diff"
+[actions."details.diff"]
+desc = "Diff"
 
-    [actions."close details"]
-    desc = "Close"
+[actions."close details"]
+desc = "Close"
 
-    [actions."inline_describe.accept"]
-    desc = "Accept the current description"
-    next = ["close inline_describe"]
+[actions."inline_describe.accept"]
+desc = "Accept the current description"
+next = ["close inline_describe"]
 
-    [actions."oplog.restore"]
-    desc = "Restore operation from the log"
-    next = ["close oplog"]
+[actions."oplog.restore"]
+desc = "Restore operation from the log"
+next = ["close oplog"]
 
-    [actions."oplog.close"]
-    desc = "Close operation log view"
-    next = ["close oplog"]
+[actions."oplog.close"]
+desc = "Close operation log view"
+next = ["close oplog"]
 
-    [actions."oplog.diff"]
-    desc = "Show diff for the current operation"
-    next = ["open diff"]
+[actions."oplog.diff"]
+desc = "Show diff for the current operation"
+next = ["open diff"]
 
-    [actions."set_parents.apply"]
-    desc = "Apply parent changes"
-    next = ["close set_parents"]
+[actions."set_parents.apply"]
+desc = "Apply parent changes"
+next = ["close set_parents"]
 
-    [actions."abandon.apply"]
-    desc = "Apply abandon changes"
-    id = "abandon.apply"
-    next = ["refresh", "close abandon"]
+[actions."abandon.apply"]
+desc = "Apply abandon changes"
+id = "abandon.apply"
+next = ["refresh", "close abandon"]
 
-    [actions."abandon.force_apply"]
-    desc = "Force apply abandon changes"
-    id = "abandon.force_apply"
-    next = ["close abandon"]
+[actions."abandon.force_apply"]
+desc = "Force apply abandon changes"
+id = "abandon.force_apply"
+next = ["close abandon"]
 
-    [actions."squash.apply"]
-    desc = "Apply squash changes"
-    id = "squash.apply"
-    next = ["close squash"]
+[actions."squash.apply"]
+desc = "Apply squash changes"
+id = "squash.apply"
+next = ["close squash"]
 
-    [actions."squash.force_apply"]
-    desc = "Force apply squash changes"
-    id = "squash.apply"
-    force = true
-    next = ["close squash"]
+[actions."squash.force_apply"]
+desc = "Force apply squash changes"
+id = "squash.apply"
+force = true
+next = ["close squash"]
 
-    [actions."rebase.apply"]
-    desc = "Apply rebase changes"
-    next = ["close rebase", "refresh"]
+[actions."rebase.apply"]
+desc = "Apply rebase changes"
+next = ["close rebase", "refresh"]
 
-    [actions."rebase.force_apply"]
-    desc = "Force apply rebase changes"
-    id = "rebase.apply"
-    force = true
-    next = ["close rebase", "refresh"]
+[actions."rebase.force_apply"]
+desc = "Force apply rebase changes"
+id = "rebase.apply"
+force = true
+next = ["close rebase", "refresh"]
 
-    [actions."undo.close"]
-    desc = "Close undo dialog"
-    next = ["close undo"]
+[actions."undo.close"]
+desc = "Close undo dialog"
+next = ["close undo"]
 
-    [actions."undo.accept"]
-    desc = "Accept undo operation"
-    next = ["refresh", "undo.close"]
+[actions."undo.accept"]
+desc = "Accept undo operation"
+next = ["refresh", "undo.close"]
 
-    [actions."bookmark_list.accept"]
-    desc = "Accept selected bookmark"
-    next = ["list.select", "close list bookmark_list"]
+[actions."bookmark_list.accept"]
+desc = "Accept selected bookmark"
+next = ["list.select", "close list bookmark_list"]
 
-    [actions."bookmarks.apply"]
-    desc = "Apply bookmark changes"
-    next = ["close bookmarks"]
+[actions."bookmarks.apply"]
+desc = "Apply bookmark changes"
+next = ["close bookmarks"]
 
-    [actions."evolog.restore.apply"]
-    desc = "Apply evolution log restore operation"
-    id = "evolog.apply"
-    next = ["close evolog", "refresh"]
+[actions."evolog.restore.apply"]
+desc = "Apply evolution log restore operation"
+id = "evolog.apply"
+next = ["close evolog", "refresh"]
 
-    [actions."git.apply"]
-    desc = "Apply git operation"
-    next = ["close git"]
+[actions."git.apply"]
+desc = "Apply git operation"
+next = ["close git"]
 
-    [actions."revert.apply"]
-    desc = "Apply revert operation"
-    next = ["close revert"]
+[actions."revert.apply"]
+desc = "Apply revert operation"
+next = ["close revert"]
 
-    [actions."details.split.apply"]
-    desc = "Apply split operation from details view"
-    next = ["close details", "refresh"]
+[actions."details.split.apply"]
+desc = "Apply split operation from details view"
+next = ["close details", "refresh"]
 
-    [actions."toggle preview"]
-    desc = "Toggle preview panel"
-    next = [{ id = "preview.update", revision = "$commit_id" }]
+[actions."toggle preview"]
+desc = "Toggle preview panel"
+next = [{ id = "preview.update", revision = "$commit_id" }]
 
-    [actions."status.exec_jj"]
-    desc = "Execute JJ command from status view"
-    id = "status.exec_jj"
-    next = ["switch status"]
+[actions."status.exec_jj"]
+desc = "Execute JJ command from status view"
+id = "status.exec_jj"
+next = ["switch status"]
 
-    [actions."status.accept"]
-    desc = "Accept status and switch to revisions"
-    next = ["switch revisions"]
+[actions."status.accept"]
+desc = "Accept status and switch to revisions"
+next = ["switch revisions"]
 
-    [actions."status.cancel"]
-    desc = "Cancel status view and return to revisions"
-    next = ["switch revisions"]
+[actions."status.cancel"]
+desc = "Cancel status view and return to revisions"
+next = ["switch revisions"]
 
-    [actions."exec_jj.accept"]
-    desc = "Execute JJ command and refresh"
-    next = ["close exec_jj", "refresh"]
+[actions."exec_jj.accept"]
+desc = "Execute JJ command and refresh"
+next = ["close exec_jj", "refresh"]
 
-    [actions."exec_sh.accept"]
-    desc = "Execute shell command and refresh"
-    next = ["close exec_sh", "refresh"]
+[actions."exec_sh.accept"]
+desc = "Execute shell command and refresh"
+next = ["close exec_sh", "refresh"]
 
-    [actions."revisions.append_current_as_ancestor"]
-    desc = "Append current revision as ancestor to revset"
-    id = "revset.set"
-    args = { "revset" = "$revset | ancestors($change_id, 2)" }
+[actions."revisions.append_current_as_ancestor"]
+desc = "Append current revision as ancestor to revset"
+id = "revset.set"
+args = { "revset" = "$revset | ancestors($change_id, 2)" }
 
-    [actions."revisions.my_inline_describe"]
-    desc = "Open inline description editor and create new revision"
-    next = ["open inline_describe", "wait close inline_describe", "revisions.new"]
+[actions."revisions.my_inline_describe"]
+desc = "Open inline description editor and create new revision"
+next = ["open inline_describe", "wait close inline_describe", "revisions.new"]
 
-    [actions."new_note_commit"]
-    desc = "Create a new commit with the current revision as ancestor"
-    next = [
-        { jj = ["new", "-A", "$change_id"], next = ["refresh"] },
-        "wait @refresh",
-        "revisions.up",
-        "open inline_describe"
-    ]
+[actions."new_note_commit"]
+desc = "Create a new commit with the current revision as ancestor"
+next = [
+    { jj = ["new", "-A", "$change_id"], next = ["refresh"] },
+    "wait @refresh",
+    "revisions.up",
+    "open inline_describe"
+]
 
-    [actions."diff_from_here"]
-    desc = "Show diff from current revision to working copy"
-    id = "open diff"
-    next = [
-        { id = "diff.show", args = { "jj" = ["diff", "-r", "$change_id::@"] } },
-        "wait close diff",
-        "switch revisions"
-    ]
+[actions."diff_from_here"]
+desc = "Show diff from current revision to working copy"
+id = "open diff"
+next = [
+    { id = "diff.show", args = { "jj" = ["diff", "-r", "$change_id::@"] } },
+    "wait close diff",
+    "switch revisions"
+]
 
-    [actions."list_bookmarks"]
-    desc = "List all bookmarks"
-    jj = ["bookmark", "list"]
-    next = [
-        { id = "choose list bookmark_list", items = "$output" },
-        { wait = "close list bookmark_list" },
-        { id = "flash.add", message = "$selected" },
-    ]
+[actions."list_bookmarks"]
+desc = "List all bookmarks"
+jj = ["bookmark", "list"]
+next = [
+    { id = "choose list bookmark_list", items = "$output" },
+    { wait = "close list bookmark_list" },
+    { id = "flash.add", message = "$selected" },
+]
 
-    [actions."show_root"]
-    desc = "Show repository root"
-    jj = ["root"]
-    next = [
-        { id = "flash.add", message = "$output" },
-    ]
+[actions."show_root"]
+desc = "Show repository root"
+jj = ["root"]
+next = [
+    { id = "flash.add", message = "$output" },
+]
 
-    [actions."show_context_variables"]
-    desc = "Show context variables"
-    id = "flash.add"
-    message = "checked commit ids: $checked_commit_ids"
-    next = [
-        { id = "flash.add", message = "file: $file" },
-    ]
+[actions."show_context_variables"]
+desc = "Show context variables"
+id = "flash.add"
+message = "checked commit ids: $checked_commit_ids"
+next = [
+    { id = "flash.add", message = "file: $file" },
+]
 
-    [actions."move commit down"]
-    desc = "Move the current commit down in the history"
-    jj = ["rebase", "-r", "$change_id", "--insert-before", "$change_id-"]
-    next = ["refresh"]
+[actions."move commit down"]
+desc = "Move the current commit down in the history"
+jj = ["rebase", "-r", "$change_id", "--insert-before", "$change_id-"]
+next = ["refresh"]
 
-    [actions."move commit up"]
-    desc = "Move the current commit up in the history"
-    jj = ["rebase", "-r", "$change_id", "--insert-after", "$change_id+"]
-    next = ["refresh"]
+[actions."move commit up"]
+desc = "Move the current commit up in the history"
+jj = ["rebase", "-r", "$change_id", "--insert-after", "$change_id+"]
+next = ["refresh"]
 
-    [bindings]
-    revset = [
-        { on = "enter", do = "revset.accept" },
-        { on = "esc", do = "revset.cancel" },
-    ]
-    "list bookmark_list" = [
-        { on = "j", do = "list.down" },
-        { on = "k", do = "list.up" },
-        { on = "enter", do = "bookmark_list.accept" },
-        { on = "esc", do = "close list bookmark_list" },
-    ]
-    revisions = [
-        { on = "j", do = "revisions.down" },
-        { on = "k", do = "revisions.up" },
-        { on = "ctrl+j", do = "move commit down" },
-        { on = "ctrl+k", do = "move commit up" },
-        { on = "2", do = "show_root" },
-        { on = "3", do = "show_context_variables" },
-        { on = "N", do = "new_note_commit" },
-        { on = "-", do = "list_bookmarks" },
-        { on = "@", do = "revisions.jump_to_working_copy" },
-        { on = "enter", do = "open inline_describe" },
-        { on = " ", do = "revisions.toggle_select" },
-        { on = "J", do = "revisions.jump_to_parent" },
-        { on = "K", do = "revisions.jump_to_children" },
-        { on = "R", do = "open revert" },
-        { on = "l", do = "open details" },
-        { on = "S", do = "revisions.squash" },
-        { on = "r", do = "open rebase" },
-        { on = ["b", "b"], do = "open bookmarks" },
-        { on = ["g", "g"], do = "open git" },
-        { on = ["b", "s"], do = "open set_bookmark" },
-        { on = "c", do = "revisions.commit" },
-        { on = "n", do = "revisions.new" },
-        { on = "A", do = "revisions.absorb" },
-        { on = "a", do = "open abandon" },
-        { on = "s", do = "revisions.split" },
-        { on = "d", do = "revisions.diff" },
-        { on = "E", do = "revisions.diffedit" },
-        { on = "f", do = "open ace_jump" },
-        { on = "v", do = "open evolog" },
-        { on = "M", do = "open set_parents" },
-        { on = "L", do = "revset.edit" },
-        { on = "ctrl+r", do = "refresh" },
-        { on = "q", do = "quit" },
-        { on = "o", do = "open oplog" },
-        { on = "u", do = "open undo" },
-        { on = "X", do = "revisions.my_inline_describe" },
-        { on = "+", do = "revisions.append_current_as_ancestor" },
-        { on = "ctrl+d", do = "diff_from_here" },
-        { on = "p", do = "toggle preview" },
-        { on = "?", do = "open help" },
-        { on = ":", do = "open exec_jj" },
-        { on = "$", do = "open exec_sh" },
-        { on = "/", do = "quick_search" },
-        { on = "ctrl+t", do = "revisions.find_files" },
-    ]
-    status = [
-        { on = "enter", do = "status.accept"},
-        { on = "esc", do = "status.cancel" },
-    ]
-    oplog = [
-        { on = "j", do = "oplog.down" },
-        { on = "k", do = "oplog.up" },
-        { on = "d", do = "oplog.diff" },
-        { on = "r", do = "oplog.restore" },
-        { on = "esc", do = "oplog.close" },
-        { on = "q", do = "quit" },
-    ]
-    details = [
-        { on = "j", do = "details.down" },
-        { on = "k", do = "details.up" },
-        { on = " ", do = "details.toggle_select" },
-        { on = "d", do = "details.diff" },
-        { on = "s", do = "details.split" },
-        { on = "S", do = "details.squash" },
-        { on = "r", do = "details.restore" },
-        { on = "A", do = "details.absorb" },
-        { on = "*", do = "details.show_revisions_changing_file" },
-        { on = "h", do = "close details" },
-        { on = "esc", do = "close details" },
-        { on = "q", do = "quit" },
-    ]
-    diff = [
-        { on = "j", do = "diff.down" },
-        { on = "k", do = "diff.up" },
-        { on = "ctrl+d", do = "diff.halfpagedown" },
-        { on = "ctrl+u", do = "diff.halfpageup" },
-        { on = "f", do = "diff.pagedown" },
-        { on = "b", do = "diff.pageup" },
-        { on = "esc", do = "close diff" },
-        { on = "q", do = "quit" },
-    ]
-    set_parents = [
-        { on = "j", do = "revisions.down" },
-        { on = "k", do = "revisions.up" },
-        { on = " ", do = "set_parents.toggle_select" },
-        { on = "enter", do = "set_parents.apply" },
-        { on = "esc", do = "close set_parents" },
-    ]
-    abandon = [
-        { on = "y", do = "abandon.accept" },
-        { on = "alt+enter", do = "abandon.force_apply" },
-        { on = "n", do = "close abandon" },
-        { on = "esc", do = "close abandon" },
-    ]
-    inline_describe = [
-        { on = "esc", do = "close inline_describe" },
-        { on = "alt+enter", do = "inline_describe.accept" },
-    ]
-    squash = [
-        { on = "j", do = "revisions.down" },
-        { on = "k", do = "revisions.up" },
-        { on = "i", do = "squash.interactive" },
-        { on = "e", do = "squash.keep_emptied" },
-        { on = "esc", do = "close squash" },
-        { on = "enter", do = "squash.apply" },
-        { on = "alt+enter", do = "squash.force_apply" },
-    ]
-    revert = [
-        { on = "j", do = "revisions.down" },
-        { on = "k", do = "revisions.up" },
-        { on = "i", do = "revert.insert" },
-        { on = "a", do = "revert.after" },
-        { on = "b", do = "revert.before" },
-        { on = "d", do = "revert.onto" },
-        { on = "esc", do = "close revert" },
-        { on = "enter", do = "revert.apply" },
-    ]
-    undo = [
-        { on = "y", do = "undo.accept" },
-        { on = "n", do = "undo.close" },
-        { on = "esc", do = "undo.close" },
-    ]
-    ace_jump = [
-        { on = "esc", do = "close ace_jump" },
-        { on = "enter", do = "ace_jump.apply" },
-    ]
-    bookmarks = [
-        { on = "j", do = "bookmarks.down" },
-        { on = "k", do = "bookmarks.up" },
-        { on = "B", do = "bookmarks.set" },
-        { on = "d", do = "bookmarks.filter_delete" },
-        { on = "m", do = "bookmarks.filter_move" },
-        { on = "f", do = "bookmarks.filter_forget" },
-        { on = "t", do = "bookmarks.filter_track" },
-        { on = "u", do = "bookmarks.filter_untrack" },
-        { on = "enter", do = "bookmarks.apply" },
-        { on = "esc", do = "close bookmarks" },
-    ]
-    git = [
-        { on = "j", do = "git.down" },
-        { on = "k", do = "git.up" },
-        { on = "p", do = "git.push" },
-        { on = "f", do = "git.fetch" },
-        { on = "enter", do = "git.apply" },
-        { on = "esc", do = "close git" },
-    ]
-    help = [
-        { on = "esc", do = "close help" },
-    ]
-    set_bookmark = [
-        { on = "esc", do = "close set_bookmark" },
-        { on = "enter", do = "set_bookmark.accept" },
-    ]
-    evolog = [
-        { on = "j", do = "evolog.down" },
-        { on = "k", do = "evolog.up" },
-        { on = "d", do = "evolog.diff" },
-        { on = "r", do = "evolog.restore" },
-        { on = "esc", do = "close evolog" },
-    ]
-    "evolog.restore" = [
-        { on = "enter", do = "evolog.restore.apply" },
-        { on = "esc", do = "close evolog" },
-    ]
-    duplicate = [
-        { on = "j", do = "revisions.down" },
-        { on = "k", do = "revisions.up" },
-        { on = "d", do = "duplicate.onto" },
-        { on = "a", do = "duplicate.after" },
-        { on = "b", do = "duplicate.before" },
-        { on = "esc", do = "close duplicate" },
-        { on = "enter", do = "duplicate.apply" },
-    ]
-    rebase = [
-        { on = "j", do = "revisions.down" },
-        { on = "k", do = "revisions.up" },
-        { on = "r", do = "rebase.revision" },
-        { on = "B", do = "rebase.branch" },
-        { on = "s", do = "rebase.source" },
-        { on = "o", do = "rebase.onto" },
-        { on = "a", do = "rebase.after" },
-        { on = "b", do = "rebase.before" },
-        { on = "i", do = "rebase.insert" },
-        { on = "E", do = "rebase.skip_emptied" },
-        { on = "enter", do = "rebase.apply" },
-        { on = "alt+enter", do = "rebase.force_apply" },
-        { on = "esc", do = "close rebase" },
-    ]
-    exec_sh = [
-        { on = "esc", do = "close exec_sh" },
-        { on = "enter", do = "exec_sh.accept" },
-        { on = "ctrl+r", do = "exec_sh.cycle_suggest_mode" },
-    ]
-    exec_jj = [
-        { on = "esc", do = "close exec_jj" },
-        { on = "enter", do = "exec_jj.accept" },
-        { on = "ctrl+r", do = "exec_jj.cycle_suggest_mode" },
-    ]
+[bindings]
+revset = [
+    { on = "enter", do = "revset.accept" },
+    { on = "esc", do = "revset.cancel" },
+]
+"list bookmark_list" = [
+    { on = "j", do = "list.down" },
+    { on = "k", do = "list.up" },
+    { on = "enter", do = "bookmark_list.accept" },
+    { on = "esc", do = "close list bookmark_list" },
+]
+revisions = [
+    { on = "j", do = "revisions.down" },
+    { on = "k", do = "revisions.up" },
+    { on = "ctrl+j", do = "move commit down" },
+    { on = "ctrl+k", do = "move commit up" },
+    { on = "2", do = "show_root" },
+    { on = "3", do = "show_context_variables" },
+    { on = "N", do = "new_note_commit" },
+    { on = "-", do = "list_bookmarks" },
+    { on = "@", do = "revisions.jump_to_working_copy" },
+    { on = "enter", do = "open inline_describe" },
+    { on = " ", do = "revisions.toggle_select" },
+    { on = "J", do = "revisions.jump_to_parent" },
+    { on = "K", do = "revisions.jump_to_children" },
+    { on = "R", do = "open revert" },
+    { on = "l", do = "open details" },
+    { on = "S", do = "revisions.squash" },
+    { on = "r", do = "open rebase" },
+    { on = ["b", "b"], do = "open bookmarks" },
+    { on = ["g", "g"], do = "open git" },
+    { on = ["b", "s"], do = "open set_bookmark" },
+    { on = "c", do = "revisions.commit" },
+    { on = "n", do = "revisions.new" },
+    { on = "A", do = "revisions.absorb" },
+    { on = "a", do = "open abandon" },
+    { on = "s", do = "revisions.split" },
+    { on = "d", do = "revisions.diff" },
+    { on = "E", do = "revisions.diffedit" },
+    { on = "f", do = "open ace_jump" },
+    { on = "v", do = "open evolog" },
+    { on = "M", do = "open set_parents" },
+    { on = "L", do = "revset.edit" },
+    { on = "ctrl+r", do = "refresh" },
+    { on = "ctrl+z", do = "suspend" },
+    { on = "q", do = "quit" },
+    { on = "o", do = "open oplog" },
+    { on = "u", do = "open undo" },
+    { on = "X", do = "revisions.my_inline_describe" },
+    { on = "+", do = "revisions.append_current_as_ancestor" },
+    { on = "ctrl+d", do = "diff_from_here" },
+    { on = "p", do = "toggle preview" },
+    { on = "?", do = "open help" },
+    { on = ":", do = "open exec_jj" },
+    { on = "$", do = "open exec_sh" },
+    { on = "/", do = "quick_search" },
+    { on = "ctrl+t", do = "revisions.find_files" },
+]
+status = [
+    { on = "enter", do = "status.accept" },
+    { on = "esc", do = "status.cancel" },
+]
+oplog = [
+    { on = "j", do = "oplog.down" },
+    { on = "k", do = "oplog.up" },
+    { on = "d", do = "oplog.diff" },
+    { on = "r", do = "oplog.restore" },
+    { on = "esc", do = "oplog.close" },
+    { on = "q", do = "quit" },
+]
+details = [
+    { on = "j", do = "details.down" },
+    { on = "k", do = "details.up" },
+    { on = " ", do = "details.toggle_select" },
+    { on = "d", do = "details.diff" },
+    { on = "s", do = "details.split" },
+    { on = "S", do = "details.squash" },
+    { on = "r", do = "details.restore" },
+    { on = "A", do = "details.absorb" },
+    { on = "*", do = "details.show_revisions_changing_file" },
+    { on = "h", do = "close details" },
+    { on = "esc", do = "close details" },
+    { on = "q", do = "quit" },
+]
+diff = [
+    { on = "j", do = "diff.down" },
+    { on = "k", do = "diff.up" },
+    { on = "ctrl+d", do = "diff.halfpagedown" },
+    { on = "ctrl+u", do = "diff.halfpageup" },
+    { on = "f", do = "diff.pagedown" },
+    { on = "b", do = "diff.pageup" },
+    { on = "esc", do = "close diff" },
+    { on = "q", do = "quit" },
+]
+set_parents = [
+    { on = "j", do = "revisions.down" },
+    { on = "k", do = "revisions.up" },
+    { on = " ", do = "set_parents.toggle_select" },
+    { on = "enter", do = "set_parents.apply" },
+    { on = "esc", do = "close set_parents" },
+]
+abandon = [
+    { on = "y", do = "abandon.accept" },
+    { on = "alt+enter", do = "abandon.force_apply" },
+    { on = "n", do = "close abandon" },
+    { on = "left", do = "confirmation.left" },
+    { on = "right", do = "confirmation.right" },
+    { on = "enter", do = "confirmation.apply" },
+    { on = "esc", do = "close abandon" },
+]
+inline_describe = [
+    { on = "esc", do = "close inline_describe" },
+    { on = "alt+enter", do = "inline_describe.accept" },
+]
+squash = [
+    { on = "j", do = "revisions.down" },
+    { on = "k", do = "revisions.up" },
+    { on = "i", do = "squash.interactive" },
+    { on = "e", do = "squash.keep_emptied" },
+    { on = "esc", do = "close squash" },
+    { on = "enter", do = "squash.apply" },
+    { on = "alt+enter", do = "squash.force_apply" },
+]
+revert = [
+    { on = "j", do = "revisions.down" },
+    { on = "k", do = "revisions.up" },
+    { on = "i", do = "revert.insert" },
+    { on = "a", do = "revert.after" },
+    { on = "b", do = "revert.before" },
+    { on = "d", do = "revert.onto" },
+    { on = "esc", do = "close revert" },
+    { on = "enter", do = "revert.apply" },
+]
+undo = [
+    { on = "y", do = "undo.accept" },
+    { on = "n", do = "undo.close" },
+    { on = "esc", do = "undo.close" },
+]
+ace_jump = [
+    { on = "esc", do = "close ace_jump" },
+    { on = "enter", do = "ace_jump.apply" },
+]
+bookmarks = [
+    { on = "j", do = "bookmarks.down" },
+    { on = "k", do = "bookmarks.up" },
+    { on = "B", do = "bookmarks.set" },
+    { on = "d", do = "bookmarks.filter_delete" },
+    { on = "m", do = "bookmarks.filter_move" },
+    { on = "f", do = "bookmarks.filter_forget" },
+    { on = "t", do = "bookmarks.filter_track" },
+    { on = "u", do = "bookmarks.filter_untrack" },
+    { on = "enter", do = "bookmarks.apply" },
+    { on = "esc", do = "close bookmarks" },
+]
+git = [
+    { on = "j", do = "git.down" },
+    { on = "k", do = "git.up" },
+    { on = "p", do = "git.push" },
+    { on = "f", do = "git.fetch" },
+    { on = "enter", do = "git.apply" },
+    { on = "esc", do = "close git" },
+]
+help = [
+    { on = "esc", do = "close help" },
+]
+set_bookmark = [
+    { on = "esc", do = "close set_bookmark" },
+    { on = "enter", do = "set_bookmark.accept" },
+]
+evolog = [
+    { on = "j", do = "evolog.down" },
+    { on = "k", do = "evolog.up" },
+    { on = "d", do = "evolog.diff" },
+    { on = "r", do = "evolog.restore" },
+    { on = "esc", do = "close evolog" },
+]
+"evolog.restore" = [
+    { on = "enter", do = "evolog.restore.apply" },
+    { on = "esc", do = "close evolog" },
+]
+duplicate = [
+    { on = "j", do = "revisions.down" },
+    { on = "k", do = "revisions.up" },
+    { on = "d", do = "duplicate.onto" },
+    { on = "a", do = "duplicate.after" },
+    { on = "b", do = "duplicate.before" },
+    { on = "esc", do = "close duplicate" },
+    { on = "enter", do = "duplicate.apply" },
+]
+rebase = [
+    { on = "j", do = "revisions.down" },
+    { on = "k", do = "revisions.up" },
+    { on = "r", do = "rebase.revision" },
+    { on = "B", do = "rebase.branch" },
+    { on = "s", do = "rebase.source" },
+    { on = "o", do = "rebase.onto" },
+    { on = "a", do = "rebase.after" },
+    { on = "b", do = "rebase.before" },
+    { on = "i", do = "rebase.insert" },
+    { on = "E", do = "rebase.skip_emptied" },
+    { on = "enter", do = "rebase.apply" },
+    { on = "alt+enter", do = "rebase.force_apply" },
+    { on = "esc", do = "close rebase" },
+]
+exec_sh = [
+    { on = "esc", do = "close exec_sh" },
+    { on = "enter", do = "exec_sh.accept" },
+    { on = "tab", do = "fuzzy.complete" },
+    { on = "up", do = "fuzzy.up" },
+    { on = "down", do = "fuzzy.down" },
+    { on = "ctrl+r", do = "fuzzy.cycle_suggest_mode" },
+]
+exec_jj = [
+    { on = "esc", do = "close exec_jj" },
+    { on = "enter", do = "exec_jj.accept" },
+    { on = "tab", do = "fuzzy.complete" },
+    { on = "up", do = "fuzzy.up" },
+    { on = "down", do = "fuzzy.down" },
+    { on = "ctrl+r", do = "fuzzy.cycle_suggest_mode" },
+]

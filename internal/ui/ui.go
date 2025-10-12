@@ -18,7 +18,6 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -40,7 +39,6 @@ type Model struct {
 	state     common.State
 	status    *status.Model
 	context   *context.MainContext
-	keyMap    config.KeyMappings[key.Binding]
 	actions   []*actions.ActionBinding
 }
 
@@ -141,6 +139,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return nm, tea.Batch(cmds...)
 }
 
+var cancelKey = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"))
+
 func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case actions.InvokeActionMsg:
@@ -209,6 +209,8 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 			return m, model.Init()
 		case "refresh":
 			return m, common.RefreshAndKeepSelections
+		case "suspend":
+			return m, tea.Suspend
 		case "quit":
 			return m, tea.Quit
 		}
@@ -216,22 +218,20 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 		return m, common.RefreshAndKeepSelections
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
+		case key.Matches(msg, cancelKey) && m.state == common.Error:
 			m.state = common.Ready
 			return m, nil
-		case key.Matches(msg, m.keyMap.Cancel) && m.flash.Any():
+		case key.Matches(msg, cancelKey) && m.flash.Any():
 			m.flash.DeleteOldest()
 			return m, nil
-		case key.Matches(msg, m.keyMap.FileSearch.Toggle):
-			rev := m.revisions.SelectedRevision()
-			if rev == nil {
-				// noop if current revset does not exist (#264)
-				return m, nil
-			}
-			out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
-			return m, common.FileSearch(m.context.CurrentRevset, false, rev, out)
-		case key.Matches(msg, m.keyMap.Suspend):
-			return m, tea.Suspend
+			//case key.Matches(msg, m.keyMap.FileSearch.Toggle):
+			//	rev := m.revisions.SelectedRevision()
+			//	if rev == nil {
+			//		// noop if current revset does not exist (#264)
+			//		return m, nil
+			//	}
+			//	out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
+			//	return m, common.FileSearch(m.context.CurrentRevset, false, rev, out)
 		}
 	case common.ExecMsg:
 		return m, exec_process.ExecLine(m.context, msg)
@@ -372,7 +372,6 @@ func New(c *context.MainContext) tea.Model {
 	m := Model{
 		Sizeable:  &common.Sizeable{Width: 0, Height: 0},
 		context:   c,
-		keyMap:    config.Current.GetKeyMap(),
 		state:     common.Loading,
 		revisions: revisionsModel,
 		status:    statusModel,

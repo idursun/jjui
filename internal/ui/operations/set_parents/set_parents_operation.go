@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
@@ -26,7 +25,6 @@ type Model struct {
 	current  *jj.Commit
 	toRemove map[string]bool
 	toAdd    map[string]bool
-	keyMap   config.KeyMappings[key.Binding]
 	styles   styles
 	parents  []string
 }
@@ -87,20 +85,6 @@ func (m *Model) View() string {
 	return ""
 }
 
-func (m *Model) ShortHelp() []key.Binding {
-	return []key.Binding{
-		m.keyMap.ToggleSelect,
-		m.keyMap.Apply,
-		m.keyMap.Cancel,
-	}
-}
-
-func (m *Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		m.ShortHelp(),
-	}
-}
-
 type styles struct {
 	sourceMarker lipgloss.Style
 	targetMarker lipgloss.Style
@@ -148,7 +132,6 @@ func NewModel(ctx *context.MainContext, to *jj.Commit) *Model {
 	parents := strings.Fields(string(output))
 	return &Model{
 		context:  ctx,
-		keyMap:   config.Current.GetKeyMap(),
 		parents:  parents,
 		toRemove: make(map[string]bool),
 		toAdd:    make(map[string]bool),

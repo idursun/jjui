@@ -202,7 +202,7 @@ func (m *Model) View() string {
 }
 
 func (m *Model) SetHelp(status view.IStatus) {
-	m.keyMap = status
+	//m.keyMap = status
 	m.mode = status.Name()
 }
 

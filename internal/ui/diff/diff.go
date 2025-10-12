@@ -3,7 +3,6 @@ package diff
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
@@ -18,23 +17,11 @@ var _ view.IHasActionMap = (*Model)(nil)
 
 type Model struct {
 	view    viewport.Model
-	keymap  config.KeyMappings[key.Binding]
 	context *context.MainContext
 }
 
 func (m *Model) GetActionMap() actions.ActionMap {
 	return config.Current.GetBindings("diff")
-}
-
-func (m *Model) ShortHelp() []key.Binding {
-	vkm := m.view.KeyMap
-	return []key.Binding{
-		vkm.Up, vkm.Down, vkm.HalfPageDown, vkm.HalfPageUp, vkm.PageDown, vkm.PageUp,
-		m.keymap.Cancel}
-}
-
-func (m *Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{m.ShortHelp()}
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -93,6 +80,5 @@ func New(ctx *context.MainContext, width int, height int) tea.Model {
 	return &Model{
 		context: ctx,
 		view:    view,
-		keymap:  config.Current.GetKeyMap(),
 	}
 }

@@ -1,7 +1,6 @@
 package describe
 
 import (
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -19,25 +18,12 @@ var _ view.IHasActionMap = (*Operation)(nil)
 
 type Operation struct {
 	context  *context.MainContext
-	keyMap   config.KeyMappings[key.Binding]
 	input    textarea.Model
 	revision string
 }
 
 func (o Operation) GetActionMap() actions.ActionMap {
 	return config.Current.GetBindings("inline_describe")
-}
-
-func (o Operation) ShortHelp() []key.Binding {
-	return []key.Binding{
-		o.keyMap.Cancel,
-		o.keyMap.InlineDescribe.Editor,
-		o.keyMap.InlineDescribe.Accept,
-	}
-}
-
-func (o Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{o.ShortHelp()}
 }
 
 func (o Operation) Width() int {
@@ -120,7 +106,6 @@ func NewOperation(context *context.MainContext, revision string, width int) Oper
 
 	return Operation{
 		context:  context,
-		keyMap:   config.Current.GetKeyMap(),
 		input:    input,
 		revision: revision,
 	}

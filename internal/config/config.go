@@ -17,7 +17,6 @@ var configFS embed.FS
 var Current = loadDefaultConfig()
 
 type Config struct {
-	Keys      KeyMappings[keys]            `toml:"keys"`
 	UI        UIConfig                     `toml:"ui"`
 	Suggest   SuggestConfig                `toml:"suggest"`
 	Revisions RevisionsConfig              `toml:"revisions"`

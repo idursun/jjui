@@ -20,8 +20,6 @@ import (
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/operations/describe"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
@@ -68,7 +66,6 @@ type Model struct {
 	hasMore          bool
 	cursor           int
 	context          *appContext.MainContext
-	keymap           config.KeyMappings[key.Binding]
 	output           string
 	err              error
 	quickSearch      string
@@ -216,41 +213,6 @@ type appendRowsBatchMsg struct {
 	rows    []parser.Row
 	hasMore bool
 	tag     uint64
-}
-
-func (m *Model) ShortHelp() []key.Binding {
-	//if len(m.context.Router.Views) > 0 {
-	//	if status, ok := m.context.Router.Views[m.context.Router.Scope].(view.IStatus); ok {
-	//		return status.ShortHelp()
-	//	}
-	//}
-
-	return []key.Binding{
-		m.keymap.Up,
-		m.keymap.Down,
-		m.keymap.Quit,
-		m.keymap.Help,
-		m.keymap.Refresh,
-		m.keymap.Preview.Mode,
-		m.keymap.Revset,
-		m.keymap.Details.Mode,
-		m.keymap.Evolog.Mode,
-		m.keymap.Rebase.Mode,
-		m.keymap.Squash.Mode,
-		m.keymap.Bookmark.Mode,
-		m.keymap.Git.Mode,
-		m.keymap.OpLog.Mode,
-	}
-}
-
-func (m *Model) FullHelp() [][]key.Binding {
-	if len(m.context.Router.Views) > 0 {
-		op := m.context.Router.Views[m.context.Router.Scope]
-		if op, ok := op.(help.KeyMap); ok {
-			return op.FullHelp()
-		}
-	}
-	return [][]key.Binding{m.ShortHelp()}
 }
 
 func (m *Model) SelectedRevision() *jj.Commit {
@@ -717,11 +679,9 @@ func (m *Model) GetCommitIds() []string {
 }
 
 func New(c *appContext.MainContext) *Model {
-	keymap := config.Current.GetKeyMap()
 	m := Model{
 		Sizeable:         &common.Sizeable{Width: 0, Height: 0},
 		context:          c,
-		keymap:           keymap,
 		rows:             nil,
 		offScreenRows:    nil,
 		cursor:           0,

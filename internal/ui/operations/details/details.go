@@ -33,12 +33,10 @@ type Operation struct {
 	*DetailsList
 	context           *context.MainContext
 	Current           *jj.Commit
-	keymap            config.KeyMappings[key.Binding]
 	targetMarkerStyle lipgloss.Style
 	revision          *jj.Commit
 	height            int
 	confirmation      *confirmation.Model
-	keyMap            config.KeyMappings[key.Binding]
 	styles            styles
 }
 
@@ -221,27 +219,6 @@ func (s *Operation) SetSelectedRevision(commit *jj.Commit) {
 	s.Current = commit
 }
 
-func (s *Operation) ShortHelp() []key.Binding {
-	if s.confirmation != nil {
-		return s.confirmation.ShortHelp()
-	}
-	return []key.Binding{
-		s.keyMap.Cancel,
-		s.keyMap.Details.Diff,
-		s.keyMap.Details.ToggleSelect,
-		s.keyMap.Details.Split,
-		s.keyMap.Details.SplitParallel,
-		s.keyMap.Details.Squash,
-		s.keyMap.Details.Restore,
-		s.keyMap.Details.Absorb,
-		s.keyMap.Details.RevisionsChangingFile,
-	}
-}
-
-func (s *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{s.ShortHelp()}
-}
-
 func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
 	isSelected := s.Current != nil && s.Current.GetChangeId() == commit.GetChangeId()
 	if !isSelected || pos != operations.RenderPositionAfter {
@@ -351,8 +328,6 @@ func (s *Operation) load(revision string) tea.Cmd {
 }
 
 func NewOperation(context *context.MainContext, selected *jj.Commit, height int) *Operation {
-	keyMap := config.Current.GetKeyMap()
-
 	s := styles{
 		Added:    common.DefaultPalette.Get("revisions details added"),
 		Deleted:  common.DefaultPalette.Get("revisions details deleted"),
@@ -369,10 +344,8 @@ func NewOperation(context *context.MainContext, selected *jj.Commit, height int)
 		DetailsList:       l,
 		context:           context,
 		revision:          selected,
-		keyMap:            keyMap,
 		styles:            s,
 		height:            height,
-		keymap:            config.Current.GetKeyMap(),
 		targetMarkerStyle: common.DefaultPalette.Get("revisions details target_marker"),
 	}
 	return op

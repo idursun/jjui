@@ -70,9 +70,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case actions.InvokeActionMsg:
 		switch msg.Action.Id {
-		case "exec_jj.cycle_suggest_mode":
-			m.input.CycleSuggestMode()
-			return m, nil
+		//case "exec_jj.cycle_suggest_mode":
+		//	m.input.CycleSuggestMode()
+		//	return m, nil
 		case "exec_jj.accept", "exec_sh.accept":
 			input := m.input.Value()
 			prompt := common.ExecJJ.Prompt

@@ -11,7 +11,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/view"
 
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
@@ -43,7 +42,6 @@ type Operation struct {
 	mode     mode
 	rows     []parser.Row
 	cursor   int
-	keyMap   config.KeyMappings[key.Binding]
 	target   *jj.Commit
 	styles   styles
 }
@@ -121,17 +119,6 @@ type styles struct {
 
 func (o *Operation) SetSelectedRevision(commit *jj.Commit) {
 	o.target = commit
-}
-
-func (o *Operation) ShortHelp() []key.Binding {
-	if o.mode == restoreMode {
-		return []key.Binding{o.keyMap.Cancel, o.keyMap.Apply}
-	}
-	return []key.Binding{o.keyMap.Up, o.keyMap.Down, o.keyMap.Cancel, o.keyMap.Evolog.Diff, o.keyMap.Evolog.Restore}
-}
-
-func (o *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{o.ShortHelp()}
 }
 
 func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -223,7 +210,6 @@ func NewOperation(context *context.MainContext, revision *jj.Commit, width int, 
 	o := &Operation{
 		Sizeable: &common.Sizeable{Width: width, Height: height},
 		context:  context,
-		keyMap:   config.Current.GetKeyMap(),
 		revision: revision,
 		rows:     nil,
 		cursor:   0,

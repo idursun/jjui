@@ -7,7 +7,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/view"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
@@ -24,7 +23,6 @@ type Operation struct {
 	from        jj.SelectedRevisions
 	files       []string
 	current     *jj.Commit
-	keyMap      config.KeyMappings[key.Binding]
 	keepEmptied bool
 	interactive bool
 	styles      styles
@@ -93,19 +91,6 @@ func (s *Operation) Name() string {
 	return "squash"
 }
 
-func (s *Operation) ShortHelp() []key.Binding {
-	return []key.Binding{
-		s.keyMap.Apply,
-		s.keyMap.Cancel,
-		s.keyMap.Squash.KeepEmptied,
-		s.keyMap.Squash.Interactive,
-	}
-}
-
-func (s *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{s.ShortHelp()}
-}
-
 type Option func(*Operation)
 
 func WithFiles(files []string) Option {
@@ -122,7 +107,6 @@ func NewOperation(context *context.MainContext, from jj.SelectedRevisions, opts 
 	}
 	o := &Operation{
 		context: context,
-		keyMap:  config.Current.GetKeyMap(),
 		from:    from,
 		styles:  styles,
 	}

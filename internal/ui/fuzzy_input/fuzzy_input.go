@@ -13,6 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
 	"github.com/sahilm/fuzzy"
 )
@@ -46,6 +47,23 @@ func (fzf *Model) Init() tea.Cmd {
 
 func (fzf *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case actions.InvokeActionMsg:
+		switch msg.Action.Id {
+		case "fuzzy.up":
+			fzf.moveCursor(1)
+			return fzf, nil
+		case "fuzzy.down":
+			fzf.moveCursor(-1)
+			return fzf, nil
+		case "fuzzy.complete":
+			suggestion := fuzzy_search.SelectedMatch(fzf)
+			fzf.input.SetValue(suggestion)
+			fzf.input.CursorEnd()
+			return fzf, nil
+		case "fuzzy.cycle_suggest_mode":
+			fzf.CycleSuggestMode()
+			return fzf, nil
+		}
 	case initMsg:
 		fzf.search("")
 	case fuzzy_search.SearchMsg:
@@ -79,20 +97,14 @@ func (fzf *Model) SetSuggestions(suggestions []string) {
 }
 
 func (fzf *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
-	km := config.Current.GetKeyMap()
-	switch {
-	case key.Matches(msg, fzf.input.KeyMap.AcceptSuggestion) && fzf.hasSuggestions():
-		suggestion := fuzzy_search.SelectedMatch(fzf)
-		fzf.input.SetValue(suggestion)
-		fzf.input.CursorEnd()
-		return nil
-	case key.Matches(msg, km.Preview.ScrollUp, fzf.input.KeyMap.PrevSuggestion):
-		fzf.moveCursor(1)
-		return nil
-	case key.Matches(msg, km.Preview.ScrollDown, fzf.input.KeyMap.NextSuggestion):
-		fzf.moveCursor(-1)
-		return nil
-	}
+	//km := config.Current.GetKeyMap()
+	//switch {
+	//case key.Matches(msg, fzf.input.KeyMap.AcceptSuggestion) && fzf.hasSuggestions():
+	//	suggestion := fuzzy_search.SelectedMatch(fzf)
+	//	fzf.input.SetValue(suggestion)
+	//	fzf.input.CursorEnd()
+	//	return nil
+	//}
 	var cmd tea.Cmd
 	fzf.input, cmd = fzf.input.Update(msg)
 	fzf.search(fzf.input.Value())

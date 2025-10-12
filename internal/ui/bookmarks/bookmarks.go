@@ -10,7 +10,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/common/menu"
 	"github.com/idursun/jjui/internal/ui/view"
 
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
@@ -29,29 +28,11 @@ type Model struct {
 	context     *context.MainContext
 	current     *jj.Commit
 	menu        menu.Menu
-	keymap      config.KeyMappings[key.Binding]
 	distanceMap map[string]int
 }
 
 func (m *Model) GetActionMap() actions.ActionMap {
 	return config.Current.GetBindings("bookmarks")
-}
-
-func (m *Model) ShortHelp() []key.Binding {
-	return []key.Binding{
-		m.keymap.Cancel,
-		m.keymap.Apply,
-		m.keymap.Bookmark.Move,
-		m.keymap.Bookmark.Delete,
-		m.keymap.Bookmark.Forget,
-		m.keymap.Bookmark.Track,
-		m.keymap.Bookmark.Untrack,
-		m.menu.List.KeyMap.Filter,
-	}
-}
-
-func (m *Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{m.ShortHelp()}
 }
 
 func (m *Model) Width() int {
@@ -278,9 +259,8 @@ func (m *Model) distance(commitId string) int {
 
 func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string, width int, height int) *Model {
 	var items []list.Item
-	keymap := config.Current.GetKeyMap()
 
-	menu := menu.NewMenu(items, width, height, keymap, menu.WithStylePrefix("bookmarks"))
+	menu := menu.NewMenu(items, width, height, menu.WithStylePrefix("bookmarks"))
 	menu.Title = "Bookmark Operations"
 	menu.FilterMatches = func(i list.Item, filter string) bool {
 		return strings.HasPrefix(i.FilterValue(), filter)
@@ -288,7 +268,6 @@ func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string, wi
 
 	m := &Model{
 		context:     c,
-		keymap:      keymap,
 		menu:        menu,
 		current:     current,
 		distanceMap: calcDistanceMap(current.CommitId, commitIds),

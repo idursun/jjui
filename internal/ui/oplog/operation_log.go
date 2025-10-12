@@ -3,7 +3,6 @@ package oplog
 import (
 	"bytes"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
@@ -30,7 +29,6 @@ type Model struct {
 	renderer      *list.ListRenderer
 	rows          []row
 	cursor        int
-	keymap        config.KeyMappings[key.Binding]
 	textStyle     lipgloss.Style
 	selectedStyle lipgloss.Style
 }
@@ -82,14 +80,6 @@ func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
 		row:   item,
 		style: style,
 	}
-}
-
-func (m *Model) ShortHelp() []key.Binding {
-	return []key.Binding{m.keymap.Up, m.keymap.Down, m.keymap.Cancel, m.keymap.Diff, m.keymap.OpLog.Restore}
-}
-
-func (m *Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{m.ShortHelp()}
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -154,11 +144,9 @@ func (m *Model) load() tea.Cmd {
 }
 
 func New(context *context.MainContext, width int, height int) tea.Model {
-	keyMap := config.Current.GetKeyMap()
 	m := &Model{
 		Sizeable:      &common.Sizeable{Width: width, Height: height},
 		context:       context,
-		keymap:        keyMap,
 		rows:          nil,
 		cursor:        0,
 		textStyle:     common.DefaultPalette.Get("oplog text"),

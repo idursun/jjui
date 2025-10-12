@@ -6,7 +6,6 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
@@ -93,7 +92,6 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
-	km := config.Current.GetKeyMap()
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -105,12 +103,12 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if m.selected < len(m.options)-1 {
 				m.selected++
 			}
-		case key.Matches(msg, km.ForceApply):
-			selectedOption := m.options[m.selected]
-			return m, selectedOption.altCmd
-		case key.Matches(msg, km.Apply):
-			selectedOption := m.options[m.selected]
-			return m, selectedOption.cmd
+		//case key.Matches(msg, km.ForceApply):
+		//	selectedOption := m.options[m.selected]
+		//	return m, selectedOption.altCmd
+		//case key.Matches(msg, km.Apply):
+		//	selectedOption := m.options[m.selected]
+		//	return m, selectedOption.cmd
 		default:
 			for _, option := range m.options {
 				if key.Matches(msg, option.keyBinding) {

@@ -3,7 +3,6 @@ package duplicate
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
@@ -48,7 +47,6 @@ type Operation struct {
 	InsertStart *jj.Commit
 	To          *jj.Commit
 	Target      Target
-	keyMap      config.KeyMappings[key.Binding]
 	styles      styles
 }
 
@@ -83,19 +81,6 @@ func (r *Operation) View() string {
 
 func (r *Operation) SetSelectedRevision(commit *jj.Commit) {
 	r.To = commit
-}
-
-func (r *Operation) ShortHelp() []key.Binding {
-	return []key.Binding{
-		r.keyMap.Cancel,
-		r.keyMap.Duplicate.After,
-		r.keyMap.Duplicate.Before,
-		r.keyMap.Duplicate.Onto,
-	}
-}
-
-func (r *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{r.ShortHelp()}
 }
 
 func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
@@ -154,7 +139,6 @@ func NewOperation(context *appContext.MainContext, from jj.SelectedRevisions, ta
 	}
 	return &Operation{
 		context: context,
-		keyMap:  config.Current.GetKeyMap(),
 		From:    from,
 		Target:  target,
 		styles:  styles,

@@ -3,8 +3,6 @@ package ace_jump
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
@@ -20,14 +18,12 @@ import (
 var (
 	_ operations.Operation       = (*Operation)(nil)
 	_ operations.SegmentRenderer = (*Operation)(nil)
-	_ help.KeyMap                = (*Operation)(nil)
 	_ view.IHasActionMap         = (*Operation)(nil)
 )
 
 type Operation struct {
 	cursor      list.IListCursor
 	aceJump     *AceJump
-	keymap      config.KeyMappings[key.Binding]
 	getItemFn   func(index int) parser.Row
 	first, last int
 }
@@ -43,7 +39,6 @@ func (o *Operation) Name() string {
 func NewOperation(listCursor list.IListCursor, getItemFn func(index int) parser.Row, first, last int) *Operation {
 	return &Operation{
 		cursor:    listCursor,
-		keymap:    config.Current.GetKeyMap(),
 		aceJump:   NewAceJump(),
 		first:     first,
 		last:      last,
@@ -77,17 +72,6 @@ func (o *Operation) aceJumpIndex(text string, row parser.Row) int {
 		idx-- // dont move past last character
 	}
 	return idx
-}
-
-func (o *Operation) ShortHelp() []key.Binding {
-	return []key.Binding{
-		o.keymap.Cancel,
-		o.keymap.Apply,
-	}
-}
-
-func (o *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{o.ShortHelp()}
 }
 
 func (o *Operation) Init() tea.Cmd {
