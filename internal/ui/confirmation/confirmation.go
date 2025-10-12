@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
@@ -93,30 +94,31 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, left):
+	case actions.InvokeActionMsg:
+		switch msg.Action.Id {
+		case "confirmation.left":
 			if m.selected > 0 {
 				m.selected--
 			}
-		case key.Matches(msg, right):
+		case "confirmation.right":
 			if m.selected < len(m.options)-1 {
 				m.selected++
 			}
-		//case key.Matches(msg, km.ForceApply):
-		//	selectedOption := m.options[m.selected]
-		//	return m, selectedOption.altCmd
-		//case key.Matches(msg, km.Apply):
-		//	selectedOption := m.options[m.selected]
-		//	return m, selectedOption.cmd
-		default:
-			for _, option := range m.options {
-				if key.Matches(msg, option.keyBinding) {
-					if msg.Alt {
-						return m, option.altCmd
-					}
-					return m, option.cmd
+		case "confirmation.apply":
+			force := msg.Action.Get("force", false).(bool)
+			selectedOption := m.options[m.selected]
+			if force {
+				return m, selectedOption.altCmd
+			}
+			return m, selectedOption.cmd
+		}
+	case tea.KeyMsg:
+		for _, option := range m.options {
+			if key.Matches(msg, option.keyBinding) {
+				if msg.Alt {
+					return m, option.altCmd
 				}
+				return m, option.cmd
 			}
 		}
 	}

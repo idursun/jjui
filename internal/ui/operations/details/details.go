@@ -53,6 +53,9 @@ func (s *Operation) Read(value string) string {
 }
 
 func (s *Operation) GetActionMap() actions.ActionMap {
+	if s.confirmation != nil {
+		return config.Current.GetBindings("details:confirmation")
+	}
 	return config.Current.GetBindings("details")
 }
 
@@ -81,6 +84,11 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 	switch msg := msg.(type) {
 	case actions.InvokeActionMsg:
 		switch msg.Action.Id {
+		case "close confirmation":
+			s.confirmation = nil
+			s.selectedHint = ""
+			s.unselectedHint = ""
+			return s, nil
 		case "details.up":
 			s.cursorUp()
 			return s, nil
@@ -183,6 +191,11 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 			s.confirmation = model
 			return s, cmd
 		}
+	}
+	if s.confirmation != nil {
+		var cmd tea.Cmd
+		s.confirmation, cmd = s.confirmation.Update(msg)
+		return s, cmd
 	}
 	return s, nil
 }
