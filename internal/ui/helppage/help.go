@@ -2,10 +2,10 @@
 package helppage
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
@@ -13,13 +13,37 @@ import (
 	"github.com/idursun/jjui/internal/ui/context"
 )
 
-type Model struct {
-	width   int
-	height  int
-	keyMap  config.KeyMappings[key.Binding]
-	context *context.MainContext
-	styles  styles
+type helpItem struct {
+	display  string
+	search   string
+	isHeader bool
 }
+
+type itemGroup struct {
+	groupHeader *helpItem
+	groupItems  []helpItem
+}
+
+type itemList []itemGroup
+
+type itemMenu struct {
+	width, height int
+	leftList      itemList
+	middleList    itemList
+	rightList     itemList
+}
+
+type Model struct {
+	width        int
+	height       int
+	keyMap       config.KeyMappings[key.Binding]
+	context      *context.MainContext
+	styles       styles
+	defaultMenu  itemMenu
+	filteredMenu itemMenu
+	searchQuery  textinput.Model
+}
+
 type styles struct {
 	border   lipgloss.Style
 	title    lipgloss.Style
@@ -53,10 +77,12 @@ func (h *Model) FullHelp() [][]key.Binding {
 }
 
 func (h *Model) Init() tea.Cmd {
-	return nil
+	return textinput.Blink
 }
 
 func (h *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -64,67 +90,128 @@ func (h *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return h, common.Close
 		}
 	}
-	return h, nil
+
+	h.searchQuery, cmd = h.searchQuery.Update(msg)
+	h.filterMenu()
+	return h, cmd
 }
 
-func (h *Model) printKeyBinding(k key.Binding) string {
-	return h.printKey(k.Help().Key, k.Help().Desc)
+// TODO: move to other files
+func (m itemMenu) calculateMaxHeight() int {
+	return max(
+		m.leftList.getListHeight(),
+		m.middleList.getListHeight(),
+		m.rightList.getListHeight(),
+	)
 }
 
-func (h *Model) printKey(key string, desc string) string {
-	keyAligned := fmt.Sprintf("%9s", key)
-	return lipgloss.JoinHorizontal(0, h.styles.shortcut.Render(keyAligned), h.styles.dimmed.Render(desc))
+// TODO: move to other files
+func (list itemList) getListHeight() int {
+	height := 0
+	for _, group := range list {
+		if group.groupHeader != nil {
+			height++ // header
+		}
+		height += len(group.groupItems)
+		height++ // spacing between groups
+	}
+	return height
 }
 
-func (h *Model) printTitle(header string) string {
-	return h.printMode(key.NewBinding(), header)
+// TODO: move to other files
+func (h *Model) renderColumn(list itemList) string {
+	width := h.defaultMenu.width
+	height := h.defaultMenu.height
+	var lines []string
+
+	for _, group := range list {
+		lines = append(lines, group.groupHeader.display)
+		for _, item := range group.groupItems {
+			lines = append(lines, item.display)
+		}
+		lines = append(lines, "")
+	}
+
+	for len(lines) < height {
+		lines = append(lines, lipgloss.Place(
+			width, 1, lipgloss.Left, lipgloss.Top,
+			"",
+			lipgloss.WithWhitespaceBackground(h.styles.text.GetBackground()),
+		))
+	}
+
+	return strings.Join(lines, "\n")
 }
 
-func (h *Model) printMode(key key.Binding, name string) string {
-	keyAligned := fmt.Sprintf("%9s", key.Help().Key)
-	return lipgloss.JoinHorizontal(0, h.styles.shortcut.Render(keyAligned), h.styles.title.Render(name))
+func (h *Model) renderMenu() string {
+	if h.searchQuery.Value() == "" {
+		h.filteredMenu = h.defaultMenu
+	}
+
+	left := h.renderColumn(h.filteredMenu.leftList)
+	middle := h.renderColumn(h.filteredMenu.middleList)
+	right := h.renderColumn(h.filteredMenu.rightList)
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, left, middle, right)
 }
 
 func (h *Model) View() string {
-	var left []string
-	left = append(left,
-		h.printTitle("UI"),
-		h.printKeyBinding(h.keyMap.Refresh),
-		h.printKeyBinding(h.keyMap.Help),
-		h.printKeyBinding(h.keyMap.Cancel),
-		h.printKeyBinding(h.keyMap.Quit),
-		h.printKeyBinding(h.keyMap.Suspend),
-		h.printKeyBinding(h.keyMap.Revset),
-		h.printTitle("Exec"),
-		h.printKeyBinding(h.keyMap.ExecJJ),
-		h.printKeyBinding(h.keyMap.ExecShell),
-		h.printTitle("Revisions"),
-		h.printKey(fmt.Sprintf("%s/%s/%s",
-			h.keyMap.JumpToParent.Help().Key,
-			h.keyMap.JumpToChildren.Help().Key,
-			h.keyMap.JumpToWorkingCopy.Help().Key,
-		), "jump to parent/child/working-copy"),
-		h.printKeyBinding(h.keyMap.ToggleSelect),
-		h.printKeyBinding(h.keyMap.AceJump),
-		h.printKeyBinding(h.keyMap.QuickSearch),
-		h.printKeyBinding(h.keyMap.QuickSearchCycle),
-		h.printKeyBinding(h.keyMap.FileSearch.Toggle),
-		h.printKeyBinding(h.keyMap.New),
-		h.printKeyBinding(h.keyMap.Commit),
-		h.printKeyBinding(h.keyMap.Describe),
-		h.printKeyBinding(h.keyMap.Edit),
-		h.printKeyBinding(h.keyMap.Diff),
-		h.printKeyBinding(h.keyMap.Diffedit),
-		h.printKeyBinding(h.keyMap.Split),
-		h.printKeyBinding(h.keyMap.Abandon),
-		h.printKeyBinding(h.keyMap.Absorb),
-		h.printKeyBinding(h.keyMap.Undo),
-		h.printKeyBinding(h.keyMap.Redo),
-		h.printKeyBinding(h.keyMap.Details.Mode),
-		h.printKeyBinding(h.keyMap.Bookmark.Set),
-func (h *Model) renderColumn(width int, height int, lines ...string) string {
-	column := lipgloss.Place(width, height, 0, 0, strings.Join(lines, "\n"), lipgloss.WithWhitespaceBackground(h.styles.text.GetBackground()))
-	return column
+	// NOTE: add new lines between search bar and help menu
+	content := "\n\n" + h.renderMenu()
+
+	return h.styles.border.Render(h.searchQuery.View(), content)
+}
+
+func (h *Model) filterMenu() {
+	query := strings.ToLower(strings.TrimSpace(h.searchQuery.Value()))
+
+	if query == "" {
+		h.filteredMenu = h.defaultMenu
+		return
+	}
+
+	h.filteredMenu = itemMenu{
+		leftList:   filterList(h.defaultMenu.leftList, query),
+		middleList: filterList(h.defaultMenu.middleList, query),
+		rightList:  filterList(h.defaultMenu.rightList, query),
+	}
+}
+
+func filterList(list itemList, query string) itemList {
+	var filtered itemList
+
+	for _, group := range list {
+		// Check if header matches
+		headerMatches := false
+		if group.groupHeader != nil {
+			headerMatches = strings.Contains(
+				strings.ToLower(group.groupHeader.search),
+				query,
+			)
+		}
+
+		if headerMatches {
+			filtered = append(filtered, group)
+			break
+		}
+
+		var matchedItems []helpItem
+		for _, item := range group.groupItems {
+			if strings.Contains(strings.ToLower(item.search), query) {
+				matchedItems = append(matchedItems, item)
+			}
+		}
+
+		// Only add group if items matched
+		if len(matchedItems) > 0 {
+			filtered = append(filtered, itemGroup{
+				groupHeader: group.groupHeader,
+				groupItems:  matchedItems,
+			})
+		}
+	}
+
+	return filtered
 }
 
 func New(context *context.MainContext) *Model {
@@ -135,9 +222,24 @@ func New(context *context.MainContext) *Model {
 		dimmed:   common.DefaultPalette.Get("help dimmed").PaddingLeft(1),
 		shortcut: common.DefaultPalette.Get("help shortcut"),
 	}
-	return &Model{
-		context: context,
-		keyMap:  config.Current.GetKeyMap(),
-		styles:  styles,
+
+	filter := textinput.New()
+	filter.Prompt = "Search: "
+	filter.Placeholder = "Type to filter..."
+	filter.Width = len(filter.Placeholder)
+	filter.PromptStyle = styles.shortcut
+	filter.TextStyle = styles.text
+	filter.Cursor.Style = styles.text
+	filter.CharLimit = 80
+	filter.Focus()
+
+	m := &Model{
+		context:     context,
+		keyMap:      config.Current.GetKeyMap(),
+		styles:      styles,
+		searchQuery: filter,
 	}
+
+	m.setDefaultMenu()
+	return m
 }
