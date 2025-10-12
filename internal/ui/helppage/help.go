@@ -1,3 +1,4 @@
+// Package helppage provides a help page model for jjui
 package helppage
 
 import (
