@@ -380,6 +380,12 @@ details = [
     { on = "esc", do = "close details" },
     { on = "q", do = "quit" },
 ]
+"details:confirmation" = [
+    { on = "left", do = "confirmation.left" },
+    { on = "right", do = "confirmation.right" },
+    { on = "enter", do = "confirmation.apply" },
+    { on = "esc", do = "close confirmation" },
+]
 diff = [
     { on = "j", do = "diff.down" },
     { on = "k", do = "diff.up" },
