@@ -72,7 +72,6 @@ func (m Model) registerAutoEvent(autoEvent string) tea.Cmd {
 					return action.GetNextMsg()
 				}))
 			}
-
 		}
 	}
 	return tea.Batch(cmds...)

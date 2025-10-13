@@ -58,12 +58,20 @@ func (r *Router) ContinueAction(actionId string) {
 	if len(r.waiters) > 0 {
 		for k, waiters := range r.waiters {
 			if k == actionId {
-				delete(r.waiters, k)
-
+				var remaining []Waiter
 				for _, waiter := range waiters {
-					log.Println("Continuing action:", actionId)
-					waiter.waitChannel <- actions.WaitResultContinue
-					close(waiter.waitChannel)
+					if waiter.action.When == string(r.Scope) || waiter.action.When == "" {
+						log.Println("Continuing action:", actionId)
+						waiter.waitChannel <- actions.WaitResultContinue
+						close(waiter.waitChannel)
+					} else {
+						remaining = append(remaining, waiter)
+					}
+				}
+				if len(remaining) == 0 {
+					delete(r.waiters, k)
+				} else {
+					r.waiters[k] = remaining
 				}
 			}
 		}

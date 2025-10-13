@@ -51,10 +51,10 @@ func (d *DetailsList) SetCursor(index int) {
 func (d *DetailsList) setItems(files []*item) {
 	d.files = files
 	if d.cursor >= len(d.files) {
-		d.cursor = len(d.files) - 1
+		d.SetCursor(len(files) - 1)
 	}
 	if d.cursor < 0 {
-		d.cursor = 0
+		d.SetCursor(0)
 	}
 	d.renderer.Reset()
 }

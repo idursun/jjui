@@ -53,6 +53,7 @@ type refreshPreviewContentMsg struct {
 	item      string
 	Tag       uint64
 	variables map[string]string
+	args      []string
 }
 
 func (m *Model) SetHeight(h int) {
@@ -112,11 +113,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			log.Printf("preview update action received tag: %d", m.tag.Load())
 			currentTag := m.tag.Add(1)
 			variables := m.context.GetVariables()
-
+			args := msg.Action.GetArgs("jj")
+			if len(args) == 0 {
+				log.Println("no jj args for preview update action")
+				return m, nil
+			}
+			args = jj.TemplatedArgs(args, variables)
 			return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
 				if currentTag == m.tag.Load() {
 					log.Printf("Scheduling preview refresh for (tag %d)", currentTag)
-					return refreshPreviewContentMsg{Tag: currentTag, variables: variables}
+					return refreshPreviewContentMsg{Tag: currentTag, args: args}
 				}
 				log.Printf("Not scheduling preview refresh for (tag %d)", currentTag)
 				return nil
@@ -129,16 +135,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		log.Printf("Refreshing preview for %d", msg.Tag)
-
-		if v, ok := msg.variables[jj.FilePlaceholder]; ok && v != "" {
-			output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, msg.variables))
+		if len(msg.args) > 0 {
+			output, _ := m.context.RunCommandImmediate(msg.args)
 			m.updatePreviewContent(string(output))
-		} else if v, ok := msg.variables[jj.OperationIdPlaceholder]; ok && v != "" {
-			output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, msg.variables))
-			m.updatePreviewContent(string(output))
-		} else {
-			output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, msg.variables))
-			m.updatePreviewContent(string(output))
+			return m, nil
 		}
 	case tea.KeyMsg:
 		switch {

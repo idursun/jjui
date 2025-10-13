@@ -114,7 +114,7 @@ func (m *Model) Cursor() int {
 func (m *Model) SetCursor(index int) {
 	if index >= 0 && index < len(m.rows) {
 		m.cursor = index
-		m.context.Router.ContinueAction("@revisions.select")
+		m.context.Router.ContinueAction("@revisions.cursor")
 	}
 }
 

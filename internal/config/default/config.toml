@@ -32,9 +32,29 @@ limit = 200
 batch_size = 50
 
 # example auto command
-[actions."#update-preview"]
-on = ["@refresh", "@revisions.select", "@oplog.cursor", "@details.cursor", "@evolog.cursor", "open details", "close details", "open oplog", "close oplog", "open evolog", "close evolog"]
-next = ["preview.update", "register #update-preview"]
+[actions."#update-preview-file"]
+on = ["@refresh", "@details.cursor", "open details"]
+when = "details"
+next = [{ id = "preview.update", jj = ["diff", "--color", "always", "-r", "$change_id", "$file"] }, "register #update-preview-file"]
+
+[actions."#update-preview-evolog"]
+on = ["@evolog.cursor", "open evolog"]
+when = "evolog"
+next = [{ id = "preview.update", jj = ["show", "--color", "always", "-r", "$commit_id"] }, "register #update-preview-evolog"]
+
+[actions."#update-preview-oplog"]
+on = ["@oplog.cursor", "open oplog"]
+when = "oplog"
+next = [{ id = "preview.update", jj = ["op", "show", "--color", "always", "$operation_id"] }, "register #update-preview-oplog"]
+
+[actions."#update-preview-revision"]
+on = ["@refresh", "@revisions.cursor", "close details", "close evolog", "close oplog"]
+when = "revisions"
+next = [{ id = "preview.update", jj = ["show", "--color", "always", "-r", "$commit_id"] }, "register #update-preview-revision"]
+
+#[actions."#update-preview"]
+#on = ["@refresh", "@revisions.select", "@oplog.cursor", "@evolog.cursor", "open oplog", "close oplog", "open evolog", "close evolog"]
+#next = ["preview.update", "register #update-preview"]
 
 [actions."#refresh"]
 on = ["@refresh"]
