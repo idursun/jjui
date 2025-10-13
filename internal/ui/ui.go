@@ -93,7 +93,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			args := msg.Action.GetArgs("jj")
 			async := msg.Action.Get("async", false).(bool)
 			if async {
-				return m, m.context.RunCommand(jj.TemplatedArgs(args, m.context.GetVariables()))
+				return m, tea.Sequence(msg.Action.GetNextCmd(), m.context.RunCommand(jj.TemplatedArgs(args, m.context.GetVariables())))
 			}
 
 			interactive := msg.Action.Get("interactive", false).(bool)
@@ -112,6 +112,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			action := strings.TrimPrefix(msg.Action.Id, "register ")
 			return m, m.registerAutoEvent(action)
 		}
+	}
+
+	if msg, ok := msg.(common.CommandCompletedMsg); ok {
+		m.context.Set("$output", msg.Output)
+		if msg.Err != nil {
+			m.context.Set("$error", msg.Err.Error())
+		}
+		m.router.ContinueAction("@run")
 	}
 
 	var cmd tea.Cmd

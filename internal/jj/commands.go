@@ -53,18 +53,6 @@ func New(revisions SelectedRevisions) CommandArgs {
 	return args
 }
 
-func CommitWorkingCopy() CommandArgs {
-	return []string{"commit"}
-}
-
-func Edit(changeId string, ignoreImmutable bool) CommandArgs {
-	args := []string{"edit", "-r", changeId}
-	if ignoreImmutable {
-		args = append(args, "--ignore-immutable")
-	}
-	return args
-}
-
 func Split(revision string, files []string, parallel bool) CommandArgs {
 	args := []string{"split", "-r", revision}
 	if parallel {
@@ -75,22 +63,6 @@ func Split(revision string, files []string, parallel bool) CommandArgs {
 		escapedFiles = append(escapedFiles, EscapeFileName(file))
 	}
 	args = append(args, escapedFiles...)
-	return args
-}
-
-func SquashFiles(from string, into string, files []string) CommandArgs {
-	args := []string{"squash", "--from", from, "--into", into, "--use-destination-message"}
-	var escapedFiles []string
-	for _, file := range files {
-		escapedFiles = append(escapedFiles, EscapeFileName(file))
-	}
-	args = append(args, escapedFiles...)
-	return args
-}
-
-func Describe(revisions SelectedRevisions) CommandArgs {
-	args := []string{"describe", "--edit"}
-	args = append(args, revisions.AsArgs()...)
 	return args
 }
 
@@ -342,14 +314,6 @@ func Absorb(changeId string, files ...string) CommandArgs {
 		escapedFiles = append(escapedFiles, EscapeFileName(file))
 	}
 	args = append(args, escapedFiles...)
-	return args
-}
-
-func OpLogId(snapshot bool) CommandArgs {
-	args := []string{"op", "log", "--color", "never", "--quiet", "--no-graph", "--limit", "1", "--template", "id"}
-	if !snapshot {
-		args = append(args, "--ignore-working-copy")
-	}
 	return args
 }
 
