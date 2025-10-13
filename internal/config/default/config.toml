@@ -424,7 +424,7 @@ set_parents = [
     { on = "esc", do = "close set_parents" },
 ]
 abandon = [
-    { on = "y", do = "abandon.accept" },
+    { on = "y", do = "abandon.apply" },
     { on = "alt+enter", do = "abandon.force_apply" },
     { on = "n", do = "close abandon" },
     { on = "left", do = "confirmation.left" },
