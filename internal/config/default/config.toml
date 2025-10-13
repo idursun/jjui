@@ -90,21 +90,6 @@ desc = "Down"
 desc = "Toggle selection of current revision"
 next = ["revisions.down"]
 
-[actions."revisions.find_files"]
-desc = "Find files in the current revision"
-next = ["switch status"]
-
-[actions."revisions.diffedit"]
-id = "run"
-desc = "Diff edit"
-args = { "jj" = ["diffedit", "-r", "$change_id"], "interactive" = true }
-
-[actions."revisions.absorb"]
-desc = "Absorb changes"
-id = "run"
-args = { "jj" = ["absorb", "-r", "$change_id"] }
-next = ["refresh"]
-
 [actions."revisions.squash"]
 desc = "Squash"
 id = "open squash"
@@ -114,6 +99,12 @@ next = ["revisions.jump_to_parent"]
 desc = "Jump to working copy"
 id = "revisions.find"
 change_id = "@"
+
+[actions."revisions.new"]
+jj = ["new", "-r", "$checked_commit_ids"]
+async = true
+desc = "new"
+next = ["wait @run", "refresh", "wait @refresh", { id = "revisions.find", change_id = "@" }]
 
 [actions."details.down"]
 desc = "Down"
@@ -330,6 +321,8 @@ revset = [
 revisions = [
     { on = "j", do = "revisions.down" },
     { on = "k", do = "revisions.up" },
+    { on = "q", do = "quit" },
+    { on = "enter", do = { id = "open inline_describe", desc = "inline describe" } },
     { on = "ctrl+j", do = "move commit down" },
     { on = "ctrl+k", do = "move commit up" },
     { on = "2", do = "show_root" },
@@ -337,7 +330,6 @@ revisions = [
     { on = "N", do = "new_note_commit" },
     { on = "-", do = "list_bookmarks" },
     { on = "@", do = "revisions.jump_to_working_copy" },
-    { on = "enter", do = "open inline_describe" },
     { on = " ", do = "revisions.toggle_select" },
     { on = "J", do = "revisions.jump_to_parent" },
     { on = "K", do = "revisions.jump_to_children" },
@@ -348,20 +340,21 @@ revisions = [
     { on = ["b", "b"], do = "open bookmarks" },
     { on = ["g", "g"], do = "open git" },
     { on = ["b", "s"], do = "open set_bookmark" },
-    { on = "c", do = "revisions.commit" },
     { on = "n", do = "revisions.new" },
-    { on = "A", do = "revisions.absorb" },
-    { on = "a", do = "open abandon" },
-    { on = "s", do = "revisions.split" },
+    { on = "c", do = { desc = "commit", jj = ["commit"], interactive = true, next = ["refresh"] } },
+    { on = "D", do = { desc = "describe", jj = ["describe", "--edit", "$checked_commit_ids"], interactive = true, next = ["refresh"] } },
+    { on = "A", do = { desc = "absorb", jj = ["absorb", "--from", "$change_id", "--color", "never"], async = true, next = ["wait @run", "refresh"] } },
+    { on = "s", do = { desc = "split", jj = ["split", "-r", "$change_id"], interactive = true, next = ["refresh"] } },
+    { on = "e", do = { desc = "edit", jj = ["edit", "-r", "$change_id"], interactive = true, next = ["refresh"] } },
+    { on = "E", do = { desc = "diffedit", jj = ["diffedit", "-r", "$change_id"], interactive = true, next = ["refresh"] } },
     { on = "d", do = "revisions.diff" },
-    { on = "E", do = "revisions.diffedit" },
+    { on = "a", do = "open abandon" },
     { on = "f", do = "open ace_jump" },
     { on = "v", do = "open evolog" },
     { on = "M", do = "open set_parents" },
     { on = "L", do = "revset.edit" },
     { on = "ctrl+r", do = "refresh" },
     { on = "ctrl+z", do = "suspend" },
-    { on = "q", do = "quit" },
     { on = "o", do = "open oplog" },
     { on = "u", do = "open undo" },
     { on = "X", do = "revisions.my_inline_describe" },

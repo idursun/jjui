@@ -297,13 +297,6 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 				return m.rows[index]
 			}, m.renderer.FirstRowIndex, m.renderer.LastRowIndex))
 			return m, cmd
-		case "revisions.new":
-			return m, m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
-		case "revisions.commit":
-			return m, m.context.RunInteractiveCommand(jj.CommitWorkingCopy(), common.Refresh)
-		case "revisions.edit":
-			ignoreImmutable := msg.Action.Get("ignore_immutable", false).(bool)
-			return m, m.context.RunCommand(jj.Edit(m.SelectedRevision().GetChangeId(), ignoreImmutable), common.Refresh)
 		case "open abandon":
 			var cmd tea.Cmd
 			m.context.Router, cmd = m.context.Router.Open(scopeAbandon, abandon.NewOperation(m.context, m.SelectedRevisions()))
@@ -341,13 +334,6 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 				output, _ := m.context.RunCommandImmediate(jj.Diff(changeId, ""))
 				return common.ShowDiffMsg(output)
 			})
-		case "revisions.split":
-			currentRevision := m.SelectedRevision().GetChangeId()
-			parallel := msg.Action.Get("parallel", false).(bool)
-			return m, m.context.RunInteractiveCommand(jj.Split(currentRevision, []string{}, parallel), common.Refresh)
-		case "revisions.describe":
-			selections := m.SelectedRevisions()
-			return m, m.context.RunInteractiveCommand(jj.Describe(selections), common.Refresh)
 		case "revisions.revert":
 			op := revert.NewOperation(m.context, m.SelectedRevisions(), revert.TargetDestination)
 			return m, op.Init()
