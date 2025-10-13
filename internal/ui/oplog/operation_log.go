@@ -38,6 +38,9 @@ func (m *Model) Cursor() int {
 }
 
 func (m *Model) SetCursor(index int) {
+	if index < 0 || index >= len(m.rows) {
+		return
+	}
 	m.cursor = index
 	m.context.Router.ContinueAction("@oplog.cursor")
 }
@@ -84,15 +87,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case actions.InvokeActionMsg:
 		switch msg.Action.Id {
 		case "oplog.up":
-			if m.cursor > 0 {
-				m.SetCursor(m.cursor - 1)
-				return m, nil
-			}
+			m.SetCursor(m.cursor - 1)
+			return m, nil
 		case "oplog.down":
-			if m.cursor+1 < len(m.rows) {
-				m.SetCursor(m.cursor + 1)
-				return m, nil
-			}
+			m.SetCursor(m.cursor + 1)
 			return m, nil
 		case "oplog.diff":
 			return m, actions.InvokeAction(actions.Action{
@@ -106,6 +104,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case updateOpLogMsg:
 		m.rows = msg.Rows
+		m.SetCursor(0)
 		m.renderer.Reset()
 	}
 	return m, nil
@@ -141,7 +140,7 @@ func New(context *context.MainContext, width int, height int) tea.Model {
 		Sizeable:      &common.Sizeable{Width: width, Height: height},
 		context:       context,
 		rows:          nil,
-		cursor:        0,
+		cursor:        -1,
 		textStyle:     common.DefaultPalette.Get("oplog text"),
 		selectedStyle: common.DefaultPalette.Get("oplog selected"),
 	}
