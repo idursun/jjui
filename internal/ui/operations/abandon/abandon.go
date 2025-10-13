@@ -19,7 +19,7 @@ var _ operations.Operation = (*Operation)(nil)
 var _ view.IHasActionMap = (*Operation)(nil)
 
 type Operation struct {
-	model             *confirmation.Model
+	confirmation      *confirmation.Model
 	current           *jj.Commit
 	context           *context.MainContext
 	selectedRevisions jj.SelectedRevisions
@@ -42,16 +42,16 @@ func (a *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	var cmd tea.Cmd
-	a.model, cmd = a.model.Update(msg)
+	a.confirmation, cmd = a.confirmation.Update(msg)
 	return a, cmd
 }
 
 func (a *Operation) View() string {
-	return a.model.View()
+	return a.confirmation.View()
 }
 
 func (a *Operation) ShortHelp() []key.Binding {
-	return a.model.ShortHelp()
+	return a.confirmation.ShortHelp()
 }
 
 func (a *Operation) FullHelp() [][]key.Binding {
@@ -96,7 +96,7 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 
 	op := &Operation{
 		context:           context,
-		model:             model,
+		confirmation:      model,
 		selectedRevisions: selectedRevisions,
 	}
 	return op
