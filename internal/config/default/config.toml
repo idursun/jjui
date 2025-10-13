@@ -77,7 +77,7 @@ next = ["switch revisions"]
 
 [actions."revset.edit"]
 desc = "Edit the current revset"
-args = { clear = true }
+clear = true
 next = ["switch revset"]
 
 [actions."revisions.up"]
@@ -249,7 +249,7 @@ next = ["close exec_sh", "refresh"]
 [actions."revisions.append_current_as_ancestor"]
 desc = "Append current revision as ancestor to revset"
 id = "revset.set"
-args = { "revset" = "$revset | ancestors($change_id, 2)" }
+revset = "$revset | ancestors($change_id, 2)"
 
 [actions."revisions.my_inline_describe"]
 desc = "Open inline description editor and create new revision"
@@ -338,6 +338,7 @@ revisions = [
     { on = "S", do = "revisions.squash" },
     { on = "r", do = "open rebase" },
     { on = ["b", "b"], do = "open bookmarks" },
+    { on = ["b", "l"], do = { id = "revset.set", revset = "bookmarks() | remote_bookmarks()", desc = "set revset to bookmarks" } },
     { on = ["g", "g"], do = "open git" },
     { on = ["b", "s"], do = "open set_bookmark" },
     { on = "n", do = "revisions.new" },
@@ -364,7 +365,6 @@ revisions = [
     { on = "?", do = "open help" },
     { on = ":", do = "open exec_jj" },
     { on = "$", do = "open exec_sh" },
-    { on = "/", do = "quick_search" },
     { on = "ctrl+t", do = "revisions.find_files" },
 ]
 status = [
