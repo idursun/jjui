@@ -3,6 +3,7 @@ package preview
 import (
 	"bufio"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -22,7 +23,7 @@ type viewRange struct {
 
 type Model struct {
 	*common.Sizeable
-	tag                     int
+	tag                     atomic.Uint64
 	previewVisible          bool
 	previewAtBottom         bool
 	previewWindowPercentage float64
@@ -35,7 +36,7 @@ type Model struct {
 	borderStyle             lipgloss.Style
 }
 
-const DebounceTime = 50 * time.Millisecond
+const DebounceTime = 200 * time.Millisecond
 
 type previewMsg struct {
 	msg tea.Msg
@@ -49,7 +50,12 @@ func PreviewCmd(msg tea.Msg) tea.Cmd {
 }
 
 type refreshPreviewContentMsg struct {
-	Tag int
+	Tag uint64
+}
+
+type updatePreviewContentMsg struct {
+	Tag     uint64
+	Content string
 }
 
 func (m *Model) SetHeight(h int) {
@@ -91,52 +97,62 @@ func (m *Model) WindowPercentage() float64 {
 	return m.previewWindowPercentage
 }
 
-func (m *Model) updatePreviewContent(content string) {
-	m.content = content
-	m.contentLineCount = lipgloss.Height(m.content)
-	m.reset()
-}
-
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	if k, ok := msg.(previewMsg); ok {
 		msg = k.msg
 	}
 	switch msg := msg.(type) {
 	case common.SelectionChangedMsg, common.RefreshMsg:
-		m.tag++
-		tag := m.tag
+		tag := m.tag.Add(1)
 		return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
+			if tag != m.tag.Load() {
+				return nil
+			}
 			return refreshPreviewContentMsg{Tag: tag}
 		})
 	case refreshPreviewContentMsg:
-		if m.tag == msg.Tag {
-			switch msg := m.context.SelectedItem.(type) {
-			case context.SelectedFile:
-				replacements := map[string]string{
-					jj.RevsetPlaceholder:   m.context.CurrentRevset,
-					jj.ChangeIdPlaceholder: msg.ChangeId,
-					jj.CommitIdPlaceholder: msg.CommitId,
-					jj.FilePlaceholder:     msg.File,
+		if m.tag.Load() == msg.Tag {
+			tag := msg.Tag
+			return m, func() tea.Msg {
+				var args []string
+				switch msg := m.context.SelectedItem.(type) {
+				case context.SelectedFile:
+					args = jj.TemplatedArgs(config.Current.Preview.FileCommand, map[string]string{
+						jj.RevsetPlaceholder:   m.context.CurrentRevset,
+						jj.ChangeIdPlaceholder: msg.ChangeId,
+						jj.CommitIdPlaceholder: msg.CommitId,
+						jj.FilePlaceholder:     msg.File,
+					})
+				case context.SelectedRevision:
+					args = jj.TemplatedArgs(config.Current.Preview.RevisionCommand, map[string]string{
+						jj.RevsetPlaceholder:   m.context.CurrentRevset,
+						jj.ChangeIdPlaceholder: msg.ChangeId,
+						jj.CommitIdPlaceholder: msg.CommitId,
+					})
+				case context.SelectedOperation:
+					args = jj.TemplatedArgs(config.Current.Preview.OplogCommand, map[string]string{
+						jj.RevsetPlaceholder:      m.context.CurrentRevset,
+						jj.OperationIdPlaceholder: msg.OperationId,
+					})
 				}
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.FileCommand, replacements))
-				m.updatePreviewContent(string(output))
-			case context.SelectedRevision:
-				replacements := map[string]string{
-					jj.RevsetPlaceholder:   m.context.CurrentRevset,
-					jj.ChangeIdPlaceholder: msg.ChangeId,
-					jj.CommitIdPlaceholder: msg.CommitId,
+
+				output, _ := m.context.RunCommandImmediate(args)
+				if tag != m.tag.Load() {
+					return nil
 				}
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.RevisionCommand, replacements))
-				m.updatePreviewContent(string(output))
-			case context.SelectedOperation:
-				replacements := map[string]string{
-					jj.RevsetPlaceholder:      m.context.CurrentRevset,
-					jj.OperationIdPlaceholder: msg.OperationId,
+				return updatePreviewContentMsg{
+					Tag:     tag,
+					Content: string(output),
 				}
-				output, _ := m.context.RunCommandImmediate(jj.TemplatedArgs(config.Current.Preview.OplogCommand, replacements))
-				m.updatePreviewContent(string(output))
 			}
 		}
+	case updatePreviewContentMsg:
+		if m.tag.Load() == msg.Tag {
+			m.content = msg.Content
+			m.contentLineCount = lipgloss.Height(m.content)
+			m.reset()
+		}
+		return m, nil
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Preview.ScrollDown):
