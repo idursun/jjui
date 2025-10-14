@@ -90,6 +90,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// clearing the available actions since user has made a choice
 		m.actions = nil
 		if msg.Action.Id == "run" {
+			if sh, ok := msg.Action.Args["sh"]; ok {
+				line := sh.(string)
+				execMsg := common.ExecMsg{Line: line, Mode: common.ExecShell}
+				return m, tea.Sequence(exec_process.ExecLine(m.context, execMsg), msg.Action.GetNextCmd())
+			}
+
 			args := msg.Action.GetArgs("jj")
 			async := msg.Action.Get("async", false).(bool)
 			if async {
@@ -108,6 +114,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return msg.Action.GetNextMsg()
 			}
 		}
+
 		if strings.HasPrefix(msg.Action.Id, "register ") {
 			action := strings.TrimPrefix(msg.Action.Id, "register ")
 			return m, m.registerAutoEvent(action)
