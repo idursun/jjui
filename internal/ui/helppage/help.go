@@ -187,10 +187,7 @@ func filterList(list itemList, query string) itemList {
 		// Check if header matches
 		headerMatches := false
 		if group.groupHeader != nil {
-			headerMatches = strings.Contains(
-				strings.ToLower(group.groupHeader.search),
-				query,
-			)
+			headerMatches = strings.Contains(group.groupHeader.search, query)
 		}
 
 		if headerMatches {
@@ -200,7 +197,7 @@ func filterList(list itemList, query string) itemList {
 
 		var matchedItems []helpItem
 		for _, item := range group.groupItems {
-			if strings.Contains(strings.ToLower(item.search), query) {
+			if strings.Contains(item.search, query) {
 				matchedItems = append(matchedItems, item)
 			}
 		}
