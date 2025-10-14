@@ -153,6 +153,10 @@ func JoinKeys(keys []string) string {
 			k = "↑"
 		case "down":
 			k = "↓"
+		case "left":
+			k = "←"
+		case "right":
+			k = "→"
 		case " ":
 			k = "space"
 		}
