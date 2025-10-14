@@ -365,6 +365,7 @@ revisions = [
     { on = "?", do = "open help" },
     { on = ":", do = "open exec_jj" },
     { on = "$", do = "open exec_sh" },
+    { on = "ctrl+v", do = { id = "run", sh = "jj log -r $change_id:: -T 'description' --no-graph | pbcopy" } },
     { on = "ctrl+t", do = "revisions.find_files" },
 ]
 status = [
