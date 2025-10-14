@@ -123,21 +123,24 @@ func (h *Model) renderColumn(list itemList) string {
 	width := h.defaultMenu.width
 	height := h.defaultMenu.height
 	var lines []string
+	padLine := func(content string) string {
+		return lipgloss.Place(
+			width, 1, lipgloss.Left, lipgloss.Top,
+			content,
+			lipgloss.WithWhitespaceBackground(h.styles.text.GetBackground()),
+		)
+	}
 
 	for _, group := range list {
-		lines = append(lines, group.groupHeader.display)
+		lines = append(lines, padLine(group.groupHeader.display))
 		for _, item := range group.groupItems {
-			lines = append(lines, item.display)
+			lines = append(lines, padLine(item.display))
 		}
-		lines = append(lines, "")
+		lines = append(lines, padLine(""))
 	}
 
 	for len(lines) < height {
-		lines = append(lines, lipgloss.Place(
-			width, 1, lipgloss.Left, lipgloss.Top,
-			"",
-			lipgloss.WithWhitespaceBackground(h.styles.text.GetBackground()),
-		))
+		lines = append(lines, padLine(""))
 	}
 
 	return strings.Join(lines, "\n")
@@ -226,7 +229,6 @@ func New(context *context.MainContext) *Model {
 	filter := textinput.New()
 	filter.Prompt = "Search: "
 	filter.Placeholder = "Type to filter..."
-	filter.Width = len(filter.Placeholder)
 	filter.PromptStyle = styles.shortcut
 	filter.TextStyle = styles.text
 	filter.Cursor.Style = styles.text

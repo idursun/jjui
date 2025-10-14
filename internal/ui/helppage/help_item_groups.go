@@ -77,6 +77,7 @@ func (h *Model) setDefaultMenu() {
 		h.buildRightGroups(),
 	}
 	h.defaultMenu.width, h.defaultMenu.height = 45, h.defaultMenu.calculateMaxHeight()
+	h.searchQuery.Width = h.defaultMenu.width - 10
 }
 
 func (h *Model) buildLeftGroups() []itemGroup {
