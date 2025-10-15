@@ -106,6 +106,14 @@ func GetDescription(revision string) CommandArgs {
 	return []string{"log", "-r", revision, "--template", "description", "--no-graph", "--ignore-working-copy", "--color", "never", "--quiet"}
 }
 
+func Prune(revision string, ignoreImmutable bool) CommandArgs {
+	args := []string{"abandon", "--retain-bookmarks", revision+"::" }
+	if ignoreImmutable {
+		args = append(args, "--ignore-immutable")
+	}
+	return args
+}
+
 func Abandon(revision SelectedRevisions, ignoreImmutable bool) CommandArgs {
 	args := []string{"abandon", "--retain-bookmarks"}
 	args = append(args, revision.AsArgs()...)

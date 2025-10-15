@@ -32,6 +32,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/internal/ui/operations/details"
 	"github.com/idursun/jjui/internal/ui/operations/evolog"
+	"github.com/idursun/jjui/internal/ui/operations/prune"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/operations/squash"
 )
@@ -430,6 +431,10 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.Abandon):
 				selections := m.SelectedRevisions()
 				m.op = abandon.NewOperation(m.context, selections)
+				return m, m.op.Init()
+			case key.Matches(msg, m.keymap.Prune):
+				revision := m.SelectedRevision()
+				m.op = prune.NewOperation(m.context, revision)
 				return m, m.op.Init()
 			case key.Matches(msg, m.keymap.Bookmark.Set):
 				m.op = bookmark.NewSetBookmarkOperation(m.context, m.SelectedRevision().GetChangeId())

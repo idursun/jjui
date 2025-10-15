@@ -116,6 +116,7 @@ func (h *Model) View() string {
 		h.printKeyBinding(h.keyMap.Diffedit),
 		h.printKeyBinding(h.keyMap.Split),
 		h.printKeyBinding(h.keyMap.Abandon),
+		h.printKeyBinding(h.keyMap.Prune),
 		h.printKeyBinding(h.keyMap.Absorb),
 		h.printKeyBinding(h.keyMap.Undo),
 		h.printKeyBinding(h.keyMap.Redo),
