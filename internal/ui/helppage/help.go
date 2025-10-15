@@ -156,7 +156,7 @@ func New(context *context.MainContext) *Model {
 	filter := textinput.New()
 	filter.Prompt = "Search: "
 	filter.Placeholder = "Type to filter..."
-	filter.PromptStyle = styles.shortcut
+	filter.PromptStyle = styles.shortcut.PaddingLeft(3)
 	filter.TextStyle = styles.text
 	filter.Cursor.Style = styles.text
 	filter.CharLimit = 80
