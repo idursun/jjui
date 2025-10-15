@@ -49,7 +49,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		ExecJJ:           key.NewBinding(key.WithKeys(m.ExecJJ...), key.WithHelp(JoinKeys(m.ExecJJ), "interactive jj")),
 		ExecShell:        key.NewBinding(key.WithKeys(m.ExecShell...), key.WithHelp(JoinKeys(m.ExecShell), "interactive shell command")),
 		Revert: revertModeKeys[key.Binding]{
-			Mode:   key.NewBinding(key.WithKeys(m.Revert.Mode...), key.WithHelp(JoinKeys(m.Revert.Mode), "rebase")),
+			Mode:   key.NewBinding(key.WithKeys(m.Revert.Mode...), key.WithHelp(JoinKeys(m.Revert.Mode), "revert")),
 			After:  key.NewBinding(key.WithKeys(m.Revert.After...), key.WithHelp(JoinKeys(m.Revert.After), "insert after")),
 			Before: key.NewBinding(key.WithKeys(m.Revert.Before...), key.WithHelp(JoinKeys(m.Revert.Before), "insert before")),
 			Onto:   key.NewBinding(key.WithKeys(m.Revert.Onto...), key.WithHelp(JoinKeys(m.Revert.Onto), "onto")),
