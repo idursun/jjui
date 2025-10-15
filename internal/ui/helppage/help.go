@@ -14,9 +14,8 @@ import (
 )
 
 type helpItem struct {
-	display  string
-	search   string
-	isHeader bool
+	display string
+	search  string
 }
 
 type itemGroup struct {

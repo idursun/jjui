@@ -27,7 +27,7 @@ func (h *Model) newModeItem(binding *key.Binding, name string) helpItem {
 		return helpItem{
 			display:  h.printMode(key.NewBinding(), name),
 			search:   normalizeSearch(name),
-			isHeader: true,
+		
 		}
 	}
 
@@ -35,7 +35,7 @@ func (h *Model) newModeItem(binding *key.Binding, name string) helpItem {
 	return helpItem{
 		display:  h.printMode(*binding, name),
 		search:   normalizeSearch(help.Key, help.Desc, name),
-		isHeader: true,
+	
 	}
 }
 
@@ -44,7 +44,7 @@ func (h *Model) newBindingItem(binding key.Binding) helpItem {
 	return helpItem{
 		display:  h.printKeyBinding(binding),
 		search:   normalizeSearch(help.Key, help.Desc),
-		isHeader: false,
+	
 	}
 }
 
@@ -52,7 +52,7 @@ func (h *Model) newKeyItem(key string, desc string) helpItem {
 	return helpItem{
 		display:  h.printKey(key, desc),
 		search:   normalizeSearch(key, desc),
-		isHeader: false,
+	
 	}
 }
 
