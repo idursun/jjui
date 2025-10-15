@@ -72,8 +72,10 @@ func (h *Model) setDefaultMenu() {
 		h.buildMiddleGroups(),
 		h.buildRightGroups(),
 	}
-	h.defaultMenu.width, h.defaultMenu.height = 45, h.defaultMenu.calculateMaxHeight()
-	h.searchQuery.Width = h.defaultMenu.width - 10
+	// TODO: 132 is an arbitrary width that allows all column to display properly
+	// update to use dynamic width based on column contents
+	h.defaultMenu.width, h.defaultMenu.height = 132, h.defaultMenu.calculateMaxHeight()
+	h.searchQuery.Width = len(h.searchQuery.Placeholder)
 }
 
 func (h *Model) buildLeftGroups() []itemGroup {

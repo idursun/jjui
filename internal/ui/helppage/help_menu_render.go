@@ -25,7 +25,7 @@ func (list menuColumn) getListHeight() int {
 
 func (h *Model) renderColumn(column menuColumn) string {
 	// NOTE: read from defaultMenu so layout won't glitch while filtering menu
-	width := h.defaultMenu.width
+	width := h.defaultMenu.width / 3
 	height := h.defaultMenu.height
 	var lines []string
 	padLine := func(content string) string {
