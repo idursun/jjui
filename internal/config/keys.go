@@ -26,6 +26,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Undo:              key.NewBinding(key.WithKeys(m.Undo...), key.WithHelp(JoinKeys(m.Undo), "undo")),
 		Redo:              key.NewBinding(key.WithKeys(m.Redo...), key.WithHelp(JoinKeys(m.Redo), "redo")),
 		Abandon:           key.NewBinding(key.WithKeys(m.Abandon...), key.WithHelp(JoinKeys(m.Abandon), "abandon")),
+		Prune:             key.NewBinding(key.WithKeys(m.Prune...), key.WithHelp(JoinKeys(m.Prune), "prune")),
 		Edit:              key.NewBinding(key.WithKeys(m.Edit...), key.WithHelp(JoinKeys(m.Edit), "edit")),
 		ForceEdit:         key.NewBinding(key.WithKeys(m.ForceEdit...), key.WithHelp(JoinKeys(m.ForceEdit), "force edit")),
 		Diffedit:          key.NewBinding(key.WithKeys(m.Diffedit...), key.WithHelp(JoinKeys(m.Diffedit), "diff edit")),
@@ -169,6 +170,7 @@ type KeyMappings[T any] struct {
 	Commit            T                         `toml:"commit"`
 	Refresh           T                         `toml:"refresh"`
 	Abandon           T                         `toml:"abandon"`
+	Prune             T                         `toml:"prune"`
 	Diff              T                         `toml:"diff"`
 	Quit              T                         `toml:"quit"`
 	Help              T                         `toml:"help"`
