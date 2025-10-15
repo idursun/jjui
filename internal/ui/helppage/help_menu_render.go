@@ -14,19 +14,16 @@ func (m itemMenu) calculateMaxHeight() int {
 	)
 }
 
-func (list itemList) getListHeight() int {
+func (list menuColumn) getListHeight() int {
 	height := 0
 	for _, group := range list {
-		if group.groupHeader != nil {
-			height++ // header
-		}
-		height += len(group.groupItems)
+		height += len(group)
 		height++ // spacing between groups
 	}
 	return height
 }
 
-func (h *Model) renderColumn(list itemList) string {
+func (h *Model) renderColumn(column menuColumn) string {
 	// NOTE: read from defaultMenu so layout won't glitch while filtering menu
 	width := h.defaultMenu.width
 	height := h.defaultMenu.height
@@ -39,9 +36,8 @@ func (h *Model) renderColumn(list itemList) string {
 		)
 	}
 
-	for _, group := range list {
-		lines = append(lines, padLine(group.groupHeader.display))
-		for _, item := range group.groupItems {
+	for _, group := range column {
+		for _, item := range group {
 			lines = append(lines, padLine(item.display))
 		}
 		lines = append(lines, padLine(""))

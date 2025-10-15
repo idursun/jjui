@@ -14,22 +14,19 @@ import (
 )
 
 type helpItem struct {
-	display string
-	search  string
+	display    string
+	searchTerm string
 }
 
-type itemGroup struct {
-	groupHeader *helpItem
-	groupItems  []helpItem
-}
+type itemGroup []helpItem
 
-type itemList []itemGroup
+type menuColumn []itemGroup
 
 type itemMenu struct {
 	width, height int
-	leftList      itemList
-	middleList    itemList
-	rightList     itemList
+	leftList      menuColumn
+	middleList    menuColumn
+	rightList     menuColumn
 }
 
 type Model struct {
@@ -117,34 +114,30 @@ func (h *Model) filterMenu() {
 	}
 }
 
-func filterList(list itemList, query string) itemList {
-	var filtered itemList
+func filterList(column menuColumn, query string) menuColumn {
+	var filtered menuColumn
 
-	for _, group := range list {
-		// Check if header matches
-		headerMatches := false
-		if group.groupHeader != nil {
-			headerMatches = strings.Contains(group.groupHeader.search, query)
+	for _, group := range column {
+		if len(group) == 0 {
+			continue
 		}
-
+		// Check if header matches
+		header := group[0]
+		headerMatches := strings.Contains(header.searchTerm, query)
 		if headerMatches {
 			filtered = append(filtered, group)
-			break
+			continue
 		}
 
-		var matchedItems []helpItem
-		for _, item := range group.groupItems {
-			if strings.Contains(item.search, query) {
+		matchedItems := []helpItem{header}
+		for _, item := range group[1:] {
+			if strings.Contains(item.searchTerm, query) {
 				matchedItems = append(matchedItems, item)
 			}
 		}
 
-		// Only add group if items matched
-		if len(matchedItems) > 0 {
-			filtered = append(filtered, itemGroup{
-				groupHeader: group.groupHeader,
-				groupItems:  matchedItems,
-			})
+		if len(matchedItems) > 1 {
+			filtered = append(filtered, matchedItems)
 		}
 	}
 
