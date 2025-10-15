@@ -96,68 +96,6 @@ func (h *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return h, cmd
 }
 
-// TODO: move to other files
-func (m itemMenu) calculateMaxHeight() int {
-	return max(
-		m.leftList.getListHeight(),
-		m.middleList.getListHeight(),
-		m.rightList.getListHeight(),
-	)
-}
-
-// TODO: move to other files
-func (list itemList) getListHeight() int {
-	height := 0
-	for _, group := range list {
-		if group.groupHeader != nil {
-			height++ // header
-		}
-		height += len(group.groupItems)
-		height++ // spacing between groups
-	}
-	return height
-}
-
-// TODO: move to other files
-func (h *Model) renderColumn(list itemList) string {
-	width := h.defaultMenu.width
-	height := h.defaultMenu.height
-	var lines []string
-	padLine := func(content string) string {
-		return lipgloss.Place(
-			width, 1, lipgloss.Left, lipgloss.Top,
-			content,
-			lipgloss.WithWhitespaceBackground(h.styles.text.GetBackground()),
-		)
-	}
-
-	for _, group := range list {
-		lines = append(lines, padLine(group.groupHeader.display))
-		for _, item := range group.groupItems {
-			lines = append(lines, padLine(item.display))
-		}
-		lines = append(lines, padLine(""))
-	}
-
-	for len(lines) < height {
-		lines = append(lines, padLine(""))
-	}
-
-	return strings.Join(lines, "\n")
-}
-
-func (h *Model) renderMenu() string {
-	if h.searchQuery.Value() == "" {
-		h.filteredMenu = h.defaultMenu
-	}
-
-	left := h.renderColumn(h.filteredMenu.leftList)
-	middle := h.renderColumn(h.filteredMenu.middleList)
-	right := h.renderColumn(h.filteredMenu.rightList)
-
-	return lipgloss.JoinHorizontal(lipgloss.Top, left, middle, right)
-}
-
 func (h *Model) View() string {
 	// NOTE: add new lines between search bar and help menu
 	content := "\n\n" + h.renderMenu()
