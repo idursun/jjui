@@ -18,7 +18,6 @@ func getListHeight(list menuColumn) int {
 	height := 0
 	for _, group := range list {
 		height += len(group)
-		height++ // spacing between groups
 	}
 	return height
 }
@@ -40,7 +39,6 @@ func (h *Model) renderColumn(column menuColumn) string {
 		for _, item := range group {
 			lines = append(lines, formatLine(item.display))
 		}
-		lines = append(lines, formatLine(""))
 	}
 
 	for len(lines) < height {

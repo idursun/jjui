@@ -137,6 +137,7 @@ func filterList(column menuColumn, query string) menuColumn {
 		}
 
 		if len(matchedItems) > 1 {
+			matchedItems = append(matchedItems, helpItem{"", ""})
 			filtered = append(filtered, matchedItems)
 		}
 	}

@@ -138,16 +138,19 @@ func (h *Model) buildMiddleGroups() menuColumn {
 			h.newBindingItem(h.keyMap.Details.Squash),
 			h.newBindingItem(h.keyMap.Details.Diff),
 			h.newBindingItem(h.keyMap.Details.RevisionsChangingFile),
+			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Evolog.Mode, "Evolog"),
 			h.newBindingItem(h.keyMap.Evolog.Diff),
 			h.newBindingItem(h.keyMap.Evolog.Restore),
+			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Squash.Mode, "Squash"),
 			h.newBindingItem(h.keyMap.Squash.KeepEmptied),
 			h.newBindingItem(h.keyMap.Squash.Interactive),
+			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Revert.Mode, "Revert"),
@@ -161,6 +164,7 @@ func (h *Model) buildMiddleGroups() menuColumn {
 			h.newBindingItem(h.keyMap.Rebase.After),
 			h.newBindingItem(h.keyMap.Rebase.Onto),
 			h.newBindingItem(h.keyMap.Rebase.Insert),
+			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Duplicate.Mode, "Duplicate"),
@@ -187,11 +191,13 @@ func (h *Model) buildRightGroups() menuColumn {
 			h.newBindingItem(h.keyMap.Preview.Expand),
 			h.newBindingItem(h.keyMap.Preview.Shrink),
 			h.newBindingItem(h.keyMap.Preview.ToggleBottom),
+			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Git.Mode, "Git"),
 			h.newBindingItem(h.keyMap.Git.Push),
 			h.newBindingItem(h.keyMap.Git.Fetch),
+			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Bookmark.Mode, "Bookmarks"),
@@ -200,15 +206,18 @@ func (h *Model) buildRightGroups() menuColumn {
 			h.newBindingItem(h.keyMap.Bookmark.Untrack),
 			h.newBindingItem(h.keyMap.Bookmark.Track),
 			h.newBindingItem(h.keyMap.Bookmark.Forget),
+			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.OpLog.Mode, "Oplog"),
 			h.newBindingItem(h.keyMap.Diff),
 			h.newBindingItem(h.keyMap.OpLog.Restore),
+			helpItem{"", ""},
 		},
 
 		itemGroup{
 			h.newModeItem(&h.keyMap.Leader, "Leader"),
+			helpItem{"", ""},
 		},
 		customCommandItems,
 	}
