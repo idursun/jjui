@@ -6,15 +6,15 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func (m itemMenu) calculateMaxHeight() int {
+func (h *Model) calculateMaxHeight() int {
 	return max(
-		m.leftList.getListHeight(),
-		m.middleList.getListHeight(),
-		m.rightList.getListHeight(),
+		getListHeight(h.defaultMenu.leftList),
+		getListHeight(h.defaultMenu.middleList),
+		getListHeight(h.defaultMenu.rightList),
 	)
 }
 
-func (list menuColumn) getListHeight() int {
+func getListHeight(list menuColumn) int {
 	height := 0
 	for _, group := range list {
 		height += len(group)
@@ -28,7 +28,7 @@ func (h *Model) renderColumn(column menuColumn) string {
 	width := h.defaultMenu.width / 3
 	height := h.defaultMenu.height
 	var lines []string
-	padLine := func(content string) string {
+	formatLine := func(content string) string {
 		return lipgloss.Place(
 			width, 1, lipgloss.Left, lipgloss.Top,
 			content,
@@ -38,13 +38,13 @@ func (h *Model) renderColumn(column menuColumn) string {
 
 	for _, group := range column {
 		for _, item := range group {
-			lines = append(lines, padLine(item.display))
+			lines = append(lines, formatLine(item.display))
 		}
-		lines = append(lines, padLine(""))
+		lines = append(lines, formatLine(""))
 	}
 
 	for len(lines) < height {
-		lines = append(lines, padLine(""))
+		lines = append(lines, formatLine(""))
 	}
 
 	return strings.Join(lines, "\n")

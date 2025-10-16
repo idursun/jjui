@@ -66,7 +66,7 @@ func normalizeSearch(parts ...string) string {
 }
 
 func (h *Model) setDefaultMenu() {
-	h.defaultMenu = itemMenu{
+	h.defaultMenu = helpMenu{
 		0, 0,
 		h.buildLeftGroups(),
 		h.buildMiddleGroups(),
@@ -74,11 +74,11 @@ func (h *Model) setDefaultMenu() {
 	}
 	// TODO: 132 is an arbitrary width that allows all column to display properly
 	// update to use dynamic width based on column contents
-	h.defaultMenu.width, h.defaultMenu.height = 132, h.defaultMenu.calculateMaxHeight()
+	h.defaultMenu.width, h.defaultMenu.height = 132, h.calculateMaxHeight()
 	h.searchQuery.Width = len(h.searchQuery.Placeholder)
 }
 
-func (h *Model) buildLeftGroups() []itemGroup {
+func (h *Model) buildLeftGroups() menuColumn {
 	jumpKeys := fmt.Sprintf("%s/%s/%s",
 		h.keyMap.JumpToParent.Help().Key,
 		h.keyMap.JumpToChildren.Help().Key,
@@ -86,7 +86,7 @@ func (h *Model) buildLeftGroups() []itemGroup {
 	)
 
 	return menuColumn{
-		[]helpItem{
+		itemGroup{
 			h.newModeItem(nil, "UI"),
 			h.newBindingItem(h.keyMap.Refresh),
 			h.newBindingItem(h.keyMap.Help),
@@ -95,12 +95,12 @@ func (h *Model) buildLeftGroups() []itemGroup {
 			h.newBindingItem(h.keyMap.Suspend),
 			h.newBindingItem(h.keyMap.Revset),
 		},
-		[]helpItem{
+		itemGroup{
 			h.newModeItem(nil, "Exec"),
 			h.newBindingItem(h.keyMap.ExecJJ),
 			h.newBindingItem(h.keyMap.ExecShell),
 		},
-		[]helpItem{
+		itemGroup{
 			h.newModeItem(nil, "Revisions"),
 			h.newKeyItem(jumpKeys, "jump to parent/child/working-copy"),
 			h.newBindingItem(h.keyMap.ToggleSelect),
@@ -127,9 +127,9 @@ func (h *Model) buildLeftGroups() []itemGroup {
 	}
 }
 
-func (h *Model) buildMiddleGroups() []itemGroup {
-	return []itemGroup{
-		[]helpItem{
+func (h *Model) buildMiddleGroups() menuColumn {
+	return menuColumn{
+		itemGroup{
 			h.newModeItem(&h.keyMap.Details.Mode, "Details"),
 			h.newBindingItem(h.keyMap.Details.Close),
 			h.newBindingItem(h.keyMap.Details.ToggleSelect),
@@ -139,20 +139,20 @@ func (h *Model) buildMiddleGroups() []itemGroup {
 			h.newBindingItem(h.keyMap.Details.Diff),
 			h.newBindingItem(h.keyMap.Details.RevisionsChangingFile),
 		},
-		[]helpItem{
+		itemGroup{
 			h.newModeItem(&h.keyMap.Evolog.Mode, "Evolog"),
 			h.newBindingItem(h.keyMap.Evolog.Diff),
 			h.newBindingItem(h.keyMap.Evolog.Restore),
 		},
-		[]helpItem{
+		itemGroup{
 			h.newModeItem(&h.keyMap.Squash.Mode, "Squash"),
 			h.newBindingItem(h.keyMap.Squash.KeepEmptied),
 			h.newBindingItem(h.keyMap.Squash.Interactive),
 		},
-		[]helpItem{
+		itemGroup{
 			h.newModeItem(&h.keyMap.Revert.Mode, "Revert"),
 		},
-		[]helpItem{
+		itemGroup{
 			h.newModeItem(&h.keyMap.Rebase.Mode, "Rebase"),
 			h.newBindingItem(h.keyMap.Rebase.Revision),
 			h.newBindingItem(h.keyMap.Rebase.Source),
@@ -162,7 +162,7 @@ func (h *Model) buildMiddleGroups() []itemGroup {
 			h.newBindingItem(h.keyMap.Rebase.Onto),
 			h.newBindingItem(h.keyMap.Rebase.Insert),
 		},
-		[]helpItem{
+		itemGroup{
 			h.newModeItem(&h.keyMap.Duplicate.Mode, "Duplicate"),
 			h.newBindingItem(h.keyMap.Duplicate.Onto),
 			h.newBindingItem(h.keyMap.Duplicate.Before),
@@ -171,14 +171,14 @@ func (h *Model) buildMiddleGroups() []itemGroup {
 	}
 }
 
-func (h *Model) buildRightGroups() []itemGroup {
+func (h *Model) buildRightGroups() menuColumn {
 	customCommandItems := []helpItem{h.newModeItem(&h.keyMap.CustomCommands, "Custom Commands")}
 	for _, command := range h.context.CustomCommands {
 		customCommandItems = append(customCommandItems, h.newBindingItem(command.Binding()))
 	}
 
-	return []itemGroup{
-		[]helpItem{
+	return menuColumn{
+		itemGroup{
 			h.newModeItem(&h.keyMap.Preview.Mode, "Preview"),
 			h.newBindingItem(h.keyMap.Preview.ScrollUp),
 			h.newBindingItem(h.keyMap.Preview.ScrollDown),
@@ -188,12 +188,12 @@ func (h *Model) buildRightGroups() []itemGroup {
 			h.newBindingItem(h.keyMap.Preview.Shrink),
 			h.newBindingItem(h.keyMap.Preview.ToggleBottom),
 		},
-		[]helpItem{
+		itemGroup{
 			h.newModeItem(&h.keyMap.Git.Mode, "Git"),
 			h.newBindingItem(h.keyMap.Git.Push),
 			h.newBindingItem(h.keyMap.Git.Fetch),
 		},
-		[]helpItem{
+		itemGroup{
 			h.newModeItem(&h.keyMap.Bookmark.Mode, "Bookmarks"),
 			h.newBindingItem(h.keyMap.Bookmark.Move),
 			h.newBindingItem(h.keyMap.Bookmark.Delete),
@@ -201,13 +201,13 @@ func (h *Model) buildRightGroups() []itemGroup {
 			h.newBindingItem(h.keyMap.Bookmark.Track),
 			h.newBindingItem(h.keyMap.Bookmark.Forget),
 		},
-		[]helpItem{
+		itemGroup{
 			h.newModeItem(&h.keyMap.OpLog.Mode, "Oplog"),
 			h.newBindingItem(h.keyMap.Diff),
 			h.newBindingItem(h.keyMap.OpLog.Restore),
 		},
 
-		{
+		itemGroup{
 			h.newModeItem(&h.keyMap.Leader, "Leader"),
 		},
 		customCommandItems,

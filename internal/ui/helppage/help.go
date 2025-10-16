@@ -18,11 +18,11 @@ type helpItem struct {
 	searchTerm string
 }
 
-type itemGroup []helpItem
+type itemGroup = []helpItem
 
-type menuColumn []itemGroup
+type menuColumn = []itemGroup
 
-type itemMenu struct {
+type helpMenu struct {
 	width, height int
 	leftList      menuColumn
 	middleList    menuColumn
@@ -35,8 +35,8 @@ type Model struct {
 	keyMap       config.KeyMappings[key.Binding]
 	context      *context.MainContext
 	styles       styles
-	defaultMenu  itemMenu
-	filteredMenu itemMenu
+	defaultMenu  helpMenu
+	filteredMenu helpMenu
 	searchQuery  textinput.Model
 }
 
@@ -107,7 +107,7 @@ func (h *Model) filterMenu() {
 		return
 	}
 
-	h.filteredMenu = itemMenu{
+	h.filteredMenu = helpMenu{
 		leftList:   filterList(h.defaultMenu.leftList, query),
 		middleList: filterList(h.defaultMenu.middleList, query),
 		rightList:  filterList(h.defaultMenu.rightList, query),
