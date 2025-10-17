@@ -307,6 +307,18 @@ desc = "Move the current commit up in the history"
 jj = ["rebase", "-r", "$change_id", "--insert-after", "$change_id+"]
 next = ["refresh"]
 
+[actions."tug"]
+desc = "Tug the current commit to the working copy"
+id = "run"
+jj = ["util", "exec", "--", "sh", "-c", """
+if [ "x$1" = "x" ]; then
+jj bookmark move --from "closest_bookmark(@)" --to "closest_pushable(@)"
+else
+jj bookmark move --to "closest_pushable(@)" "$@"
+fi
+"""]
+next = ["refresh"]
+
 [bindings]
 revset = [
     { on = "enter", do = "revset.accept" },
@@ -337,6 +349,7 @@ revisions = [
     { on = "l", do = "open details" },
     { on = "S", do = "revisions.squash" },
     { on = "r", do = "open rebase" },
+    { on = ["b", "t"], do = "tug" },
     { on = ["b", "b"], do = "open bookmarks" },
     { on = ["b", "l"], do = { id = "revset.set", revset = "bookmarks() | remote_bookmarks()", desc = "set revset to bookmarks" } },
     { on = ["g", "g"], do = "open git" },
