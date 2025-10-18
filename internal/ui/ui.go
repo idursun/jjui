@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -43,7 +42,7 @@ type Model struct {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(m.router.Init(), tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.registerAutoEvents())
+	return tea.Batch(m.router.Init(), m.revisions.Init(), m.registerAutoEvents())
 }
 
 func (m Model) registerAutoEvents() tea.Cmd {
@@ -221,6 +220,10 @@ func (m Model) internalUpdate(msg tea.Msg) (Model, tea.Cmd) {
 			model := preview.New(m.context)
 			m.router.Views[view.ScopePreview] = model
 			return m, model.Init()
+		case "set_title":
+			title := msg.Action.Get("title", "jjui").(string)
+			title = m.context.ReplaceWithVariables(title)
+			return m, tea.SetWindowTitle(title)
 		case "refresh":
 			return m, common.RefreshAndKeepSelections
 		case "suspend":
