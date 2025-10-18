@@ -52,13 +52,13 @@ on = ["@refresh", "@revisions.cursor", "close details", "close evolog", "close o
 when = "revisions"
 next = [{ id = "preview.update", jj = ["show", "--color", "always", "-r", "$commit_id"] }, "register #update-preview-revision"]
 
-#[actions."#update-preview"]
-#on = ["@refresh", "@revisions.select", "@oplog.cursor", "@evolog.cursor", "open oplog", "close oplog", "open evolog", "close evolog"]
-#next = ["preview.update", "register #update-preview"]
-
 [actions."#refresh"]
 on = ["@refresh"]
 next = [{ id = "flash.add", message = "refreshed" }, "register #refresh"]
+
+[actions."#update-title"]
+on = ["@refresh"]
+next = [{jj = ["root"] }, { id = "set_title", title = "jjui - $output" }]
 
 #[actions."#auto-refresh"]
 #   interval = 10
