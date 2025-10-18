@@ -14,10 +14,15 @@ import (
 )
 
 var _ view.IHasActionMap = (*Model)(nil)
+var _ view.IStatus = (*Model)(nil)
 
 type Model struct {
 	view    viewport.Model
 	context *context.MainContext
+}
+
+func (m *Model) Name() string {
+	return "diff"
 }
 
 func (m *Model) GetActionMap() actions.ActionMap {
@@ -41,7 +46,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "diff.down":
 			m.view.ScrollDown(1)
 		case "diff.halfpageup":
-			m.view.HalfPageDown()
+			m.view.HalfPageUp()
 		case "diff.halfpagedown":
 			m.view.HalfPageDown()
 		case "diff.pageup":

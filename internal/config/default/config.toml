@@ -414,13 +414,13 @@ details = [
     { on = "esc", do = "close confirmation" },
 ]
 diff = [
-    { on = "j", do = "diff.down" },
-    { on = "k", do = "diff.up" },
-    { on = "ctrl+d", do = "diff.halfpagedown" },
-    { on = "ctrl+u", do = "diff.halfpageup" },
-    { on = "f", do = "diff.pagedown" },
-    { on = "b", do = "diff.pageup" },
-    { on = "esc", do = "close diff" },
+    { on = "j", do = { id = "diff.down", desc = "down" } },
+    { on = "k", do = { id = "diff.up", desc = "up" } },
+    { on = "ctrl+d", do = { id = "diff.halfpagedown", desc = "half page down" } },
+    { on = "ctrl+u", do = { id = "diff.halfpageup", desc = "half page up" } },
+    { on = "f", do = { id = "diff.pagedown", desc = "page down" } },
+    { on = "b", do = { id = "diff.pageup", desc = "page up" } },
+    { on = "esc", do = { id = "close diff", desc = "close" } },
     { on = "q", do = "quit" },
 ]
 set_parents = [
