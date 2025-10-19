@@ -4,7 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/view"
@@ -30,18 +29,14 @@ var _ tea.Model = (*Model)(nil)
 var _ view.IHasActionMap = (*Model)(nil)
 
 type Model struct {
-	context    *context.MainContext
-	spinner    spinner.Model
-	input      textinput.Model
-	keyMap     help.KeyMap
-	command    string
-	status     commandStatus
-	running    bool
-	width      int
-	mode       string
-	editStatus editStatus
-	history    map[string][]string
-	styles     styles
+	context *context.MainContext
+	spinner spinner.Model
+	command string
+	status  commandStatus
+	running bool
+	width   int
+	mode    string
+	styles  styles
 }
 
 func (m *Model) GetActionMap() actions.ActionMap {
@@ -55,18 +50,6 @@ type styles struct {
 	title    lipgloss.Style
 	success  lipgloss.Style
 	error    lipgloss.Style
-}
-
-// a function that will be used to show
-// dynamic help when editing is focused.
-type editStatus = func() (help.KeyMap, string)
-
-func emptyEditStatus() (help.KeyMap, string) {
-	return nil, ""
-}
-
-func (m *Model) IsFocused() bool {
-	return m.editStatus != nil
 }
 
 const CommandClearDuration = 3 * time.Second
@@ -92,30 +75,6 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case actions.InvokeActionMsg:
-		switch msg.Action.Id {
-		case "status.quick_search":
-			m.editStatus = emptyEditStatus
-			m.mode = "search"
-			m.input.Prompt = "> "
-			m.loadEditingSuggestions()
-			return m, m.input.Focus()
-		case "status.accept":
-			input := m.input.Value()
-			m.saveEditingSuggestions()
-
-			m.command = ""
-			m.editStatus = nil
-			m.mode = ""
-			m.input.Reset()
-
-			return m, func() tea.Msg { return common.QuickSearchMsg(input) }
-		case "status.cancel":
-			var cmd tea.Cmd
-			m.editStatus = nil
-			m.input.Reset()
-			return m, cmd
-		}
 	case clearMsg:
 		if m.command == string(msg) {
 			m.command = ""
@@ -136,12 +95,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Tick(CommandClearDuration, func(time.Time) tea.Msg {
 			return clearMsg(commandToBeCleared)
 		})
-	case tea.KeyMsg:
-		if m.IsFocused() {
-			var cmd tea.Cmd
-			m.input, cmd = m.input.Update(msg)
-			return m, cmd
-		}
 	default:
 		var cmd tea.Cmd
 		if m.status == commandRunning {
@@ -149,23 +102,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, cmd
 	}
-	return m, nil
-}
-
-func (m *Model) saveEditingSuggestions() {
-	input := m.input.Value()
-	if len(strings.TrimSpace(input)) == 0 {
-		return
-	}
-	h := m.context.Histories.GetHistory(config.HistoryKey(m.mode), true)
-	h.Append(input)
-}
-
-func (m *Model) loadEditingSuggestions() {
-	h := m.context.Histories.GetHistory(config.HistoryKey(m.mode), true)
-	history := h.Entries()
-	m.input.ShowSuggestions = true
-	m.input.SetSuggestions(history)
 }
 
 func (m *Model) View() string {
@@ -185,16 +121,6 @@ func (m *Model) View() string {
 	}
 	modeWith := max(10, len(m.mode)+2)
 	ret := m.styles.text.Render(strings.ReplaceAll(m.command, "\n", "⏎"))
-	if m.IsFocused() {
-		commandStatusMark = ""
-		editKeys, editHelp := m.editStatus()
-		if editKeys != nil {
-			editHelp = lipgloss.JoinHorizontal(0, m.helpView(editKeys), editHelp)
-		}
-		promptWidth := len(m.input.Prompt) + 2
-		m.input.Width = m.width - modeWith - promptWidth - lipgloss.Width(editHelp)
-		ret = lipgloss.JoinHorizontal(0, m.input.View(), editHelp)
-	}
 	mode := m.styles.title.Width(modeWith).Render("", m.mode)
 	ret = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), commandStatusMark, ret)
 	height := lipgloss.Height(ret)
@@ -202,14 +128,11 @@ func (m *Model) View() string {
 }
 
 func (m *Model) SetHelp(status view.IStatus) {
-	//m.keyMap = status
 	m.mode = status.Name()
 }
 
 func (m *Model) SetMode(mode string) {
-	if !m.IsFocused() {
-		m.mode = mode
-	}
+	m.mode = mode
 }
 
 func (m *Model) helpView(keyMap help.KeyMap) string {
@@ -246,19 +169,11 @@ func New(context *context.MainContext) *Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 
-	t := textinput.New()
-	t.Width = 50
-	t.TextStyle = styles.text
-	t.CompletionStyle = styles.dimmed
-	t.PlaceholderStyle = styles.dimmed
-
 	return &Model{
 		context: context,
 		spinner: s,
 		command: "",
 		status:  none,
-		input:   t,
-		keyMap:  nil,
 		styles:  styles,
 	}
 }

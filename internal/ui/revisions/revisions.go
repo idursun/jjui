@@ -13,6 +13,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
+	"github.com/idursun/jjui/internal/ui/operations/quick_search"
 	"github.com/idursun/jjui/internal/ui/operations/revert"
 	"github.com/idursun/jjui/internal/ui/operations/set_parents"
 	"github.com/idursun/jjui/internal/ui/view"
@@ -297,6 +298,12 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 				return m.rows[index]
 			}, m.renderer.FirstRowIndex, m.renderer.LastRowIndex))
 			return m, cmd
+		case "open quick_search":
+			var cmd tea.Cmd
+			m.context.Router, cmd = m.context.Router.Open(view.ScopeQuickSearch, quick_search.NewOperation(m, func(index int) parser.Row {
+				return m.rows[index]
+			}, m.Len()))
+			return m, cmd
 		case "open abandon":
 			var cmd tea.Cmd
 			m.context.Router, cmd = m.context.Router.Open(scopeAbandon, abandon.NewOperation(m.context, m.SelectedRevisions()))
@@ -324,10 +331,6 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			return m, nil
 		case "refresh":
 			return m, common.Refresh
-		case "revisions.quick_search_cycle":
-			m.SetCursor(m.search(m.cursor + 1))
-			m.renderer.Reset()
-			return m, nil
 		case "revisions.diff":
 			return m, tea.Sequence(actions.InvokeAction(actions.Action{Id: "open diff"}), func() tea.Msg {
 				changeId := m.SelectedRevision().GetChangeId()

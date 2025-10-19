@@ -275,9 +275,6 @@ func (m Model) updateStatus() {
 	if h, ok := model.(view.IStatus); ok {
 		m.status.SetMode(h.Name())
 		m.status.SetHelp(h)
-	} else {
-		m.status.SetHelp(m.revisions)
-		m.status.SetMode(m.revisions.Name())
 	}
 }
 
@@ -287,6 +284,8 @@ func (m Model) View() string {
 	if v, ok := m.router.Views[view.ScopeExecSh]; ok {
 		statusModel = v
 	} else if v, ok := m.router.Views[view.ScopeExecJJ]; ok {
+		statusModel = v
+	} else if v, ok := m.router.Views[view.ScopeQuickSearch]; ok {
 		statusModel = v
 	} else {
 		statusModel = m.status

@@ -364,6 +364,7 @@ revisions = [
     { on = "d", do = "revisions.diff" },
     { on = "a", do = "open abandon" },
     { on = "f", do = "open ace_jump" },
+    { on = "/", do = "open quick_search" },
     { on = "v", do = "open evolog" },
     { on = "M", do = "open set_parents" },
     { on = "y", do = "open duplicate" },
@@ -552,4 +553,9 @@ exec_jj = [
     { on = "up", do = "fuzzy.up" },
     { on = "down", do = "fuzzy.down" },
     { on = "ctrl+r", do = "fuzzy.cycle_suggest_mode" },
+]
+quick_search = [
+    { on = "'", do = "quick_search.cycle" },
+    { on = "enter", do = "quick_search.apply" },
+    { on = "esc", do = "close quick_search" },
 ]
