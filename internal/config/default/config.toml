@@ -366,6 +366,7 @@ revisions = [
     { on = "f", do = "open ace_jump" },
     { on = "v", do = "open evolog" },
     { on = "M", do = "open set_parents" },
+    { on = "y", do = "open duplicate" },
     { on = "L", do = "revset.edit" },
     { on = "ctrl+r", do = "refresh" },
     { on = "ctrl+z", do = "suspend" },

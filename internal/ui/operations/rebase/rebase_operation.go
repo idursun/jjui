@@ -57,6 +57,7 @@ type styles struct {
 
 var _ operations.Operation = (*Operation)(nil)
 var _ view.IHasActionMap = (*Operation)(nil)
+var _ view.IStatus = (*Operation)(nil)
 
 type Operation struct {
 	context        *context.MainContext
