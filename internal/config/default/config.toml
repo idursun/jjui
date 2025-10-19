@@ -467,6 +467,9 @@ undo = [
     { on = "y", do = "undo.accept" },
     { on = "n", do = "undo.close" },
     { on = "esc", do = "undo.close" },
+    { on = "left", do = "confirmation.left" },
+    { on = "right", do = "confirmation.right" },
+    { on = "enter", do = "confirmation.apply" },
 ]
 ace_jump = [
     { on = "esc", do = "close ace_jump" },
