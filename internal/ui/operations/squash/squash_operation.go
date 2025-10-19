@@ -17,15 +17,21 @@ import (
 
 var _ operations.Operation = (*Operation)(nil)
 var _ view.IHasActionMap = (*Operation)(nil)
+var _ view.ICommandBuilder = (*Operation)(nil)
 
 type Operation struct {
-	context     *context.MainContext
-	from        jj.SelectedRevisions
-	files       []string
-	current     *jj.Commit
-	keepEmptied bool
-	interactive bool
-	styles      styles
+	context         *context.MainContext
+	from            jj.SelectedRevisions
+	files           []string
+	current         *jj.Commit
+	keepEmptied     bool
+	ignoreImmutable bool
+	interactive     bool
+	styles          styles
+}
+
+func (s *Operation) GetCommand() jj.CommandArgs {
+	return jj.Squash(s.from, s.current.GetChangeId(), s.files, s.keepEmptied, s.interactive, s.ignoreImmutable)
 }
 
 func (s *Operation) GetActionMap() actions.ActionMap {
@@ -45,12 +51,13 @@ func (s *Operation) Init() tea.Cmd {
 func (s *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		switch msg.Action.Id {
-		case "squash.apply", "squash.force_apply":
-			ignoreImmutable := msg.Action.Id == "squash.force_apply"
-			return s, tea.Batch(s.context.RunInteractiveCommand(jj.Squash(s.from, s.current.GetChangeId(), s.files, s.keepEmptied, s.interactive, ignoreImmutable), common.RefreshAndSelect(s.current.GetChangeId())))
-		case "squash.keep_emptied":
+		case "squash.apply":
+			return s, tea.Batch(s.context.RunInteractiveCommand(jj.Squash(s.from, s.current.GetChangeId(), s.files, s.keepEmptied, s.interactive, s.ignoreImmutable), common.RefreshAndSelect(s.current.GetChangeId())))
+		case "--ignore-immutable":
+			s.ignoreImmutable = !s.ignoreImmutable
+		case "--keep-emptied":
 			s.keepEmptied = !s.keepEmptied
-		case "squash.interactive":
+		case "--interactive":
 			s.interactive = !s.interactive
 		}
 	}

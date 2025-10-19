@@ -331,6 +331,7 @@ revset = [
     { on = "esc", do = "close list bookmark_list" },
 ]
 revisions = [
+    { on = "?", do = "status.help" },
     { on = "j", do = "revisions.down" },
     { on = "k", do = "revisions.up" },
     { on = "q", do = "quit" },
@@ -377,7 +378,6 @@ revisions = [
     { on = "+", do = "revisions.append_current_as_ancestor" },
     { on = "ctrl+d", do = "diff_from_here" },
     { on = "p", do = "toggle preview" },
-    { on = "?", do = "open help" },
     { on = ":", do = "open exec_jj" },
     { on = "$", do = "open exec_sh" },
     { on = "ctrl+v", do = { id = "run", sh = "jj log -r $change_id:: -T 'description' --no-graph | pbcopy" } },
@@ -434,6 +434,7 @@ set_parents = [
 ]
 abandon = [
     { on = "y", do = "abandon.apply" },
+    { on = "i", do = "--ignore-immutable"},
     { on = "alt+enter", do = "abandon.force_apply" },
     { on = "n", do = "close abandon" },
     { on = "left", do = "confirmation.left" },
@@ -446,13 +447,14 @@ inline_describe = [
     { on = "alt+enter", do = "inline_describe.accept" },
 ]
 squash = [
+    { on = "?", do = "status.help" },
     { on = "j", do = "revisions.down" },
     { on = "k", do = "revisions.up" },
-    { on = "i", do = "squash.interactive" },
-    { on = "e", do = "squash.keep_emptied" },
-    { on = "esc", do = "close squash" },
-    { on = "enter", do = "squash.apply" },
-    { on = "alt+enter", do = "squash.force_apply" },
+    { on = "i", do = "--interactive" },
+    { on = "e", do = "--keep-emptied" },
+    { on = "f", do = "--ignore-immutable" },
+    { on = "esc", do = { id = "close squash", desc = "close" } },
+    { on = "enter", do = { id ="squash.apply", desc = "apply" } },
 ]
 revert = [
     { on = "j", do = "revisions.down" },
@@ -524,8 +526,9 @@ duplicate = [
     { on = "enter", do = "duplicate.apply" },
 ]
 rebase = [
+    { on = "?", do = "status.help" },
     { on = "j", do = { id = "revisions.down", desc = "down" } },
-    { on = "k", do = "revisions.up" },
+    { on = "k", do = { id = "revisions.up", desc = "up" } },
     { on = "r", do = { id = "rebase.revision", desc = "set source to revision" } },
     { on = "B", do = { id = "rebase.branch", desc = "set source to branch" } },
     { on = "s", do = { id = "rebase.source", desc = "set source to descendants" } },

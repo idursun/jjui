@@ -17,12 +17,18 @@ import (
 
 var _ operations.Operation = (*Operation)(nil)
 var _ view.IHasActionMap = (*Operation)(nil)
+var _ view.ICommandBuilder = (*Operation)(nil)
 
 type Operation struct {
 	confirmation      *confirmation.Model
+	ignoreImmutable   bool
 	current           *jj.Commit
 	context           *context.MainContext
 	selectedRevisions jj.SelectedRevisions
+}
+
+func (a *Operation) GetCommand() jj.CommandArgs {
+	return jj.Abandon(a.selectedRevisions, a.ignoreImmutable)
 }
 
 func (a *Operation) GetActionMap() actions.ActionMap {
@@ -36,6 +42,9 @@ func (a *Operation) Init() tea.Cmd {
 func (a *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if msg, ok := msg.(actions.InvokeActionMsg); ok {
 		switch msg.Action.Id {
+		case "--ignore-immutable":
+			a.ignoreImmutable = !a.ignoreImmutable
+			return a, nil
 		case "abandon.apply", "abandon.force_apply":
 			ignoreImmutable := msg.Action.Id == "abandon.force_apply"
 			return a, a.context.RunCommand(jj.Abandon(a.selectedRevisions, ignoreImmutable), common.Refresh)

@@ -58,6 +58,7 @@ type styles struct {
 var _ operations.Operation = (*Operation)(nil)
 var _ view.IHasActionMap = (*Operation)(nil)
 var _ view.IStatus = (*Operation)(nil)
+var _ view.ICommandBuilder = (*Operation)(nil)
 
 type Operation struct {
 	context        *context.MainContext
@@ -69,6 +70,14 @@ type Operation struct {
 	highlightedIds []string
 	styles         styles
 	SkipEmptied    bool
+}
+
+func (r *Operation) GetCommand() jj.CommandArgs {
+	if r.Target == TargetInsert {
+		return jj.RebaseInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId(), r.SkipEmptied, false)
+	} else {
+		return jj.Rebase(r.From, r.To.GetChangeId(), sourceToFlags[r.Source], targetToFlags[r.Target], r.SkipEmptied, false)
+	}
 }
 
 func (r *Operation) GetActionMap() actions.ActionMap {

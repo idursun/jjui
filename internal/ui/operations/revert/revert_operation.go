@@ -43,6 +43,7 @@ type styles struct {
 
 var _ operations.Operation = (*Operation)(nil)
 var _ view.IHasActionMap = (*Operation)(nil)
+var _ view.ICommandBuilder = (*Operation)(nil)
 
 type Operation struct {
 	context        *context.MainContext
@@ -52,6 +53,16 @@ type Operation struct {
 	Target         Target
 	highlightedIds []string
 	styles         styles
+}
+
+func (r *Operation) GetCommand() jj.CommandArgs {
+	if r.Target == TargetInsert {
+		return jj.RevertInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId())
+	} else {
+		source := "--revisions"
+		target := targetToFlags[r.Target]
+		return jj.Revert(r.From, r.To.GetChangeId(), source, target)
+	}
 }
 
 func (r *Operation) GetActionMap() actions.ActionMap {
