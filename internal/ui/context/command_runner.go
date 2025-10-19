@@ -67,7 +67,7 @@ func (a *MainCommandRunner) RunCommand(args []string, continuations ...tea.Cmd) 
 	commands = append(commands,
 		func() tea.Msg {
 			if !slices.Contains(args, "--color") {
-				args = append(args, "--color", "always")
+				args = append([]string{"--color", "always"}, args...)
 			}
 			c := exec.Command("jj", args...)
 			c.Dir = a.Location
