@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -45,10 +46,20 @@ func (i item) Description() string {
 	return i.desc
 }
 
+type styles struct {
+	promptStyle   lipgloss.Style
+	textStyle     lipgloss.Style
+	selectedStyle lipgloss.Style
+	noRemoteStyle lipgloss.Style
+}
+
 type Model struct {
-	context *context.MainContext
-	keymap  config.KeyMappings[key.Binding]
-	menu    menu.Menu
+	context           *context.MainContext
+	keymap            config.KeyMappings[key.Binding]
+	menu              menu.Menu
+	remoteNames       []string
+	selectedRemoteIdx int
+	styles            styles
 }
 
 func (m *Model) ShortHelp() []key.Binding {
@@ -85,6 +96,23 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
+func (m *Model) cycleRemotes(step int) {
+	if len(m.remoteNames) == 0 {
+		return
+	}
+
+	if m.selectedRemoteIdx < len(m.remoteNames)-1 {
+		m.selectedRemoteIdx += step
+	} else {
+		m.selectedRemoteIdx = 0
+	}
+	m.menu.Subtitle = m.displayRemotes()
+	m.menu.List.SetItems(m.createMenuItems())
+	if m.menu.Filter != "" && m.menu.List.IsFiltered() {
+		m.filtered(m.menu.Filter)
+	}
+}
+
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -92,6 +120,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break
 		}
 		switch {
+		case msg.Type == tea.KeyTab:
+			m.cycleRemotes(1)
+			return m, nil
 		case key.Matches(msg, m.keymap.Apply):
 			action := m.menu.List.SelectedItem().(item)
 			return m, m.context.RunCommand(jj.Args(action.command...), common.Refresh, common.Close)
@@ -126,6 +157,23 @@ func (m *Model) View() string {
 	return m.menu.View()
 }
 
+func (m *Model) displayRemotes() string {
+	var w strings.Builder
+	w.WriteString(m.styles.promptStyle.PaddingRight(1).Render("Remotes:"))
+	if len(m.remoteNames) == 0 {
+		w.WriteString(m.styles.noRemoteStyle.PaddingRight(1).Render("NO REMOTE FOUND"))
+		return w.String()
+	}
+	for idx, remoteName := range m.remoteNames {
+		if idx == m.selectedRemoteIdx {
+			w.WriteString(m.styles.selectedStyle.PaddingRight(1).Render(remoteName))
+			continue
+		}
+		w.WriteString(m.styles.textStyle.PaddingRight(1).Render(remoteName))
+	}
+	return w.String()
+}
+
 func loadBookmarks(c context.CommandRunner, changeId string) []jj.Bookmark {
 	bytes, _ := c.RunCommandImmediate(jj.BookmarkList(changeId))
 	bookmarks := jj.ParseBookmarkListOutput(string(bytes))
@@ -139,6 +187,24 @@ func loadRemoteNames(c context.CommandRunner) []string {
 }
 
 func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int, height int) *Model {
+	remotes := loadRemoteNames(c)
+	keymap := config.Current.GetKeyMap()
+
+	styles := styles{
+		promptStyle:   common.DefaultPalette.Get("title"),
+		textStyle:     common.DefaultPalette.Get("dimmed"),
+		selectedStyle: common.DefaultPalette.Get("menu selected"),
+		noRemoteStyle: common.DefaultPalette.Get("error"),
+	}
+
+	m := &Model{
+		context:           c,
+		keymap:            keymap,
+		remoteNames:       remotes,
+		selectedRemoteIdx: 0,
+		styles:            styles,
+	}
+
 	var items []list.Item
 	for _, commit := range revisions.Revisions {
 		bookmarks := loadBookmarks(c, commit.GetChangeId())
@@ -156,9 +222,9 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int,
 			}
 			if b.IsPushable() {
 				items = append(items, item{
-					name:     fmt.Sprintf("git push --bookmark %s --allow-new", b.Name),
+					name:     fmt.Sprintf("git push --bookmark %s --allow-new --remote %s", b.Name, m.getSelectedRemote()),
 					desc:     fmt.Sprintf("Git push new bookmark %s", b.Name),
-					command:  jj.GitPush("--bookmark", b.Name, "--allow-new"),
+					command:  jj.GitPush("--bookmark", b.Name, "--allow-new", "--remote", m.getSelectedRemote()),
 					category: itemCategoryPush,
 				})
 			}
@@ -166,8 +232,18 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int,
 	}
 
 	items = append(items,
-		item{name: "git push", desc: "Push tracking bookmarks in the current revset", command: jj.GitPush(), category: itemCategoryPush, key: "p"},
-		item{name: "git push --all", desc: "Push all bookmarks (including new and deleted bookmarks)", command: jj.GitPush("--all"), category: itemCategoryPush, key: "a"},
+		item{
+			name:     fmt.Sprintf("git push --remote %s", m.getSelectedRemote()),
+			desc:     "Push tracking bookmarks in the current revset",
+			command:  jj.GitPush(),
+			category: itemCategoryPush, key: "p",
+		},
+		item{
+			name:     "git push --all",
+			desc:     "Push all bookmarks (including new and deleted bookmarks)",
+			command:  jj.GitPush("--all"),
+			category: itemCategoryPush, key: "a",
+		},
 	)
 
 	hasMultipleRevisions := len(revisions.Revisions) > 1
@@ -205,21 +281,16 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int,
 		item{name: "git fetch --all-remotes", desc: "Fetch from all remotes", command: jj.GitFetch("--all-remotes"), category: itemCategoryFetch, key: "a"},
 	)
 
-	keymap := config.Current.GetKeyMap()
 	menu := menu.NewMenu(items, width, height, keymap, menu.WithStylePrefix("git"))
 	menu.Title = "Git Operations"
+	menu.Subtitle = m.displayRemotes()
 	menu.FilterMatches = func(i list.Item, filter string) bool {
 		if gitItem, ok := i.(item); ok {
 			return gitItem.category == itemCategory(filter)
 		}
 		return false
 	}
-
-	m := &Model{
-		context: c,
-		menu:    menu,
-		keymap:  keymap,
-	}
+	m.menu = menu
 	m.SetWidth(width)
 	m.SetHeight(height)
 	return m
