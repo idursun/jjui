@@ -242,6 +242,10 @@ func GitPush(flags ...string) CommandArgs {
 	return args
 }
 
+func GitRemoteList() CommandArgs {
+	return []string{"git", "remote", "list"}
+}
+
 func Show(revision string, extraArgs ...string) CommandArgs {
 	args := []string{"show", "-r", revision, "--color", "always", "--ignore-working-copy"}
 	if extraArgs != nil {

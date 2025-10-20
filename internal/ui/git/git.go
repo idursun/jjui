@@ -132,6 +132,12 @@ func loadBookmarks(c context.CommandRunner, changeId string) []jj.Bookmark {
 	return bookmarks
 }
 
+func loadRemoteNames(c context.CommandRunner) []string {
+	bytes, _ := c.RunCommandImmediate(jj.GitRemoteList())
+	remotes := jj.ParseRemoteListOutput(string(bytes))
+	return remotes
+}
+
 func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int, height int) *Model {
 	var items []list.Item
 	for _, commit := range revisions.Revisions {
