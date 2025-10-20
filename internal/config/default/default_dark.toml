@@ -21,5 +21,6 @@ border = "bright white"
 "revset completion selected" = { fg = "cyan", bg = "bright black" }
 "status title" = { fg = "black", bg = "magenta", bold = true }
 "menu title" = { fg = "230", bg = "62", bold = true }
+"menu subtitle" = { fg = "230", bold = true }
 "menu matched" = { fg = "magenta", bold = true }
 "menu selected" = { fg = "cyan", bg = "default", bold = true, underline = false }
