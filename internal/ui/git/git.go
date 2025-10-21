@@ -57,6 +57,7 @@ type Model struct {
 	context           *context.MainContext
 	keymap            config.KeyMappings[key.Binding]
 	menu              menu.Menu
+	revisions         jj.SelectedRevisions
 	remoteNames       []string
 	selectedRemoteIdx int
 	styles            styles
@@ -200,14 +201,42 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int,
 	m := &Model{
 		context:           c,
 		keymap:            keymap,
+		revisions:         revisions,
 		remoteNames:       remotes,
 		selectedRemoteIdx: 0,
 		styles:            styles,
 	}
 
+	items := m.createMenuItems()
+	m.menu = menu.NewMenu(items, width, height, m.keymap, menu.WithStylePrefix("git"))
+	m.menu.Title = "Git Operations"
+	m.menu.Subtitle = m.displayRemotes()
+	m.menu.FilterMatches = func(i list.Item, filter string) bool {
+		if gitItem, ok := i.(item); ok {
+			return gitItem.category == itemCategory(filter)
+		}
+		return false
+	}
+
+	m.SetWidth(width)
+	m.SetHeight(height)
+	return m
+}
+
+func (m *Model) createMenuItems() []list.Item {
+	revisions := m.revisions
 	var items []list.Item
+	hasRemote := len(m.remoteNames) > 0
+	var selectedRemote string
+	if hasRemote {
+		selectedRemote = m.remoteNames[m.selectedRemoteIdx]
+	} else {
+		// set selectedRemote to empty string and `git` command fails gracefully
+		selectedRemote = ""
+	}
+
 	for _, commit := range revisions.Revisions {
-		bookmarks := loadBookmarks(c, commit.GetChangeId())
+		bookmarks := loadBookmarks(m.context, commit.GetChangeId())
 		for _, b := range bookmarks {
 			if b.Conflict {
 				continue
@@ -215,16 +244,16 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int,
 			for _, remote := range b.Remotes {
 				items = append(items, item{
 					name:     fmt.Sprintf("git push --bookmark %s --remote %s", b.Name, remote.Remote),
-					desc:     fmt.Sprintf("Git push bookmark %s to remote %s", b.Name, remote.Remote),
+					desc:     fmt.Sprintf("Git push bookmark %s to %s", b.Name, remote.Remote),
 					command:  jj.GitPush("--bookmark", b.Name, "--remote", remote.Remote),
 					category: itemCategoryPush,
 				})
 			}
 			if b.IsPushable() {
 				items = append(items, item{
-					name:     fmt.Sprintf("git push --bookmark %s --allow-new --remote %s", b.Name, m.getSelectedRemote()),
+					name:     fmt.Sprintf("git push --bookmark %s --allow-new --remote %s", b.Name, selectedRemote),
 					desc:     fmt.Sprintf("Git push new bookmark %s", b.Name),
-					command:  jj.GitPush("--bookmark", b.Name, "--allow-new", "--remote", m.getSelectedRemote()),
+					command:  jj.GitPush("--bookmark", b.Name, "--allow-new", "--remote", selectedRemote),
 					category: itemCategoryPush,
 				})
 			}
@@ -233,38 +262,42 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int,
 
 	items = append(items,
 		item{
-			name:     fmt.Sprintf("git push --remote %s", m.getSelectedRemote()),
+			name:     fmt.Sprintf("git push --remote %s", selectedRemote),
 			desc:     "Push tracking bookmarks in the current revset",
-			command:  jj.GitPush(),
-			category: itemCategoryPush, key: "p",
+			command:  jj.GitPush("--remote", selectedRemote),
+			category: itemCategoryPush,
+			key:      "p",
 		},
 		item{
-			name:     "git push --all",
+			name:     fmt.Sprintf("git push --all --remote %s", selectedRemote),
 			desc:     "Push all bookmarks (including new and deleted bookmarks)",
-			command:  jj.GitPush("--all"),
-			category: itemCategoryPush, key: "a",
+			command:  jj.GitPush("--all", "--remote", selectedRemote),
+			category: itemCategoryPush,
+			key:      "a",
 		},
 	)
 
 	hasMultipleRevisions := len(revisions.Revisions) > 1
 
 	if hasMultipleRevisions {
+		flags := []string{"--remote", selectedRemote}
+		flags = append(flags, revisions.AsPrefixedArgs("--change")...)
 		items = append(items,
 			item{
 				key:      "c",
 				category: itemCategoryPush,
 				name:     fmt.Sprintf("git push %s", strings.Join(revisions.AsPrefixedArgs("--change"), " ")),
 				desc:     fmt.Sprintf("Push selected changes (%s)", strings.Join(revisions.GetIds(), " ")),
-				command:  jj.GitPush(revisions.AsPrefixedArgs("--change")...),
+				command:  jj.GitPush(flags...),
 			})
 	}
 
 	for _, commit := range revisions.Revisions {
 		item := item{
 			category: itemCategoryPush,
-			name:     fmt.Sprintf("git push --change %s", commit.GetChangeId()),
+			name:     fmt.Sprintf("git push --change %s --remote %s", commit.GetChangeId(), selectedRemote),
 			desc:     fmt.Sprintf("Push the current change (%s)", commit.GetChangeId()),
-			command:  jj.GitPush("--change", commit.GetChangeId()),
+			command:  jj.GitPush("--change", commit.GetChangeId(), "--remote", selectedRemote),
 		}
 
 		if !hasMultipleRevisions {
@@ -274,24 +307,40 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int,
 	}
 
 	items = append(items,
-		item{name: "git push --deleted", desc: "Push all deleted bookmarks", command: jj.GitPush("--deleted"), category: itemCategoryPush, key: "d"},
-		item{name: "git push --tracked", desc: "Push all tracked bookmarks (including deleted bookmarks)", command: jj.GitPush("--tracked"), category: itemCategoryPush, key: "t"},
-		item{name: "git push --allow-new", desc: "Allow pushing new bookmarks", command: jj.GitPush("--allow-new"), category: itemCategoryPush},
-		item{name: "git fetch", desc: "Fetch from remote", command: jj.GitFetch(), category: itemCategoryFetch, key: "f"},
-		item{name: "git fetch --all-remotes", desc: "Fetch from all remotes", command: jj.GitFetch("--all-remotes"), category: itemCategoryFetch, key: "a"},
+		item{
+			name:     fmt.Sprintf("git push --deleted --remote %s", selectedRemote),
+			desc:     fmt.Sprintf("Push all deleted bookmarks to %s", selectedRemote),
+			command:  jj.GitPush("--deleted", "--remote", selectedRemote),
+			category: itemCategoryPush,
+			key:      "d",
+		},
+		item{
+			name:     fmt.Sprintf("git push --tracked --remote %s", selectedRemote),
+			desc:     "Push all tracked bookmarks (including deleted bookmarks)",
+			command:  jj.GitPush("--tracked", "--remote", selectedRemote),
+			category: itemCategoryPush,
+			key:      "t",
+		},
+		item{
+			name:     fmt.Sprintf("git push --allow-new --remote %s", selectedRemote),
+			desc:     "Allow pushing new bookmarks",
+			command:  jj.GitPush("--allow-new", "--remote", selectedRemote),
+			category: itemCategoryPush,
+		},
+		item{
+			name:     fmt.Sprintf("git fetch --remote %s", selectedRemote),
+			desc:     "Fetch from remote",
+			command:  jj.GitFetch("--remote", selectedRemote),
+			category: itemCategoryFetch, key: "f",
+		},
+		item{
+			name:     "git fetch --all-remotes",
+			desc:     "Fetch from all remotes",
+			command:  jj.GitFetch("--all-remotes"),
+			category: itemCategoryFetch,
+			key:      "a",
+		},
 	)
 
-	menu := menu.NewMenu(items, width, height, keymap, menu.WithStylePrefix("git"))
-	menu.Title = "Git Operations"
-	menu.Subtitle = m.displayRemotes()
-	menu.FilterMatches = func(i list.Item, filter string) bool {
-		if gitItem, ok := i.(item); ok {
-			return gitItem.category == itemCategory(filter)
-		}
-		return false
-	}
-	m.menu = menu
-	m.SetWidth(width)
-	m.SetHeight(height)
-	return m
+	return items
 }

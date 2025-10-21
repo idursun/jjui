@@ -13,7 +13,8 @@ import (
 
 func Test_Push(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.GitPush())
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
+	commandRunner.Expect(jj.GitPush("--remote", ""))
 	defer commandRunner.Verify()
 
 	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(), 0, 0)
@@ -28,7 +29,8 @@ func Test_Push(t *testing.T) {
 
 func Test_Fetch(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.GitFetch())
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
+	commandRunner.Expect(jj.GitFetch("--remote", ""))
 	defer commandRunner.Verify()
 
 	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(), 0, 0)
@@ -65,7 +67,8 @@ func Test_PushChange(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	// Expect bookmark list to be loaded since we have a changeId
 	commandRunner.Expect(jj.BookmarkList(changeId)).SetOutput([]byte(""))
-	commandRunner.Expect(jj.GitPush("--change", changeId))
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
+	commandRunner.Expect(jj.GitPush("--change", changeId, "--remote", ""))
 	defer commandRunner.Verify()
 
 	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(&jj.Commit{ChangeId: changeId}), 0, 0)

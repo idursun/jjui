@@ -14,6 +14,5 @@ func ParseRemoteListOutput(output string) []string {
 			}
 		}
 	}
-	// TODO: handle cases where there's no remote set up
 	return remotes
 }
