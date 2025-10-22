@@ -102,11 +102,13 @@ func (m *Model) cycleRemotes(step int) {
 		return
 	}
 
-	if m.selectedRemoteIdx < len(m.remoteNames)-1 {
-		m.selectedRemoteIdx += step
-	} else {
-		m.selectedRemoteIdx = 0
+	newIdx := m.selectedRemoteIdx + step
+	if newIdx >= len(m.remoteNames) {
+		newIdx = 0
+	} else if newIdx < 0 {
+		newIdx = len(m.remoteNames) - 1
 	}
+	m.selectedRemoteIdx = newIdx
 	m.menu.Subtitle = m.displayRemotes()
 	m.menu.List.SetItems(m.createMenuItems())
 	if m.menu.Filter != "" && m.menu.List.IsFiltered() {
@@ -123,6 +125,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case msg.Type == tea.KeyTab:
 			m.cycleRemotes(1)
+			return m, nil
+		case msg.Type == tea.KeyShiftTab:
+			m.cycleRemotes(-1)
 			return m, nil
 		case key.Matches(msg, m.keymap.Apply):
 			action := m.menu.List.SelectedItem().(item)
