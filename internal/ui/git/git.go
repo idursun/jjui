@@ -97,23 +97,25 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) cycleRemotes(step int) {
+func (m *Model) cycleRemotes(step int) tea.Cmd {
 	if len(m.remoteNames) == 0 {
-		return
+		return nil
 	}
 
-	newIdx := m.selectedRemoteIdx + step
-	if newIdx >= len(m.remoteNames) {
-		newIdx = 0
-	} else if newIdx < 0 {
-		newIdx = len(m.remoteNames) - 1
+	m.selectedRemoteIdx += step
+	if m.selectedRemoteIdx >= len(m.remoteNames) {
+		m.selectedRemoteIdx = 0
+	} else if m.selectedRemoteIdx < 0 {
+		m.selectedRemoteIdx = len(m.remoteNames) - 1
 	}
-	m.selectedRemoteIdx = newIdx
+
 	m.menu.Subtitle = m.displayRemotes()
-	m.menu.List.SetItems(m.createMenuItems())
-	if m.menu.Filter != "" && m.menu.List.IsFiltered() {
-		m.filtered(m.menu.Filter)
+	m.menu.Items = m.createMenuItems()
+	if m.menu.Filter != "" {
+		// NOTE: return tea.Cmd to keep the internal filter
+		return m.menu.Filtered(m.menu.Filter)
 	}
+	return m.menu.List.SetItems(m.menu.Items)
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -124,11 +126,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		switch {
 		case msg.Type == tea.KeyTab:
-			m.cycleRemotes(1)
-			return m, nil
+			return m, m.cycleRemotes(1)
 		case msg.Type == tea.KeyShiftTab:
-			m.cycleRemotes(-1)
-			return m, nil
+			return m, m.cycleRemotes(-1)
 		case key.Matches(msg, m.keymap.Apply):
 			action := m.menu.List.SelectedItem().(item)
 			return m, m.context.RunCommand(jj.Args(action.command...), common.Refresh, common.Close)
