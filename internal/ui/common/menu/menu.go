@@ -182,12 +182,19 @@ func (m *Menu) renderKey(k key.Binding) string {
 	return lipgloss.JoinHorizontal(0, m.styles.shortcut.Render(k.Help().Key, ""), m.styles.dimmed.Render(k.Help().Desc, ""))
 }
 
+func (m *Menu) renderTitle() []string {
+	titleView := []string{m.styles.text.Width(m.width).Render(m.styles.title.Render(m.Title))}
+	if m.Subtitle != "" {
+		titleView = append(titleView, m.styles.text.Width(m.width).Render(m.styles.subtitle.Render(m.Subtitle)))
+	}
+	return titleView
+}
+
 func (m *Menu) View() string {
-	titleView := m.styles.text.Width(m.width).Render(m.styles.title.Render(m.Title))
-	subtitleView := m.styles.text.Width(m.width).Render(m.styles.subtitle.Render(m.Subtitle))
-	filterView := m.renderFilterView()
-	listView := m.List.View()
-	content := lipgloss.JoinVertical(0, titleView, subtitleView, "", filterView, listView)
+	views := m.renderTitle()
+	views = append(views, "", m.renderFilterView())
+	views = append(views, m.List.View())
+	content := lipgloss.JoinVertical(0, views...)
 	content = lipgloss.Place(m.width, m.height, 0, 0, content)
 	content = m.styles.text.Width(m.width).Height(m.height).Render(content)
 	return m.styles.border.Render(content)
