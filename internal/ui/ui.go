@@ -309,7 +309,7 @@ func (m Model) updateStatus() {
 
 func (m Model) UpdatePreviewPosition() {
 	if m.previewModel.AutoPosition() {
-		atBottom := m.Height >= m.Width / 2
+		atBottom := m.Height >= m.Width/2
 		m.previewModel.SetPosition(true, atBottom)
 	}
 }
