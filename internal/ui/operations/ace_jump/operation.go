@@ -118,7 +118,7 @@ func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, o.keymap.Apply):
 			o.cursor.SetCursor(o.aceJump.First().RowIdx)
 			o.aceJump = nil
-			return o, nil
+			return o, common.Close
 		default:
 			return o, o.HandleKey(msg)
 		}
