@@ -167,15 +167,16 @@ func (m *Model) displayRemotes() string {
 	var w strings.Builder
 	w.WriteString(m.styles.promptStyle.PaddingRight(1).Render("Remotes:"))
 	if len(m.remoteNames) == 0 {
-		w.WriteString(m.styles.noRemoteStyle.PaddingRight(1).Render("NO REMOTE FOUND"))
+		w.WriteString(m.styles.noRemoteStyle.Render("NO REMOTE FOUND"))
 		return w.String()
 	}
 	for idx, remoteName := range m.remoteNames {
 		if idx == m.selectedRemoteIdx {
-			w.WriteString(m.styles.selectedStyle.PaddingRight(1).Render(remoteName))
-			continue
+			w.WriteString(m.styles.selectedStyle.Render(remoteName))
+		} else {
+			w.WriteString(m.styles.textStyle.Render(remoteName))
 		}
-		w.WriteString(m.styles.textStyle.PaddingRight(1).Render(remoteName))
+		w.WriteString(" ")
 	}
 	return w.String()
 }
