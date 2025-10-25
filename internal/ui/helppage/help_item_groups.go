@@ -154,6 +154,7 @@ func (h *Model) buildMiddleGroups() menuColumn {
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Revert.Mode, "Revert"),
+			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Rebase.Mode, "Rebase"),

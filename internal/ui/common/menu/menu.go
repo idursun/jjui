@@ -20,11 +20,13 @@ type Menu struct {
 	height        int
 	FilterMatches func(item list.Item, filter string) bool
 	Title         string
+	Subtitle      string
 	styles        styles
 }
 
 type styles struct {
 	title    lipgloss.Style
+	subtitle lipgloss.Style
 	shortcut lipgloss.Style
 	dimmed   lipgloss.Style
 	selected lipgloss.Style
@@ -53,6 +55,7 @@ func createStyles(prefix string) styles {
 	}
 	return styles{
 		title:    common.DefaultPalette.Get(prefix+"menu title").Padding(0, 1, 0, 1),
+		subtitle: common.DefaultPalette.Get(prefix+"menu subtitle").Padding(1, 0, 0, 1),
 		selected: common.DefaultPalette.Get(prefix + "menu selected"),
 		matched:  common.DefaultPalette.Get(prefix + "menu matched"),
 		dimmed:   common.DefaultPalette.Get(prefix + "menu dimmed"),
@@ -179,11 +182,19 @@ func (m *Menu) renderKey(k key.Binding) string {
 	return lipgloss.JoinHorizontal(0, m.styles.shortcut.Render(k.Help().Key, ""), m.styles.dimmed.Render(k.Help().Desc, ""))
 }
 
+func (m *Menu) renderTitle() []string {
+	titleView := []string{m.styles.text.Width(m.width).Render(m.styles.title.Render(m.Title))}
+	if m.Subtitle != "" {
+		titleView = append(titleView, m.styles.text.Width(m.width).Render(m.styles.subtitle.Render(m.Subtitle)))
+	}
+	return titleView
+}
+
 func (m *Menu) View() string {
-	titleView := m.styles.text.Width(m.width).Render(m.styles.title.Render(m.Title))
-	filterView := m.renderFilterView()
-	listView := m.List.View()
-	content := lipgloss.JoinVertical(0, titleView, "", filterView, listView)
+	views := m.renderTitle()
+	views = append(views, "", m.renderFilterView())
+	views = append(views, m.List.View())
+	content := lipgloss.JoinVertical(0, views...)
 	content = lipgloss.Place(m.width, m.height, 0, 0, content)
 	content = m.styles.text.Width(m.width).Height(m.height).Render(content)
 	return m.styles.border.Render(content)

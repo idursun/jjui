@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 )
 
 //go:embed default/*.toml
@@ -23,6 +24,7 @@ type Config struct {
 	OpLog     OpLogConfig       `toml:"oplog"`
 	Graph     GraphConfig       `toml:"graph"`
 	Limit     int               `toml:"limit"`
+	Git       GitConfig         `toml:"git"`
 }
 
 type Color struct {
@@ -272,4 +274,16 @@ func GetSuggestExecMode(c *Config) (SuggestMode, error) {
 	default:
 		return SuggestModeOff, fmt.Errorf("invalid value for 'suggest.exec.mode': %q (expected one of: off, fuzzy, regex)", value)
 	}
+}
+
+type GitConfig struct {
+	DefaultRemote string `toml:"default_remote"`
+}
+
+func GetGitDefaultRemote(c *Config) string {
+	remote := c.Git.DefaultRemote
+	if strings.TrimSpace(remote) == "" {
+		return "origin"
+	}
+	return remote
 }

@@ -142,3 +142,6 @@ limit = 0
 
 [graph]
   batch_size = 50
+
+[git]
+  default_remote = "origin"
