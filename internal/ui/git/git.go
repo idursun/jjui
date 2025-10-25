@@ -315,7 +315,7 @@ func (m *Model) createMenuItems() []list.Item {
 	items = append(items,
 		item{
 			name:     fmt.Sprintf("git push --deleted --remote %s", selectedRemote),
-			desc:     fmt.Sprintf("Push all deleted bookmarks to %s", selectedRemote),
+			desc:     "Push all deleted bookmarks",
 			command:  jj.GitPush("--deleted", "--remote", selectedRemote),
 			category: itemCategoryPush,
 			key:      "d",
