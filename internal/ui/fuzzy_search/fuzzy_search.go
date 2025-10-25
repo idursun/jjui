@@ -1,6 +1,7 @@
 package fuzzy_search
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -58,7 +59,7 @@ func SelectedMatch(model Model) string {
 		return ""
 	}
 	m := matches[idx]
-	return model.String(m.Index)
+	return fmt.Sprintf("'%s'", model.String(m.Index))
 }
 
 // helper to upcast: Model => tea.Model => Model
