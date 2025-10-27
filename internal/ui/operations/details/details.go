@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -331,17 +332,8 @@ func (s *Operation) createListItems(content string, selectedFiles []string) []*i
 
 		actualFileName := fileName
 		if (status == Renamed || status == Copied) && strings.Contains(actualFileName, "{") {
-			for strings.Contains(actualFileName, "{") {
-				start := strings.Index(actualFileName, "{")
-				end := strings.Index(actualFileName, "}")
-				if end == -1 {
-					break
-				}
-				replacement := actualFileName[start+1 : end]
-				parts := strings.Split(replacement, " => ")
-				replacement = parts[1]
-				actualFileName = path.Clean(actualFileName[:start] + replacement + actualFileName[end+1:])
-			}
+			re := regexp.MustCompile(`\{[^}]*? => \s*([^}]*?)\s*\}`)
+			actualFileName = path.Clean(re.ReplaceAllString(actualFileName, "$1"))
 		}
 		items = append(items, &item{
 			status:   status,
