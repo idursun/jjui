@@ -74,6 +74,9 @@ func (p *Palette) Update(styleMap map[string]config.Color) {
 	if color, ok := styleMap["diff renamed"]; ok {
 		p.add("renamed", createStyleFrom(color))
 	}
+	if color, ok := styleMap["diff copied"]; ok {
+		p.add("copied", createStyleFrom(color))
+	}
 	if color, ok := styleMap["diff modified"]; ok {
 		p.add("modified", createStyleFrom(color))
 	}

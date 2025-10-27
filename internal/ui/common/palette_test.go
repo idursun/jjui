@@ -164,6 +164,7 @@ func TestPalette_Update(t *testing.T) {
 			styleMap: map[string]config.Color{
 				"diff added":    {Fg: Green},
 				"diff renamed":  {Fg: Blue},
+				"diff copied":   {Fg: Blue},
 				"diff modified": {Fg: Yellow},
 				"diff removed":  {Fg: Red},
 			},
@@ -183,6 +184,7 @@ func TestPalette_Update(t *testing.T) {
 				// Check that all diff shortcuts were properly added
 				assert.Equal(t, lipgloss.Color("2"), p.Get("added").GetForeground(), "added style not set correctly")
 				assert.Equal(t, lipgloss.Color("4"), p.Get("renamed").GetForeground(), "renamed style not set correctly")
+				assert.Equal(t, lipgloss.Color("4"), p.Get("copied").GetForeground(), "copied style not set correctly")
 				assert.Equal(t, lipgloss.Color("3"), p.Get("modified").GetForeground(), "modified style not set correctly")
 				assert.Equal(t, lipgloss.Color("1"), p.Get("deleted").GetForeground(), "deleted style not set correctly")
 			} else {

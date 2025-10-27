@@ -20,6 +20,7 @@ func (c *JJConfig) GetApplicableColors() map[string]Color {
 	applicableColorKeys := []string{
 		"diff added",
 		"diff renamed",
+		"diff copied",
 		"diff modified",
 		"diff removed",
 		"change_id",

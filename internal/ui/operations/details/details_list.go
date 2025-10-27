@@ -76,6 +76,8 @@ func (d *DetailsList) GetItemRenderer(index int) list.IItemRenderer {
 		style = d.styles.Modified
 	case Renamed:
 		style = d.styles.Renamed
+	case Copied:
+		style = d.styles.Copied
 	}
 
 	if index == d.cursor {

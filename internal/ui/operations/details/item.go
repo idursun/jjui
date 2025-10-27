@@ -8,11 +8,12 @@ import (
 
 type status uint8
 
-var (
-	Added    status = 0
-	Deleted  status = 1
-	Modified status = 2
-	Renamed  status = 3
+const (
+	Added status = iota
+	Deleted
+	Modified
+	Renamed
+	Copied
 )
 
 type item struct {
@@ -34,6 +35,8 @@ func (f item) Title() string {
 		status = "M"
 	case Renamed:
 		status = "R"
+	case Copied:
+		status = "C"
 	}
 
 	return fmt.Sprintf("%s %s", status, f.name)
@@ -46,6 +49,7 @@ type styles struct {
 	Deleted  lipgloss.Style
 	Modified lipgloss.Style
 	Renamed  lipgloss.Style
+	Copied   lipgloss.Style
 	Selected lipgloss.Style
 	Dimmed   lipgloss.Style
 	Text     lipgloss.Style
