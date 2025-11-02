@@ -155,6 +155,7 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 			}
 		case key.Matches(msg, s.keyMap.Details.Restore):
 			selectedFiles := s.getSelectedFiles()
+			selected := s.current()
 			s.selectedHint = "gets restored"
 			s.unselectedHint = "stays as is"
 			model := confirmation.New(
@@ -163,6 +164,9 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 				confirmation.WithOption("Yes",
 					s.context.RunCommand(jj.Restore(s.revision.GetChangeId(), selectedFiles), common.Refresh, confirmation.Close),
 					key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+				confirmation.WithOption("Interactive",
+					tea.Batch(s.context.RunInteractiveCommand(jj.RestoreInteractive(s.revision.GetChangeId(), selected.fileName), common.Refresh), common.Close),
+					key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "interactive"))),
 				confirmation.WithOption("No",
 					confirmation.Close,
 					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),

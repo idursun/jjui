@@ -30,8 +30,8 @@ You can squash revisions into one revision, by pressing `S`. The following revis
 Pressing `l` (as in going right into the details of a revision) will open the details view of the revision you selected.
 
 In this mode, you can:
+- Restore selected files using `r` (press `i` in the dialog for interactive chunk restore)
 - Split selected files using `s`
-- Restore selected files using `r`
 - View diffs of the highlighted by pressing `d`
 
 ![GIF](https://github.com/idursun/jjui/wiki/gifs/jjui_details.gif)

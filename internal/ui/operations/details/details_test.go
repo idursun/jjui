@@ -58,6 +58,27 @@ func TestModel_Update_RestoresSelectedFiles(t *testing.T) {
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
+func TestModel_Update_RestoresInteractively(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
+	commandRunner.Expect(jj.RestoreInteractive(Revision, "file.txt"))
+	defer commandRunner.Verify()
+
+	tm := teatest.NewTestModel(t, NewOperation(test.NewTestContext(commandRunner), Commit, 10))
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("file.txt"))
+	})
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("i")})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return commandRunner.IsVerified()
+	})
+	tm.Quit()
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
 func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.Snapshot())
