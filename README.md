@@ -79,6 +79,22 @@ See [configuration](https://github.com/idursun/jjui/wiki/Configuration) section 
 
 ## Installation
 
+### Windows
+
+Use [WinGet](https://learn.microsoft.com/windows/package-manager/winget/):
+
+```shell
+winget install IbrahimDursun.jjui
+```
+
+Use [Scoop](https://scoop.sh/):
+
+```shell
+scoop bucket add abyss https://github.com/abgox/abyss
+scoop install IbrahimDursun.jjui
+```
+
+
 ### Homebrew
 
 The latest release of `jjui` is available on Homebrew core:
