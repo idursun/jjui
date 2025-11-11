@@ -29,20 +29,17 @@ func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batc
 		rawSegments := screen.ParseFromReader(reader)
 		for segmentedLine := range screen.BreakNewLinesIter(rawSegments) {
 			rowLine := NewGraphRowLine(segmentedLine)
-			if changeIdIdx := rowLine.FindPossibleChangeIdIdx(); changeIdIdx != -1 && changeIdIdx != len(rowLine.Segments)-1 {
+			changeIDIdx, changeID, commitID, isDivergent := rowLine.ParseRowPrefixes()
+			if changeIDIdx != -1 && changeIDIdx != len(rowLine.Segments)-1 {
 				rowLine.Flags = Revision | Highlightable
 				previousRow := row
 				if len(rows) > batchSize {
-					select {
-					case msg := <-controlChannel:
-						switch msg {
-						case Close:
-							return
-						case RequestMore:
-							rowsChan <- RowBatch{Rows: rows, HasMore: true}
-							rows = nil
-							break
-						}
+					switch <-controlChannel {
+					case Close:
+						return
+					case RequestMore:
+						rowsChan <- RowBatch{Rows: rows, HasMore: true}
+						rows = nil
 					}
 				}
 				row = NewGraphRow()
@@ -50,26 +47,22 @@ func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batc
 					rows = append(rows, previousRow)
 					row.Previous = &previousRow
 				}
-				for j := 0; j < changeIdIdx; j++ {
+				for j := range changeIDIdx {
 					row.Indent += utf8.RuneCountInString(rowLine.Segments[j].Text)
 				}
-				row.Commit.ChangeId = rowLine.Segments[changeIdIdx].Text
-				fullChangeId := row.Commit.ChangeId
-				for nextIdx := changeIdIdx + 1; nextIdx < len(rowLine.Segments); nextIdx++ {
-					nextSegment := rowLine.Segments[nextIdx]
-					if strings.TrimSpace(nextSegment.Text) == "" || strings.ContainsAny(nextSegment.Text, "\n\t\r ") {
-						break
+				row.Commit.ChangeId = changeID
+				row.Commit.CommitId = commitID
+
+				if isDivergent {
+					fullChangeID := ""
+					for nextIdx := changeIDIdx; nextIdx < len(rowLine.Segments); nextIdx++ {
+						nextSegment := strings.TrimSpace(rowLine.Segments[nextIdx].Text)
+						fullChangeID += nextSegment
+						if strings.HasSuffix(nextSegment, "??") {
+							break
+						}
 					}
-					fullChangeId += nextSegment.Text
-				}
-
-				// get only if it contains conflicted "??" suffix
-				if strings.HasSuffix(fullChangeId, "??") {
-					row.Commit.ChangeId = fullChangeId
-				}
-
-				if commitIdIdx := rowLine.FindPossibleCommitIdIdx(changeIdIdx); commitIdIdx != -1 {
-					row.Commit.CommitId = rowLine.Segments[commitIdIdx].Text
+					row.Commit.ChangeId = fullChangeID
 				}
 			}
 			row.AddLine(&rowLine)
@@ -78,19 +71,14 @@ func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batc
 			rows = append(rows, row)
 		}
 		if len(rows) > 0 {
-			select {
-			case msg := <-controlChannel:
-				switch msg {
-				case Close:
-					return
-				case RequestMore:
-					rowsChan <- RowBatch{Rows: rows, HasMore: false}
-					rows = nil
-					break
-				}
+			switch <-controlChannel {
+			case Close:
+				return
+			case RequestMore:
+				rowsChan <- RowBatch{Rows: rows, HasMore: false}
 			}
 		}
-		_ = <-controlChannel
+		<-controlChannel
 	}()
 	return rowsChan, nil
 }

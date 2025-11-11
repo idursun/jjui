@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/idursun/jjui/internal/screen"
@@ -19,23 +20,48 @@ func NewGraphRowLine(segments []*screen.Segment) GraphRowLine {
 	}
 }
 
-func (gr *GraphRowLine) FindPossibleChangeIdIdx() int {
-	for i, segment := range gr.Segments {
-		if isChangeIdLike(segment.Text) {
+func (gr *GraphRowLine) findNextPrefix(startIdx int) int {
+	for i := startIdx + 1; i < len(gr.Segments); i++ {
+		if strings.TrimSpace(gr.Segments[i].Text) != "" {
 			return i
 		}
 	}
 	return -1
 }
 
-func (gr *GraphRowLine) FindPossibleCommitIdIdx(after int) int {
-	for i := after; i < len(gr.Segments); i++ {
-		segment := gr.Segments[i]
-		if isHexLike(segment.Text) {
-			return i
+func (gr *GraphRowLine) ParseRowPrefixes() (int, string, string, bool) {
+	changeIDIdx := -1
+	for i, segment := range gr.Segments {
+		if isChangeIDLike(segment.Text) {
+			changeIDIdx = i
+			break
 		}
 	}
-	return -1
+
+	if changeIDIdx == -1 {
+		return -1, "", "", false
+	}
+	changeID := strings.TrimSpace(gr.Segments[changeIDIdx].Text)
+
+	commitIDIdx := gr.findNextPrefix(changeIDIdx)
+	if commitIDIdx == -1 {
+		return -1, "", "", false
+	}
+	commitID := strings.TrimSpace(gr.Segments[commitIDIdx].Text)
+
+	isDivergentIdx := gr.findNextPrefix(commitIDIdx)
+	if isDivergentIdx == -1 {
+		return -1, "", "", false
+	}
+	isDivergent, err := strconv.ParseBool(strings.TrimSpace(gr.Segments[isDivergentIdx].Text))
+	if err != nil {
+		isDivergent = false
+	}
+
+	// Remove changeID, commitID, and isDivergent prefixes
+	gr.Segments = append(gr.Segments[:changeIDIdx], gr.Segments[isDivergentIdx+1:]...)
+
+	return changeIDIdx, changeID, commitID, isDivergent
 }
 
 func (gr *GraphRowLine) chop(indent int) {
@@ -89,7 +115,6 @@ func (gr *GraphRowLine) chop(indent int) {
 		lastSegment := gr.Gutter.Segments[len(gr.Gutter.Segments)-1]
 		lastSegment.Text += strings.Repeat(" ", indent)
 	}
-
 }
 
 func (gr *GraphRowLine) containsRune(r rune) bool {
