@@ -90,8 +90,8 @@ winget install IbrahimDursun.jjui
 Use [Scoop](https://scoop.sh/):
 
 ```shell
-scoop bucket add abyss https://github.com/abgox/abyss
-scoop install IbrahimDursun.jjui
+scoop bucket add extras
+scoop install jjui
 ```
 
 
