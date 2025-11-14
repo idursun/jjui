@@ -340,6 +340,12 @@ func (m *Model) createMenuItems() []list.Item {
 			category: itemCategoryFetch, key: "f",
 		},
 		item{
+			name:     fmt.Sprintf("git fetch --tracked --remote %s", selectedRemote),
+			desc:     "Fetch from remote",
+			command:  jj.GitFetch("--tracked", "--remote", selectedRemote),
+			category: itemCategoryFetch, key: "f",
+		},
+		item{
 			name:     "git fetch --all-remotes",
 			desc:     "Fetch from all remotes",
 			command:  jj.GitFetch("--all-remotes"),
