@@ -94,7 +94,7 @@ func (fzf *fuzzyFiles) updateRevSet() tea.Cmd {
 	path := fuzzy_search.SelectedMatch(fzf)
 	revset := fzf.revset
 	if len(path) > 0 {
-		revset = fmt.Sprintf("files(\"%s\")", path)
+		revset = fmt.Sprintf("files(%s)", path)
 	}
 	return common.UpdateRevSet(revset)
 }
