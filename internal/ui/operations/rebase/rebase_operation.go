@@ -54,8 +54,10 @@ type styles struct {
 	text         lipgloss.Style
 }
 
-var _ operations.Operation = (*Operation)(nil)
-var _ common.Focusable = (*Operation)(nil)
+var (
+	_ operations.Operation = (*Operation)(nil)
+	_ common.Focusable     = (*Operation)(nil)
+)
 
 type Operation struct {
 	context        *context.MainContext
@@ -148,6 +150,8 @@ func (r *Operation) SetSelectedRevision(commit *jj.Commit) {
 
 func (r *Operation) ShortHelp() []key.Binding {
 	return []key.Binding{
+		r.keyMap.Apply,
+		r.keyMap.ForceApply,
 		r.keyMap.Rebase.Revision,
 		r.keyMap.Rebase.Branch,
 		r.keyMap.Rebase.Source,

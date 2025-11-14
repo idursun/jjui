@@ -102,6 +102,7 @@ func (s *Operation) Name() string {
 func (s *Operation) ShortHelp() []key.Binding {
 	return []key.Binding{
 		s.keyMap.Apply,
+		s.keyMap.ForceApply,
 		s.keyMap.Cancel,
 		s.keyMap.Squash.KeepEmptied,
 		s.keyMap.Squash.Interactive,
