@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/help"
+	uv "github.com/charmbracelet/ultraviolet"
 
 	"github.com/idursun/jjui/internal/ui/flash"
 
@@ -12,7 +13,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/bookmarks"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -324,8 +324,8 @@ func (m Model) View() tea.View {
 		return tea.NewView(lipgloss.JoinVertical(0, m.diff.View(), footer))
 	}
 
-	topView := m.revsetModel.View()
-	topViewHeight := lipgloss.Height(topView)
+	topView := m.revsetModel.View(uv.Rect(0, 0, m.Width, 2))
+	topViewHeight := topView.GetHeight()
 
 	m.UpdatePreviewPosition()
 
@@ -341,45 +341,46 @@ func (m Model) View() tea.View {
 			m.previewModel.SetWidth(m.Width)
 			m.previewModel.SetHeight(bottomPreviewHeight)
 		} else {
-			m.previewModel.SetWidth(m.Width - lipgloss.Width(leftView))
+			m.previewModel.SetWidth(m.Width - leftView.GetWidth())
 			m.previewModel.SetHeight(m.Height - footerHeight - topViewHeight)
 		}
-		previewView := m.previewModel.View()
-		if m.previewModel.AtBottom() {
-			centerView = lipgloss.JoinVertical(lipgloss.Top, leftView, previewView)
-		} else {
-			centerView = lipgloss.JoinHorizontal(lipgloss.Left, leftView, previewView)
-		}
+		//previewView := m.previewModel.View()
+		//if m.previewModel.AtBottom() {
+		//	centerView = lipgloss.JoinVertical(lipgloss.Top, leftView, previewView)
+		//} else {
+		//	centerView = lipgloss.JoinHorizontal(lipgloss.Left, leftView, previewView)
+		//}
 	}
 
-	if m.stacked != nil {
-		stackedView := m.stacked.View()
-		w, h := lipgloss.Size(stackedView)
-		sx := (m.Width - w) / 2
-		sy := (m.Height - h) / 2
-		centerView = screen.Stacked(centerView, stackedView, sx, sy)
-	}
+	//if m.stacked != nil {
+	//	stackedView := m.stacked.View()
+	//	w, h := lipgloss.Size(stackedView)
+	//	sx := (m.Width - w) / 2
+	//	sy := (m.Height - h) / 2
+	//	centerView = screen.Stacked(centerView, stackedView, sx, sy)
+	//}
 
-	full := lipgloss.JoinVertical(0, topView, centerView, footer)
-	flashMessageView := m.flash.View()
-	if flashMessageView != "" {
-		mw, mh := lipgloss.Size(flashMessageView)
-		full = screen.Stacked(full, flashMessageView, m.Width-mw, m.Height-mh-1)
-	}
-	statusFuzzyView := m.status.FuzzyView()
-	if statusFuzzyView != "" {
-		_, mh := lipgloss.Size(statusFuzzyView)
-		full = screen.Stacked(full, statusFuzzyView, 0, m.Height-mh-1)
-	}
+	c := lipgloss.NewCanvas(topView.X(0).Y(0), centerView.X(0).Y(topView.GetHeight()))
+	//full := lipgloss.JoinVertical(0, c.Render(), centerView, footer)
+	//flashMessageView := m.flash.View()
+	//if flashMessageView != "" {
+	//	mw, mh := lipgloss.Size(flashMessageView)
+	//	full = screen.Stacked(full, flashMessageView, m.Width-mw, m.Height-mh-1)
+	//}
+	//statusFuzzyView := m.status.FuzzyView()
+	//if statusFuzzyView != "" {
+	//	_, mh := lipgloss.Size(statusFuzzyView)
+	//	full = screen.Stacked(full, statusFuzzyView, 0, m.Height-mh-1)
+	//}
 	var v tea.View
 	v.AltScreen = true
 	v.ReportFocus = true
-	v.SetContent(full)
+	v.SetContent(c)
 	return v
 }
 
-func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreviewHeight int) string {
-	leftView := ""
+func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreviewHeight int) *lipgloss.Layer {
+	var leftView *lipgloss.Layer
 	w := m.Width
 	h := 0
 
@@ -394,11 +395,11 @@ func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreview
 	if m.oplog != nil {
 		m.oplog.SetWidth(w)
 		m.oplog.SetHeight(m.Height - footerHeight - topViewHeight - h)
-		leftView = m.oplog.View()
+		leftView = m.oplog.View(uv.Rect(0, 0, w, m.Height-footerHeight-topViewHeight-h))
 	} else {
 		m.revisions.SetWidth(w)
 		m.revisions.SetHeight(m.Height - footerHeight - topViewHeight - h)
-		leftView = m.revisions.View()
+		leftView = m.revisions.View(uv.Rect(0, 0, w, m.Height-footerHeight-topViewHeight-h))
 	}
 	return leftView
 }

@@ -6,6 +6,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -97,9 +98,9 @@ func (m *Model) updateSelection() tea.Cmd {
 	return m.context.SetSelectedItem(context.SelectedOperation{OperationId: m.rows[m.cursor].OperationId})
 }
 
-func (m *Model) View() string {
+func (m *Model) View(frame uv.Rectangle) *lipgloss.Layer {
 	if m.rows == nil {
-		return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading")
+		return lipgloss.NewLayer(lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading"))
 	}
 
 	m.renderer.Reset()
@@ -107,7 +108,7 @@ func (m *Model) View() string {
 	m.renderer.SetHeight(m.Height)
 	content := m.renderer.Render(m.cursor)
 	content = lipgloss.PlaceHorizontal(m.Width, lipgloss.Left, content)
-	return m.textStyle.MaxWidth(m.Width).Render(content)
+	return lipgloss.NewLayer(content).Width(m.Width)
 }
 
 func (m *Model) load() tea.Cmd {

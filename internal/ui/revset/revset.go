@@ -1,11 +1,10 @@
 package revset
 
 import (
-	"strings"
-
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
@@ -176,17 +175,18 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *Model) View() string {
-	var w strings.Builder
-	w.WriteString(m.styles.promptStyle.PaddingRight(1).Render("revset:"))
+func (m *Model) View(frame uv.Rectangle) *lipgloss.Layer {
+	header := lipgloss.NewLayer(m.styles.promptStyle.PaddingRight(1).Render("revset:"))
 	if m.Editing {
-		w.WriteString(m.autoComplete.View())
+		view, completion := m.autoComplete.View()
+		header.AddLayers(view.X(header.GetWidth()), completion.Y(header.GetHeight()).X(0))
+		header.Height(view.GetHeight() + completion.GetHeight())
 	} else {
 		revset := m.context.DefaultRevset
 		if m.context.CurrentRevset != "" {
 			revset = m.context.CurrentRevset
 		}
-		w.WriteString(m.styles.textStyle.Render(revset))
+		header.AddLayers(lipgloss.NewLayer(m.styles.textStyle.Render(revset)).X(header.GetWidth()))
 	}
-	return lipgloss.Place(m.Width, m.Height, 0, 0, w.String(), lipgloss.WithWhitespaceStyle(m.styles.textStyle))
+	return header
 }
