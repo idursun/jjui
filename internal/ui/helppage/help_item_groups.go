@@ -75,7 +75,7 @@ func (h *Model) setDefaultMenu() {
 	// TODO: 132 is an arbitrary width that allows all column to display properly
 	// update to use dynamic width based on column contents
 	h.defaultMenu.width, h.defaultMenu.height = 132, h.calculateMaxHeight()
-	h.searchQuery.Width = len(h.searchQuery.Placeholder)
+	h.searchQuery.SetWidth(len(h.searchQuery.Placeholder))
 }
 
 func (h *Model) buildLeftGroups() menuColumn {

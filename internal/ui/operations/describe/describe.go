@@ -69,7 +69,7 @@ func (o Operation) Name() string {
 	return "desc"
 }
 
-func (o Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (o Operation) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch {
 		case key.Matches(keyMsg, o.keyMap.Cancel):
@@ -113,15 +113,15 @@ func NewOperation(context *context.MainContext, revision string, width int) Oper
 	desc := string(descOutput)
 	h := lipgloss.Height(desc)
 
-	selectedStyle := common.DefaultPalette.Get("revisions selected")
+	//selectedStyle := common.DefaultPalette.Get("revisions selected")
 
 	input := textarea.New()
 	input.CharLimit = 0
 	input.MaxHeight = 10
 	input.Prompt = ""
 	input.ShowLineNumbers = false
-	input.FocusedStyle.Base = selectedStyle.Underline(false).Strikethrough(false).Reverse(false).Blink(false)
-	input.FocusedStyle.CursorLine = input.FocusedStyle.Base
+	//input.FocusedStyle.Base = selectedStyle.Underline(false).Strikethrough(false).Reverse(false).Blink(false)
+	//input.FocusedStyle.CursorLine = input.FocusedStyle.Base
 	input.SetValue(desc)
 	input.SetHeight(h + 1)
 	input.SetWidth(width)

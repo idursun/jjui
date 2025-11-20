@@ -52,7 +52,7 @@ type Model struct {
 	offScreenRows    []parser.Row
 	streamer         *graph.GraphStreamer
 	hasMore          bool
-	op               tea.Model
+	op               common.SubModel
 	cursor           int
 	context          *appContext.MainContext
 	keymap           config.KeyMappings[key.Binding]

@@ -118,17 +118,17 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		if !m.Editing {
 			return m, nil
 		}
-		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
+		switch msg.Key().String() {
+		case "ctrl+c", "esc":
 			m.Editing = false
 			m.autoComplete.Blur()
 			return m, nil
-		case tea.KeyEnter:
+		case "enter":
 			m.Editing = false
 			m.autoComplete.Blur()
 			value := m.autoComplete.Value()
 			return m, tea.Batch(common.Close, common.UpdateRevSet(value))
-		case tea.KeyUp:
+		case "up":
 			if len(m.History) > 0 {
 				if !m.historyActive {
 					m.currentInput = m.autoComplete.Value()
@@ -142,7 +142,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				}
 				return m, nil
 			}
-		case tea.KeyDown:
+		case "down":
 			if m.historyActive {
 				if m.historyIndex > 0 {
 					m.historyIndex--
@@ -188,5 +188,5 @@ func (m *Model) View() string {
 		}
 		w.WriteString(m.styles.textStyle.Render(revset))
 	}
-	return lipgloss.Place(m.Width, m.Height, 0, 0, w.String(), lipgloss.WithWhitespaceBackground(m.styles.textStyle.GetBackground()))
+	return lipgloss.Place(m.Width, m.Height, 0, 0, w.String(), lipgloss.WithWhitespaceStyle(m.styles.textStyle))
 }

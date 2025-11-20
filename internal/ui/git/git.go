@@ -118,16 +118,16 @@ func (m *Model) cycleRemotes(step int) tea.Cmd {
 	return m.menu.List.SetItems(m.menu.Items)
 }
 
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.menu.List.SettingFilter() {
 			break
 		}
 		switch {
-		case msg.Type == tea.KeyTab:
+		case msg.Key().String() == "tab":
 			return m, m.cycleRemotes(1)
-		case msg.Type == tea.KeyShiftTab:
+		case msg.Key().String() == "shift+tab":
 			return m, m.cycleRemotes(-1)
 		case key.Matches(msg, m.keymap.Apply):
 			action := m.menu.List.SelectedItem().(item)
@@ -155,7 +155,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *Model) filtered(filter string) (tea.Model, tea.Cmd) {
+func (m *Model) filtered(filter string) (common.SubModel, tea.Cmd) {
 	return m, m.menu.Filtered(filter)
 }
 

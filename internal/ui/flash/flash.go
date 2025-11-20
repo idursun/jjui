@@ -88,12 +88,12 @@ func (m *Model) View() string {
 			maxHeight = height
 		}
 	}
+	transparent := lipgloss.NewStyle().Foreground(screen.TransparentFg).Background(screen.TransparentBg)
 	for _, box := range messageBoxes {
 		combined = append(combined,
 			lipgloss.PlaceHorizontal(maxWidth,
 				lipgloss.Right, box,
-				lipgloss.WithWhitespaceForeground(screen.TransparentFg),
-				lipgloss.WithWhitespaceBackground(screen.TransparentBg),
+				lipgloss.WithWhitespaceStyle(transparent),
 			),
 		)
 	}

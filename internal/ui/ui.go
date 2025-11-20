@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"time"
 
 	"charm.land/bubbles/v2/help"
@@ -45,13 +44,14 @@ type Model struct {
 	status       *status.Model
 	context      *context.MainContext
 	keyMap       config.KeyMappings[key.Binding]
-	stacked      tea.Model
+	stacked      common.SubModel
 }
 
 type triggerAutoRefreshMsg struct{}
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.scheduleAutoRefresh())
+	//return tea.Batch(tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.scheduleAutoRefresh())
+	return tea.Batch(m.revisions.Init(), m.scheduleAutoRefresh())
 }
 
 func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
@@ -314,14 +314,14 @@ func (m Model) UpdatePreviewPosition() {
 	}
 }
 
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	m.updateStatus()
 	footer := m.status.View()
 	footerHeight := lipgloss.Height(footer)
 
 	if m.diff != nil {
 		m.diff.SetHeight(m.Height - footerHeight)
-		return lipgloss.JoinVertical(0, m.diff.View(), footer)
+		return tea.NewView(lipgloss.JoinVertical(0, m.diff.View(), footer))
 	}
 
 	topView := m.revsetModel.View()
@@ -371,7 +371,11 @@ func (m Model) View() string {
 		_, mh := lipgloss.Size(statusFuzzyView)
 		full = screen.Stacked(full, statusFuzzyView, 0, m.Height-mh-1)
 	}
-	return full
+	var v tea.View
+	v.AltScreen = true
+	v.ReportFocus = true
+	v.SetContent(full)
+	return v
 }
 
 func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreviewHeight int) string {

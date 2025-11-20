@@ -26,7 +26,7 @@ func (m Model) Init() tea.Cmd {
 	return m.confirmation.Init()
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	var cmd tea.Cmd
 	m.confirmation, cmd = m.confirmation.Update(msg)
 	return m, cmd

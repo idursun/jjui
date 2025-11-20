@@ -56,7 +56,7 @@ func (s *Operation) Init() tea.Cmd {
 	return s.load(s.revision.GetChangeId())
 }
 
-func (s *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (s *Operation) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case confirmation.CloseMsg:
 		s.confirmation = nil
@@ -242,7 +242,7 @@ func (s *Operation) View() string {
 	}
 	view = strings.Join(lines, "\n")
 	w, h := lipgloss.Size(view)
-	return lipgloss.Place(w, h, 0, 0, view, lipgloss.WithWhitespaceBackground(s.styles.Text.GetBackground()))
+	return lipgloss.Place(w, h, 0, 0, view, lipgloss.WithWhitespaceStyle(s.styles.Text))
 }
 
 func (s *Operation) SetSelectedRevision(commit *jj.Commit) {

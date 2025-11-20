@@ -92,65 +92,65 @@ func contextEnabled(ctx *context.MainContext, bnds context.LeaderMap) context.Le
 
 func sendCmds(strings []string) []tea.Cmd {
 	var cmds []tea.Cmd
-	send := func(k tea.Key) {
-		cmds = append(cmds, func() tea.Msg {
-			return tea.KeyMsg(k)
-		})
-	}
-	for _, s := range strings {
-		if k, ok := keyNames[s]; ok {
-			send(k)
-		} else {
-			for _, r := range s {
-				send(tea.Key{
-					Type:  tea.KeyRunes,
-					Runes: []rune{r},
-				})
-			}
-		}
-	}
+	//send := func(k tea.Key) {
+	//	cmds = append(cmds, func() tea.Msg {
+	//		return tea.KeyMsg(k)
+	//	})
+	//}
+	//for _, s := range strings {
+	//	if k, ok := keyNames[s]; ok {
+	//		send(k)
+	//	} else {
+	//		for _, r := range s {
+	//			send(tea.Key{
+	//				Type:  tea.KeyRunes,
+	//				Runes: []rune{r},
+	//			})
+	//		}
+	//	}
+	//}
 	return cmds
 }
 
 // From bubbletea's key.go. So that we can identify by their string.
 // Notable Exception: tea.KeyRunes. Because we create them.
-var keyTypes = []tea.KeyType{
+var keyTypes = []rune{
 	// Control keys.
 	tea.KeyTab,
 	tea.KeyEnter,
 	tea.KeyEsc,
 	tea.KeyBackspace,
 
-	tea.KeyCtrlAt,
-	tea.KeyCtrlA,
-	tea.KeyCtrlB,
-	tea.KeyCtrlC,
-	tea.KeyCtrlD,
-	tea.KeyCtrlE,
-	tea.KeyCtrlF,
-	tea.KeyCtrlG,
-	tea.KeyCtrlH,
-	tea.KeyCtrlJ,
-	tea.KeyCtrlK,
-	tea.KeyCtrlL,
-	tea.KeyCtrlN,
-	tea.KeyCtrlO,
-	tea.KeyCtrlP,
-	tea.KeyCtrlQ,
-	tea.KeyCtrlR,
-	tea.KeyCtrlS,
-	tea.KeyCtrlT,
-	tea.KeyCtrlU,
-	tea.KeyCtrlV,
-	tea.KeyCtrlW,
-	tea.KeyCtrlX,
-	tea.KeyCtrlY,
-	tea.KeyCtrlZ,
-
-	tea.KeyCtrlCloseBracket,
-	tea.KeyCtrlCaret,
-	tea.KeyCtrlUnderscore,
-	tea.KeyCtrlBackslash,
+	//tea.KeyCtrlAt,
+	//tea.KeyCtrlA,
+	//tea.KeyCtrlB,
+	//tea.KeyCtrlC,
+	//tea.KeyCtrlD,
+	//tea.KeyCtrlE,
+	//tea.KeyCtrlF,
+	//tea.KeyCtrlG,
+	//tea.KeyCtrlH,
+	//tea.KeyCtrlJ,
+	//tea.KeyCtrlK,
+	//tea.KeyCtrlL,
+	//tea.KeyCtrlN,
+	//tea.KeyCtrlO,
+	//tea.KeyCtrlP,
+	//tea.KeyCtrlQ,
+	//tea.KeyCtrlR,
+	//tea.KeyCtrlS,
+	//tea.KeyCtrlT,
+	//tea.KeyCtrlU,
+	//tea.KeyCtrlV,
+	//tea.KeyCtrlW,
+	//tea.KeyCtrlX,
+	//tea.KeyCtrlY,
+	//tea.KeyCtrlZ,
+	//
+	//tea.KeyCtrlCloseBracket,
+	//tea.KeyCtrlCaret,
+	//tea.KeyCtrlUnderscore,
+	//tea.KeyCtrlBackslash,
 
 	// Other keys.
 	tea.KeyUp,
@@ -158,33 +158,33 @@ var keyTypes = []tea.KeyType{
 	tea.KeyRight,
 	tea.KeySpace,
 	tea.KeyLeft,
-	tea.KeyShiftTab,
+	//tea.KeyShiftTab,
 	tea.KeyHome,
 	tea.KeyEnd,
-	tea.KeyCtrlHome,
-	tea.KeyCtrlEnd,
-	tea.KeyShiftHome,
-	tea.KeyShiftEnd,
-	tea.KeyCtrlShiftHome,
-	tea.KeyCtrlShiftEnd,
+	//tea.KeyCtrlHome,
+	//tea.KeyCtrlEnd,
+	//tea.KeyShiftHome,
+	//tea.KeyShiftEnd,
+	//tea.KeyCtrlShiftHome,
+	//tea.KeyCtrlShiftEnd,
 	tea.KeyPgUp,
 	tea.KeyPgDown,
-	tea.KeyCtrlPgUp,
-	tea.KeyCtrlPgDown,
+	//tea.KeyCtrlPgUp,
+	//tea.KeyCtrlPgDown,
 	tea.KeyDelete,
 	tea.KeyInsert,
-	tea.KeyCtrlUp,
-	tea.KeyCtrlDown,
-	tea.KeyCtrlRight,
-	tea.KeyCtrlLeft,
-	tea.KeyShiftUp,
-	tea.KeyShiftDown,
-	tea.KeyShiftRight,
-	tea.KeyShiftLeft,
-	tea.KeyCtrlShiftUp,
-	tea.KeyCtrlShiftDown,
-	tea.KeyCtrlShiftLeft,
-	tea.KeyCtrlShiftRight,
+	//tea.KeyCtrlUp,
+	//tea.KeyCtrlDown,
+	//tea.KeyCtrlRight,
+	//tea.KeyCtrlLeft,
+	//tea.KeyShiftUp,
+	//tea.KeyShiftDown,
+	//tea.KeyShiftRight,
+	//tea.KeyShiftLeft,
+	//tea.KeyCtrlShiftUp,
+	//tea.KeyCtrlShiftDown,
+	//tea.KeyCtrlShiftLeft,
+	//tea.KeyCtrlShiftRight,
 	tea.KeyF1,
 	tea.KeyF2,
 	tea.KeyF3,
@@ -207,17 +207,17 @@ var keyTypes = []tea.KeyType{
 	tea.KeyF20,
 }
 
-func keysFromTypes() map[string]tea.Key {
-	m := map[string]tea.Key{}
-	set := func(t tea.KeyType) {
-		m[t.String()] = tea.Key{
-			Type: t,
-		}
-	}
-	for _, t := range keyTypes {
-		set(t)
-	}
-	return m
-}
-
-var keyNames = keysFromTypes()
+//func keysFromTypes() map[string]tea.Key {
+//	m := map[string]tea.Key{}
+//	set := func(t tea.Key) {
+//		m[t.String()] = tea.Key{
+//			Code: t,
+//		}
+//	}
+//	for _, t := range keyTypes {
+//		set(t)
+//	}
+//	return m
+//}
+//
+//var keyNames = keysFromTypes()

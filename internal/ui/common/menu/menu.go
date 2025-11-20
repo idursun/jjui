@@ -192,12 +192,12 @@ func (m *Menu) renderTitle() []string {
 	return titleView
 }
 
-func (m *Menu) View() *lipgloss.Layer {
+func (m *Menu) View() string {
 	views := m.renderTitle()
 	views = append(views, "", m.renderFilterView())
 	views = append(views, m.List.View())
 	content := lipgloss.JoinVertical(0, views...)
 	content = lipgloss.Place(m.width, m.height, 0, 0, content)
 	content = m.styles.text.Width(m.width).Height(m.height).Render(content)
-	return lipgloss.NewLayer(m.styles.border.Render(content))
+	return m.styles.border.Render(content)
 }

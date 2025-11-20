@@ -31,8 +31,6 @@ type Styles struct {
 	Text     lipgloss.Style
 }
 
-var _ common.SubModel = (*Model)(nil)
-
 type Model struct {
 	options     []option
 	selected    int
@@ -116,7 +114,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		default:
 			for _, option := range m.options {
 				if key.Matches(msg, option.keyBinding) {
-					if msg.Alt {
+					if msg.Key().Mod.Contains(tea.ModAlt) {
 						return m, option.altCmd
 					}
 					return m, option.cmd
@@ -127,7 +125,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Model) View(frame common.Rectangle) *lipgloss.Layer {
+func (m *Model) View() string {
 	w := strings.Builder{}
 	for i, message := range m.messages {
 		w.WriteString(m.Styles.Text.PaddingLeft(1).Render(message))
@@ -145,7 +143,7 @@ func (m *Model) View(frame common.Rectangle) *lipgloss.Layer {
 	content := w.String()
 	width, height := lipgloss.Size(content)
 	content = lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content, lipgloss.WithWhitespaceStyle(m.Styles.Text))
-	return lipgloss.NewLayer(m.Styles.Border.Render(content))
+	return m.Styles.Border.Render(content)
 }
 
 // getStyleKey prefixes the key with the style prefix if one is set

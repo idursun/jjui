@@ -25,7 +25,7 @@ func (i itemRenderer) Render(w io.Writer, width int) {
 			fmt.Fprint(&lw, segment.Style.Inherit(i.style).Render(segment.Text))
 		}
 		line := lw.String()
-		fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceBackground(i.style.GetBackground())))
+		fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceStyle(i.style)))
 		fmt.Fprint(w, "\n")
 	}
 }

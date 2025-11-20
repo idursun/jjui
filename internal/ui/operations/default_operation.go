@@ -5,6 +5,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/common"
 )
 
 var _ Operation = (*Default)(nil)
@@ -17,7 +18,7 @@ func (n *Default) Init() tea.Cmd {
 	return nil
 }
 
-func (n *Default) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (n *Default) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	return n, nil
 }
 

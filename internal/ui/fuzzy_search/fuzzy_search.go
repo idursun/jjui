@@ -21,7 +21,7 @@ type Styles struct {
 
 type Model interface {
 	fuzzy.Source
-	tea.Model
+	common.SubModel
 	Max() int
 	Matches() fuzzy.Matches
 	SelectedMatch() int

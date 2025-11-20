@@ -12,7 +12,6 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/common"
 
 	"github.com/idursun/jjui/internal/config"
@@ -147,9 +146,12 @@ func main() {
 	}
 
 	var theme map[string]config.Color
+	var hasDarkBg bool
+	//hasDarkBg = lipgloss.HasDarkBackground()
+	hasDarkBg = true
 
 	var defaultThemeName string
-	if lipgloss.HasDarkBackground() {
+	if hasDarkBg {
 		defaultThemeName = "default_dark"
 	} else {
 		defaultThemeName = "default_light"
@@ -162,7 +164,7 @@ func main() {
 	}
 
 	var userThemeName string
-	if lipgloss.HasDarkBackground() {
+	if hasDarkBg {
 		userThemeName = config.Current.UI.Theme.Dark
 	} else {
 		userThemeName = config.Current.UI.Theme.Light
@@ -192,7 +194,7 @@ func main() {
 	}
 	appContext.CurrentRevset = appContext.DefaultRevset
 
-	p := tea.NewProgram(ui.New(appContext), tea.WithAltScreen(), tea.WithReportFocus())
+	p := tea.NewProgram(ui.New(appContext))
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error running program: %v\n", err)
 		os.Exit(1)

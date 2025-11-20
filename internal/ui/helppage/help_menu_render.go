@@ -31,7 +31,7 @@ func (h *Model) renderColumn(column menuColumn) string {
 		return lipgloss.Place(
 			width, 1, lipgloss.Left, lipgloss.Top,
 			content,
-			lipgloss.WithWhitespaceBackground(h.styles.text.GetBackground()),
+			lipgloss.WithWhitespaceStyle(h.styles.text),
 		)
 	}
 

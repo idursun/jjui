@@ -46,9 +46,9 @@ func (ir itemRenderer) writeSection(w io.Writer, current parser.GraphGutter, ext
 		fmt.Fprint(&lw, sectionLine)
 		line := lw.String()
 		if isHighlighted && highlight {
-			fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceBackground(ir.selectedStyle.GetBackground())))
+			fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceStyle(ir.selectedStyle)))
 		} else {
-			fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceBackground(ir.textStyle.GetBackground())))
+			fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceStyle(ir.textStyle)))
 		}
 		fmt.Fprintln(w)
 		current = extended
@@ -160,9 +160,9 @@ func (ir itemRenderer) Render(w io.Writer, width int) {
 		}
 		line := lw.String()
 		if isHighlighted && segmentedLine.Flags&parser.Highlightable == parser.Highlightable {
-			fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceBackground(ir.selectedStyle.GetBackground())))
+			fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceStyle(ir.selectedStyle)))
 		} else {
-			fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceBackground(ir.textStyle.GetBackground())))
+			fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceStyle(ir.textStyle)))
 		}
 		fmt.Fprint(w, "\n")
 	}
@@ -197,7 +197,7 @@ func (ir itemRenderer) Render(w io.Writer, width int) {
 			fmt.Fprint(&lw, segment.Style.Inherit(ir.textStyle).Render(segment.Text))
 		}
 		line := lw.String()
-		fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceBackground(ir.textStyle.GetBackground())))
+		fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceStyle(ir.textStyle)))
 		fmt.Fprint(w, "\n")
 	}
 }

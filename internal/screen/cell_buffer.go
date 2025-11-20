@@ -32,8 +32,8 @@ var spaceCell = gridCell{
 	width: 1,
 }
 
-const TransparentFg = lipgloss.Color("#010203")
-const TransparentBg = lipgloss.Color("#010203")
+var TransparentFg = lipgloss.Color("#010203")
+var TransparentBg = lipgloss.Color("#010203")
 
 func Stacked(view1, view2 string, x, y int) string {
 	if x < 0 {

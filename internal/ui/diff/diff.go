@@ -31,7 +31,7 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) SetHeight(h int) {
-	m.view.Height = h
+	m.view.SetHeight(h)
 }
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
@@ -52,7 +52,7 @@ func (m *Model) View() string {
 }
 
 func New(output string, width int, height int) *Model {
-	view := viewport.New(width, height)
+	view := viewport.New(viewport.WithWidth(width), viewport.WithHeight(height))
 	content := strings.ReplaceAll(output, "\r", "")
 	if content == "" {
 		content = "(empty)"

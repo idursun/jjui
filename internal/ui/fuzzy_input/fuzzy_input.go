@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
 	"github.com/sahilm/fuzzy"
 )
@@ -41,7 +42,7 @@ func (fzf *model) Init() tea.Cmd {
 	return newCmd(initMsg{})
 }
 
-func (fzf *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (fzf *model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case initMsg:
 		fzf.search("")

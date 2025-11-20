@@ -108,7 +108,7 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (o *Operation) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {

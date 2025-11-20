@@ -94,16 +94,10 @@ func (h *Model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	return h, cmd
 }
 
-func (h *Model) View(frame common.Rectangle) *lipgloss.Layer {
+func (h *Model) View() string {
 	// NOTE: add new lines between search bar and help menu
 	content := "\n\n" + h.renderMenu()
-	layer := lipgloss.NewLayer(h.styles.border.Render(h.searchQuery.View(), content)).
-		X(frame.X).
-		Y(frame.Y).
-		Height(frame.Height).
-		Width(frame.Width)
-
-	return layer
+	return h.styles.border.Render(h.searchQuery.View(), content)
 }
 
 func (h *Model) filterMenu() {

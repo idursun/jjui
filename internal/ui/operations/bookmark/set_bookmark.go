@@ -25,7 +25,7 @@ func (s *SetBookmarkOperation) IsEditing() bool {
 	return true
 }
 
-func (s *SetBookmarkOperation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (s *SetBookmarkOperation) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -68,7 +68,7 @@ func (s *SetBookmarkOperation) Render(commit *jj.Commit, pos operations.RenderPo
 	if pos != operations.RenderBeforeCommitId || commit.GetChangeId() != s.revision {
 		return ""
 	}
-	return s.name.View() + s.name.TextStyle.Render(" ")
+	return s.name.View() + s.name.Styles().Focused.Text.Render(" ")
 }
 
 func (s *SetBookmarkOperation) Name() string {
@@ -76,18 +76,18 @@ func (s *SetBookmarkOperation) Name() string {
 }
 
 func NewSetBookmarkOperation(context *context.MainContext, changeId string) *SetBookmarkOperation {
-	dimmedStyle := common.DefaultPalette.Get("revisions dimmed").Inline(true)
-	textStyle := common.DefaultPalette.Get("revisions text").Inline(true)
+	//dimmedStyle := common.DefaultPalette.Get("revisions dimmed").Inline(true)
+	//textStyle := common.DefaultPalette.Get("revisions text").Inline(true)
 	t := textinput.New()
-	t.Width = 0
+	t.SetWidth(0)
 	t.ShowSuggestions = true
 	t.CharLimit = 120
 	t.Prompt = ""
-	t.TextStyle = textStyle
-	t.PromptStyle = t.TextStyle
-	t.Cursor.TextStyle = t.TextStyle
-	t.CompletionStyle = dimmedStyle
-	t.PlaceholderStyle = t.CompletionStyle
+	//t.TextStyle = textStyle
+	//t.PromptStyle = t.TextStyle
+	//t.Cursor.TextStyle = t.TextStyle
+	//t.CompletionStyle = dimmedStyle
+	//t.PlaceholderStyle = t.CompletionStyle
 	t.SetValue("")
 	t.Focus()
 

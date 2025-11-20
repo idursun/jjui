@@ -33,7 +33,7 @@ func (r itemRenderer) Render(w io.Writer, width int) {
 			fmt.Fprint(&lw, style.Render(segment.Text))
 		}
 		line := lw.String()
-		fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceBackground(r.styleOverride.GetBackground())))
+		fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceStyle(r.styleOverride)))
 		fmt.Fprint(w, "\n")
 	}
 }

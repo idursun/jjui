@@ -1,6 +1,7 @@
 package common
 
 import (
+	"image/color"
 	"testing"
 
 	"charm.land/lipgloss/v2"
@@ -201,7 +202,7 @@ func TestParseColor(t *testing.T) {
 	tests := []struct {
 		name  string
 		color string
-		want  lipgloss.Color
+		want  color.Color
 	}{
 		{
 			name:  "hex color",

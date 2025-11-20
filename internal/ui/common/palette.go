@@ -1,6 +1,7 @@
 package common
 
 import (
+	"image/color"
 	"strconv"
 	"strings"
 
@@ -146,7 +147,7 @@ func createStyleFrom(color config.Color) lipgloss.Style {
 	return style
 }
 
-func parseColor(color string) lipgloss.Color {
+func parseColor(color string) color.Color {
 	// if it's a hex color, return it directly
 	if len(color) == 7 && color[0] == '#' {
 		return lipgloss.Color(color)
@@ -160,37 +161,37 @@ func parseColor(color string) lipgloss.Color {
 	// otherwise, try to parse it as a named color
 	switch color {
 	case "black":
-		return "0"
+		return lipgloss.Black
 	case "red":
-		return "1"
+		return lipgloss.Red
 	case "green":
-		return "2"
+		return lipgloss.Green
 	case "yellow":
-		return "3"
+		return lipgloss.Yellow
 	case "blue":
-		return "4"
+		return lipgloss.Blue
 	case "magenta":
-		return "5"
+		return lipgloss.Magenta
 	case "cyan":
-		return "6"
+		return lipgloss.Cyan
 	case "white":
-		return "7"
+		return lipgloss.White
 	case "bright black":
-		return "8"
+		return lipgloss.BrightBlack
 	case "bright red":
-		return "9"
+		return lipgloss.BrightRed
 	case "bright green":
-		return "10"
+		return lipgloss.BrightGreen
 	case "bright yellow":
-		return "11"
+		return lipgloss.BrightYellow
 	case "bright blue":
-		return "12"
+		return lipgloss.BrightBlue
 	case "bright magenta":
-		return "13"
+		return lipgloss.BrightMagenta
 	case "bright cyan":
-		return "14"
+		return lipgloss.BrightCyan
 	case "bright white":
-		return "15"
+		return lipgloss.BrightWhite
 	default:
 		if strings.HasPrefix(color, "ansi-color-") {
 			code := strings.TrimPrefix(color, "ansi-color-")
@@ -198,6 +199,6 @@ func parseColor(color string) lipgloss.Color {
 				return lipgloss.Color(code)
 			}
 		}
-		return ""
+		return lipgloss.NoColor{}
 	}
 }

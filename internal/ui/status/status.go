@@ -224,7 +224,7 @@ func (m *Model) View() string {
 		commandStatusMark = m.styles.success.Render("✓ ")
 	} else {
 		commandStatusMark = m.helpView(m.keyMap)
-		commandStatusMark = lipgloss.PlaceHorizontal(m.width, 0, commandStatusMark, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
+		commandStatusMark = lipgloss.PlaceHorizontal(m.width, 0, commandStatusMark, lipgloss.WithWhitespaceStyle(m.styles.text))
 	}
 	modeWith := max(10, len(m.mode)+2)
 	ret := m.styles.text.Render(strings.ReplaceAll(m.command, "\n", "⏎"))
@@ -235,13 +235,13 @@ func (m *Model) View() string {
 			editHelp = lipgloss.JoinHorizontal(0, m.helpView(editKeys), editHelp)
 		}
 		promptWidth := len(m.input.Prompt) + 2
-		m.input.Width = m.width - modeWith - promptWidth - lipgloss.Width(editHelp)
+		m.input.SetWidth(m.width - modeWith - promptWidth - lipgloss.Width(editHelp))
 		ret = lipgloss.JoinHorizontal(0, m.input.View(), editHelp)
 	}
 	mode := m.styles.title.Width(modeWith).Render("", m.mode)
 	ret = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), commandStatusMark, ret)
 	height := lipgloss.Height(ret)
-	return lipgloss.Place(m.width, height, 0, 0, ret, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
+	return lipgloss.Place(m.width, height, 0, 0, ret, lipgloss.WithWhitespaceStyle(m.styles.text))
 }
 
 func (m *Model) SetHelp(keyMap help.KeyMap) {
@@ -281,10 +281,10 @@ func New(context *context.MainContext) Model {
 	s.Spinner = spinner.Dot
 
 	t := textinput.New()
-	t.Width = 50
-	t.TextStyle = styles.text
-	t.CompletionStyle = styles.dimmed
-	t.PlaceholderStyle = styles.dimmed
+	t.SetWidth(50)
+	//t.TextStyle = styles.text
+	//t.CompletionStyle = styles.dimmed
+	//t.PlaceholderStyle = styles.dimmed
 
 	return Model{
 		context: context,

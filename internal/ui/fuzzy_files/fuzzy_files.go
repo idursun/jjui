@@ -58,7 +58,7 @@ func (fzf *fuzzyFiles) Init() tea.Cmd {
 	return newCmd(initMsg{})
 }
 
-func (fzf *fuzzyFiles) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (fzf *fuzzyFiles) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case initMsg:
 		fzf.search("")
@@ -265,7 +265,7 @@ func (fzf *fuzzyFiles) editStatus() (help.KeyMap, string) {
 
 func NewModel(msg common.FileSearchMsg) (fuzzy_search.Model, editStatus) {
 	keyMap := config.Current.GetKeyMap()
-	inputKm := textinput.DefaultKeyMap
+	inputKm := textinput.DefaultKeyMap()
 	model := &fuzzyFiles{
 		keyMap:          keyMap,
 		inputKm:         inputKm,

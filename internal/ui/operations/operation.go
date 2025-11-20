@@ -1,11 +1,11 @@
 package operations
 
 import (
-	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/common"
 )
 
 type RenderPosition int
@@ -20,7 +20,7 @@ const (
 )
 
 type Operation interface {
-	tea.Model
+	common.SubModel
 	Render(commit *jj.Commit, renderPosition RenderPosition) string
 	Name() string
 }
