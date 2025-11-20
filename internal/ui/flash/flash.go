@@ -4,8 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/idursun/jjui/internal/screen"
-
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -61,43 +59,29 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Model) View() string {
+func (m *Model) View(width int, height int) []*lipgloss.Layer {
 	messages := m.messages
 	if len(messages) == 0 {
-		return ""
+		return nil
 	}
 
-	var messageBoxes []string
-	for _, message := range messages {
+	var combined []*lipgloss.Layer
+	y := height
+	for i := len(messages) - 1; i >= 0; i-- {
+		message := &messages[i]
+		var layer *lipgloss.Layer
 		style := m.successStyle
 		if message.error != nil {
 			style = m.errorStyle
-			messageBoxes = append(messageBoxes, style.Render(message.error.Error()))
+			layer = lipgloss.NewLayer(style.Render(message.error.Error()))
 		} else {
-			messageBoxes = append(messageBoxes, style.Render(message.text))
+			layer = lipgloss.NewLayer(style.Render(message.text))
 		}
+		y -= layer.GetHeight()
+		layer = layer.X(width - layer.GetWidth()).Y(y).Z(4)
+		combined = append(combined, layer)
 	}
-	maxWidth, maxHeight := 0, 0
-	var combined []string
-	for _, box := range messageBoxes {
-		width, height := lipgloss.Size(box)
-		if width > maxWidth {
-			maxWidth = width
-		}
-		if height > maxHeight {
-			maxHeight = height
-		}
-	}
-	transparent := lipgloss.NewStyle().Foreground(screen.TransparentFg).Background(screen.TransparentBg)
-	for _, box := range messageBoxes {
-		combined = append(combined,
-			lipgloss.PlaceHorizontal(maxWidth,
-				lipgloss.Right, box,
-				lipgloss.WithWhitespaceStyle(transparent),
-			),
-		)
-	}
-	return lipgloss.JoinVertical(lipgloss.Right, combined...)
+	return combined
 }
 
 func (m *Model) add(text string, error error) uint64 {

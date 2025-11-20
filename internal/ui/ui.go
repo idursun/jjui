@@ -362,7 +362,8 @@ func (m Model) View() tea.View {
 
 	c := lipgloss.NewCanvas(topView.X(0).Y(0), centerView.X(0).Y(topView.GetHeight()))
 	//full := lipgloss.JoinVertical(0, c.Render(), centerView, footer)
-	//flashMessageView := m.flash.View()
+	flashMessages := m.flash.View(m.Width, m.Height)
+	c.AddLayers(flashMessages...)
 	//if flashMessageView != "" {
 	//	mw, mh := lipgloss.Size(flashMessageView)
 	//	full = screen.Stacked(full, flashMessageView, m.Width-mw, m.Height-mh-1)
@@ -372,6 +373,7 @@ func (m Model) View() tea.View {
 	//	_, mh := lipgloss.Size(statusFuzzyView)
 	//	full = screen.Stacked(full, statusFuzzyView, 0, m.Height-mh-1)
 	//}
+	//c.AddLayers(lipgloss.NewLayer(lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Width(20).Height(3).Foreground(lipgloss.Red).Background(lipgloss.Green).Render("this is some overlay")).X(20).Y(10).Z(3))
 	var v tea.View
 	v.AltScreen = true
 	v.ReportFocus = true
