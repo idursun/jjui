@@ -214,7 +214,7 @@ func (m *Model) loadEditingSuggestions() {
 	m.input.SetSuggestions([]string(history))
 }
 
-func (m *Model) View() string {
+func (m *Model) View() *lipgloss.Layer {
 	commandStatusMark := m.styles.text.Render(" ")
 	if m.status == commandRunning {
 		commandStatusMark = m.styles.text.Render(m.spinner.View())
@@ -240,8 +240,9 @@ func (m *Model) View() string {
 	}
 	mode := m.styles.title.Width(modeWith).Render("", m.mode)
 	ret = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), commandStatusMark, ret)
-	height := lipgloss.Height(ret)
-	return lipgloss.Place(m.width, height, 0, 0, ret, lipgloss.WithWhitespaceStyle(m.styles.text))
+	//height := lipgloss.Height(ret)
+	//return lipgloss.NewLayer() lipgloss.Place(m.width, height, 0, 0, ret, lipgloss.WithWhitespaceStyle(m.styles.text))
+	return lipgloss.NewLayer(ret)
 }
 
 func (m *Model) SetHelp(keyMap help.KeyMap) {

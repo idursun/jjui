@@ -317,11 +317,11 @@ func (m Model) UpdatePreviewPosition() {
 func (m Model) View() tea.View {
 	m.updateStatus()
 	footer := m.status.View()
-	footerHeight := lipgloss.Height(footer)
 
 	if m.diff != nil {
-		m.diff.SetHeight(m.Height - footerHeight)
-		return tea.NewView(lipgloss.JoinVertical(0, m.diff.View(), footer))
+		m.diff.SetHeight(m.Height - footer.GetHeight())
+		//return tea.NewView(lipgloss.JoinVertical(0, m.diff.View(), footer))
+		return tea.NewView(lipgloss.JoinVertical(0, m.diff.View()))
 	}
 
 	topView := m.revsetModel.View(uv.Rect(0, 0, m.Width, 2))
@@ -333,7 +333,7 @@ func (m Model) View() tea.View {
 	if m.previewModel.Visible() && m.previewModel.AtBottom() {
 		bottomPreviewHeight = int(float64(m.Height) * (m.previewModel.WindowPercentage() / 100.0))
 	}
-	leftView := m.renderLeftView(footerHeight, topViewHeight, bottomPreviewHeight)
+	leftView := m.renderLeftView(footer.GetHeight(), topViewHeight, bottomPreviewHeight)
 	centerView := leftView
 
 	if m.previewModel.Visible() {
@@ -342,7 +342,7 @@ func (m Model) View() tea.View {
 			m.previewModel.SetHeight(bottomPreviewHeight)
 		} else {
 			m.previewModel.SetWidth(m.Width - leftView.GetWidth())
-			m.previewModel.SetHeight(m.Height - footerHeight - topViewHeight)
+			m.previewModel.SetHeight(m.Height - footer.GetHeight() - topViewHeight)
 		}
 		//previewView := m.previewModel.View()
 		//if m.previewModel.AtBottom() {
@@ -360,7 +360,9 @@ func (m Model) View() tea.View {
 	//	centerView = screen.Stacked(centerView, stackedView, sx, sy)
 	//}
 
-	c := lipgloss.NewCanvas(topView.X(0).Y(0), centerView.X(0).Y(topView.GetHeight()))
+	centerView = centerView.X(0).Y(topView.GetHeight())
+	footer = footer.X(0).Y(centerView.GetHeight() + centerView.GetY())
+	c := lipgloss.NewCanvas(topView.X(0).Y(0), centerView, footer)
 	//full := lipgloss.JoinVertical(0, c.Render(), centerView, footer)
 	flashMessages := m.flash.View(m.Width, m.Height)
 	c.AddLayers(flashMessages...)
