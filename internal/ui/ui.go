@@ -5,7 +5,6 @@ import (
 
 	"charm.land/bubbles/v2/help"
 	uv "github.com/charmbracelet/ultraviolet"
-
 	"github.com/idursun/jjui/internal/ui/flash"
 
 	"charm.land/bubbles/v2/key"
@@ -44,7 +43,7 @@ type Model struct {
 	status       *status.Model
 	context      *context.MainContext
 	keyMap       config.KeyMappings[key.Binding]
-	stacked      common.SubModel
+	stacked      common.Stackable
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -352,24 +351,23 @@ func (m Model) View() tea.View {
 		//}
 	}
 
-	//if m.stacked != nil {
-	//	stackedView := m.stacked.View()
-	//	w, h := lipgloss.Size(stackedView)
-	//	sx := (m.Width - w) / 2
-	//	sy := (m.Height - h) / 2
-	//	centerView = screen.Stacked(centerView, stackedView, sx, sy)
-	//}
-
 	centerView = centerView.X(0).Y(topView.GetHeight())
 	footer = footer.X(0).Y(centerView.GetHeight() + centerView.GetY())
 	c := lipgloss.NewCanvas(topView.X(0).Y(0), centerView, footer)
+	if m.stacked != nil {
+		stackedView := m.stacked.View()
+		//w, h := stackedView.GetWidth(), stackedView.GetHeight()
+		//sx := (m.Width - w) / 2
+		//sy := (m.Height - h) / 2
+
+		//var container lipgloss.Layer
+		//container.AddLayers(stackedView).X(0).Y(5).Z(10).Height(m.Height)
+		c.AddLayers(stackedView.X(10).Y(10).Z(10))
+	}
+
 	//full := lipgloss.JoinVertical(0, c.Render(), centerView, footer)
 	flashMessages := m.flash.View(m.Width, m.Height)
 	c.AddLayers(flashMessages...)
-	//if flashMessageView != "" {
-	//	mw, mh := lipgloss.Size(flashMessageView)
-	//	full = screen.Stacked(full, flashMessageView, m.Width-mw, m.Height-mh-1)
-	//}
 	//statusFuzzyView := m.status.FuzzyView()
 	//if statusFuzzyView != "" {
 	//	_, mh := lipgloss.Size(statusFuzzyView)

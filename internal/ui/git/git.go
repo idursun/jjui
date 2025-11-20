@@ -118,7 +118,7 @@ func (m *Model) cycleRemotes(step int) tea.Cmd {
 	return m.menu.List.SetItems(m.menu.Items)
 }
 
-func (m *Model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (common.Stackable, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.menu.List.SettingFilter() {
@@ -155,11 +155,11 @@ func (m *Model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *Model) filtered(filter string) (common.SubModel, tea.Cmd) {
+func (m *Model) filtered(filter string) (*Model, tea.Cmd) {
 	return m, m.menu.Filtered(filter)
 }
 
-func (m *Model) View() string {
+func (m *Model) View() *lipgloss.Layer {
 	return m.menu.View()
 }
 

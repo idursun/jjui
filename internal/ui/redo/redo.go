@@ -26,14 +26,14 @@ func (m Model) Init() tea.Cmd {
 	return m.confirmation.Init()
 }
 
-func (m Model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (common.Stackable, tea.Cmd) {
 	var cmd tea.Cmd
 	m.confirmation, cmd = m.confirmation.Update(msg)
 	return m, cmd
 }
 
-func (m Model) View() string {
-	return m.confirmation.View()
+func (m Model) View() *lipgloss.Layer {
+	return lipgloss.NewLayer(m.confirmation.View())
 }
 
 func NewModel(context *context.MainContext) Model {

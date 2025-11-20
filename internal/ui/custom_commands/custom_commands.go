@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/menu"
@@ -76,7 +77,7 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (common.Stackable, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.menu.List.SettingFilter() {
@@ -106,7 +107,7 @@ func (m *Model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *Model) View() string {
+func (m *Model) View() *lipgloss.Layer {
 	return m.menu.View()
 }
 

@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/common/menu"
 
 	"charm.land/bubbles/v2/key"
@@ -102,7 +103,7 @@ func (m *Model) Init() tea.Cmd {
 	return tea.Batch(m.loadAll, m.loadMovables)
 }
 
-func (m *Model) filtered(filter string) (common.SubModel, tea.Cmd) {
+func (m *Model) filtered(filter string) (common.Stackable, tea.Cmd) {
 	return m, m.menu.Filtered(filter)
 }
 
@@ -187,7 +188,7 @@ func (m *Model) loadAll() tea.Msg {
 	}
 }
 
-func (m *Model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (common.Stackable, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.menu.List.SettingFilter() {
@@ -251,7 +252,7 @@ func itemSorter(a list.Item, b list.Item) int {
 	return ib.dist - ia.dist
 }
 
-func (m *Model) View() string {
+func (m *Model) View() *lipgloss.Layer {
 	return m.menu.View()
 }
 

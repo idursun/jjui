@@ -192,12 +192,21 @@ func (m *Menu) renderTitle() []string {
 	return titleView
 }
 
-func (m *Menu) View() string {
-	views := m.renderTitle()
-	views = append(views, "", m.renderFilterView())
-	views = append(views, m.List.View())
-	content := lipgloss.JoinVertical(0, views...)
-	content = lipgloss.Place(m.width, m.height, 0, 0, content)
-	content = m.styles.text.Width(m.width).Height(m.height).Render(content)
-	return m.styles.border.Render(content)
+func (m *Menu) View() *lipgloss.Layer {
+	title := lipgloss.NewLayer(m.renderTitle())
+	filterView := lipgloss.NewLayer(m.renderFilterView()).Y(title.GetHeight() + title.GetY())
+	listView := lipgloss.NewLayer(m.List.View()).Y(filterView.GetHeight() + filterView.GetY())
+	contentBounds := title.Bounds().Union(filterView.Bounds()).Union(listView.Bounds()).Inset(-1)
+
+	border := lipgloss.NewLayer(m.styles.border.Width(contentBounds.Dx()).Height(contentBounds.Dy()).Render("")).
+		Width(contentBounds.Dx()).
+		Height(contentBounds.Dy())
+	return border.AddLayers(title, filterView, listView)
+	//views := m.renderTitle()
+	//views = append(views, "", m.renderFilterView())
+	//views = append(views, m.List.View())
+	//content := lipgloss.JoinVertical(0, views...)
+	//content = lipgloss.Place(m.width, m.height, 0, 0, content)
+	//content = m.styles.text.Width(m.width).Height(m.height).Render(content)
+	//return m.styles.border.Render(content)
 }

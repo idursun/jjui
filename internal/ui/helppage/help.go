@@ -29,7 +29,7 @@ type helpMenu struct {
 	rightList     menuColumn
 }
 
-var _ common.SubModel = (*Model)(nil)
+var _ common.Stackable = (*Model)(nil)
 
 type Model struct {
 	width        int
@@ -78,7 +78,7 @@ func (h *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (h *Model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
+func (h *Model) Update(msg tea.Msg) (common.Stackable, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -94,10 +94,10 @@ func (h *Model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	return h, cmd
 }
 
-func (h *Model) View() string {
+func (h *Model) View() *lipgloss.Layer {
 	// NOTE: add new lines between search bar and help menu
 	content := "\n\n" + h.renderMenu()
-	return h.styles.border.Render(h.searchQuery.View(), content)
+	return lipgloss.NewLayer(h.styles.border.Render(h.searchQuery.View(), content))
 }
 
 func (h *Model) filterMenu() {
