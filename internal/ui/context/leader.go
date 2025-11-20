@@ -3,8 +3,8 @@ package context
 import (
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	"github.com/BurntSushi/toml"
-	"github.com/charmbracelet/bubbles/key"
 )
 
 type LeaderMap = map[string]*Leader

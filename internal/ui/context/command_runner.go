@@ -11,7 +11,7 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/charmbracelet/bubbletea"
+	"charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/ui/common"
 )
 

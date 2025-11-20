@@ -4,10 +4,10 @@ package helppage
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -28,6 +28,8 @@ type helpMenu struct {
 	middleList    menuColumn
 	rightList     menuColumn
 }
+
+var _ common.SubModel = (*Model)(nil)
 
 type Model struct {
 	width        int
@@ -76,7 +78,7 @@ func (h *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (h *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (h *Model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -92,11 +94,16 @@ func (h *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return h, cmd
 }
 
-func (h *Model) View() string {
+func (h *Model) View(frame common.Rectangle) *lipgloss.Layer {
 	// NOTE: add new lines between search bar and help menu
 	content := "\n\n" + h.renderMenu()
+	layer := lipgloss.NewLayer(h.styles.border.Render(h.searchQuery.View(), content)).
+		X(frame.X).
+		Y(frame.Y).
+		Height(frame.Height).
+		Width(frame.Width)
 
-	return h.styles.border.Render(h.searchQuery.View(), content)
+	return layer
 }
 
 func (h *Model) filterMenu() {
@@ -157,9 +164,9 @@ func New(context *context.MainContext) *Model {
 	filter := textinput.New()
 	filter.Prompt = "Search: "
 	filter.Placeholder = "Type to filter..."
-	filter.PromptStyle = styles.shortcut.PaddingLeft(3)
-	filter.TextStyle = styles.text
-	filter.Cursor.Style = styles.text
+	//filter.PromptStyle = styles.shortcut.PaddingLeft(3)
+	//filter.TextStyle = styles.text
+	//filter.Cursor.Style = styles.text
 	filter.CharLimit = 80
 	filter.Focus()
 

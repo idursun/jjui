@@ -3,13 +3,15 @@ package menu
 import (
 	"fmt"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 )
+
+//var _ common.SubModel = (*Menu)(nil)
 
 type Menu struct {
 	List          list.Model
@@ -88,8 +90,8 @@ func NewMenu(items []list.Item, width int, height int, keyMap config.KeyMappings
 	l.Styles.PaginationStyle = m.styles.title.Width(10)
 	l.Styles.ActivePaginationDot = m.styles.title
 	l.Styles.InactivePaginationDot = m.styles.title
-	l.FilterInput.PromptStyle = m.styles.matched
-	l.FilterInput.Cursor.Style = m.styles.text
+	//l.FilterInput.PromptStyle = m.styles.matched
+	//l.FilterInput.Cursor.Style = m.styles.text
 
 	m.List = l
 	m.SetWidth(width)
@@ -190,12 +192,12 @@ func (m *Menu) renderTitle() []string {
 	return titleView
 }
 
-func (m *Menu) View() string {
+func (m *Menu) View() *lipgloss.Layer {
 	views := m.renderTitle()
 	views = append(views, "", m.renderFilterView())
 	views = append(views, m.List.View())
 	content := lipgloss.JoinVertical(0, views...)
 	content = lipgloss.Place(m.width, m.height, 0, 0, content)
 	content = m.styles.text.Width(m.width).Height(m.height).Render(content)
-	return m.styles.border.Render(content)
+	return lipgloss.NewLayer(m.styles.border.Render(content))
 }

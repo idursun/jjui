@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 type MenuItem interface {
@@ -72,11 +72,11 @@ func (l MenuItemDelegate) Render(w io.Writer, m list.Model, index int, item list
 	} else {
 		titleLine = titleStyle.PaddingLeft(1).Render(title)
 	}
-	titleLine = lipgloss.PlaceHorizontal(m.Width()+2, 0, titleLine, lipgloss.WithWhitespaceBackground(titleStyle.GetBackground()))
+	titleLine = lipgloss.PlaceHorizontal(m.Width()+2, 0, titleLine, lipgloss.WithWhitespaceStyle(titleStyle))
 
 	descStyle = descStyle.PaddingLeft(1).PaddingRight(1).Width(m.Width() + 2)
 	descLine := descStyle.Render(desc)
-	descLine = lipgloss.PlaceHorizontal(m.Width()+2, 0, descLine, lipgloss.WithWhitespaceBackground(titleStyle.GetBackground()))
+	descLine = lipgloss.PlaceHorizontal(m.Width()+2, 0, descLine, lipgloss.WithWhitespaceStyle(titleStyle))
 
 	rendered := lipgloss.JoinVertical(lipgloss.Left, titleLine, descLine)
 	_, _ = fmt.Fprint(w, rendered)

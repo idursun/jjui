@@ -3,7 +3,7 @@ package helppage
 import (
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 func (h *Model) calculateMaxHeight() int {

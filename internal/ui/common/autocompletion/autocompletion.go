@@ -3,9 +3,9 @@ package autocompletion
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
@@ -73,8 +73,8 @@ func New(provider CompletionProvider, options ...Option) *AutoCompletionInput {
 		// applies default style
 		WithStylePrefix("")(m)
 	}
-	m.TextInput.TextStyle = m.Styles.Text
-	m.TextInput.PlaceholderStyle = m.Styles.Dimmed
+	//m.TextInput.TextStyle = m.Styles.Text
+	//m.TextInput.PlaceholderStyle = m.Styles.Dimmed
 	return m
 }
 
@@ -108,13 +108,13 @@ func (ac *AutoCompletionInput) Update(msg tea.Msg) (*AutoCompletionInput, tea.Cm
 
 	var cmd tea.Cmd
 
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.Type {
-		case tea.KeyTab:
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.Key().String() {
+		case "tab":
 			ac.tabCompletionActive = true
 			ac.cycleCompletion(1)
 			return ac, cmd
-		case tea.KeyShiftTab:
+		case "shift+tab":
 			ac.tabCompletionActive = true
 			ac.cycleCompletion(-1)
 			return ac, cmd

@@ -3,9 +3,9 @@ package confirmation
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 )
@@ -30,6 +30,8 @@ type Styles struct {
 	Dimmed   lipgloss.Style
 	Text     lipgloss.Style
 }
+
+var _ common.SubModel = (*Model)(nil)
 
 type Model struct {
 	options     []option
@@ -125,7 +127,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Model) View() string {
+func (m *Model) View(frame common.Rectangle) *lipgloss.Layer {
 	w := strings.Builder{}
 	for i, message := range m.messages {
 		w.WriteString(m.Styles.Text.PaddingLeft(1).Render(message))
@@ -142,8 +144,8 @@ func (m *Model) View() string {
 	}
 	content := w.String()
 	width, height := lipgloss.Size(content)
-	content = lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content, lipgloss.WithWhitespaceBackground(m.Styles.Text.GetBackground()))
-	return m.Styles.Border.Render(content)
+	content = lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content, lipgloss.WithWhitespaceStyle(m.Styles.Text))
+	return lipgloss.NewLayer(m.Styles.Border.Render(content))
 }
 
 // getStyleKey prefixes the key with the style prefix if one is set

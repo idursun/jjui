@@ -3,7 +3,7 @@ package config
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
+	"charm.land/bubbles/v2/key"
 )
 
 func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
