@@ -242,7 +242,7 @@ func (m *Model) View() *lipgloss.Layer {
 	ret = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), commandStatusMark, ret)
 	//height := lipgloss.Height(ret)
 	//return lipgloss.NewLayer() lipgloss.Place(m.width, height, 0, 0, ret, lipgloss.WithWhitespaceStyle(m.styles.text))
-	return lipgloss.NewLayer(ret)
+	return lipgloss.NewLayer("status", ret)
 }
 
 func (m *Model) SetHelp(keyMap help.KeyMap) {

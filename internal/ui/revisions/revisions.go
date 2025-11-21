@@ -562,9 +562,9 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 func (m *Model) View(frame uv.Rectangle) *lipgloss.Layer {
 	if len(m.rows) == 0 {
 		if m.isLoading {
-			return lipgloss.NewLayer(lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading"))
+			return lipgloss.NewLayer("revisions", lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading"))
 		}
-		return lipgloss.NewLayer(lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "(no matching revisions)"))
+		return lipgloss.NewLayer("revisions", lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "(no matching revisions)"))
 	}
 
 	if config.Current.UI.Tracer.Enabled {
@@ -579,7 +579,7 @@ func (m *Model) View(frame uv.Rectangle) *lipgloss.Layer {
 
 	output := m.renderer.Render(m.cursor)
 	output = m.textStyle.MaxWidth(m.Width).Render(output)
-	return lipgloss.NewLayer(lipgloss.Place(m.Width, m.Height, 0, 0, output))
+	return lipgloss.NewLayer("revision", lipgloss.Place(m.Width, m.Height, 0, 0, output))
 }
 
 func (m *Model) load(revset string, selectedRevision string) tea.Cmd {

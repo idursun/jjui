@@ -210,7 +210,7 @@ func findMatchedPrefix(input, suggestion string) string {
 
 func (ac *AutoCompletionInput) View() (*lipgloss.Layer, *lipgloss.Layer) {
 	var builder strings.Builder
-	layer := lipgloss.NewLayer(ac.TextInput.View())
+	layer := lipgloss.NewLayer("input", ac.TextInput.View())
 
 	//builder.WriteString(ac.TextInput.View())
 
@@ -244,7 +244,7 @@ func (ac *AutoCompletionInput) View() (*lipgloss.Layer, *lipgloss.Layer) {
 	} else if ac.TextInput.Value() != "" {
 		builder.WriteString(ac.Styles.Dimmed.Render("\nNo suggestions"))
 	}
-	completionLayer := lipgloss.NewLayer(builder.String()).Z(2)
+	completionLayer := lipgloss.NewLayer("completion", builder.String()).Z(2)
 
 	return layer, completionLayer
 }

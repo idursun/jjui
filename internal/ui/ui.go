@@ -322,14 +322,14 @@ func (m Model) View() tea.View {
 	footer := m.status.View()
 
 	if m.diff != nil {
-		m.diff.SetHeight(m.Height - footer.GetHeight())
+		m.diff.SetHeight(m.Height - footer.Bounds().Dy())
 		//return tea.NewView(lipgloss.JoinVertical(0, m.diff.View(), footer))
 		v.SetContent(m.diff.View())
 		return v
 	}
 
 	topView := m.revsetModel.View(uv.Rect(0, 0, m.Width, 2))
-	topViewHeight := topView.GetHeight()
+	topViewHeight := topView.Bounds().Dy()
 
 	m.UpdatePreviewPosition()
 
@@ -337,7 +337,7 @@ func (m Model) View() tea.View {
 	if m.previewModel.Visible() && m.previewModel.AtBottom() {
 		bottomPreviewHeight = int(float64(m.Height) * (m.previewModel.WindowPercentage() / 100.0))
 	}
-	leftView := m.renderLeftView(footer.GetHeight(), topViewHeight, bottomPreviewHeight)
+	leftView := m.renderLeftView(footer.Bounds().Dy(), topViewHeight, bottomPreviewHeight)
 	centerView := leftView
 
 	if m.previewModel.Visible() {
@@ -345,8 +345,8 @@ func (m Model) View() tea.View {
 			m.previewModel.SetWidth(m.Width)
 			m.previewModel.SetHeight(bottomPreviewHeight)
 		} else {
-			m.previewModel.SetWidth(m.Width - leftView.GetWidth())
-			m.previewModel.SetHeight(m.Height - footer.GetHeight() - topViewHeight)
+			m.previewModel.SetWidth(m.Width - leftView.Bounds().Dy())
+			m.previewModel.SetHeight(m.Height - footer.Bounds().Dy() - topViewHeight)
 		}
 		//previewView := m.previewModel.View()
 		//if m.previewModel.AtBottom() {
@@ -356,23 +356,30 @@ func (m Model) View() tea.View {
 		//}
 	}
 
-	centerView = centerView.X(0).Y(topView.GetHeight())
-	footer = footer.X(0).Y(centerView.GetHeight() + centerView.GetY())
-	c := lipgloss.NewCanvas(topView.X(0).Y(0), centerView, footer)
+	centerView = centerView.X(0).Y(topView.Bounds().Dy())
+	footer = footer.X(0).Y(centerView.Bounds().Dy() + centerView.GetY())
+	//c := lipgloss.NewCanvas(topView.X(0).Y(0), centerView, footer)
+	c := lipgloss.NewCanvas(m.Width, m.Height)
+	c.Compose(topView)
+	c.Compose(centerView)
+	c.Compose(footer)
+
 	if m.stacked != nil {
 		stackedView := m.stacked.View()
-		//w, h := stackedView.GetWidth(), stackedView.GetHeight()
-		//sx := (m.Width - w) / 2
-		//sy := (m.Height - h) / 2
+		w, h := stackedView.Bounds().Dx(), stackedView.Bounds().Dy()
+		sx := (m.Width - w) / 2
+		sy := (m.Height - h) / 2
 
 		//var container lipgloss.Layer
 		//container.AddLayers(stackedView).X(0).Y(5).Z(10).Height(m.Height)
-		c.AddLayers(stackedView.X(10).Y(10).Z(10))
+		c.Compose(stackedView.X(sx).Y(sy).Z(10))
 	}
 
 	//full := lipgloss.JoinVertical(0, c.Render(), centerView, footer)
 	flashMessages := m.flash.View(m.Width, m.Height)
-	c.AddLayers(flashMessages...)
+	for i := range flashMessages {
+		c.Compose(flashMessages[i])
+	}
 	//statusFuzzyView := m.status.FuzzyView()
 	//if statusFuzzyView != "" {
 	//	_, mh := lipgloss.Size(statusFuzzyView)

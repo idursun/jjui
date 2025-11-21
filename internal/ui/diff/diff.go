@@ -49,7 +49,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 }
 
 func (m *Model) View() *lipgloss.Layer {
-	return lipgloss.NewLayer(m.view.View())
+	return lipgloss.NewLayer("diff", m.view.View())
 }
 
 func New(output string, width int, height int) *Model {

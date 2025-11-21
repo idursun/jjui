@@ -100,7 +100,7 @@ func (m *Model) updateSelection() tea.Cmd {
 
 func (m *Model) View(frame uv.Rectangle) *lipgloss.Layer {
 	if m.rows == nil {
-		return lipgloss.NewLayer(lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading"))
+		return lipgloss.NewLayer("oplog", lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading"))
 	}
 
 	m.renderer.Reset()
@@ -108,7 +108,7 @@ func (m *Model) View(frame uv.Rectangle) *lipgloss.Layer {
 	m.renderer.SetHeight(m.Height)
 	content := m.renderer.Render(m.cursor)
 	content = lipgloss.PlaceHorizontal(m.Width, lipgloss.Left, content)
-	return lipgloss.NewLayer(content).Width(m.Width)
+	return lipgloss.NewLayer("oplog", content)
 }
 
 func (m *Model) load() tea.Cmd {

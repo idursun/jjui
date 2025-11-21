@@ -97,7 +97,7 @@ func (h *Model) Update(msg tea.Msg) (common.Stackable, tea.Cmd) {
 func (h *Model) View() *lipgloss.Layer {
 	// NOTE: add new lines between search bar and help menu
 	content := "\n\n" + h.renderMenu()
-	return lipgloss.NewLayer(h.styles.border.Render(h.searchQuery.View(), content))
+	return lipgloss.NewLayer("help", h.styles.border.Render(h.searchQuery.View(), content))
 }
 
 func (h *Model) filterMenu() {

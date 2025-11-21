@@ -33,7 +33,7 @@ func (m Model) Update(msg tea.Msg) (common.Stackable, tea.Cmd) {
 }
 
 func (m Model) View() *lipgloss.Layer {
-	return lipgloss.NewLayer(m.confirmation.View())
+	return lipgloss.NewLayer("redo", m.confirmation.View())
 }
 
 func NewModel(context *context.MainContext) Model {

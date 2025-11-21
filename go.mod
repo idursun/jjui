@@ -5,7 +5,7 @@ go 1.24.2
 require (
 	charm.land/bubbles/v2 v2.0.0-rc.1
 	charm.land/bubbletea/v2 v2.0.0-rc.2
-	charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251106192539-4b304240aab7
+	charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251120233502-3b8d2655c5d1
 	github.com/BurntSushi/toml v1.5.0
 	github.com/sahilm/fuzzy v0.1.1
 	github.com/stretchr/testify v1.11.1

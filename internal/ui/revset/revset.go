@@ -176,17 +176,17 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 }
 
 func (m *Model) View(frame uv.Rectangle) *lipgloss.Layer {
-	header := lipgloss.NewLayer(m.styles.promptStyle.PaddingRight(1).Render("revset:"))
+	header := lipgloss.NewLayer("header", m.styles.promptStyle.PaddingRight(1).Render("revset:"))
 	if m.Editing {
 		view, completion := m.autoComplete.View()
-		header.AddLayers(view.X(header.GetWidth()), completion.Y(header.GetHeight()).X(0))
-		header.Height(view.GetHeight() + completion.GetHeight())
+		header.AddLayers(view.X(header.Bounds().Dx()), completion.Y(header.Bounds().Dy()).X(0))
+		//header.Height(view.Bounds().Dy() + completion.Bounds().Dy())
 	} else {
 		revset := m.context.DefaultRevset
 		if m.context.CurrentRevset != "" {
 			revset = m.context.CurrentRevset
 		}
-		header.AddLayers(lipgloss.NewLayer(m.styles.textStyle.Render(revset)).X(header.GetWidth()))
+		header.AddLayers(lipgloss.NewLayer("revset", m.styles.textStyle.Render(revset)).X(header.Bounds().Dx()))
 	}
 	return header
 }

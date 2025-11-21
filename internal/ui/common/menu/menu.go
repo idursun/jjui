@@ -185,22 +185,20 @@ func (m *Menu) renderKey(k key.Binding) string {
 }
 
 func (m *Menu) renderTitle() []string {
-	titleView := []string{m.styles.text.Width(m.width).Render(m.styles.title.Render(m.Title))}
+	titleView := []string{m.styles.title.Render(m.Title)}
 	if m.Subtitle != "" {
-		titleView = append(titleView, m.styles.text.Width(m.width).Render(m.styles.subtitle.Render(m.Subtitle)))
+		titleView = append(titleView, m.styles.subtitle.Render(m.Subtitle))
 	}
 	return titleView
 }
 
 func (m *Menu) View() *lipgloss.Layer {
-	title := lipgloss.NewLayer(m.renderTitle())
-	filterView := lipgloss.NewLayer(m.renderFilterView()).Y(title.GetHeight() + title.GetY())
-	listView := lipgloss.NewLayer(m.List.View()).Y(filterView.GetHeight() + filterView.GetY())
+	title := lipgloss.NewLayer("title", lipgloss.JoinHorizontal(0, m.renderTitle()...)).X(1)
+	filterView := lipgloss.NewLayer("filter", m.renderFilterView()).Y(title.Bounds().Dy()).X(1)
+	listView := lipgloss.NewLayer("list", m.List.View()).Y(filterView.Bounds().Max.Y).X(1)
 	contentBounds := title.Bounds().Union(filterView.Bounds()).Union(listView.Bounds()).Inset(-1)
 
-	border := lipgloss.NewLayer(m.styles.border.Width(contentBounds.Dx()).Height(contentBounds.Dy()).Render("")).
-		Width(contentBounds.Dx()).
-		Height(contentBounds.Dy())
+	border := lipgloss.NewLayer("border", m.styles.border.Width(contentBounds.Dx()).Height(contentBounds.Dy()).Render(""))
 	return border.AddLayers(title, filterView, listView)
 	//views := m.renderTitle()
 	//views = append(views, "", m.renderFilterView())

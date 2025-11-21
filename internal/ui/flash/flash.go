@@ -1,6 +1,7 @@
 package flash
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -69,16 +70,17 @@ func (m *Model) View(width int, height int) []*lipgloss.Layer {
 	y := height
 	for i := len(messages) - 1; i >= 0; i-- {
 		message := &messages[i]
+		layerId := fmt.Sprintf("flash message %d", message.id)
 		var layer *lipgloss.Layer
 		style := m.successStyle
 		if message.error != nil {
 			style = m.errorStyle
-			layer = lipgloss.NewLayer(style.Render(message.error.Error()))
+			layer = lipgloss.NewLayer(layerId, style.Render(message.error.Error()))
 		} else {
-			layer = lipgloss.NewLayer(style.Render(message.text))
+			layer = lipgloss.NewLayer(layerId, style.Render(message.text))
 		}
-		y -= layer.GetHeight()
-		layer = layer.X(width - layer.GetWidth()).Y(y).Z(4)
+		y -= layer.Bounds().Dy()
+		layer = layer.X(width - layer.Bounds().Dx()).Y(y).Z(4)
 		combined = append(combined, layer)
 	}
 	return combined
