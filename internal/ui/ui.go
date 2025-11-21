@@ -327,41 +327,45 @@ func (m Model) View() tea.View {
 		v.SetContent(m.diff.View())
 		return v
 	}
+	area := uv.Rect(0, 0, m.Width, m.Height)
 
 	topView := m.revsetModel.View(uv.Rect(0, 0, m.Width, 2))
 	topViewHeight := topView.Bounds().Dy()
+	topArea, centerArea := uv.SplitVertical(area, uv.Fixed(topViewHeight))
+	centerArea, footerArea := uv.SplitVertical(centerArea, uv.Fixed(centerArea.Bounds().Dy()-footer.Bounds().Dy()))
+
+	revisionsArea := centerArea
+	var previewArea uv.Rectangle
 
 	m.UpdatePreviewPosition()
 
-	bottomPreviewHeight := 0
-	if m.previewModel.Visible() && m.previewModel.AtBottom() {
-		bottomPreviewHeight = int(float64(m.Height) * (m.previewModel.WindowPercentage() / 100.0))
-	}
-	leftView := m.renderLeftView(footer.Bounds().Dy(), topViewHeight, bottomPreviewHeight)
-	centerView := leftView
-
+	var previewLayer *lipgloss.Layer
 	if m.previewModel.Visible() {
 		if m.previewModel.AtBottom() {
-			m.previewModel.SetWidth(m.Width)
-			m.previewModel.SetHeight(bottomPreviewHeight)
+			revisionsArea, previewArea = uv.SplitVertical(centerArea, uv.Percent(100-m.previewModel.WindowPercentage()))
 		} else {
-			m.previewModel.SetWidth(m.Width - leftView.Bounds().Dy())
-			m.previewModel.SetHeight(m.Height - footer.Bounds().Dy() - topViewHeight)
+			revisionsArea, previewArea = uv.SplitHorizontal(centerArea, uv.Percent(100-m.previewModel.WindowPercentage()))
 		}
-		//previewView := m.previewModel.View()
-		//if m.previewModel.AtBottom() {
-		//	centerView = lipgloss.JoinVertical(lipgloss.Top, leftView, previewView)
-		//} else {
-		//	centerView = lipgloss.JoinHorizontal(lipgloss.Left, leftView, previewView)
-		//}
+		m.previewModel.SetWidth(previewArea.Dx())
+		m.previewModel.SetHeight(previewArea.Dy())
+		previewLayer = m.previewModel.View().X(previewArea.Min.X).Y(previewArea.Min.Y)
+	}
+	var centerView *lipgloss.Layer
+	if m.oplog != nil {
+		centerView = m.oplog.View(revisionsArea)
+	} else {
+		centerView = m.revisions.View(revisionsArea)
 	}
 
-	centerView = centerView.X(0).Y(topView.Bounds().Dy())
-	footer = footer.X(0).Y(centerView.Bounds().Dy() + centerView.GetY())
-	//c := lipgloss.NewCanvas(topView.X(0).Y(0), centerView, footer)
+	centerView = centerView.X(centerArea.Min.X).Y(centerArea.Min.Y)
+	topView = topView.X(topArea.Min.X).Y(topArea.Min.Y)
+	footer = footer.X(footerArea.Min.X).Y(footerArea.Min.Y)
 	c := lipgloss.NewCanvas(m.Width, m.Height)
 	c.Compose(topView)
 	c.Compose(centerView)
+	if previewLayer != nil {
+		c.Compose(previewLayer)
+	}
 	c.Compose(footer)
 
 	if m.stacked != nil {
@@ -370,12 +374,9 @@ func (m Model) View() tea.View {
 		sx := (m.Width - w) / 2
 		sy := (m.Height - h) / 2
 
-		//var container lipgloss.Layer
-		//container.AddLayers(stackedView).X(0).Y(5).Z(10).Height(m.Height)
 		c.Compose(stackedView.X(sx).Y(sy).Z(10))
 	}
 
-	//full := lipgloss.JoinVertical(0, c.Render(), centerView, footer)
 	flashMessages := m.flash.View(m.Width, m.Height)
 	for i := range flashMessages {
 		c.Compose(flashMessages[i])
@@ -388,31 +389,6 @@ func (m Model) View() tea.View {
 	//c.AddLayers(lipgloss.NewLayer(lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Width(20).Height(3).Foreground(lipgloss.Red).Background(lipgloss.Green).Render("this is some overlay")).X(20).Y(10).Z(3))
 	v.SetContent(c)
 	return v
-}
-
-func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreviewHeight int) *lipgloss.Layer {
-	var leftView *lipgloss.Layer
-	w := m.Width
-	h := 0
-
-	if m.previewModel.Visible() {
-		if m.previewModel.AtBottom() {
-			h = bottomPreviewHeight
-		} else {
-			w = m.Width - int(float64(m.Width)*(m.previewModel.WindowPercentage()/100.0))
-		}
-	}
-
-	if m.oplog != nil {
-		m.oplog.SetWidth(w)
-		m.oplog.SetHeight(m.Height - footerHeight - topViewHeight - h)
-		leftView = m.oplog.View(uv.Rect(0, 0, w, m.Height-footerHeight-topViewHeight-h))
-	} else {
-		m.revisions.SetWidth(w)
-		m.revisions.SetHeight(m.Height - footerHeight - topViewHeight - h)
-		leftView = m.revisions.View(uv.Rect(0, 0, w, m.Height-footerHeight-topViewHeight-h))
-	}
-	return leftView
 }
 
 func (m Model) scheduleAutoRefresh() tea.Cmd {

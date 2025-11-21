@@ -560,6 +560,8 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 }
 
 func (m *Model) View(frame uv.Rectangle) *lipgloss.Layer {
+	m.SetWidth(frame.Dx())
+	m.SetHeight(frame.Dy())
 	if len(m.rows) == 0 {
 		if m.isLoading {
 			return lipgloss.NewLayer("revisions", lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading"))
@@ -578,8 +580,7 @@ func (m *Model) View(frame uv.Rectangle) *lipgloss.Layer {
 	m.renderer.selections = m.context.GetSelectedRevisions()
 
 	output := m.renderer.Render(m.cursor)
-	output = m.textStyle.MaxWidth(m.Width).Render(output)
-	return lipgloss.NewLayer("revision", lipgloss.Place(m.Width, m.Height, 0, 0, output))
+	return lipgloss.NewLayer("revision", output)
 }
 
 func (m *Model) load(revset string, selectedRevision string) tea.Cmd {

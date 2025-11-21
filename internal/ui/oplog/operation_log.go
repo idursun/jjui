@@ -99,6 +99,8 @@ func (m *Model) updateSelection() tea.Cmd {
 }
 
 func (m *Model) View(frame uv.Rectangle) *lipgloss.Layer {
+	m.SetWidth(frame.Dx())
+	m.SetHeight(frame.Dy())
 	if m.rows == nil {
 		return lipgloss.NewLayer("oplog", lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading"))
 	}

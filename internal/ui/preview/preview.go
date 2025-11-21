@@ -190,7 +190,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Model) View() string {
+func (m *Model) View() *lipgloss.Layer {
 	var w strings.Builder
 	scanner := bufio.NewScanner(strings.NewReader(m.content))
 	current := 0
@@ -209,7 +209,7 @@ func (m *Model) View() string {
 		}
 	}
 	view := lipgloss.Place(m.Width-2, m.Height-2, 0, 0, w.String())
-	return m.borderStyle.Render(view)
+	return lipgloss.NewLayer("preview", m.borderStyle.Render(view))
 }
 
 func (m *Model) reset() {
