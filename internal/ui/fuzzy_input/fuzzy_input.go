@@ -52,7 +52,7 @@ func (fzf *model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 		} else {
 			fzf.search(msg.Input)
 		}
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		return fzf, fzf.handleKey(msg)
 	}
 	return fzf, nil

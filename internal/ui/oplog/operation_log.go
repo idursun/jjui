@@ -67,7 +67,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case updateOpLogMsg:
 		m.rows = msg.Rows
 		m.renderer.Reset()
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keymap.Cancel):
 			return m, common.Close

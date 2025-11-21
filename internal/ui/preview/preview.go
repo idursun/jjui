@@ -160,7 +160,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.reset()
 		}
 		return m, nil
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Preview.ScrollDown):
 			if m.viewRange.end < m.contentLineCount {

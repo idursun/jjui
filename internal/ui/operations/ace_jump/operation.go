@@ -110,7 +110,7 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 
 func (o *Operation) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, o.keymap.Cancel):
 			o.aceJump = nil

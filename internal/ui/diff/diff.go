@@ -36,7 +36,7 @@ func (m *Model) SetHeight(h int) {
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keymap.Cancel):
 			return m, common.Close

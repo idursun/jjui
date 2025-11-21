@@ -84,7 +84,7 @@ func (fzf *fuzzyFiles) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 				newCmd(common.ShowPreview(true)),
 			)
 		}
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		return fzf, fzf.handleKey(msg)
 	}
 	return fzf, nil

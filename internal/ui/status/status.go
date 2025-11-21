@@ -125,7 +125,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		m.loadEditingSuggestions()
 		m.fuzzy, m.editStatus = fuzzy_files.NewModel(msg)
 		return m, tea.Batch(m.fuzzy.Init(), m.input.Focus())
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, km.Cancel) && m.IsFocused():
 			var cmd tea.Cmd

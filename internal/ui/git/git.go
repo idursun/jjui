@@ -120,7 +120,7 @@ func (m *Model) cycleRemotes(step int) tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (common.Stackable, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.menu.List.SettingFilter() {
 			break
 		}

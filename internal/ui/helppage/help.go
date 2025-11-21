@@ -82,7 +82,7 @@ func (h *Model) Update(msg tea.Msg) (common.Stackable, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, h.keyMap.Help), key.Matches(msg, h.keyMap.Cancel):
 			return h, common.Close

@@ -113,7 +113,7 @@ func (m *Model) SetHistory(history []string) {
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if !m.Editing {
 			return m, nil
 		}

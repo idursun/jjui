@@ -27,7 +27,7 @@ func (s *SetBookmarkOperation) IsEditing() bool {
 
 func (s *SetBookmarkOperation) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "esc":
 			return s, common.Close

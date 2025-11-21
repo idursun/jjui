@@ -154,7 +154,7 @@ func (o *Operation) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 		o.rows = msg.rows
 		o.cursor = 0
 		return o, o.updateSelection()
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		cmd := o.HandleKey(msg)
 		return o, cmd
 	}

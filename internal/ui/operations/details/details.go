@@ -106,7 +106,7 @@ func (s *Operation) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
 
 func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if s.confirmation != nil {
 			model, cmd := s.confirmation.Update(msg)
 			s.confirmation = model
