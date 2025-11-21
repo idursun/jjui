@@ -42,7 +42,7 @@ func (fzf *model) Init() tea.Cmd {
 	return newCmd(initMsg{})
 }
 
-func (fzf *model) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
+func (fzf *model) Update(msg tea.Msg) (common.Stackable, tea.Cmd) {
 	switch msg := msg.(type) {
 	case initMsg:
 		fzf.search("")
@@ -196,10 +196,10 @@ func (fzf *model) searchRegex(input string) fuzzy.Matches {
 	return matches
 }
 
-func (fzf *model) View() string {
+func (fzf *model) View() *lipgloss.Layer {
 	matches := len(fzf.matches)
 	if matches == 0 {
-		return ""
+		return nil
 	}
 	view := fuzzy_search.View(fzf)
 	title := fmt.Sprintf(
@@ -208,7 +208,7 @@ func (fzf *model) View() string {
 		strconv.Itoa(fzf.Len()),
 	)
 	title = fzf.styles.SelectedMatch.Render(title)
-	return lipgloss.JoinVertical(0, title, view)
+	return lipgloss.NewLayer("fuzzy_input", lipgloss.JoinVertical(0, title, view))
 }
 
 func (fzf *model) ShortHelp() []key.Binding {

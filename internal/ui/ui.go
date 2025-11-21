@@ -381,12 +381,11 @@ func (m Model) View() tea.View {
 	for i := range flashMessages {
 		c.Compose(flashMessages[i])
 	}
-	//statusFuzzyView := m.status.FuzzyView()
-	//if statusFuzzyView != "" {
-	//	_, mh := lipgloss.Size(statusFuzzyView)
-	//	full = screen.Stacked(full, statusFuzzyView, 0, m.Height-mh-1)
-	//}
-	//c.AddLayers(lipgloss.NewLayer(lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Width(20).Height(3).Foreground(lipgloss.Red).Background(lipgloss.Green).Render("this is some overlay")).X(20).Y(10).Z(3))
+	statusFuzzyView := m.status.FuzzyView()
+	if statusFuzzyView != nil {
+		mh := statusFuzzyView.Bounds().Dy()
+		c.Compose(statusFuzzyView.Y(m.Height - mh - 1).Z(5))
+	}
 	v.SetContent(c)
 	return v
 }

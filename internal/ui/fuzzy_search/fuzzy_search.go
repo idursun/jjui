@@ -21,7 +21,7 @@ type Styles struct {
 
 type Model interface {
 	fuzzy.Source
-	common.SubModel
+	common.Stackable
 	Max() int
 	Matches() fuzzy.Matches
 	SelectedMatch() int
@@ -72,7 +72,7 @@ func Update(model Model, msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func View(fzf Model) string {
-	shown := []string{}
+	var shown []string
 	max := fzf.Max()
 	styles := fzf.Styles()
 	selected := fzf.SelectedMatch()

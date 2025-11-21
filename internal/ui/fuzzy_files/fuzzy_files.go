@@ -58,7 +58,7 @@ func (fzf *fuzzyFiles) Init() tea.Cmd {
 	return newCmd(initMsg{})
 }
 
-func (fzf *fuzzyFiles) Update(msg tea.Msg) (common.SubModel, tea.Cmd) {
+func (fzf *fuzzyFiles) Update(msg tea.Msg) (common.Stackable, tea.Cmd) {
 	switch msg := msg.(type) {
 	case initMsg:
 		fzf.search("")
@@ -209,7 +209,7 @@ func (fzf *fuzzyFiles) search(input string) {
 	fzf.matches = src.Search(input, fzf.max)
 }
 
-func (fzf *fuzzyFiles) View() string {
+func (fzf *fuzzyFiles) View() *lipgloss.Layer {
 	shown := len(fzf.matches)
 	title := fzf.styles.SelectedMatch.Render(
 		"  ",
@@ -221,7 +221,7 @@ func (fzf *fuzzyFiles) View() string {
 		" ",
 	)
 	entries := fuzzy_search.View(fzf)
-	return lipgloss.JoinVertical(0, title, entries)
+	return lipgloss.NewLayer("fuzzy_files", lipgloss.JoinVertical(0, title, entries))
 }
 
 func joinBindings(help string, a key.Binding, b key.Binding) key.Binding {

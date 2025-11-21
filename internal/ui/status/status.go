@@ -68,9 +68,9 @@ func (m *Model) IsFocused() bool {
 	return m.editStatus != nil
 }
 
-func (m *Model) FuzzyView() string {
+func (m *Model) FuzzyView() *lipgloss.Layer {
 	if m.fuzzy == nil {
-		return ""
+		return nil
 	}
 	return m.fuzzy.View()
 }
