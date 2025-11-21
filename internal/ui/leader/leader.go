@@ -3,6 +3,7 @@ package leader
 import (
 	"maps"
 	"slices"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -49,7 +50,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case initMsg:
 		m.shown = contextEnabled(m.context, m.context.Leader)
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.cancel):
 			m.shown = nil
@@ -91,133 +92,58 @@ func contextEnabled(ctx *context.MainContext, bnds context.LeaderMap) context.Le
 }
 
 func sendCmds(strings []string) []tea.Cmd {
+	var keyPresses []tea.KeyPressMsg
+	for _, s := range strings {
+		if k, ok := parseKey(s); ok {
+			keyPresses = append(keyPresses, k)
+		} else {
+			for _, r := range s {
+				keyPresses = append(keyPresses, tea.KeyPressMsg{
+					Code: r,
+					Text: string(r),
+				})
+			}
+		}
+	}
 	var cmds []tea.Cmd
-	//send := func(k tea.Key) {
-	//	cmds = append(cmds, func() tea.Msg {
-	//		return tea.KeyMsg(k)
-	//	})
-	//}
-	//for _, s := range strings {
-	//	if k, ok := keyNames[s]; ok {
-	//		send(k)
-	//	} else {
-	//		for _, r := range s {
-	//			send(tea.Key{
-	//				Type:  tea.KeyRunes,
-	//				Runes: []rune{r},
-	//			})
-	//		}
-	//	}
-	//}
+	for _, k := range keyPresses {
+		cmds = append(cmds, func() tea.Msg {
+			return k
+		})
+	}
 	return cmds
 }
 
-// From bubbletea's key.go. So that we can identify by their string.
-// Notable Exception: tea.KeyRunes. Because we create them.
-var keyTypes = []rune{
-	// Control keys.
-	tea.KeyTab,
-	tea.KeyEnter,
-	tea.KeyEsc,
-	tea.KeyBackspace,
+func parseKey(keystroke string) (tea.KeyPressMsg, bool) {
+	var keyPress tea.KeyPressMsg
 
-	//tea.KeyCtrlAt,
-	//tea.KeyCtrlA,
-	//tea.KeyCtrlB,
-	//tea.KeyCtrlC,
-	//tea.KeyCtrlD,
-	//tea.KeyCtrlE,
-	//tea.KeyCtrlF,
-	//tea.KeyCtrlG,
-	//tea.KeyCtrlH,
-	//tea.KeyCtrlJ,
-	//tea.KeyCtrlK,
-	//tea.KeyCtrlL,
-	//tea.KeyCtrlN,
-	//tea.KeyCtrlO,
-	//tea.KeyCtrlP,
-	//tea.KeyCtrlQ,
-	//tea.KeyCtrlR,
-	//tea.KeyCtrlS,
-	//tea.KeyCtrlT,
-	//tea.KeyCtrlU,
-	//tea.KeyCtrlV,
-	//tea.KeyCtrlW,
-	//tea.KeyCtrlX,
-	//tea.KeyCtrlY,
-	//tea.KeyCtrlZ,
-	//
-	//tea.KeyCtrlCloseBracket,
-	//tea.KeyCtrlCaret,
-	//tea.KeyCtrlUnderscore,
-	//tea.KeyCtrlBackslash,
-
-	// Other keys.
-	tea.KeyUp,
-	tea.KeyDown,
-	tea.KeyRight,
-	tea.KeySpace,
-	tea.KeyLeft,
-	//tea.KeyShiftTab,
-	tea.KeyHome,
-	tea.KeyEnd,
-	//tea.KeyCtrlHome,
-	//tea.KeyCtrlEnd,
-	//tea.KeyShiftHome,
-	//tea.KeyShiftEnd,
-	//tea.KeyCtrlShiftHome,
-	//tea.KeyCtrlShiftEnd,
-	tea.KeyPgUp,
-	tea.KeyPgDown,
-	//tea.KeyCtrlPgUp,
-	//tea.KeyCtrlPgDown,
-	tea.KeyDelete,
-	tea.KeyInsert,
-	//tea.KeyCtrlUp,
-	//tea.KeyCtrlDown,
-	//tea.KeyCtrlRight,
-	//tea.KeyCtrlLeft,
-	//tea.KeyShiftUp,
-	//tea.KeyShiftDown,
-	//tea.KeyShiftRight,
-	//tea.KeyShiftLeft,
-	//tea.KeyCtrlShiftUp,
-	//tea.KeyCtrlShiftDown,
-	//tea.KeyCtrlShiftLeft,
-	//tea.KeyCtrlShiftRight,
-	tea.KeyF1,
-	tea.KeyF2,
-	tea.KeyF3,
-	tea.KeyF4,
-	tea.KeyF5,
-	tea.KeyF6,
-	tea.KeyF7,
-	tea.KeyF8,
-	tea.KeyF9,
-	tea.KeyF10,
-	tea.KeyF11,
-	tea.KeyF12,
-	tea.KeyF13,
-	tea.KeyF14,
-	tea.KeyF15,
-	tea.KeyF16,
-	tea.KeyF17,
-	tea.KeyF18,
-	tea.KeyF19,
-	tea.KeyF20,
+	parts := strings.Split(keystroke, "+")
+	for i, part := range parts {
+		switch part {
+		case "ctrl":
+			keyPress.Mod |= tea.ModCtrl
+		case "alt":
+			keyPress.Mod |= tea.ModAlt
+		case "shift":
+			keyPress.Mod |= tea.ModShift
+		case "enter":
+			keyPress.Code = tea.KeyEnter
+		case "tab":
+			keyPress.Code = tea.KeyTab
+		case "backspace":
+			keyPress.Code = tea.KeyBackspace
+		case "delete":
+			keyPress.Code = tea.KeyDelete
+		case "space":
+			keyPress.Code = tea.KeySpace
+		default:
+			if i == len(parts)-1 && len(part) == 1 {
+				keyPress.Code = rune(part[0])
+				keyPress.Text = part
+			} else {
+				return keyPress, false
+			}
+		}
+	}
+	return keyPress, true
 }
-
-//func keysFromTypes() map[string]tea.Key {
-//	m := map[string]tea.Key{}
-//	set := func(t tea.Key) {
-//		m[t.String()] = tea.Key{
-//			Code: t,
-//		}
-//	}
-//	for _, t := range keyTypes {
-//		set(t)
-//	}
-//	return m
-//}
-//
-//var keyNames = keysFromTypes()
