@@ -214,6 +214,7 @@ func (h *Model) buildRightGroups() menuColumn {
 			h.newModeItem(&h.keyMap.OpLog.Mode, "Oplog"),
 			h.newBindingItem(h.keyMap.Diff),
 			h.newBindingItem(h.keyMap.OpLog.Restore),
+			h.newBindingItem(h.keyMap.OpLog.Revert),
 			helpItem{"", ""},
 		},
 
