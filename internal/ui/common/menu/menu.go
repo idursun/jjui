@@ -169,15 +169,22 @@ func (m *Menu) renderTitle() []string {
 
 func (m *Menu) View() string {
 	views := m.renderTitle()
-	views = append(views, "", m.renderFilterView())
+	// one empty line for padding between title and content
+	views = append(views, "")
+
+	// Calculate remaining height for the list
 	remainingHeight := m.Height
 	for i := range views {
 		remainingHeight -= lipgloss.Height(views[i])
 	}
+	// reserve space for filter view
+	remainingHeight -= 1
 
+	// set list dimensions before rendering filter view so pagination calculates correctly
 	m.List.SetWidth(m.Width - 2)
 	m.List.SetHeight(remainingHeight)
 
+	views = append(views, m.renderFilterView())
 	views = append(views, m.List.View())
 	content := lipgloss.JoinVertical(0, views...)
 	content = lipgloss.Place(m.Width, m.Height, 0, 0, content)

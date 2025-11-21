@@ -74,6 +74,9 @@ func (m *Model) ShortHelp() []key.Binding {
 		m.keymap.Git.Push,
 		m.keymap.Git.Fetch,
 		m.menu.List.KeyMap.Filter,
+		key.NewBinding(
+			key.WithKeys("tab/shift+tab"),
+			key.WithHelp("tab/shift+tab", "cycle remotes")),
 	}
 }
 
