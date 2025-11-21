@@ -12,8 +12,10 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations"
 )
 
-var _ operations.Operation = (*Operation)(nil)
-var _ common.Editable = (*Operation)(nil)
+var (
+	_ operations.Operation = (*Operation)(nil)
+	_ common.Editable      = (*Operation)(nil)
+)
 
 type Operation struct {
 	model   *confirmation.Model
@@ -40,7 +42,13 @@ func (a *Operation) View() string {
 }
 
 func (a *Operation) ShortHelp() []key.Binding {
-	return a.model.ShortHelp()
+	baseHelp := a.model.ShortHelp()
+
+	additionalHelp := key.NewBinding(
+		key.WithKeys("alt+enter"),
+		key.WithHelp("alt+enter", "force apply"),
+	)
+	return append(baseHelp, additionalHelp)
 }
 
 func (a *Operation) FullHelp() [][]key.Binding {
