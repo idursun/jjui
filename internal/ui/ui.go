@@ -314,13 +314,18 @@ func (m Model) UpdatePreviewPosition() {
 }
 
 func (m Model) View() tea.View {
+	var v tea.View
+	v.AltScreen = true
+	v.ReportFocus = true
+
 	m.updateStatus()
 	footer := m.status.View()
 
 	if m.diff != nil {
 		m.diff.SetHeight(m.Height - footer.GetHeight())
 		//return tea.NewView(lipgloss.JoinVertical(0, m.diff.View(), footer))
-		return tea.NewView(lipgloss.JoinVertical(0, m.diff.View()))
+		v.SetContent(m.diff.View())
+		return v
 	}
 
 	topView := m.revsetModel.View(uv.Rect(0, 0, m.Width, 2))
@@ -374,9 +379,6 @@ func (m Model) View() tea.View {
 	//	full = screen.Stacked(full, statusFuzzyView, 0, m.Height-mh-1)
 	//}
 	//c.AddLayers(lipgloss.NewLayer(lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Width(20).Height(3).Foreground(lipgloss.Red).Background(lipgloss.Green).Render("this is some overlay")).X(20).Y(10).Z(3))
-	var v tea.View
-	v.AltScreen = true
-	v.ReportFocus = true
 	v.SetContent(c)
 	return v
 }

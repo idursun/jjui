@@ -6,6 +6,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 )
@@ -47,8 +48,8 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *Model) View() string {
-	return m.view.View()
+func (m *Model) View() *lipgloss.Layer {
+	return lipgloss.NewLayer(m.view.View())
 }
 
 func New(output string, width int, height int) *Model {
