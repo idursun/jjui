@@ -67,7 +67,7 @@ func (m *Model) View(width int, height int) []*lipgloss.Layer {
 	}
 
 	var combined []*lipgloss.Layer
-	y := height
+	y := height - 1
 	for i := len(messages) - 1; i >= 0; i-- {
 		message := &messages[i]
 		layerId := fmt.Sprintf("flash message %d", message.id)
