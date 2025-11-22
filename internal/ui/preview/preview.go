@@ -38,7 +38,7 @@ type Model struct {
 	borderStyle             lipgloss.Style
 }
 
-const DebounceTime = 200 * time.Millisecond
+const DebounceTime = 50 * time.Millisecond
 
 type previewMsg struct {
 	msg tea.Msg

@@ -200,11 +200,4 @@ func (m *Menu) View() *lipgloss.Layer {
 
 	border := lipgloss.NewLayer("border", m.styles.border.Width(contentBounds.Dx()).Height(contentBounds.Dy()).Render(""))
 	return border.AddLayers(title, filterView, listView)
-	//views := m.renderTitle()
-	//views = append(views, "", m.renderFilterView())
-	//views = append(views, m.List.View())
-	//content := lipgloss.JoinVertical(0, views...)
-	//content = lipgloss.Place(m.width, m.height, 0, 0, content)
-	//content = m.styles.text.Width(m.width).Height(m.height).Render(content)
-	//return m.styles.border.Render(content)
 }
