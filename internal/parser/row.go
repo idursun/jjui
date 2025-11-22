@@ -164,13 +164,6 @@ func (row *Row) AddLine(line *GraphRowLine) {
 		if line.containsRune('~') {
 			line.Flags = Elided
 		} else {
-			if row.Commit.CommitId == "" {
-				commitIdIdx := line.FindPossibleCommitIdIdx(0)
-				if commitIdIdx != -1 {
-					row.Commit.CommitId = line.Segments[commitIdIdx].Text
-					line.Flags = Revision | Highlightable
-				}
-			}
 			lastLine := row.Lines[len(row.Lines)-1]
 			line.Flags = lastLine.Flags & ^Revision & ^Elided
 		}
@@ -187,18 +180,9 @@ func (row *Row) Last(flag RowLineFlags) *GraphRowLine {
 	return &GraphRowLine{}
 }
 
-func isChangeIdLike(s string) bool {
+func isChangeIDLike(s string) bool {
 	for _, r := range s {
 		if !unicode.IsLetter(r) {
-			return false
-		}
-	}
-	return true
-}
-
-func isHexLike(s string) bool {
-	for _, r := range s {
-		if !unicode.Is(unicode.Hex_Digit, r) {
 			return false
 		}
 	}

@@ -42,7 +42,9 @@ func Log(revset string, limit int) CommandArgs {
 		args = append(args, "--limit", strconv.Itoa(limit))
 	}
 	if config.Current.Revisions.Template != "" {
-		args = append(args, "-T", config.Current.Revisions.Template)
+		prefix := "change_id.shortest(), commit_id.shortest(), divergent"
+		template := fmt.Sprintf("separate('',  %s, %s)", prefix, config.Current.Revisions.Template)
+		args = append(args, "-T", template)
 	}
 	return args
 }
