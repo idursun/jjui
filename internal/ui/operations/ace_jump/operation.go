@@ -69,10 +69,11 @@ func (o *Operation) aceJumpIndex(text string, row parser.Row) int {
 	if aceJumpPrefix == nil || row.Commit == nil {
 		return -1
 	}
-	if !(text == row.Commit.ChangeId || text == row.Commit.CommitId) {
+	lowerText := strings.ToLower(text)
+	if !(lowerText == strings.ToLower(row.Commit.ChangeId) || lowerText == strings.ToLower(row.Commit.CommitId)) {
 		return -1
 	}
-	lowerText, lowerPrefix := strings.ToLower(text), strings.ToLower(*aceJumpPrefix)
+	lowerPrefix := strings.ToLower(*aceJumpPrefix)
 	if !strings.HasPrefix(lowerText, lowerPrefix) {
 		return -1
 	}
