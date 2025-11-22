@@ -12,6 +12,7 @@ import (
 	"runtime/debug"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/common"
 
 	"github.com/idursun/jjui/internal/config"
@@ -146,9 +147,7 @@ func main() {
 	}
 
 	var theme map[string]config.Color
-	var hasDarkBg bool
-	//hasDarkBg = lipgloss.HasDarkBackground()
-	hasDarkBg = true
+	hasDarkBg := lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
 
 	var defaultThemeName string
 	if hasDarkBg {
