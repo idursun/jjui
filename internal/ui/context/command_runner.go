@@ -24,9 +24,13 @@ type CommandRunner interface {
 
 type MainCommandRunner struct {
 	Location string
+	lock     sync.Mutex
 }
 
 func (a *MainCommandRunner) RunCommandImmediate(args []string) ([]byte, error) {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+
 	c := exec.Command("jj", args...)
 	c.Dir = a.Location
 	if output, err := c.Output(); err != nil {
@@ -66,6 +70,9 @@ func (a *MainCommandRunner) RunCommand(args []string, continuations ...tea.Cmd) 
 	commands := make([]tea.Cmd, 0)
 	commands = append(commands,
 		func() tea.Msg {
+			a.lock.Lock()
+			defer a.lock.Unlock()
+
 			if !slices.Contains(args, "--color") {
 				args = append([]string{"--color", "always"}, args...)
 			}
@@ -97,15 +104,18 @@ func (a *MainCommandRunner) RunInteractiveCommand(args []string, continuation te
 	errBuffer := &bytes.Buffer{}
 	c.Stderr = errBuffer
 	c.Dir = a.Location
-	return tea.Batch(
+	a.lock.Lock()
+
+	return tea.Sequence(
 		common.CommandRunning(args),
 		tea.ExecProcess(c, func(err error) tea.Msg {
+			defer a.lock.Unlock()
+
 			if err != nil {
 				return common.CommandCompletedMsg{Err: errors.New(errBuffer.String())}
+			} else {
+				return common.CommandCompletedMsg{Err: nil, Continuation: continuation}
 			}
-			return tea.Batch(continuation, func() tea.Msg {
-				return common.CommandCompletedMsg{Err: nil}
-			})()
 		}),
 	)
 }
@@ -120,13 +130,13 @@ type StreamingCommand struct {
 
 func (c *StreamingCommand) Close() error {
 	var err error
+	pipeErr := c.ReadCloser.Close()
 	c.once.Do(func() {
 		log.Println("closing streaming command")
-		pipeErr := c.ReadCloser.Close()
 
 		if c.ctx.Err() != nil {
 			log.Println("killing process due to context cancellation")
-			if killErr := c.cmd.Process.Kill(); killErr != nil {
+			if killErr := c.cmd.Process.Kill(); killErr != nil && !errors.Is(killErr, os.ErrProcessDone) {
 				err = killErr
 				return
 			}
@@ -142,5 +152,6 @@ func (c *StreamingCommand) Close() error {
 			err = pipeErr
 		}
 	})
+
 	return err
 }
