@@ -33,7 +33,7 @@ func ConfigListAll() CommandArgs {
 	return []string{"config", "list", "--color", "never", "--include-defaults", "--ignore-working-copy"}
 }
 
-func Log(revset string, limit int) CommandArgs {
+func Log(revset string, limit int, jjTemplate string) CommandArgs {
 	args := []string{"log", "--color", "always", "--quiet"}
 	if revset != "" {
 		args = append(args, "-r", revset)
@@ -41,12 +41,14 @@ func Log(revset string, limit int) CommandArgs {
 	if limit > 0 {
 		args = append(args, "--limit", strconv.Itoa(limit))
 	}
-	if config.Current.Revisions.Template != "" {
-		prefix := "change_id.shortest(), commit_id.shortest(), divergent"
-		// prefix := "format_short_id(change_id), format_short_id(commit_id), divergent"
-		template := fmt.Sprintf("separate('',  %s, %s)", prefix, config.Current.Revisions.Template)
-		args = append(args, "-T", template)
+	prefix := "change_id.shortest(), commit_id.shortest(), divergent"
+	template := config.Current.Revisions.Template
+	// If jjui's template is empty, fall back to jj's templates.log
+	if template == "" {
+		template = jjTemplate
 	}
+	template = fmt.Sprintf("separate('',  %s, %s)", prefix, template)
+	args = append(args, "-T", template)
 	return args
 }
 
@@ -331,7 +333,10 @@ func Duplicate(from SelectedRevisions, to string, target string) CommandArgs {
 }
 
 func Evolog(revision string) CommandArgs {
-	return []string{"evolog", "-r", revision, "--color", "always", "--quiet", "--ignore-working-copy"}
+	prefix := "commit.change_id().shortest(), commit.commit_id().shortest(), commit.divergent()"
+	template := "builtin_evolog_compact"
+	template = fmt.Sprintf("separate('',  %s, %s)", prefix, template)
+	return []string{"evolog", "-r", revision, "--color", "always", "--quiet", "--ignore-working-copy", "--template", template}
 }
 
 func Args(args ...string) CommandArgs {

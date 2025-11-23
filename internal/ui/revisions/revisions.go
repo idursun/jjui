@@ -583,7 +583,7 @@ func (m *Model) View() string {
 
 func (m *Model) load(revset string, selectedRevision string) tea.Cmd {
 	return func() tea.Msg {
-		output, err := m.context.RunCommandImmediate(jj.Log(revset, config.Current.Limit))
+		output, err := m.context.RunCommandImmediate(jj.Log(revset, config.Current.Limit, m.context.JJConfig.Templates.Log))
 		if err != nil {
 			return common.UpdateRevisionsFailedMsg{
 				Err:    err,
@@ -608,7 +608,7 @@ func (m *Model) loadStreaming(revset string, selectedRevision string, tag uint64
 	m.hasMore = false
 
 	var notifyErrorCmd tea.Cmd
-	streamer, err := graph.NewGraphStreamer(m.context, revset)
+	streamer, err := graph.NewGraphStreamer(m.context, revset, m.context.JJConfig.Templates.Log)
 	if err != nil {
 		notifyErrorCmd = func() tea.Msg {
 			return common.UpdateRevisionsFailedMsg{

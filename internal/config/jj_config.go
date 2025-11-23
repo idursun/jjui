@@ -10,6 +10,9 @@ type JJConfig struct {
 	Revsets       struct {
 		Log string `toml:"log"`
 	} `toml:"revsets"`
+	Templates struct {
+		Log string `toml:"log"`
+	} `toml:"templates"`
 }
 
 func (c *JJConfig) GetApplicableColors() map[string]Color {
@@ -41,7 +44,6 @@ func parseConfig(configContent string) (*JJConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &config, nil
 }
 

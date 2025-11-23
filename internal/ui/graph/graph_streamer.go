@@ -23,11 +23,13 @@ type GraphStreamer struct {
 	batchSize   int
 }
 
-func NewGraphStreamer(ctx appContext.CommandRunner, revset string) (*GraphStreamer, error) {
+// NewGraphStreamer runs `jj log` command with given revset and jjTemplate and
+// returns a GraphStreamer
+func NewGraphStreamer(ctx appContext.CommandRunner, revset string, jjTemplate string) (*GraphStreamer, error) {
 	streamerCtx, cancel := context.WithCancel(context.Background())
 	var commandError error
 
-	command, err := ctx.RunCommandStreaming(streamerCtx, jj.Log(revset, config.Current.Limit))
+	command, err := ctx.RunCommandStreaming(streamerCtx, jj.Log(revset, config.Current.Limit, jjTemplate))
 	if err != nil {
 		cancel()
 		return nil, err
@@ -78,6 +80,7 @@ func NewGraphStreamer(ctx appContext.CommandRunner, revset string) (*GraphStream
 		batchSize:   batchSize,
 	}, commandError
 }
+
 func (g *GraphStreamer) RequestMore() parser.RowBatch {
 	g.controlChan <- parser.RequestMore
 	return <-g.rowsChan
