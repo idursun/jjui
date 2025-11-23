@@ -320,19 +320,25 @@ func (m Model) View() tea.View {
 
 	m.updateStatus()
 	footer := m.status.View()
+	var centerArea uv.Rectangle
+	var footerArea uv.Rectangle
+	var topArea uv.Rectangle
 
+	area := uv.Rect(0, 0, m.Width, m.Height)
 	if m.diff != nil {
 		m.diff.SetHeight(m.Height - footer.Bounds().Dy())
-		//return tea.NewView(lipgloss.JoinVertical(0, m.diff.View(), footer))
-		v.SetContent(m.diff.View())
+		centerArea, footerArea = uv.SplitVertical(area, uv.Fixed(m.Height-footer.Bounds().Dy()))
+		c := lipgloss.NewCanvas(m.Width, m.Height)
+		c.Compose(m.diff.View().X(centerArea.Min.X).Y(centerArea.Min.Y))
+		c.Compose(footer.X(footerArea.Min.X).Y(footerArea.Min.Y))
+		v.SetContent(c)
 		return v
 	}
-	area := uv.Rect(0, 0, m.Width, m.Height)
 
 	topView := m.revsetModel.View(uv.Rect(0, 0, m.Width, 2))
 	topViewHeight := topView.Bounds().Dy()
-	topArea, centerArea := uv.SplitVertical(area, uv.Fixed(topViewHeight))
-	centerArea, footerArea := uv.SplitVertical(centerArea, uv.Fixed(centerArea.Bounds().Dy()-footer.Bounds().Dy()))
+	topArea, centerArea = uv.SplitVertical(area, uv.Fixed(topViewHeight))
+	centerArea, footerArea = uv.SplitVertical(centerArea, uv.Fixed(centerArea.Bounds().Dy()-footer.Bounds().Dy()))
 
 	revisionsArea := centerArea
 	var previewArea uv.Rectangle
