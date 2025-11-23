@@ -335,7 +335,7 @@ func (m Model) View() tea.View {
 		return v
 	}
 
-	topView := m.revsetModel.View(uv.Rect(0, 0, m.Width, 2))
+	topView := m.revsetModel.View()
 	topViewHeight := topView.Bounds().Dy()
 	topArea, centerArea = uv.SplitVertical(area, uv.Fixed(topViewHeight))
 	centerArea, footerArea = uv.SplitVertical(centerArea, uv.Fixed(centerArea.Bounds().Dy()-footer.Bounds().Dy()))

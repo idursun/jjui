@@ -4,7 +4,6 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
@@ -175,12 +174,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *Model) View(frame uv.Rectangle) *lipgloss.Layer {
+func (m *Model) View() *lipgloss.Layer {
 	header := lipgloss.NewLayer("header", m.styles.promptStyle.PaddingRight(1).Render("revset:"))
 	if m.Editing {
 		view, completion := m.autoComplete.View()
 		header.AddLayers(view.X(header.Bounds().Dx()), completion.Y(header.Bounds().Dy()).X(0))
-		//header.Height(view.Bounds().Dy() + completion.Bounds().Dy())
 	} else {
 		revset := m.context.DefaultRevset
 		if m.context.CurrentRevset != "" {
