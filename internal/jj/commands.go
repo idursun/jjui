@@ -293,16 +293,15 @@ func SetParents(to string, parentsToAdd []string, parentsToRemove []string) Comm
 	var b strings.Builder
 	b.WriteString("parents(")
 	b.WriteString(to)
-	b.WriteString(") ")
+	b.WriteString(")")
 	for _, remove := range parentsToRemove {
 		b.WriteString(" ~ ")
 		b.WriteString(remove)
 	}
-	for _, add := range parentsToAdd {
-		b.WriteString(" | ")
-		b.WriteString(add)
-	}
 	args := []string{"rebase", "-s", to, "-d", b.String()}
+	for _, add := range parentsToAdd {
+		args = append(args, "-d", add)
+	}
 	return args
 }
 

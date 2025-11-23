@@ -23,7 +23,7 @@ type Model struct {
 	target   *jj.Commit
 	current  *jj.Commit
 	toRemove map[string]bool
-	toAdd    map[string]bool
+	toAdd    []string
 	keyMap   config.KeyMappings[key.Binding]
 	styles   styles
 	parents  []string
@@ -86,10 +86,11 @@ func (m *Model) HandleKey(msg tea.KeyMsg) tea.Cmd {
 				m.toRemove[m.current.GetChangeId()] = true
 			}
 		} else {
-			if m.toAdd[m.current.GetChangeId()] {
-				delete(m.toAdd, m.current.GetChangeId())
+			changeId := m.current.GetChangeId()
+			if idx := slices.Index(m.toAdd, changeId); idx >= 0 {
+				m.toAdd = append(m.toAdd[:idx], m.toAdd[idx+1:]...)
 			} else {
-				m.toAdd[m.current.GetChangeId()] = true
+				m.toAdd = append(m.toAdd, changeId)
 			}
 		}
 	case key.Matches(msg, m.keyMap.Apply):
@@ -97,12 +98,8 @@ func (m *Model) HandleKey(msg tea.KeyMsg) tea.Cmd {
 			return common.Close
 		}
 
-		var parentsToAdd []string
+		parentsToAdd := slices.Clone(m.toAdd)
 		var parentsToRemove []string
-
-		for changeId := range m.toAdd {
-			parentsToAdd = append(parentsToAdd, changeId)
-		}
 
 		for changeId := range m.toRemove {
 			parentsToRemove = append(parentsToRemove, changeId)
@@ -119,7 +116,7 @@ func (m *Model) Render(commit *jj.Commit, renderPosition operations.RenderPositi
 	if renderPosition != operations.RenderBeforeChangeId {
 		return ""
 	}
-	if m.toAdd[commit.GetChangeId()] {
+	if slices.Contains(m.toAdd, commit.GetChangeId()) {
 		return m.styles.sourceMarker.Render("<< add >>")
 	}
 	if m.toRemove[commit.GetChangeId()] {
@@ -155,7 +152,7 @@ func NewModel(ctx *context.MainContext, to *jj.Commit) *Model {
 		keyMap:   config.Current.GetKeyMap(),
 		parents:  parents,
 		toRemove: make(map[string]bool),
-		toAdd:    make(map[string]bool),
+		toAdd:    []string{},
 		target:   to,
 		styles:   styles,
 	}
