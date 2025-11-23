@@ -2,10 +2,8 @@ package git
 
 import (
 	"testing"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/exp/teatest"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
@@ -18,13 +16,8 @@ func Test_Push(t *testing.T) {
 	defer commandRunner.Verify()
 
 	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(), 0, 0)
-	tm := teatest.NewTestModel(t, op)
-	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return commandRunner.IsVerified()
-	})
-	tm.Quit()
-	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+	test.SimulateModel(op, op.Init())
+	test.SimulateModel(op, test.Press(tea.KeyEnter))
 }
 
 func Test_Fetch(t *testing.T) {
@@ -34,16 +27,10 @@ func Test_Fetch(t *testing.T) {
 	defer commandRunner.Verify()
 
 	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(), 0, 0)
-	tm := teatest.NewTestModel(t, op)
-	tm.Type("/")
-	tm.Type("fetch")
-	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return commandRunner.IsVerified()
-	})
-	tm.Quit()
-	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+	test.SimulateModel(op, op.Init())
+	test.SimulateModel(op, test.Type("/fetch"))
+	test.SimulateModel(op, test.Press(tea.KeyEnter))
+	test.SimulateModel(op, test.Press(tea.KeyEnter))
 }
 
 func Test_loadBookmarks(t *testing.T) {
@@ -72,15 +59,10 @@ func Test_PushChange(t *testing.T) {
 	defer commandRunner.Verify()
 
 	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(&jj.Commit{ChangeId: changeId}), 0, 0)
-	tm := teatest.NewTestModel(t, op)
+	test.SimulateModel(op, op.Init())
+
 	// Filter for the exact item and ensure selection is at index 0
-	tm.Type("/")
-	tm.Type("git push --change")
-	tm.Send(tea.KeyMsg{Type: tea.KeyDown}) // Ensure first item is selected
-	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return commandRunner.IsVerified()
-	})
-	tm.Quit()
-	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+	test.SimulateModel(op, test.Type("/git push --change"))
+	test.SimulateModel(op, test.Press(tea.KeyDown)) // Ensure first item is selected
+	test.SimulateModel(op, test.Press(tea.KeyEnter))
 }

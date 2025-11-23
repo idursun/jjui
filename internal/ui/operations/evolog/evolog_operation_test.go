@@ -2,9 +2,7 @@ package evolog
 
 import (
 	"testing"
-	"time"
 
-	"github.com/charmbracelet/x/exp/teatest"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
@@ -57,11 +55,8 @@ func TestOperation_Init(t *testing.T) {
 
 	context := test.NewTestContext(commandRunner)
 	operation := NewOperation(context, revision, 10, 20)
-	tm := teatest.NewTestModel(t, operation)
 
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return commandRunner.IsVerified()
-	})
-	tm.Quit()
-	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+	test.SimulateModel(operation, operation.Init())
+
+	assert.True(t, commandRunner.IsVerified())
 }
