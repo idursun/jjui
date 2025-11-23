@@ -216,6 +216,15 @@ func (m *Model) reset() {
 	m.viewRange.start, m.viewRange.end = 0, m.Height
 }
 
+func (m *Model) SetWindowPercentage(pct float64) {
+	m.previewWindowPercentage = pct
+	if m.previewWindowPercentage < 10 {
+		m.previewWindowPercentage = 10
+	} else if m.previewWindowPercentage > 95 {
+		m.previewWindowPercentage = 100
+	}
+}
+
 func (m *Model) Expand() {
 	m.previewWindowPercentage += config.Current.Preview.WidthIncrementPercentage
 	if m.previewWindowPercentage > 95 {

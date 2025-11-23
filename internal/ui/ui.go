@@ -30,6 +30,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/undo"
 )
 
+var draggableX int
+
 type Model struct {
 	*common.Sizeable
 	revisions    *revisions.Model
@@ -44,6 +46,7 @@ type Model struct {
 	context      *context.MainContext
 	keyMap       config.KeyMappings[key.Binding]
 	stacked      common.Stackable
+	dragging     bool
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -123,6 +126,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.FocusMsg:
 		return m, common.RefreshAndKeepSelections
+	case tea.MouseClickMsg:
+		if msg.X == draggableX && m.previewModel.Visible() {
+			m.dragging = true
+		}
+	case tea.MouseMotionMsg:
+		if m.dragging && m.Width > 0 {
+			pct := 100.0 * float64(msg.X) / float64(m.Width)
+			m.previewModel.SetWindowPercentage(100 - pct)
+		}
+		return m, nil
+	case tea.MouseReleaseMsg:
+		m.dragging = false
+		return m, nil
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
@@ -317,6 +333,7 @@ func (m Model) View() tea.View {
 	var v tea.View
 	v.AltScreen = true
 	v.ReportFocus = true
+	v.MouseMode = tea.MouseModeCellMotion
 
 	m.updateStatus()
 	footer := m.status.View()
@@ -370,6 +387,7 @@ func (m Model) View() tea.View {
 	c.Compose(topView)
 	c.Compose(centerView)
 	if previewLayer != nil {
+		draggableX = previewArea.Min.X
 		c.Compose(previewLayer)
 	}
 	c.Compose(footer)
