@@ -288,6 +288,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.oplog != nil {
 		m.oplog, cmd = m.oplog.Update(msg)
 		cmds = append(cmds, cmd)
+	} else if m.diff != nil {
+		m.diff, cmd = m.diff.Update(msg)
+		cmds = append(cmds, cmd)
 	} else {
 		m.revisions, cmd = m.revisions.Update(msg)
 		cmds = append(cmds, cmd)
