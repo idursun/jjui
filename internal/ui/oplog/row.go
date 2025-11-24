@@ -13,9 +13,21 @@ type rowLine struct {
 	Segments []*screen.Segment
 }
 
+func isOperationId(text string) bool {
+	if len(text) != 12 {
+		return false
+	}
+	for _, r := range text {
+		if !(r >= 'a' && r <= 'f' || r >= '0' && r <= '9') {
+			return false
+		}
+	}
+	return true
+}
+
 func (l *rowLine) FindIdIndex() int {
 	for i, segment := range l.Segments {
-		if len(segment.Text) == 12 {
+		if isOperationId(segment.Text) {
 			return i
 		}
 	}

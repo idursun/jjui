@@ -1,0 +1,6 @@
+[1m[38;5;2m@[0m  [1m[38;5;12mf468151957e6[39m [38;5;3midursun@Ibrahims-MacBook-Pro.local[39m [38;5;14mnow, lasted 26 milliseconds[39m[0m
+│  [1msnapshot working copy[0m
+│  [1m[38;5;13margs: jj op log -n 2 --color always[39m[0m
+○  [38;5;4m5ce8658087d8[39m [38;5;3midursun@Ibrahims-MacBook-Pro.local[39m [38;5;6m2 minutes ago, lasted 27 milliseconds[39m
+│  new empty commit
+│  [38;5;5margs: jj new[39m
