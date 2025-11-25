@@ -27,9 +27,8 @@ type (
 	}
 	CommandRunningMsg   string
 	CommandCompletedMsg struct {
-		Output       string
-		Err          error
-		Continuation tea.Cmd
+		Output string
+		Err    error
 	}
 	SelectionChangedMsg struct{}
 	QuickSearchMsg      string
