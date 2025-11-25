@@ -80,11 +80,11 @@ func (r *Operation) Init() tea.Cmd {
 	return nil
 }
 
-func (r *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 	if msg, ok := msg.(tea.KeyMsg); ok {
-		return r, r.HandleKey(msg)
+		return r.HandleKey(msg)
 	}
-	return r, nil
+	return nil
 }
 
 func (r *Operation) View() string {

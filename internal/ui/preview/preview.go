@@ -22,6 +22,8 @@ type viewRange struct {
 	end   int
 }
 
+var _ common.Model = (*Model)(nil)
+
 type Model struct {
 	*common.Sizeable
 	tag                     atomic.Uint64
@@ -104,14 +106,14 @@ func (m *Model) WindowPercentage() float64 {
 	return m.previewWindowPercentage
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if k, ok := msg.(previewMsg); ok {
 		msg = k.msg
 	}
 	switch msg := msg.(type) {
 	case common.SelectionChangedMsg, common.RefreshMsg:
 		tag := m.tag.Add(1)
-		return m, tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
+		return tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
 			if tag != m.tag.Load() {
 				return nil
 			}
@@ -120,7 +122,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case refreshPreviewContentMsg:
 		if m.tag.Load() == msg.Tag {
 			tag := msg.Tag
-			return m, func() tea.Msg {
+			return func() tea.Msg {
 				var args []string
 				switch msg := m.context.SelectedItem.(type) {
 				case context.SelectedFile:
@@ -159,7 +161,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.contentLineCount = lipgloss.Height(m.content)
 			m.reset()
 		}
-		return m, nil
+		return nil
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Preview.ScrollDown):
@@ -187,7 +189,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.viewRange.end -= halfPageSize
 		}
 	}
-	return m, nil
+	return nil
 }
 
 func (m *Model) View() string {

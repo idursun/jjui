@@ -31,10 +31,8 @@ func (a *Operation) Init() tea.Cmd {
 	return nil
 }
 
-func (a *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-	a.model, cmd = a.model.Update(msg)
-	return a, cmd
+func (a *Operation) Update(msg tea.Msg) tea.Cmd {
+	return a.model.Update(msg)
 }
 
 func (a *Operation) View() string {

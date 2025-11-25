@@ -31,6 +31,8 @@ const (
 	commandFailed
 )
 
+var _ common.Model = (*Model)(nil)
+
 type Model struct {
 	context    *context.MainContext
 	spinner    spinner.Model
@@ -96,7 +98,7 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	km := config.Current.GetKeyMap()
 	switch msg := msg.(type) {
 	case clearMsg:
@@ -104,11 +106,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.command = ""
 			m.status = none
 		}
-		return m, nil
+		return nil
 	case common.CommandRunningMsg:
 		m.command = string(msg)
 		m.status = commandRunning
-		return m, m.spinner.Tick
+		return m.spinner.Tick
 	case common.CommandCompletedMsg:
 		if msg.Err != nil {
 			m.status = commandFailed
@@ -116,7 +118,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.status = commandCompleted
 		}
 		commandToBeCleared := m.command
-		return m, tea.Tick(CommandClearDuration, func(time.Time) tea.Msg {
+		return tea.Tick(CommandClearDuration, func(time.Time) tea.Msg {
 			return clearMsg(commandToBeCleared)
 		})
 	case common.FileSearchMsg:
@@ -124,7 +126,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		m.input.Prompt = "> "
 		m.loadEditingSuggestions()
 		m.fuzzy, m.editStatus = fuzzy_files.NewModel(msg)
-		return m, tea.Batch(m.fuzzy.Init(), m.input.Focus())
+		return tea.Batch(m.fuzzy.Init(), m.input.Focus())
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, km.Cancel) && m.IsFocused():
@@ -136,7 +138,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.fuzzy = nil
 			m.editStatus = nil
 			m.input.Reset()
-			return m, cmd
+			return cmd
 		case key.Matches(msg, accept) && m.IsFocused():
 			editMode := m.mode
 			input := m.input.Value()
@@ -153,11 +155,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			switch {
 			case strings.HasSuffix(editMode, "file"):
 				_, cmd := fuzzy.Update(msg)
-				return m, cmd
+				return cmd
 			case strings.HasPrefix(editMode, "exec"):
-				return m, func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }
+				return func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }
 			}
-			return m, func() tea.Msg { return common.QuickSearchMsg(input) }
+			return func() tea.Msg { return common.QuickSearchMsg(input) }
 		case key.Matches(msg, km.ExecJJ, km.ExecShell) && !m.IsFocused():
 			mode := common.ExecJJ
 			if key.Matches(msg, km.ExecShell) {
@@ -168,13 +170,13 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.loadEditingSuggestions()
 
 			m.fuzzy, m.editStatus = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
-			return m, tea.Batch(m.fuzzy.Init(), m.input.Focus())
+			return tea.Batch(m.fuzzy.Init(), m.input.Focus())
 		case key.Matches(msg, km.QuickSearch) && !m.IsFocused():
 			m.editStatus = emptyEditStatus
 			m.mode = "search"
 			m.input.Prompt = "> "
 			m.loadEditingSuggestions()
-			return m, m.input.Focus()
+			return m.input.Focus()
 		default:
 			if m.IsFocused() {
 				var cmd tea.Cmd
@@ -182,10 +184,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				if m.fuzzy != nil {
 					cmd = tea.Batch(cmd, fuzzy_search.Search(m.input.Value(), msg))
 				}
-				return m, cmd
+				return cmd
 			}
 		}
-		return m, nil
+		return nil
 	default:
 		var cmd tea.Cmd
 		if m.status == commandRunning {
@@ -194,7 +196,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		if m.fuzzy != nil {
 			m.fuzzy, cmd = fuzzy_search.Update(m.fuzzy, msg)
 		}
-		return m, cmd
+		return cmd
 	}
 }
 

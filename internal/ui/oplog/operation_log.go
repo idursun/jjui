@@ -17,7 +17,10 @@ type updateOpLogMsg struct {
 	Rows []row
 }
 
-var _ list.IList = (*Model)(nil)
+var (
+	_ list.IList   = (*Model)(nil)
+	_ common.Model = (*Model)(nil)
+)
 
 type Model struct {
 	*common.Sizeable
@@ -61,7 +64,7 @@ func (m *Model) Init() tea.Cmd {
 	return m.load()
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case updateOpLogMsg:
 		m.rows = msg.Rows
@@ -69,7 +72,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keymap.Cancel):
-			return m, common.Close
+			return common.Close
 		case key.Matches(msg, m.keymap.Up):
 			if m.cursor > 0 {
 				m.cursor--
@@ -79,15 +82,15 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				m.cursor++
 			}
 		case key.Matches(msg, m.keymap.Diff):
-			return m, func() tea.Msg {
+			return func() tea.Msg {
 				output, _ := m.context.RunCommandImmediate(jj.OpShow(m.rows[m.cursor].OperationId))
 				return common.ShowDiffMsg(output)
 			}
 		case key.Matches(msg, m.keymap.OpLog.Restore):
-			return m, tea.Batch(common.Close, m.context.RunCommand(jj.OpRestore(m.rows[m.cursor].OperationId), common.Refresh))
+			return tea.Batch(common.Close, m.context.RunCommand(jj.OpRestore(m.rows[m.cursor].OperationId), common.Refresh))
 		}
 	}
-	return m, m.updateSelection()
+	return m.updateSelection()
 }
 
 func (m *Model) updateSelection() tea.Cmd {

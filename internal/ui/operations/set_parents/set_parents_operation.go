@@ -37,11 +37,11 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if msg, ok := msg.(tea.KeyMsg); ok {
-		return m, m.HandleKey(msg)
+		return m.HandleKey(msg)
 	}
-	return m, nil
+	return nil
 }
 
 func (m *Model) View() string {

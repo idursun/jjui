@@ -31,6 +31,8 @@ type Styles struct {
 	Text     lipgloss.Style
 }
 
+var _ common.Model = (*Model)(nil)
+
 type Model struct {
 	options     []option
 	selected    int
@@ -92,7 +94,7 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	km := config.Current.GetKeyMap()
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -107,22 +109,22 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			}
 		case key.Matches(msg, km.ForceApply):
 			selectedOption := m.options[m.selected]
-			return m, selectedOption.altCmd
+			return selectedOption.altCmd
 		case key.Matches(msg, km.Apply):
 			selectedOption := m.options[m.selected]
-			return m, selectedOption.cmd
+			return selectedOption.cmd
 		default:
 			for _, option := range m.options {
 				if key.Matches(msg, option.keyBinding) {
 					if msg.Alt {
-						return m, option.altCmd
+						return option.altCmd
 					}
-					return m, option.cmd
+					return option.cmd
 				}
 			}
 		}
 	}
-	return m, nil
+	return nil
 }
 
 func (m *Model) View() string {

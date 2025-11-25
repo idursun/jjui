@@ -25,20 +25,20 @@ func (s *SetBookmarkOperation) IsEditing() bool {
 	return true
 }
 
-func (s *SetBookmarkOperation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (s *SetBookmarkOperation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc":
-			return s, common.Close
+			return common.Close
 		case "enter":
-			return s, s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), common.Close, common.Refresh)
+			return s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), common.Close, common.Refresh)
 		}
 	}
 	var cmd tea.Cmd
 	s.name, cmd = s.name.Update(msg)
 	s.name.SetValue(strings.ReplaceAll(s.name.Value(), " ", "-"))
-	return s, cmd
+	return cmd
 }
 
 func (s *SetBookmarkOperation) Init() tea.Cmd {

@@ -148,17 +148,17 @@ func (o *Operation) FullHelp() [][]key.Binding {
 	return [][]key.Binding{o.ShortHelp()}
 }
 
-func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case updateEvologMsg:
 		o.rows = msg.rows
 		o.cursor = 0
-		return o, o.updateSelection()
+		return o.updateSelection()
 	case tea.KeyMsg:
 		cmd := o.HandleKey(msg)
-		return o, cmd
+		return cmd
 	}
-	return o, nil
+	return nil
 }
 
 func (o *Operation) getSelectedEvolog() *jj.Commit {

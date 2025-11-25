@@ -61,7 +61,7 @@ send = ["?"]
 		Leader: lm,
 	}
 	model := New(ctx)
-	model, _ = model.Update(initMsg{})
+	_ = model.Update(initMsg{})
 	if len(model.shown) == 0 {
 		t.Fatal("expected shown leader keys")
 	}
@@ -69,7 +69,7 @@ send = ["?"]
 		Type:  tea.KeyRunes,
 		Runes: []rune{'h'},
 	}
-	model, cmd := model.Update(msg)
+	cmd := model.Update(msg)
 	if len(model.shown) != 0 {
 		t.Fatal("expected not to show leader keys after reaching leaf")
 	}
@@ -110,13 +110,13 @@ send = ["gf", "enter"]
 		Leader: lm,
 	}
 	model := New(ctx)
-	model, _ = model.Update(initMsg{})
+	_ = model.Update(initMsg{})
 	// Press 'g' to enter the submenu
 	msgG := tea.KeyMsg{
 		Type:  tea.KeyRunes,
 		Runes: []rune{'g'},
 	}
-	model, cmd := model.Update(msgG)
+	cmd := model.Update(msgG)
 	if cmd != nil {
 		t.Errorf("expected nil cmd when entering submenu, got %v", cmd)
 	}
@@ -127,8 +127,8 @@ send = ["gf", "enter"]
 	// Test that key is available when its context is satified.
 	ctx.SelectedItem = context.SelectedRevision{ChangeId: "foo"}
 	model = New(ctx)
-	model, _ = model.Update(initMsg{})
-	model, cmd = model.Update(msgG)
+	_ = model.Update(initMsg{})
+	cmd = model.Update(msgG)
 	if cmd != nil {
 		t.Errorf("expected nil cmd when entering submenu, got %v", cmd)
 	}
@@ -140,7 +140,7 @@ send = ["gf", "enter"]
 		Type:  tea.KeyRunes,
 		Runes: []rune{'f'},
 	}
-	model, cmd = model.Update(msgF)
+	cmd = model.Update(msgF)
 	if cmd != nil {
 		t.Errorf("expected nil cmd when entering nested submenu, got %v", cmd)
 	}
@@ -165,7 +165,7 @@ send = ["?"]
 	msg := tea.KeyMsg{
 		Type: tea.KeyEsc,
 	}
-	model, cmd := model.Update(msg)
+	cmd := model.Update(msg)
 	if len(model.shown) != 0 {
 		t.Fatal("expected menu to be closed after pressing esc")
 	}

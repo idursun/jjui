@@ -45,7 +45,11 @@ func InitCmd() tea.Msg {
 	return initMsg{}
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Init() tea.Cmd {
+	return nil
+}
+
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case initMsg:
 		m.shown = contextEnabled(m.context, m.context.Leader)
@@ -53,24 +57,24 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.cancel):
 			m.shown = nil
-			return m, common.Close
+			return common.Close
 		}
 		for c := range maps.Values(m.shown) {
 			if key.Matches(msg, *c.Bind) {
 				if len(c.Nest) > 0 {
 					m.shown = contextEnabled(m.context, c.Nest)
-					return m, nil
+					return nil
 				}
 				m.shown = nil
 				cmds := sendCmds(c.Send)
-				return m, tea.Batch(
+				return tea.Batch(
 					common.Close,
 					tea.Sequence(cmds...),
 				)
 			}
 		}
 	}
-	return m, nil
+	return nil
 }
 
 func contextEnabled(ctx *context.MainContext, bnds context.LeaderMap) context.LeaderMap {

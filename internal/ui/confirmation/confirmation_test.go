@@ -75,7 +75,7 @@ func TestConfirmationWithOption(t *testing.T) {
 	assert.Equal(t, "Yes", model.options[0].label)
 	assert.Equal(t, "No", model.options[1].label)
 
-	_, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 	if cmd != nil {
 		cmd()
 	}
@@ -94,7 +94,7 @@ func TestLegacyAddOption(t *testing.T) {
 	assert.Equal(t, 1, len(model.options))
 	assert.Equal(t, "Yes", model.options[0].label)
 
-	_, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 	if cmd != nil {
 		cmd()
 	}

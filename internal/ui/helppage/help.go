@@ -29,6 +29,8 @@ type helpMenu struct {
 	rightList     menuColumn
 }
 
+var _ common.Model = (*Model)(nil)
+
 type Model struct {
 	width        int
 	height       int
@@ -76,20 +78,20 @@ func (h *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (h *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (h *Model) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, h.keyMap.Help), key.Matches(msg, h.keyMap.Cancel):
-			return h, common.Close
+			return common.Close
 		}
 	}
 
 	h.searchQuery, cmd = h.searchQuery.Update(msg)
 	h.filterMenu()
-	return h, cmd
+	return cmd
 }
 
 func (h *Model) View() string {

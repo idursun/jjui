@@ -45,7 +45,7 @@ type Model struct {
 	status       *status.Model
 	context      *context.MainContext
 	keyMap       config.KeyMappings[key.Binding]
-	stacked      tea.Model
+	stacked      common.Model
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -55,7 +55,6 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
-	var cmd tea.Cmd
 	if _, ok := msg.(common.CloseViewMsg); ok {
 		if m.leader != nil {
 			m.leader = nil
@@ -77,36 +76,30 @@ func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	}
 
 	if m.leader != nil {
-		m.leader, cmd = m.leader.Update(msg)
-		return m, cmd, true
+		return m, m.leader.Update(msg), true
 	}
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.diff != nil {
-			m.diff, cmd = m.diff.Update(msg)
-			return m, cmd, true
+			return m, m.diff.Update(msg), true
 		}
 
 		if m.revsetModel.Editing {
-			m.revsetModel, cmd = m.revsetModel.Update(msg)
 			m.state = common.Loading
-			return m, cmd, true
+			return m, m.revsetModel.Update(msg), true
 		}
 
 		if m.status.IsFocused() {
-			m.status, cmd = m.status.Update(msg)
-			return m, cmd, true
+			return m, m.status.Update(msg), true
 		}
 
 		if m.revisions.IsEditing() {
-			m.revisions, cmd = m.revisions.Update(msg)
-			return m, cmd, true
+			return m, m.revisions.Update(msg), true
 		}
 
 		if m.stacked != nil {
-			m.stacked, cmd = m.stacked.Update(msg)
-			return m, cmd, true
+			return m, m.stacked.Update(msg), true
 		}
 	}
 
@@ -118,7 +111,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -141,8 +133,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.oplog = oplog.New(m.context, m.Width, m.Height)
 			return m, m.oplog.Init()
 		case key.Matches(msg, m.keyMap.Revset) && m.revisions.InNormalMode():
-			m.revsetModel, _ = m.revsetModel.Update(revset.EditRevSetMsg{Clear: m.state != common.Error})
-			return m, nil
+			return m, m.revsetModel.Update(revset.EditRevSetMsg{Clear: m.state != common.Error})
 		case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
 			m.stacked = git.NewModel(m.context, m.revisions.SelectedRevisions(), m.Width, m.Height)
 			return m, m.stacked.Init()
@@ -255,32 +246,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.revsetModel.Editing {
-		m.revsetModel, cmd = m.revsetModel.Update(msg)
-		cmds = append(cmds, cmd)
+		cmds = append(cmds, m.revsetModel.Update(msg))
 	}
 
-	m.status, cmd = m.status.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.flash, cmd = m.flash.Update(msg)
-	cmds = append(cmds, cmd)
+	cmds = append(cmds, m.status.Update(msg))
+	cmds = append(cmds, m.flash.Update(msg))
 
 	if m.stacked != nil {
-		m.stacked, cmd = m.stacked.Update(msg)
-		cmds = append(cmds, cmd)
+		cmds = append(cmds, m.stacked.Update(msg))
 	}
 
 	if m.oplog != nil {
-		m.oplog, cmd = m.oplog.Update(msg)
-		cmds = append(cmds, cmd)
+		cmds = append(cmds, m.oplog.Update(msg))
 	} else {
-		m.revisions, cmd = m.revisions.Update(msg)
-		cmds = append(cmds, cmd)
+		cmds = append(cmds, m.revisions.Update(msg))
 	}
 
 	if m.previewModel.Visible() {
-		m.previewModel, cmd = m.previewModel.Update(msg)
-		cmds = append(cmds, cmd)
+		cmds = append(cmds, m.previewModel.Update(msg))
 	}
 
 	return m, tea.Batch(cmds...)

@@ -37,6 +37,8 @@ func (i item) Description() string {
 	return i.desc
 }
 
+var _ common.Model = (*Model)(nil)
+
 type Model struct {
 	context *context.MainContext
 	keymap  config.KeyMappings[key.Binding]
@@ -76,7 +78,7 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.menu.List.SettingFilter() {
@@ -85,25 +87,25 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keymap.Apply):
 			if item, ok := m.menu.List.SelectedItem().(item); ok {
-				return m, tea.Batch(item.command, common.Close)
+				return tea.Batch(item.command, common.Close)
 			}
 		case key.Matches(msg, m.keymap.Cancel):
 			if m.menu.Filter != "" || m.menu.List.IsFiltered() {
 				m.menu.List.ResetFilter()
-				return m, m.menu.Filtered("")
+				return m.menu.Filtered("")
 			}
-			return m, common.Close
+			return common.Close
 		default:
 			for _, listItem := range m.menu.List.Items() {
 				if i, ok := listItem.(item); ok && key.Matches(msg, i.key) {
-					return m, tea.Batch(i.command, common.Close)
+					return tea.Batch(i.command, common.Close)
 				}
 			}
 		}
 	}
 	var cmd tea.Cmd
 	m.menu.List, cmd = m.menu.List.Update(msg)
-	return m, cmd
+	return cmd
 }
 
 func (m *Model) View() string {

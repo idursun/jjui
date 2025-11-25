@@ -22,11 +22,11 @@ type Operation struct {
 	revision string
 }
 
-func (o Operation) IsEditing() bool {
+func (o *Operation) IsEditing() bool {
 	return true
 }
 
-func (o Operation) ShortHelp() []key.Binding {
+func (o *Operation) ShortHelp() []key.Binding {
 	return []key.Binding{
 		o.keyMap.Cancel,
 		o.keyMap.InlineDescribe.Editor,
@@ -34,58 +34,58 @@ func (o Operation) ShortHelp() []key.Binding {
 	}
 }
 
-func (o Operation) FullHelp() [][]key.Binding {
+func (o *Operation) FullHelp() [][]key.Binding {
 	return [][]key.Binding{o.ShortHelp()}
 }
 
-func (o Operation) Width() int {
+func (o *Operation) Width() int {
 	return o.input.Width()
 }
 
-func (o Operation) Height() int {
+func (o *Operation) Height() int {
 	return o.input.Height()
 }
 
-func (o Operation) SetWidth(w int) {
+func (o *Operation) SetWidth(w int) {
 	o.input.SetWidth(w)
 }
 
-func (o Operation) SetHeight(h int) {
+func (o *Operation) SetHeight(h int) {
 	o.input.SetHeight(h)
 }
 
-func (o Operation) IsFocused() bool {
+func (o *Operation) IsFocused() bool {
 	return true
 }
 
-func (o Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
+func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
 	if pos != operations.RenderOverDescription {
 		return ""
 	}
 	return o.View()
 }
 
-func (o Operation) Name() string {
+func (o *Operation) Name() string {
 	return "desc"
 }
 
-func (o Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch {
 		case key.Matches(keyMsg, o.keyMap.Cancel):
-			return o, common.Close
+			return common.Close
 		case key.Matches(keyMsg, o.keyMap.InlineDescribe.Editor):
 			commit := &jj.Commit{
 				ChangeId: o.revision,
 			}
 			selectedRevisions := jj.NewSelectedRevisions(commit)
-			return o, o.context.RunCommand(
+			return o.context.RunCommand(
 				jj.SetDescription(o.revision, o.input.Value()),
 				common.Close,
 				o.context.RunInteractiveCommand(jj.Describe(selectedRevisions), common.Refresh),
 			)
 		case key.Matches(keyMsg, o.keyMap.InlineDescribe.Accept):
-			return o, o.context.RunCommand(jj.SetDescription(o.revision, o.input.Value()), common.Close, common.Refresh)
+			return o.context.RunCommand(jj.SetDescription(o.revision, o.input.Value()), common.Close, common.Refresh)
 		}
 	}
 	var cmd tea.Cmd
@@ -97,18 +97,18 @@ func (o Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		o.input.SetHeight(h + 1)
 	}
 
-	return o, cmd
+	return cmd
 }
 
-func (o Operation) Init() tea.Cmd {
+func (o *Operation) Init() tea.Cmd {
 	return nil
 }
 
-func (o Operation) View() string {
+func (o *Operation) View() string {
 	return o.input.View()
 }
 
-func NewOperation(context *context.MainContext, revision string, width int) Operation {
+func NewOperation(context *context.MainContext, revision string, width int) *Operation {
 	descOutput, _ := context.RunCommandImmediate(jj.GetDescription(revision))
 	desc := string(descOutput)
 	h := lipgloss.Height(desc)
@@ -127,7 +127,7 @@ func NewOperation(context *context.MainContext, revision string, width int) Oper
 	input.SetWidth(width)
 	input.Focus()
 
-	return Operation{
+	return &Operation{
 		context:  context,
 		keyMap:   config.Current.GetKeyMap(),
 		input:    input,

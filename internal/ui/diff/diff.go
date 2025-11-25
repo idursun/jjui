@@ -10,6 +10,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
+var _ common.Model = (*Model)(nil)
+
 type Model struct {
 	view   viewport.Model
 	keymap config.KeyMappings[key.Binding]
@@ -34,17 +36,17 @@ func (m *Model) SetHeight(h int) {
 	m.view.Height = h
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keymap.Cancel):
-			return m, common.Close
+			return common.Close
 		}
 	}
 	var cmd tea.Cmd
 	m.view, cmd = m.view.Update(msg)
-	return m, cmd
+	return cmd
 }
 
 func (m *Model) View() string {

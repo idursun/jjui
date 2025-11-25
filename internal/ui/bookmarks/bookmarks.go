@@ -21,6 +21,8 @@ type updateItemsMsg struct {
 	items []list.Item
 }
 
+var _ common.Model = (*Model)(nil)
+
 type Model struct {
 	context     *context.MainContext
 	current     *jj.Commit
@@ -102,8 +104,8 @@ func (m *Model) Init() tea.Cmd {
 	return tea.Batch(m.loadAll, m.loadMovables)
 }
 
-func (m *Model) filtered(filter string) (tea.Model, tea.Cmd) {
-	return m, m.menu.Filtered(filter)
+func (m *Model) filtered(filter string) tea.Cmd {
+	return m.menu.Filtered(filter)
 }
 
 func (m *Model) loadMovables() tea.Msg {
@@ -187,7 +189,7 @@ func (m *Model) loadAll() tea.Msg {
 	}
 }
 
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.menu.List.SettingFilter() {
@@ -199,13 +201,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.menu.List.ResetFilter()
 				return m.filtered("")
 			}
-			return m, common.Close
+			return common.Close
 		case key.Matches(msg, m.keymap.Apply):
 			if m.menu.List.SelectedItem() == nil {
 				break
 			}
 			action := m.menu.List.SelectedItem().(item)
-			return m, m.context.RunCommand(action.args, common.Refresh, common.Close)
+			return m.context.RunCommand(action.args, common.Refresh, common.Close)
 		case key.Matches(msg, m.keymap.Bookmark.Move) && m.menu.Filter != "move":
 			return m.filtered("move")
 		case key.Matches(msg, m.keymap.Bookmark.Delete) && m.menu.Filter != "delete":
@@ -219,18 +221,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			for _, listItem := range m.menu.List.Items() {
 				if item, ok := listItem.(item); ok && m.menu.Filter != "" && item.key == msg.String() {
-					return m, m.context.RunCommand(jj.Args(item.args...), common.Refresh, common.Close)
+					return m.context.RunCommand(jj.Args(item.args...), common.Refresh, common.Close)
 				}
 			}
 		}
 	case updateItemsMsg:
 		m.menu.Items = append(m.menu.Items, msg.items...)
 		slices.SortFunc(m.menu.Items, itemSorter)
-		return m, m.menu.List.SetItems(m.menu.Items)
+		return m.menu.List.SetItems(m.menu.Items)
 	}
 	var cmd tea.Cmd
 	m.menu.List, cmd = m.menu.List.Update(msg)
-	return m, cmd
+	return cmd
 }
 
 func itemSorter(a list.Item, b list.Item) int {

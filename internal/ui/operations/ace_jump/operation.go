@@ -109,22 +109,22 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-func (o *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, o.keymap.Cancel):
 			o.aceJump = nil
-			return o, common.Close
+			return common.Close
 		case key.Matches(msg, o.keymap.Apply):
 			o.cursor.SetCursor(o.aceJump.First().RowIdx)
 			o.aceJump = nil
-			return o, common.Close
+			return common.Close
 		default:
-			return o, o.HandleKey(msg)
+			return o.HandleKey(msg)
 		}
 	}
-	return o, nil
+	return nil
 }
 
 func (o *Operation) View() string {

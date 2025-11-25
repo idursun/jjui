@@ -9,6 +9,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
+var _ common.Model = (*AutoCompletionInput)(nil)
+
 type AutoCompletionInput struct {
 	TextInput          textinput.Model
 	CompletionProvider CompletionProvider
@@ -103,7 +105,7 @@ func (ac *AutoCompletionInput) CursorEnd() {
 	ac.TextInput.CursorEnd()
 }
 
-func (ac *AutoCompletionInput) Update(msg tea.Msg) (*AutoCompletionInput, tea.Cmd) {
+func (ac *AutoCompletionInput) Update(msg tea.Msg) tea.Cmd {
 	prevValue := ac.TextInput.Value()
 
 	var cmd tea.Cmd
@@ -113,11 +115,11 @@ func (ac *AutoCompletionInput) Update(msg tea.Msg) (*AutoCompletionInput, tea.Cm
 		case tea.KeyTab:
 			ac.tabCompletionActive = true
 			ac.cycleCompletion(1)
-			return ac, cmd
+			return cmd
 		case tea.KeyShiftTab:
 			ac.tabCompletionActive = true
 			ac.cycleCompletion(-1)
-			return ac, cmd
+			return cmd
 		default:
 			ac.tabCompletionActive = false
 		}
@@ -129,7 +131,7 @@ func (ac *AutoCompletionInput) Update(msg tea.Msg) (*AutoCompletionInput, tea.Cm
 		ac.updateCompletions()
 	}
 
-	return ac, cmd
+	return cmd
 }
 
 func (ac *AutoCompletionInput) cycleCompletion(direction int) {

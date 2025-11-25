@@ -14,14 +14,6 @@ import (
 
 const expiringMessageTimeout = 4 * time.Second
 
-type Model struct {
-	context      *context.MainContext
-	messages     []flashMessage
-	successStyle lipgloss.Style
-	errorStyle   lipgloss.Style
-	currentId    uint64
-}
-
 type expireMessageMsg struct {
 	id uint64
 }
@@ -33,11 +25,21 @@ type flashMessage struct {
 	id      uint64
 }
 
+var _ common.Model = (*Model)(nil)
+
+type Model struct {
+	context      *context.MainContext
+	messages     []flashMessage
+	successStyle lipgloss.Style
+	errorStyle   lipgloss.Style
+	currentId    uint64
+}
+
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case expireMessageMsg:
 		for i, message := range m.messages {
@@ -46,19 +48,19 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				break
 			}
 		}
-		return m, nil
+		return nil
 	case common.CommandCompletedMsg:
 		id := m.add(msg.Output, msg.Err)
 		if msg.Err == nil {
-			return m, tea.Tick(expiringMessageTimeout, func(t time.Time) tea.Msg {
+			return tea.Tick(expiringMessageTimeout, func(t time.Time) tea.Msg {
 				return expireMessageMsg{id: id}
 			})
 		}
-		return m, nil
+		return nil
 	case common.UpdateRevisionsFailedMsg:
 		m.add(msg.Output, msg.Err)
 	}
-	return m, nil
+	return nil
 }
 
 func (m *Model) View() string {

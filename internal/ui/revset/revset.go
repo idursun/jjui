@@ -15,6 +15,8 @@ type EditRevSetMsg struct {
 	Clear bool
 }
 
+var _ common.Model = (*Model)(nil)
+
 type Model struct {
 	*common.Sizeable
 	Editing         bool
@@ -112,22 +114,22 @@ func (m *Model) SetHistory(history []string) {
 	m.historyActive = false
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if !m.Editing {
-			return m, nil
+			return nil
 		}
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
 			m.Editing = false
 			m.autoComplete.Blur()
-			return m, nil
+			return nil
 		case tea.KeyEnter:
 			m.Editing = false
 			m.autoComplete.Blur()
 			value := m.autoComplete.Value()
-			return m, tea.Batch(common.Close, common.UpdateRevSet(value))
+			return tea.Batch(common.Close, common.UpdateRevSet(value))
 		case tea.KeyUp:
 			if len(m.History) > 0 {
 				if !m.historyActive {
@@ -140,7 +142,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 					m.autoComplete.SetValue(m.History[m.historyIndex])
 					m.autoComplete.CursorEnd()
 				}
-				return m, nil
+				return nil
 			}
 		case tea.KeyDown:
 			if m.historyActive {
@@ -153,7 +155,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 					m.autoComplete.SetValue(m.currentInput)
 				}
 				m.autoComplete.CursorEnd()
-				return m, nil
+				return nil
 			}
 		}
 	case common.UpdateRevSetMsg:
@@ -168,12 +170,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 		m.historyActive = false
 		m.historyIndex = -1
-		return m, m.autoComplete.Init()
+		return m.autoComplete.Init()
 	}
 
-	var cmd tea.Cmd
-	m.autoComplete, cmd = m.autoComplete.Update(msg)
-	return m, cmd
+	return m.autoComplete.Update(msg)
 }
 
 func (m *Model) View() string {

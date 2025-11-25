@@ -56,7 +56,7 @@ type Model struct {
 	offScreenRows    []parser.Row
 	streamer         *graph.GraphStreamer
 	hasMore          bool
-	op               tea.Model
+	op               common.Model
 	cursor           int
 	context          *appContext.MainContext
 	keymap           config.KeyMappings[key.Binding]
@@ -219,13 +219,11 @@ func (m *Model) Init() tea.Cmd {
 	return common.RefreshAndSelect("@")
 }
 
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if k, ok := msg.(revisionsMsg); ok {
 		msg = k.msg
 	}
-	var cmd tea.Cmd
-	var nm *Model
-	nm, cmd = m.internalUpdate(msg)
+	cmd := m.internalUpdate(msg)
 
 	if curSelected := m.SelectedRevision(); curSelected != nil {
 		if op, ok := m.op.(operations.TracksSelectedRevision); ok {
@@ -233,49 +231,48 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 	}
 
-	return nm, cmd
+	return cmd
 }
 
-func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
+func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case common.CloseViewMsg:
 		m.op = operations.NewDefault()
-		return m, m.updateSelection()
+		return m.updateSelection()
 	case common.QuickSearchMsg:
 		m.quickSearch = string(msg)
 		m.cursor = m.search(0)
 		m.op = operations.NewDefault()
 		m.renderer.Reset()
-		return m, nil
+		return nil
 	case common.CommandCompletedMsg:
 		m.output = msg.Output
 		m.err = msg.Err
-		return m, nil
+		return nil
 	case common.AutoRefreshMsg:
 		id, _ := m.context.RunCommandImmediate(jj.OpLogId(true))
 		currentOperationId := string(id)
 		log.Println("Previous operation ID:", m.previousOpLogId, "Current operation ID:", currentOperationId)
 		if currentOperationId != m.previousOpLogId {
 			m.previousOpLogId = currentOperationId
-			return m, common.RefreshAndKeepSelections
+			return common.RefreshAndKeepSelections
 		}
 	case common.RefreshMsg:
 		if !msg.KeepSelections {
 			m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
 		}
 		m.isLoading = true
-		var cmd tea.Cmd
-		m.op, cmd = m.op.Update(msg)
+		cmd := m.op.Update(msg)
 		if config.Current.Revisions.LogBatching {
 			currentTag := m.tag.Add(1)
-			return m, tea.Batch(m.loadStreaming(m.context.CurrentRevset, msg.SelectedRevision, currentTag), cmd)
+			return tea.Batch(m.loadStreaming(m.context.CurrentRevset, msg.SelectedRevision, currentTag), cmd)
 		} else {
-			return m, tea.Batch(m.load(m.context.CurrentRevset, msg.SelectedRevision), cmd)
+			return tea.Batch(m.load(m.context.CurrentRevset, msg.SelectedRevision), cmd)
 		}
 	case updateRevisionsMsg:
 		m.isLoading = false
 		m.updateGraphRows(msg.rows, msg.selectedRevision)
-		return m, tea.Batch(m.highlightChanges, m.updateSelection(), func() tea.Msg {
+		return tea.Batch(m.highlightChanges, m.updateSelection(), func() tea.Msg {
 			return common.UpdateRevisionsSuccessMsg{}
 		})
 	case startRowsStreamingMsg:
@@ -292,10 +289,10 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			}
 		}
 		log.Println("Starting streaming revisions message received with tag:", msg.tag, "revision to select:", msg.selectedRevision)
-		return m, m.requestMoreRows(msg.tag)
+		return m.requestMoreRows(msg.tag)
 	case appendRowsBatchMsg:
 		if msg.tag != m.tag.Load() {
-			return m, nil
+			return nil
 		}
 		m.offScreenRows = append(m.offScreenRows, msg.rows...)
 		m.hasMore = msg.hasMore
@@ -304,7 +301,7 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 		if m.hasMore {
 			// keep requesting rows until we reach the initial load count or the current cursor position
 			if len(m.offScreenRows) < m.cursor+1 || len(m.offScreenRows) < m.renderer.ViewRange.LastRowIndex+1 {
-				return m, m.requestMoreRows(msg.tag)
+				return m.requestMoreRows(msg.tag)
 			}
 		} else if m.streamer != nil {
 			m.streamer.Close()
@@ -331,25 +328,21 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 				return common.UpdateRevisionsSuccessMsg{}
 			})
 		}
-		return m, tea.Batch(cmds...)
+		return tea.Batch(cmds...)
 	case common.StartSquashOperationMsg:
 		return m.startSquash(jj.NewSelectedRevisions(msg.Revision), msg.Files)
 	}
 
 	if len(m.rows) == 0 {
-		return m, nil
+		return nil
 	}
 
 	if op, ok := m.op.(common.Editable); ok && op.IsEditing() {
-		var cmd tea.Cmd
-		m.op, cmd = m.op.Update(msg)
-		return m, cmd
+		return m.op.Update(msg)
 	}
 
 	if op, ok := m.op.(common.Overlay); ok && op.IsOverlay() {
-		var cmd tea.Cmd
-		m.op, cmd = m.op.Update(msg)
-		return m, cmd
+		return m.op.Update(msg)
 	}
 
 	var cmd tea.Cmd
@@ -362,7 +355,7 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 				amount = m.renderer.LastRowIndex - m.renderer.FirstRowIndex - 1
 			}
 			if m.cursor == 0 && key.Matches(msg, pageUpKey) {
-				return m, func() tea.Msg {
+				return func() tea.Msg {
 					return common.CommandCompletedMsg{
 						Output: fmt.Sprintf("Already at the top of revset `%s`", m.context.CurrentRevset),
 						Err:    nil,
@@ -370,14 +363,14 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 				}
 			}
 			m.cursor = max(m.cursor-amount, 0)
-			return m, m.updateSelection()
+			return m.updateSelection()
 		case key.Matches(msg, m.keymap.Down, pageDownKey):
 			amount := 1
 			if key.Matches(msg, pageDownKey) && m.renderer.LastRowIndex > m.renderer.FirstRowIndex {
 				amount = m.renderer.LastRowIndex - m.renderer.FirstRowIndex - 1
 			}
 			if len(m.rows) > 0 && m.cursor == len(m.rows)-1 && !m.hasMore && key.Matches(msg, pageDownKey) {
-				return m, func() tea.Msg {
+				return func() tea.Msg {
 					return common.CommandCompletedMsg{
 						Output: fmt.Sprintf("Already at the bottom of revset `%s`", m.context.CurrentRevset),
 						Err:    nil,
@@ -387,37 +380,36 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			if m.cursor < len(m.rows)-amount {
 				m.cursor = m.cursor + amount
 			} else if m.hasMore {
-				return m, m.requestMoreRows(m.tag.Load())
+				return m.requestMoreRows(m.tag.Load())
 			} else if len(m.rows) > 0 {
 				m.cursor = len(m.rows) - 1
 			}
-			return m, m.updateSelection()
+			return m.updateSelection()
 		case key.Matches(msg, m.keymap.JumpToParent):
 			m.jumpToParent(m.SelectedRevisions())
-			return m, m.updateSelection()
+			return m.updateSelection()
 		case key.Matches(msg, m.keymap.JumpToChildren):
 			immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.SelectedRevision()))
 			index := m.selectRevision(string(immediate))
 			if index != -1 {
 				m.cursor = index
 			}
-			return m, m.updateSelection()
+			return m.updateSelection()
 		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
 			workingCopyIndex := m.selectRevision("@")
 			if workingCopyIndex != -1 {
 				m.cursor = workingCopyIndex
 			}
-			return m, m.updateSelection()
+			return m.updateSelection()
 		case key.Matches(msg, m.keymap.AceJump):
 			op := ace_jump.NewOperation(m, func(index int) parser.Row {
 				return m.rows[index]
 			}, m.renderer.FirstRowIndex, m.renderer.LastRowIndex)
 			m.op = op
-			return m, op.Init()
+			return op.Init()
 		default:
 			if op, ok := m.op.(common.Focusable); ok && op.IsFocused() {
-				m.op, cmd = m.op.Update(msg)
-				return m, cmd
+				return m.op.Update(msg)
 			}
 
 			switch {
@@ -436,73 +428,73 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			case key.Matches(msg, m.keymap.QuickSearchCycle):
 				m.cursor = m.search(m.cursor + 1)
 				m.renderer.Reset()
-				return m, nil
+				return nil
 			case key.Matches(msg, m.keymap.Details.Mode):
 				m.op = details.NewOperation(m.context, m.SelectedRevision(), m.Height)
-				return m, m.op.Init()
+				return m.op.Init()
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
 				m.op = describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
-				return m, m.op.Init()
+				return m.op.Init()
 			case key.Matches(msg, m.keymap.New):
-				return m, m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
+				return m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
 			case key.Matches(msg, m.keymap.Commit):
-				return m, m.context.RunInteractiveCommand(jj.CommitWorkingCopy(), common.Refresh)
+				return m.context.RunInteractiveCommand(jj.CommitWorkingCopy(), common.Refresh)
 			case key.Matches(msg, m.keymap.Edit, m.keymap.ForceEdit):
 				ignoreImmutable := key.Matches(msg, m.keymap.ForceEdit)
-				return m, m.context.RunCommand(jj.Edit(m.SelectedRevision().GetChangeId(), ignoreImmutable), common.Refresh)
+				return m.context.RunCommand(jj.Edit(m.SelectedRevision().GetChangeId(), ignoreImmutable), common.Refresh)
 			case key.Matches(msg, m.keymap.Diffedit):
 				changeId := m.SelectedRevision().GetChangeId()
-				return m, m.context.RunInteractiveCommand(jj.DiffEdit(changeId), common.Refresh)
+				return m.context.RunInteractiveCommand(jj.DiffEdit(changeId), common.Refresh)
 			case key.Matches(msg, m.keymap.Absorb):
 				changeId := m.SelectedRevision().GetChangeId()
-				return m, m.context.RunCommand(jj.Absorb(changeId), common.Refresh)
+				return m.context.RunCommand(jj.Absorb(changeId), common.Refresh)
 			case key.Matches(msg, m.keymap.Abandon):
 				selections := m.SelectedRevisions()
 				m.op = abandon.NewOperation(m.context, selections)
-				return m, m.op.Init()
+				return m.op.Init()
 			case key.Matches(msg, m.keymap.Bookmark.Set):
 				m.op = bookmark.NewSetBookmarkOperation(m.context, m.SelectedRevision().GetChangeId())
-				return m, m.op.Init()
+				return m.op.Init()
 			case key.Matches(msg, m.keymap.Split, m.keymap.SplitParallel):
 				isParallel := key.Matches(msg, m.keymap.SplitParallel)
 				currentRevision := m.SelectedRevision().GetChangeId()
-				return m, m.context.RunInteractiveCommand(jj.Split(currentRevision, []string{}, isParallel), common.Refresh)
+				return m.context.RunInteractiveCommand(jj.Split(currentRevision, []string{}, isParallel), common.Refresh)
 			case key.Matches(msg, m.keymap.Describe):
 				selections := m.SelectedRevisions()
-				return m, m.context.RunInteractiveCommand(jj.Describe(selections), common.Refresh)
+				return m.context.RunInteractiveCommand(jj.Describe(selections), common.Refresh)
 			case key.Matches(msg, m.keymap.Evolog.Mode):
 				m.op = evolog.NewOperation(m.context, m.SelectedRevision(), m.Width, m.Height)
-				return m, m.op.Init()
+				return m.op.Init()
 			case key.Matches(msg, m.keymap.Diff):
-				return m, func() tea.Msg {
+				return func() tea.Msg {
 					changeId := m.SelectedRevision().GetChangeId()
 					output, _ := m.context.RunCommandImmediate(jj.Diff(changeId, ""))
 					return common.ShowDiffMsg(output)
 				}
 			case key.Matches(msg, m.keymap.Refresh):
-				return m, common.Refresh
+				return common.Refresh
 			case key.Matches(msg, m.keymap.Squash.Mode):
 				return m.startSquash(m.SelectedRevisions(), nil)
 			case key.Matches(msg, m.keymap.Revert.Mode):
 				m.op = revert.NewOperation(m.context, m.SelectedRevisions(), revert.TargetDestination)
-				return m, m.op.Init()
+				return m.op.Init()
 			case key.Matches(msg, m.keymap.Rebase.Mode):
 				m.op = rebase.NewOperation(m.context, m.SelectedRevisions(), rebase.SourceRevision, rebase.TargetDestination)
-				return m, m.op.Init()
+				return m.op.Init()
 			case key.Matches(msg, m.keymap.Duplicate.Mode):
 				m.op = duplicate.NewOperation(m.context, m.SelectedRevisions(), duplicate.TargetDestination)
-				return m, m.op.Init()
+				return m.op.Init()
 			case key.Matches(msg, m.keymap.SetParents):
 				m.op = set_parents.NewModel(m.context, m.SelectedRevision())
-				return m, m.op.Init()
+				return m.op.Init()
 			}
 		}
 	}
 
-	return m, cmd
+	return cmd
 }
 
-func (m *Model) startSquash(selectedRevisions jj.SelectedRevisions, files []string) (*Model, tea.Cmd) {
+func (m *Model) startSquash(selectedRevisions jj.SelectedRevisions, files []string) tea.Cmd {
 	parent, _ := m.context.RunCommandImmediate(jj.GetParent(selectedRevisions))
 	parentIdx := m.selectRevision(string(parent))
 	if parentIdx != -1 {
@@ -511,7 +503,7 @@ func (m *Model) startSquash(selectedRevisions jj.SelectedRevisions, files []stri
 		m.cursor++
 	}
 	m.op = squash.NewOperation(m.context, selectedRevisions, squash.WithFiles(files))
-	return m, m.op.Init()
+	return m.op.Init()
 }
 
 func (m *Model) updateSelection() tea.Cmd {

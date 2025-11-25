@@ -8,12 +8,10 @@ import (
 )
 
 func SimulateModel[T interface {
-	Update(tea.Msg) (tea.Model, tea.Cmd)
+	Update(tea.Msg) tea.Cmd
 }](model T, first tea.Cmd, observers ...func(tea.Msg)) T {
 	drainCmds(first, func(msg tea.Msg) tea.Cmd {
-		var next tea.Cmd
-		_, next = model.Update(msg)
-		return next
+		return model.Update(msg)
 	}, observers...)
 	return model
 }

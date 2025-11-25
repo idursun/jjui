@@ -56,15 +56,15 @@ func (s *Operation) Init() tea.Cmd {
 	return s.load(s.revision.GetChangeId())
 }
 
-func (s *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case confirmation.CloseMsg:
 		s.confirmation = nil
 		s.selectedHint = ""
 		s.unselectedHint = ""
-		return s, nil
+		return nil
 	case common.RefreshMsg:
-		return s, s.load(s.revision.GetChangeId())
+		return s.load(s.revision.GetChangeId())
 	case updateCommitStatusMsg:
 		items := s.createListItems(msg.summary, msg.selectedFiles)
 		var selectionChangedCmd tea.Cmd
@@ -87,50 +87,47 @@ func (s *Operation) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			selectionChangedCmd = s.context.SetSelectedItem(first)
 		}
 		s.setItems(items)
-		return s, selectionChangedCmd
+		return selectionChangedCmd
 	default:
 		oldCursor := s.cursor
-		var cmd tea.Cmd
-		var newModel *Operation
-		newModel, cmd = s.internalUpdate(msg)
+		var cmds []tea.Cmd
+		cmds = append(cmds, s.internalUpdate(msg))
 		if s.cursor != oldCursor {
-			cmd = tea.Batch(cmd, s.context.SetSelectedItem(context.SelectedFile{
+			cmds = append(cmds, s.context.SetSelectedItem(context.SelectedFile{
 				ChangeId: s.revision.GetChangeId(),
 				CommitId: s.revision.CommitId,
 				File:     s.current().fileName,
 			}))
 		}
-		return newModel, cmd
+		return tea.Batch(cmds...)
 	}
 }
 
-func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
+func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if s.confirmation != nil {
-			model, cmd := s.confirmation.Update(msg)
-			s.confirmation = model
-			return s, cmd
+			return s.confirmation.Update(msg)
 		}
 		switch {
 		case key.Matches(msg, s.keyMap.Up):
 			s.cursorUp()
-			return s, nil
+			return nil
 		case key.Matches(msg, s.keyMap.Down):
 			s.cursorDown()
-			return s, nil
+			return nil
 		case key.Matches(msg, s.keyMap.Cancel), key.Matches(msg, s.keyMap.Details.Close):
-			return s, common.Close
+			return common.Close
 		case key.Matches(msg, s.keyMap.Quit): // handle global quit after cancel
-			return s, tea.Quit
+			return tea.Quit
 		case key.Matches(msg, s.keyMap.Refresh):
-			return s, common.Refresh
+			return common.Refresh
 		case key.Matches(msg, s.keyMap.Details.Diff):
 			selected := s.current()
 			if selected == nil {
-				return s, nil
+				return nil
 			}
-			return s, func() tea.Msg {
+			return func() tea.Msg {
 				output, _ := s.context.RunCommandImmediate(jj.Diff(s.revision.GetChangeId(), selected.fileName))
 				return common.ShowDiffMsg(output)
 			}
@@ -150,9 +147,9 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 			)
 			s.confirmation = model
-			return s, s.confirmation.Init()
+			return s.confirmation.Init()
 		case key.Matches(msg, s.keyMap.Details.Squash):
-			return s, func() tea.Msg {
+			return func() tea.Msg {
 				return common.StartSquashOperationMsg{Revision: s.revision, Files: s.getSelectedFiles(true)}
 			}
 		case key.Matches(msg, s.keyMap.Details.Restore):
@@ -174,7 +171,7 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 			)
 			s.confirmation = model
-			return s, s.confirmation.Init()
+			return s.confirmation.Init()
 		case key.Matches(msg, s.keyMap.Details.Absorb):
 			selectedFiles := s.getSelectedFiles(true)
 			s.selectedHint = "might get absorbed into parents"
@@ -190,7 +187,7 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 					key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 			)
 			s.confirmation = model
-			return s, s.confirmation.Init()
+			return s.confirmation.Init()
 		case key.Matches(msg, s.keyMap.Details.ToggleSelect):
 			if current := s.current(); current != nil {
 				isChecked := !current.selected
@@ -209,14 +206,14 @@ func (s *Operation) internalUpdate(msg tea.Msg) (*Operation, tea.Cmd) {
 
 				s.cursorDown()
 			}
-			return s, nil
+			return nil
 		case key.Matches(msg, s.keyMap.Details.RevisionsChangingFile):
 			if current := s.current(); current != nil {
-				return s, tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(%s)", jj.EscapeFileName(current.fileName))))
+				return tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(%s)", jj.EscapeFileName(current.fileName))))
 			}
 		}
 	}
-	return s, nil
+	return nil
 }
 
 func (s *Operation) View() string {

@@ -78,7 +78,7 @@ func TestHelpMenuLayoutStaysFixedWhileFiltering(t *testing.T) {
 	defaultWidth := lipgloss.Width(defaultView)
 	defaultHeight := lipgloss.Height(defaultView)
 
-	_, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	_ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
 
 	filteredView := model.View()
 	filteredWidth := lipgloss.Width(filteredView)
@@ -139,7 +139,7 @@ func TestHelpModelCloseCommands(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			model := helppage.New(ctx)
-			_, cmd := model.Update(tc.msg)
+			cmd := model.Update(tc.msg)
 			if cmd == nil {
 				t.Fatalf("expected non-nil command when %s pressed", tc.name)
 			}

@@ -53,6 +53,8 @@ type styles struct {
 	noRemoteStyle lipgloss.Style
 }
 
+var _ common.Model = (*Model)(nil)
+
 type Model struct {
 	context           *context.MainContext
 	keymap            config.KeyMappings[key.Binding]
@@ -118,7 +120,7 @@ func (m *Model) cycleRemotes(step int) tea.Cmd {
 	return m.menu.List.SetItems(m.menu.Items)
 }
 
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.menu.List.SettingFilter() {
@@ -126,18 +128,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		switch {
 		case msg.Type == tea.KeyTab:
-			return m, m.cycleRemotes(1)
+			return m.cycleRemotes(1)
 		case msg.Type == tea.KeyShiftTab:
-			return m, m.cycleRemotes(-1)
+			return m.cycleRemotes(-1)
 		case key.Matches(msg, m.keymap.Apply):
 			action := m.menu.List.SelectedItem().(item)
-			return m, m.context.RunCommand(jj.Args(action.command...), common.Refresh, common.Close)
+			return m.context.RunCommand(jj.Args(action.command...), common.Refresh, common.Close)
 		case key.Matches(msg, m.keymap.Cancel):
 			if m.menu.Filter != "" || m.menu.List.IsFiltered() {
 				m.menu.List.ResetFilter()
 				return m.filtered("")
 			}
-			return m, common.Close
+			return common.Close
 		case key.Matches(msg, m.keymap.Git.Push) && m.menu.Filter != string(itemCategoryPush):
 			return m.filtered(string(itemCategoryPush))
 		case key.Matches(msg, m.keymap.Git.Fetch) && m.menu.Filter != string(itemCategoryFetch):
@@ -145,18 +147,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			for _, listItem := range m.menu.List.Items() {
 				if item, ok := listItem.(item); ok && m.menu.Filter != "" && item.key == msg.String() {
-					return m, m.context.RunCommand(jj.Args(item.command...), common.Refresh, common.Close)
+					return m.context.RunCommand(jj.Args(item.command...), common.Refresh, common.Close)
 				}
 			}
 		}
 	}
 	var cmd tea.Cmd
 	m.menu.List, cmd = m.menu.List.Update(msg)
-	return m, cmd
+	return cmd
 }
 
-func (m *Model) filtered(filter string) (tea.Model, tea.Cmd) {
-	return m, m.menu.Filtered(filter)
+func (m *Model) filtered(filter string) tea.Cmd {
+	return m.menu.Filtered(filter)
 }
 
 func (m *Model) View() string {

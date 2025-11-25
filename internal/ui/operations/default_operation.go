@@ -17,8 +17,8 @@ func (n *Default) Init() tea.Cmd {
 	return nil
 }
 
-func (n *Default) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	return n, nil
+func (n *Default) Update(msg tea.Msg) tea.Cmd {
+	return nil
 }
 
 func (n *Default) View() string {
