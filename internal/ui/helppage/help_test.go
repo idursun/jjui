@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui"
@@ -35,19 +36,18 @@ func TestHelpMenuTriggeredFromMainUI(t *testing.T) {
 	ctx.DefaultRevset = "@"
 	ctx.CurrentRevset = "@"
 
-	model := ui.New(ctx)
+	model := ui.NewUI(ctx)
 
-	var cmd tea.Cmd
-	model, cmd = model.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
-	model = applyCmds(model, cmd)
+	test.SimulateModel(model, func() tea.Msg {
+		return tea.WindowSizeMsg{Width: 120, Height: 36}
+	})
 
 	beforeView := model.View()
 	if strings.Contains(beforeView, "Search: ") {
 		t.Fatalf("expected main view to not include help search prompt before toggle")
 	}
 
-	model, cmd = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
-	model = applyCmds(model, cmd)
+	test.SimulateModel(model, test.Type("?"))
 
 	afterView := model.View()
 	if !strings.Contains(afterView, "Search: ") {
@@ -73,6 +73,7 @@ func TestHelpMenuLayoutStaysFixedWhileFiltering(t *testing.T) {
 	model := helppage.New(ctx)
 	model.SetWidth(90)
 	model.SetHeight(32)
+	test.SimulateModel(model, model.Init())
 
 	defaultView := model.View()
 	defaultWidth := lipgloss.Width(defaultView)
@@ -97,6 +98,7 @@ func TestHelpModelHelpBindings(t *testing.T) {
 		CustomCommands: map[string]appContext.CustomCommand{},
 	}
 	model := helppage.New(ctx)
+	test.SimulateModel(model, model.Init())
 
 	short := model.ShortHelp()
 	if len(short) != 2 {
@@ -118,78 +120,28 @@ func TestHelpModelCloseCommands(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name string
-		msg  tea.KeyMsg
+		name        string
+		interaction tea.Cmd
 	}{
 		{
-			name: "help binding",
-			msg: tea.KeyMsg{
-				Type:  tea.KeyRunes,
-				Runes: []rune{'?'},
-			},
+			name:        "help binding",
+			interaction: test.Type("?"),
 		},
 		{
-			name: "cancel binding",
-			msg: tea.KeyMsg{
-				Type: tea.KeyEsc,
-			},
+			name:        "cancel binding",
+			interaction: test.Press(tea.KeyEscape),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			model := helppage.New(ctx)
-			cmd := model.Update(tc.msg)
-			if cmd == nil {
-				t.Fatalf("expected non-nil command when %s pressed", tc.name)
-			}
-
-			msg := cmd()
-			if _, ok := msg.(common.CloseViewMsg); !ok {
-				t.Fatalf("expected CloseViewMsg when %s pressed, got %T", tc.name, msg)
-			}
+			test.SimulateModel(model, model.Init())
+			var msgs []tea.Msg
+			test.SimulateModel(model, tc.interaction, func(msg tea.Msg) {
+				msgs = append(msgs, msg)
+			})
+			assert.Contains(t, msgs, common.CloseViewMsg{}, "expected CloseViewMsg when %s pressed", tc.name)
 		})
 	}
-}
-
-func applyCmds(model tea.Model, cmd tea.Cmd) tea.Model {
-	if cmd == nil {
-		return model
-	}
-	msgs := collectMsgs(cmd)
-	for _, msg := range msgs {
-		var nextCmd tea.Cmd
-		model, nextCmd = model.Update(msg)
-		model = applyCmds(model, nextCmd)
-	}
-	return model
-}
-
-func collectMsgs(cmd tea.Cmd) []tea.Msg {
-	if cmd == nil {
-		return nil
-	}
-	msg := cmd()
-	if msg == nil {
-		return nil
-	}
-
-	if batch, ok := msg.(tea.BatchMsg); ok {
-		var out []tea.Msg
-		for _, c := range batch {
-			out = append(out, collectMsgs(c)...)
-		}
-		return out
-	}
-
-	val := reflect.ValueOf(msg)
-	if val.Kind() == reflect.Slice && val.Type().Elem() == reflect.TypeOf((tea.Cmd)(nil)) {
-		var out []tea.Msg
-		for i := 0; i < val.Len(); i++ {
-			out = append(out, collectMsgs(val.Index(i).Interface().(tea.Cmd))...)
-		}
-		return out
-	}
-
-	return []tea.Msg{msg}
 }

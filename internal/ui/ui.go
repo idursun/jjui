@@ -32,6 +32,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/undo"
 )
 
+var _ common.Model = (*Model)(nil)
+
 type Model struct {
 	*common.Sizeable
 	revisions    *revisions.Model
@@ -50,159 +52,159 @@ type Model struct {
 
 type triggerAutoRefreshMsg struct{}
 
-func (m Model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return tea.Batch(tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.scheduleAutoRefresh())
 }
 
-func (m Model) handleFocusInputMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
+func (m *Model) handleFocusInputMessage(msg tea.Msg) (tea.Cmd, bool) {
 	if _, ok := msg.(common.CloseViewMsg); ok {
 		if m.leader != nil {
 			m.leader = nil
-			return m, nil, true
+			return nil, true
 		}
 		if m.diff != nil {
 			m.diff = nil
-			return m, nil, true
+			return nil, true
 		}
 		if m.stacked != nil {
 			m.stacked = nil
-			return m, nil, true
+			return nil, true
 		}
 		if m.oplog != nil {
 			m.oplog = nil
-			return m, common.SelectionChanged, true
+			return common.SelectionChanged, true
 		}
-		return m, nil, false
+		return nil, false
 	}
 
 	if m.leader != nil {
-		return m, m.leader.Update(msg), true
+		return m.leader.Update(msg), true
 	}
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.diff != nil {
-			return m, m.diff.Update(msg), true
+			return m.diff.Update(msg), true
 		}
 
 		if m.revsetModel.Editing {
 			m.state = common.Loading
-			return m, m.revsetModel.Update(msg), true
+			return m.revsetModel.Update(msg), true
 		}
 
 		if m.status.IsFocused() {
-			return m, m.status.Update(msg), true
+			return m.status.Update(msg), true
 		}
 
 		if m.revisions.IsEditing() {
-			return m, m.revisions.Update(msg), true
+			return m.revisions.Update(msg), true
 		}
 
 		if m.stacked != nil {
-			return m, m.stacked.Update(msg), true
+			return m.stacked.Update(msg), true
 		}
 	}
 
-	return m, nil, false
+	return nil, false
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m, cmd, handled := m.handleFocusInputMessage(msg); handled {
-		return m, cmd
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
+	if cmd, handled := m.handleFocusInputMessage(msg); handled {
+		return cmd
 	}
 
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.FocusMsg:
-		return m, common.RefreshAndKeepSelections
+		return common.RefreshAndKeepSelections
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
 			m.state = common.Ready
-			return m, tea.Batch(cmds...)
+			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Cancel) && m.stacked != nil:
 			m.stacked = nil
-			return m, tea.Batch(cmds...)
+			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Cancel) && m.flash.Any():
 			m.flash.DeleteOldest()
-			return m, tea.Batch(cmds...)
+			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Quit) && m.isSafeToQuit():
-			return m, tea.Quit
+			return tea.Quit
 		case key.Matches(msg, m.keyMap.OpLog.Mode):
 			m.oplog = oplog.New(m.context, m.Width, m.Height)
-			return m, m.oplog.Init()
+			return m.oplog.Init()
 		case key.Matches(msg, m.keyMap.Revset) && m.revisions.InNormalMode():
-			return m, m.revsetModel.Update(revset.EditRevSetMsg{Clear: m.state != common.Error})
+			return m.revsetModel.Update(revset.EditRevSetMsg{Clear: m.state != common.Error})
 		case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
 			m.stacked = git.NewModel(m.context, m.revisions.SelectedRevisions(), m.Width, m.Height)
-			return m, m.stacked.Init()
+			return m.stacked.Init()
 		case key.Matches(msg, m.keyMap.Undo) && m.revisions.InNormalMode():
 			m.stacked = undo.NewModel(m.context)
 			cmds = append(cmds, m.stacked.Init())
-			return m, tea.Batch(cmds...)
+			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Redo) && m.revisions.InNormalMode():
 			m.stacked = redo.NewModel(m.context)
 			cmds = append(cmds, m.stacked.Init())
-			return m, tea.Batch(cmds...)
+			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Bookmark.Mode) && m.revisions.InNormalMode():
 			changeIds := m.revisions.GetCommitIds()
 			m.stacked = bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds, m.Width, m.Height)
 			cmds = append(cmds, m.stacked.Init())
-			return m, tea.Batch(cmds...)
+			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Help):
 			cmds = append(cmds, common.ToggleHelp)
-			return m, tea.Batch(cmds...)
+			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Preview.Mode, m.keyMap.Preview.ToggleBottom):
 			if key.Matches(msg, m.keyMap.Preview.ToggleBottom) {
 				previewPos := m.previewModel.AtBottom()
 				m.previewModel.SetPosition(false, !previewPos)
 				if m.previewModel.Visible() {
-					return m, tea.Batch(cmds...)
+					return tea.Batch(cmds...)
 				}
 			}
 			m.previewModel.ToggleVisible()
 			cmds = append(cmds, common.SelectionChanged)
-			return m, tea.Batch(cmds...)
+			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Preview.Expand) && m.previewModel.Visible():
 			m.previewModel.Expand()
-			return m, tea.Batch(cmds...)
+			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Preview.Shrink) && m.previewModel.Visible():
 			m.previewModel.Shrink()
-			return m, tea.Batch(cmds...)
+			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.CustomCommands):
 			m.stacked = customcommands.NewModel(m.context, m.Width, m.Height)
 			cmds = append(cmds, m.stacked.Init())
-			return m, tea.Batch(cmds...)
+			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Leader):
 			m.leader = leader.New(m.context)
 			cmds = append(cmds, leader.InitCmd)
-			return m, tea.Batch(cmds...)
+			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.FileSearch.Toggle):
 			rev := m.revisions.SelectedRevision()
 			if rev == nil {
 				// noop if current revset does not exist (#264)
-				return m, nil
+				return nil
 			}
 			out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
-			return m, common.FileSearch(m.context.CurrentRevset, m.previewModel.Visible(), rev, out)
+			return common.FileSearch(m.context.CurrentRevset, m.previewModel.Visible(), rev, out)
 		case key.Matches(msg, m.keyMap.QuickSearch) && m.oplog != nil:
 			// HACK: prevents quick search from activating in op log view
-			return m, nil
+			return nil
 		case key.Matches(msg, m.keyMap.Suspend):
-			return m, tea.Suspend
+			return tea.Suspend
 		default:
 			for _, command := range m.context.CustomCommands {
 				if !command.IsApplicableTo(m.context.SelectedItem) {
 					continue
 				}
 				if key.Matches(msg, command.Binding()) {
-					return m, command.Prepare(m.context)
+					return command.Prepare(m.context)
 				}
 			}
 		}
 	case common.ExecMsg:
-		return m, exec_process.ExecLine(m.context, msg)
+		return exec_process.ExecLine(m.context, msg)
 	case common.ToggleHelpMsg:
 		if m.stacked == nil {
 			m.stacked = helppage.New(m.context)
@@ -213,24 +215,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.stacked = nil
 		}
-		return m, nil
+		return nil
 	case common.ShowDiffMsg:
 		m.diff = diff.New(string(msg), m.Width, m.Height)
-		return m, m.diff.Init()
+		return m.diff.Init()
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
 	case triggerAutoRefreshMsg:
-		return m, tea.Batch(m.scheduleAutoRefresh(), func() tea.Msg {
+		return tea.Batch(m.scheduleAutoRefresh(), func() tea.Msg {
 			return common.AutoRefreshMsg{}
 		})
 	case common.UpdateRevSetMsg:
 		m.context.CurrentRevset = string(msg)
 		m.revsetModel.AddToHistory(m.context.CurrentRevset)
-		return m, common.Refresh
+		return common.Refresh
 	case common.ShowPreview:
 		m.previewModel.SetVisible(bool(msg))
 		cmds = append(cmds, common.SelectionChanged)
-		return m, tea.Batch(cmds...)
+		return tea.Batch(cmds...)
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
@@ -266,10 +268,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.previewModel.Update(msg))
 	}
 
-	return m, tea.Batch(cmds...)
+	return tea.Batch(cmds...)
 }
 
-func (m Model) updateStatus() {
+func (m *Model) updateStatus() {
 	switch {
 	case m.diff != nil:
 		m.status.SetMode("diff")
@@ -290,14 +292,14 @@ func (m Model) updateStatus() {
 	}
 }
 
-func (m Model) UpdatePreviewPosition() {
+func (m *Model) UpdatePreviewPosition() {
 	if m.previewModel.AutoPosition() {
 		atBottom := m.Height >= m.Width/2
 		m.previewModel.SetPosition(true, atBottom)
 	}
 }
 
-func (m Model) View() string {
+func (m *Model) View() string {
 	m.updateStatus()
 	footer := m.status.View()
 	footerHeight := lipgloss.Height(footer)
@@ -357,7 +359,7 @@ func (m Model) View() string {
 	return full
 }
 
-func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreviewHeight int) string {
+func (m *Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreviewHeight int) string {
 	leftView := ""
 	w := m.Width
 	h := 0
@@ -382,7 +384,7 @@ func (m Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreview
 	return leftView
 }
 
-func (m Model) scheduleAutoRefresh() tea.Cmd {
+func (m *Model) scheduleAutoRefresh() tea.Cmd {
 	interval := config.Current.UI.AutoRefreshInterval
 	if interval > 0 {
 		return tea.Tick(time.Duration(interval)*time.Second, func(time.Time) tea.Msg {
@@ -392,7 +394,7 @@ func (m Model) scheduleAutoRefresh() tea.Cmd {
 	return nil
 }
 
-func (m Model) isSafeToQuit() bool {
+func (m *Model) isSafeToQuit() bool {
 	if m.stacked != nil {
 		return false
 	}
@@ -405,11 +407,29 @@ func (m Model) isSafeToQuit() bool {
 	return false
 }
 
-func New(c *context.MainContext) tea.Model {
+var _ tea.Model = (*wrapper)(nil)
+
+type wrapper struct {
+	ui *Model
+}
+
+func (w wrapper) Init() tea.Cmd {
+	return w.ui.Init()
+}
+
+func (w wrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	return w, w.ui.Update(msg)
+}
+
+func (w wrapper) View() string {
+	return w.ui.View()
+}
+
+func NewUI(c *context.MainContext) *Model {
 	revisionsModel := revisions.New(c)
 	previewModel := preview.New(c)
 	statusModel := status.New(c)
-	return Model{
+	return &Model{
 		Sizeable:     &common.Sizeable{Width: 0, Height: 0},
 		context:      c,
 		keyMap:       config.Current.GetKeyMap(),
@@ -420,4 +440,8 @@ func New(c *context.MainContext) tea.Model {
 		revsetModel:  revset.New(c),
 		flash:        flash.New(c),
 	}
+}
+
+func New(c *context.MainContext) tea.Model {
+	return wrapper{ui: NewUI(c)}
 }
