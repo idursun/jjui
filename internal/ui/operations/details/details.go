@@ -66,26 +66,29 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 		return s.load(s.revision.GetChangeId())
 	case updateCommitStatusMsg:
 		items := s.createListItems(msg.summary, msg.selectedFiles)
-		var selectionChangedCmd tea.Cmd
 		s.context.ClearCheckedItems(reflect.TypeFor[context.SelectedFile]())
-		if len(items) > 0 {
-			var first context.SelectedItem
-			for _, it := range items {
+
+		for _, it := range items {
+			if it.selected {
 				sel := context.SelectedFile{
 					ChangeId: s.revision.GetChangeId(),
 					CommitId: s.revision.CommitId,
 					File:     it.fileName,
 				}
-				if first == nil {
-					first = sel
-				}
-				if it.selected {
-					s.context.AddCheckedItem(sel)
-				}
+				s.context.AddCheckedItem(sel)
 			}
-			selectionChangedCmd = s.context.SetSelectedItem(first)
 		}
 		s.setItems(items)
+
+		// Set selection to current cursor position
+		var selectionChangedCmd tea.Cmd
+		if current := s.current(); current != nil {
+			selectionChangedCmd = s.context.SetSelectedItem(context.SelectedFile{
+				ChangeId: s.revision.GetChangeId(),
+				CommitId: s.revision.CommitId,
+				File:     current.fileName,
+			})
+		}
 		return selectionChangedCmd
 	default:
 		oldCursor := s.cursor

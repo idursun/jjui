@@ -352,7 +352,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				m.revisionToSelect = selected.CommitId
 			}
 		}
-		log.Println("Starting streaming revisions message received with tag:", msg.tag, "revision to select:", msg.selectedRevision)
+		log.Println("Starting streaming revisions with tag:", msg.tag)
 		return m.requestMoreRows(msg.tag)
 	case appendRowsBatchMsg:
 		m.requestInFlight = false
@@ -580,6 +580,10 @@ func (m *Model) startSquash(selectedRevisions jj.SelectedRevisions, files []stri
 }
 
 func (m *Model) updateSelection() tea.Cmd {
+	// Don't override file-level selections (from Details panel)
+	if _, isFile := m.context.SelectedItem.(appContext.SelectedFile); isFile {
+		return nil
+	}
 	if selectedRevision := m.SelectedRevision(); selectedRevision != nil {
 		return m.context.SetSelectedItem(appContext.SelectedRevision{
 			ChangeId: selectedRevision.GetChangeId(),

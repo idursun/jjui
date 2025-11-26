@@ -179,34 +179,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.ScrollHorizontal(scrollAmount)
 		}
 	case common.SelectionChangedMsg, common.RefreshMsg:
-		return common.Debounce(debounceId, debounceDuration, func() tea.Msg {
-			var args []string
-			switch msg := m.context.SelectedItem.(type) {
-			case context.SelectedFile:
-				args = jj.TemplatedArgs(config.Current.Preview.FileCommand, map[string]string{
-					jj.RevsetPlaceholder:   m.context.CurrentRevset,
-					jj.ChangeIdPlaceholder: msg.ChangeId,
-					jj.CommitIdPlaceholder: msg.CommitId,
-					jj.FilePlaceholder:     msg.File,
-				})
-			case context.SelectedRevision:
-				args = jj.TemplatedArgs(config.Current.Preview.RevisionCommand, map[string]string{
-					jj.RevsetPlaceholder:   m.context.CurrentRevset,
-					jj.ChangeIdPlaceholder: msg.ChangeId,
-					jj.CommitIdPlaceholder: msg.CommitId,
-				})
-			case context.SelectedOperation:
-				args = jj.TemplatedArgs(config.Current.Preview.OplogCommand, map[string]string{
-					jj.RevsetPlaceholder:      m.context.CurrentRevset,
-					jj.OperationIdPlaceholder: msg.OperationId,
-				})
-			}
-
-			output, _ := m.context.RunCommandImmediate(args)
-			return updatePreviewContentMsg{
-				Content: string(output),
-			}
-		})
+		return m.refreshPreview()
 	case updatePreviewContentMsg:
 		m.SetContent(msg.Content)
 		return nil
@@ -238,6 +211,37 @@ func (m *Model) View() string {
 func (m *Model) reset() {
 	m.view.SetYOffset(0)
 	m.view.SetXOffset(0)
+}
+
+func (m *Model) refreshPreview() tea.Cmd {
+	return common.Debounce(debounceId, debounceDuration, func() tea.Msg {
+		var args []string
+		switch msg := m.context.SelectedItem.(type) {
+		case context.SelectedFile:
+			args = jj.TemplatedArgs(config.Current.Preview.FileCommand, map[string]string{
+				jj.RevsetPlaceholder:   m.context.CurrentRevset,
+				jj.ChangeIdPlaceholder: msg.ChangeId,
+				jj.CommitIdPlaceholder: msg.CommitId,
+				jj.FilePlaceholder:     msg.File,
+			})
+		case context.SelectedRevision:
+			args = jj.TemplatedArgs(config.Current.Preview.RevisionCommand, map[string]string{
+				jj.RevsetPlaceholder:   m.context.CurrentRevset,
+				jj.ChangeIdPlaceholder: msg.ChangeId,
+				jj.CommitIdPlaceholder: msg.CommitId,
+			})
+		case context.SelectedOperation:
+			args = jj.TemplatedArgs(config.Current.Preview.OplogCommand, map[string]string{
+				jj.RevsetPlaceholder:      m.context.CurrentRevset,
+				jj.OperationIdPlaceholder: msg.OperationId,
+			})
+		}
+
+		output, _ := m.context.RunCommandImmediate(args)
+		return updatePreviewContentMsg{
+			Content: string(output),
+		}
+	})
 }
 
 func (m *Model) SetWindowPercentage(percentage float64) {
