@@ -29,6 +29,14 @@ func (s *Sizeable) SetFrame(f cellbuf.Rectangle) {
 	s.Height = f.Dy()
 }
 
+func (s *Sizeable) GetFrame() cellbuf.Rectangle {
+	return s.Frame
+}
+
+func ToLocal(s *Sizeable, x, y int) (int, int) {
+	return x - s.Frame.Min.X, y - s.Frame.Min.Y
+}
+
 func NewSizeable(width, height int) *Sizeable {
 	return &Sizeable{Width: width, Height: height}
 }

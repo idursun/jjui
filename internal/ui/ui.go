@@ -50,6 +50,9 @@ type Model struct {
 	context      *context.MainContext
 	keyMap       config.KeyMappings[key.Binding]
 	stacked      common.Model
+
+	draggableLine int
+	dragging      bool
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -120,6 +123,38 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.FocusMsg:
 		return common.RefreshAndKeepSelections
+	case tea.MouseMsg:
+		if m.stacked != nil {
+			// for now, stacked windows don't respond to mouse events
+			return nil
+		}
+		if msg.Action == tea.MouseActionMotion && m.dragging {
+			var percentage float64
+			if m.previewModel.AtBottom() {
+				percentage = float64((m.Height-msg.Y)*100) / float64(m.Height)
+			} else {
+				percentage = float64((m.Width-msg.X)*100) / float64(m.Width)
+			}
+			m.previewModel.SetWindowPercentage(percentage)
+			return nil
+		}
+
+		if m.dragging && msg.Action == tea.MouseActionRelease {
+			m.dragging = false
+			return nil
+		}
+
+		if !m.dragging && m.previewModel.Visible() && cellbuf.Pos(msg.X, msg.Y).In(m.previewModel.Frame) {
+			m.dragging = (m.previewModel.AtBottom() && msg.Y == m.draggableLine) || (!m.previewModel.AtBottom() && msg.X == m.draggableLine)
+			if m.dragging {
+				return nil
+			}
+		}
+
+		if model := m.findViewAt(msg.X, msg.Y); model != nil {
+			return model.Update(msg)
+		}
+		return nil
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
@@ -344,7 +379,6 @@ func (m *Model) View() string {
 	if m.oplog != nil {
 		m.oplog.SetFrame(centerArea)
 		leftView = m.oplog.View()
-
 	} else {
 		m.revisions.SetFrame(centerArea)
 		leftView = m.revisions.View()
@@ -374,6 +408,17 @@ func (m *Model) View() string {
 		_, mh := lipgloss.Size(statusFuzzyView)
 		cellbuf.SetContentRect(screenBuf, statusFuzzyView, cellbuf.Rect(0, m.Height-mh-1, m.Width, mh))
 	}
+
+	if m.previewModel.Visible() {
+		if m.previewModel.AtBottom() {
+			m.draggableLine = previewArea.Min.Y
+		} else {
+			m.draggableLine = previewArea.Min.X
+		}
+	} else {
+		m.draggableLine = -1
+	}
+
 	finalView := cellbuf.Render(screenBuf)
 	return strings.ReplaceAll(finalView, "\r", "")
 }
@@ -399,6 +444,18 @@ func (m *Model) isSafeToQuit() bool {
 		return true
 	}
 	return false
+}
+
+func (m *Model) findViewAt(x, y int) common.IMouseAware {
+	// well, these are all the views that can receive mouse input for now
+	pt := cellbuf.Pos(x, y)
+	if m.oplog == nil && pt.In(m.revisions.Frame) {
+		return m.revisions
+	}
+	if m.previewModel.Visible() && pt.In(m.previewModel.Frame) {
+		return m.previewModel
+	}
+	return nil
 }
 
 var _ tea.Model = (*wrapper)(nil)

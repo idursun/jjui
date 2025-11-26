@@ -37,10 +37,11 @@ import (
 )
 
 var (
-	_ list.IList       = (*Model)(nil)
-	_ list.IListCursor = (*Model)(nil)
-	_ common.Focusable = (*Model)(nil)
-	_ common.Editable  = (*Model)(nil)
+	_ list.IList         = (*Model)(nil)
+	_ list.IListCursor   = (*Model)(nil)
+	_ common.Focusable   = (*Model)(nil)
+	_ common.Editable    = (*Model)(nil)
+	_ common.IMouseAware = (*Model)(nil)
 )
 
 var (
@@ -50,6 +51,7 @@ var (
 
 type Model struct {
 	*common.Sizeable
+	*common.MouseAware
 	rows             []parser.Row
 	tag              atomic.Uint64
 	revisionToSelect string
@@ -69,6 +71,34 @@ type Model struct {
 	textStyle        lipgloss.Style
 	dimmedStyle      lipgloss.Style
 	selectedStyle    lipgloss.Style
+	ensureCursorView bool
+}
+
+type revisionsMsg struct {
+	msg tea.Msg
+}
+
+// Allow a message to be targetted to this component.
+func RevisionsCmd(msg tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		return revisionsMsg{msg: msg}
+	}
+}
+
+type updateRevisionsMsg struct {
+	rows             []parser.Row
+	selectedRevision string
+}
+
+type startRowsStreamingMsg struct {
+	selectedRevision string
+	tag              uint64
+}
+
+type appendRowsBatchMsg struct {
+	rows    []parser.Row
+	hasMore bool
+	tag     uint64
 }
 
 func (m *Model) Cursor() int {
@@ -78,7 +108,66 @@ func (m *Model) Cursor() int {
 func (m *Model) SetCursor(index int) {
 	if index >= 0 && index < len(m.rows) {
 		m.cursor = index
+		m.ensureCursorView = true
 	}
+}
+
+func (m *Model) ClickAt(x, y int) tea.Cmd {
+	if len(m.rows) == 0 {
+		return nil
+	}
+
+	localY := y - m.Frame.Min.Y
+
+	currentStart := m.renderer.ViewRange.Start
+	if localY >= m.Height {
+		localY = m.Height - 1
+		if localY < 0 {
+			return nil
+		}
+	}
+	line := currentStart + localY
+	row := m.rowAtLine(line)
+	if row == -1 {
+		return nil
+	}
+
+	m.SetCursor(row)
+	return m.updateSelection()
+}
+
+func (m *Model) rowAtLine(line int) int {
+	for _, rr := range m.renderer.RowRanges() {
+		if line >= rr.StartLine && line < rr.EndLine {
+			return rr.Row
+		}
+	}
+	return -1
+}
+
+func (m *Model) Scroll(delta int) tea.Cmd {
+	m.ensureCursorView = false
+	desiredStart := m.renderer.ViewRange.Start + delta
+	if desiredStart < 0 {
+		desiredStart = 0
+	}
+
+	totalLines := m.renderer.TotalLineCount()
+	maxStart := totalLines - m.Height
+	if maxStart < 0 {
+		maxStart = 0
+	}
+	newStart := desiredStart
+	if newStart > maxStart {
+		newStart = maxStart
+	}
+	m.renderer.ViewRange.Start = newStart
+	m.renderer.ViewRange.End = newStart + m.Height
+
+	if m.hasMore && (desiredStart > maxStart || newStart+m.Height >= totalLines-1) {
+		return m.requestMoreRows(m.tag.Load())
+	}
+	return nil
 }
 
 func (m *Model) Len() int {
@@ -124,33 +213,6 @@ func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
 		inLane: inLane,
 		op:     m.op.(operations.Operation),
 	}
-}
-
-type revisionsMsg struct {
-	msg tea.Msg
-}
-
-// Allow a message to be targetted to this component.
-func RevisionsCmd(msg tea.Msg) tea.Cmd {
-	return func() tea.Msg {
-		return revisionsMsg{msg: msg}
-	}
-}
-
-type updateRevisionsMsg struct {
-	rows             []parser.Row
-	selectedRevision string
-}
-
-type startRowsStreamingMsg struct {
-	selectedRevision string
-	tag              uint64
-}
-
-type appendRowsBatchMsg struct {
-	rows    []parser.Row
-	hasMore bool
-	tag     uint64
 }
 
 func (m *Model) IsEditing() bool {
@@ -236,12 +298,24 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case tea.MouseMsg:
+		switch msg.Action {
+		case tea.MouseActionPress:
+			if msg.Button == tea.MouseButtonLeft {
+				return m.ClickAt(msg.X, msg.Y)
+			} else if msg.Button == tea.MouseButtonWheelUp {
+				return m.Scroll(-3)
+			} else if msg.Button == tea.MouseButtonWheelDown {
+				return m.Scroll(3)
+			}
+			return nil
+		}
 	case common.CloseViewMsg:
 		m.op = operations.NewDefault()
 		return m.updateSelection()
 	case common.QuickSearchMsg:
 		m.quickSearch = string(msg)
-		m.cursor = m.search(0)
+		m.SetCursor(m.search(0))
 		m.op = operations.NewDefault()
 		m.renderer.Reset()
 		return nil
@@ -310,16 +384,16 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		currentSelectedRevision := m.SelectedRevision()
 		m.rows = m.offScreenRows
 		if m.revisionToSelect != "" {
-			m.cursor = m.selectRevision(m.revisionToSelect)
+			m.SetCursor(m.selectRevision(m.revisionToSelect))
 			m.revisionToSelect = ""
 		}
 
 		if m.cursor == -1 && currentSelectedRevision != nil {
-			m.cursor = m.selectRevision(currentSelectedRevision.GetChangeId())
+			m.SetCursor(m.selectRevision(currentSelectedRevision.GetChangeId()))
 		}
 
 		if (m.cursor < 0 || m.cursor >= len(m.rows)) && len(m.rows) > 0 {
-			m.cursor = 0
+			m.SetCursor(0)
 		}
 
 		cmds := []tea.Cmd{m.highlightChanges, m.updateSelection()}
@@ -362,7 +436,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 					}
 				}
 			}
-			m.cursor = max(m.cursor-amount, 0)
+			m.SetCursor(max(m.cursor-amount, 0))
 			return m.updateSelection()
 		case key.Matches(msg, m.keymap.Down, pageDownKey):
 			amount := 1
@@ -378,12 +452,13 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				}
 			}
 			if m.cursor < len(m.rows)-amount {
-				m.cursor = m.cursor + amount
+				m.SetCursor(m.cursor + amount)
 			} else if m.hasMore {
 				return m.requestMoreRows(m.tag.Load())
 			} else if len(m.rows) > 0 {
-				m.cursor = len(m.rows) - 1
+				m.SetCursor(len(m.rows) - 1)
 			}
+			m.ensureCursorView = true
 			return m.updateSelection()
 		case key.Matches(msg, m.keymap.JumpToParent):
 			m.jumpToParent(m.SelectedRevisions())
@@ -392,13 +467,13 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.SelectedRevision()))
 			index := m.selectRevision(string(immediate))
 			if index != -1 {
-				m.cursor = index
+				m.SetCursor(index)
 			}
 			return m.updateSelection()
 		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
 			workingCopyIndex := m.selectRevision("@")
 			if workingCopyIndex != -1 {
-				m.cursor = workingCopyIndex
+				m.SetCursor(workingCopyIndex)
 			}
 			return m.updateSelection()
 		case key.Matches(msg, m.keymap.AceJump):
@@ -421,12 +496,12 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				immediate, _ := m.context.RunCommandImmediate(jj.GetParent(jj.NewSelectedRevisions(commit)))
 				parentIndex := m.selectRevision(string(immediate))
 				if parentIndex != -1 {
-					m.cursor = parentIndex
+					m.SetCursor(parentIndex)
 				}
 			case key.Matches(msg, m.keymap.Cancel):
 				m.op = operations.NewDefault()
 			case key.Matches(msg, m.keymap.QuickSearchCycle):
-				m.cursor = m.search(m.cursor + 1)
+				m.SetCursor(m.search(m.cursor + 1))
 				m.renderer.Reset()
 				return nil
 			case key.Matches(msg, m.keymap.Details.Mode):
@@ -498,9 +573,9 @@ func (m *Model) startSquash(selectedRevisions jj.SelectedRevisions, files []stri
 	parent, _ := m.context.RunCommandImmediate(jj.GetParent(selectedRevisions))
 	parentIdx := m.selectRevision(string(parent))
 	if parentIdx != -1 {
-		m.cursor = parentIdx
+		m.SetCursor(parentIdx)
 	} else if m.cursor < len(m.rows)-1 {
-		m.cursor++
+		m.SetCursor(m.cursor + 1)
 	}
 	m.op = squash.NewOperation(m.context, selectedRevisions, squash.WithFiles(files))
 	return m.op.Init()
@@ -556,15 +631,15 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 	m.rows = rows
 
 	if len(m.rows) > 0 {
-		m.cursor = m.selectRevision(currentSelectedRevision)
+		m.SetCursor(m.selectRevision(currentSelectedRevision))
 		if m.cursor == -1 {
-			m.cursor = m.selectRevision("@")
+			m.SetCursor(m.selectRevision("@"))
 		}
 		if m.cursor == -1 {
-			m.cursor = 0
+			m.SetCursor(0)
 		}
 	} else {
-		m.cursor = 0
+		m.SetCursor(0)
 	}
 }
 
@@ -586,7 +661,7 @@ func (m *Model) View() string {
 
 	m.renderer.selections = m.context.GetSelectedRevisions()
 
-	output := m.renderer.Render(m.cursor)
+	output := m.renderer.RenderWithOptions(list.RenderOptions{FocusIndex: m.cursor, EnsureFocusVisible: m.ensureCursorView})
 	output = m.textStyle.MaxWidth(m.Width).Render(output)
 	return lipgloss.Place(m.Width, m.Height, 0, 0, output)
 }
@@ -701,6 +776,7 @@ func New(c *appContext.MainContext) *Model {
 	keymap := config.Current.GetKeyMap()
 	m := Model{
 		Sizeable:      &common.Sizeable{Width: 0, Height: 0},
+		MouseAware:    common.NewMouseAware(),
 		context:       c,
 		keymap:        keymap,
 		rows:          nil,
@@ -719,6 +795,6 @@ func (m *Model) jumpToParent(revisions jj.SelectedRevisions) {
 	immediate, _ := m.context.RunCommandImmediate(jj.GetParent(revisions))
 	parentIndex := m.selectRevision(string(immediate))
 	if parentIndex != -1 {
-		m.cursor = parentIndex
+		m.SetCursor(parentIndex)
 	}
 }

@@ -26,6 +26,7 @@ var _ common.Model = (*Model)(nil)
 
 type Model struct {
 	*common.Sizeable
+	*common.MouseAware
 	tag                     atomic.Uint64
 	previewVisible          bool
 	previewAutoPosition     bool
@@ -106,11 +107,29 @@ func (m *Model) WindowPercentage() float64 {
 	return m.previewWindowPercentage
 }
 
+func (m *Model) Scroll(delta int) tea.Cmd {
+	if delta < 0 && m.viewRange.start == 0 {
+		return nil
+	}
+	if delta > 0 && m.viewRange.end >= m.contentLineCount {
+		return nil
+	}
+	m.viewRange.start = m.viewRange.start + delta
+	m.viewRange.end = m.viewRange.end + delta
+	return nil
+}
+
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if k, ok := msg.(previewMsg); ok {
 		msg = k.msg
 	}
 	switch msg := msg.(type) {
+	case tea.MouseMsg:
+		if msg.Button == tea.MouseButtonWheelUp {
+			m.Scroll(-3)
+		} else if msg.Button == tea.MouseButtonWheelDown {
+			m.Scroll(3)
+		}
 	case common.SelectionChangedMsg, common.RefreshMsg:
 		tag := m.tag.Add(1)
 		return tea.Tick(DebounceTime, func(t time.Time) tea.Msg {
@@ -218,18 +237,21 @@ func (m *Model) reset() {
 	m.viewRange.start, m.viewRange.end = 0, m.Height
 }
 
-func (m *Model) Expand() {
-	m.previewWindowPercentage += config.Current.Preview.WidthIncrementPercentage
-	if m.previewWindowPercentage > 95 {
+func (m *Model) SetWindowPercentage(percentage float64) {
+	m.previewWindowPercentage = percentage
+	if m.previewWindowPercentage < 10 {
+		m.previewWindowPercentage = 10
+	} else if m.previewWindowPercentage > 95 {
 		m.previewWindowPercentage = 95
 	}
 }
 
+func (m *Model) Expand() {
+	m.SetWindowPercentage(m.previewWindowPercentage + config.Current.Preview.WidthIncrementPercentage)
+}
+
 func (m *Model) Shrink() {
-	m.previewWindowPercentage -= config.Current.Preview.WidthIncrementPercentage
-	if m.previewWindowPercentage < 10 {
-		m.previewWindowPercentage = 10
-	}
+	m.SetWindowPercentage(m.previewWindowPercentage - config.Current.Preview.WidthIncrementPercentage)
 }
 
 func New(context *context.MainContext) Model {
@@ -251,6 +273,7 @@ func New(context *context.MainContext) Model {
 
 	return Model{
 		Sizeable:                &common.Sizeable{Width: 0, Height: 0},
+		MouseAware:              common.NewMouseAware(),
 		viewRange:               &viewRange{start: 0, end: 0},
 		context:                 context,
 		keyMap:                  config.Current.GetKeyMap(),

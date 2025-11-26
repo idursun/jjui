@@ -192,7 +192,7 @@ func main() {
 	}
 	appContext.CurrentRevset = appContext.DefaultRevset
 
-	p := tea.NewProgram(ui.New(appContext), tea.WithAltScreen(), tea.WithReportFocus())
+	p := tea.NewProgram(ui.New(appContext), tea.WithAltScreen(), tea.WithReportFocus(), tea.WithMouseCellMotion())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error running program: %v\n", err)
 		os.Exit(1)
