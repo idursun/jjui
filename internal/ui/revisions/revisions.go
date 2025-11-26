@@ -36,13 +36,17 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/squash"
 )
 
-var _ list.IList = (*Model)(nil)
-var _ list.IListCursor = (*Model)(nil)
-var _ common.Focusable = (*Model)(nil)
-var _ common.Editable = (*Model)(nil)
+var (
+	_ list.IList       = (*Model)(nil)
+	_ list.IListCursor = (*Model)(nil)
+	_ common.Focusable = (*Model)(nil)
+	_ common.Editable  = (*Model)(nil)
+)
 
-var pageDownKey = key.NewBinding(key.WithKeys("pgdown"))
-var pageUpKey = key.NewBinding(key.WithKeys("pgup"))
+var (
+	pageDownKey = key.NewBinding(key.WithKeys("pgdown"))
+	pageUpKey   = key.NewBinding(key.WithKeys("pgup"))
+)
 
 type Model struct {
 	*common.Sizeable
@@ -82,9 +86,7 @@ func (m *Model) Len() int {
 }
 
 func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
-	var (
-		before, after, renderOverDescription, beforeCommitId, beforeChangeId string
-	)
+	var before, after, renderOverDescription, beforeCommitId, beforeChangeId string
 	row := m.rows[index]
 	inLane := m.renderer.tracer.IsInSameLane(index)
 	isHighlighted := index == m.cursor
@@ -359,19 +361,35 @@ func (m *Model) internalUpdate(msg tea.Msg) (*Model, tea.Cmd) {
 			if key.Matches(msg, pageUpKey) && m.renderer.LastRowIndex > m.renderer.FirstRowIndex {
 				amount = m.renderer.LastRowIndex - m.renderer.FirstRowIndex - 1
 			}
-			if m.cursor-amount >= 0 {
-				m.cursor = m.cursor - amount
+			if m.cursor == 0 && key.Matches(msg, pageUpKey) {
+				return m, func() tea.Msg {
+					return common.CommandCompletedMsg{
+						Output: fmt.Sprintf("Already at the top of revset `%s`", m.context.CurrentRevset),
+						Err:    nil,
+					}
+				}
 			}
+			m.cursor = max(m.cursor-amount, 0)
 			return m, m.updateSelection()
 		case key.Matches(msg, m.keymap.Down, pageDownKey):
 			amount := 1
 			if key.Matches(msg, pageDownKey) && m.renderer.LastRowIndex > m.renderer.FirstRowIndex {
 				amount = m.renderer.LastRowIndex - m.renderer.FirstRowIndex - 1
 			}
+			if len(m.rows) > 0 && m.cursor == len(m.rows)-1 && !m.hasMore && key.Matches(msg, pageDownKey) {
+				return m, func() tea.Msg {
+					return common.CommandCompletedMsg{
+						Output: fmt.Sprintf("Already at the bottom of revset `%s`", m.context.CurrentRevset),
+						Err:    nil,
+					}
+				}
+			}
 			if m.cursor < len(m.rows)-amount {
 				m.cursor = m.cursor + amount
 			} else if m.hasMore {
 				return m, m.requestMoreRows(m.tag.Load())
+			} else if len(m.rows) > 0 {
+				m.cursor = len(m.rows) - 1
 			}
 			return m, m.updateSelection()
 		case key.Matches(msg, m.keymap.JumpToParent):
