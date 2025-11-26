@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/x/cellbuf"
+	"github.com/idursun/jjui/internal/ui/layout"
 
 	"github.com/idursun/jjui/internal/ui/flash"
 
@@ -316,36 +317,41 @@ func (m *Model) View() string {
 	}
 
 	screenBuf := cellbuf.NewBuffer(m.Width, m.Height)
+	centerArea := cellbuf.Rect(0, 0, m.Width, m.Height)
+	var topArea, previewArea, bottomArea cellbuf.Rectangle
 
 	topView := m.revsetModel.View()
 	topViewHeight := lipgloss.Height(topView)
+	topArea, centerArea = layout.SplitVertical(centerArea, layout.Fixed(topViewHeight))
+	cellbuf.SetContentRect(screenBuf, topView, topArea)
 
-	m.UpdatePreviewPosition()
-
-	bottomPreviewHeight := 0
-	if m.previewModel.Visible() && m.previewModel.AtBottom() {
-		bottomPreviewHeight = int(float64(m.Height) * (m.previewModel.WindowPercentage() / 100.0))
-	}
-	leftView := m.renderLeftView(footerHeight, topViewHeight, bottomPreviewHeight)
-	centerView := leftView
+	centerArea, bottomArea = layout.SplitVertical(centerArea, layout.Fixed(centerArea.Dy()-footerHeight))
+	cellbuf.SetContentRect(screenBuf, footer, bottomArea)
 
 	if m.previewModel.Visible() {
+		m.UpdatePreviewPosition()
 		if m.previewModel.AtBottom() {
-			m.previewModel.SetWidth(m.Width)
-			m.previewModel.SetHeight(bottomPreviewHeight)
+			centerArea, previewArea = layout.SplitVertical(centerArea, layout.Percent(100-m.previewModel.WindowPercentage()))
 		} else {
-			m.previewModel.SetWidth(m.Width - lipgloss.Width(leftView))
-			m.previewModel.SetHeight(m.Height - footerHeight - topViewHeight)
+			centerArea, previewArea = layout.SplitHorizontal(centerArea, layout.Percent(100-m.previewModel.WindowPercentage()))
 		}
-		previewView := m.previewModel.View()
-		if m.previewModel.AtBottom() {
-			centerView = lipgloss.JoinVertical(lipgloss.Top, leftView, previewView)
-		} else {
-			centerView = lipgloss.JoinHorizontal(lipgloss.Left, leftView, previewView)
-		}
+		m.previewModel.SetFrame(previewArea)
 	}
-	full := lipgloss.JoinVertical(0, topView, centerView, footer)
-	cellbuf.SetContent(screenBuf, full)
+
+	var leftView string
+	if m.oplog != nil {
+		m.oplog.SetFrame(centerArea)
+		leftView = m.oplog.View()
+
+	} else {
+		m.revisions.SetFrame(centerArea)
+		leftView = m.revisions.View()
+	}
+
+	cellbuf.SetContentRect(screenBuf, leftView, centerArea)
+	if m.previewModel.Visible() {
+		cellbuf.SetContentRect(screenBuf, m.previewModel.View(), previewArea)
+	}
 
 	if m.stacked != nil {
 		stackedView := m.stacked.View()
@@ -368,31 +374,6 @@ func (m *Model) View() string {
 	}
 	finalView := cellbuf.Render(screenBuf)
 	return strings.ReplaceAll(finalView, "\r", "")
-}
-
-func (m *Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreviewHeight int) string {
-	leftView := ""
-	w := m.Width
-	h := 0
-
-	if m.previewModel.Visible() {
-		if m.previewModel.AtBottom() {
-			h = bottomPreviewHeight
-		} else {
-			w = m.Width - int(float64(m.Width)*(m.previewModel.WindowPercentage()/100.0))
-		}
-	}
-
-	if m.oplog != nil {
-		m.oplog.SetWidth(w)
-		m.oplog.SetHeight(m.Height - footerHeight - topViewHeight - h)
-		leftView = m.oplog.View()
-	} else {
-		m.revisions.SetWidth(w)
-		m.revisions.SetHeight(m.Height - footerHeight - topViewHeight - h)
-		leftView = m.revisions.View()
-	}
-	return leftView
 }
 
 func (m *Model) scheduleAutoRefresh() tea.Cmd {
