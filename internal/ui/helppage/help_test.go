@@ -39,7 +39,7 @@ func TestHelpMenuTriggeredFromMainUI(t *testing.T) {
 	model := ui.NewUI(ctx)
 
 	test.SimulateModel(model, func() tea.Msg {
-		return tea.WindowSizeMsg{Width: 120, Height: 36}
+		return tea.WindowSizeMsg{Width: 140, Height: 80}
 	})
 
 	beforeView := model.View()
@@ -51,10 +51,10 @@ func TestHelpMenuTriggeredFromMainUI(t *testing.T) {
 
 	afterView := model.View()
 	if !strings.Contains(afterView, "Search: ") {
-		t.Fatalf("expected help overlay to include search prompt, view: %q", afterView)
+		t.Fatalf("expected help overlay to include search prompt, view: \n%q", afterView)
 	}
 	if !strings.Contains(afterView, "jump to parent/child/working-copy") {
-		t.Fatalf("expected help overlay content to be rendered, view: %q", afterView)
+		t.Fatalf("expected help overlay content to be rendered, view: \n%q", afterView)
 	}
 }
 

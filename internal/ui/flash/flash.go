@@ -4,10 +4,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/idursun/jjui/internal/screen"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 )
@@ -25,9 +24,14 @@ type flashMessage struct {
 	id      uint64
 }
 
-var _ common.Model = (*Model)(nil)
+type FlashMessageView struct {
+	// Content might contain ANSI colour codes
+	Content string
+	Rect    cellbuf.Rectangle
+}
 
 type Model struct {
+	*common.Sizeable
 	context      *context.MainContext
 	messages     []flashMessage
 	successStyle lipgloss.Style
@@ -63,43 +67,29 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) View() string {
+func (m *Model) View() []FlashMessageView {
 	messages := m.messages
 	if len(messages) == 0 {
-		return ""
+		return nil
 	}
 
-	var messageBoxes []string
+	y := m.Height - 1
+	var messageBoxes []FlashMessageView
 	for _, message := range messages {
-		style := m.successStyle
+		var content string
 		if message.error != nil {
-			style = m.errorStyle
-			messageBoxes = append(messageBoxes, style.Render(message.error.Error()))
+			content = m.errorStyle.Render(message.error.Error())
 		} else {
-			messageBoxes = append(messageBoxes, style.Render(message.text))
+			content = m.successStyle.Render(message.text)
 		}
+		w, h := lipgloss.Size(content)
+		y -= h
+		messageBoxes = append(messageBoxes, FlashMessageView{
+			Content: content,
+			Rect:    cellbuf.Rect(m.Width-w, y, w, h),
+		})
 	}
-	maxWidth, maxHeight := 0, 0
-	var combined []string
-	for _, box := range messageBoxes {
-		width, height := lipgloss.Size(box)
-		if width > maxWidth {
-			maxWidth = width
-		}
-		if height > maxHeight {
-			maxHeight = height
-		}
-	}
-	for _, box := range messageBoxes {
-		combined = append(combined,
-			lipgloss.PlaceHorizontal(maxWidth,
-				lipgloss.Right, box,
-				lipgloss.WithWhitespaceForeground(screen.TransparentFg),
-				lipgloss.WithWhitespaceBackground(screen.TransparentBg),
-			),
-		)
-	}
-	return lipgloss.JoinVertical(lipgloss.Right, combined...)
+	return messageBoxes
 }
 
 func (m *Model) add(text string, error error) uint64 {
@@ -136,6 +126,7 @@ func New(context *context.MainContext) *Model {
 	successStyle := common.DefaultPalette.GetBorder("success", lipgloss.NormalBorder()).Foreground(fg).PaddingLeft(1).PaddingRight(1)
 	errorStyle := common.DefaultPalette.GetBorder("error", lipgloss.NormalBorder()).Foreground(fg).PaddingLeft(1).PaddingRight(1)
 	return &Model{
+		Sizeable:     common.NewSizeable(0, 0),
 		context:      context,
 		messages:     make([]flashMessage, 0),
 		successStyle: successStyle,

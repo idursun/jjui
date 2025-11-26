@@ -2,9 +2,11 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/x/cellbuf"
 
 	"github.com/idursun/jjui/internal/ui/flash"
 
@@ -13,7 +15,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/bookmarks"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -245,6 +246,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.revisions.SetWidth(m.Width)
 		m.revsetModel.SetWidth(m.Width)
 		m.revsetModel.SetHeight(1)
+		m.flash.SetWidth(m.Width)
+		m.flash.SetHeight(m.Height)
 	}
 
 	if m.revsetModel.Editing {
@@ -300,6 +303,9 @@ func (m *Model) UpdatePreviewPosition() {
 }
 
 func (m *Model) View() string {
+	if m.Width == 0 || m.Height == 0 {
+		return ""
+	}
 	m.updateStatus()
 	footer := m.status.View()
 	footerHeight := lipgloss.Height(footer)
@@ -308,6 +314,8 @@ func (m *Model) View() string {
 		m.diff.SetHeight(m.Height - footerHeight)
 		return lipgloss.JoinVertical(0, m.diff.View(), footer)
 	}
+
+	screenBuf := cellbuf.NewBuffer(m.Width, m.Height)
 
 	topView := m.revsetModel.View()
 	topViewHeight := lipgloss.Height(topView)
@@ -336,27 +344,30 @@ func (m *Model) View() string {
 			centerView = lipgloss.JoinHorizontal(lipgloss.Left, leftView, previewView)
 		}
 	}
+	full := lipgloss.JoinVertical(0, topView, centerView, footer)
+	cellbuf.SetContent(screenBuf, full)
 
 	if m.stacked != nil {
 		stackedView := m.stacked.View()
 		w, h := lipgloss.Size(stackedView)
 		sx := (m.Width - w) / 2
 		sy := (m.Height - h) / 2
-		centerView = screen.Stacked(centerView, stackedView, sx, sy)
+		cellbuf.SetContentRect(screenBuf, stackedView, cellbuf.Rect(sx, sy, w, h))
 	}
 
-	full := lipgloss.JoinVertical(0, topView, centerView, footer)
 	flashMessageView := m.flash.View()
-	if flashMessageView != "" {
-		mw, mh := lipgloss.Size(flashMessageView)
-		full = screen.Stacked(full, flashMessageView, m.Width-mw, m.Height-mh-1)
+	if flashMessageView != nil {
+		for _, v := range flashMessageView {
+			cellbuf.SetContentRect(screenBuf, v.Content, v.Rect)
+		}
 	}
 	statusFuzzyView := m.status.FuzzyView()
 	if statusFuzzyView != "" {
 		_, mh := lipgloss.Size(statusFuzzyView)
-		full = screen.Stacked(full, statusFuzzyView, 0, m.Height-mh-1)
+		cellbuf.SetContentRect(screenBuf, statusFuzzyView, cellbuf.Rect(0, m.Height-mh-1, m.Width, mh))
 	}
-	return full
+	finalView := cellbuf.Render(screenBuf)
+	return strings.ReplaceAll(finalView, "\r", "")
 }
 
 func (m *Model) renderLeftView(footerHeight int, topViewHeight int, bottomPreviewHeight int) string {
