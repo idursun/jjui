@@ -30,6 +30,7 @@ type Operation struct {
 	keymap      config.KeyMappings[key.Binding]
 	getItemFn   func(index int) parser.Row
 	first, last int
+	parentOp    any // parent operation to return to after completion
 }
 
 func (o *Operation) IsEditing() bool {
@@ -44,7 +45,7 @@ func (o *Operation) Name() string {
 	return "ace jump"
 }
 
-func NewOperation(listCursor list.IListCursor, getItemFn func(index int) parser.Row, first, last int) *Operation {
+func NewOperation(listCursor list.IListCursor, getItemFn func(index int) parser.Row, first, last int, parentOp any) *Operation {
 	return &Operation{
 		cursor:    listCursor,
 		keymap:    config.Current.GetKeyMap(),
@@ -52,6 +53,7 @@ func NewOperation(listCursor list.IListCursor, getItemFn func(index int) parser.
 		first:     first,
 		last:      last,
 		getItemFn: getItemFn,
+		parentOp:  parentOp,
 	}
 }
 
@@ -70,7 +72,7 @@ func (o *Operation) aceJumpIndex(text string, row parser.Row) int {
 		return -1
 	}
 	lowerText := strings.ToLower(text)
-	if !(lowerText == strings.ToLower(row.Commit.ChangeId) || lowerText == strings.ToLower(row.Commit.CommitId)) {
+	if lowerText != strings.ToLower(row.Commit.ChangeId) && lowerText != strings.ToLower(row.Commit.CommitId) {
 		return -1
 	}
 	lowerPrefix := strings.ToLower(*aceJumpPrefix)
@@ -104,6 +106,9 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	if found := o.aceJump.Narrow(msg); found != nil {
 		o.cursor.SetCursor(found.RowIdx)
 		o.aceJump = nil
+		if o.parentOp != nil {
+			return common.RestoreOperation(o.parentOp)
+		}
 		return common.Close
 	}
 	return nil
@@ -115,10 +120,16 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 		switch {
 		case key.Matches(msg, o.keymap.Cancel):
 			o.aceJump = nil
+			if o.parentOp != nil {
+				return common.RestoreOperation(o.parentOp)
+			}
 			return common.Close
 		case key.Matches(msg, o.keymap.Apply):
 			o.cursor.SetCursor(o.aceJump.First().RowIdx)
 			o.aceJump = nil
+			if o.parentOp != nil {
+				return common.RestoreOperation(o.parentOp)
+			}
 			return common.Close
 		default:
 			return o.HandleKey(msg)

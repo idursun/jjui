@@ -304,6 +304,13 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	case common.CloseViewMsg:
 		m.op = operations.NewDefault()
 		return m.updateSelection()
+	case common.RestoreOperationMsg:
+		if op, ok := msg.Operation.(operations.Operation); ok {
+			m.op = op
+			return m.updateSelection()
+		}
+		m.op = operations.NewDefault()
+		return m.updateSelection()
 	case common.QuickSearchMsg:
 		m.quickSearch = strings.ToLower(string(msg))
 		m.SetCursor(m.search(0))
@@ -421,9 +428,11 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
 			return m.handleIntent(intents.Navigate{Target: intents.TargetWorkingCopy})
 		case key.Matches(msg, m.keymap.AceJump):
+			parentOp := m.op
+			// Create ace jump with parent operation
 			op := ace_jump.NewOperation(m, func(index int) parser.Row {
 				return m.rows[index]
-			}, m.renderer.FirstRowIndex, m.renderer.LastRowIndex)
+			}, m.renderer.FirstRowIndex, m.renderer.LastRowIndex, parentOp)
 			m.op = op
 			return op.Init()
 		default:

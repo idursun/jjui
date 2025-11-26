@@ -52,6 +52,7 @@ func (m *Model) ShortHelp() []key.Binding {
 	return []key.Binding{
 		m.keyMap.ToggleSelect,
 		m.keyMap.Apply,
+		m.keyMap.AceJump,
 		m.keyMap.Cancel,
 	}
 }
@@ -75,6 +76,8 @@ func (m *Model) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 
 func (m *Model) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
+	case key.Matches(msg, m.keyMap.AceJump):
+		return common.StartAceJump()
 	case key.Matches(msg, m.keyMap.ToggleSelect):
 		if m.current.GetChangeId() == m.target.GetChangeId() {
 			return nil
