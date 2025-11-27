@@ -34,6 +34,7 @@ limit = 0
   ace_jump = ["f"]
   quick_search = ["/"]
   quick_search_cycle = ["'"]
+  quick_search_cycle_back = ["\""]
   custom_commands = ["x"]
   leader = ["\\"]
   suspend = ["ctrl+z"]

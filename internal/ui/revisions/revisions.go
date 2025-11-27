@@ -262,7 +262,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		return m.updateSelection()
 	case common.QuickSearchMsg:
 		m.quickSearch = strings.ToLower(string(msg))
-		m.SetCursor(m.search(0))
+		m.SetCursor(m.search(0, false))
 		m.op = operations.NewDefault()
 		return m.updateSelection()
 	case common.CommandCompletedMsg:
@@ -402,8 +402,11 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				return m.handleIntent(intents.RevisionsToggleSelect{})
 			case key.Matches(msg, m.keymap.Cancel):
 				return m.handleIntent(intents.Cancel{})
-			case key.Matches(msg, m.keymap.QuickSearchCycle):
-				return m.handleIntent(intents.QuickSearchCycle{})
+			case m.quickSearch != "" &&
+				(key.Matches(msg, m.keymap.QuickSearchNext) ||
+					key.Matches(msg, m.keymap.QuickSearchPrev)):
+				reverse := key.Matches(msg, m.keymap.QuickSearchPrev)
+				return m.handleIntent(intents.QuickSearchCycle{Reverse: reverse})
 			case key.Matches(msg, m.keymap.Details.Mode):
 				return m.handleIntent(intents.OpenDetails{})
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
@@ -506,7 +509,11 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		m.op = operations.NewDefault()
 		return nil
 	case intents.QuickSearchCycle:
-		m.SetCursor(m.search(m.cursor + 1))
+		offset := 1
+		if intent.Reverse {
+			offset = -1
+		}
+		m.SetCursor(m.search(m.cursor+offset, intent.Reverse))
 		return m.updateSelection()
 	case intents.RevisionsQuickSearchClear:
 		m.quickSearch = ""
@@ -1059,14 +1066,20 @@ func (m *Model) selectRevision(revision string) int {
 	return idx
 }
 
-func (m *Model) search(startIndex int) int {
+func (m *Model) search(startIndex int, backward bool) int {
 	if m.quickSearch == "" {
 		return m.cursor
 	}
 
 	n := len(m.rows)
-	for i := startIndex; i < n+startIndex; i++ {
-		c := i % n
+	for i := range n {
+		var c int
+		if !backward {
+			c = (startIndex + i) % n
+		} else {
+			// calculate circular index going backwards
+			c = (startIndex - i + n) % n
+		}
 		row := &m.rows[c]
 		for _, line := range row.Lines {
 			for _, segment := range line.Segments {

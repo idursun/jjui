@@ -6,7 +6,9 @@ type QuickSearch struct{}
 
 func (QuickSearch) isIntent() {}
 
-type QuickSearchCycle struct{}
+type QuickSearchCycle struct {
+	Reverse bool
+}
 
 func (QuickSearchCycle) isIntent() {}
 

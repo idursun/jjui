@@ -40,16 +40,17 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Diff:    key.NewBinding(key.WithKeys(m.Evolog.Diff...), key.WithHelp(JoinKeys(m.Evolog.Diff), "diff")),
 			Restore: key.NewBinding(key.WithKeys(m.Evolog.Restore...), key.WithHelp(JoinKeys(m.Evolog.Restore), "restore")),
 		},
-		Revset:           key.NewBinding(key.WithKeys(m.Revset...), key.WithHelp(JoinKeys(m.Revset), "revset")),
-		AceJump:          key.NewBinding(key.WithKeys(m.AceJump...), key.WithHelp(JoinKeys(m.AceJump), "ace jump")),
-		QuickSearch:      key.NewBinding(key.WithKeys(m.QuickSearch...), key.WithHelp(JoinKeys(m.QuickSearch), "quick search")),
-		QuickSearchCycle: key.NewBinding(key.WithKeys(m.QuickSearchCycle...), key.WithHelp(JoinKeys(m.QuickSearchCycle), "locate next match")),
-		CustomCommands:   key.NewBinding(key.WithKeys(m.CustomCommands...), key.WithHelp(JoinKeys(m.CustomCommands), "custom commands menu")),
-		Leader:           key.NewBinding(key.WithKeys(m.Leader...), key.WithHelp(JoinKeys(m.Leader), "leader")),
-		Suspend:          key.NewBinding(key.WithKeys(m.Suspend...), key.WithHelp(JoinKeys(m.Suspend), "suspend")),
-		SetParents:       key.NewBinding(key.WithKeys(m.SetParents...), key.WithHelp(JoinKeys(m.SetParents), "set parents")),
-		ExecJJ:           key.NewBinding(key.WithKeys(m.ExecJJ...), key.WithHelp(JoinKeys(m.ExecJJ), "interactive jj")),
-		ExecShell:        key.NewBinding(key.WithKeys(m.ExecShell...), key.WithHelp(JoinKeys(m.ExecShell), "interactive shell command")),
+		Revset:          key.NewBinding(key.WithKeys(m.Revset...), key.WithHelp(JoinKeys(m.Revset), "revset")),
+		AceJump:         key.NewBinding(key.WithKeys(m.AceJump...), key.WithHelp(JoinKeys(m.AceJump), "ace jump")),
+		QuickSearch:     key.NewBinding(key.WithKeys(m.QuickSearch...), key.WithHelp(JoinKeys(m.QuickSearch), "quick search")),
+		QuickSearchNext: key.NewBinding(key.WithKeys(m.QuickSearchNext...), key.WithHelp(JoinKeys(m.QuickSearchNext), "locate next match")),
+		QuickSearchPrev: key.NewBinding(key.WithKeys(m.QuickSearchPrev...), key.WithHelp(JoinKeys(m.QuickSearchPrev), "locate previous match")),
+		CustomCommands:  key.NewBinding(key.WithKeys(m.CustomCommands...), key.WithHelp(JoinKeys(m.CustomCommands), "custom commands menu")),
+		Leader:          key.NewBinding(key.WithKeys(m.Leader...), key.WithHelp(JoinKeys(m.Leader), "leader")),
+		Suspend:         key.NewBinding(key.WithKeys(m.Suspend...), key.WithHelp(JoinKeys(m.Suspend), "suspend")),
+		SetParents:      key.NewBinding(key.WithKeys(m.SetParents...), key.WithHelp(JoinKeys(m.SetParents), "set parents")),
+		ExecJJ:          key.NewBinding(key.WithKeys(m.ExecJJ...), key.WithHelp(JoinKeys(m.ExecJJ), "interactive jj")),
+		ExecShell:       key.NewBinding(key.WithKeys(m.ExecShell...), key.WithHelp(JoinKeys(m.ExecShell), "interactive shell command")),
 		Revert: revertModeKeys[key.Binding]{
 			Mode:   key.NewBinding(key.WithKeys(m.Revert.Mode...), key.WithHelp(JoinKeys(m.Revert.Mode), "revert")),
 			Target: key.NewBinding(key.WithKeys(m.Revert.Target...), key.WithHelp(JoinKeys(m.Revert.Target), "target")),
@@ -200,7 +201,8 @@ type KeyMappings[T any] struct {
 	ExecShell         T                         `toml:"exec_shell"`
 	AceJump           T                         `toml:"ace_jump"`
 	QuickSearch       T                         `toml:"quick_search"`
-	QuickSearchCycle  T                         `toml:"quick_search_cycle"`
+	QuickSearchNext   T                         `toml:"quick_search_cycle"`
+	QuickSearchPrev   T                         `toml:"quick_search_cycle_back"`
 	CustomCommands    T                         `toml:"custom_commands"`
 	Leader            T                         `toml:"leader"`
 	Suspend           T                         `toml:"suspend"`
