@@ -300,16 +300,18 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
 		switch msg.Action {
-		case tea.MouseActionPress:
-			if msg.Button == tea.MouseButtonLeft {
-				return m.ClickAt(msg.X, msg.Y)
-			} else if msg.Button == tea.MouseButtonWheelUp {
-				return m.Scroll(-3)
-			} else if msg.Button == tea.MouseButtonWheelDown {
-				return m.Scroll(3)
-			}
-			return nil
-		}
+                case tea.MouseActionPress:
+                        switch msg.Button {
+                        case tea.MouseButtonLeft:
+                                return m.ClickAt(msg.X, msg.Y)
+                        case tea.MouseButtonWheelUp:
+                                return m.Scroll(-3)
+                        case tea.MouseButtonWheelDown:
+                                return m.Scroll(3)
+                        }
+                        return nil
+                }
+
 	case common.CloseViewMsg:
 		m.op = operations.NewDefault()
 		return m.updateSelection()
