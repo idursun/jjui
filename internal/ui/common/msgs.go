@@ -37,6 +37,10 @@ type (
 		Line string
 		Mode ExecMode
 	}
+	ExecProcessCompletedMsg struct {
+		Err error
+		Msg ExecMsg
+	}
 	FileSearchMsg struct {
 		Revset       string
 		PreviewShown bool

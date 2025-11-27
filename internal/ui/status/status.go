@@ -127,6 +127,20 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.loadEditingSuggestions()
 		m.fuzzy, m.editStatus = fuzzy_files.NewModel(msg)
 		return tea.Batch(m.fuzzy.Init(), m.input.Focus())
+	case common.ExecProcessCompletedMsg:
+		if msg.Err != nil {
+			m.mode = "exec " + msg.Msg.Mode.Mode
+			m.input.Prompt = msg.Msg.Mode.Prompt
+			m.loadEditingSuggestions()
+			m.fuzzy, m.editStatus = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
+
+			// Avoid to change the current behavior when coming back from exec process
+			focusCmd := m.input.Focus()
+			keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(msg.Msg.Line)}
+			updateCmd := m.Update(keyMsg)
+			return tea.Batch(m.fuzzy.Init(), focusCmd, updateCmd)
+		}
+		return nil
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, km.Cancel) && m.IsFocused():

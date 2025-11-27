@@ -36,7 +36,7 @@ func ExecLine(ctx *context.MainContext, msg common.ExecMsg) tea.Cmd {
 	case common.ExecJJ:
 		args := strings.Fields(msg.Line)
 		args = jj.TemplatedArgs(args, replacements)
-		return execProgram("jj", args, ctx.Location, nil)
+		return execProgram("jj", args, ctx.Location, nil, msg)
 	case common.ExecShell:
 		// user input is run via `$SHELL -c` to support user specifying command lines
 		// that have pipes (eg, to a pager) or redirection.
@@ -45,7 +45,7 @@ func ExecLine(ctx *context.MainContext, msg common.ExecMsg) tea.Cmd {
 			program = "sh"
 		}
 		args := []string{"-c", msg.Line}
-		return execProgram(program, args, ctx.Location, replacements)
+		return execProgram(program, args, ctx.Location, replacements, msg)
 	}
 	return nil
 }
@@ -61,10 +61,13 @@ func ExecLine(ctx *context.MainContext, msg common.ExecMsg) tea.Cmd {
 // CommandCompleted machinery we use for background jj processes.
 // However, if the program fails we ask the user for confirmation before closing
 // and returning stdio back to jjui.
-func execProgram(program string, args []string, location string, env map[string]string) tea.Cmd {
+func execProgram(program string, args []string, location string, env map[string]string, msg common.ExecMsg) tea.Cmd {
 	p := &process{program: program, args: args, env: env, location: location}
 	return tea.Exec(p, func(err error) tea.Msg {
-		return common.RefreshMsg{}
+		return common.ExecProcessCompletedMsg{
+			Err: err,
+			Msg: msg,
+		}
 	})
 }
 
