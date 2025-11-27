@@ -50,9 +50,7 @@ type Model struct {
 	context      *context.MainContext
 	keyMap       config.KeyMappings[key.Binding]
 	stacked      common.Model
-
-	draggableLine int
-	dragging      bool
+	dragTarget   common.Draggable
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -128,31 +126,26 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			// for now, stacked windows don't respond to mouse events
 			return nil
 		}
-		if m.dragging {
+		if m.dragTarget != nil && m.dragTarget.IsDragging() {
 			switch msg.Action {
 			case tea.MouseActionRelease:
-				m.dragging = false
-				return nil
+				cmd := m.dragTarget.DragEnd(msg.X, msg.Y)
+				m.dragTarget = nil
+				return cmd
 			case tea.MouseActionMotion:
-				var percentage float64
-				if m.previewModel.AtBottom() {
-					percentage = float64((m.Height-msg.Y)*100) / float64(m.Height)
-				} else {
-					percentage = float64((m.Width-msg.X)*100) / float64(m.Width)
-				}
-				m.previewModel.SetWindowPercentage(percentage)
-				return nil
+				return m.dragTarget.DragMove(msg.X, msg.Y)
 			}
-		} else if m.previewModel.Visible() && msg.Action == tea.MouseActionPress {
-			if cellbuf.Pos(msg.X, msg.Y).In(m.previewModel.Frame) {
-				m.dragging = (m.previewModel.AtBottom() && msg.Y == m.draggableLine) || (!m.previewModel.AtBottom() && msg.X == m.draggableLine)
-				if m.dragging {
-					return nil
-				}
-			}
+		} else if m.dragTarget != nil && !m.dragTarget.IsDragging() {
+			m.dragTarget = nil
 		}
 
 		if model := m.findViewAt(msg.X, msg.Y); model != nil {
+			if draggable, ok := model.(common.Draggable); ok && msg.Action == tea.MouseActionPress {
+				if draggable.DragStart(msg.X, msg.Y) {
+					m.dragTarget = draggable
+					return nil
+				}
+			}
 			return model.Update(msg)
 		}
 		return nil
@@ -410,16 +403,6 @@ func (m *Model) View() string {
 		cellbuf.SetContentRect(screenBuf, statusFuzzyView, cellbuf.Rect(0, m.Height-mh-1, m.Width, mh))
 	}
 
-	if m.previewModel.Visible() {
-		if m.previewModel.AtBottom() {
-			m.draggableLine = previewArea.Min.Y
-		} else {
-			m.draggableLine = previewArea.Min.X
-		}
-	} else {
-		m.draggableLine = -1
-	}
-
 	finalView := cellbuf.Render(screenBuf)
 	return strings.ReplaceAll(finalView, "\r", "")
 }
@@ -481,16 +464,16 @@ func (w wrapper) View() string {
 }
 
 func NewUI(c *context.MainContext) *Model {
+	frame := common.NewSizeable(0, 0)
 	revisionsModel := revisions.New(c)
-	previewModel := preview.New(c)
 	statusModel := status.New(c)
 	return &Model{
-		Sizeable:     &common.Sizeable{Width: 0, Height: 0},
+		Sizeable:     frame,
 		context:      c,
 		keyMap:       config.Current.GetKeyMap(),
 		state:        common.Loading,
 		revisions:    revisionsModel,
-		previewModel: &previewModel,
+		previewModel: preview.New(c, frame),
 		status:       &statusModel,
 		revsetModel:  revset.New(c),
 		flash:        flash.New(c),

@@ -27,6 +27,8 @@ var _ common.Model = (*Model)(nil)
 type Model struct {
 	*common.Sizeable
 	*common.MouseAware
+	*common.DragAware
+	parentContainer         *common.Sizeable
 	tag                     atomic.Uint64
 	previewVisible          bool
 	previewAutoPosition     bool
@@ -116,6 +118,45 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 	}
 	m.viewRange.start = m.viewRange.start + delta
 	m.viewRange.end = m.viewRange.end + delta
+	return nil
+}
+
+func (m *Model) DragStart(x, y int) bool {
+	if !m.previewVisible {
+		return false
+	}
+
+	if m.parentContainer.Width == 0 || m.parentContainer.Height == 0 {
+		return false
+	}
+
+	if m.AtBottom() {
+		if y != m.Frame.Min.Y {
+			return false
+		}
+	} else {
+		if x != m.Frame.Min.X {
+			return false
+		}
+	}
+
+	m.BeginDrag(x, y)
+	return true
+}
+
+func (m *Model) DragMove(x, y int) tea.Cmd {
+	if !m.IsDragging() {
+		return nil
+	}
+
+	var percentage float64
+	if m.AtBottom() {
+		percentage = float64((m.parentContainer.Height-y)*100) / float64(m.parentContainer.Height)
+	} else {
+		percentage = float64((m.parentContainer.Width-x)*100) / float64(m.parentContainer.Width)
+	}
+
+	m.SetWindowPercentage(percentage)
 	return nil
 }
 
@@ -254,7 +295,7 @@ func (m *Model) Shrink() {
 	m.SetWindowPercentage(m.previewWindowPercentage - config.Current.Preview.WidthIncrementPercentage)
 }
 
-func New(context *context.MainContext) Model {
+func New(context *context.MainContext, container *common.Sizeable) *Model {
 	borderStyle := common.DefaultPalette.GetBorder("preview border", lipgloss.NormalBorder())
 	borderStyle = borderStyle.Inherit(common.DefaultPalette.Get("preview text"))
 
@@ -271,9 +312,11 @@ func New(context *context.MainContext) Model {
 		previewAtBottom = true
 	}
 
-	return Model{
+	return &Model{
 		Sizeable:                &common.Sizeable{Width: 0, Height: 0},
+		parentContainer:         container,
 		MouseAware:              common.NewMouseAware(),
+		DragAware:               common.NewDragAware(),
 		viewRange:               &viewRange{start: 0, end: 0},
 		context:                 context,
 		keyMap:                  config.Current.GetKeyMap(),
