@@ -122,7 +122,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.FocusMsg:
-		return common.RefreshAndKeepSelections
+		return tea.Batch(common.RefreshAndKeepSelections, tea.EnableMouseAllMotion)
 	case tea.MouseMsg:
 		if m.stacked != nil {
 			// for now, stacked windows don't respond to mouse events
