@@ -12,7 +12,7 @@ error = "red"
 "confirmation dimmed" = "white"
 "help title" = { fg = "green", bold = true }
 "revisions details selected" = { bg = "bright black" }
-"revisions matched" = { underline = false }
+"revisions matched" = { underline = false, reverse = true }
 "revset title" = "magenta"
 "revset text" = { fg = "green", bold = true }
 "revset completion text" = "white"

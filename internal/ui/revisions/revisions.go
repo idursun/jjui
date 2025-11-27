@@ -72,6 +72,7 @@ type Model struct {
 	textStyle        lipgloss.Style
 	dimmedStyle      lipgloss.Style
 	selectedStyle    lipgloss.Style
+	matchedStyle     lipgloss.Style
 	ensureCursorView bool
 	requestInFlight  bool
 }
@@ -187,6 +188,7 @@ func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
 		textStyle:     m.textStyle,
 		dimmedStyle:   m.dimmedStyle,
 		selectedStyle: m.selectedStyle,
+		matchedStyle:  m.matchedStyle,
 		isChecked:     m.renderer.selections[row.Commit.GetChangeId()],
 		isGutterInLane: func(lineIndex, segmentIndex int) bool {
 			return m.renderer.tracer.IsGutterInLane(index, lineIndex, segmentIndex)
@@ -282,8 +284,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	//case rebase.updateHighlightedIdsMsg:
-	//	return m.op.Update(msg)
 	case tea.MouseMsg:
 		switch msg.Action {
 		case tea.MouseActionPress:
@@ -305,7 +305,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		m.op = operations.NewDefault()
 		return m.updateSelection()
 	case common.QuickSearchMsg:
-		m.quickSearch = string(msg)
+		m.quickSearch = strings.ToLower(string(msg))
 		m.SetCursor(m.search(0))
 		m.op = operations.NewDefault()
 		m.renderer.Reset()
@@ -481,6 +481,10 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			}
 
 			switch {
+			case m.quickSearch != "" && (msg.Type == tea.KeyEsc || msg.Type == tea.KeyEnter):
+				m.quickSearch = ""
+				m.renderer.Reset()
+				return nil
 			case key.Matches(msg, m.keymap.ToggleSelect):
 				commit := m.rows[m.cursor].Commit
 				changeId := commit.GetChangeId()
@@ -743,7 +747,7 @@ func (m *Model) search(startIndex int) int {
 		row := &m.rows[c]
 		for _, line := range row.Lines {
 			for _, segment := range line.Segments {
-				if segment.Text != "" && strings.Contains(segment.Text, m.quickSearch) {
+				if segment.Text != "" && strings.Contains(strings.ToLower(segment.Text), m.quickSearch) {
 					return c
 				}
 			}
@@ -778,6 +782,7 @@ func New(c *appContext.MainContext) *Model {
 		textStyle:     common.DefaultPalette.Get("revisions text"),
 		dimmedStyle:   common.DefaultPalette.Get("revisions dimmed"),
 		selectedStyle: common.DefaultPalette.Get("revisions selected"),
+		matchedStyle:  common.DefaultPalette.Get("revisions matched"),
 	}
 	m.renderer = newRevisionListRenderer(&m, m.ViewNode)
 	return &m

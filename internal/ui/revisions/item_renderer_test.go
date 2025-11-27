@@ -82,6 +82,7 @@ func TestRenderMainLines_MultipleDescriptionLines(t *testing.T) {
 		selectedStyle: lipgloss.NewStyle().Background(lipgloss.Color("blue")),
 		textStyle:     lipgloss.NewStyle(),
 		dimmedStyle:   lipgloss.NewStyle(),
+		matchedStyle:  lipgloss.NewStyle(),
 		isGutterInLane: func(lineIndex, segmentIndex int) bool {
 			return true
 		},
@@ -128,6 +129,7 @@ func TestRenderMainLines_WithElidedLine(t *testing.T) {
 		selectedStyle: lipgloss.NewStyle().Background(lipgloss.Color("blue")),
 		textStyle:     lipgloss.NewStyle(),
 		dimmedStyle:   lipgloss.NewStyle(),
+		matchedStyle:  lipgloss.NewStyle(),
 		isGutterInLane: func(lineIndex, segmentIndex int) bool {
 			return true
 		},

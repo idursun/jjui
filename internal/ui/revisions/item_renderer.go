@@ -20,6 +20,7 @@ type itemRenderer struct {
 	selectedStyle    lipgloss.Style
 	textStyle        lipgloss.Style
 	dimmedStyle      lipgloss.Style
+	matchedStyle     lipgloss.Style
 	isGutterInLane   func(lineIndex, segmentIndex int) bool
 	updateGutterText func(lineIndex, segmentIndex int, text string) string
 	inLane           bool
@@ -205,7 +206,13 @@ func (ir itemRenderer) renderSegments(lw *strings.Builder, segmentedLine parser.
 			}
 		}
 
-		fmt.Fprint(lw, style.Render(segment.Text))
+		text := segment.Text
+		if ir.SearchText != "" && strings.TrimSpace(text) != "" &&
+			strings.Contains(strings.ToLower(text), ir.SearchText) {
+			ir.renderQuickSearchHighlight(lw, text, style)
+		} else {
+			fmt.Fprint(lw, style.Render(text))
+		}
 	}
 }
 
@@ -323,4 +330,30 @@ func (ir itemRenderer) Height() int {
 	}
 
 	return h
+}
+
+func (ir itemRenderer) renderQuickSearchHighlight(w io.Writer, textToRender string, style lipgloss.Style) {
+	searchTerm := ir.SearchText
+	lowercaseText := strings.ToLower(textToRender)
+
+	var lastIdx int
+
+	// Find all occurrences of search term (case-insensitive)
+	for {
+		searchTermIdx := strings.Index(lowercaseText[lastIdx:], searchTerm)
+
+		if searchTermIdx == -1 {
+			if lastIdx < len(textToRender) {
+				fmt.Fprint(w, style.Render(textToRender[lastIdx:]))
+			}
+			break
+		}
+
+		betweenHighlights := textToRender[lastIdx : lastIdx+searchTermIdx]
+		fmt.Fprint(w, style.Render(betweenHighlights))
+
+		highlights := textToRender[lastIdx+searchTermIdx : lastIdx+searchTermIdx+len(searchTerm)]
+		fmt.Fprint(w, ir.matchedStyle.Render(highlights))
+		lastIdx += searchTermIdx + len(searchTerm)
+	}
 }
