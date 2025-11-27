@@ -303,6 +303,9 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		case tea.MouseActionPress:
 			switch msg.Button {
 			case tea.MouseButtonLeft:
+				if !m.InNormalMode() {
+					return nil
+				}
 				return m.ClickAt(msg.X, msg.Y)
 			case tea.MouseButtonWheelUp:
 				return m.Scroll(-3)
