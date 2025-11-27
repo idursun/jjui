@@ -128,26 +128,27 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			// for now, stacked windows don't respond to mouse events
 			return nil
 		}
-		if msg.Action == tea.MouseActionMotion && m.dragging {
-			var percentage float64
-			if m.previewModel.AtBottom() {
-				percentage = float64((m.Height-msg.Y)*100) / float64(m.Height)
-			} else {
-				percentage = float64((m.Width-msg.X)*100) / float64(m.Width)
-			}
-			m.previewModel.SetWindowPercentage(percentage)
-			return nil
-		}
-
-		if m.dragging && msg.Action == tea.MouseActionRelease {
-			m.dragging = false
-			return nil
-		}
-
-		if !m.dragging && m.previewModel.Visible() && cellbuf.Pos(msg.X, msg.Y).In(m.previewModel.Frame) {
-			m.dragging = (m.previewModel.AtBottom() && msg.Y == m.draggableLine) || (!m.previewModel.AtBottom() && msg.X == m.draggableLine)
-			if m.dragging {
+		if m.dragging {
+			switch msg.Action {
+			case tea.MouseActionRelease:
+				m.dragging = false
 				return nil
+			case tea.MouseActionMotion:
+				var percentage float64
+				if m.previewModel.AtBottom() {
+					percentage = float64((m.Height-msg.Y)*100) / float64(m.Height)
+				} else {
+					percentage = float64((m.Width-msg.X)*100) / float64(m.Width)
+				}
+				m.previewModel.SetWindowPercentage(percentage)
+				return nil
+			}
+		} else if m.previewModel.Visible() && msg.Action == tea.MouseActionPress {
+			if cellbuf.Pos(msg.X, msg.Y).In(m.previewModel.Frame) {
+				m.dragging = (m.previewModel.AtBottom() && msg.Y == m.draggableLine) || (!m.previewModel.AtBottom() && msg.X == m.draggableLine)
+				if m.dragging {
+					return nil
+				}
 			}
 		}
 
@@ -349,7 +350,7 @@ func (m *Model) View() string {
 	footerHeight := lipgloss.Height(footer)
 
 	if m.diff != nil {
-		m.diff.SetHeight(m.Height - footerHeight)
+		m.diff.SetFrame(cellbuf.Rect(0, footerHeight, m.Width, m.Height-footerHeight))
 		return lipgloss.JoinVertical(0, m.diff.View(), footer)
 	}
 
@@ -449,6 +450,9 @@ func (m *Model) isSafeToQuit() bool {
 func (m *Model) findViewAt(x, y int) common.IMouseAware {
 	// well, these are all the views that can receive mouse input for now
 	pt := cellbuf.Pos(x, y)
+	if m.diff != nil && pt.In(m.diff.Frame) {
+		return m.diff
+	}
 	if m.oplog == nil && pt.In(m.revisions.Frame) {
 		return m.revisions
 	}

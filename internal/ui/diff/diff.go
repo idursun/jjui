@@ -13,6 +13,8 @@ import (
 var _ common.Model = (*Model)(nil)
 
 type Model struct {
+	*common.Sizeable
+	*common.MouseAware
 	view   viewport.Model
 	keymap config.KeyMappings[key.Binding]
 }
@@ -34,6 +36,15 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) SetHeight(h int) {
 	m.view.Height = h
+}
+
+func (m *Model) Scroll(delta int) tea.Cmd {
+	if delta > 0 {
+		m.view.ScrollDown(delta)
+	} else if delta < 0 {
+		m.view.ScrollUp(-delta)
+	}
+	return nil
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
@@ -61,7 +72,9 @@ func New(output string, width int, height int) *Model {
 	}
 	view.SetContent(content)
 	return &Model{
-		view:   view,
-		keymap: config.Current.GetKeyMap(),
+		Sizeable:   common.NewSizeable(width, height),
+		MouseAware: common.NewMouseAware(),
+		view:       view,
+		keymap:     config.Current.GetKeyMap(),
 	}
 }
