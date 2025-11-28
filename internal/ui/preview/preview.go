@@ -1,26 +1,23 @@
 package preview
 
 import (
-	"bufio"
 	"log"
 	"strings"
 	"sync/atomic"
 	"time"
 
-	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 )
 
-type viewRange struct {
-	start int
-	end   int
-}
+const scrollAmount = 3
 
 var _ common.Model = (*Model)(nil)
 
@@ -28,19 +25,18 @@ type Model struct {
 	*common.Sizeable
 	*common.MouseAware
 	*common.DragAware
+	view                    viewport.Model
 	parentContainer         *common.Sizeable
 	tag                     atomic.Uint64
 	previewVisible          bool
 	previewAutoPosition     bool
 	previewAtBottom         bool
 	previewWindowPercentage float64
-	viewRange               *viewRange
-	help                    help.Model
 	content                 string
 	contentLineCount        int
+	contentWidth            int
 	context                 *context.MainContext
 	keyMap                  config.KeyMappings[key.Binding]
-	borderStyle             lipgloss.Style
 }
 
 const DebounceTime = 200 * time.Millisecond
@@ -65,13 +61,19 @@ type updatePreviewContentMsg struct {
 	Content string
 }
 
-func (m *Model) SetHeight(h int) {
-	m.viewRange.end = min(m.viewRange.start+h-3, m.contentLineCount)
-	m.Height = h
-}
-
 func (m *Model) Init() tea.Cmd {
 	return nil
+}
+
+func (m *Model) SetFrame(frame cellbuf.Rectangle) {
+	m.Sizeable.SetFrame(frame)
+	if m.AtBottom() {
+		m.view.Width = frame.Dx()
+		m.view.Height = frame.Dy() - 1
+	} else {
+		m.view.Width = frame.Dx() - 1
+		m.view.Height = frame.Dy()
+	}
 }
 
 func (m *Model) Visible() bool {
@@ -110,14 +112,21 @@ func (m *Model) WindowPercentage() float64 {
 }
 
 func (m *Model) Scroll(delta int) tea.Cmd {
-	if delta < 0 && m.viewRange.start == 0 {
-		return nil
+	if delta > 0 {
+		m.view.ScrollDown(delta)
+	} else if delta < 0 {
+		m.view.ScrollUp(-delta)
 	}
-	if delta > 0 && m.viewRange.end >= m.contentLineCount {
-		return nil
+	return nil
+}
+
+func (m *Model) ScrollHorizontal(delta int) tea.Cmd {
+	if delta > 0 {
+		m.view.ScrollRight(delta)
+	} else if delta < 0 {
+		m.view.ScrollLeft(-delta)
 	}
-	m.viewRange.start = m.viewRange.start + delta
-	m.viewRange.end = m.viewRange.end + delta
+
 	return nil
 }
 
@@ -167,9 +176,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
 		if msg.Button == tea.MouseButtonWheelUp {
-			m.Scroll(-3)
+			m.Scroll(-scrollAmount)
 		} else if msg.Button == tea.MouseButtonWheelDown {
-			m.Scroll(3)
+			m.Scroll(scrollAmount)
+		} else if msg.Button == tea.MouseButtonWheelLeft {
+			m.ScrollHorizontal(-scrollAmount)
+		} else if msg.Button == tea.MouseButtonWheelRight {
+			m.ScrollHorizontal(scrollAmount)
 		}
 	case common.SelectionChangedMsg, common.RefreshMsg:
 		tag := m.tag.Add(1)
@@ -217,65 +230,37 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 	case updatePreviewContentMsg:
 		if m.tag.Load() == msg.Tag {
-			m.content = msg.Content
-			m.contentLineCount = lipgloss.Height(m.content)
-			m.reset()
+			m.SetContent(msg.Content)
 		}
 		return nil
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Preview.ScrollDown):
-			if m.viewRange.end < m.contentLineCount {
-				m.viewRange.start++
-				m.viewRange.end++
-			}
+			m.Scroll(1)
 		case key.Matches(msg, m.keyMap.Preview.ScrollUp):
-			if m.viewRange.start > 0 {
-				m.viewRange.start--
-				m.viewRange.end--
-			}
+			m.Scroll(-1)
 		case key.Matches(msg, m.keyMap.Preview.HalfPageDown):
-			contentHeight := m.contentLineCount
-			halfPageSize := m.Height / 2
-			if halfPageSize+m.viewRange.end > contentHeight {
-				halfPageSize = contentHeight - m.viewRange.end
-			}
-
-			m.viewRange.start += halfPageSize
-			m.viewRange.end += halfPageSize
+			m.view.HalfPageDown()
 		case key.Matches(msg, m.keyMap.Preview.HalfPageUp):
-			halfPageSize := min(m.Height/2, m.viewRange.start)
-			m.viewRange.start -= halfPageSize
-			m.viewRange.end -= halfPageSize
+			m.view.HalfPageUp()
 		}
 	}
 	return nil
 }
 
+func (m *Model) SetContent(content string) {
+	m.content = strings.ReplaceAll(content, "\r", "")
+	m.view.SetContent(content)
+}
+
 func (m *Model) View() string {
-	var w strings.Builder
-	scanner := bufio.NewScanner(strings.NewReader(m.content))
-	current := 0
-	for scanner.Scan() {
-		line := scanner.Text()
-		line = strings.ReplaceAll(line, "\r", "")
-		if current >= m.viewRange.start && current <= m.viewRange.end {
-			if current > m.viewRange.start {
-				w.WriteString("\n")
-			}
-			w.WriteString(lipgloss.NewStyle().MaxWidth(m.Width - 2).Render(line))
-		}
-		current++
-		if current > m.viewRange.end {
-			break
-		}
-	}
-	view := lipgloss.Place(m.Width-2, m.Height-2, 0, 0, w.String())
-	return m.borderStyle.Render(view)
+	border := lipgloss.NewStyle().Border(lipgloss.NormalBorder(), m.AtBottom(), false, false, !m.AtBottom())
+	return border.Render(m.view.View())
 }
 
 func (m *Model) reset() {
-	m.viewRange.start, m.viewRange.end = 0, m.Height
+	m.view.SetYOffset(0)
+	m.view.SetXOffset(0)
 }
 
 func (m *Model) SetWindowPercentage(percentage float64) {
@@ -296,9 +281,6 @@ func (m *Model) Shrink() {
 }
 
 func New(context *context.MainContext, container *common.Sizeable) *Model {
-	borderStyle := common.DefaultPalette.GetBorder("preview border", lipgloss.NormalBorder())
-	borderStyle = borderStyle.Inherit(common.DefaultPalette.Get("preview text"))
-
 	previewAutoPosition := false
 	previewAtBottom := false
 	previewPositionCfg, err := config.GetPreviewPosition(config.Current)
@@ -317,11 +299,8 @@ func New(context *context.MainContext, container *common.Sizeable) *Model {
 		parentContainer:         container,
 		MouseAware:              common.NewMouseAware(),
 		DragAware:               common.NewDragAware(),
-		viewRange:               &viewRange{start: 0, end: 0},
 		context:                 context,
 		keyMap:                  config.Current.GetKeyMap(),
-		help:                    help.New(),
-		borderStyle:             borderStyle,
 		previewAutoPosition:     previewAutoPosition,
 		previewAtBottom:         previewAtBottom,
 		previewVisible:          config.Current.Preview.ShowAtStart,
