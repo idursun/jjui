@@ -109,7 +109,14 @@ func (r *ListRenderer) RenderWithOptions(opts RenderOptions) string {
 		if isFocused {
 			selectedLineEnd = r.totalLineCount()
 		}
+		// If EnsureFocusVisible is true and we haven't rendered the focused item yet, continue
+		// Otherwise, break when we exceed the viewport
 		if r.totalLineCount() > r.End {
+			if opts.EnsureFocusVisible && selectedLineEnd == -1 {
+				// continue rendering to reach the focused item
+				lastRenderedRowIndex = i
+				continue
+			}
 			lastRenderedRowIndex = i
 			break
 		}
