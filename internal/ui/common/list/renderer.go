@@ -16,9 +16,9 @@ type ListRenderer struct {
 	rowRanges        []RowRange
 }
 
-func NewRenderer(list IList, size *common.Sizeable) *ListRenderer {
+func NewRenderer(list IList, size *common.ViewNode) *ListRenderer {
 	return &ListRenderer{
-		ViewRange: &common.ViewRange{Sizeable: size, Start: 0, End: size.Height, FirstRowIndex: -1, LastRowIndex: -1},
+		ViewRange: &common.ViewRange{ViewNode: size, Start: 0, End: size.Height, FirstRowIndex: -1, LastRowIndex: -1},
 		list:      list,
 		buffer:    bytes.Buffer{},
 	}

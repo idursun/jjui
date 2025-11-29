@@ -37,7 +37,7 @@ import (
 var _ common.Model = (*Model)(nil)
 
 type Model struct {
-	*common.Sizeable
+	*common.ViewNode
 	revisions    *revisions.Model
 	oplog        *oplog.Model
 	revsetModel  *revset.Model
@@ -493,11 +493,11 @@ func (w *wrapper) View() string {
 }
 
 func NewUI(c *context.MainContext) *Model {
-	frame := common.NewSizeable(0, 0)
+	frame := common.NewViewNode(0, 0)
 	revisionsModel := revisions.New(c)
 	statusModel := status.New(c)
 	return &Model{
-		Sizeable:     frame,
+		ViewNode:     frame,
 		context:      c,
 		keyMap:       config.Current.GetKeyMap(),
 		state:        common.Loading,

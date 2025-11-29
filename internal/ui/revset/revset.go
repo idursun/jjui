@@ -18,7 +18,7 @@ type EditRevSetMsg struct {
 var _ common.Model = (*Model)(nil)
 
 type Model struct {
-	*common.Sizeable
+	*common.ViewNode
 	Editing         bool
 	autoComplete    *autocompletion.AutoCompletionInput
 	keymap          keymap
@@ -70,7 +70,7 @@ func New(context *appContext.MainContext) *Model {
 	autoComplete.Focus()
 
 	return &Model{
-		Sizeable:        &common.Sizeable{Width: 0, Height: 0},
+		ViewNode:        &common.ViewNode{Width: 0, Height: 0},
 		context:         context,
 		Editing:         false,
 		keymap:          keymap{},

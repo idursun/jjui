@@ -31,7 +31,7 @@ type FlashMessageView struct {
 }
 
 type Model struct {
-	*common.Sizeable
+	*common.ViewNode
 	context      *context.MainContext
 	messages     []flashMessage
 	successStyle lipgloss.Style
@@ -126,7 +126,7 @@ func New(context *context.MainContext) *Model {
 	successStyle := common.DefaultPalette.GetBorder("success", lipgloss.NormalBorder()).Foreground(fg).PaddingLeft(1).PaddingRight(1)
 	errorStyle := common.DefaultPalette.GetBorder("error", lipgloss.NormalBorder()).Foreground(fg).PaddingLeft(1).PaddingRight(1)
 	return &Model{
-		Sizeable:     common.NewSizeable(0, 0),
+		ViewNode:     common.NewViewNode(0, 0),
 		context:      context,
 		messages:     make([]flashMessage, 0),
 		successStyle: successStyle,

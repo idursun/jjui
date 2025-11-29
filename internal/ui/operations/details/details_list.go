@@ -12,7 +12,7 @@ import (
 var _ list.IList = (*DetailsList)(nil)
 
 type DetailsList struct {
-	*common.Sizeable
+	*common.ViewNode
 	files          []*item
 	cursor         int
 	renderer       *list.ListRenderer
@@ -21,9 +21,9 @@ type DetailsList struct {
 	styles         styles
 }
 
-func NewDetailsList(styles styles, size *common.Sizeable) *DetailsList {
+func NewDetailsList(styles styles, size *common.ViewNode) *DetailsList {
 	d := &DetailsList{
-		Sizeable:       size,
+		ViewNode:       size,
 		files:          []*item{},
 		cursor:         -1,
 		selectedHint:   "",

@@ -33,7 +33,7 @@ var _ common.Focusable = (*Operation)(nil)
 var _ common.Overlay = (*Operation)(nil)
 
 type Operation struct {
-	*common.Sizeable
+	*common.ViewNode
 	context  *context.MainContext
 	renderer *list.ListRenderer
 	revision *jj.Commit
@@ -227,7 +227,7 @@ func NewOperation(context *context.MainContext, revision *jj.Commit, width int, 
 		selectedStyle: common.DefaultPalette.Get("evolog selected"),
 	}
 	o := &Operation{
-		Sizeable: &common.Sizeable{Width: width, Height: height},
+		ViewNode: &common.ViewNode{Width: width, Height: height},
 		context:  context,
 		keyMap:   config.Current.GetKeyMap(),
 		revision: revision,
@@ -235,6 +235,6 @@ func NewOperation(context *context.MainContext, revision *jj.Commit, width int, 
 		cursor:   0,
 		styles:   styles,
 	}
-	o.renderer = list.NewRenderer(o, common.NewSizeable(width, height))
+	o.renderer = list.NewRenderer(o, common.NewViewNode(width, height))
 	return o
 }

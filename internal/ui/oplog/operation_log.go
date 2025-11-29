@@ -23,7 +23,7 @@ var (
 )
 
 type Model struct {
-	*common.Sizeable
+	*common.ViewNode
 	context       *context.MainContext
 	renderer      *list.ListRenderer
 	rows          []row
@@ -138,7 +138,7 @@ func (m *Model) load() tea.Cmd {
 func New(context *context.MainContext, width int, height int) *Model {
 	keyMap := config.Current.GetKeyMap()
 	m := &Model{
-		Sizeable:      &common.Sizeable{Width: width, Height: height},
+		ViewNode:      &common.ViewNode{Width: width, Height: height},
 		context:       context,
 		keymap:        keyMap,
 		rows:          nil,
@@ -146,6 +146,6 @@ func New(context *context.MainContext, width int, height int) *Model {
 		textStyle:     common.DefaultPalette.Get("oplog text"),
 		selectedStyle: common.DefaultPalette.Get("oplog selected"),
 	}
-	m.renderer = list.NewRenderer(m, common.NewSizeable(width, height))
+	m.renderer = list.NewRenderer(m, common.NewViewNode(width, height))
 	return m
 }

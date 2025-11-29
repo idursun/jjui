@@ -13,7 +13,7 @@ func TestModel_Init(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
 
-	parent := common.NewSizeable(10, 10)
+	parent := common.NewViewNode(10, 10)
 
 	ctx := test.NewTestContext(commandRunner)
 	model := New(ctx, parent)
@@ -114,7 +114,7 @@ func TestModel_View(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			parent := common.NewSizeable(10, 10)
+			parent := common.NewViewNode(10, 10)
 			ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 
 			model := New(ctx, parent)

@@ -1,7 +1,7 @@
 package common
 
 type ViewRange struct {
-	*Sizeable
+	*ViewNode
 	Start         int
 	End           int
 	FirstRowIndex int

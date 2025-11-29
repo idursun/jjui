@@ -12,7 +12,7 @@ type revisionListRenderer struct {
 	selections map[string]bool
 }
 
-func newRevisionListRenderer(l list.IList, size *common.Sizeable) *revisionListRenderer {
+func newRevisionListRenderer(l list.IList, size *common.ViewNode) *revisionListRenderer {
 	return &revisionListRenderer{
 		ListRenderer: list.NewRenderer(l, size),
 	}

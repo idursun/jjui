@@ -50,7 +50,7 @@ var (
 )
 
 type Model struct {
-	*common.Sizeable
+	*common.ViewNode
 	*common.MouseAware
 	rows             []parser.Row
 	tag              atomic.Uint64
@@ -768,7 +768,7 @@ func (m *Model) GetCommitIds() []string {
 func New(c *appContext.MainContext) *Model {
 	keymap := config.Current.GetKeyMap()
 	m := Model{
-		Sizeable:      &common.Sizeable{Width: 0, Height: 0},
+		ViewNode:      &common.ViewNode{Width: 0, Height: 0},
 		MouseAware:    common.NewMouseAware(),
 		context:       c,
 		keymap:        keymap,
@@ -780,7 +780,7 @@ func New(c *appContext.MainContext) *Model {
 		dimmedStyle:   common.DefaultPalette.Get("revisions dimmed"),
 		selectedStyle: common.DefaultPalette.Get("revisions selected"),
 	}
-	m.renderer = newRevisionListRenderer(&m, m.Sizeable)
+	m.renderer = newRevisionListRenderer(&m, m.ViewNode)
 	return &m
 }
 

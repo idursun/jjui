@@ -22,11 +22,11 @@ const handleSize = 3
 var _ common.Model = (*Model)(nil)
 
 type Model struct {
-	*common.Sizeable
+	*common.ViewNode
 	*common.MouseAware
 	*common.DragAware
 	view                    viewport.Model
-	parentContainer         *common.Sizeable
+	parentContainer         *common.ViewNode
 	previewVisible          bool
 	previewAutoPosition     bool
 	previewAtBottom         bool
@@ -61,7 +61,7 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) SetFrame(frame cellbuf.Rectangle) {
-	m.Sizeable.SetFrame(frame)
+	m.ViewNode.SetFrame(frame)
 	if m.AtBottom() {
 		m.view.Width = frame.Dx()
 		m.view.Height = frame.Dy() - 1
@@ -258,7 +258,7 @@ func (m *Model) Shrink() {
 	m.SetWindowPercentage(m.previewWindowPercentage - config.Current.Preview.WidthIncrementPercentage)
 }
 
-func New(context *context.MainContext, container *common.Sizeable) *Model {
+func New(context *context.MainContext, container *common.ViewNode) *Model {
 	previewAutoPosition := false
 	previewAtBottom := false
 	previewPositionCfg, err := config.GetPreviewPosition(config.Current)
@@ -273,7 +273,7 @@ func New(context *context.MainContext, container *common.Sizeable) *Model {
 	}
 
 	return &Model{
-		Sizeable:                &common.Sizeable{Width: 0, Height: 0},
+		ViewNode:                &common.ViewNode{Width: 0, Height: 0},
 		parentContainer:         container,
 		MouseAware:              common.NewMouseAware(),
 		DragAware:               common.NewDragAware(),
