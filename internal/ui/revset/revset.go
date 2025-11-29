@@ -83,6 +83,10 @@ func New(context *appContext.MainContext) *Model {
 }
 
 func (m *Model) Init() tea.Cmd {
+	// Ensure CurrentRevset is initialized
+	if m.context.CurrentRevset == "" {
+		m.context.CurrentRevset = m.context.DefaultRevset
+	}
 	return nil
 }
 
@@ -129,6 +133,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.Editing = false
 			m.autoComplete.Blur()
 			value := m.autoComplete.Value()
+			if strings.TrimSpace(value) == "" {
+				value = m.context.DefaultRevset
+			}
 			return tea.Batch(common.Close, common.UpdateRevSet(value))
 		case tea.KeyUp:
 			if len(m.History) > 0 {
