@@ -498,7 +498,9 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				m.renderer.Reset()
 				return nil
 			case key.Matches(msg, m.keymap.Details.Mode):
-				m.op = details.NewOperation(m.context, m.SelectedRevision(), m.Height)
+				model := details.NewOperation(m.context, m.SelectedRevision())
+				model.Parent = m.ViewNode
+				m.op = model
 				return m.op.Init()
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
 				m.op = describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
@@ -531,7 +533,9 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				selections := m.SelectedRevisions()
 				return m.context.RunInteractiveCommand(jj.Describe(selections), common.Refresh)
 			case key.Matches(msg, m.keymap.Evolog.Mode):
-				m.op = evolog.NewOperation(m.context, m.SelectedRevision(), m.Width, m.Height)
+				model := evolog.NewOperation(m.context, m.SelectedRevision())
+				model.Parent = m.ViewNode
+				m.op = model
 				return m.op.Init()
 			case key.Matches(msg, m.keymap.Diff):
 				return func() tea.Msg {
@@ -768,7 +772,7 @@ func (m *Model) GetCommitIds() []string {
 func New(c *appContext.MainContext) *Model {
 	keymap := config.Current.GetKeyMap()
 	m := Model{
-		ViewNode:      &common.ViewNode{Width: 0, Height: 0},
+		ViewNode:      common.NewViewNode(0, 0),
 		MouseAware:    common.NewMouseAware(),
 		context:       c,
 		keymap:        keymap,

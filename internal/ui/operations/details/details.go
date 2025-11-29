@@ -38,7 +38,6 @@ type Operation struct {
 	keymap            config.KeyMappings[key.Binding]
 	targetMarkerStyle lipgloss.Style
 	revision          *jj.Commit
-	height            int
 	confirmation      *confirmation.Model
 	keyMap            config.KeyMappings[key.Binding]
 	styles            styles
@@ -226,7 +225,7 @@ func (s *Operation) View() string {
 	if s.Len() == 0 {
 		return s.styles.Dimmed.Render("No changes\n")
 	}
-	s.SetHeight(min(s.height-5-ch, s.Len()))
+	s.SetHeight(min(s.Parent.Height-5-ch, s.Len()))
 	filesView := s.renderer.Render(s.cursor)
 
 	view := lipgloss.JoinVertical(lipgloss.Top, filesView, confirmationView)
@@ -373,7 +372,7 @@ func (s *Operation) load(revision string) tea.Cmd {
 	}
 }
 
-func NewOperation(context *context.MainContext, selected *jj.Commit, height int) *Operation {
+func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation {
 	keyMap := config.Current.GetKeyMap()
 
 	s := styles{
@@ -388,16 +387,16 @@ func NewOperation(context *context.MainContext, selected *jj.Commit, height int)
 		Conflict: common.DefaultPalette.Get("revisions details conflict"),
 	}
 
-	l := NewDetailsList(s, common.NewViewNode(0, height))
+	l := NewDetailsList(s, common.NewViewNode(0, 0))
 	op := &Operation{
 		DetailsList:       l,
 		context:           context,
 		revision:          selected,
 		keyMap:            keyMap,
 		styles:            s,
-		height:            height,
 		keymap:            config.Current.GetKeyMap(),
 		targetMarkerStyle: common.DefaultPalette.Get("revisions details target_marker"),
 	}
+	l.Parent = op.ViewNode
 	return op
 }

@@ -61,8 +61,9 @@ func (o *Operation) View() string {
 	if len(o.rows) == 0 {
 		return "loading"
 	}
+	o.SetWidth(o.Parent.Width)
 	o.renderer.SetWidth(o.Width)
-	o.renderer.SetHeight(min(o.Height-5, len(o.rows)*2))
+	o.renderer.SetHeight(min(o.Parent.Height-5, len(o.rows)*2))
 	content := o.renderer.Render(o.cursor)
 	content = lipgloss.PlaceHorizontal(o.Width, lipgloss.Left, content)
 	return content
@@ -217,7 +218,7 @@ func (o *Operation) load() tea.Msg {
 	}
 }
 
-func NewOperation(context *context.MainContext, revision *jj.Commit, width int, height int) *Operation {
+func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation {
 	styles := styles{
 		dimmedStyle:   common.DefaultPalette.Get("evolog dimmed"),
 		commitIdStyle: common.DefaultPalette.Get("evolog commit_id"),
@@ -227,7 +228,7 @@ func NewOperation(context *context.MainContext, revision *jj.Commit, width int, 
 		selectedStyle: common.DefaultPalette.Get("evolog selected"),
 	}
 	o := &Operation{
-		ViewNode: &common.ViewNode{Width: width, Height: height},
+		ViewNode: common.NewViewNode(0, 0),
 		context:  context,
 		keyMap:   config.Current.GetKeyMap(),
 		revision: revision,
@@ -235,6 +236,7 @@ func NewOperation(context *context.MainContext, revision *jj.Commit, width int, 
 		cursor:   0,
 		styles:   styles,
 	}
-	o.renderer = list.NewRenderer(o, common.NewViewNode(width, height))
+	o.renderer = list.NewRenderer(o, common.NewViewNode(0, 0))
+	o.renderer.Parent = o.ViewNode
 	return o
 }

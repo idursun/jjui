@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +30,8 @@ func TestModel_Init_ExecutesStatusCommand(t *testing.T) {
 	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
 	defer commandRunner.Verify()
 
-	model := NewOperation(test.NewTestContext(commandRunner), Commit, 10)
+	model := NewOperation(test.NewTestContext(commandRunner), Commit)
+	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, model.View(), "file.txt")
 }
@@ -41,7 +43,8 @@ func TestModel_Update_RestoresSelectedFiles(t *testing.T) {
 	commandRunner.Expect(jj.Restore(Revision, []string{"file.txt"}))
 	defer commandRunner.Verify()
 
-	model := NewOperation(test.NewTestContext(commandRunner), Commit, 10)
+	model := NewOperation(test.NewTestContext(commandRunner), Commit)
+	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, model.View(), "file.txt")
 
@@ -57,7 +60,8 @@ func TestModel_Update_RestoresInteractively(t *testing.T) {
 	commandRunner.Expect(jj.RestoreInteractive(Revision, "file.txt"))
 	defer commandRunner.Verify()
 
-	model := NewOperation(test.NewTestContext(commandRunner), Commit, 10)
+	model := NewOperation(test.NewTestContext(commandRunner), Commit)
+	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, model.View(), "file.txt")
 	test.SimulateModel(model, test.Type("ri"))
@@ -70,7 +74,8 @@ func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
 	commandRunner.Expect(jj.Split(Revision, []string{"file.txt"}, false))
 	defer commandRunner.Verify()
 
-	model := NewOperation(test.NewTestContext(commandRunner), Commit, 10)
+	model := NewOperation(test.NewTestContext(commandRunner), Commit)
+	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, model.View(), "file.txt")
 
@@ -86,7 +91,8 @@ func TestModel_Update_ParallelSplitsSelectedFiles(t *testing.T) {
 	commandRunner.Expect(jj.Split(Revision, []string{"file.txt"}, true))
 	defer commandRunner.Verify()
 
-	model := NewOperation(test.NewTestContext(commandRunner), Commit, 10)
+	model := NewOperation(test.NewTestContext(commandRunner), Commit)
+	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, model.View(), "file.txt")
 
@@ -104,7 +110,8 @@ func TestModel_Update_HandlesMovedFiles(t *testing.T) {
 	commandRunner.Expect(jj.Restore(Revision, []string{"internal/ui/file.go", "sub/newfile"}))
 	defer commandRunner.Verify()
 
-	model := NewOperation(test.NewTestContext(commandRunner), Commit, 10)
+	model := NewOperation(test.NewTestContext(commandRunner), Commit)
+	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, model.View(), "file.go")
 
@@ -121,7 +128,8 @@ func TestModel_Update_HandlesMovedFilesInDeepDirectories(t *testing.T) {
 	commandRunner.Expect(jj.Restore(Revision, []string{"new_file.md", "src/renamed_py.py", "src2/renamed.md"}))
 	defer commandRunner.Verify()
 
-	model := NewOperation(test.NewTestContext(commandRunner), Commit, 10)
+	model := NewOperation(test.NewTestContext(commandRunner), Commit)
+	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, model.View(), "new_file.md")
 
@@ -139,7 +147,8 @@ func TestModel_Update_HandlesFilenamesWithBraces(t *testing.T) {
 	commandRunner.Expect(jj.Restore(Revision, []string{"file{with}braces.txt", "another{test}.go"}))
 	defer commandRunner.Verify()
 
-	model := NewOperation(test.NewTestContext(commandRunner), Commit, 10)
+	model := NewOperation(test.NewTestContext(commandRunner), Commit)
+	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, model.View(), "file{with}braces.txt")
 
@@ -155,7 +164,8 @@ func TestModel_Refresh_IgnoreVirtuallySelectedFiles(t *testing.T) {
 	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
 	defer commandRunner.Verify()
 
-	model := NewOperation(test.NewTestContext(commandRunner), Commit, 10)
+	model := NewOperation(test.NewTestContext(commandRunner), Commit)
+	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
 	test.SimulateModel(model, common.Refresh)
 	for _, file := range model.files {
@@ -184,7 +194,8 @@ func TestModel_Update_Quit(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			commandRunner := test.NewTestCommandRunner(t)
 
-			model := NewOperation(test.NewTestContext(commandRunner), Commit, 10)
+			model := NewOperation(test.NewTestContext(commandRunner), Commit)
+			model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 			model.keymap.Quit = key.NewBinding(key.WithKeys("esc", "q"))
 			var msgs []tea.Msg
 			test.SimulateModel(model, testCase.interaction, func(msg tea.Msg) {
@@ -208,7 +219,8 @@ A test/file2
 A test/file3
 A test/file4`
 
-	model := NewOperation(test.NewTestContext(test.NewTestCommandRunner(t)), Commit, 10)
+	model := NewOperation(test.NewTestContext(test.NewTestCommandRunner(t)), Commit)
+	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	files := model.createListItems(content, nil)
 	assert.Len(t, files, 4)
 }
