@@ -503,7 +503,9 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				m.op = model
 				return m.op.Init()
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
-				m.op = describe.NewOperation(m.context, m.SelectedRevision().GetChangeId(), m.Width)
+				model := describe.NewOperation(m.context, m.SelectedRevision().GetChangeId())
+				model.Parent = m.ViewNode
+				m.op = model
 				return m.op.Init()
 			case key.Matches(msg, m.keymap.New):
 				return m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
@@ -659,8 +661,7 @@ func (m *Model) View() string {
 	m.renderer.selections = m.context.GetSelectedRevisions()
 
 	output := m.renderer.RenderWithOptions(list.RenderOptions{FocusIndex: m.cursor, EnsureFocusVisible: m.ensureCursorView})
-	output = m.textStyle.MaxWidth(m.Width).Render(output)
-	return lipgloss.Place(m.Width, m.Height, 0, 0, output)
+	return output
 }
 
 func (m *Model) load(revset string, selectedRevision string) tea.Cmd {

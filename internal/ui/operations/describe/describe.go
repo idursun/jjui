@@ -16,6 +16,7 @@ var _ operations.Operation = (*Operation)(nil)
 var _ common.Editable = (*Operation)(nil)
 
 type Operation struct {
+	*common.ViewNode
 	context  *context.MainContext
 	keyMap   config.KeyMappings[key.Binding]
 	input    textarea.Model
@@ -36,22 +37,6 @@ func (o *Operation) ShortHelp() []key.Binding {
 
 func (o *Operation) FullHelp() [][]key.Binding {
 	return [][]key.Binding{o.ShortHelp()}
-}
-
-func (o *Operation) Width() int {
-	return o.input.Width()
-}
-
-func (o *Operation) Height() int {
-	return o.input.Height()
-}
-
-func (o *Operation) SetWidth(w int) {
-	o.input.SetWidth(w)
-}
-
-func (o *Operation) SetHeight(h int) {
-	o.input.SetHeight(h)
 }
 
 func (o *Operation) IsFocused() bool {
@@ -94,7 +79,7 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	newValue := o.input.Value()
 	h := lipgloss.Height(newValue)
 	if h >= o.input.Height() {
-		o.input.SetHeight(h + 1)
+		o.SetHeight(h + 1)
 	}
 
 	return cmd
@@ -105,10 +90,13 @@ func (o *Operation) Init() tea.Cmd {
 }
 
 func (o *Operation) View() string {
+	o.SetWidth(o.Parent.Width)
+	o.input.SetWidth(o.Width)
+	o.input.SetHeight(o.Height)
 	return o.input.View()
 }
 
-func NewOperation(context *context.MainContext, revision string, width int) *Operation {
+func NewOperation(context *context.MainContext, revision string) *Operation {
 	descOutput, _ := context.RunCommandImmediate(jj.GetDescription(revision))
 	desc := string(descOutput)
 	h := lipgloss.Height(desc)
@@ -123,11 +111,10 @@ func NewOperation(context *context.MainContext, revision string, width int) *Ope
 	input.FocusedStyle.Base = selectedStyle.Underline(false).Strikethrough(false).Reverse(false).Blink(false)
 	input.FocusedStyle.CursorLine = input.FocusedStyle.Base
 	input.SetValue(desc)
-	input.SetHeight(h + 1)
-	input.SetWidth(width)
 	input.Focus()
 
 	return &Operation{
+		ViewNode: common.NewViewNode(0, h+1),
 		context:  context,
 		keyMap:   config.Current.GetKeyMap(),
 		input:    input,
