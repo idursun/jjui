@@ -4,7 +4,9 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -15,7 +17,9 @@ func Test_Push(t *testing.T) {
 	commandRunner.Expect(jj.GitPush("--remote", ""))
 	defer commandRunner.Verify()
 
-	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(), 0, 0)
+	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions())
+	op.SetFrame(cellbuf.Rect(0, 0, 100, 40))
+	op.Parent = common.NewViewNode(100, 40)
 	test.SimulateModel(op, op.Init())
 	test.SimulateModel(op, test.Press(tea.KeyEnter))
 }
@@ -26,7 +30,9 @@ func Test_Fetch(t *testing.T) {
 	commandRunner.Expect(jj.GitFetch("--remote", ""))
 	defer commandRunner.Verify()
 
-	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(), 0, 0)
+	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions())
+	op.SetFrame(cellbuf.Rect(0, 0, 100, 40))
+	op.Parent = common.NewViewNode(100, 40)
 	test.SimulateModel(op, op.Init())
 	test.SimulateModel(op, test.Type("/fetch"))
 	test.SimulateModel(op, test.Press(tea.KeyEnter))
@@ -58,7 +64,9 @@ func Test_PushChange(t *testing.T) {
 	commandRunner.Expect(jj.GitPush("--change", changeId, "--remote", ""))
 	defer commandRunner.Verify()
 
-	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(&jj.Commit{ChangeId: changeId}), 0, 0)
+	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(&jj.Commit{ChangeId: changeId}))
+	op.SetFrame(cellbuf.Rect(0, 0, 100, 40))
+	op.Parent = common.NewViewNode(100, 40)
 	test.SimulateModel(op, op.Init())
 
 	// Filter for the exact item and ensure selection is at index 0

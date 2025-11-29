@@ -36,6 +36,11 @@ import (
 
 var _ common.Model = (*Model)(nil)
 
+type SizableModel interface {
+	common.Model
+	common.IViewNode
+}
+
 type Model struct {
 	*common.ViewNode
 	revisions    *revisions.Model
@@ -49,7 +54,7 @@ type Model struct {
 	status       *status.Model
 	context      *context.MainContext
 	keyMap       config.KeyMappings[key.Binding]
-	stacked      common.Model
+	stacked      SizableModel
 	dragTarget   common.Draggable
 }
 
@@ -174,19 +179,27 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.keyMap.Revset) && m.revisions.InNormalMode():
 			return m.revsetModel.Update(revset.EditRevSetMsg{Clear: m.state != common.Error})
 		case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
-			m.stacked = git.NewModel(m.context, m.revisions.SelectedRevisions(), m.Width, m.Height)
+			model := git.NewModel(m.context, m.revisions.SelectedRevisions())
+			model.Parent = m.ViewNode
+			m.stacked = model
 			return m.stacked.Init()
 		case key.Matches(msg, m.keyMap.Undo) && m.revisions.InNormalMode():
-			m.stacked = undo.NewModel(m.context)
+			model := undo.NewModel(m.context)
+			model.Parent = m.ViewNode
+			m.stacked = model
 			cmds = append(cmds, m.stacked.Init())
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Redo) && m.revisions.InNormalMode():
-			m.stacked = redo.NewModel(m.context)
+			model := redo.NewModel(m.context)
+			model.Parent = m.ViewNode
+			m.stacked = model
 			cmds = append(cmds, m.stacked.Init())
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Bookmark.Mode) && m.revisions.InNormalMode():
 			changeIds := m.revisions.GetCommitIds()
-			m.stacked = bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds, m.Width, m.Height)
+			model := bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds)
+			model.Parent = m.ViewNode
+			m.stacked = model
 			cmds = append(cmds, m.stacked.Init())
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Help):
@@ -210,7 +223,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.previewModel.Shrink()
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.CustomCommands):
-			m.stacked = customcommands.NewModel(m.context, m.Width, m.Height)
+			model := customcommands.NewModel(m.context)
+			model.Parent = m.ViewNode
+			m.stacked = model
 			cmds = append(cmds, m.stacked.Init())
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Leader):
@@ -383,10 +398,7 @@ func (m *Model) View() string {
 
 	if m.stacked != nil {
 		stackedView := m.stacked.View()
-		w, h := lipgloss.Size(stackedView)
-		sx := (m.Width - w) / 2
-		sy := (m.Height - h) / 2
-		cellbuf.SetContentRect(screenBuf, stackedView, cellbuf.Rect(sx, sy, w, h))
+		cellbuf.SetContentRect(screenBuf, stackedView, m.stacked.GetViewNode().Frame)
 	}
 
 	flashMessageView := m.flash.View()

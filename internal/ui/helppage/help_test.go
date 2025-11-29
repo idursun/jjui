@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/idursun/jjui/internal/config"
@@ -37,6 +38,8 @@ func TestHelpMenuTriggeredFromMainUI(t *testing.T) {
 	ctx.CurrentRevset = "@"
 
 	model := ui.NewUI(ctx)
+	model.SetFrame(cellbuf.Rect(0, 0, 100, 40))
+	model.Parent = common.NewViewNode(100, 40)
 
 	test.SimulateModel(model, func() tea.Msg {
 		return tea.WindowSizeMsg{Width: 140, Height: 80}
@@ -71,8 +74,8 @@ func TestHelpMenuLayoutStaysFixedWhileFiltering(t *testing.T) {
 	}
 
 	model := helppage.New(ctx)
-	model.SetWidth(90)
-	model.SetHeight(32)
+	model.SetFrame(cellbuf.Rect(0, 0, 90, 32))
+	model.Parent = common.NewViewNode(100, 40)
 	test.SimulateModel(model, model.Init())
 
 	defaultView := model.View()
@@ -98,6 +101,8 @@ func TestHelpModelHelpBindings(t *testing.T) {
 		CustomCommands: map[string]appContext.CustomCommand{},
 	}
 	model := helppage.New(ctx)
+	model.SetFrame(cellbuf.Rect(0, 0, 90, 32))
+	model.Parent = common.NewViewNode(100, 40)
 	test.SimulateModel(model, model.Init())
 
 	short := model.ShortHelp()
@@ -136,6 +141,8 @@ func TestHelpModelCloseCommands(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			model := helppage.New(ctx)
+			model.SetFrame(cellbuf.Rect(0, 0, 90, 32))
+			model.Parent = common.NewViewNode(100, 40)
 			test.SimulateModel(model, model.Init())
 			var msgs []tea.Msg
 			test.SimulateModel(model, tc.interaction, func(msg tea.Msg) {

@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -56,6 +57,7 @@ type styles struct {
 var _ common.Model = (*Model)(nil)
 
 type Model struct {
+	*common.ViewNode
 	context           *context.MainContext
 	keymap            config.KeyMappings[key.Binding]
 	menu              menu.Menu
@@ -77,22 +79,6 @@ func (m *Model) ShortHelp() []key.Binding {
 
 func (m *Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{m.ShortHelp()}
-}
-
-func (m *Model) Width() int {
-	return m.menu.Width()
-}
-
-func (m *Model) Height() int {
-	return m.menu.Height()
-}
-
-func (m *Model) SetWidth(w int) {
-	m.menu.SetWidth(w)
-}
-
-func (m *Model) SetHeight(h int) {
-	m.menu.SetHeight(h)
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -162,7 +148,14 @@ func (m *Model) filtered(filter string) tea.Cmd {
 }
 
 func (m *Model) View() string {
-	return m.menu.View()
+	m.menu.SetFrame(cellbuf.Rect(0, 0, 80, 40))
+	v := m.menu.View()
+	w, h := lipgloss.Size(v)
+	pw, ph := m.Parent.Width, m.Parent.Height
+	sx := (pw - w) / 2
+	sy := (ph - h) / 2
+	m.SetFrame(cellbuf.Rect(sx, sy, w, h))
+	return v
 }
 
 func (m *Model) displayRemotes() string {
@@ -195,7 +188,7 @@ func loadRemoteNames(c context.CommandRunner) []string {
 	return remotes
 }
 
-func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int, height int) *Model {
+func NewModel(c *context.MainContext, revisions jj.SelectedRevisions) *Model {
 	remotes := loadRemoteNames(c)
 	keymap := config.Current.GetKeyMap()
 
@@ -207,6 +200,7 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int,
 	}
 
 	m := &Model{
+		ViewNode:          common.NewViewNode(0, 0),
 		context:           c,
 		keymap:            keymap,
 		revisions:         revisions,
@@ -216,7 +210,8 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int,
 	}
 
 	items := m.createMenuItems()
-	m.menu = menu.NewMenu(items, width, height, m.keymap, menu.WithStylePrefix("git"))
+	m.menu = menu.NewMenu(items, m.keymap, menu.WithStylePrefix("git"))
+	m.menu.Parent = m.ViewNode
 	m.menu.Title = "Git Operations"
 	m.menu.Subtitle = m.displayRemotes()
 	m.menu.FilterMatches = func(i list.Item, filter string) bool {
@@ -226,8 +221,6 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions, width int,
 		return false
 	}
 
-	m.SetWidth(width)
-	m.SetHeight(height)
 	return m
 }
 

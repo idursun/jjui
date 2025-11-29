@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/test"
@@ -18,6 +19,8 @@ func TestConfirm(t *testing.T) {
 	defer commandRunner.Verify()
 
 	model := NewModel(test.NewTestContext(commandRunner))
+	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
+	model.Parent = common.NewViewNode(100, 20)
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, model.View(), "redo")
 
@@ -30,6 +33,8 @@ func TestCancel(t *testing.T) {
 	defer commandRunner.Verify()
 
 	model := NewModel(test.NewTestContext(commandRunner))
+	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
+	model.Parent = common.NewViewNode(100, 20)
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, model.View(), "redo")
 
@@ -43,6 +48,8 @@ func TestRedoNothingToRedo(t *testing.T) {
 	defer commandRunner.Verify()
 
 	model := NewModel(test.NewTestContext(commandRunner))
+	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
+	model.Parent = common.NewViewNode(100, 20)
 	test.SimulateModel(model, model.Init())
 
 	var msgs []tea.Msg

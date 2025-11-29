@@ -7,6 +7,8 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/menu"
@@ -40,6 +42,7 @@ func (i item) Description() string {
 var _ common.Model = (*Model)(nil)
 
 type Model struct {
+	*common.ViewNode
 	context *context.MainContext
 	keymap  config.KeyMappings[key.Binding]
 	menu    menu.Menu
@@ -56,22 +59,6 @@ func (m *Model) ShortHelp() []key.Binding {
 
 func (m *Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{m.ShortHelp()}
-}
-
-func (m *Model) Width() int {
-	return m.menu.Width()
-}
-
-func (m *Model) Height() int {
-	return m.menu.Height()
-}
-
-func (m *Model) SetWidth(w int) {
-	m.menu.SetWidth(w)
-}
-
-func (m *Model) SetHeight(h int) {
-	m.menu.SetHeight(h)
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -109,10 +96,17 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) View() string {
-	return m.menu.View()
+	m.menu.SetFrame(cellbuf.Rect(0, 0, 80, 40))
+	v := m.menu.View()
+	w, h := lipgloss.Size(v)
+	pw, ph := m.Parent.Width, m.Parent.Height
+	sx := (pw - w) / 2
+	sy := (ph - h) / 2
+	m.SetFrame(cellbuf.Rect(sx, sy, w, h))
+	return v
 }
 
-func NewModel(ctx *context.MainContext, width int, height int) *Model {
+func NewModel(ctx *context.MainContext) *Model {
 	var items []list.Item
 
 	for name, command := range ctx.CustomCommands {
@@ -122,7 +116,7 @@ func NewModel(ctx *context.MainContext, width int, height int) *Model {
 		}
 	}
 	keyMap := config.Current.GetKeyMap()
-	menu := menu.NewMenu(items, width, height, keyMap, menu.WithStylePrefix("custom_commands"))
+	menu := menu.NewMenu(items, keyMap, menu.WithStylePrefix("custom_commands"))
 	menu.Title = "Custom Commands"
 	menu.ShowShortcuts(true)
 	menu.FilterMatches = func(i list.Item, filter string) bool {
@@ -130,12 +124,12 @@ func NewModel(ctx *context.MainContext, width int, height int) *Model {
 	}
 
 	m := &Model{
-		context: ctx,
-		keymap:  keyMap,
-		menu:    menu,
-		help:    help.New(),
+		ViewNode: common.NewViewNode(0, 0),
+		context:  ctx,
+		keymap:   keyMap,
+		menu:     menu,
+		help:     help.New(),
 	}
-	m.SetWidth(width)
-	m.SetHeight(height)
+	menu.Parent = m.ViewNode
 	return m
 }

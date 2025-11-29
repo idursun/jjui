@@ -2,11 +2,21 @@ package common
 
 import "github.com/charmbracelet/x/cellbuf"
 
+type IViewNode interface {
+	GetViewNode() *ViewNode
+}
+
+var _ IViewNode = (*ViewNode)(nil)
+
 type ViewNode struct {
 	Parent *ViewNode
 	Width  int
 	Height int
 	Frame  cellbuf.Rectangle
+}
+
+func (s *ViewNode) GetViewNode() *ViewNode {
+	return s
 }
 
 func (s *ViewNode) SetWidth(w int) {
@@ -19,8 +29,8 @@ func (s *ViewNode) SetHeight(h int) {
 
 func (s *ViewNode) SetFrame(f cellbuf.Rectangle) {
 	s.Frame = f
-	s.Width = f.Dx()
-	s.Height = f.Dy()
+	s.SetWidth(f.Dx())
+	s.SetHeight(f.Dy())
 }
 
 func (s *ViewNode) ToLocal(x, y int) (int, int) {

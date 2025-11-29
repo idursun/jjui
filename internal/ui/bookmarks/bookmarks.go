@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common/menu"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -24,6 +26,7 @@ type updateItemsMsg struct {
 var _ common.Model = (*Model)(nil)
 
 type Model struct {
+	*common.ViewNode
 	context     *context.MainContext
 	current     *jj.Commit
 	menu        menu.Menu
@@ -46,22 +49,6 @@ func (m *Model) ShortHelp() []key.Binding {
 
 func (m *Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{m.ShortHelp()}
-}
-
-func (m *Model) Width() int {
-	return m.menu.Width()
-}
-
-func (m *Model) Height() int {
-	return m.menu.Height()
-}
-
-func (m *Model) SetWidth(w int) {
-	m.menu.SetWidth(w)
-}
-
-func (m *Model) SetHeight(h int) {
-	m.menu.SetHeight(h)
 }
 
 type commandType int
@@ -254,7 +241,14 @@ func itemSorter(a list.Item, b list.Item) int {
 }
 
 func (m *Model) View() string {
-	return m.menu.View()
+	m.menu.SetFrame(cellbuf.Rect(0, 0, 80, 40))
+	v := m.menu.View()
+	w, h := lipgloss.Size(v)
+	pw, ph := m.Parent.Width, m.Parent.Height
+	sx := (pw - w) / 2
+	sy := (ph - h) / 2
+	m.SetFrame(cellbuf.Rect(sx, sy, w, h))
+	return v
 }
 
 func (m *Model) distance(commitId string) int {
@@ -264,25 +258,25 @@ func (m *Model) distance(commitId string) int {
 	return math.MinInt32
 }
 
-func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string, width int, height int) *Model {
+func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string) *Model {
 	var items []list.Item
 	keymap := config.Current.GetKeyMap()
 
-	menu := menu.NewMenu(items, width, height, keymap, menu.WithStylePrefix("bookmarks"))
+	menu := menu.NewMenu(items, keymap, menu.WithStylePrefix("bookmarks"))
 	menu.Title = "Bookmark Operations"
 	menu.FilterMatches = func(i list.Item, filter string) bool {
 		return strings.HasPrefix(i.FilterValue(), filter)
 	}
 
 	m := &Model{
+		ViewNode:    common.NewViewNode(0, 0),
 		context:     c,
 		keymap:      keymap,
 		menu:        menu,
 		current:     current,
 		distanceMap: calcDistanceMap(current.CommitId, commitIds),
 	}
-	m.SetWidth(width)
-	m.SetHeight(height)
+	menu.Parent = m.ViewNode
 	return m
 }
 
