@@ -34,6 +34,7 @@ const (
 var _ common.Model = (*Model)(nil)
 
 type Model struct {
+	*common.ViewNode
 	context    *context.MainContext
 	spinner    spinner.Model
 	input      textinput.Model
@@ -41,7 +42,6 @@ type Model struct {
 	command    string
 	status     commandStatus
 	running    bool
-	width      int
 	mode       string
 	editStatus editStatus
 	history    map[string][]string
@@ -81,19 +81,6 @@ const CommandClearDuration = 3 * time.Second
 
 type clearMsg string
 
-func (m *Model) Width() int {
-	return m.width
-}
-
-func (m *Model) Height() int {
-	return 1
-}
-
-func (m *Model) SetWidth(w int) {
-	m.width = w
-}
-
-func (m *Model) SetHeight(int) {}
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
@@ -240,7 +227,7 @@ func (m *Model) View() string {
 		commandStatusMark = m.styles.success.Render("✓ ")
 	} else {
 		commandStatusMark = m.helpView(m.keyMap)
-		commandStatusMark = lipgloss.PlaceHorizontal(m.width, 0, commandStatusMark, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
+		commandStatusMark = lipgloss.PlaceHorizontal(m.Width, 0, commandStatusMark, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
 	}
 	modeWith := max(10, len(m.mode)+2)
 	ret := m.styles.text.Render(strings.ReplaceAll(m.command, "\n", "⏎"))
@@ -251,13 +238,13 @@ func (m *Model) View() string {
 			editHelp = lipgloss.JoinHorizontal(0, m.helpView(editKeys), editHelp)
 		}
 		promptWidth := len(m.input.Prompt) + 2
-		m.input.Width = m.width - modeWith - promptWidth - lipgloss.Width(editHelp)
+		m.input.Width = m.Width - modeWith - promptWidth - lipgloss.Width(editHelp)
 		ret = lipgloss.JoinHorizontal(0, m.input.View(), editHelp)
 	}
 	mode := m.styles.title.Width(modeWith).Render("", m.mode)
 	ret = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), commandStatusMark, ret)
 	height := lipgloss.Height(ret)
-	return lipgloss.Place(m.width, height, 0, 0, ret, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
+	return lipgloss.Place(m.Width, height, 0, 0, ret, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
 }
 
 func (m *Model) SetHelp(keyMap help.KeyMap) {
@@ -284,7 +271,7 @@ func (m *Model) helpView(keyMap help.KeyMap) string {
 	return help
 }
 
-func New(context *context.MainContext) Model {
+func New(context *context.MainContext) *Model {
 	styles := styles{
 		shortcut: common.DefaultPalette.Get("status shortcut"),
 		dimmed:   common.DefaultPalette.Get("status dimmed"),
@@ -302,13 +289,14 @@ func New(context *context.MainContext) Model {
 	t.CompletionStyle = styles.dimmed
 	t.PlaceholderStyle = styles.dimmed
 
-	return Model{
-		context: context,
-		spinner: s,
-		command: "",
-		status:  none,
-		input:   t,
-		keyMap:  nil,
-		styles:  styles,
+	return &Model{
+		ViewNode: common.NewViewNode(0, 0),
+		context:  context,
+		spinner:  s,
+		command:  "",
+		status:   none,
+		input:    t,
+		keyMap:   nil,
+		styles:   styles,
 	}
 }

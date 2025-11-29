@@ -2,13 +2,6 @@ package common
 
 import "github.com/charmbracelet/x/cellbuf"
 
-type ISizeable interface {
-	SetWidth(w int)
-	SetHeight(h int)
-}
-
-var _ ISizeable = (*ViewNode)(nil)
-
 type ViewNode struct {
 	Parent *ViewNode
 	Width  int

@@ -119,8 +119,7 @@ func (m *Model) View() string {
 	m.renderer.SetWidth(m.Width)
 	m.renderer.SetHeight(m.Height)
 	content := m.renderer.Render(m.cursor)
-	content = lipgloss.PlaceHorizontal(m.Width, lipgloss.Left, content)
-	return m.textStyle.MaxWidth(m.Width).Render(content)
+	return m.textStyle.Render(content)
 }
 
 func (m *Model) load() tea.Cmd {
@@ -135,10 +134,11 @@ func (m *Model) load() tea.Cmd {
 	}
 }
 
-func New(context *context.MainContext, width int, height int) *Model {
+func New(context *context.MainContext) *Model {
 	keyMap := config.Current.GetKeyMap()
+	node := common.NewViewNode(0, 0)
 	m := &Model{
-		ViewNode:      &common.ViewNode{Width: width, Height: height},
+		ViewNode:      node,
 		context:       context,
 		keymap:        keyMap,
 		rows:          nil,
@@ -146,6 +146,6 @@ func New(context *context.MainContext, width int, height int) *Model {
 		textStyle:     common.DefaultPalette.Get("oplog text"),
 		selectedStyle: common.DefaultPalette.Get("oplog selected"),
 	}
-	m.renderer = list.NewRenderer(m, common.NewViewNode(width, height))
+	m.renderer = list.NewRenderer(m, node)
 	return m
 }
