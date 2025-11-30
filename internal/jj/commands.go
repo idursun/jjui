@@ -392,6 +392,10 @@ func OpRestore(operationId string) CommandArgs {
 	return []string{"op", "restore", operationId}
 }
 
+func OpRevert(operationID string) CommandArgs {
+	return []string{"op", "revert", operationID}
+}
+
 func GetParent(revisions SelectedRevisions) CommandArgs {
 	args := []string{"log", "-r"}
 	joined := strings.Join(revisions.GetIds(), "|")

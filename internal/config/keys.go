@@ -116,6 +116,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		OpLog: opLogModeKeys[key.Binding]{
 			Mode:    key.NewBinding(key.WithKeys(m.OpLog.Mode...), key.WithHelp(JoinKeys(m.OpLog.Mode), "oplog")),
 			Restore: key.NewBinding(key.WithKeys(m.OpLog.Restore...), key.WithHelp(JoinKeys(m.OpLog.Restore), "restore")),
+			Revert:  key.NewBinding(key.WithKeys(m.OpLog.Revert...), key.WithHelp(JoinKeys(m.OpLog.Revert), "revert")),
 		},
 		InlineDescribe: inlineDescribeModeKeys[key.Binding]{
 			Mode:   key.NewBinding(key.WithKeys(m.InlineDescribe.Mode...), key.WithHelp(JoinKeys(m.InlineDescribe.Mode), "inline describe")),
@@ -287,6 +288,7 @@ type previewModeKeys[T any] struct {
 type opLogModeKeys[T any] struct {
 	Mode    T `toml:"mode"`
 	Restore T `toml:"restore"`
+	Revert  T `toml:"revert"`
 }
 
 type inlineDescribeModeKeys[T any] struct {

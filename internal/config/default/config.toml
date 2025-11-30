@@ -104,6 +104,7 @@ limit = 0
   [keys.oplog]
     mode = ["o"]
     restore = ["r"]
+    revert = ["R"]
   [keys.file_search]
     toggle = ["ctrl+t"]
     up = ["up"]

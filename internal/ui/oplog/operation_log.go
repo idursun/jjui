@@ -53,7 +53,14 @@ func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
 }
 
 func (m *Model) ShortHelp() []key.Binding {
-	return []key.Binding{m.keymap.Up, m.keymap.Down, m.keymap.Cancel, m.keymap.Diff, m.keymap.OpLog.Restore}
+	return []key.Binding{
+		m.keymap.Up,
+		m.keymap.Down,
+		m.keymap.Cancel,
+		m.keymap.Diff,
+		m.keymap.OpLog.Restore,
+		m.keymap.OpLog.Revert,
+	}
 }
 
 func (m *Model) FullHelp() [][]key.Binding {
@@ -88,7 +95,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 		case key.Matches(msg, m.keymap.OpLog.Restore):
 			return tea.Batch(common.Close, m.context.RunCommand(jj.OpRestore(m.rows[m.cursor].OperationId), common.Refresh))
+		case key.Matches(msg, m.keymap.OpLog.Revert):
+			return tea.Batch(common.Close, m.context.RunCommand(jj.OpRevert(m.rows[m.cursor].OperationId), common.Refresh))
 		}
+
 	}
 	return m.updateSelection()
 }
