@@ -61,11 +61,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) View() string {
+	m.view.Height = m.Height
+	m.view.Width = m.Width
 	return m.view.View()
 }
 
-func New(output string, width int, height int) *Model {
-	view := viewport.New(width, height)
+func New(output string) *Model {
+	view := viewport.New(0, 0)
 	content := strings.ReplaceAll(output, "\r", "")
 	if content == "" {
 		content = "(empty)"

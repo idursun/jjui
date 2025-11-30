@@ -269,7 +269,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case common.ShowDiffMsg:
-		m.diff = diff.New(string(msg), m.Width, m.Height)
+		m.diff = diff.New(string(msg))
 		return m.diff.Init()
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
