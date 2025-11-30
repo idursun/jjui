@@ -1,6 +1,7 @@
 package describe
 
 import (
+	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
@@ -12,8 +13,10 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations"
 )
 
-var _ operations.Operation = (*Operation)(nil)
-var _ common.Editable = (*Operation)(nil)
+var (
+	_ operations.Operation = (*Operation)(nil)
+	_ common.Editable      = (*Operation)(nil)
+)
 
 type Operation struct {
 	*common.ViewNode
@@ -55,6 +58,14 @@ func (o *Operation) Name() string {
 }
 
 func (o *Operation) Update(msg tea.Msg) tea.Cmd {
+	// ignore cursor blink messages to prevent unnecessary rendering and height
+	// recalculations
+	var cmd tea.Cmd
+	if _, ok := msg.(cursor.BlinkMsg); ok {
+		o.input, cmd = o.input.Update(msg)
+		return cmd
+	}
+
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch {
 		case key.Matches(keyMsg, o.keyMap.Cancel):
@@ -73,7 +84,6 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 			return o.context.RunCommand(jj.SetDescription(o.revision, o.input.Value()), common.Close, common.Refresh)
 		}
 	}
-	var cmd tea.Cmd
 	o.input, cmd = o.input.Update(msg)
 
 	newValue := o.input.Value()
