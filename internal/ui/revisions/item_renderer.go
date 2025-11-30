@@ -72,6 +72,7 @@ func (ir itemRenderer) Render(w io.Writer, width int) {
 
 	requiresDescriptionRendering := descriptionOverlay != ""
 	descriptionRendered := false
+	revisionLineRendered := false
 
 	// Each line has a flag:
 	// Revision: the line contains a change id and commit id (which is assumed to be the first line of the row)
@@ -82,9 +83,11 @@ func (ir itemRenderer) Render(w io.Writer, width int) {
 		if segmentedLine.Flags&parser.Elided == parser.Elided {
 			break
 		}
-		lw := strings.Builder{}
-		if isHighlighted && segmentedLine.Flags&parser.Revision != parser.Revision {
-			if requiresDescriptionRendering {
+
+		// After rendering the revision line, if we need to render the description overlay,
+		// render it and skip all remaining highlightable lines
+		if isHighlighted && revisionLineRendered && requiresDescriptionRendering && !descriptionRendered {
+			if segmentedLine.Flags&parser.Highlightable == parser.Highlightable {
 				ir.writeSection(w, segmentedLine.Gutter, row.Extend(), true, descriptionOverlay, width)
 				descriptionRendered = true
 				// skip all remaining highlightable lines
@@ -99,6 +102,8 @@ func (ir itemRenderer) Render(w io.Writer, width int) {
 				continue
 			}
 		}
+
+		lw := strings.Builder{}
 
 		for i, segment := range segmentedLine.Gutter.Segments {
 			gutterInLane := ir.isGutterInLane(lineIndex, i)
@@ -168,6 +173,11 @@ func (ir itemRenderer) Render(w io.Writer, width int) {
 			fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceBackground(ir.textStyle.GetBackground())))
 		}
 		fmt.Fprint(w, "\n")
+
+		// Track when we've rendered the revision line
+		if segmentedLine.Flags&parser.Revision == parser.Revision {
+			revisionLineRendered = true
+		}
 	}
 
 	if requiresDescriptionRendering && !descriptionRendered {
