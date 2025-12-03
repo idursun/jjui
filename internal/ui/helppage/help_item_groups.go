@@ -149,6 +149,7 @@ func (h *Model) buildMiddleGroups() menuColumn {
 		itemGroup{
 			h.newModeItem(&h.keyMap.Squash.Mode, "Squash"),
 			h.newBindingItem(h.keyMap.Squash.KeepEmptied),
+			h.newBindingItem(h.keyMap.Squash.UseDestinationMessage),
 			h.newBindingItem(h.keyMap.Squash.Interactive),
 			helpItem{"", ""},
 		},

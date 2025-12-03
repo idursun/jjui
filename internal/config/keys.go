@@ -73,9 +73,10 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Onto:   key.NewBinding(key.WithKeys(m.Duplicate.Onto...), key.WithHelp(JoinKeys(m.Duplicate.Onto), "duplicate onto")),
 		},
 		Squash: squashModeKeys[key.Binding]{
-			Mode:        key.NewBinding(key.WithKeys(m.Squash.Mode...), key.WithHelp(JoinKeys(m.Squash.Mode), "squash")),
-			KeepEmptied: key.NewBinding(key.WithKeys(m.Squash.KeepEmptied...), key.WithHelp(JoinKeys(m.Squash.KeepEmptied), "keep emptied commits")),
-			Interactive: key.NewBinding(key.WithKeys(m.Squash.Interactive...), key.WithHelp(JoinKeys(m.Squash.Interactive), "interactive")),
+			Mode:                  key.NewBinding(key.WithKeys(m.Squash.Mode...), key.WithHelp(JoinKeys(m.Squash.Mode), "squash")),
+			KeepEmptied:           key.NewBinding(key.WithKeys(m.Squash.KeepEmptied...), key.WithHelp(JoinKeys(m.Squash.KeepEmptied), "keep emptied commits")),
+			UseDestinationMessage: key.NewBinding(key.WithKeys(m.Squash.UseDestinationMessage...), key.WithHelp(JoinKeys(m.Squash.UseDestinationMessage), "use destination message")),
+			Interactive:           key.NewBinding(key.WithKeys(m.Squash.Interactive...), key.WithHelp(JoinKeys(m.Squash.Interactive), "interactive")),
 		},
 		Details: detailsModeKeys[key.Binding]{
 			Mode:                  key.NewBinding(key.WithKeys(m.Details.Mode...), key.WithHelp(JoinKeys(m.Details.Mode), "details")),
@@ -217,9 +218,10 @@ type bookmarkModeKeys[T any] struct {
 }
 
 type squashModeKeys[T any] struct {
-	Mode        T `toml:"mode"`
-	KeepEmptied T `toml:"keep_emptied"`
-	Interactive T `toml:"interactive"`
+	Mode                  T `toml:"mode"`
+	KeepEmptied           T `toml:"keep_emptied"`
+	UseDestinationMessage T `toml:"use_destination_message"`
+	Interactive           T `toml:"interactive"`
 }
 
 type revertModeKeys[T any] struct {

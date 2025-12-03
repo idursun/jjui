@@ -14,18 +14,21 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations"
 )
 
-var _ operations.Operation = (*Operation)(nil)
-var _ common.Focusable = (*Operation)(nil)
+var (
+	_ operations.Operation = (*Operation)(nil)
+	_ common.Focusable     = (*Operation)(nil)
+)
 
 type Operation struct {
-	context     *context.MainContext
-	from        jj.SelectedRevisions
-	files       []string
-	current     *jj.Commit
-	keyMap      config.KeyMappings[key.Binding]
-	keepEmptied bool
-	interactive bool
-	styles      styles
+	context               *context.MainContext
+	from                  jj.SelectedRevisions
+	files                 []string
+	current               *jj.Commit
+	keyMap                config.KeyMappings[key.Binding]
+	keepEmptied           bool
+	useDestinationMessage bool
+	interactive           bool
+	styles                styles
 }
 
 func (s *Operation) IsFocused() bool {
@@ -57,11 +60,19 @@ func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, s.keyMap.Apply, s.keyMap.ForceApply):
 		ignoreImmutable := key.Matches(msg, s.keyMap.ForceApply)
-		return tea.Batch(common.Close, s.context.RunInteractiveCommand(jj.Squash(s.from, s.current.GetChangeId(), s.files, s.keepEmptied, s.interactive, ignoreImmutable), common.RefreshAndSelect(s.current.GetChangeId())))
+		args := jj.Squash(s.from, s.current.GetChangeId(), s.files, s.keepEmptied, s.useDestinationMessage, s.interactive, ignoreImmutable)
+		continuation := common.RefreshAndSelect(s.current.GetChangeId())
+		if s.interactive || !s.useDestinationMessage {
+			return tea.Batch(common.Close, s.context.RunInteractiveCommand(args, continuation))
+		} else {
+			return tea.Batch(common.Close, s.context.RunCommand(args, continuation))
+		}
 	case key.Matches(msg, s.keyMap.Cancel):
 		return common.Close
 	case key.Matches(msg, s.keyMap.Squash.KeepEmptied):
 		s.keepEmptied = !s.keepEmptied
+	case key.Matches(msg, s.keyMap.Squash.UseDestinationMessage):
+		s.useDestinationMessage = !s.useDestinationMessage
 	case key.Matches(msg, s.keyMap.Squash.Interactive):
 		s.interactive = !s.interactive
 	}
@@ -80,7 +91,11 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 
 	isSelected := s.current != nil && s.current.GetChangeId() == commit.GetChangeId()
 	if isSelected {
-		return s.styles.targetMarker.Render("<< into >>")
+		marker := "<< into >>"
+		if s.useDestinationMessage {
+			marker = "<< use this message >>"
+		}
+		return s.styles.targetMarker.Render(marker)
 	}
 	sourceIds := s.from.GetIds()
 	if slices.Contains(sourceIds, commit.ChangeId) {
@@ -106,6 +121,7 @@ func (s *Operation) ShortHelp() []key.Binding {
 		s.keyMap.ForceApply,
 		s.keyMap.Cancel,
 		s.keyMap.Squash.KeepEmptied,
+		s.keyMap.Squash.UseDestinationMessage,
 		s.keyMap.Squash.Interactive,
 	}
 }

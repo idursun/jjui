@@ -60,6 +60,7 @@ limit = 0
   [keys.squash]
     mode = ["S"]
     keep_emptied = ["e"]
+    use_destination_message = ["d"]
     interactive = ["i"]
   [keys.details]
     mode = ["l"]

@@ -199,12 +199,15 @@ func BookmarkUntrack(name string) CommandArgs {
 	return []string{"bookmark", "untrack", name}
 }
 
-func Squash(from SelectedRevisions, destination string, files []string, keepEmptied bool, interactive bool, ignoreImmutable bool) CommandArgs {
+func Squash(from SelectedRevisions, destination string, files []string, keepEmptied bool, useDestinationMessage bool, interactive bool, ignoreImmutable bool) CommandArgs {
 	args := []string{"squash"}
 	args = append(args, from.AsPrefixedArgs("--from")...)
 	args = append(args, "--into", destination)
 	if keepEmptied {
 		args = append(args, "--keep-emptied")
+	}
+	if useDestinationMessage {
+		args = append(args, "--use-destination-message")
 	}
 	if interactive {
 		args = append(args, "--interactive")
