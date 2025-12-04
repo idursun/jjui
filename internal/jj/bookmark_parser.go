@@ -24,10 +24,6 @@ type Bookmark struct {
 	CommitId  string
 }
 
-func (b Bookmark) IsPushable() bool {
-	return b.Local != nil && len(b.Remotes) == 0
-}
-
 func (b Bookmark) IsDeletable() bool {
 	return b.Local != nil
 }
