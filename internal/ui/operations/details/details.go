@@ -29,10 +29,12 @@ var (
 	_ operations.Operation = (*Operation)(nil)
 	_ common.Focusable     = (*Operation)(nil)
 	_ common.Overlay       = (*Operation)(nil)
+	_ common.IMouseAware   = (*Operation)(nil)
 )
 
 type Operation struct {
 	*DetailsList
+	*common.MouseAware
 	context           *context.MainContext
 	Current           *jj.Commit
 	keymap            config.KeyMappings[key.Binding]
@@ -302,6 +304,27 @@ func (s *Operation) getSelectedFiles(allowVirtualSelection bool) []string {
 	return selectedFiles
 }
 
+// ClickAt handles a mouse click relative to the rendered details list (0-based
+// y coordinate) and updates selection when the click lands on an item.
+func (s *Operation) ClickAt(x, y int) tea.Cmd {
+	if s.confirmation != nil {
+		return nil
+	}
+	newCursor := s.DetailsList.ClickAt(x, y)
+	if newCursor == -1 {
+		return nil
+	}
+	current := s.current()
+	if current == nil {
+		return nil
+	}
+	return s.context.SetSelectedItem(context.SelectedFile{
+		ChangeId: s.revision.GetChangeId(),
+		CommitId: s.revision.CommitId,
+		File:     current.fileName,
+	})
+}
+
 func (s *Operation) createListItems(content string, selectedFiles []string) []*item {
 	var items []*item
 	scanner := bufio.NewScanner(strings.NewReader(content))
@@ -393,6 +416,7 @@ func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation 
 	l := NewDetailsList(s, common.NewViewNode(0, 0))
 	op := &Operation{
 		DetailsList:       l,
+		MouseAware:        common.NewMouseAware(),
 		context:           context,
 		revision:          selected,
 		keyMap:            keyMap,

@@ -73,6 +73,10 @@ type Operation struct {
 	SkipEmptied    bool
 }
 
+func (r *Operation) GetViewNode() *common.ViewNode {
+	return nil
+}
+
 type updateHighlightedIdsMsg struct {
 	ids []string
 }

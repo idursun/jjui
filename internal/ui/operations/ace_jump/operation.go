@@ -32,6 +32,10 @@ type Operation struct {
 	first, last int
 }
 
+func (o *Operation) GetViewNode() *common.ViewNode {
+	return nil
+}
+
 func (o *Operation) IsEditing() bool {
 	return true
 }

@@ -54,6 +54,10 @@ type Operation struct {
 	styles         styles
 }
 
+func (r *Operation) GetViewNode() *common.ViewNode {
+	return nil
+}
+
 func (r *Operation) IsFocused() bool {
 	return true
 }

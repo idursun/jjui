@@ -56,6 +56,22 @@ func (d *DetailsList) cursorDown() {
 	}
 }
 
+// clickAt moves the cursor to the item rendered at the given local line (0-based
+// relative to the visible list window) and returns the new cursor index or -1 if
+// the click is out of bounds.
+func (d *DetailsList) ClickAt(x, y int) int {
+	x, y = d.ToLocal(x, y)
+	if x < 0 || y >= d.Height {
+		return -1
+	}
+	target := d.renderer.ViewRange.Start + y
+	if target < 0 || target >= len(d.files) {
+		return -1
+	}
+	d.cursor = target
+	return d.cursor
+}
+
 func (d *DetailsList) current() *item {
 	if len(d.files) == 0 {
 		return nil

@@ -23,6 +23,10 @@ type Operation struct {
 	context *context.MainContext
 }
 
+func (a *Operation) GetViewNode() *common.ViewNode {
+	return nil
+}
+
 func (a *Operation) IsEditing() bool {
 	return true
 }

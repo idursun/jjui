@@ -21,6 +21,10 @@ type SetBookmarkOperation struct {
 	name     textinput.Model
 }
 
+func (s *SetBookmarkOperation) GetViewNode() *common.ViewNode {
+	return nil
+}
+
 func (s *SetBookmarkOperation) IsEditing() bool {
 	return true
 }

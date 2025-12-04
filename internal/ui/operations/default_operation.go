@@ -5,12 +5,17 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/common"
 )
 
 var _ Operation = (*Default)(nil)
 
 type Default struct {
 	keyMap config.KeyMappings[key.Binding]
+}
+
+func (n *Default) GetViewNode() *common.ViewNode {
+	return nil
 }
 
 func (n *Default) Init() tea.Cmd {

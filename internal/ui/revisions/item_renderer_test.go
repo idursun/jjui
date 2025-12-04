@@ -10,6 +10,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,12 +27,69 @@ func (c cursorBuffer) ViewportPos() (line, col int) {
 	return 0, 0
 }
 
+type trackingWriter struct {
+	*bytes.Buffer
+	localLine      int
+	localCol       int
+	viewportStart  int
+	viewportHeight int
+}
+
+func newTrackingWriter(viewportStart, viewportHeight int) *trackingWriter {
+	return &trackingWriter{
+		Buffer:         &bytes.Buffer{},
+		viewportStart:  viewportStart,
+		viewportHeight: viewportHeight,
+	}
+}
+
+func (t *trackingWriter) LocalPos() (line, col int) {
+	return t.localLine, t.localCol
+}
+
+func (t *trackingWriter) ViewportPos() (line, col int) {
+	screenLine := t.localLine - t.viewportStart
+	if screenLine < 0 || screenLine >= t.viewportHeight {
+		return -1, -1
+	}
+	return screenLine, t.localCol
+}
+
+func (t *trackingWriter) Write(p []byte) (n int, err error) {
+	for _, b := range p {
+		if err := t.Buffer.WriteByte(b); err != nil {
+			return n, err
+		}
+		n++
+		if b == '\n' {
+			t.localLine++
+			t.localCol = 0
+		} else {
+			t.localCol++
+		}
+	}
+	return n, nil
+}
+
 type mockOperation struct {
+	*common.ViewNode
+	*common.MouseAware
+	renderBefore          string
+	renderAfter           string
 	renderOverDescription string
 }
 
+func (m *mockOperation) GetViewNode() *common.ViewNode {
+	return m.ViewNode
+}
+
 func (m *mockOperation) Render(commit *jj.Commit, renderPosition operations.RenderPosition) string {
-	if renderPosition == operations.RenderOverDescription {
+	switch renderPosition {
+	case operations.RenderPositionBefore:
+		return m.renderBefore
+	case operations.RenderPositionAfter:
+		return m.renderAfter
+	case operations.RenderOverDescription:
 		return m.renderOverDescription
 	}
 	return ""
@@ -100,7 +158,7 @@ func TestRenderMainLines_MultipleDescriptionLines(t *testing.T) {
 		updateGutterText: func(lineIndex, segmentIndex int, text string) string {
 			return text
 		},
-		op: &mockOperation{renderOverDescription: descriptionOverlay},
+		op: &mockOperation{MouseAware: common.NewMouseAware(), renderOverDescription: descriptionOverlay},
 	}
 
 	var buf bytes.Buffer

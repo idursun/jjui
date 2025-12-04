@@ -29,6 +29,10 @@ type Model struct {
 	parents  []string
 }
 
+func (m *Model) GetViewNode() *common.ViewNode {
+	return nil
+}
+
 func (m *Model) IsFocused() bool {
 	return true
 }

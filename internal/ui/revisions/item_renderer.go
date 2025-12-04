@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common/list"
@@ -29,10 +30,10 @@ type itemRenderer struct {
 	isChecked        bool
 }
 
-func (ir itemRenderer) writeSection(w list.CursorWriter, current parser.GraphGutter, extended parser.GraphGutter, highlight bool, section string, width int) {
+func (ir *itemRenderer) writeSection(w list.CursorWriter, current parser.GraphGutter, extended parser.GraphGutter, highlight bool, section string, width int) {
 	isHighlighted := ir.isHighlighted
 	section = strings.TrimSuffix(section, "\n")
-	lines := strings.Split(section, "\n")
+	lines := strings.SplitSeq(section, "\n")
 	for sectionLine := range lines {
 		lw := strings.Builder{}
 		for _, segment := range current.Segments {
@@ -51,7 +52,7 @@ func (ir itemRenderer) writeSection(w list.CursorWriter, current parser.GraphGut
 	}
 }
 
-func (ir itemRenderer) Render(w list.CursorWriter, width int) {
+func (ir *itemRenderer) Render(w list.CursorWriter, width int) {
 	ir.renderBeforeSection(w, width)
 
 	descriptionOverlay := ""
@@ -62,6 +63,7 @@ func (ir itemRenderer) Render(w list.CursorWriter, width int) {
 	descriptionRendered := ir.renderMainLines(w, width, descriptionOverlay)
 
 	if descriptionOverlay != "" && !descriptionRendered {
+		ir.recordSection(w, operations.RenderOverDescription, descriptionOverlay)
 		ir.writeSection(w, ir.row.Extend(), ir.row.Extend(), true, descriptionOverlay, width)
 	}
 
@@ -72,11 +74,12 @@ func (ir itemRenderer) Render(w list.CursorWriter, width int) {
 // renderBeforeSection renders content before the main revision lines by extending
 // the previous row's graph connections.
 // This is used for operation-specific content that appear above the revision.
-func (ir itemRenderer) renderBeforeSection(w list.CursorWriter, width int) {
+func (ir *itemRenderer) renderBeforeSection(w list.CursorWriter, width int) {
 	before := ir.op.Render(ir.row.Commit, operations.RenderPositionBefore)
 	if before == "" {
 		return
 	}
+	ir.recordSection(w, operations.RenderPositionBefore, before)
 
 	extended := parser.GraphGutter{}
 	if ir.row.Previous != nil {
@@ -90,7 +93,7 @@ func (ir itemRenderer) renderBeforeSection(w list.CursorWriter, width int) {
 // If a description overlay is provided for a highlighted row, it replaces the
 // normal description lines.
 // Returns true if the description overlay was rendered, false otherwise.
-func (ir itemRenderer) renderMainLines(w list.CursorWriter, width int, descriptionOverlay string) bool {
+func (ir *itemRenderer) renderMainLines(w list.CursorWriter, width int, descriptionOverlay string) bool {
 	descriptionRendered := false
 	needDescription := descriptionOverlay != ""
 
@@ -118,6 +121,7 @@ func (ir itemRenderer) renderMainLines(w list.CursorWriter, width int, descripti
 		}
 
 		// All conditions met, render description
+		ir.recordSection(w, operations.RenderOverDescription, descriptionOverlay)
 		ir.writeSection(w, segmentedLine.Gutter, ir.row.Extend(), true, descriptionOverlay, width)
 		descriptionRendered = true
 		lineIndex = ir.skipHighlightableLines(lineIndex)
@@ -128,7 +132,7 @@ func (ir itemRenderer) renderMainLines(w list.CursorWriter, width int, descripti
 
 // skipHighlightableLines is used when a description overlay is rendered to
 // skip the original description lines.
-func (ir itemRenderer) skipHighlightableLines(startIndex int) int {
+func (ir *itemRenderer) skipHighlightableLines(startIndex int) int {
 	for startIndex < len(ir.row.Lines) {
 		if ir.row.Lines[startIndex].Flags&parser.Highlightable == parser.Highlightable {
 			startIndex++
@@ -143,7 +147,7 @@ func (ir itemRenderer) skipHighlightableLines(startIndex int) int {
 // different segments (ChangeID, CommitID, description, etc)
 // and an optional marker indicating if the revision was affected by the last
 // operation.
-func (ir itemRenderer) renderLine(w io.Writer, width int, lineIndex int, segmentedLine parser.GraphRowLine) {
+func (ir *itemRenderer) renderLine(w io.Writer, width int, lineIndex int, segmentedLine parser.GraphRowLine) {
 	lw := strings.Builder{}
 	ir.renderGutter(&lw, lineIndex, segmentedLine)
 	ir.renderSegments(&lw, segmentedLine)
@@ -161,7 +165,7 @@ func (ir itemRenderer) renderLine(w io.Writer, width int, lineIndex int, segment
 // renderGutter renders the graph gutter portion
 // For revision lines, it also renders the checkbox and any operation-specific
 // content before the ChangeID.
-func (ir itemRenderer) renderGutter(lw *strings.Builder, lineIndex int, segmentedLine parser.GraphRowLine) {
+func (ir *itemRenderer) renderGutter(lw *strings.Builder, lineIndex int, segmentedLine parser.GraphRowLine) {
 	for i, segment := range segmentedLine.Gutter.Segments {
 		gutterInLane := ir.isGutterInLane(lineIndex, i)
 		text := ir.updateGutterText(lineIndex, i, segment.Text)
@@ -187,7 +191,7 @@ func (ir itemRenderer) renderGutter(lw *strings.Builder, lineIndex int, segmente
 
 // renderSegments renders the content segments (ChangeID, CommitID, description)
 // It supports operation-specific segment rendering, search text highlighting
-func (ir itemRenderer) renderSegments(lw *strings.Builder, segmentedLine parser.GraphRowLine) {
+func (ir *itemRenderer) renderSegments(lw *strings.Builder, segmentedLine parser.GraphRowLine) {
 	beforeCommitID := ir.op.Render(ir.row.Commit, operations.RenderBeforeCommitId)
 
 	for _, segment := range segmentedLine.Segments {
@@ -209,7 +213,7 @@ func (ir itemRenderer) renderSegments(lw *strings.Builder, segmentedLine parser.
 	}
 }
 
-func (ir itemRenderer) getSegmentStyle(segment screen.Segment) lipgloss.Style {
+func (ir *itemRenderer) getSegmentStyle(segment screen.Segment) lipgloss.Style {
 	style := segment.Style
 	if ir.isHighlighted {
 		style = style.Inherit(ir.selectedStyle)
@@ -221,7 +225,7 @@ func (ir itemRenderer) getSegmentStyle(segment screen.Segment) lipgloss.Style {
 	return style
 }
 
-func (ir itemRenderer) renderAffectedMarker(lw *strings.Builder, segmentedLine parser.GraphRowLine) {
+func (ir *itemRenderer) renderAffectedMarker(lw *strings.Builder, segmentedLine parser.GraphRowLine) {
 	if segmentedLine.Flags&parser.Revision == parser.Revision && ir.row.IsAffected {
 		style := ir.dimmedStyle
 		if ir.isHighlighted {
@@ -235,13 +239,14 @@ func (ir itemRenderer) renderAffectedMarker(lw *strings.Builder, segmentedLine p
 // the row's graph connections.
 // This is used for operation-specific content that should appear below the
 // revision. Skipped for root commits.
-func (ir itemRenderer) renderAfterSection(w list.CursorWriter, width int) {
+func (ir *itemRenderer) renderAfterSection(w list.CursorWriter, width int) {
 	if ir.row.Commit.IsRoot() {
 		return
 	}
 
 	after := ir.op.Render(ir.row.Commit, operations.RenderPositionAfter)
 	if after != "" {
+		ir.recordSection(w, operations.RenderPositionAfter, after)
 		extended := ir.row.Extend()
 		ir.writeSection(w, extended, extended, false, after, width)
 	}
@@ -251,7 +256,7 @@ func (ir itemRenderer) renderAfterSection(w list.CursorWriter, width int) {
 // metadata, elided content markers, etc.) that appear after the main revision
 // content.
 // These lines are always rendered with normal style and cannot be selected.
-func (ir itemRenderer) renderNonHighlightableLines(w io.Writer, width int) {
+func (ir *itemRenderer) renderNonHighlightableLines(w io.Writer, width int) {
 	for lineIndex, segmentedLine := range ir.row.RowLinesIter(parser.Excluding(parser.Highlightable)) {
 		var lw strings.Builder
 		for i, segment := range segmentedLine.Gutter.Segments {
@@ -275,7 +280,7 @@ func (ir itemRenderer) renderNonHighlightableLines(w io.Writer, width int) {
 	}
 }
 
-func (ir itemRenderer) Height() int {
+func (ir *itemRenderer) Height() int {
 	h := 0
 
 	// Before section
@@ -323,4 +328,13 @@ func (ir itemRenderer) Height() int {
 	}
 
 	return h
+}
+
+func (ir *itemRenderer) recordSection(w list.CursorWriter, pos operations.RenderPosition, content string) {
+	//_, _ := w.LocalPos()
+	screenLine, screenCol := w.ViewportPos()
+	height := strings.Count(content, "\n") + 1
+	if vn := ir.op.GetViewNode(); vn != nil && pos == operations.RenderPositionAfter {
+		vn.SetFrame(cellbuf.Rect(screenCol, screenLine+1, 40, height))
+	}
 }

@@ -22,6 +22,7 @@ const (
 
 type Operation interface {
 	common.Model
+	common.IViewNode
 	Render(commit *jj.Commit, renderPosition RenderPosition) string
 	Name() string
 }

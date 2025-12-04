@@ -58,7 +58,7 @@ type Model struct {
 	offScreenRows    []parser.Row
 	streamer         *graph.GraphStreamer
 	hasMore          bool
-	op               common.Model
+	op               operations.Operation
 	cursor           int
 	context          *appContext.MainContext
 	keymap           config.KeyMappings[key.Binding]
@@ -133,6 +133,19 @@ func (m *Model) ClickAt(x, y int) tea.Cmd {
 		return nil
 	}
 
+	// Prefer handling clicks inside the details overlay (after section) when
+	// that operation is active.
+	if op, ok := m.op.(common.IMouseAware); ok {
+		return op.ClickAt(x, y)
+		//if rr, found := m.rowRangeFor(row); found {
+		//	if cmd := m.handleDetailsClick(op, row, rr, localY); cmd != nil {
+		//		return cmd
+		//	}
+		//	// Click was outside the details overlay; ignore.
+		//	return nil
+		//}
+	}
+
 	m.SetCursor(row)
 	return m.updateSelection()
 }
@@ -144,6 +157,15 @@ func (m *Model) rowAtLine(line int) int {
 		}
 	}
 	return -1
+}
+
+func (m *Model) rowRangeFor(row int) (list.RowRange, bool) {
+	for _, rr := range m.renderer.RowRanges() {
+		if rr.Row == row {
+			return rr, true
+		}
+	}
+	return list.RowRange{}, false
 }
 
 func (m *Model) Scroll(delta int) tea.Cmd {
@@ -179,7 +201,7 @@ func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
 	inLane := m.renderer.tracer.IsInSameLane(index)
 	isHighlighted := index == m.cursor
 
-	return &itemRenderer{
+	ir := &itemRenderer{
 		row:           row,
 		isHighlighted: isHighlighted,
 		SearchText:    m.quickSearch,
@@ -196,6 +218,7 @@ func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
 		inLane: inLane,
 		op:     m.op.(operations.Operation),
 	}
+	return ir
 }
 
 func (m *Model) IsEditing() bool {
@@ -281,7 +304,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	//case rebase.updateHighlightedIdsMsg:
+	// case rebase.updateHighlightedIdsMsg:
 	//	return m.op.Update(msg)
 	case tea.MouseMsg:
 		switch msg.Action {
@@ -289,7 +312,11 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			switch msg.Button {
 			case tea.MouseButtonLeft:
 				if !m.InNormalMode() {
-					return nil
+					if opMouse, ok := m.op.(common.IMouseAware); ok {
+						if cmd := opMouse.ClickAt(msg.X, msg.Y); cmd != nil {
+							return cmd
+						}
+					}
 				}
 				return m.ClickAt(msg.X, msg.Y)
 			case tea.MouseButtonWheelUp:
