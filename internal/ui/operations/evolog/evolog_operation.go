@@ -34,6 +34,7 @@ var _ common.Overlay = (*Operation)(nil)
 
 type Operation struct {
 	*common.ViewNode
+	*common.MouseAware
 	context  *context.MainContext
 	renderer *list.ListRenderer
 	revision *jj.Commit
@@ -43,6 +44,21 @@ type Operation struct {
 	keyMap   config.KeyMappings[key.Binding]
 	target   *jj.Commit
 	styles   styles
+}
+
+func (o *Operation) ClickAt(x, y int) tea.Cmd {
+	x, y = o.ToLocal(x, y)
+	if x < 0 || y >= o.Height {
+		return nil
+	}
+	ranges := o.renderer.RowRanges()
+	for i, r := range ranges {
+		if y >= r.StartLine && y < r.EndLine {
+			o.cursor = i + o.renderer.ViewRange.Start
+			return o.updateSelection()
+		}
+	}
+	return nil
 }
 
 func (o *Operation) IsOverlay() bool {
@@ -228,13 +244,14 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 		selectedStyle: common.DefaultPalette.Get("evolog selected"),
 	}
 	o := &Operation{
-		ViewNode: common.NewViewNode(0, 0),
-		context:  context,
-		keyMap:   config.Current.GetKeyMap(),
-		revision: revision,
-		rows:     nil,
-		cursor:   0,
-		styles:   styles,
+		ViewNode:   common.NewViewNode(0, 0),
+		MouseAware: common.NewMouseAware(),
+		context:    context,
+		keyMap:     config.Current.GetKeyMap(),
+		revision:   revision,
+		rows:       nil,
+		cursor:     0,
+		styles:     styles,
 	}
 	o.renderer = list.NewRenderer(o, common.NewViewNode(0, 0))
 	o.renderer.Parent = o.ViewNode
