@@ -14,6 +14,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type cursorBuffer struct {
+	*bytes.Buffer
+}
+
+func (c cursorBuffer) LocalPos() (line, col int) {
+	return 0, 0
+}
+
+func (c cursorBuffer) ViewportPos() (line, col int) {
+	return 0, 0
+}
+
 type mockOperation struct {
 	renderOverDescription string
 }
@@ -92,7 +104,8 @@ func TestRenderMainLines_MultipleDescriptionLines(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	renderer.Render(&buf, 80)
+	cb := cursorBuffer{Buffer: &buf}
+	renderer.Render(cb, 80)
 	output := buf.String()
 
 	// The overlay should appear exactly once
@@ -138,7 +151,8 @@ func TestRenderMainLines_WithElidedLine(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	renderer.Render(&buf, 80)
+	cb := cursorBuffer{Buffer: &buf}
+	renderer.Render(cb, 80)
 	output := buf.String()
 
 	// Lines after elided should not appear

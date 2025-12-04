@@ -29,10 +29,10 @@ type itemRenderer struct {
 	isChecked        bool
 }
 
-func (ir itemRenderer) writeSection(w io.Writer, current parser.GraphGutter, extended parser.GraphGutter, highlight bool, section string, width int) {
+func (ir itemRenderer) writeSection(w list.CursorWriter, current parser.GraphGutter, extended parser.GraphGutter, highlight bool, section string, width int) {
 	isHighlighted := ir.isHighlighted
 	section = strings.TrimSuffix(section, "\n")
-	lines := strings.SplitSeq(section, "\n")
+	lines := strings.Split(section, "\n")
 	for sectionLine := range lines {
 		lw := strings.Builder{}
 		for _, segment := range current.Segments {
@@ -51,7 +51,7 @@ func (ir itemRenderer) writeSection(w io.Writer, current parser.GraphGutter, ext
 	}
 }
 
-func (ir itemRenderer) Render(w io.Writer, width int) {
+func (ir itemRenderer) Render(w list.CursorWriter, width int) {
 	ir.renderBeforeSection(w, width)
 
 	descriptionOverlay := ""
@@ -72,7 +72,7 @@ func (ir itemRenderer) Render(w io.Writer, width int) {
 // renderBeforeSection renders content before the main revision lines by extending
 // the previous row's graph connections.
 // This is used for operation-specific content that appear above the revision.
-func (ir itemRenderer) renderBeforeSection(w io.Writer, width int) {
+func (ir itemRenderer) renderBeforeSection(w list.CursorWriter, width int) {
 	before := ir.op.Render(ir.row.Commit, operations.RenderPositionBefore)
 	if before == "" {
 		return
@@ -90,7 +90,7 @@ func (ir itemRenderer) renderBeforeSection(w io.Writer, width int) {
 // If a description overlay is provided for a highlighted row, it replaces the
 // normal description lines.
 // Returns true if the description overlay was rendered, false otherwise.
-func (ir itemRenderer) renderMainLines(w io.Writer, width int, descriptionOverlay string) bool {
+func (ir itemRenderer) renderMainLines(w list.CursorWriter, width int, descriptionOverlay string) bool {
 	descriptionRendered := false
 	needDescription := descriptionOverlay != ""
 
@@ -235,7 +235,7 @@ func (ir itemRenderer) renderAffectedMarker(lw *strings.Builder, segmentedLine p
 // the row's graph connections.
 // This is used for operation-specific content that should appear below the
 // revision. Skipped for root commits.
-func (ir itemRenderer) renderAfterSection(w io.Writer, width int) {
+func (ir itemRenderer) renderAfterSection(w list.CursorWriter, width int) {
 	if ir.row.Commit.IsRoot() {
 		return
 	}

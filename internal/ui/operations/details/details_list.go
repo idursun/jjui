@@ -2,7 +2,6 @@ package details
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -126,7 +125,7 @@ func (i itemRenderer) showHint() bool {
 	return i.selectedHint != "" || i.unselectedHint != ""
 }
 
-func (i itemRenderer) Render(w io.Writer, _ int) {
+func (i itemRenderer) Render(w list.CursorWriter, _ int) {
 	title := i.item.Title()
 	if i.item.selected {
 		title = "✓" + title

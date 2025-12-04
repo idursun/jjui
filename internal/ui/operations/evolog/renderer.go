@@ -2,7 +2,6 @@ package evolog
 
 import (
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -17,7 +16,7 @@ type itemRenderer struct {
 	styleOverride lipgloss.Style
 }
 
-func (r itemRenderer) Render(w io.Writer, width int) {
+func (r itemRenderer) Render(w list.CursorWriter, width int) {
 	row := r.row
 	for lineIndex := 0; lineIndex < len(row.Lines); lineIndex++ {
 		segmentedLine := row.Lines[lineIndex]

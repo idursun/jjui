@@ -133,11 +133,14 @@ func (r *ListRenderer) RenderWithOptions(opts RenderOptions) string {
 			}
 
 			if renderLines > 0 {
-				writer := io.Writer(r)
-				writer = &limitWriter{dst: writer, remaining: renderLines}
-				if preSkip > 0 {
-					writer = &skipWriter{dst: writer, linesToSkip: preSkip}
-				}
+				writer := newCursorWriter(cursorWriterConfig{
+					dst:            r,
+					skipLines:      preSkip,
+					remainingLines: renderLines,
+					rowStart:       rowStart,
+					viewportStart:  r.Start,
+					viewportHeight: r.Height,
+				})
 				itemRenderer.Render(writer, r.ViewRange.Width)
 
 				if firstRenderedRowIndex == -1 {
@@ -271,4 +274,88 @@ func (s *skipWriter) Write(p []byte) (n int, err error) {
 		_, err = s.dst.Write(p[start:])
 	}
 	return
+}
+
+type cursorWriterConfig struct {
+	dst            io.Writer
+	skipLines      int
+	remainingLines int
+	rowStart       int
+	viewportStart  int
+	viewportHeight int
+}
+
+// cursorWriter tracks local and viewport coordinates while forwarding writes to
+// the underlying destination. It enforces skipping and line limits without
+// ListRenderer knowing about item-specific layout.
+type cursorWriter struct {
+	cfg       cursorWriterConfig
+	localLine int
+	localCol  int
+}
+
+func newCursorWriter(cfg cursorWriterConfig) *cursorWriter {
+	return &cursorWriter{cfg: cfg, localLine: 0, localCol: 0}
+}
+
+func (c *cursorWriter) LocalPos() (line, col int) {
+	return c.localLine, c.localCol
+}
+
+func (c *cursorWriter) ViewportPos() (line, col int) {
+	absoluteLine := c.cfg.rowStart + c.localLine
+	screenLine := absoluteLine - c.cfg.viewportStart
+	if screenLine < 0 || screenLine >= c.cfg.viewportHeight {
+		return -1, -1
+	}
+	return screenLine, c.localCol
+}
+
+func (c *cursorWriter) Write(p []byte) (n int, err error) {
+	n = len(p)
+	start := 0
+
+	for i, b := range p {
+		if b != '\n' {
+			continue
+		}
+
+		// line with newline
+		lineBytes := p[start : i+1]
+		c.handleLine(lineBytes, true)
+		start = i + 1
+	}
+
+	// trailing content without newline
+	if start < len(p) {
+		tail := p[start:]
+		c.handleLine(tail, false)
+	}
+
+	return n, err
+}
+
+func (c *cursorWriter) handleLine(line []byte, hasNewline bool) {
+	write := false
+	if c.cfg.skipLines > 0 {
+		c.cfg.skipLines--
+	} else if c.cfg.remainingLines != 0 {
+		write = true
+	}
+
+	if write {
+		_, _ = c.cfg.dst.Write(line)
+		if hasNewline && c.cfg.remainingLines > 0 {
+			c.cfg.remainingLines--
+		}
+	}
+
+	if hasNewline {
+		// exclude newline character from column
+		c.localCol += len(line) - 1
+		c.localLine++
+		c.localCol = 0
+	} else {
+		c.localCol += len(line)
+	}
 }

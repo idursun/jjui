@@ -2,7 +2,6 @@ package oplog
 
 import (
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -16,7 +15,7 @@ type itemRenderer struct {
 	style lipgloss.Style
 }
 
-func (i itemRenderer) Render(w io.Writer, width int) {
+func (i itemRenderer) Render(w list.CursorWriter, width int) {
 	row := i.row
 
 	for _, rowLine := range row.Lines {
