@@ -1,20 +1,20 @@
-[1m[38;5;2m@[0m  [1m[38;5;5mm[0m [1m[38;5;4md[0m [38;5;1mfalse[39m [1m[38;5;13mm[38;5;8mpvuzxzl[39m [38;5;3myc@yingchaoooo.com[39m [38;5;14m1 second ago[39m [38;5;12md[38;5;8meae245d[39m[0m
+[1m[38;5;2m@[0m  _PREFIX:m_PREFIX:d_PREFIX:false [1m[38;5;13mm[38;5;8mpvuzxzl[39m [38;5;3myc@yingchaoooo.com[39m [38;5;14m1 second ago[39m [38;5;12md[38;5;8meae245d[39m[0m
 │  [1m[38;5;3m(no description set)[39m[0m
-│ ○  [1m[38;5;5mzx[0m [1m[38;5;4mb6[0m [38;5;1mfalse[39m [1m[38;5;5mzx[0m[38;5;8mrlmklm[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m1 minute ago[39m [1m[38;5;4mb6[0m[38;5;8m05b887[39m
+│ ○  _PREFIX:zx_PREFIX:b6_PREFIX:false [1m[38;5;5mzx[0m[38;5;8mrlmklm[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m1 minute ago[39m [1m[38;5;4mb6[0m[38;5;8m05b887[39m
 ├─╯  update tests
-○          [1m[38;5;5mkv[0m [1m[38;5;4mcb[0m [38;5;1mfalse[39m [1m[38;5;5mkv[0m[38;5;8mlznukt[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m1 minute ago[39m [38;5;2mgit_head()[39m [1m[38;5;4mcb[0m[38;5;8m271dc2[39m
+○          _PREFIX:kv_PREFIX:cb_PREFIX:false [1m[38;5;5mkv[0m[38;5;8mlznukt[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m1 minute ago[39m [38;5;2mgit_head()[39m [1m[38;5;4mcb[0m[38;5;8m271dc2[39m
 ├─┬─┬─┬─╮  [38;5;2m(empty)[39m staging
-│ │ │ │ ○  [1m[38;5;5mnl[0m [1m[38;5;4m8b4[0m [38;5;1mfalse[39m [1m[38;5;5mnl[0m[38;5;8mmvnlvs[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m1 minute ago[39m [1m[38;5;4m8b4[0m[38;5;8m7f032[39m
+│ │ │ │ ○  _PREFIX:nl_PREFIX:8b4_PREFIX:false [1m[38;5;5mnl[0m[38;5;8mmvnlvs[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m1 minute ago[39m [1m[38;5;4m8b4[0m[38;5;8m7f032[39m
 │ │ │ │ │  claude
-│ │ │ │ ○  [1m[38;5;5mzk[0m [1m[38;5;4m98[0m [38;5;1mfalse[39m [1m[38;5;5mzk[0m[38;5;8mlpznpl[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m1 minute ago[39m [1m[38;5;4m98[0m[38;5;8m345d44[39m
+│ │ │ │ ○  _PREFIX:zk_PREFIX:98_PREFIX:false [1m[38;5;5mzk[0m[38;5;8mlpznpl[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m1 minute ago[39m [1m[38;5;4m98[0m[38;5;8m345d44[39m
 │ │ │ │ │  my test
-│ │ │ │ ○  [1m[38;5;5mnq[0m [1m[38;5;4mb4[0m [38;5;1mfalse[39m [1m[38;5;5mnq[0m[38;5;8msrvwom[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m2 minutes ago[39m [1m[38;5;4mb4[0m[38;5;8ma453b3[39m
+│ │ │ │ ○  _PREFIX:nq_PREFIX:b4_PREFIX:false [1m[38;5;5mnq[0m[38;5;8msrvwom[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m2 minutes ago[39m [1m[38;5;4mb4[0m[38;5;8ma453b3[39m
 │ │ │ │ │  chore
-│ │ │ │ ○  [1m[38;5;5muo[0m [1m[38;5;4m97[0m [38;5;1mfalse[39m [1m[38;5;5muo[0m[38;5;8mutwrsn[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m17 minutes ago[39m [1m[38;5;4m97[0m[38;5;8mf2e5d0[39m
+│ │ │ │ ○  _PREFIX:uo_PREFIX:97_PREFIX:false [1m[38;5;5muo[0m[38;5;8mutwrsn[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m17 minutes ago[39m [1m[38;5;4m97[0m[38;5;8mf2e5d0[39m
 │ │ │ │ │  add divergent prefix
-│ │ │ │ ↑  [1m[38;5;5muw[0m [1m[38;5;4m828[0m [38;5;1mfalse[39m [1m[38;5;5muw[0m[38;5;8msxypur[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m2 days ago[39m [38;5;5myc/test-u*[39m [1m[38;5;4m828[0m[38;5;8m80e05[39m
+│ │ │ │ ↑  _PREFIX:uw_PREFIX:828_PREFIX:false [1m[38;5;5muw[0m[38;5;8msxypur[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m2 days ago[39m [38;5;5myc/test-u*[39m [1m[38;5;4m828[0m[38;5;8m80e05[39m
 │ │ │ │ │  refactor(parser): fetch change/commit IDs from jj.Log with template prefixes
-│ │ │ ○ │  [1m[38;5;5mv[0m [1m[38;5;4mb2[0m [38;5;1mfalse[39m [1m[38;5;5mv[0m[38;5;8mmmozkst[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m2 days ago[39m [1m[38;5;4mb2[0m[38;5;8m7850f6[39m
+│ │ │ ○ │  _PREFIX:v_PREFIX:b2_PREFIX:false [1m[38;5;5mv[0m[38;5;8mmmozkst[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m2 days ago[39m [1m[38;5;4mb2[0m[38;5;8m7850f6[39m
 │ │ │ ├─╯  [38;5;2m(empty)[39m fuzzy_files's newCmd seems to be launching a new command, maybe use this for pager in diff view
-│ │ ○ │  [1m[38;5;5msm[0m [1m[38;5;4m4[0m [38;5;1mfalse[39m [1m[38;5;5msm[0m[38;5;8mvsqouw[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m2 days ago[39m [1m[38;5;4m4[0m[38;5;8m1cf3805[39m
+│ │ ○ │  _PREFIX:sm_PREFIX:4_PREFIX:false [1m[38;5;5msm[0m[38;5;8mvsqouw[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m2 days ago[39m [1m[38;5;4m4[0m[38;5;8m1cf3805[39m
 │ │ ├─╯  [38;5;2m(empty)[39m todo: fixes #260, add --ignore-immutable comfirmation; seems like this is not needed

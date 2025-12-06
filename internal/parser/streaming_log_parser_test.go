@@ -12,7 +12,7 @@ import (
 func TestParseRowsStreaming_RequestMore(t *testing.T) {
 	var lb test.LogBuilder
 	for i := 0; i < 70; i++ {
-		lb.Write("*   id=abcde author=some@author id=xyrq")
+		lb.Write("*   _PREFIX:abcde_PREFIX:xyrq_PREFIX:false id=abcde author=some@author id=xyrq")
 		lb.Write("│   commit " + strconv.Itoa(i))
 		lb.Write("~\n")
 	}
@@ -37,7 +37,7 @@ func TestParseRowsStreaming_RequestMore(t *testing.T) {
 func TestParseRowsStreaming_Close(t *testing.T) {
 	var lb test.LogBuilder
 	for i := 0; i < 70; i++ {
-		lb.Write("*   id=abcde author=some@author id=xyrq")
+		lb.Write("*   _PREFIX:abcde_PREFIX:xyrq_PREFIX:false id=abcde author=some@author id=xyrq")
 		lb.Write("│   commit " + strconv.Itoa(i))
 		lb.Write("~\n")
 	}

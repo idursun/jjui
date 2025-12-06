@@ -25,6 +25,7 @@ const (
 	// the reason is user can use checked commits as revsets
 	// given to jj commands.
 	CheckedCommitIdsPlaceholder = "$checked_commit_ids"
+	JJUIPrefix                  = "_PREFIX:"
 )
 
 type CommandArgs []string
@@ -41,13 +42,15 @@ func Log(revset string, limit int, jjTemplate string) CommandArgs {
 	if limit > 0 {
 		args = append(args, "--limit", strconv.Itoa(limit))
 	}
-	prefix := "change_id.shortest(), commit_id.shortest(), divergent"
 	template := config.Current.Revisions.Template
 	// If jjui's template is empty, fall back to jj's templates.log
 	if template == "" {
 		template = jjTemplate
 	}
-	template = fmt.Sprintf("separate('',  %s, %s)", prefix, template)
+	prefix := fmt.Sprintf(
+		"stringify('%s' ++ separate('%s', change_id.shortest(), commit_id.shortest(), divergent))",
+		JJUIPrefix, JJUIPrefix)
+	template = fmt.Sprintf("%s ++ ' ' ++ %s", prefix, template)
 	args = append(args, "-T", template)
 	return args
 }
@@ -336,9 +339,11 @@ func Duplicate(from SelectedRevisions, to string, target string) CommandArgs {
 }
 
 func Evolog(revision string) CommandArgs {
-	prefix := "commit.change_id().shortest(), commit.commit_id().shortest(), commit.divergent()"
+	prefix := fmt.Sprintf(
+		"stringify('%s' ++ separate('%s', commit.change_id().shortest(), commit.commit_id().shortest(), commit.divergent()))",
+		JJUIPrefix, JJUIPrefix)
 	template := "builtin_evolog_compact"
-	template = fmt.Sprintf("separate('',  %s, %s)", prefix, template)
+	template = fmt.Sprintf("%s ++ ' ' ++ %s", prefix, template)
 	return []string{"evolog", "-r", revision, "--color", "always", "--quiet", "--ignore-working-copy", "--template", template}
 }
 

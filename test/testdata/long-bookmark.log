@@ -1,10 +1,10 @@
-↑        [1m[38;5;5mnr[0m [1m[38;5;4m8[0m false [1m[38;5;5mnr[0m[38;5;8mytppuq[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m3 weeks ago[39m [38;5;5mace2[39m [1m[38;5;4m8[0m[38;5;8m4cce09a[39m
+↑        _PREFIX:nr_PREFIX:8_PREFIX:false [1m[38;5;5mnr[0m[38;5;8mytppuq[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m3 weeks ago[39m [38;5;5mace2[39m [1m[38;5;4m8[0m[38;5;8m4cce09a[39m
 ├─┬─┬─╮  test
-│ │ ↑ │  [1m[38;5;5mlu[0m [1m[38;5;4mfd[0m false [1m[38;5;5mlu[0m[38;5;8mtxpqvy[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m3 weeks ago[39m [38;5;5mace[39m [1m[38;5;4mfd[0m[38;5;8mb6b100[39m
+│ │ ↑ │  _PREFIX:lu_PREFIX:fd_PREFIX:false [1m[38;5;5mlu[0m[38;5;8mtxpqvy[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m3 weeks ago[39m [38;5;5mace[39m [1m[38;5;4mfd[0m[38;5;8mb6b100[39m
 │ │ ├─╯  test2
-│ ↑ │  [1m[38;5;5mno[0m [1m[38;5;4m95[0m false [1m[38;5;5mno[0m[38;5;8mutsmvr[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m3 weeks ago[39m [38;5;5mbm3[39m [1m[38;5;4m95[0m[38;5;8m5dc751[39m
+│ ↑ │  _PREFIX:no_PREFIX:95_PREFIX:false [1m[38;5;5mno[0m[38;5;8mutsmvr[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m3 weeks ago[39m [38;5;5mbm3[39m [1m[38;5;4m95[0m[38;5;8m5dc751[39m
 │ │ │  third branch 2
-│ ↑ │  [1m[38;5;5mwto[0m [1m[38;5;4m5[0m false [1m[38;5;5mwto[0m[38;5;8mstqup[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m3 weeks ago[39m [38;5;5mthis-is-a-very-very-very-very-very-very-very-very-very-long-bookmark this-is-a-very-very-very-very-very-very-very-very-very-long-bookmark2[39m [1m[38;5;4m5[0m[38;5;8m15f40ec[39m
+│ ↑ │  _PREFIX:wto_PREFIX:5_PREFIX:false [1m[38;5;5mwto[0m[38;5;8mstqup[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m3 weeks ago[39m [38;5;5mthis-is-a-very-very-very-very-very-very-very-very-very-long-bookmark this-is-a-very-very-very-very-very-very-very-very-very-long-bookmark2[39m [1m[38;5;4m5[0m[38;5;8m15f40ec[39m
 │ ├─╯  [38;5;2m(empty)[39m third branch
-↑ │  [1m[38;5;5mm[0m [1m[38;5;4m9f[0m false [1m[38;5;5mm[0m[38;5;8mkqytwtu[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m3 weeks ago[39m [1m[38;5;4m9f[0m[38;5;8mde219c[39m
+↑ │  _PREFIX:m_PREFIX:9f_PREFIX:false [1m[38;5;5mm[0m[38;5;8mkqytwtu[39m [38;5;3myc@yingchaoooo.com[39m [38;5;6m3 weeks ago[39m [1m[38;5;4m9f[0m[38;5;8mde219c[39m
 │ │  working stuff

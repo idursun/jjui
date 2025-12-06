@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/screen"
 )
 
@@ -20,48 +21,37 @@ func NewGraphRowLine(segments []*screen.Segment) GraphRowLine {
 	}
 }
 
-func (gr *GraphRowLine) findNextPrefix(startIdx int) int {
-	for i := startIdx + 1; i < len(gr.Segments); i++ {
-		if strings.TrimSpace(gr.Segments[i].Text) != "" {
-			return i
-		}
-	}
-	return -1
-}
-
 func (gr *GraphRowLine) ParseRowPrefixes() (int, string, string, bool) {
-	changeIDIdx := -1
+	prefixesIdx := -1
 	for i, segment := range gr.Segments {
-		if isChangeIDLike(segment.Text) {
-			changeIDIdx = i
+		if strings.Contains(segment.Text, jj.JJUIPrefix) {
+			prefixesIdx = i
 			break
 		}
 	}
 
-	if changeIDIdx == -1 {
+	if prefixesIdx == -1 {
 		return -1, "", "", false
 	}
-	changeID := strings.TrimSpace(gr.Segments[changeIDIdx].Text)
+	prefixParts := strings.Split(gr.Segments[prefixesIdx].Text, jj.JJUIPrefix)
+	if len(prefixParts) != 4 {
+		return -1, "", "", false
+	}
+	beforePrefix := prefixParts[0]
+	changeID := prefixParts[1]
+	commitID := prefixParts[2]
+	isDivergentStr := prefixParts[3]
 
-	commitIDIdx := gr.findNextPrefix(changeIDIdx)
-	if commitIDIdx == -1 {
-		return -1, "", "", false
-	}
-	commitID := strings.TrimSpace(gr.Segments[commitIDIdx].Text)
-
-	isDivergentIdx := gr.findNextPrefix(commitIDIdx)
-	if isDivergentIdx == -1 {
-		return -1, "", "", false
-	}
-	isDivergent, err := strconv.ParseBool(strings.TrimSpace(gr.Segments[isDivergentIdx].Text))
+	isDivergent, err := strconv.ParseBool(strings.TrimSpace(isDivergentStr))
 	if err != nil {
 		isDivergent = false
 	}
 
-	// Remove changeID, commitID, and isDivergent prefixes
-	gr.Segments = append(gr.Segments[:changeIDIdx], gr.Segments[isDivergentIdx+1:]...)
+	// Remove changeID, commitID, and isDivergent prefixes, while keeping
+	// everything before the prefixes
+	gr.Segments[prefixesIdx] = &screen.Segment{Text: beforePrefix}
 
-	return changeIDIdx, changeID, commitID, isDivergent
+	return prefixesIdx + 1, changeID, commitID, isDivergent
 }
 
 func (gr *GraphRowLine) chop(indent int) {

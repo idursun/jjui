@@ -1,19 +1,19 @@
-[38;5;14m◆[0m  [1m[38;5;5mtrvy[0m [1m[38;5;4m38a2[0m [38;5;1mfalse[39m [1m[38;5;5mtrvy[0m[38;5;8mrr[39m [38;5;3mbryce.z.berg[39m [38;5;6m13 hours ago[39m [38;5;5mmain[39m [1m[38;5;4m38a2[0m[38;5;8m3f9[39m
+[38;5;14m◆[0m  _PREFIX:trvy_PREFIX:38a2_PREFIX:false [1m[38;5;5mtrvy[0m[38;5;8mrr[39m [38;5;3mbryce.z.berg[39m [38;5;6m13 hours ago[39m [38;5;5mmain[39m [1m[38;5;4m38a2[0m[38;5;8m3f9[39m
 │  diff stat: ...
 [38;5;8m~[39m  [38;5;8m(elided revisions)[39m
-│ ○  [1m[38;5;5mpqqp[0m [1m[38;5;4mfc9[0m [38;5;1mfalse[39m [1m[38;5;5mpqqp[0m[38;5;8mut[39m [38;5;3milyagr[39m@[38;5;3musers[39m [38;5;6m21 hours ago[39m [38;5;5msplittmp[39m [1m[38;5;4mfc9[0m[38;5;8m969c[39m
+│ ○  _PREFIX:pqqp_PREFIX:fc9_PREFIX:false [1m[38;5;5mpqqp[0m[38;5;8mut[39m [38;5;3milyagr[39m@[38;5;3musers[39m [38;5;6m21 hours ago[39m [38;5;5msplittmp[39m [1m[38;5;4mfc9[0m[38;5;8m969c[39m
 │ │  splittmp
-│ │ ○  [1m[38;5;5mpotzm[0m [1m[38;5;4mfc9[0m [38;5;1mfalse[39m [1m[38;5;5mpotzm[0m[38;5;8mq[39m [38;5;3milyagr[39m@[38;5;3musers[39m [38;5;6m21 hours ago[39m [1m[38;5;4mf1d5[0m[38;5;8m512[39m
+│ │ ○  _PREFIX:potzm_PREFIX:fc9_PREFIX:false [1m[38;5;5mpotzm[0m[38;5;8mq[39m [38;5;3milyagr[39m@[38;5;3musers[39m [38;5;6m21 hours ago[39m [1m[38;5;4mf1d5[0m[38;5;8m512[39m
 │ ╭─┤  run merge
-│ │ ○  [1m[38;5;5msoo[0m [1m[38;5;4mbfc[0m [38;5;1mfalse[39m [1m[38;5;5msoo[0m[38;5;8mouq[39m [38;5;3milyagr[39m@[38;5;3musers[39m [38;5;6m3 weeks ago[39m [1m[38;5;4mbfc[0m[38;5;8mac43[39m
+│ │ ○  _PREFIX:soo_PREFIX:bfc_PREFIX:false [1m[38;5;5msoo[0m[38;5;8mouq[39m [38;5;3milyagr[39m@[38;5;3musers[39m [38;5;6m3 weeks ago[39m [1m[38;5;4mbfc[0m[38;5;8mac43[39m
 │ │ │  fix
-│ │ ○  [1m[38;5;5mmqxwq[0m [1m[38;5;4m4fd2[0m [38;5;1mfalse[39m [1m[38;5;5mmqxwq[0m[38;5;8mt[39m [38;5;3mphilipmetzge[39m [38;5;6m1 month ago[39m [38;5;5mpr/4021[39m [1m[38;5;4m4fd2[0m[38;5;8m8a6[39m
+│ │ ○  _PREFIX:mqxwq_PREFIX:4fd2_PREFIX:false [1m[38;5;5mmqxwq[0m[38;5;8mt[39m [38;5;3mphilipmetzge[39m [38;5;6m1 month ago[39m [38;5;5mpr/4021[39m [1m[38;5;4m4fd2[0m[38;5;8m8a6[39m
 │ │ │  run: Flesh out a bare implementation of 
-│ │ │ [1m[38;5;2m@[0m  [1m[38;5;5mmxx[0m [1m[38;5;4mcf7d17[0m [38;5;1mfalse[39m [1m[38;5;13mmxx[38;5;8mutw[39m [38;5;3milyagr[39m@[38;5;3musers[39m [38;5;14m21 hours ago[39m [38;5;12mcf7d17[38;5;8m0[39m[0m
+│ │ │ [1m[38;5;2m@[0m  _PREFIX:mxx_PREFIX:cf7d17_PREFIX:false [1m[38;5;13mmxx[38;5;8mutw[39m [38;5;3milyagr[39m@[38;5;3musers[39m [38;5;14m21 hours ago[39m [38;5;12mcf7d17[38;5;8m0[39m[0m
 │ │ │ │  I AM THE WORKING COPY SEE THE AT ON LINE ABOVE
-│ │ │ │ ◌  [1m[38;5;5mzpw[0m [1m[38;5;4m7c33[0m [38;5;1mfalse[39m [1m[38;5;5mzpw[0m[38;5;8mxnp[39m [38;5;3milyagr[39m@[38;5;3musers[39m [38;5;6m21 hours ago[39m [38;5;5milyaplus[39m [1m[38;5;4m7c33[0m[38;5;8mb3f[39m
+│ │ │ │ ◌  _PREFIX:zpw_PREFIX:7c33_PREFIX:false [1m[38;5;5mzpw[0m[38;5;8mxnp[39m [38;5;3milyagr[39m@[38;5;3musers[39m [38;5;6m21 hours ago[39m [38;5;5milyaplus[39m [1m[38;5;4m7c33[0m[38;5;8mb3f[39m
 │ ╭─────┤  [38;5;2m(empty)[39m newsplit merge
-│ ◌ │ │ │    [1m[38;5;5mstnq[0m [1m[38;5;4m79b[0m [38;5;1mfalse[39m [1m[38;5;5mstnq[0m[38;5;8myy[39m [38;5;3milyagr[39m@[38;5;3musers[39m [38;5;6m21 hours ago[39m [38;5;5milya[39m [1m[38;5;4m79b[0m[38;5;8m5189[39m
+│ ◌ │ │ │    _PREFIX:stnq_PREFIX:79b_PREFIX:false [1m[38;5;5mstnq[0m[38;5;8myy[39m [38;5;3milyagr[39m@[38;5;3musers[39m [38;5;6m21 hours ago[39m [38;5;5milya[39m [1m[38;5;4m79b[0m[38;5;8m5189[39m
 ╭─┼───┬───╮  [38;5;2m(empty)[39m Merge
-│ │ │ │ │ ○  [1m[38;5;5mvuu[0m [1m[38;5;4m89b[0m [38;5;1mfalse[39m [1m[38;5;5mvuu[0m[38;5;8mxxm[39m [38;5;3milyagr[39m@[38;5;3musers[39m [38;5;6m21 hours ago[39m [38;5;5mevodiff[39m [1m[38;5;4m89b[0m[38;5;8m6808[39m
+│ │ │ │ │ ○  _PREFIX:vuu_PREFIX:89b_PREFIX:false [1m[38;5;5mvuu[0m[38;5;8mxxm[39m [38;5;3milyagr[39m@[38;5;3musers[39m [38;5;6m21 hours ago[39m [38;5;5mevodiff[39m [1m[38;5;4m89b[0m[38;5;8m6808[39m
 ├─────────╯  cli 

@@ -2,7 +2,6 @@ package parser
 
 import (
 	"strings"
-	"unicode"
 
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/screen"
@@ -178,15 +177,6 @@ func (row *Row) Last(flag RowLineFlags) *GraphRowLine {
 		}
 	}
 	return &GraphRowLine{}
-}
-
-func isChangeIDLike(s string) bool {
-	for _, r := range s {
-		if !unicode.IsLetter(r) {
-			return false
-		}
-	}
-	return true
 }
 
 func (row *Row) RowLinesIter(predicate RowLinesIteratorPredicate) func(yield func(index int, line *GraphRowLine) bool) {
