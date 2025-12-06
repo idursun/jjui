@@ -144,3 +144,7 @@ func (c *StreamingCommand) Close() error {
 	})
 	return err
 }
+
+func (c *StreamingCommand) Wait() error {
+	return c.cmd.Wait()
+}

@@ -2,6 +2,7 @@ package revisions
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"reflect"
@@ -686,14 +687,15 @@ func (m *Model) loadStreaming(revset string, selectedRevision string, tag uint64
 		return nil
 	}
 
-	streamer, err := graph.NewGraphStreamer(m.context, revset, m.context.JJConfig.Templates.Log)
+	var cmds []tea.Cmd
+	streamer, err := graph.NewGraphStreamer(context.Background(), m.context, revset, m.context.JJConfig.Templates.Log)
 	if err != nil {
-		return func() tea.Msg {
+		cmds = append(cmds, func() tea.Msg {
 			return common.UpdateRevisionsFailedMsg{
 				Err:    err,
 				Output: fmt.Sprintf("%v", err),
 			}
-		}
+		})
 	}
 
 	if m.streamer != nil {
@@ -702,8 +704,8 @@ func (m *Model) loadStreaming(revset string, selectedRevision string, tag uint64
 	}
 	m.streamer = streamer
 	m.hasMore = true
-
-	return m.Update(startRowsStreamingMsg{selectedRevision: selectedRevision, tag: tag})
+	cmds = append(cmds, m.Update(startRowsStreamingMsg{selectedRevision: selectedRevision, tag: tag}))
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) requestMoreRows(tag uint64) tea.Cmd {
