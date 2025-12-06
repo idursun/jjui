@@ -2,10 +2,10 @@ package graph
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
-	"io"
-	"time"
+	"sync"
 
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
@@ -24,52 +24,80 @@ type GraphStreamer struct {
 }
 
 // NewGraphStreamer runs `jj log` command with given revset and jjTemplate and
-// returns a GraphStreamer
-func NewGraphStreamer(ctx appContext.CommandRunner, revset string, jjTemplate string) (*GraphStreamer, error) {
-	streamerCtx, cancel := context.WithCancel(context.Background())
-	var commandError error
+// Returns:
+// - Streamer: If stdout is successfully opened.
+// - Error: Returns the stderr output (warnings are also written to stderr).
+func NewGraphStreamer(parentCtx context.Context, runner appContext.CommandRunner, revset string, jjTemplate string) (*GraphStreamer, error) {
+	ctx, cancel := context.WithCancel(parentCtx)
 
-	command, err := ctx.RunCommandStreaming(streamerCtx, jj.Log(revset, config.Current.Limit, jjTemplate))
+	command, err := runner.RunCommandStreaming(ctx, jj.Log(revset, config.Current.Limit, jjTemplate))
 	if err != nil {
 		cancel()
 		return nil, err
 	}
 
-	// Check stderr with timeout
-	errCh := make(chan error, 1)
+	var stderrBuf bytes.Buffer
+	var stderrMu sync.Mutex
+
+	// We must read stderr in the background because it may not be closed until the command exits. (e.g. warnings)
 	go func() {
-		errReader := bufio.NewReader(command.ErrPipe)
-		data, err := errReader.Peek(1)
-		if err == nil && len(data) > 0 {
-			errorData, _ := io.ReadAll(errReader)
-			errCh <- errors.New(string(errorData))
-		} else {
-			errCh <- nil
+		buf := make([]byte, 1024)
+		for {
+			n, err := command.ErrPipe.Read(buf)
+			if n > 0 {
+				stderrMu.Lock()
+				stderrBuf.Write(buf[:n])
+				stderrMu.Unlock()
+			}
+			if err != nil {
+				// EOF or Context Cancelled
+				return
+			}
 		}
 	}()
 
-	// Wait for stderr check with timeout
-	select {
-	case stderrErr := <-errCh:
-		commandError = stderrErr
-	case <-time.After(100 * time.Millisecond):
-		// Timeout, assume no error and continue
+	// Peek at the first byte of stdout. This blocks ONLY until:
+	//   a) jj writes at least 1 byte to stdout, which means there's graph data
+	//   b) jj closes stdout/exits, which means failure or no data
+	stdoutReader := bufio.NewReader(command)
+	_, peekErr := stdoutReader.Peek(1)
+
+	// Non-zero exit or empty stdout
+	if peekErr != nil {
+		// If we can't read stdout, the command likely failed. We wait for it to exit and gather stderr.
+		_ = command.Wait()
+
+		stderrMu.Lock()
+		fullStderr := stderrBuf.String()
+		stderrMu.Unlock()
+
+		cancel()
+
+		if fullStderr == "" {
+			return nil, peekErr // Fallback if no stderr msg but pipe closed
+		}
+		return nil, errors.New(fullStderr)
 	}
 
-	// Set up stdout processing
-	controlChan := make(chan parser.ControlMsg, 1)
-	reader := bufio.NewReader(command)
+	// If we are here, Stdout has data. We grab any warnings accumulated in the buffer.
+	stderrMu.Lock()
+	warningMsg := stderrBuf.String()
+	stderrMu.Unlock()
 
+	controlChan := make(chan parser.ControlMsg, 1)
 	batchSize := config.Current.Graph.BatchSize
 	if batchSize <= 0 {
 		batchSize = DefaultBatchSize
 	}
 
-	rowsChan, err := parser.ParseRowsStreaming(reader, controlChan, batchSize)
+	rowsChan, err := parser.ParseRowsStreaming(stdoutReader, controlChan, batchSize)
 	if err != nil {
 		cancel()
 		_ = command.Close()
 		return nil, err
+	}
+	if warningMsg != "" {
+		err = errors.New(warningMsg)
 	}
 
 	return &GraphStreamer{
@@ -78,10 +106,13 @@ func NewGraphStreamer(ctx appContext.CommandRunner, revset string, jjTemplate st
 		controlChan: controlChan,
 		rowsChan:    rowsChan,
 		batchSize:   batchSize,
-	}, commandError
+	}, err
 }
 
 func (g *GraphStreamer) RequestMore() parser.RowBatch {
+	if g.controlChan == nil {
+		return parser.RowBatch{}
+	}
 	g.controlChan <- parser.RequestMore
 	return <-g.rowsChan
 }
