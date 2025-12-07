@@ -284,6 +284,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case Intent:
+		return msg.apply(m)
 	case tea.MouseMsg:
 		switch msg.Action {
 		case tea.MouseActionPress:
@@ -323,17 +325,10 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			return common.RefreshAndKeepSelections
 		}
 	case common.RefreshMsg:
-		if !msg.KeepSelections {
-			m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
-		}
-		m.isLoading = true
-		cmd := m.op.Update(msg)
-		if config.Current.Revisions.LogBatching {
-			currentTag := m.tag.Add(1)
-			return tea.Batch(m.loadStreaming(m.context.CurrentRevset, msg.SelectedRevision, currentTag), cmd)
-		} else {
-			return tea.Batch(m.load(m.context.CurrentRevset, msg.SelectedRevision), cmd)
-		}
+		return m.refresh(Refresh{
+			KeepSelections:   msg.KeepSelections,
+			SelectedRevision: msg.SelectedRevision,
+		})
 	case updateRevisionsMsg:
 		m.isLoading = false
 		m.updateGraphRows(msg.rows, msg.selectedRevision)
@@ -390,14 +385,17 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		}
 
 		cmds := []tea.Cmd{m.highlightChanges, m.updateSelection()}
-		if !m.hasMore {
+		if len(m.offScreenRows) > 0 {
 			cmds = append(cmds, func() tea.Msg {
 				return common.UpdateRevisionsSuccessMsg{}
 			})
 		}
 		return tea.Batch(cmds...)
 	case common.StartSquashOperationMsg:
-		return m.startSquash(jj.NewSelectedRevisions(msg.Revision), msg.Files)
+		return m.applyIntent(StartSquash{
+			Selected: jj.NewSelectedRevisions(msg.Revision),
+			Files:    msg.Files,
+		})
 	}
 
 	if len(m.rows) == 0 {
@@ -417,58 +415,15 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keymap.Up, pageUpKey):
-			amount := 1
-			if key.Matches(msg, pageUpKey) && m.renderer.LastRowIndex > m.renderer.FirstRowIndex {
-				amount = m.renderer.LastRowIndex - m.renderer.FirstRowIndex - 1
-			}
-			if m.cursor == 0 && key.Matches(msg, pageUpKey) {
-				return func() tea.Msg {
-					return common.CommandCompletedMsg{
-						Output: fmt.Sprintf("Already at the top of revset `%s`", m.context.CurrentRevset),
-						Err:    nil,
-					}
-				}
-			}
-			m.SetCursor(max(m.cursor-amount, 0))
-			return m.updateSelection()
+			return m.applyIntent(Navigate{Delta: -1, Page: key.Matches(msg, pageUpKey)})
 		case key.Matches(msg, m.keymap.Down, pageDownKey):
-			amount := 1
-			if key.Matches(msg, pageDownKey) && m.renderer.LastRowIndex > m.renderer.FirstRowIndex {
-				amount = m.renderer.LastRowIndex - m.renderer.FirstRowIndex - 1
-			}
-			if len(m.rows) > 0 && m.cursor == len(m.rows)-1 && !m.hasMore && key.Matches(msg, pageDownKey) {
-				return func() tea.Msg {
-					return common.CommandCompletedMsg{
-						Output: fmt.Sprintf("Already at the bottom of revset `%s`", m.context.CurrentRevset),
-						Err:    nil,
-					}
-				}
-			}
-			if m.cursor < len(m.rows)-amount {
-				m.SetCursor(m.cursor + amount)
-			} else if m.hasMore {
-				return m.requestMoreRows(m.tag.Load())
-			} else if len(m.rows) > 0 {
-				m.SetCursor(len(m.rows) - 1)
-			}
-			m.ensureCursorView = true
-			return m.updateSelection()
+			return m.applyIntent(Navigate{Delta: 1, Page: key.Matches(msg, pageDownKey)})
 		case key.Matches(msg, m.keymap.JumpToParent):
-			m.jumpToParent(m.SelectedRevisions())
-			return m.updateSelection()
+			return m.applyIntent(Navigate{Target: TargetParent})
 		case key.Matches(msg, m.keymap.JumpToChildren):
-			immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.SelectedRevision()))
-			index := m.selectRevision(string(immediate))
-			if index != -1 {
-				m.SetCursor(index)
-			}
-			return m.updateSelection()
+			return m.applyIntent(Navigate{Target: TargetChild})
 		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
-			workingCopyIndex := m.selectRevision("@")
-			if workingCopyIndex != -1 {
-				m.SetCursor(workingCopyIndex)
-			}
-			return m.updateSelection()
+			return m.applyIntent(Navigate{Target: TargetWorkingCopy})
 		case key.Matches(msg, m.keymap.AceJump):
 			op := ace_jump.NewOperation(m, func(index int) parser.Row {
 				return m.rows[index]
@@ -490,11 +445,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				changeId := commit.GetChangeId()
 				item := appContext.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
 				m.context.ToggleCheckedItem(item)
-				immediate, _ := m.context.RunCommandImmediate(jj.GetParent(jj.NewSelectedRevisions(commit)))
-				parentIndex := m.selectRevision(string(immediate))
-				if parentIndex != -1 {
-					m.SetCursor(parentIndex)
-				}
+				m.jumpToParent(jj.NewSelectedRevisions(commit))
 			case key.Matches(msg, m.keymap.Cancel):
 				m.op = operations.NewDefault()
 			case key.Matches(msg, m.keymap.QuickSearchCycle):
@@ -502,69 +453,47 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				m.renderer.Reset()
 				return nil
 			case key.Matches(msg, m.keymap.Details.Mode):
-				model := details.NewOperation(m.context, m.SelectedRevision())
-				model.Parent = m.ViewNode
-				m.op = model
-				return m.op.Init()
+				return m.applyIntent(OpenDetails{})
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
-				model := describe.NewOperation(m.context, m.SelectedRevision().GetChangeId())
-				model.Parent = m.ViewNode
-				m.op = model
-				return m.op.Init()
+				return m.applyIntent(StartInlineDescribe{})
 			case key.Matches(msg, m.keymap.New):
-				return m.context.RunCommand(jj.New(m.SelectedRevisions()), common.RefreshAndSelect("@"))
+				return m.applyIntent(StartNew{})
 			case key.Matches(msg, m.keymap.Commit):
-				return m.context.RunInteractiveCommand(jj.CommitWorkingCopy(), common.Refresh)
+				return m.applyIntent(CommitWorkingCopy{})
 			case key.Matches(msg, m.keymap.Edit, m.keymap.ForceEdit):
 				ignoreImmutable := key.Matches(msg, m.keymap.ForceEdit)
-				return m.context.RunCommand(jj.Edit(m.SelectedRevision().GetChangeId(), ignoreImmutable), common.Refresh)
+				return m.applyIntent(StartEdit{IgnoreImmutable: ignoreImmutable})
 			case key.Matches(msg, m.keymap.Diffedit):
-				changeId := m.SelectedRevision().GetChangeId()
-				return m.context.RunInteractiveCommand(jj.DiffEdit(changeId), common.Refresh)
+				return m.applyIntent(StartDiffEdit{})
 			case key.Matches(msg, m.keymap.Absorb):
-				changeId := m.SelectedRevision().GetChangeId()
-				return m.context.RunCommand(jj.Absorb(changeId), common.Refresh)
+				return m.applyIntent(StartAbsorb{})
 			case key.Matches(msg, m.keymap.Abandon):
-				selections := m.SelectedRevisions()
-				m.op = abandon.NewOperation(m.context, selections)
-				return m.op.Init()
+				return m.applyIntent(StartAbandon{})
 			case key.Matches(msg, m.keymap.Bookmark.Set):
 				m.op = bookmark.NewSetBookmarkOperation(m.context, m.SelectedRevision().GetChangeId())
 				return m.op.Init()
 			case key.Matches(msg, m.keymap.Split, m.keymap.SplitParallel):
-				isParallel := key.Matches(msg, m.keymap.SplitParallel)
-				currentRevision := m.SelectedRevision().GetChangeId()
-				return m.context.RunInteractiveCommand(jj.Split(currentRevision, []string{}, isParallel), common.Refresh)
+				return m.applyIntent(StartSplit{
+					IsParallel: key.Matches(msg, m.keymap.SplitParallel),
+				})
 			case key.Matches(msg, m.keymap.Describe):
-				selections := m.SelectedRevisions()
-				return m.context.RunInteractiveCommand(jj.Describe(selections), common.Refresh)
+				return m.applyIntent(StartDescribe{})
 			case key.Matches(msg, m.keymap.Evolog.Mode):
-				model := evolog.NewOperation(m.context, m.SelectedRevision())
-				model.Parent = m.ViewNode
-				m.op = model
-				return m.op.Init()
+				return m.applyIntent(StartEvolog{})
 			case key.Matches(msg, m.keymap.Diff):
-				return func() tea.Msg {
-					changeId := m.SelectedRevision().GetChangeId()
-					output, _ := m.context.RunCommandImmediate(jj.Diff(changeId, ""))
-					return common.ShowDiffMsg(output)
-				}
+				return m.applyIntent(ShowDiff{})
 			case key.Matches(msg, m.keymap.Refresh):
-				return common.Refresh
+				return m.applyIntent(Refresh{})
 			case key.Matches(msg, m.keymap.Squash.Mode):
-				return m.startSquash(m.SelectedRevisions(), nil)
+				return m.applyIntent(StartSquash{})
 			case key.Matches(msg, m.keymap.Revert.Mode):
-				m.op = revert.NewOperation(m.context, m.SelectedRevisions(), revert.TargetDestination)
-				return m.op.Init()
+				return m.applyIntent(StartRevert{})
 			case key.Matches(msg, m.keymap.Rebase.Mode):
-				m.op = rebase.NewOperation(m.context, m.SelectedRevisions(), rebase.SourceRevision, rebase.TargetDestination)
-				return m.op.Init()
+				return m.applyIntent(StartRebase{})
 			case key.Matches(msg, m.keymap.Duplicate.Mode):
-				m.op = duplicate.NewOperation(m.context, m.SelectedRevisions(), duplicate.TargetDestination)
-				return m.op.Init()
+				return m.applyIntent(StartDuplicate{})
 			case key.Matches(msg, m.keymap.SetParents):
-				m.op = set_parents.NewModel(m.context, m.SelectedRevision())
-				return m.op.Init()
+				return m.applyIntent(SetParents{})
 			}
 		}
 	}
@@ -572,16 +501,332 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-func (m *Model) startSquash(selectedRevisions jj.SelectedRevisions, files []string) tea.Cmd {
-	parent, _ := m.context.RunCommandImmediate(jj.GetParent(selectedRevisions))
+func (m *Model) applyIntent(intent Intent) tea.Cmd {
+	return intent.apply(m)
+}
+
+func (m *Model) refresh(intent Refresh) tea.Cmd {
+	if !intent.KeepSelections {
+		m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
+	}
+	m.isLoading = true
+	if config.Current.Revisions.LogBatching {
+		currentTag := m.tag.Add(1)
+		return m.loadStreaming(m.context.CurrentRevset, intent.SelectedRevision, currentTag)
+	}
+	return m.load(m.context.CurrentRevset, intent.SelectedRevision)
+}
+
+func (m *Model) openDetails(_ OpenDetails) tea.Cmd {
+	if m.SelectedRevision() == nil {
+		return nil
+	}
+	model := details.NewOperation(m.context, m.SelectedRevision())
+	model.Parent = m.ViewNode
+	m.op = model
+	return m.op.Init()
+}
+
+func (m *Model) startSquash(intent StartSquash) tea.Cmd {
+	selected := intent.Selected
+	if len(selected.Revisions) == 0 {
+		selected = m.SelectedRevisions()
+	}
+	if len(selected.Revisions) == 0 {
+		return nil
+	}
+
+	parent, _ := m.context.RunCommandImmediate(jj.GetParent(selected))
 	parentIdx := m.selectRevision(string(parent))
 	if parentIdx != -1 {
 		m.SetCursor(parentIdx)
 	} else if m.cursor < len(m.rows)-1 {
 		m.SetCursor(m.cursor + 1)
 	}
-	m.op = squash.NewOperation(m.context, selectedRevisions, squash.WithFiles(files))
+	m.op = squash.NewOperation(m.context, selected, squash.WithFiles(intent.Files))
 	return m.op.Init()
+}
+
+func (m *Model) startRebase(intent StartRebase) tea.Cmd {
+	selected := intent.Selected
+	if len(selected.Revisions) == 0 {
+		selected = m.SelectedRevisions()
+	}
+	if len(selected.Revisions) == 0 {
+		return nil
+	}
+
+	source := intent.Source
+	if source == 0 {
+		source = rebase.SourceRevision
+	}
+	target := intent.Target
+	if target == 0 {
+		target = rebase.TargetDestination
+	}
+	m.op = rebase.NewOperation(m.context, selected, source, target)
+	return m.op.Init()
+}
+
+func (m *Model) startRevert(intent StartRevert) tea.Cmd {
+	selected := intent.Selected
+	if len(selected.Revisions) == 0 {
+		selected = m.SelectedRevisions()
+	}
+	if len(selected.Revisions) == 0 {
+		return nil
+	}
+
+	target := intent.Target
+	if target == 0 {
+		target = revert.TargetDestination
+	}
+	m.op = revert.NewOperation(m.context, selected, target)
+	return m.op.Init()
+}
+
+func (m *Model) startDuplicate(intent StartDuplicate) tea.Cmd {
+	selected := intent.Selected
+	if len(selected.Revisions) == 0 {
+		selected = m.SelectedRevisions()
+	}
+	if len(selected.Revisions) == 0 {
+		return nil
+	}
+
+	m.op = duplicate.NewOperation(m.context, selected, duplicate.TargetDestination)
+	return m.op.Init()
+}
+
+func (m *Model) startSetParents(intent SetParents) tea.Cmd {
+	commit := intent.Selected
+	if commit == nil {
+		commit = m.SelectedRevision()
+	}
+	if commit == nil {
+		return nil
+	}
+
+	m.op = set_parents.NewModel(m.context, commit)
+	return m.op.Init()
+}
+
+func (m *Model) startNew(intent StartNew) tea.Cmd {
+	selected := intent.Selected
+	if len(selected.Revisions) == 0 {
+		selected = m.SelectedRevisions()
+	}
+	return m.context.RunCommand(jj.New(selected), common.RefreshAndSelect("@"))
+}
+
+func (m *Model) commitWorkingCopy() tea.Cmd {
+	return m.context.RunInteractiveCommand(jj.CommitWorkingCopy(), common.Refresh)
+}
+
+func (m *Model) startEdit(intent StartEdit) tea.Cmd {
+	commit := intent.Selected
+	if commit == nil {
+		commit = m.SelectedRevision()
+	}
+	if commit == nil {
+		return nil
+	}
+	return m.context.RunCommand(jj.Edit(commit.GetChangeId(), intent.IgnoreImmutable), common.Refresh)
+}
+
+func (m *Model) startDiffEdit(intent StartDiffEdit) tea.Cmd {
+	commit := intent.Selected
+	if commit == nil {
+		commit = m.SelectedRevision()
+	}
+	if commit == nil {
+		return nil
+	}
+	return m.context.RunInteractiveCommand(jj.DiffEdit(commit.GetChangeId()), common.Refresh)
+}
+
+func (m *Model) startAbsorb(intent StartAbsorb) tea.Cmd {
+	commit := intent.Selected
+	if commit == nil {
+		commit = m.SelectedRevision()
+	}
+	if commit == nil {
+		return nil
+	}
+	return m.context.RunCommand(jj.Absorb(commit.GetChangeId()), common.Refresh)
+}
+
+func (m *Model) startAbandon(intent StartAbandon) tea.Cmd {
+	selected := intent.Selected
+	if len(selected.Revisions) == 0 {
+		selected = m.SelectedRevisions()
+	}
+	if len(selected.Revisions) == 0 {
+		return nil
+	}
+	m.op = abandon.NewOperation(m.context, selected)
+	return m.op.Init()
+}
+
+func (m *Model) navigate(intent Navigate) tea.Cmd {
+	if len(m.rows) == 0 {
+		return nil
+	}
+
+	ensureView := true
+	if intent.EnsureView != nil {
+		ensureView = *intent.EnsureView
+	}
+	allowStream := true
+	if intent.AllowStream != nil {
+		allowStream = *intent.AllowStream
+	}
+
+	if intent.ChangeID != "" || intent.FallbackID != "" {
+		idx := m.selectRevision(intent.ChangeID)
+		if idx == -1 && intent.FallbackID != "" {
+			idx = m.selectRevision(intent.FallbackID)
+		}
+		if idx == -1 {
+			return nil
+		}
+		m.ensureCursorView = ensureView
+		m.SetCursor(idx)
+		return m.updateSelection()
+	}
+
+	switch intent.Target {
+	case TargetParent:
+		m.jumpToParent(m.SelectedRevisions())
+		m.ensureCursorView = ensureView
+		return m.updateSelection()
+	case TargetWorkingCopy:
+		if idx := m.selectRevision("@"); idx != -1 {
+			m.SetCursor(idx)
+		}
+		m.ensureCursorView = ensureView
+		return m.updateSelection()
+	case TargetChild:
+		immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.SelectedRevision()))
+		if idx := m.selectRevision(string(immediate)); idx != -1 {
+			m.SetCursor(idx)
+		}
+		m.ensureCursorView = ensureView
+		return m.updateSelection()
+	}
+
+	step := intent.Delta
+	if step == 0 {
+		step = 1
+	}
+	if intent.Page {
+		span := m.renderer.LastRowIndex - m.renderer.FirstRowIndex - 1
+		if span < 1 {
+			span = 1
+		}
+		if step < 0 {
+			step = -span
+		} else {
+			step = span
+		}
+	}
+
+	if step > 0 {
+		if len(m.rows) > 0 && m.cursor == len(m.rows)-1 && !m.hasMore && step > 1 {
+			return func() tea.Msg {
+				return common.CommandCompletedMsg{
+					Output: fmt.Sprintf("Already at the bottom of revset `%s`", m.context.CurrentRevset),
+					Err:    nil,
+				}
+			}
+		}
+		if m.cursor+step < len(m.rows) {
+			m.SetCursor(m.cursor + step)
+		} else if allowStream && m.hasMore {
+			return m.requestMoreRows(m.tag.Load())
+		} else if len(m.rows) > 0 {
+			m.SetCursor(len(m.rows) - 1)
+		}
+	} else if step < 0 {
+		amount := -step
+		if m.cursor == 0 && amount > 1 {
+			return func() tea.Msg {
+				return common.CommandCompletedMsg{
+					Output: fmt.Sprintf("Already at the top of revset `%s`", m.context.CurrentRevset),
+					Err:    nil,
+				}
+			}
+		}
+		m.SetCursor(max(m.cursor-amount, 0))
+	}
+
+	m.ensureCursorView = ensureView
+	return m.updateSelection()
+}
+
+func (m *Model) startDescribe(intent StartDescribe) tea.Cmd {
+	selected := intent.Selected
+	if len(selected.Revisions) == 0 {
+		selected = m.SelectedRevisions()
+	}
+	if len(selected.Revisions) == 0 {
+		return nil
+	}
+	return m.context.RunInteractiveCommand(jj.Describe(selected), common.Refresh)
+}
+
+func (m *Model) startEvolog(intent StartEvolog) tea.Cmd {
+	commit := intent.Selected
+	if commit == nil {
+		commit = m.SelectedRevision()
+	}
+	if commit == nil {
+		return nil
+	}
+	model := evolog.NewOperation(m.context, commit)
+	model.Parent = m.ViewNode
+	m.op = model
+	return m.op.Init()
+}
+
+func (m *Model) startInlineDescribe(intent StartInlineDescribe) tea.Cmd {
+	commit := intent.Selected
+	if commit == nil {
+		commit = m.SelectedRevision()
+	}
+	if commit == nil {
+		return nil
+	}
+	model := describe.NewOperation(m.context, commit.GetChangeId())
+	model.Parent = m.ViewNode
+	m.op = model
+	return m.op.Init()
+}
+
+func (m *Model) showDiff(intent ShowDiff) tea.Cmd {
+	commit := intent.Selected
+	if commit == nil {
+		commit = m.SelectedRevision()
+	}
+	if commit == nil {
+		return nil
+	}
+	changeId := commit.GetChangeId()
+	return func() tea.Msg {
+		output, _ := m.context.RunCommandImmediate(jj.Diff(changeId, ""))
+		return common.ShowDiffMsg(output)
+	}
+}
+
+func (m *Model) startSplit(intent StartSplit) tea.Cmd {
+	commit := intent.Selected
+	if commit == nil {
+		commit = m.SelectedRevision()
+	}
+	if commit == nil {
+		return nil
+	}
+	return m.context.RunInteractiveCommand(jj.Split(commit.GetChangeId(), intent.Files, intent.IsParallel), common.Refresh)
 }
 
 func (m *Model) updateSelection() tea.Cmd {
