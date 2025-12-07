@@ -13,6 +13,17 @@ import (
 
 const expiringMessageTimeout = 4 * time.Second
 
+type Intent interface {
+	apply(*Model) tea.Cmd
+}
+
+// Cmd wraps a flash intent into a Tea command.
+func Cmd(intent Intent) tea.Cmd {
+	return func() tea.Msg {
+		return intent
+	}
+}
+
 type expireMessageMsg struct {
 	id uint64
 }
@@ -45,6 +56,8 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case Intent:
+		return msg.apply(m)
 	case expireMessageMsg:
 		for i, message := range m.messages {
 			if message.id == msg.id {
@@ -119,6 +132,34 @@ func (m *Model) DeleteOldest() {
 func (m *Model) nextId() uint64 {
 	m.currentId = m.currentId + 1
 	return m.currentId
+}
+
+// AddMessage adds a flash message with optional error; non-error messages expire.
+type AddMessage struct {
+	Text      string
+	Err       error
+	NoTimeout bool
+}
+
+func (a AddMessage) apply(m *Model) tea.Cmd {
+	id := m.add(a.Text, a.Err)
+	if a.Err == nil && !a.NoTimeout && id != 0 {
+		return tea.Tick(expiringMessageTimeout, func(t time.Time) tea.Msg {
+			return expireMessageMsg{id: id}
+		})
+	}
+	return nil
+}
+
+// DismissOldest removes the oldest flash message if present.
+type DismissOldest struct{}
+
+func (DismissOldest) apply(m *Model) tea.Cmd {
+	if len(m.messages) == 0 {
+		return nil
+	}
+	m.DeleteOldest()
+	return nil
 }
 
 func New(context *context.MainContext) *Model {
