@@ -1,0 +1,428 @@
+package scripting
+
+import (
+	stdcontext "context"
+	"fmt"
+	"strings"
+
+	"github.com/atotto/clipboard"
+	tea "github.com/charmbracelet/bubbletea"
+	lua "github.com/yuin/gopher-lua"
+
+	"github.com/idursun/jjui/internal/ui/common"
+	uicontext "github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/flash"
+	"github.com/idursun/jjui/internal/ui/operations/rebase"
+	"github.com/idursun/jjui/internal/ui/revisions"
+)
+
+type step struct {
+	cmd     tea.Cmd
+	matcher func(tea.Msg) bool
+}
+
+type Runner struct {
+	ctx     *uicontext.MainContext
+	main    *lua.LState
+	thread  *lua.LState
+	cancel  stdcontext.CancelFunc
+	fn      *lua.LFunction
+	started bool
+	await   func(tea.Msg) bool
+	done    bool
+}
+
+func RunScript(ctx *uicontext.MainContext, src string) (*Runner, tea.Cmd, error) {
+	L := lua.NewState()
+	r := &Runner{ctx: ctx, main: L}
+
+	registerAPI(L, r)
+
+	fn, err := L.LoadString(src)
+	if err != nil {
+		L.Close()
+		return nil, nil, fmt.Errorf("lua: %w", err)
+	}
+	r.fn = fn
+	r.thread, r.cancel = L.NewThread()
+
+	cmd := r.resume()
+	if r.done {
+		r.close()
+	}
+	return r, cmd, nil
+}
+
+func (r *Runner) close() {
+	if r.main != nil {
+		if r.cancel != nil {
+			r.cancel()
+			r.cancel = nil
+		}
+		r.main.Close()
+		r.main = nil
+	}
+}
+
+func (r *Runner) resume() tea.Cmd {
+	if r.done {
+		return nil
+	}
+	var cmds []tea.Cmd
+	for {
+		var fn *lua.LFunction
+		if !r.started {
+			fn = r.fn
+		}
+		state, err, values := r.main.Resume(r.thread, fn)
+		r.started = true
+		if err != nil {
+			r.done = true
+			cmds = append(cmds, flash.Cmd(flash.AddMessage{Text: err.Error(), Err: err}))
+			break
+		}
+		for _, v := range values {
+			if ud, ok := v.(*lua.LUserData); ok {
+				if st, ok := ud.Value.(step); ok {
+					if st.matcher != nil {
+						r.await = st.matcher
+						if st.cmd != nil {
+							cmds = append(cmds, st.cmd)
+						}
+						return tea.Sequence(cmds...)
+					}
+					if st.cmd != nil {
+						cmds = append(cmds, st.cmd)
+					}
+				}
+			}
+		}
+		if state == lua.ResumeOK {
+			r.done = true
+			break
+		}
+		// continue to resume to collect subsequent steps until an await or completion
+		if len(cmds) > 0 {
+			continue
+		}
+	}
+	if len(cmds) == 0 {
+		return nil
+	}
+	return tea.Sequence(cmds...)
+}
+
+// HandleMsg resumes the script if waiting for a matching message.
+func (r *Runner) HandleMsg(msg tea.Msg) tea.Cmd {
+	if r.await == nil {
+		return nil
+	}
+	if !r.await(msg) {
+		return nil
+	}
+	r.await = nil
+	cmd := r.resume()
+	if r.done {
+		r.close()
+	}
+	return cmd
+}
+
+func (r *Runner) Done() bool {
+	return r.done && r.await == nil
+}
+
+func registerAPI(L *lua.LState, runner *Runner) {
+	revisionsTable := L.NewTable()
+	revisionsTable.RawSetString("current_change_id", L.NewFunction(func(L *lua.LState) int {
+		if rev, ok := runner.ctx.SelectedItem.(uicontext.SelectedRevision); ok {
+			L.Push(lua.LString(rev.ChangeId))
+			return 1
+		}
+		return 0
+	}))
+	revisionsTable.RawSetString("selected_revisions", L.NewFunction(func(L *lua.LState) int {
+		tbl := L.NewTable()
+		for _, item := range runner.ctx.CheckedItems {
+			if rev, ok := item.(uicontext.SelectedRevision); ok {
+				tbl.Append(lua.LString(rev.ChangeId))
+			}
+		}
+		L.Push(tbl)
+		return 1
+	}))
+	revisionsTable.RawSetString("refresh", L.NewFunction(func(L *lua.LState) int {
+		payload := payloadFromTop(L)
+		intent := revisions.Refresh{
+			KeepSelections:   boolVal(payload, "keep_selections"),
+			SelectedRevision: stringVal(payload, "selected_revision"),
+		}
+		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intent), matcher: matchUpdateRevisionsSuccess})
+	}))
+	revisionsTable.RawSetString("navigate", L.NewFunction(func(L *lua.LState) int {
+		payload := payloadFromTop(L)
+		target := parseNavigateTarget(stringVal(payload, "target"))
+		intent := revisions.Navigate{
+			Delta:      intVal(payload, "by"),
+			Page:       boolVal(payload, "page"),
+			Target:     target,
+			ChangeID:   stringVal(payload, "to"),
+			FallbackID: stringVal(payload, "fallback"),
+		}
+		if v, ok := payload["ensureView"]; ok {
+			if b, ok := v.(bool); ok {
+				intent.EnsureView = boolPtr(b)
+			}
+		}
+		if v, ok := payload["allowStream"]; ok {
+			if b, ok := v.(bool); ok {
+				intent.AllowStream = boolPtr(b)
+			}
+		}
+		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intent)})
+	}))
+	revisionsTable.RawSetString("start_squash", L.NewFunction(func(L *lua.LState) int {
+		payload := payloadFromTop(L)
+		intent := revisions.StartSquash{
+			Files: stringSlice(payload, "files"),
+		}
+		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intent)})
+	}))
+	revisionsTable.RawSetString("start_rebase", L.NewFunction(func(L *lua.LState) int {
+		payload := payloadFromTop(L)
+		intent := revisions.StartRebase{
+			Source: parseRebaseSource(stringVal(payload, "source")),
+			Target: parseRebaseTarget(stringVal(payload, "target")),
+		}
+		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intent)})
+	}))
+	revisionsTable.RawSetString("open_details", L.NewFunction(func(L *lua.LState) int {
+		return yieldStep(L, step{cmd: revisions.RevisionsCmd(revisions.OpenDetails{})})
+	}))
+	revisionsTable.RawSetString("start_inline_describe", L.NewFunction(func(L *lua.LState) int {
+		return yieldStep(L, step{cmd: revisions.RevisionsCmd(revisions.StartInlineDescribe{})})
+	}))
+
+	root := L.NewTable()
+	root.RawSetString("revisions", revisionsTable)
+	root.RawSetString("run_async", L.NewFunction(func(L *lua.LState) int {
+		args := argsFromLua(L)
+		return yieldStep(L, step{cmd: runner.ctx.RunCommand(args)})
+	}))
+	root.RawSetString("jj", L.NewFunction(func(L *lua.LState) int {
+		args := argsFromLua(L)
+		out, err := runner.ctx.RunCommandImmediate(args)
+		if err != nil {
+			L.Push(lua.LNil)
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+		L.Push(lua.LString(out))
+		L.Push(lua.LNil)
+		return 2
+	}))
+	root.RawSetString("flash", L.NewFunction(func(L *lua.LState) int {
+		msg := L.CheckString(1)
+		return yieldStep(L, step{cmd: flash.Cmd(flash.AddMessage{Text: msg})})
+	}))
+	root.RawSetString("copy_to_clipboard", L.NewFunction(func(L *lua.LState) int {
+		text := L.CheckString(1)
+		if err := clipboard.WriteAll(text); err != nil {
+			L.Push(lua.LNil)
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+		L.Push(lua.LBool(true))
+		L.Push(lua.LNil)
+		return 2
+	}))
+	L.SetGlobal("jjui", root)
+}
+
+func payloadFromTop(L *lua.LState) map[string]any {
+	if L.GetTop() >= 1 && L.CheckAny(1) != lua.LNil {
+		if tbl, ok := L.Get(1).(*lua.LTable); ok {
+			return luaTableToMap(tbl)
+		}
+	}
+	return map[string]any{}
+}
+
+func boolVal(payload map[string]any, key string) bool {
+	if v, ok := payload[key]; ok {
+		if b, ok := v.(bool); ok {
+			return b
+		}
+	}
+	return false
+}
+
+func intVal(payload map[string]any, key string) int {
+	if v, ok := payload[key]; ok {
+		switch n := v.(type) {
+		case int:
+			return n
+		case int64:
+			return int(n)
+		case float64:
+			return int(n)
+		case float32:
+			return int(n)
+		}
+	}
+	return 0
+}
+
+func stringVal(payload map[string]any, key string) string {
+	if v, ok := payload[key]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+func stringSlice(payload map[string]any, key string) []string {
+	v, ok := payload[key]
+	if !ok {
+		return nil
+	}
+	var out []string
+	switch vv := v.(type) {
+	case []string:
+		return vv
+	case []any:
+		for _, item := range vv {
+			if s, ok := item.(string); ok {
+				out = append(out, s)
+			}
+		}
+	}
+	return out
+}
+
+func argsFromLua(L *lua.LState) []string {
+	if L.GetTop() == 0 {
+		return nil
+	}
+	if tbl, ok := L.Get(1).(*lua.LTable); ok {
+		return stringSliceFromTable(tbl)
+	}
+	var out []string
+	top := L.GetTop()
+	for i := 1; i <= top; i++ {
+		out = append(out, L.CheckString(i))
+	}
+	return out
+}
+
+func stringSliceFromTable(tbl *lua.LTable) []string {
+	var out []string
+	tbl.ForEach(func(_, value lua.LValue) {
+		if s, ok := value.(lua.LString); ok {
+			out = append(out, s.String())
+		}
+	})
+	return out
+}
+
+func luaTableToMap(tbl *lua.LTable) map[string]any {
+	result := map[string]any{}
+	tbl.ForEach(func(key, value lua.LValue) {
+		if key.Type() != lua.LTString {
+			return
+		}
+		result[key.String()] = luaValueToGo(value)
+	})
+	return result
+}
+
+func luaTableToSlice(tbl *lua.LTable) []any {
+	var result []any
+	tbl.ForEach(func(_, value lua.LValue) {
+		result = append(result, luaValueToGo(value))
+	})
+	return result
+}
+
+func luaValueToGo(value lua.LValue) any {
+	switch value.Type() {
+	case lua.LTBool:
+		return bool(value.(lua.LBool))
+	case lua.LTNumber:
+		return float64(value.(lua.LNumber))
+	case lua.LTString:
+		return value.String()
+	case lua.LTTable:
+		t := value.(*lua.LTable)
+		// Heuristic: if keys are string, convert to map; otherwise, slice.
+		isMap := false
+		t.ForEach(func(key, _ lua.LValue) {
+			if key.Type() == lua.LTString {
+				isMap = true
+			}
+		})
+		if isMap {
+			return luaTableToMap(t)
+		}
+		return luaTableToSlice(t)
+	default:
+		return nil
+	}
+}
+
+func yieldStep(L *lua.LState, st step) int {
+	ud := L.NewUserData()
+	ud.Value = st
+	return L.Yield(ud)
+}
+
+func boolPtr(v bool) *bool {
+	return &v
+}
+
+func parseNavigateTarget(val string) revisions.NavigationTarget {
+	switch strings.ToLower(val) {
+	case "parent":
+		return revisions.TargetParent
+	case "child", "children":
+		return revisions.TargetChild
+	case "working", "working_copy", "work":
+		return revisions.TargetWorkingCopy
+	default:
+		return revisions.TargetNone
+	}
+}
+
+func matchUpdateRevisionsSuccess(msg tea.Msg) bool {
+	switch msg.(type) {
+	case common.UpdateRevisionsSuccessMsg, common.UpdateRevisionsFailedMsg:
+		return true
+	default:
+		return false
+	}
+}
+
+func parseRebaseSource(val string) rebase.Source {
+	switch strings.ToLower(val) {
+	case "branch":
+		return rebase.SourceBranch
+	case "descendants", "source":
+		return rebase.SourceDescendants
+	default:
+		return rebase.SourceRevision
+	}
+}
+
+func parseRebaseTarget(val string) rebase.Target {
+	switch strings.ToLower(val) {
+	case "after":
+		return rebase.TargetAfter
+	case "before":
+		return rebase.TargetBefore
+	case "insert":
+		return rebase.TargetInsert
+	default:
+		return rebase.TargetDestination
+	}
+}

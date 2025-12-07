@@ -4,15 +4,16 @@ go 1.24.2
 
 require (
 	github.com/BurntSushi/toml v1.5.0
+	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/x/cellbuf v0.0.14
 	github.com/sahilm/fuzzy v0.1.1
 	github.com/stretchr/testify v1.11.1
+	github.com/yuin/gopher-lua v1.1.1
 )
 
 require (
-	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/charmbracelet/colorprofile v0.3.3 // indirect
 	github.com/clipperhouse/displaywidth v0.6.0 // indirect
 	github.com/clipperhouse/stringish v0.1.1 // indirect
