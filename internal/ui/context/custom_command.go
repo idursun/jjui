@@ -51,7 +51,14 @@ func LoadCustomCommands(output string) (map[string]CustomCommand, error) {
 			return nil, fmt.Errorf("failed to decode custom command %s: %w", name, err)
 		}
 
-		if _, hasRevset := tempMap["revset"]; hasRevset {
+		if _, hasLua := tempMap["lua"]; hasLua {
+			var cmd CustomLuaCommand
+			if err := metadata.PrimitiveDecode(primitive, &cmd); err != nil {
+				return nil, fmt.Errorf("failed to decode lua command %s: %w", name, err)
+			}
+			cmd.Name = name
+			registry[name] = cmd
+		} else if _, hasRevset := tempMap["revset"]; hasRevset {
 			var cmd CustomRevsetCommand
 			if err := metadata.PrimitiveDecode(primitive, &cmd); err != nil {
 				return nil, fmt.Errorf("failed to decode revset command %s: %w", name, err)
