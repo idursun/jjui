@@ -11,14 +11,21 @@ import (
 
 type CustomCommand interface {
 	Binding() key.Binding
+	Sequence() []key.Binding
 	Description(ctx *MainContext) string
 	Prepare(ctx *MainContext) tea.Cmd
 	IsApplicableTo(item SelectedItem) bool
 }
 
+type LabeledCommand interface {
+	Label() string
+}
+
 type CustomCommandBase struct {
-	Name string
-	Key  []string `toml:"key"`
+	Name        string
+	Desc        string   `toml:"desc"`
+	Key         []string `toml:"key"`
+	KeySequence []string `toml:"key_sequence"`
 }
 
 func (c CustomCommandBase) Binding() key.Binding {
@@ -27,6 +34,28 @@ func (c CustomCommandBase) Binding() key.Binding {
 		key.WithKeys(c.Key...),
 		key.WithHelp(keys, c.Name),
 	)
+}
+
+func (c CustomCommandBase) Sequence() []key.Binding {
+	if len(c.KeySequence) == 0 {
+		return nil
+	}
+
+	bindings := make([]key.Binding, 0, len(c.KeySequence))
+	for _, k := range c.KeySequence {
+		bindings = append(bindings, key.NewBinding(
+			key.WithKeys(k),
+			key.WithHelp(k, c.Name),
+		))
+	}
+	return bindings
+}
+
+func (c CustomCommandBase) Label() string {
+	if strings.TrimSpace(c.Desc) != "" {
+		return c.Desc
+	}
+	return c.Name
 }
 
 func LoadCustomCommands(output string) (map[string]CustomCommand, error) {

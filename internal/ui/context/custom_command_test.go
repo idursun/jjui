@@ -14,10 +14,11 @@ func TestLoad_CustomCommands(t *testing.T) {
 "restore evolog" = { key = ["ctrl+e"],  args = ["op", "restore", "-r", "$revision"] }
 "resolve vscode" = { key = ["ctrl+r"],  args = ["resolve", "--tool", "vscode"], show = "interactive" }
 "update revset" = { key = ["M"],  revset = "::$change_id" }
+"sequence command" = { key_sequence = ["g", "s"], args = ["status"], desc = "status for change" }
 `
 	registry, err := LoadCustomCommands(content)
 	assert.NoError(t, err)
-	assert.Len(t, registry, 4)
+	assert.Len(t, registry, 5)
 
 	testCases := []struct {
 		name        string
@@ -69,6 +70,23 @@ func TestLoad_CustomCommands(t *testing.T) {
 				assert.Equal(t, []string{"M"}, revsetCmd.Key)
 				assert.Equal(t, "::$change_id", revsetCmd.Revset)
 				assert.Equal(t, "update revset", revsetCmd.Name)
+			},
+		},
+		{
+			name:        "sequence command",
+			commandName: "sequence command",
+			testFunc: func(t *testing.T, cmd CustomCommand) {
+				runCmd, ok := cmd.(CustomRunCommand)
+				assert.True(t, ok, "Command should be CustomRunCommand")
+				assert.Equal(t, []string{"g", "s"}, runCmd.KeySequence)
+				assert.Equal(t, []string{"status"}, runCmd.Args)
+				assert.Equal(t, "sequence command", runCmd.Name)
+				assert.Equal(t, "status for change", runCmd.Desc)
+				labeled, ok := any(runCmd).(LabeledCommand)
+				assert.True(t, ok)
+				assert.Equal(t, "status for change", labeled.Label())
+				seq := runCmd.Sequence()
+				assert.Len(t, seq, 2)
 			},
 		},
 	}

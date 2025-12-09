@@ -1,6 +1,7 @@
 package customcommands
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -16,13 +17,21 @@ import (
 )
 
 type item struct {
-	name    string
-	desc    string
-	command tea.Cmd
-	key     key.Binding
+	name        string
+	desc        string
+	command     tea.Cmd
+	key         key.Binding
+	keySequence []key.Binding
 }
 
 func (i item) ShortCut() string {
+	if len(i.keySequence) > 0 {
+		var keys []string
+		for _, k := range i.keySequence {
+			keys = append(keys, k.Keys()...)
+		}
+		return strings.Join(keys, " → ")
+	}
 	k := strings.Join(i.key.Keys(), "/")
 	return k
 }
@@ -40,6 +49,21 @@ func (i item) Description() string {
 }
 
 var _ common.Model = (*Model)(nil)
+
+// SortedCustomCommands returns commands ordered by name for deterministic iteration.
+func SortedCustomCommands(ctx *context.MainContext) []context.CustomCommand {
+	names := make([]string, 0, len(ctx.CustomCommands))
+	for name := range ctx.CustomCommands {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	commands := make([]context.CustomCommand, 0, len(names))
+	for _, name := range names {
+		commands = append(commands, ctx.CustomCommands[name])
+	}
+	return commands
+}
 
 type Model struct {
 	*common.ViewNode
@@ -96,10 +120,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) View() string {
-	m.menu.SetFrame(cellbuf.Rect(0, 0, 80, 40))
+	pw, ph := m.Parent.Width, m.Parent.Height
+	m.menu.SetFrame(cellbuf.Rect(0, 0, min(pw, 80), min(ph, 40)).Inset(2))
 	v := m.menu.View()
 	w, h := lipgloss.Size(v)
-	pw, ph := m.Parent.Width, m.Parent.Height
 	sx := (pw - w) / 2
 	sy := (ph - h) / 2
 	m.SetFrame(cellbuf.Rect(sx, sy, w, h))
@@ -112,7 +136,11 @@ func NewModel(ctx *context.MainContext) *Model {
 	for name, command := range ctx.CustomCommands {
 		if command.IsApplicableTo(ctx.SelectedItem) {
 			cmd := command.Prepare(ctx)
-			items = append(items, item{name: name, desc: command.Description(ctx), command: cmd, key: command.Binding()})
+			desc := command.Description(ctx)
+			if lc, ok := command.(context.LabeledCommand); ok {
+				desc = lc.Label()
+			}
+			items = append(items, item{name: name, desc: desc, command: cmd, key: command.Binding(), keySequence: command.Sequence()})
 		}
 	}
 	keyMap := config.Current.GetKeyMap()

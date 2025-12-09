@@ -45,20 +45,21 @@ type SizableModel interface {
 
 type Model struct {
 	*common.ViewNode
-	revisions    *revisions.Model
-	oplog        *oplog.Model
-	revsetModel  *revset.Model
-	previewModel *preview.Model
-	diff         *diff.Model
-	leader       *leader.Model
-	flash        *flash.Model
-	state        common.State
-	status       *status.Model
-	context      *context.MainContext
-	scriptRunner *scripting.Runner
-	keyMap       config.KeyMappings[key.Binding]
-	stacked      SizableModel
-	dragTarget   common.Draggable
+	revisions       *revisions.Model
+	oplog           *oplog.Model
+	revsetModel     *revset.Model
+	previewModel    *preview.Model
+	diff            *diff.Model
+	leader          *leader.Model
+	flash           *flash.Model
+	state           common.State
+	status          *status.Model
+	context         *context.MainContext
+	scriptRunner    *scripting.Runner
+	keyMap          config.KeyMappings[key.Binding]
+	stacked         SizableModel
+	dragTarget      common.Draggable
+	sequenceOverlay *customcommands.SequenceOverlay
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -119,6 +120,46 @@ func (m *Model) handleFocusInputMessage(msg tea.Msg) (tea.Cmd, bool) {
 	return nil, false
 }
 
+func (m *Model) handleCustomCommandSequence(msg tea.KeyMsg) tea.Cmd {
+	if !m.ensureSequenceOverlay(msg) {
+		return nil
+	}
+
+	res := m.sequenceOverlay.HandleKey(msg)
+	if !res.Active {
+		m.sequenceOverlay = nil
+	}
+	if res.Cmd != nil {
+		return res.Cmd
+	}
+	return nil
+}
+
+func (m *Model) ensureSequenceOverlay(msg tea.KeyMsg) bool {
+	if m.sequenceOverlay != nil {
+		return true
+	}
+	if !m.shouldStartSequenceOverlay(msg) {
+		return false
+	}
+	m.sequenceOverlay = customcommands.NewSequenceOverlay(m.context)
+	m.sequenceOverlay.Parent = m.ViewNode
+	return true
+}
+
+func (m *Model) shouldStartSequenceOverlay(msg tea.KeyMsg) bool {
+	for _, command := range customcommands.SortedCustomCommands(m.context) {
+		seq := command.Sequence()
+		if len(seq) == 0 || !command.IsApplicableTo(m.context.SelectedItem) {
+			continue
+		}
+		if key.Matches(msg, seq[0]) {
+			return true
+		}
+	}
+	return false
+}
+
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if cmd, handled := m.handleFocusInputMessage(msg); handled {
 		return cmd
@@ -163,6 +204,17 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case tea.KeyMsg:
+		// Forward all key presses to the custom sequence handler first.
+		wasPartialSequenceMatch := m.sequenceOverlay != nil
+		if cmd := m.handleCustomCommandSequence(msg); cmd != nil || m.sequenceOverlay != nil {
+			return cmd
+		}
+		if wasPartialSequenceMatch {
+			// If we were in a partial sequence but the key didn't match, don't
+			// process it further.
+			return nil
+		}
+
 		switch {
 		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
 			m.state = common.Ready
@@ -249,7 +301,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.keyMap.Suspend):
 			return tea.Suspend
 		default:
-			for _, command := range m.context.CustomCommands {
+			for _, command := range customcommands.SortedCustomCommands(m.context) {
 				if !command.IsApplicableTo(m.context.SelectedItem) {
 					continue
 				}
@@ -276,6 +328,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return m.diff.Init()
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
+	case customcommands.SequenceTimeoutMsg:
+		if m.sequenceOverlay == nil {
+			return nil
+		}
+		res := m.sequenceOverlay.HandleTimeout(msg)
+		if !res.Active {
+			m.sequenceOverlay = nil
+		}
+		return res.Cmd
 	case triggerAutoRefreshMsg:
 		return tea.Batch(m.scheduleAutoRefresh(), func() tea.Msg {
 			return common.AutoRefreshMsg{}
@@ -420,6 +481,12 @@ func (m *Model) View() string {
 	if m.stacked != nil {
 		stackedView := m.stacked.View()
 		cellbuf.SetContentRect(screenBuf, stackedView, m.stacked.GetViewNode().Frame)
+	}
+
+	if m.sequenceOverlay != nil {
+		m.sequenceOverlay.Parent = m.ViewNode
+		view := m.sequenceOverlay.View()
+		cellbuf.SetContentRect(screenBuf, view, m.sequenceOverlay.Frame)
 	}
 
 	flashMessageView := m.flash.View()
