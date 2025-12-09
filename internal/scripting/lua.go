@@ -171,7 +171,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 		target := parseNavigateTarget(stringVal(payload, "target"))
 		intent := intents.Navigate{
 			Delta:      intVal(payload, "by"),
-			Page:       boolVal(payload, "page"),
+			IsPage:     boolVal(payload, "page"),
 			Target:     target,
 			ChangeID:   stringVal(payload, "to"),
 			FallbackID: stringVal(payload, "fallback"),

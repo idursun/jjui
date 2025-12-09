@@ -41,11 +41,13 @@ import (
 )
 
 var (
-	_ list.IList         = (*Model)(nil)
-	_ list.IListCursor   = (*Model)(nil)
-	_ common.Focusable   = (*Model)(nil)
-	_ common.Editable    = (*Model)(nil)
-	_ common.IMouseAware = (*Model)(nil)
+	_ list.IList           = (*Model)(nil)
+	_ list.IListCursor     = (*Model)(nil)
+	_ list.IScrollableList = (*Model)(nil)
+	_ list.IStreamableList = (*Model)(nil)
+	_ common.Focusable     = (*Model)(nil)
+	_ common.Editable      = (*Model)(nil)
+	_ common.IMouseAware   = (*Model)(nil)
 )
 
 type Model struct {
@@ -111,6 +113,18 @@ func (m *Model) SetCursor(index int) {
 		m.cursor = index
 		m.ensureCursorView = true
 	}
+}
+
+func (m *Model) VisibleRange() (int, int) {
+	return m.renderer.FirstRowIndex, m.renderer.LastRowIndex
+}
+
+func (m *Model) ListName() string {
+	return fmt.Sprintf("revset `%s`", m.context.CurrentRevset)
+}
+
+func (m *Model) HasMore() bool {
+	return m.hasMore
 }
 
 func (m *Model) ClickAt(x, y int) tea.Cmd {
@@ -411,9 +425,9 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keymap.Up, m.keymap.ScrollUp):
-			return m.handleIntent(intents.Navigate{Delta: -1, Page: key.Matches(msg, m.keymap.ScrollUp)})
+			return m.handleIntent(intents.Navigate{Delta: -1, IsPage: key.Matches(msg, m.keymap.ScrollUp)})
 		case key.Matches(msg, m.keymap.Down, m.keymap.ScrollDown):
-			return m.handleIntent(intents.Navigate{Delta: 1, Page: key.Matches(msg, m.keymap.ScrollDown)})
+			return m.handleIntent(intents.Navigate{Delta: 1, IsPage: key.Matches(msg, m.keymap.ScrollDown)})
 		case key.Matches(msg, m.keymap.JumpToParent):
 			return m.handleIntent(intents.Navigate{Target: intents.TargetParent})
 		case key.Matches(msg, m.keymap.JumpToChildren):
@@ -754,51 +768,31 @@ func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
 		return m.updateSelection()
 	}
 
-	step := intent.Delta
-	if step == 0 {
-		step = 1
-	}
-	if intent.Page {
-		span := m.renderer.LastRowIndex - m.renderer.FirstRowIndex - 1
-		if span < 1 {
-			span = 1
-		}
-		if step < 0 {
-			step = -span
-		} else {
-			step = span
-		}
+	delta := intent.Delta
+	if delta == 0 {
+		delta = 1
 	}
 
-	if step > 0 {
-		if len(m.rows) > 0 && m.cursor == len(m.rows)-1 && !m.hasMore && step > 1 {
-			return func() tea.Msg {
-				return common.CommandCompletedMsg{
-					Output: fmt.Sprintf("Already at the bottom of revset `%s`", m.context.CurrentRevset),
-					Err:    nil,
-				}
-			}
-		}
-		if m.cursor+step < len(m.rows) {
-			m.SetCursor(m.cursor + step)
-		} else if allowStream && m.hasMore {
-			return m.requestMoreRows(m.tag.Load())
-		} else if len(m.rows) > 0 {
-			m.SetCursor(len(m.rows) - 1)
-		}
-	} else if step < 0 {
-		amount := -step
-		if m.cursor == 0 && amount > 1 {
-			return func() tea.Msg {
-				return common.CommandCompletedMsg{
-					Output: fmt.Sprintf("Already at the top of revset `%s`", m.context.CurrentRevset),
-					Err:    nil,
-				}
-			}
-		}
-		m.SetCursor(max(m.cursor-amount, 0))
+	// Temporarily override the CanStream based on allowStream parameter
+	origHasMore := m.hasMore
+	if !allowStream {
+		m.hasMore = false
 	}
 
+	result := list.Scroll(m, delta, intent.IsPage)
+
+	// Restore original hasMore
+	m.hasMore = origHasMore
+
+	if result.NavigateMessage != nil {
+		return func() tea.Msg { return *result.NavigateMessage }
+	}
+
+	if result.RequestMore && allowStream {
+		return m.requestMoreRows(m.tag.Load())
+	}
+
+	m.SetCursor(result.NewCursor)
 	m.ensureCursorView = ensureView
 	return m.updateSelection()
 }

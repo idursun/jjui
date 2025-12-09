@@ -75,7 +75,7 @@ const (
 
 type Navigate struct {
 	Delta       int              // +N down, -N up
-	Page        bool             // use page-sized step when true
+	IsPage      bool             // use page-sized step when true
 	Target      NavigationTarget // logical destination (parent/child/working)
 	ChangeID    string           // explicit change/commit id to select
 	FallbackID  string           // optional fallback change/commit id

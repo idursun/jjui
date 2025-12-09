@@ -18,9 +18,10 @@ type updateOpLogMsg struct {
 }
 
 var (
-	_ list.IList         = (*Model)(nil)
-	_ common.Model       = (*Model)(nil)
-	_ common.IMouseAware = (*Model)(nil)
+	_ list.IList           = (*Model)(nil)
+	_ list.IScrollableList = (*Model)(nil)
+	_ common.Model         = (*Model)(nil)
+	_ common.IMouseAware   = (*Model)(nil)
 )
 
 type Model struct {
@@ -43,6 +44,25 @@ func (m *Model) Len() int {
 	return len(m.rows)
 }
 
+func (m *Model) Cursor() int {
+	return m.cursor
+}
+
+func (m *Model) SetCursor(index int) {
+	if index >= 0 && index < len(m.rows) {
+		m.cursor = index
+		m.ensureCursorView = true
+	}
+}
+
+func (m *Model) VisibleRange() (int, int) {
+	return m.renderer.FirstRowIndex, m.renderer.LastRowIndex
+}
+
+func (m *Model) ListName() string {
+	return "operation log"
+}
+
 func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
 	item := m.rows[index]
 	style := m.textStyle
@@ -59,6 +79,8 @@ func (m *Model) ShortHelp() []key.Binding {
 	return []key.Binding{
 		m.keymap.Up,
 		m.keymap.Down,
+		m.keymap.ScrollUp,
+		m.keymap.ScrollDown,
 		m.keymap.Cancel,
 		m.keymap.Diff,
 		m.keymap.OpLog.Restore,
@@ -133,6 +155,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case updateOpLogMsg:
 		m.rows = msg.Rows
 		m.renderer.Reset()
+		return m.updateSelection()
 	case tea.MouseMsg:
 		switch msg.Action {
 		case tea.MouseActionPress:
@@ -150,16 +173,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		switch {
 		case key.Matches(msg, m.keymap.Cancel):
 			return tea.Batch(common.Close, common.Refresh, common.SelectionChanged)
-		case key.Matches(msg, m.keymap.Up):
-			if m.cursor > 0 {
-				m.cursor--
-				m.ensureCursorView = true
-			}
-		case key.Matches(msg, m.keymap.Down):
-			if m.cursor < len(m.rows)-1 {
-				m.cursor++
-				m.ensureCursorView = true
-			}
+		case key.Matches(msg, m.keymap.Up, m.keymap.ScrollUp):
+			return m.navigate(-1, key.Matches(msg, m.keymap.ScrollUp))
+		case key.Matches(msg, m.keymap.Down, m.keymap.ScrollDown):
+			return m.navigate(1, key.Matches(msg, m.keymap.ScrollDown))
 		case key.Matches(msg, m.keymap.Diff):
 			return func() tea.Msg {
 				output, _ := m.context.RunCommandImmediate(jj.OpShow(m.rows[m.cursor].OperationId))
@@ -172,11 +189,26 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 
 	}
+	return nil
+}
+
+func (m *Model) navigate(delta int, page bool) tea.Cmd {
+	if len(m.rows) == 0 {
+		return nil
+	}
+
+	result := list.Scroll(m, delta, page)
+
+	if result.NavigateMessage != nil {
+		return func() tea.Msg { return *result.NavigateMessage }
+	}
+
+	m.SetCursor(result.NewCursor)
 	return m.updateSelection()
 }
 
 func (m *Model) updateSelection() tea.Cmd {
-	if m.rows == nil {
+	if len(m.rows) == 0 {
 		return nil
 	}
 	return m.context.SetSelectedItem(context.SelectedOperation{OperationId: m.rows[m.cursor].OperationId})
