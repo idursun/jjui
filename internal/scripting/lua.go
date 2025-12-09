@@ -15,6 +15,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/flash"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/revisions"
+	"github.com/idursun/jjui/internal/ui/revset"
 )
 
 type step struct {
@@ -204,8 +205,26 @@ func registerAPI(L *lua.LState, runner *Runner) {
 		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intents.StartInlineDescribe{})})
 	}))
 
+	revsetTable := L.NewTable()
+	revsetTable.RawSetString("set", L.NewFunction(func(L *lua.LState) int {
+		value := L.CheckString(1)
+		return yieldStep(L, step{cmd: revset.RevsetCmd(intents.Set{Value: value})})
+	}))
+	revsetTable.RawSetString("reset", L.NewFunction(func(L *lua.LState) int {
+		return yieldStep(L, step{cmd: revset.RevsetCmd(intents.Reset{})})
+	}))
+	revsetTable.RawSetString("current", L.NewFunction(func(L *lua.LState) int {
+		L.Push(lua.LString(runner.ctx.CurrentRevset))
+		return 1
+	}))
+	revsetTable.RawSetString("default", L.NewFunction(func(L *lua.LState) int {
+		L.Push(lua.LString(runner.ctx.DefaultRevset))
+		return 1
+	}))
+
 	root := L.NewTable()
 	root.RawSetString("revisions", revisionsTable)
+	root.RawSetString("revset", revsetTable)
 	root.RawSetString("run_async", L.NewFunction(func(L *lua.LState) int {
 		args := argsFromLua(L)
 		return yieldStep(L, step{cmd: runner.ctx.RunCommand(args)})

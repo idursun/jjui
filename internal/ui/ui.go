@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/scripting"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 
 	"github.com/idursun/jjui/internal/ui/flash"
@@ -179,7 +180,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.oplog.Parent = m.ViewNode
 			return m.oplog.Init()
 		case key.Matches(msg, m.keyMap.Revset) && m.revisions.InNormalMode():
-			return m.revsetModel.Update(revset.EditRevSetMsg{Clear: m.state != common.Error})
+			return m.revsetModel.Update(intents.Edit{Clear: m.state != common.Error})
 		case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
 			model := git.NewModel(m.context, m.revisions.SelectedRevisions())
 			model.Parent = m.ViewNode
@@ -308,10 +309,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.flash.SetHeight(m.Height)
 	}
 
-	if m.revsetModel.Editing {
-		cmds = append(cmds, m.revsetModel.Update(msg))
-	}
-
+	cmds = append(cmds, m.revsetModel.Update(msg))
 	cmds = append(cmds, m.status.Update(msg))
 	cmds = append(cmds, m.flash.Update(msg))
 

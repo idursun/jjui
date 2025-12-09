@@ -9,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/intents"
 )
 
 type EditRevSetMsg struct {
@@ -16,6 +17,17 @@ type EditRevSetMsg struct {
 }
 
 var _ common.Model = (*Model)(nil)
+
+type revsetMsg struct {
+	msg tea.Msg
+}
+
+// Allow a message to be targeted to this component.
+func RevsetCmd(msg tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		return revsetMsg{msg: msg}
+	}
+}
 
 type Model struct {
 	*common.ViewNode
@@ -119,24 +131,22 @@ func (m *Model) SetHistory(history []string) {
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
+	if k, ok := msg.(revsetMsg); ok {
+		msg = k.msg
+	}
+
 	switch msg := msg.(type) {
+	case intents.Intent:
+		return m.handleIntent(msg)
 	case tea.KeyMsg:
 		if !m.Editing {
 			return nil
 		}
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
-			m.Editing = false
-			m.autoComplete.Blur()
-			return nil
+			return m.handleIntent(intents.Cancel{})
 		case tea.KeyEnter:
-			m.Editing = false
-			m.autoComplete.Blur()
-			value := m.autoComplete.Value()
-			if strings.TrimSpace(value) == "" {
-				value = m.context.DefaultRevset
-			}
-			return tea.Batch(common.Close, common.UpdateRevSet(value))
+			return m.handleIntent(intents.Apply{Value: m.autoComplete.Value()})
 		case tea.KeyUp:
 			if len(m.History) > 0 {
 				if !m.historyActive {
@@ -173,17 +183,52 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.Editing = false
 		}
 	case EditRevSetMsg:
+		return m.handleIntent(intents.Edit{Clear: msg.Clear})
+	}
+
+	return m.autoComplete.Update(msg)
+}
+
+func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
+	switch intent := intent.(type) {
+	case intents.Set:
+		m.Editing = false
+		m.autoComplete.Blur()
+		value := intent.Value
+		if strings.TrimSpace(value) == "" {
+			value = m.context.DefaultRevset
+		}
+		return tea.Batch(common.Close, common.UpdateRevSet(value))
+	case intents.Reset:
+		m.Editing = false
+		m.autoComplete.Blur()
+		return tea.Batch(common.Close, common.UpdateRevSet(m.context.DefaultRevset))
+	case intents.Edit:
 		m.Editing = true
 		m.autoComplete.Focus()
-		if msg.Clear {
+		if intent.Clear {
 			m.autoComplete.SetValue("")
 		}
 		m.historyActive = false
 		m.historyIndex = -1
 		return m.autoComplete.Init()
+	case intents.Cancel:
+		m.Editing = false
+		m.autoComplete.Blur()
+		return nil
+	case intents.Apply:
+		m.Editing = false
+		m.autoComplete.Blur()
+		value := intent.Value
+		if value == "" {
+			value = m.autoComplete.Value()
+		}
+		if strings.TrimSpace(value) == "" {
+			value = m.context.DefaultRevset
+		}
+		return tea.Batch(common.Close, common.UpdateRevSet(value))
 	}
-
-	return m.autoComplete.Update(msg)
+	return nil
 }
 
 func (m *Model) View() string {
