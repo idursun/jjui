@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 
 	"github.com/idursun/jjui/internal/ui/common/list"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
 	"github.com/idursun/jjui/internal/ui/operations/revert"
@@ -284,47 +285,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case RevisionsIntent:
-		switch intent := msg.(type) {
-		case OpenDetails:
-			return m.openDetails(intent)
-		case StartSquash:
-			return m.startSquash(intent)
-		case StartInlineDescribe:
-			return m.startInlineDescribe(intent)
-		case StartAbsorb:
-			return m.startAbsorb(intent)
-		case StartAbandon:
-			return m.startAbandon(intent)
-		case StartNew:
-			return m.startNew(intent)
-		case CommitWorkingCopy:
-			return m.commitWorkingCopy()
-		case StartEdit:
-			return m.startEdit(intent)
-		case StartDiffEdit:
-			return m.startDiffEdit(intent)
-		case StartRevert:
-			return m.startRevert(intent)
-		case StartDuplicate:
-			return m.startDuplicate(intent)
-		case SetParents:
-			return m.startSetParents(intent)
-		case Navigate:
-			return m.navigate(intent)
-		case StartDescribe:
-			return m.startDescribe(intent)
-		case StartEvolog:
-			return m.startEvolog(intent)
-		case ShowDiff:
-			return m.showDiff(intent)
-		case StartSplit:
-			return m.startSplit(intent)
-		case StartRebase:
-			return m.startRebase(intent)
-		case Refresh:
-			return m.refresh(intent)
-		}
+	case intents.Intent:
+		return m.handleIntent(msg)
 	case tea.MouseMsg:
 		switch msg.Action {
 		case tea.MouseActionPress:
@@ -364,7 +326,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			return common.RefreshAndKeepSelections
 		}
 	case common.RefreshMsg:
-		return m.refresh(Refresh{
+		return m.refresh(intents.Refresh{
 			KeepSelections:   msg.KeepSelections,
 			SelectedRevision: msg.SelectedRevision,
 		})
@@ -430,11 +392,6 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			})
 		}
 		return tea.Batch(cmds...)
-	case common.StartSquashOperationMsg:
-		return m.Update(StartSquash{
-			Selected: jj.NewSelectedRevisions(msg.Revision),
-			Files:    msg.Files,
-		})
 	}
 
 	if len(m.rows) == 0 {
@@ -454,15 +411,15 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keymap.Up, pageUpKey):
-			return m.Update(Navigate{Delta: -1, Page: key.Matches(msg, pageUpKey)})
+			return m.handleIntent(intents.Navigate{Delta: -1, Page: key.Matches(msg, pageUpKey)})
 		case key.Matches(msg, m.keymap.Down, pageDownKey):
-			return m.Update(Navigate{Delta: 1, Page: key.Matches(msg, pageDownKey)})
+			return m.handleIntent(intents.Navigate{Delta: 1, Page: key.Matches(msg, pageDownKey)})
 		case key.Matches(msg, m.keymap.JumpToParent):
-			return m.Update(Navigate{Target: TargetParent})
+			return m.handleIntent(intents.Navigate{Target: intents.TargetParent})
 		case key.Matches(msg, m.keymap.JumpToChildren):
-			return m.Update(Navigate{Target: TargetChild})
+			return m.handleIntent(intents.Navigate{Target: intents.TargetChild})
 		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
-			return m.Update(Navigate{Target: TargetWorkingCopy})
+			return m.handleIntent(intents.Navigate{Target: intents.TargetWorkingCopy})
 		case key.Matches(msg, m.keymap.AceJump):
 			op := ace_jump.NewOperation(m, func(index int) parser.Row {
 				return m.rows[index]
@@ -492,47 +449,47 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				m.renderer.Reset()
 				return nil
 			case key.Matches(msg, m.keymap.Details.Mode):
-				return m.Update(OpenDetails{})
+				return m.handleIntent(intents.OpenDetails{})
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
-				return m.Update(StartInlineDescribe{})
+				return m.handleIntent(intents.StartInlineDescribe{})
 			case key.Matches(msg, m.keymap.New):
-				return m.Update(StartNew{})
+				return m.handleIntent(intents.StartNew{})
 			case key.Matches(msg, m.keymap.Commit):
-				return m.Update(CommitWorkingCopy{})
+				return m.handleIntent(intents.CommitWorkingCopy{})
 			case key.Matches(msg, m.keymap.Edit, m.keymap.ForceEdit):
 				ignoreImmutable := key.Matches(msg, m.keymap.ForceEdit)
-				return m.Update(StartEdit{IgnoreImmutable: ignoreImmutable})
+				return m.handleIntent(intents.StartEdit{IgnoreImmutable: ignoreImmutable})
 			case key.Matches(msg, m.keymap.Diffedit):
-				return m.Update(StartDiffEdit{})
+				return m.handleIntent(intents.StartDiffEdit{})
 			case key.Matches(msg, m.keymap.Absorb):
-				return m.Update(StartAbsorb{})
+				return m.handleIntent(intents.StartAbsorb{})
 			case key.Matches(msg, m.keymap.Abandon):
-				return m.Update(StartAbandon{})
+				return m.handleIntent(intents.StartAbandon{})
 			case key.Matches(msg, m.keymap.Bookmark.Set):
 				m.op = bookmark.NewSetBookmarkOperation(m.context, m.SelectedRevision().GetChangeId())
 				return m.op.Init()
 			case key.Matches(msg, m.keymap.Split, m.keymap.SplitParallel):
-				return m.Update(StartSplit{
+				return m.handleIntent(intents.StartSplit{
 					IsParallel: key.Matches(msg, m.keymap.SplitParallel),
 				})
 			case key.Matches(msg, m.keymap.Describe):
-				return m.Update(StartDescribe{})
+				return m.handleIntent(intents.StartDescribe{})
 			case key.Matches(msg, m.keymap.Evolog.Mode):
-				return m.Update(StartEvolog{})
+				return m.handleIntent(intents.StartEvolog{})
 			case key.Matches(msg, m.keymap.Diff):
-				return m.Update(ShowDiff{})
+				return m.handleIntent(intents.ShowDiff{})
 			case key.Matches(msg, m.keymap.Refresh):
-				return m.Update(Refresh{})
+				return m.handleIntent(intents.Refresh{})
 			case key.Matches(msg, m.keymap.Squash.Mode):
-				return m.Update(StartSquash{})
+				return m.handleIntent(intents.StartSquash{})
 			case key.Matches(msg, m.keymap.Revert.Mode):
-				return m.Update(StartRevert{})
+				return m.handleIntent(intents.StartRevert{})
 			case key.Matches(msg, m.keymap.Rebase.Mode):
-				return m.Update(StartRebase{})
+				return m.handleIntent(intents.StartRebase{})
 			case key.Matches(msg, m.keymap.Duplicate.Mode):
-				return m.Update(StartDuplicate{})
+				return m.handleIntent(intents.StartDuplicate{})
 			case key.Matches(msg, m.keymap.SetParents):
-				return m.Update(SetParents{})
+				return m.handleIntent(intents.SetParents{})
 			}
 		}
 	}
@@ -540,7 +497,51 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-func (m *Model) refresh(intent Refresh) tea.Cmd {
+func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
+	switch intent := intent.(type) {
+	case intents.OpenDetails:
+		return m.openDetails(intent)
+	case intents.StartSquash:
+		return m.startSquash(intent)
+	case intents.StartInlineDescribe:
+		return m.startInlineDescribe(intent)
+	case intents.StartAbsorb:
+		return m.startAbsorb(intent)
+	case intents.StartAbandon:
+		return m.startAbandon(intent)
+	case intents.StartNew:
+		return m.startNew(intent)
+	case intents.CommitWorkingCopy:
+		return m.commitWorkingCopy()
+	case intents.StartEdit:
+		return m.startEdit(intent)
+	case intents.StartDiffEdit:
+		return m.startDiffEdit(intent)
+	case intents.StartRevert:
+		return m.startRevert(intent)
+	case intents.StartDuplicate:
+		return m.startDuplicate(intent)
+	case intents.SetParents:
+		return m.startSetParents(intent)
+	case intents.Navigate:
+		return m.navigate(intent)
+	case intents.StartDescribe:
+		return m.startDescribe(intent)
+	case intents.StartEvolog:
+		return m.startEvolog(intent)
+	case intents.ShowDiff:
+		return m.showDiff(intent)
+	case intents.StartSplit:
+		return m.startSplit(intent)
+	case intents.StartRebase:
+		return m.startRebase(intent)
+	case intents.Refresh:
+		return m.refresh(intent)
+	}
+	return nil
+}
+
+func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
 	if !intent.KeepSelections {
 		m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
 	}
@@ -552,7 +553,7 @@ func (m *Model) refresh(intent Refresh) tea.Cmd {
 	return m.load(m.context.CurrentRevset, intent.SelectedRevision)
 }
 
-func (m *Model) openDetails(_ OpenDetails) tea.Cmd {
+func (m *Model) openDetails(_ intents.OpenDetails) tea.Cmd {
 	if m.SelectedRevision() == nil {
 		return nil
 	}
@@ -562,7 +563,7 @@ func (m *Model) openDetails(_ OpenDetails) tea.Cmd {
 	return m.op.Init()
 }
 
-func (m *Model) startSquash(intent StartSquash) tea.Cmd {
+func (m *Model) startSquash(intent intents.StartSquash) tea.Cmd {
 	selected := intent.Selected
 	if len(selected.Revisions) == 0 {
 		selected = m.SelectedRevisions()
@@ -582,7 +583,7 @@ func (m *Model) startSquash(intent StartSquash) tea.Cmd {
 	return m.op.Init()
 }
 
-func (m *Model) startRebase(intent StartRebase) tea.Cmd {
+func (m *Model) startRebase(intent intents.StartRebase) tea.Cmd {
 	selected := intent.Selected
 	if len(selected.Revisions) == 0 {
 		selected = m.SelectedRevisions()
@@ -603,7 +604,7 @@ func (m *Model) startRebase(intent StartRebase) tea.Cmd {
 	return m.op.Init()
 }
 
-func (m *Model) startRevert(intent StartRevert) tea.Cmd {
+func (m *Model) startRevert(intent intents.StartRevert) tea.Cmd {
 	selected := intent.Selected
 	if len(selected.Revisions) == 0 {
 		selected = m.SelectedRevisions()
@@ -620,7 +621,7 @@ func (m *Model) startRevert(intent StartRevert) tea.Cmd {
 	return m.op.Init()
 }
 
-func (m *Model) startDuplicate(intent StartDuplicate) tea.Cmd {
+func (m *Model) startDuplicate(intent intents.StartDuplicate) tea.Cmd {
 	selected := intent.Selected
 	if len(selected.Revisions) == 0 {
 		selected = m.SelectedRevisions()
@@ -633,7 +634,7 @@ func (m *Model) startDuplicate(intent StartDuplicate) tea.Cmd {
 	return m.op.Init()
 }
 
-func (m *Model) startSetParents(intent SetParents) tea.Cmd {
+func (m *Model) startSetParents(intent intents.SetParents) tea.Cmd {
 	commit := intent.Selected
 	if commit == nil {
 		commit = m.SelectedRevision()
@@ -646,7 +647,7 @@ func (m *Model) startSetParents(intent SetParents) tea.Cmd {
 	return m.op.Init()
 }
 
-func (m *Model) startNew(intent StartNew) tea.Cmd {
+func (m *Model) startNew(intent intents.StartNew) tea.Cmd {
 	selected := intent.Selected
 	if len(selected.Revisions) == 0 {
 		selected = m.SelectedRevisions()
@@ -658,7 +659,7 @@ func (m *Model) commitWorkingCopy() tea.Cmd {
 	return m.context.RunInteractiveCommand(jj.CommitWorkingCopy(), common.Refresh)
 }
 
-func (m *Model) startEdit(intent StartEdit) tea.Cmd {
+func (m *Model) startEdit(intent intents.StartEdit) tea.Cmd {
 	commit := intent.Selected
 	if commit == nil {
 		commit = m.SelectedRevision()
@@ -669,7 +670,7 @@ func (m *Model) startEdit(intent StartEdit) tea.Cmd {
 	return m.context.RunCommand(jj.Edit(commit.GetChangeId(), intent.IgnoreImmutable), common.Refresh)
 }
 
-func (m *Model) startDiffEdit(intent StartDiffEdit) tea.Cmd {
+func (m *Model) startDiffEdit(intent intents.StartDiffEdit) tea.Cmd {
 	commit := intent.Selected
 	if commit == nil {
 		commit = m.SelectedRevision()
@@ -680,7 +681,7 @@ func (m *Model) startDiffEdit(intent StartDiffEdit) tea.Cmd {
 	return m.context.RunInteractiveCommand(jj.DiffEdit(commit.GetChangeId()), common.Refresh)
 }
 
-func (m *Model) startAbsorb(intent StartAbsorb) tea.Cmd {
+func (m *Model) startAbsorb(intent intents.StartAbsorb) tea.Cmd {
 	commit := intent.Selected
 	if commit == nil {
 		commit = m.SelectedRevision()
@@ -691,7 +692,7 @@ func (m *Model) startAbsorb(intent StartAbsorb) tea.Cmd {
 	return m.context.RunCommand(jj.Absorb(commit.GetChangeId()), common.Refresh)
 }
 
-func (m *Model) startAbandon(intent StartAbandon) tea.Cmd {
+func (m *Model) startAbandon(intent intents.StartAbandon) tea.Cmd {
 	selected := intent.Selected
 	if len(selected.Revisions) == 0 {
 		selected = m.SelectedRevisions()
@@ -703,7 +704,7 @@ func (m *Model) startAbandon(intent StartAbandon) tea.Cmd {
 	return m.op.Init()
 }
 
-func (m *Model) navigate(intent Navigate) tea.Cmd {
+func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
 	if len(m.rows) == 0 {
 		return nil
 	}
@@ -731,17 +732,17 @@ func (m *Model) navigate(intent Navigate) tea.Cmd {
 	}
 
 	switch intent.Target {
-	case TargetParent:
+	case intents.TargetParent:
 		m.jumpToParent(m.SelectedRevisions())
 		m.ensureCursorView = ensureView
 		return m.updateSelection()
-	case TargetWorkingCopy:
+	case intents.TargetWorkingCopy:
 		if idx := m.selectRevision("@"); idx != -1 {
 			m.SetCursor(idx)
 		}
 		m.ensureCursorView = ensureView
 		return m.updateSelection()
-	case TargetChild:
+	case intents.TargetChild:
 		immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.SelectedRevision()))
 		if idx := m.selectRevision(string(immediate)); idx != -1 {
 			m.SetCursor(idx)
@@ -799,7 +800,7 @@ func (m *Model) navigate(intent Navigate) tea.Cmd {
 	return m.updateSelection()
 }
 
-func (m *Model) startDescribe(intent StartDescribe) tea.Cmd {
+func (m *Model) startDescribe(intent intents.StartDescribe) tea.Cmd {
 	selected := intent.Selected
 	if len(selected.Revisions) == 0 {
 		selected = m.SelectedRevisions()
@@ -810,7 +811,7 @@ func (m *Model) startDescribe(intent StartDescribe) tea.Cmd {
 	return m.context.RunInteractiveCommand(jj.Describe(selected), common.Refresh)
 }
 
-func (m *Model) startEvolog(intent StartEvolog) tea.Cmd {
+func (m *Model) startEvolog(intent intents.StartEvolog) tea.Cmd {
 	commit := intent.Selected
 	if commit == nil {
 		commit = m.SelectedRevision()
@@ -824,7 +825,7 @@ func (m *Model) startEvolog(intent StartEvolog) tea.Cmd {
 	return m.op.Init()
 }
 
-func (m *Model) startInlineDescribe(intent StartInlineDescribe) tea.Cmd {
+func (m *Model) startInlineDescribe(intent intents.StartInlineDescribe) tea.Cmd {
 	commit := intent.Selected
 	if commit == nil {
 		commit = m.SelectedRevision()
@@ -838,7 +839,7 @@ func (m *Model) startInlineDescribe(intent StartInlineDescribe) tea.Cmd {
 	return m.op.Init()
 }
 
-func (m *Model) showDiff(intent ShowDiff) tea.Cmd {
+func (m *Model) showDiff(intent intents.ShowDiff) tea.Cmd {
 	commit := intent.Selected
 	if commit == nil {
 		commit = m.SelectedRevision()
@@ -853,7 +854,7 @@ func (m *Model) showDiff(intent ShowDiff) tea.Cmd {
 	}
 }
 
-func (m *Model) startSplit(intent StartSplit) tea.Cmd {
+func (m *Model) startSplit(intent intents.StartSplit) tea.Cmd {
 	commit := intent.Selected
 	if commit == nil {
 		commit = m.SelectedRevision()

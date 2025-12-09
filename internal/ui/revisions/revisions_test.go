@@ -7,6 +7,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -53,31 +54,31 @@ func TestModel_Navigate(t *testing.T) {
 	model.SetFrame(cellbuf.Rect(0, 0, 100, 50))
 	model.updateGraphRows(rows, "a")
 
-	test.SimulateModel(model, model.Update(Navigate{Delta: 1}))
+	test.SimulateModel(model, model.Update(intents.Navigate{Delta: 1}))
 	assert.Equal(t, "b", model.SelectedRevision().ChangeId)
-	test.SimulateModel(model, model.Update(Navigate{Delta: -1}))
+	test.SimulateModel(model, model.Update(intents.Navigate{Delta: -1}))
 	assert.Equal(t, "a", model.SelectedRevision().ChangeId)
 }
 
 func TestModel_OperationIntents(t *testing.T) {
 	tests := []struct {
 		name     string
-		intent   Intent
+		intent   intents.Intent
 		expected string
 	}{
 		{
 			name:     "abandon",
-			intent:   StartAbandon{},
+			intent:   intents.StartAbandon{},
 			expected: "abandon",
 		},
 		{
 			name:     "rebase",
-			intent:   StartRebase{},
+			intent:   intents.StartRebase{},
 			expected: "rebase",
 		},
 		{
 			name:     "duplicate",
-			intent:   StartDuplicate{},
+			intent:   intents.StartDuplicate{},
 			expected: "duplicate",
 		},
 	}

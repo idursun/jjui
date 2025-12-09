@@ -7,6 +7,7 @@ import (
 
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/ui/intents"
 	lua "github.com/yuin/gopher-lua"
 
 	"github.com/idursun/jjui/internal/ui/common"
@@ -153,7 +154,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	}))
 	revisionsTable.RawSetString("refresh", L.NewFunction(func(L *lua.LState) int {
 		payload := payloadFromTop(L)
-		intent := revisions.Refresh{
+		intent := intents.Refresh{
 			KeepSelections:   boolVal(payload, "keep_selections"),
 			SelectedRevision: stringVal(payload, "selected_revision"),
 		}
@@ -162,7 +163,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	revisionsTable.RawSetString("navigate", L.NewFunction(func(L *lua.LState) int {
 		payload := payloadFromTop(L)
 		target := parseNavigateTarget(stringVal(payload, "target"))
-		intent := revisions.Navigate{
+		intent := intents.Navigate{
 			Delta:      intVal(payload, "by"),
 			Page:       boolVal(payload, "page"),
 			Target:     target,
@@ -183,24 +184,24 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	}))
 	revisionsTable.RawSetString("start_squash", L.NewFunction(func(L *lua.LState) int {
 		payload := payloadFromTop(L)
-		intent := revisions.StartSquash{
+		intent := intents.StartSquash{
 			Files: stringSlice(payload, "files"),
 		}
 		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intent)})
 	}))
 	revisionsTable.RawSetString("start_rebase", L.NewFunction(func(L *lua.LState) int {
 		payload := payloadFromTop(L)
-		intent := revisions.StartRebase{
+		intent := intents.StartRebase{
 			Source: parseRebaseSource(stringVal(payload, "source")),
 			Target: parseRebaseTarget(stringVal(payload, "target")),
 		}
 		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intent)})
 	}))
 	revisionsTable.RawSetString("open_details", L.NewFunction(func(L *lua.LState) int {
-		return yieldStep(L, step{cmd: revisions.RevisionsCmd(revisions.OpenDetails{})})
+		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intents.OpenDetails{})})
 	}))
 	revisionsTable.RawSetString("start_inline_describe", L.NewFunction(func(L *lua.LState) int {
-		return yieldStep(L, step{cmd: revisions.RevisionsCmd(revisions.StartInlineDescribe{})})
+		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intents.StartInlineDescribe{})})
 	}))
 
 	root := L.NewTable()
@@ -381,16 +382,16 @@ func boolPtr(v bool) *bool {
 	return &v
 }
 
-func parseNavigateTarget(val string) revisions.NavigationTarget {
+func parseNavigateTarget(val string) intents.NavigationTarget {
 	switch strings.ToLower(val) {
 	case "parent":
-		return revisions.TargetParent
+		return intents.TargetParent
 	case "child", "children":
-		return revisions.TargetChild
+		return intents.TargetChild
 	case "working", "working_copy", "work":
-		return revisions.TargetWorkingCopy
+		return intents.TargetWorkingCopy
 	default:
-		return revisions.TargetNone
+		return intents.TargetNone
 	}
 }
 

@@ -17,6 +17,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/operations"
 )
 
@@ -151,9 +152,10 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 			s.confirmation = model
 			return s.confirmation.Init()
 		case key.Matches(msg, s.keyMap.Details.Squash):
-			return func() tea.Msg {
-				return common.StartSquashOperationMsg{Revision: s.revision, Files: s.getSelectedFiles(true)}
-			}
+			return intents.Invoke(intents.StartSquash{
+				Selected: jj.NewSelectedRevisions(s.revision),
+				Files:    s.getSelectedFiles(true),
+			})
 		case key.Matches(msg, s.keyMap.Details.Restore):
 			selectedFiles := s.getSelectedFiles(true)
 			selected := s.current()

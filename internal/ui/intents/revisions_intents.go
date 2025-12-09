@@ -1,21 +1,10 @@
-package revisions
+package intents
 
 import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/operations/revert"
 )
-
-// Intent represents a high-level action the revisions view can perform.
-// It decouples inputs (keyboard/mouse/macros) from the actual capability.
-type Intent interface {
-	//apply(*Model) tea.Cmd
-	isIntent()
-}
-
-type RevisionsIntent interface {
-	Intent
-}
 
 type OpenDetails struct{}
 
