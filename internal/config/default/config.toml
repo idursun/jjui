@@ -3,6 +3,8 @@ limit = 0
 [keys]
   up = ["up", "k"]
   down = ["down", "j"]
+  scroll_up = ["pgup"]
+  scroll_down = ["pgdown"]
   jump_to_parent = ["J"]
   jump_to_children = ["K"]
   jump_to_working_copy = ["@"]

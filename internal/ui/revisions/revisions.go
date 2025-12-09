@@ -48,11 +48,6 @@ var (
 	_ common.IMouseAware = (*Model)(nil)
 )
 
-var (
-	pageDownKey = key.NewBinding(key.WithKeys("pgdown"))
-	pageUpKey   = key.NewBinding(key.WithKeys("pgup"))
-)
-
 type Model struct {
 	*common.ViewNode
 	*common.MouseAware
@@ -415,10 +410,10 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, m.keymap.Up, pageUpKey):
-			return m.handleIntent(intents.Navigate{Delta: -1, Page: key.Matches(msg, pageUpKey)})
-		case key.Matches(msg, m.keymap.Down, pageDownKey):
-			return m.handleIntent(intents.Navigate{Delta: 1, Page: key.Matches(msg, pageDownKey)})
+		case key.Matches(msg, m.keymap.Up, m.keymap.ScrollUp):
+			return m.handleIntent(intents.Navigate{Delta: -1, Page: key.Matches(msg, m.keymap.ScrollUp)})
+		case key.Matches(msg, m.keymap.Down, m.keymap.ScrollDown):
+			return m.handleIntent(intents.Navigate{Delta: 1, Page: key.Matches(msg, m.keymap.ScrollDown)})
 		case key.Matches(msg, m.keymap.JumpToParent):
 			return m.handleIntent(intents.Navigate{Target: intents.TargetParent})
 		case key.Matches(msg, m.keymap.JumpToChildren):

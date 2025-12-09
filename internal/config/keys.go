@@ -10,6 +10,8 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 	return KeyMappings[key.Binding]{
 		Up:                key.NewBinding(key.WithKeys(m.Up...), key.WithHelp(JoinKeys(m.Up), "up")),
 		Down:              key.NewBinding(key.WithKeys(m.Down...), key.WithHelp(JoinKeys(m.Down), "down")),
+		ScrollUp:          key.NewBinding(key.WithKeys(m.ScrollUp...), key.WithHelp(JoinKeys(m.ScrollUp), "scroll up")),
+		ScrollDown:        key.NewBinding(key.WithKeys(m.ScrollDown...), key.WithHelp(JoinKeys(m.ScrollDown), "scroll down")),
 		JumpToParent:      key.NewBinding(key.WithKeys(m.JumpToParent...), key.WithHelp(JoinKeys(m.JumpToParent), "jump to parent")),
 		JumpToChildren:    key.NewBinding(key.WithKeys(m.JumpToChildren...), key.WithHelp(JoinKeys(m.JumpToChildren), "jump to children")),
 		JumpToWorkingCopy: key.NewBinding(key.WithKeys(m.JumpToWorkingCopy...), key.WithHelp(JoinKeys(m.JumpToWorkingCopy), "jump to working copy")),
@@ -160,6 +162,8 @@ type keys []string
 type KeyMappings[T any] struct {
 	Up                T                         `toml:"up"`
 	Down              T                         `toml:"down"`
+	ScrollUp          T                         `toml:"scroll_up"`
+	ScrollDown        T                         `toml:"scroll_down"`
 	JumpToParent      T                         `toml:"jump_to_parent"`
 	JumpToChildren    T                         `toml:"jump_to_children"`
 	JumpToWorkingCopy T                         `toml:"jump_to_working_copy"`
