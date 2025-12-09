@@ -136,14 +136,14 @@ func (r *Runner) Done() bool {
 
 func registerAPI(L *lua.LState, runner *Runner) {
 	revisionsTable := L.NewTable()
-	revisionsTable.RawSetString("current_change_id", L.NewFunction(func(L *lua.LState) int {
+	revisionsTable.RawSetString("current", L.NewFunction(func(L *lua.LState) int {
 		if rev, ok := runner.ctx.SelectedItem.(uicontext.SelectedRevision); ok {
 			L.Push(lua.LString(rev.ChangeId))
 			return 1
 		}
 		return 0
 	}))
-	revisionsTable.RawSetString("selected_revisions", L.NewFunction(func(L *lua.LState) int {
+	revisionsTable.RawSetString("checked", L.NewFunction(func(L *lua.LState) int {
 		tbl := L.NewTable()
 		for _, item := range runner.ctx.CheckedItems {
 			if rev, ok := item.(uicontext.SelectedRevision); ok {
@@ -222,14 +222,11 @@ func registerAPI(L *lua.LState, runner *Runner) {
 		return 1
 	}))
 
-	root := L.NewTable()
-	root.RawSetString("revisions", revisionsTable)
-	root.RawSetString("revset", revsetTable)
-	root.RawSetString("run_async", L.NewFunction(func(L *lua.LState) int {
+	runAsyncFn := L.NewFunction(func(L *lua.LState) int {
 		args := argsFromLua(L)
 		return yieldStep(L, step{cmd: runner.ctx.RunCommand(args)})
-	}))
-	root.RawSetString("jj", L.NewFunction(func(L *lua.LState) int {
+	})
+	jjFn := L.NewFunction(func(L *lua.LState) int {
 		args := argsFromLua(L)
 		out, err := runner.ctx.RunCommandImmediate(args)
 		if err != nil {
@@ -240,12 +237,12 @@ func registerAPI(L *lua.LState, runner *Runner) {
 		L.Push(lua.LString(out))
 		L.Push(lua.LNil)
 		return 2
-	}))
-	root.RawSetString("flash", L.NewFunction(func(L *lua.LState) int {
+	})
+	flashFn := L.NewFunction(func(L *lua.LState) int {
 		msg := L.CheckString(1)
 		return yieldStep(L, step{cmd: flash.Cmd(flash.AddMessage{Text: msg})})
-	}))
-	root.RawSetString("copy_to_clipboard", L.NewFunction(func(L *lua.LState) int {
+	})
+	copyToClipboardFn := L.NewFunction(func(L *lua.LState) int {
 		text := L.CheckString(1)
 		if err := clipboard.WriteAll(text); err != nil {
 			L.Push(lua.LNil)
@@ -255,8 +252,25 @@ func registerAPI(L *lua.LState, runner *Runner) {
 		L.Push(lua.LBool(true))
 		L.Push(lua.LNil)
 		return 2
-	}))
+	})
+
+	// make sure we have a `jjui` namespace
+	root := L.NewTable()
+	root.RawSetString("revisions", revisionsTable)
+	root.RawSetString("revset", revsetTable)
+	root.RawSetString("jj_async", runAsyncFn)
+	root.RawSetString("jj", jjFn)
+	root.RawSetString("flash", flashFn)
+	root.RawSetString("copy_to_clipboard", copyToClipboardFn)
 	L.SetGlobal("jjui", root)
+
+	// but also expose at the top level for convenience
+	L.SetGlobal("revisions", revisionsTable)
+	L.SetGlobal("revset", revsetTable)
+	L.SetGlobal("jj_async", runAsyncFn)
+	L.SetGlobal("jj", jjFn)
+	L.SetGlobal("flash", flashFn)
+	L.SetGlobal("copy_to_clipboard", copyToClipboardFn)
 }
 
 func payloadFromTop(L *lua.LState) map[string]any {
