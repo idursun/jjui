@@ -1,7 +1,6 @@
 package revisions
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/operations/revert"
@@ -10,23 +9,24 @@ import (
 // Intent represents a high-level action the revisions view can perform.
 // It decouples inputs (keyboard/mouse/macros) from the actual capability.
 type Intent interface {
-	apply(*Model) tea.Cmd
+	//apply(*Model) tea.Cmd
+	isIntent()
+}
+
+type RevisionsIntent interface {
+	Intent
 }
 
 type OpenDetails struct{}
 
-func (OpenDetails) apply(m *Model) tea.Cmd {
-	return m.openDetails(OpenDetails{})
-}
+func (OpenDetails) isIntent() {}
 
 type StartSquash struct {
 	Selected jj.SelectedRevisions
 	Files    []string
 }
 
-func (s StartSquash) apply(m *Model) tea.Cmd {
-	return m.startSquash(s)
-}
+func (StartSquash) isIntent() {}
 
 type StartRebase struct {
 	Selected jj.SelectedRevisions
@@ -34,50 +34,38 @@ type StartRebase struct {
 	Target   rebase.Target
 }
 
-func (s StartRebase) apply(m *Model) tea.Cmd {
-	return m.startRebase(s)
-}
+func (StartRebase) isIntent() {}
 
 type StartRevert struct {
 	Selected jj.SelectedRevisions
 	Target   revert.Target
 }
 
-func (s StartRevert) apply(m *Model) tea.Cmd {
-	return m.startRevert(s)
-}
+func (StartRevert) isIntent() {}
 
 type StartDescribe struct {
 	Selected jj.SelectedRevisions
 }
 
-func (s StartDescribe) apply(m *Model) tea.Cmd {
-	return m.startDescribe(s)
-}
+func (StartDescribe) isIntent() {}
 
 type StartInlineDescribe struct {
 	Selected *jj.Commit
 }
 
-func (s StartInlineDescribe) apply(m *Model) tea.Cmd {
-	return m.startInlineDescribe(s)
-}
+func (StartInlineDescribe) isIntent() {}
 
 type StartEvolog struct {
 	Selected *jj.Commit
 }
 
-func (s StartEvolog) apply(m *Model) tea.Cmd {
-	return m.startEvolog(s)
-}
+func (StartEvolog) isIntent() {}
 
 type ShowDiff struct {
 	Selected *jj.Commit
 }
 
-func (s ShowDiff) apply(m *Model) tea.Cmd {
-	return m.showDiff(s)
-}
+func (ShowDiff) isIntent() {}
 
 type StartSplit struct {
 	Selected   *jj.Commit
@@ -85,9 +73,7 @@ type StartSplit struct {
 	Files      []string
 }
 
-func (s StartSplit) apply(m *Model) tea.Cmd {
-	return m.startSplit(s)
-}
+func (StartSplit) isIntent() {}
 
 type NavigationTarget int
 
@@ -108,78 +94,58 @@ type Navigate struct {
 	AllowStream *bool            // defaults to true when nil
 }
 
-func (n Navigate) apply(m *Model) tea.Cmd {
-	return m.navigate(n)
-}
+func (Navigate) isIntent() {}
 
 type StartNew struct {
 	Selected jj.SelectedRevisions
 }
 
-func (s StartNew) apply(m *Model) tea.Cmd {
-	return m.startNew(s)
-}
+func (StartNew) isIntent() {}
 
 type CommitWorkingCopy struct{}
 
-func (CommitWorkingCopy) apply(m *Model) tea.Cmd {
-	return m.commitWorkingCopy()
-}
+func (CommitWorkingCopy) isIntent() {}
 
 type StartEdit struct {
 	Selected        *jj.Commit
 	IgnoreImmutable bool
 }
 
-func (s StartEdit) apply(m *Model) tea.Cmd {
-	return m.startEdit(s)
-}
+func (StartEdit) isIntent() {}
 
 type StartDiffEdit struct {
 	Selected *jj.Commit
 }
 
-func (s StartDiffEdit) apply(m *Model) tea.Cmd {
-	return m.startDiffEdit(s)
-}
+func (StartDiffEdit) isIntent() {}
 
 type StartAbsorb struct {
 	Selected *jj.Commit
 }
 
-func (s StartAbsorb) apply(m *Model) tea.Cmd {
-	return m.startAbsorb(s)
-}
+func (StartAbsorb) isIntent() {}
 
 type StartAbandon struct {
 	Selected jj.SelectedRevisions
 }
 
-func (s StartAbandon) apply(m *Model) tea.Cmd {
-	return m.startAbandon(s)
-}
+func (StartAbandon) isIntent() {}
 
 type StartDuplicate struct {
 	Selected jj.SelectedRevisions
 }
 
-func (s StartDuplicate) apply(m *Model) tea.Cmd {
-	return m.startDuplicate(s)
-}
+func (StartDuplicate) isIntent() {}
 
 type SetParents struct {
 	Selected *jj.Commit
 }
 
-func (s SetParents) apply(m *Model) tea.Cmd {
-	return m.startSetParents(s)
-}
+func (SetParents) isIntent() {}
 
 type Refresh struct {
 	KeepSelections   bool
 	SelectedRevision string
 }
 
-func (r Refresh) apply(m *Model) tea.Cmd {
-	return m.refresh(r)
-}
+func (Refresh) isIntent() {}

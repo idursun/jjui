@@ -284,8 +284,47 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case Intent:
-		return msg.apply(m)
+	case RevisionsIntent:
+		switch intent := msg.(type) {
+		case OpenDetails:
+			return m.openDetails(intent)
+		case StartSquash:
+			return m.startSquash(intent)
+		case StartInlineDescribe:
+			return m.startInlineDescribe(intent)
+		case StartAbsorb:
+			return m.startAbsorb(intent)
+		case StartAbandon:
+			return m.startAbandon(intent)
+		case StartNew:
+			return m.startNew(intent)
+		case CommitWorkingCopy:
+			return m.commitWorkingCopy()
+		case StartEdit:
+			return m.startEdit(intent)
+		case StartDiffEdit:
+			return m.startDiffEdit(intent)
+		case StartRevert:
+			return m.startRevert(intent)
+		case StartDuplicate:
+			return m.startDuplicate(intent)
+		case SetParents:
+			return m.startSetParents(intent)
+		case Navigate:
+			return m.navigate(intent)
+		case StartDescribe:
+			return m.startDescribe(intent)
+		case StartEvolog:
+			return m.startEvolog(intent)
+		case ShowDiff:
+			return m.showDiff(intent)
+		case StartSplit:
+			return m.startSplit(intent)
+		case StartRebase:
+			return m.startRebase(intent)
+		case Refresh:
+			return m.refresh(intent)
+		}
 	case tea.MouseMsg:
 		switch msg.Action {
 		case tea.MouseActionPress:
@@ -392,7 +431,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		}
 		return tea.Batch(cmds...)
 	case common.StartSquashOperationMsg:
-		return m.applyIntent(StartSquash{
+		return m.Update(StartSquash{
 			Selected: jj.NewSelectedRevisions(msg.Revision),
 			Files:    msg.Files,
 		})
@@ -415,15 +454,15 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keymap.Up, pageUpKey):
-			return m.applyIntent(Navigate{Delta: -1, Page: key.Matches(msg, pageUpKey)})
+			return m.Update(Navigate{Delta: -1, Page: key.Matches(msg, pageUpKey)})
 		case key.Matches(msg, m.keymap.Down, pageDownKey):
-			return m.applyIntent(Navigate{Delta: 1, Page: key.Matches(msg, pageDownKey)})
+			return m.Update(Navigate{Delta: 1, Page: key.Matches(msg, pageDownKey)})
 		case key.Matches(msg, m.keymap.JumpToParent):
-			return m.applyIntent(Navigate{Target: TargetParent})
+			return m.Update(Navigate{Target: TargetParent})
 		case key.Matches(msg, m.keymap.JumpToChildren):
-			return m.applyIntent(Navigate{Target: TargetChild})
+			return m.Update(Navigate{Target: TargetChild})
 		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
-			return m.applyIntent(Navigate{Target: TargetWorkingCopy})
+			return m.Update(Navigate{Target: TargetWorkingCopy})
 		case key.Matches(msg, m.keymap.AceJump):
 			op := ace_jump.NewOperation(m, func(index int) parser.Row {
 				return m.rows[index]
@@ -453,56 +492,52 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				m.renderer.Reset()
 				return nil
 			case key.Matches(msg, m.keymap.Details.Mode):
-				return m.applyIntent(OpenDetails{})
+				return m.Update(OpenDetails{})
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
-				return m.applyIntent(StartInlineDescribe{})
+				return m.Update(StartInlineDescribe{})
 			case key.Matches(msg, m.keymap.New):
-				return m.applyIntent(StartNew{})
+				return m.Update(StartNew{})
 			case key.Matches(msg, m.keymap.Commit):
-				return m.applyIntent(CommitWorkingCopy{})
+				return m.Update(CommitWorkingCopy{})
 			case key.Matches(msg, m.keymap.Edit, m.keymap.ForceEdit):
 				ignoreImmutable := key.Matches(msg, m.keymap.ForceEdit)
-				return m.applyIntent(StartEdit{IgnoreImmutable: ignoreImmutable})
+				return m.Update(StartEdit{IgnoreImmutable: ignoreImmutable})
 			case key.Matches(msg, m.keymap.Diffedit):
-				return m.applyIntent(StartDiffEdit{})
+				return m.Update(StartDiffEdit{})
 			case key.Matches(msg, m.keymap.Absorb):
-				return m.applyIntent(StartAbsorb{})
+				return m.Update(StartAbsorb{})
 			case key.Matches(msg, m.keymap.Abandon):
-				return m.applyIntent(StartAbandon{})
+				return m.Update(StartAbandon{})
 			case key.Matches(msg, m.keymap.Bookmark.Set):
 				m.op = bookmark.NewSetBookmarkOperation(m.context, m.SelectedRevision().GetChangeId())
 				return m.op.Init()
 			case key.Matches(msg, m.keymap.Split, m.keymap.SplitParallel):
-				return m.applyIntent(StartSplit{
+				return m.Update(StartSplit{
 					IsParallel: key.Matches(msg, m.keymap.SplitParallel),
 				})
 			case key.Matches(msg, m.keymap.Describe):
-				return m.applyIntent(StartDescribe{})
+				return m.Update(StartDescribe{})
 			case key.Matches(msg, m.keymap.Evolog.Mode):
-				return m.applyIntent(StartEvolog{})
+				return m.Update(StartEvolog{})
 			case key.Matches(msg, m.keymap.Diff):
-				return m.applyIntent(ShowDiff{})
+				return m.Update(ShowDiff{})
 			case key.Matches(msg, m.keymap.Refresh):
-				return m.applyIntent(Refresh{})
+				return m.Update(Refresh{})
 			case key.Matches(msg, m.keymap.Squash.Mode):
-				return m.applyIntent(StartSquash{})
+				return m.Update(StartSquash{})
 			case key.Matches(msg, m.keymap.Revert.Mode):
-				return m.applyIntent(StartRevert{})
+				return m.Update(StartRevert{})
 			case key.Matches(msg, m.keymap.Rebase.Mode):
-				return m.applyIntent(StartRebase{})
+				return m.Update(StartRebase{})
 			case key.Matches(msg, m.keymap.Duplicate.Mode):
-				return m.applyIntent(StartDuplicate{})
+				return m.Update(StartDuplicate{})
 			case key.Matches(msg, m.keymap.SetParents):
-				return m.applyIntent(SetParents{})
+				return m.Update(SetParents{})
 			}
 		}
 	}
 
 	return cmd
-}
-
-func (m *Model) applyIntent(intent Intent) tea.Cmd {
-	return intent.apply(m)
 }
 
 func (m *Model) refresh(intent Refresh) tea.Cmd {
