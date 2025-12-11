@@ -27,7 +27,7 @@ var (
 	targetToFlags = map[Target]string{
 		TargetAfter:       "--insert-after",
 		TargetBefore:      "--insert-before",
-		TargetDestination: "--destination",
+		TargetDestination: "--onto",
 	}
 )
 
