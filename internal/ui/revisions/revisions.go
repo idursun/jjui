@@ -443,7 +443,10 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				m.context.ToggleCheckedItem(item)
 				m.jumpToParent(jj.NewSelectedRevisions(commit))
 			case key.Matches(msg, m.keymap.Cancel):
+				m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
 				m.op = operations.NewDefault()
+				m.renderer.Reset()
+				return nil
 			case key.Matches(msg, m.keymap.QuickSearchCycle):
 				m.SetCursor(m.search(m.cursor + 1))
 				m.renderer.Reset()
