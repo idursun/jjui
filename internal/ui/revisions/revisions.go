@@ -3,7 +3,9 @@ package revisions
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"reflect"
 	"slices"
@@ -325,6 +327,9 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			m.previousOpLogId = currentOperationId
 			return common.RefreshAndKeepSelections
 		}
+	case common.UpdateRevisionsFailedMsg:
+		m.isLoading = false
+		return nil
 	case common.RefreshMsg:
 		return tea.Batch(m.refresh(intents.Refresh{
 			KeepSelections:   msg.KeepSelections,
@@ -975,10 +980,18 @@ func (m *Model) loadStreaming(revset string, selectedRevision string, tag uint64
 	var cmds []tea.Cmd
 	streamer, err := graph.NewGraphStreamer(context.Background(), m.context, revset, m.context.JJConfig.Templates.Log)
 	if err != nil {
+		var errMsg string
+		if err == io.EOF {
+			errMsg = fmt.Sprintf("No revisions found for revset `%s`", revset)
+			err = errors.New(errMsg)
+		} else {
+			errMsg = fmt.Sprintf("%v", err)
+		}
+
 		cmds = append(cmds, func() tea.Msg {
 			return common.UpdateRevisionsFailedMsg{
 				Err:    err,
-				Output: fmt.Sprintf("%v", err),
+				Output: errMsg,
 			}
 		})
 	}
