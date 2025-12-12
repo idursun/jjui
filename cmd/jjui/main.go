@@ -64,10 +64,14 @@ func init() {
 }
 
 func getJJRootDir(location string) (string, error) {
-	cmd := exec.Command("jj", "root")
+	cmd := exec.Command("jj", "root", "--color=always")
 	cmd.Dir = location
+
 	output, err := cmd.Output()
 	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return "", fmt.Errorf("%s", strings.TrimSpace(string(exitErr.Stderr)))
+		}
 		return "", err
 	}
 	return strings.TrimSpace(string(output)), nil
@@ -103,7 +107,7 @@ func main() {
 
 	rootLocation, err := getJJRootDir(location)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: There is no jj repo in \"%s\".\n", location)
+		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
 
