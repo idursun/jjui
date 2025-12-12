@@ -19,18 +19,19 @@ import (
 
 type step struct {
 	cmd     tea.Cmd
-	matcher func(tea.Msg) bool
+	matcher func(tea.Msg) (bool, []lua.LValue)
 }
 
 type Runner struct {
-	ctx     *uicontext.MainContext
-	main    *lua.LState
-	thread  *lua.LState
-	cancel  stdcontext.CancelFunc
-	fn      *lua.LFunction
-	started bool
-	await   func(tea.Msg) bool
-	done    bool
+	ctx        *uicontext.MainContext
+	main       *lua.LState
+	thread     *lua.LState
+	cancel     stdcontext.CancelFunc
+	fn         *lua.LFunction
+	started    bool
+	await      func(tea.Msg) (bool, []lua.LValue)
+	resumeArgs []lua.LValue
+	done       bool
 }
 
 func RunScript(ctx *uicontext.MainContext, src string) (*Runner, tea.Cmd, error) {
@@ -75,7 +76,9 @@ func (r *Runner) resume() tea.Cmd {
 		if !r.started {
 			fn = r.fn
 		}
-		state, err, values := r.main.Resume(r.thread, fn)
+		args := r.resumeArgs
+		r.resumeArgs = nil
+		state, err, values := r.main.Resume(r.thread, fn, args...)
 		r.started = true
 		if err != nil {
 			r.done = true
@@ -118,10 +121,12 @@ func (r *Runner) HandleMsg(msg tea.Msg) tea.Cmd {
 	if r.await == nil {
 		return nil
 	}
-	if !r.await(msg) {
+	ok, resume := r.await(msg)
+	if !ok {
 		return nil
 	}
 	r.await = nil
+	r.resumeArgs = resume
 	cmd := r.resume()
 	if r.done {
 		r.close()
@@ -201,7 +206,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intents.OpenDetails{})})
 	}))
 	revisionsTable.RawSetString("start_inline_describe", L.NewFunction(func(L *lua.LState) int {
-		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intents.StartInlineDescribe{})})
+		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intents.StartInlineDescribe{}), matcher: matchCloseViewMsg})
 	}))
 
 	revsetTable := L.NewTable()
@@ -427,12 +432,12 @@ func parseNavigateTarget(val string) intents.NavigationTarget {
 	}
 }
 
-func matchUpdateRevisionsSuccess(msg tea.Msg) bool {
+func matchUpdateRevisionsSuccess(msg tea.Msg) (bool, []lua.LValue) {
 	switch msg.(type) {
 	case common.UpdateRevisionsSuccessMsg, common.UpdateRevisionsFailedMsg:
-		return true
+		return true, nil
 	default:
-		return false
+		return false, nil
 	}
 }
 
@@ -458,4 +463,11 @@ func parseRebaseTarget(val string) rebase.Target {
 	default:
 		return rebase.TargetDestination
 	}
+}
+
+func matchCloseViewMsg(msg tea.Msg) (bool, []lua.LValue) {
+	if closeMsg, ok := msg.(common.CloseViewMsg); ok {
+		return true, []lua.LValue{lua.LBool(closeMsg.Applied)}
+	}
+	return false, nil
 }

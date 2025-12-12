@@ -90,11 +90,11 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 			selectedRevisions := jj.NewSelectedRevisions(o.revision)
 			return o.context.RunCommand(
 				jj.SetDescription(o.revision.GetChangeId(), o.input.Value()),
-				common.Close,
+				common.CloseApplied,
 				o.context.RunInteractiveCommand(jj.Describe(selectedRevisions), common.Refresh),
 			)
 		case key.Matches(msg, o.keyMap.InlineDescribe.Accept):
-			return o.context.RunCommand(jj.SetDescription(o.revision.GetChangeId(), o.input.Value()), common.Close, common.Refresh)
+			return o.context.RunCommand(jj.SetDescription(o.revision.GetChangeId(), o.input.Value()), common.CloseApplied, common.Refresh)
 		}
 	}
 
