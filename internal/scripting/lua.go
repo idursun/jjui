@@ -210,6 +210,11 @@ func registerAPI(L *lua.LState, runner *Runner) {
 		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intents.StartInlineDescribe{}), matcher: matchCloseViewMsg})
 	}))
 
+	previewTable := L.NewTable()
+	previewTable.RawSetString("toggle_visible", L.NewFunction(func(L *lua.LState) int {
+		return yieldStep(L, step{cmd: func() tea.Msg { return common.TogglePreviewMsg{} }})
+	}))
+
 	revsetTable := L.NewTable()
 	revsetTable.RawSetString("set", L.NewFunction(func(L *lua.LState) int {
 		value := L.CheckString(1)
@@ -310,6 +315,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	root := L.NewTable()
 	root.RawSetString("revisions", revisionsTable)
 	root.RawSetString("revset", revsetTable)
+	root.RawSetString("preview", previewTable)
 	root.RawSetString("jj_async", jjAsyncFn)
 	root.RawSetString("jj_interactive", jjInteractiveFn)
 	root.RawSetString("jj", jjFn)
@@ -322,6 +328,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	// but also expose at the top level for convenience
 	L.SetGlobal("revisions", revisionsTable)
 	L.SetGlobal("revset", revsetTable)
+	L.SetGlobal("preview", previewTable)
 	L.SetGlobal("jj_async", jjAsyncFn)
 	L.SetGlobal("jj_interactive", jjInteractiveFn)
 	L.SetGlobal("jj", jjFn)

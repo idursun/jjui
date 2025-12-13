@@ -48,7 +48,7 @@ func (i item) Description() string {
 	return i.desc
 }
 
-var _ common.Model = (*Model)(nil)
+var _ common.SizableModel = (*Model)(nil)
 
 // SortedCustomCommands returns commands ordered by name for deterministic iteration.
 func SortedCustomCommands(ctx *context.MainContext) []context.CustomCommand {
@@ -71,6 +71,10 @@ type Model struct {
 	keymap  config.KeyMappings[key.Binding]
 	menu    menu.Menu
 	help    help.Model
+}
+
+func (m *Model) Name() string {
+	return "custom_commands"
 }
 
 func (m *Model) ShortHelp() []key.Binding {

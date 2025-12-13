@@ -14,6 +14,12 @@ import (
 var configFS embed.FS
 
 var Current = loadDefaultConfig()
+var defaultConfigData string
+
+// DefaultConfigData returns the embedded default config contents.
+func DefaultConfigData() string {
+	return defaultConfigData
+}
 
 type Config struct {
 	Keys      KeyMappings[keys] `toml:"keys"`

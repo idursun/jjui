@@ -114,8 +114,6 @@ limit = 0
     down = ["down"]
     accept = ["enter"]
     edit = ["alt+e"]
-
-
 [ui]
   theme = ""
   auto_refresh_interval = 0
@@ -150,3 +148,36 @@ limit = 0
 
 [ssh]
   hijack_askpass = false
+
+[[keybindings]]
+keys = ["n"]
+action = "revisions.new"
+when = "revisions.focused"
+
+[[keybindings]]
+keys = ["p"]
+action = "preview.toggle"
+when = "revisions.focused"
+
+[[keybindings]]
+keys = ["E"]
+action = "revisions.diffedit"
+when = "revisions.focused"
+
+[actions."revisions.new"]
+lua = '''
+jj("new")
+revisions.refresh()
+revisions.navigate{to="@"}
+'''
+
+[actions."revisions.diffedit"]
+lua = '''
+jj_interactive("diffedit", "-r", revisions.current())
+revisions.refresh()
+'''
+
+[actions."preview.toggle"]
+lua = '''
+jjui.preview.toggle_visible()
+'''

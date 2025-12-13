@@ -7,3 +7,9 @@ type Model interface {
 	Update(msg tea.Msg) tea.Cmd
 	View() string
 }
+
+type SizableModel interface {
+	Model
+	IViewNode
+	Name() string
+}

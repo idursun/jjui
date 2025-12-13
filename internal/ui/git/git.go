@@ -54,7 +54,7 @@ type styles struct {
 	noRemoteStyle lipgloss.Style
 }
 
-var _ common.Model = (*Model)(nil)
+var _ common.SizableModel = (*Model)(nil)
 
 type Model struct {
 	*common.ViewNode
@@ -65,6 +65,10 @@ type Model struct {
 	remoteNames       []string
 	selectedRemoteIdx int
 	styles            styles
+}
+
+func (m *Model) Name() string {
+	return "git"
 }
 
 func (m *Model) ShortHelp() []key.Binding {

@@ -14,7 +14,9 @@ import (
 	"unicode"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/actions"
 	"github.com/idursun/jjui/internal/askpass"
+	"github.com/idursun/jjui/internal/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 
 	"github.com/idursun/jjui/internal/config"
@@ -138,6 +140,18 @@ func run() int {
 
 	appContext := context.NewAppContext(rootLocation, askpassServer)
 	defer appContext.Histories.Flush()
+	if actionsRegistry, err := actions.Load(config.DefaultConfigData()); err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading embedded actions: %v\n", err)
+		os.Exit(1)
+	} else {
+		appContext.Actions = actionsRegistry
+	}
+	if defaultBindings, err := bindings.Load(config.DefaultConfigData()); err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading embedded keybindings: %v\n", err)
+		os.Exit(1)
+	} else {
+		appContext.KeyBindings = defaultBindings
+	}
 	if output, err := config.LoadConfigFile(); err == nil {
 		if err := config.Current.Load(string(output)); err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
@@ -154,6 +168,20 @@ func run() int {
 			return 1
 		} else {
 			appContext.Leader = registry
+		}
+		if registry, err := actions.Load(string(output)); err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading actions: %v\n", err)
+			os.Exit(1)
+		} else {
+			for k, v := range registry {
+				appContext.Actions[k] = v
+			}
+		}
+		if loadedBindings, err := bindings.Load(string(output)); err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading keybindings: %v\n", err)
+			os.Exit(1)
+		} else {
+			appContext.KeyBindings = append(appContext.KeyBindings, loadedBindings...)
 		}
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)

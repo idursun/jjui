@@ -85,12 +85,6 @@ type Navigate struct {
 
 func (Navigate) isIntent() {}
 
-type StartNew struct {
-	Selected jj.SelectedRevisions
-}
-
-func (StartNew) isIntent() {}
-
 type CommitWorkingCopy struct{}
 
 func (CommitWorkingCopy) isIntent() {}
@@ -101,12 +95,6 @@ type StartEdit struct {
 }
 
 func (StartEdit) isIntent() {}
-
-type StartDiffEdit struct {
-	Selected *jj.Commit
-}
-
-func (StartDiffEdit) isIntent() {}
 
 type StartAbsorb struct {
 	Selected *jj.Commit

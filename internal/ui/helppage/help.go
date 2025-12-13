@@ -30,7 +30,7 @@ type helpMenu struct {
 	rightList     menuColumn
 }
 
-var _ common.Model = (*Model)(nil)
+var _ common.SizableModel = (*Model)(nil)
 
 type Model struct {
 	*common.ViewNode
@@ -40,6 +40,10 @@ type Model struct {
 	defaultMenu  helpMenu
 	filteredMenu helpMenu
 	searchQuery  textinput.Model
+}
+
+func (h *Model) Name() string {
+	return "help"
 }
 
 type styles struct {

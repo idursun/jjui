@@ -53,8 +53,9 @@ type (
 		Commit       *jj.Commit
 		RawFileOut   []byte // raw output from `jj file list`
 	}
-	ShowPreview     bool
-	RunLuaScriptMsg struct {
+	ShowPreview      bool
+	TogglePreviewMsg struct{}
+	RunLuaScriptMsg  struct {
 		Script string
 	}
 	TogglePasswordMsg struct {

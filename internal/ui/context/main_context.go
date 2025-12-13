@@ -5,7 +5,9 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/idursun/jjui/internal/actions"
 	"github.com/idursun/jjui/internal/askpass"
+	"github.com/idursun/jjui/internal/bindings"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -64,6 +66,8 @@ type MainContext struct {
 	DefaultRevset  string
 	CurrentRevset  string
 	Histories      *config.Histories
+	KeyBindings    []bindings.KeyBinding
+	Actions        map[string]actions.Action
 }
 
 func NewAppContext(location string, aps *askpass.Server) *MainContext {
@@ -175,4 +179,22 @@ func (ctx *MainContext) GetSelectedRevisions() map[string]bool {
 		}
 	}
 	return selectedRevisions
+}
+
+// ActionCmd returns a command that triggers the named action if it exists.
+func (ctx *MainContext) ActionCmd(name string) tea.Cmd {
+	if ctx.Actions == nil {
+		return nil
+	}
+	action, ok := ctx.Actions[name]
+	if !ok {
+		return nil
+	}
+	script := strings.TrimSpace(action.Lua)
+	if script == "" {
+		return nil
+	}
+	return func() tea.Msg {
+		return common.RunLuaScriptMsg{Script: script}
+	}
 }

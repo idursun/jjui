@@ -11,11 +11,15 @@ import (
 	"github.com/idursun/jjui/internal/ui/context"
 )
 
-var _ common.Model = (*Model)(nil)
+var _ common.SizableModel = (*Model)(nil)
 
 type Model struct {
 	*common.ViewNode
 	confirmation *confirmation.Model
+}
+
+func (m *Model) Name() string {
+	return "redo"
 }
 
 func (m *Model) ShortHelp() []key.Binding {

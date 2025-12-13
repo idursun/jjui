@@ -17,6 +17,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/bindings"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/bookmarks"
@@ -40,11 +41,6 @@ import (
 
 var _ common.Model = (*Model)(nil)
 
-type SizableModel interface {
-	common.Model
-	common.IViewNode
-}
-
 type Model struct {
 	*common.ViewNode
 	revisions       *revisions.Model
@@ -60,7 +56,7 @@ type Model struct {
 	context         *context.MainContext
 	scriptRunner    *scripting.Runner
 	keyMap          config.KeyMappings[key.Binding]
-	stacked         SizableModel
+	stacked         common.SizableModel
 	dragTarget      common.Draggable
 	sequenceOverlay *customcommands.SequenceOverlay
 }
@@ -211,6 +207,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case tea.KeyMsg:
+		if cmd, handled := m.dispatchActionByKey(msg); handled {
+			return cmd
+		}
+
 		// Forward all key presses to the custom sequence handler first.
 		wasPartialSequenceMatch := m.sequenceOverlay != nil
 		if cmd := m.handleCustomCommandSequence(msg); cmd != nil || m.sequenceOverlay != nil {
@@ -268,7 +268,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			cmds = append(cmds, common.ToggleHelp)
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Preview.Mode, m.keyMap.Preview.ToggleBottom):
-			if key.Matches(msg, m.keyMap.Preview.ToggleBottom) {
+			isToggleBottom := key.Matches(msg, m.keyMap.Preview.ToggleBottom)
+			if !isToggleBottom {
+				if cmd, handled := m.dispatchAction("preview.toggle", map[string]any{
+					"preview.visible": m.previewModel.Visible(),
+				}); handled {
+					return cmd
+				}
+			}
+			if isToggleBottom {
 				previewPos := m.previewModel.AtBottom()
 				m.previewModel.SetPosition(false, !previewPos)
 				if m.previewModel.Visible() {
@@ -378,6 +386,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.previewModel.SetVisible(bool(msg))
 		cmds = append(cmds, common.SelectionChanged)
 		return tea.Batch(cmds...)
+	case common.TogglePreviewMsg:
+		m.previewModel.ToggleVisible()
+		cmds = append(cmds, common.SelectionChanged)
+		return tea.Batch(cmds...)
 	case common.TogglePasswordMsg:
 		if m.password != nil {
 			// let the current prompt clean itself
@@ -454,6 +466,46 @@ func (m *Model) UpdatePreviewPosition() {
 		atBottom := m.Height >= m.Width/2
 		m.previewModel.SetPosition(true, atBottom)
 	}
+}
+
+func (m *Model) dispatchActionByKey(msg tea.KeyMsg) (tea.Cmd, bool) {
+	state := map[string]any{
+		"preview.visible":   m.previewModel.Visible(),
+		"revisions.focused": m.oplog == nil && m.stacked == nil && m.diff == nil && m.revisions.InNormalMode(),
+		"details":           m.revisions.CurrentOperation().Name() == "details",
+		"oplog":             m.oplog != nil,
+		"diff":              m.diff != nil,
+		"git":               m.stacked != nil && m.stacked.Name() == "git",
+		"help":              m.stacked != nil && m.stacked.Name() == "help",
+		"bookmarks":         m.stacked != nil && m.stacked.Name() == "bookmarks",
+		"undo":              m.stacked != nil && m.stacked.Name() == "undo",
+		"redo":              m.stacked != nil && m.stacked.Name() == "redo",
+		"custom_commands":   m.stacked != nil && m.stacked.Name() == "custom_commands",
+	}
+
+	for _, binding := range m.context.KeyBindings {
+		k := key.NewBinding(key.WithKeys(binding.Keys...))
+		if key.Matches(msg, k) {
+			if binding.Condition.Eval(state) {
+				return m.context.ActionCmd(binding.Action), true
+			}
+		}
+	}
+	return nil, false
+}
+
+func (m *Model) dispatchAction(name string, state map[string]any) (tea.Cmd, bool) {
+	binding, ok := bindings.Resolve(name, m.context.KeyBindings, state)
+	if !ok {
+		return nil, false
+	}
+	if binding.Disabled {
+		return nil, true
+	}
+	if cmd := m.context.ActionCmd(name); cmd != nil {
+		return cmd, true
+	}
+	return nil, false
 }
 
 func (m *Model) View() string {

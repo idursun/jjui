@@ -52,9 +52,10 @@ func loadDefaultConfig() *Config {
 		fmt.Fprintf(os.Stderr, "Fatal: no embedded default config found: %v\n", err)
 		os.Exit(1)
 	}
+	defaultConfigData = string(data)
 
 	config := &Config{}
-	if err := config.Load(string(data)); err != nil {
+	if err := config.Load(defaultConfigData); err != nil {
 		fmt.Fprintf(os.Stderr, "Fatal: failed to load embedded default config: %v\n", err)
 		os.Exit(1)
 	}

@@ -23,7 +23,7 @@ type updateItemsMsg struct {
 	items []list.Item
 }
 
-var _ common.Model = (*Model)(nil)
+var _ common.SizableModel = (*Model)(nil)
 
 type Model struct {
 	*common.ViewNode
@@ -32,6 +32,10 @@ type Model struct {
 	menu        menu.Menu
 	keymap      config.KeyMappings[key.Binding]
 	distanceMap map[string]int
+}
+
+func (m *Model) Name() string {
+	return "bookmarks"
 }
 
 func (m *Model) ShortHelp() []key.Binding {

@@ -26,6 +26,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/bindings"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -455,15 +456,11 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				return m.handleIntent(intents.OpenDetails{})
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
 				return m.handleIntent(intents.StartInlineDescribe{})
-			case key.Matches(msg, m.keymap.New):
-				return m.handleIntent(intents.StartNew{})
 			case key.Matches(msg, m.keymap.Commit):
 				return m.handleIntent(intents.CommitWorkingCopy{})
 			case key.Matches(msg, m.keymap.Edit, m.keymap.ForceEdit):
 				ignoreImmutable := key.Matches(msg, m.keymap.ForceEdit)
 				return m.handleIntent(intents.StartEdit{IgnoreImmutable: ignoreImmutable})
-			case key.Matches(msg, m.keymap.Diffedit):
-				return m.handleIntent(intents.StartDiffEdit{})
 			case key.Matches(msg, m.keymap.Absorb):
 				return m.handleIntent(intents.StartAbsorb{})
 			case key.Matches(msg, m.keymap.Abandon):
@@ -512,14 +509,10 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.startAbsorb(intent)
 	case intents.StartAbandon:
 		return m.startAbandon(intent)
-	case intents.StartNew:
-		return m.startNew(intent)
 	case intents.CommitWorkingCopy:
 		return m.commitWorkingCopy()
 	case intents.StartEdit:
 		return m.startEdit(intent)
-	case intents.StartDiffEdit:
-		return m.startDiffEdit(intent)
 	case intents.StartRevert:
 		return m.startRevert(intent)
 	case intents.StartDuplicate:
@@ -542,6 +535,23 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.refresh(intent)
 	}
 	return nil
+}
+
+func (m *Model) dispatchAction(name string) (tea.Cmd, bool) {
+	state := map[string]any{
+		"revisions.focused": true,
+	}
+	binding, ok := bindings.Resolve(name, m.context.KeyBindings, state)
+	if !ok {
+		return nil, false
+	}
+	if binding.Disabled {
+		return nil, true
+	}
+	if cmd := m.context.ActionCmd(name); cmd != nil {
+		return cmd, true
+	}
+	return nil, false
 }
 
 func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
@@ -650,14 +660,6 @@ func (m *Model) startSetParents(intent intents.SetParents) tea.Cmd {
 	return m.op.Init()
 }
 
-func (m *Model) startNew(intent intents.StartNew) tea.Cmd {
-	selected := intent.Selected
-	if len(selected.Revisions) == 0 {
-		selected = m.SelectedRevisions()
-	}
-	return m.context.RunCommand(jj.New(selected), common.RefreshAndSelect("@"))
-}
-
 func (m *Model) commitWorkingCopy() tea.Cmd {
 	return m.context.RunInteractiveCommand(jj.CommitWorkingCopy(), common.Refresh)
 }
@@ -671,17 +673,6 @@ func (m *Model) startEdit(intent intents.StartEdit) tea.Cmd {
 		return nil
 	}
 	return m.context.RunCommand(jj.Edit(commit.GetChangeId(), intent.IgnoreImmutable), common.Refresh)
-}
-
-func (m *Model) startDiffEdit(intent intents.StartDiffEdit) tea.Cmd {
-	commit := intent.Selected
-	if commit == nil {
-		commit = m.SelectedRevision()
-	}
-	if commit == nil {
-		return nil
-	}
-	return m.context.RunInteractiveCommand(jj.DiffEdit(commit.GetChangeId()), common.Refresh)
 }
 
 func (m *Model) startAbsorb(intent intents.StartAbsorb) tea.Cmd {
