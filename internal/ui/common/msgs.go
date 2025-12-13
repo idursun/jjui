@@ -53,6 +53,10 @@ type (
 	RunLuaScriptMsg struct {
 		Script string
 	}
+	TogglePasswordMsg struct {
+		Prompt   string
+		Password chan string
+	}
 	// DeferredUpdateMsg is used to defer an update until the next render cycle
 	// However, this is very hacky and should only be used for single model updates that doesn't interact with any other model
 	// Rule of thumb is that if you are updating a model with a public message, then you probably shouldn't use this

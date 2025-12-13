@@ -9,9 +9,11 @@ import (
 	"os"
 	"os/exec"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/askpass"
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
@@ -24,6 +26,7 @@ type CommandRunner interface {
 
 type MainCommandRunner struct {
 	Location string
+	Askpass  *askpass.Server
 }
 
 func (a *MainCommandRunner) RunCommandImmediate(args []string) ([]byte, error) {
@@ -66,14 +69,24 @@ func (a *MainCommandRunner) RunCommand(args []string, continuations ...tea.Cmd) 
 	commands := make([]tea.Cmd, 0)
 	commands = append(commands,
 		func() tea.Msg {
+			started, cancel, env := a.Askpass.NewSubprocess(strings.Join(args, " "))
+			defer cancel()
 			if !slices.Contains(args, "--color") {
 				args = append([]string{"--color", "always"}, args...)
 			}
 			c := exec.Command("jj", args...)
 			c.Dir = a.Location
+			c.Env = append(os.Environ(), env...)
 			var output bytes.Buffer
 			c.Stderr = &output
-			_, err := c.Output()
+			if err := c.Start(); err != nil {
+				return common.CommandCompletedMsg{
+					Err: err,
+				}
+			}
+			started(c.Process.Pid)
+
+			err := c.Wait()
 			if err != nil {
 				var exitError *exec.ExitError
 				if errors.As(err, &exitError) {
