@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/idursun/jjui/internal/askpass"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -65,10 +66,11 @@ type MainContext struct {
 	Histories      *config.Histories
 }
 
-func NewAppContext(location string) *MainContext {
+func NewAppContext(location string, aps *askpass.Server) *MainContext {
 	m := &MainContext{
 		CommandRunner: &MainCommandRunner{
 			Location: location,
+			Askpass:  aps,
 		},
 		Location:  location,
 		Histories: config.NewHistories(),
