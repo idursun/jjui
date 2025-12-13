@@ -20,6 +20,8 @@ import (
 	"github.com/idursun/jjui/internal/bindings"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actionbindings"
+	"github.com/idursun/jjui/internal/ui/actiondispatch"
 	"github.com/idursun/jjui/internal/ui/bookmarks"
 	"github.com/idursun/jjui/internal/ui/choose"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -43,22 +45,23 @@ var _ common.Model = (*Model)(nil)
 
 type Model struct {
 	*common.ViewNode
-	revisions       *revisions.Model
-	oplog           *oplog.Model
-	revsetModel     *revset.Model
-	previewModel    *preview.Model
-	diff            *diff.Model
-	leader          *leader.Model
-	flash           *flash.Model
-	state           common.State
-	status          *status.Model
-	password        *password.Model
-	context         *context.MainContext
-	scriptRunner    *scripting.Runner
-	keyMap          config.KeyMappings[key.Binding]
-	stacked         common.SizableModel
-	dragTarget      common.Draggable
-	sequenceOverlay *customcommands.SequenceOverlay
+	revisions             *revisions.Model
+	oplog                 *oplog.Model
+	revsetModel           *revset.Model
+	previewModel          *preview.Model
+	diff                  *diff.Model
+	leader                *leader.Model
+	flash                 *flash.Model
+	state                 common.State
+	status                *status.Model
+	password              *password.Model
+	context               *context.MainContext
+	scriptRunner          *scripting.Runner
+	keyMap                config.KeyMappings[key.Binding]
+	stacked               common.SizableModel
+	dragTarget            common.Draggable
+	actionSequenceOverlay *actionbindings.SequenceOverlay
+	sequenceOverlay       *customcommands.SequenceOverlay
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -121,6 +124,53 @@ func (m *Model) handleFocusInputMessage(msg tea.Msg) (tea.Cmd, bool) {
 	}
 
 	return nil, false
+}
+
+func (m *Model) handleActionSequence(msg tea.KeyMsg) (tea.Cmd, bool) {
+	if !m.ensureActionSequenceOverlay(msg) {
+		return nil, false
+	}
+
+	res := m.actionSequenceOverlay.HandleKey(msg)
+	if !res.Active {
+		m.actionSequenceOverlay = nil
+	}
+	if res.Cmd != nil {
+		return res.Cmd, true
+	}
+	return nil, res.Handled
+}
+
+func (m *Model) ensureActionSequenceOverlay(msg tea.KeyMsg) bool {
+	if m.actionSequenceOverlay != nil {
+		return true
+	}
+	if !m.shouldStartActionSequenceOverlay(msg) {
+		return false
+	}
+	m.actionSequenceOverlay = actionbindings.NewSequenceOverlay(m.context, m.actionState)
+	m.actionSequenceOverlay.Parent = m.ViewNode
+	return true
+}
+
+func (m *Model) shouldStartActionSequenceOverlay(msg tea.KeyMsg) bool {
+	state := m.actionState()
+	for _, binding := range m.context.KeyBindings {
+		if len(binding.KeySequence) == 0 || binding.Disabled {
+			continue
+		}
+		if binding.When != "" && !binding.Condition.Eval(state) {
+			continue
+		}
+		seq := actionbindings.ToKeyBindings(binding.KeySequence)
+		if len(seq) == 0 {
+			continue
+		}
+		if key.Matches(msg, seq[0]) {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Model) handleCustomCommandSequence(msg tea.KeyMsg) tea.Cmd {
@@ -207,6 +257,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case tea.KeyMsg:
+		wasActionSequenceMatch := m.actionSequenceOverlay != nil
+		if cmd, handled := m.handleActionSequence(msg); handled || m.actionSequenceOverlay != nil {
+			return cmd
+		}
+		if wasActionSequenceMatch {
+			return nil
+		}
+
 		if cmd, handled := m.dispatchActionByKey(msg); handled {
 			return cmd
 		}
@@ -343,6 +401,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return m.diff.Init()
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
+	case actionbindings.SequenceTimeoutMsg:
+		if m.actionSequenceOverlay == nil {
+			return nil
+		}
+		res := m.actionSequenceOverlay.HandleTimeout(msg)
+		if !res.Active {
+			m.actionSequenceOverlay = nil
+		}
+		return res.Cmd
 	case customcommands.SequenceTimeoutMsg:
 		if m.sequenceOverlay == nil {
 			return nil
@@ -468,26 +535,48 @@ func (m *Model) UpdatePreviewPosition() {
 	}
 }
 
-func (m *Model) dispatchActionByKey(msg tea.KeyMsg) (tea.Cmd, bool) {
+func (m *Model) actionState() map[string]any {
 	state := map[string]any{
-		"preview.visible":   m.previewModel.Visible(),
-		"revisions.focused": m.oplog == nil && m.stacked == nil && m.diff == nil && m.revisions.InNormalMode(),
-		"details":           m.revisions.CurrentOperation().Name() == "details",
-		"oplog":             m.oplog != nil,
-		"diff":              m.diff != nil,
-		"git":               m.stacked != nil && m.stacked.Name() == "git",
-		"help":              m.stacked != nil && m.stacked.Name() == "help",
-		"bookmarks":         m.stacked != nil && m.stacked.Name() == "bookmarks",
-		"undo":              m.stacked != nil && m.stacked.Name() == "undo",
-		"redo":              m.stacked != nil && m.stacked.Name() == "redo",
-		"custom_commands":   m.stacked != nil && m.stacked.Name() == "custom_commands",
+		"preview.visible": m.previewModel.Visible(),
+		"revisions":       m.oplog == nil && m.stacked == nil && m.diff == nil && m.sequenceOverlay == nil && m.revisions.InNormalMode(),
+		"rebase":          m.revisions.CurrentOperation().Name() == "rebase",
+		"abandon":         m.revisions.CurrentOperation().Name() == "abandon",
+		"squash":          m.revisions.CurrentOperation().Name() == "squash",
+		"duplicate":       m.revisions.CurrentOperation().Name() == "duplicate",
+		"revert":          m.revisions.CurrentOperation().Name() == "revert",
+		"describe":        m.revisions.CurrentOperation().Name() == "describe",
+		"details":         m.revisions.CurrentOperation().Name() == "details",
+		"oplog":           m.oplog != nil,
+		"diff":            m.diff != nil,
+		"git":             m.stacked != nil && m.stacked.Name() == "git",
+		"help":            m.stacked != nil && m.stacked.Name() == "help",
+		"bookmarks":       m.stacked != nil && m.stacked.Name() == "bookmarks",
+		"undo":            m.stacked != nil && m.stacked.Name() == "undo",
+		"redo":            m.stacked != nil && m.stacked.Name() == "redo",
+		"custom_commands": m.stacked != nil && m.stacked.Name() == "custom_commands",
 	}
+	return state
+}
 
+func (m *Model) dispatchActionByKey(msg tea.KeyMsg) (tea.Cmd, bool) {
+	state := m.actionState()
 	for _, binding := range m.context.KeyBindings {
+		if len(binding.Keys) == 0 {
+			continue
+		}
+		if binding.Disabled {
+			continue
+		}
 		k := key.NewBinding(key.WithKeys(binding.Keys...))
 		if key.Matches(msg, k) {
 			if binding.Condition.Eval(state) {
-				return m.context.ActionCmd(binding.Action), true
+				if cmd := m.context.ActionCmd(binding.Action); cmd != nil {
+					return cmd, true
+				}
+				if cmd := actiondispatch.Cmd(binding.Action, m.context); cmd != nil {
+					return cmd, true
+				}
+				return nil, true
 			}
 		}
 	}
@@ -503,6 +592,9 @@ func (m *Model) dispatchAction(name string, state map[string]any) (tea.Cmd, bool
 		return nil, true
 	}
 	if cmd := m.context.ActionCmd(name); cmd != nil {
+		return cmd, true
+	}
+	if cmd := actiondispatch.Cmd(name, m.context); cmd != nil {
 		return cmd, true
 	}
 	return nil, false
@@ -561,6 +653,12 @@ func (m *Model) View() string {
 	if m.stacked != nil {
 		stackedView := m.stacked.View()
 		cellbuf.SetContentRect(screenBuf, stackedView, m.stacked.GetViewNode().Frame)
+	}
+
+	if m.actionSequenceOverlay != nil {
+		m.actionSequenceOverlay.Parent = m.ViewNode
+		view := m.actionSequenceOverlay.View()
+		cellbuf.SetContentRect(screenBuf, view, m.actionSequenceOverlay.Frame)
 	}
 
 	if m.sequenceOverlay != nil {

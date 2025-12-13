@@ -183,18 +183,15 @@ func (ctx *MainContext) GetSelectedRevisions() map[string]bool {
 
 // ActionCmd returns a command that triggers the named action if it exists.
 func (ctx *MainContext) ActionCmd(name string) tea.Cmd {
-	if ctx.Actions == nil {
-		return nil
+	if ctx.Actions != nil {
+		if action, ok := ctx.Actions[name]; ok {
+			script := strings.TrimSpace(action.Lua)
+			if script != "" {
+				return func() tea.Msg {
+					return common.RunLuaScriptMsg{Script: script}
+				}
+			}
+		}
 	}
-	action, ok := ctx.Actions[name]
-	if !ok {
-		return nil
-	}
-	script := strings.TrimSpace(action.Lua)
-	if script == "" {
-		return nil
-	}
-	return func() tea.Msg {
-		return common.RunLuaScriptMsg{Script: script}
-	}
+	return nil
 }

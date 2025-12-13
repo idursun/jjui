@@ -18,13 +18,17 @@ when = "revisions.focused && inline_describe.active"
 keys = ["c"]
 action = "revisions.commit"
 args = { message_prompt = true }
+
+[[keybindings]]
+key_sequence = ["g", "o"]
+action = "revisions.go"
 `
 	bs, err := Load(config)
 	if err != nil {
 		t.Fatalf("Load returned error: %v", err)
 	}
-	if len(bs) != 3 {
-		t.Fatalf("expected 3 bindings, got %d", len(bs))
+	if len(bs) != 4 {
+		t.Fatalf("expected 4 bindings, got %d", len(bs))
 	}
 
 	b := bs[0]
@@ -50,6 +54,14 @@ args = { message_prompt = true }
 	if withArgs.Args["message_prompt"] != true {
 		t.Fatalf("expected args to include message_prompt=true, got %+v", withArgs.Args)
 	}
+
+	withSequence := bs[3]
+	if len(withSequence.Keys) != 0 {
+		t.Fatalf("expected no direct keys for sequence binding, got %+v", withSequence.Keys)
+	}
+	if withSequence.Action != "revisions.go" || len(withSequence.KeySequence) != 2 {
+		t.Fatalf("unexpected sequence binding: %+v", withSequence)
+	}
 }
 
 func TestLoad_Validations(t *testing.T) {
@@ -61,6 +73,11 @@ func TestLoad_Validations(t *testing.T) {
 	_, err = Load(`[[keybindings]] keys=["n"] action="  "`)
 	if err == nil {
 		t.Fatal("expected error for empty action")
+	}
+
+	_, err = Load(`[[keybindings]] keys=["n"] key_sequence=["g"] action="revisions.new"`)
+	if err == nil {
+		t.Fatal("expected error when both keys and key_sequence are set")
 	}
 }
 

@@ -152,21 +152,56 @@ limit = 0
 [[keybindings]]
 keys = ["n"]
 action = "revisions.new"
-when = "revisions.focused"
+when = "revisions"
 
 [[keybindings]]
 keys = ["p"]
 action = "preview.toggle"
-when = "revisions.focused"
+when = "revisions"
 
 [[keybindings]]
 keys = ["E"]
 action = "revisions.diffedit"
-when = "revisions.focused"
+when = "revisions"
+
+[[keybindings]]
+keys = ["j"]
+action = "revisions.down"
+when = "revisions || rebase || squash || duplicate"
+
+[[keybindings]]
+keys = ["k"]
+action = "revisions.up"
+when = "revisions || rebase || squash || duplicate"
+
+[[keybindings]]
+keys = ["y"]
+action = "copy_files_to_clipboard"
+when = "details"
+
+[[keybindings]]
+keys = ["@"]
+action = "revisions.navigate_to_working_copy"
+when = "revisions"
+
+[[keybindings]]
+keys = ["J"]
+action = "revisions.navigate_to_parent"
+when = "revisions"
+
+[[keybindings]]
+keys = ["K"]
+action = "revisions.navigate_to_children"
+when = "revisions"
 
 [actions."revisions.new"]
 lua = '''
-jj("new")
+local checked = revisions.checked()
+if next(checked) then
+  jj_async("new", unpack(checked))
+else
+  jj_async("new", revisions.current())
+end
 revisions.refresh()
 revisions.navigate{to="@"}
 '''

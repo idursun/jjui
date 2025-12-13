@@ -234,7 +234,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 
 	jjAsyncFn := L.NewFunction(func(L *lua.LState) int {
 		args := argsFromLua(L)
-		return yieldStep(L, step{cmd: runner.ctx.RunCommand(args)})
+		return yieldStep(L, step{cmd: runner.ctx.RunCommand(args), matcher: matchJJAsyncComplete})
 	})
 	jjInteractiveFn := L.NewFunction(func(L *lua.LState) int {
 		args := argsFromLua(L)
@@ -490,6 +490,15 @@ func parseNavigateTarget(val string) intents.NavigationTarget {
 		return intents.TargetWorkingCopy
 	default:
 		return intents.TargetNone
+	}
+}
+
+func matchJJAsyncComplete(msg tea.Msg) (bool, []lua.LValue) {
+	switch msg.(type) {
+	case common.CommandCompletedMsg:
+		return true, nil
+	default:
+		return false, nil
 	}
 }
 

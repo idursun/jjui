@@ -10,12 +10,13 @@ import (
 // KeyBinding represents a single keybinding entry loaded from configuration.
 // Disabled entries keep their shape but won't be dispatched.
 type KeyBinding struct {
-	Keys      []string
-	Action    string
-	When      string
-	Args      map[string]any
-	Disabled  bool
-	Condition Condition
+	Keys        []string
+	KeySequence []string `toml:"key_sequence"`
+	Action      string
+	When        string
+	Args        map[string]any
+	Disabled    bool
+	Condition   Condition
 }
 
 // Load parses [[keybindings]] entries from the given TOML content.
@@ -23,10 +24,11 @@ type KeyBinding struct {
 func Load(data string) ([]KeyBinding, error) {
 	type bindingsTOML struct {
 		KeyBindings []struct {
-			Keys   []string               `toml:"keys"`
-			Action string                 `toml:"action"`
-			When   string                 `toml:"when"`
-			Args   map[string]interface{} `toml:"args"`
+			Keys        []string               `toml:"keys"`
+			KeySequence []string               `toml:"key_sequence"`
+			Action      string                 `toml:"action"`
+			When        string                 `toml:"when"`
+			Args        map[string]interface{} `toml:"args"`
 		} `toml:"keybindings"`
 	}
 
@@ -37,14 +39,18 @@ func Load(data string) ([]KeyBinding, error) {
 
 	bindings := make([]KeyBinding, 0, len(file.KeyBindings))
 	for i, b := range file.KeyBindings {
-		if len(b.Keys) == 0 {
-			return nil, fmt.Errorf("keybindings[%d]: keys cannot be empty", i)
+		if len(b.Keys) == 0 && len(b.KeySequence) == 0 {
+			return nil, fmt.Errorf("keybindings[%d]: keys or key_sequence cannot be empty", i)
+		}
+		if len(b.Keys) > 0 && len(b.KeySequence) > 0 {
+			return nil, fmt.Errorf("keybindings[%d]: keys and key_sequence cannot both be set", i)
 		}
 		when := strings.TrimSpace(b.When)
 		kb := KeyBinding{
-			Keys: b.Keys,
-			When: when,
-			Args: b.Args,
+			Keys:        b.Keys,
+			KeySequence: b.KeySequence,
+			When:        when,
+			Args:        b.Args,
 		}
 		action := strings.TrimSpace(b.Action)
 		if strings.HasPrefix(action, "-") {

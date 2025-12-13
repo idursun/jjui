@@ -29,6 +29,7 @@ import (
 	"github.com/idursun/jjui/internal/bindings"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actiondispatch"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/graph"
@@ -415,12 +416,6 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			return m.handleIntent(intents.Navigate{Delta: -1, Page: key.Matches(msg, m.keymap.ScrollUp)})
 		case key.Matches(msg, m.keymap.Down, m.keymap.ScrollDown):
 			return m.handleIntent(intents.Navigate{Delta: 1, Page: key.Matches(msg, m.keymap.ScrollDown)})
-		case key.Matches(msg, m.keymap.JumpToParent):
-			return m.handleIntent(intents.Navigate{Target: intents.TargetParent})
-		case key.Matches(msg, m.keymap.JumpToChildren):
-			return m.handleIntent(intents.Navigate{Target: intents.TargetChild})
-		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
-			return m.handleIntent(intents.Navigate{Target: intents.TargetWorkingCopy})
 		case key.Matches(msg, m.keymap.AceJump):
 			op := ace_jump.NewOperation(m, func(index int) parser.Row {
 				return m.rows[index]
@@ -549,6 +544,9 @@ func (m *Model) dispatchAction(name string) (tea.Cmd, bool) {
 		return nil, true
 	}
 	if cmd := m.context.ActionCmd(name); cmd != nil {
+		return cmd, true
+	}
+	if cmd := actiondispatch.Cmd(name, m.context); cmd != nil {
 		return cmd, true
 	}
 	return nil, false

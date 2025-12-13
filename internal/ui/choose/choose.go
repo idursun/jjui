@@ -17,9 +17,10 @@ type SelectedMsg struct {
 type CancelledMsg struct{}
 
 var (
-	_ common.Model     = (*Model)(nil)
-	_ common.IViewNode = (*Model)(nil)
-	_ help.KeyMap      = (*Model)(nil)
+	_ common.Model        = (*Model)(nil)
+	_ common.IViewNode    = (*Model)(nil)
+	_ help.KeyMap         = (*Model)(nil)
+	_ common.SizableModel = (*Model)(nil)
 )
 
 type Model struct {
@@ -136,6 +137,10 @@ func (m *Model) ShortHelp() []key.Binding {
 		m.keymap.Apply,
 		m.keymap.Cancel,
 	}
+}
+
+func (m *Model) Name() string {
+	return "choose"
 }
 
 func (m *Model) FullHelp() [][]key.Binding {
