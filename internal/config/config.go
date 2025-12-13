@@ -24,6 +24,7 @@ type Config struct {
 	OpLog     OpLogConfig       `toml:"oplog"`
 	Limit     int               `toml:"limit"`
 	Git       GitConfig         `toml:"git"`
+	Ssh       SshConfig         `toml:"ssh"`
 }
 
 type Color struct {
@@ -282,4 +283,8 @@ func GetGitDefaultRemote(c *Config) string {
 		return "origin"
 	}
 	return remote
+}
+
+type SshConfig struct {
+	HijackAskpass bool `toml:"hijack_askpass"`
 }

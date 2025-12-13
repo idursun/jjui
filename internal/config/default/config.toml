@@ -145,3 +145,6 @@ limit = 0
 
 [git]
   default_remote = "origin"
+
+[ssh]
+  hijack_askpass = false

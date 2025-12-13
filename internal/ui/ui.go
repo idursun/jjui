@@ -10,6 +10,7 @@ import (
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/password"
 
 	"github.com/idursun/jjui/internal/ui/flash"
 
@@ -54,6 +55,7 @@ type Model struct {
 	flash           *flash.Model
 	state           common.State
 	status          *status.Model
+	password        *password.Model
 	context         *context.MainContext
 	scriptRunner    *scripting.Runner
 	keyMap          config.KeyMappings[key.Binding]
@@ -95,6 +97,10 @@ func (m *Model) handleFocusInputMessage(msg tea.Msg) (tea.Cmd, bool) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.password != nil {
+			return m.password.Update(msg), true
+		}
+
 		if m.diff != nil {
 			return m.diff.Update(msg), true
 		}
@@ -364,6 +370,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.previewModel.SetVisible(bool(msg))
 		cmds = append(cmds, common.SelectionChanged)
 		return tea.Batch(cmds...)
+	case common.TogglePasswordMsg:
+		if msg.Password == nil {
+			m.password = nil
+		} else if m.password != nil {
+			// todo: check conflict
+		} else {
+			m.password = password.New(msg, m.ViewNode)
+		}
+
 	case tea.WindowSizeMsg:
 		m.SetFrame(cellbuf.Rect(0, 0, msg.Width, msg.Height))
 		m.flash.SetWidth(m.Width)
@@ -501,6 +516,11 @@ func (m *Model) View() string {
 		cellbuf.SetContentRect(screenBuf, statusFuzzyView, cellbuf.Rect(0, m.Height-mh-1, m.Width, mh))
 	}
 
+	if m.password != nil {
+		view := m.password.View()
+		cellbuf.SetContentRect(screenBuf, view, m.password.Frame)
+	}
+
 	finalView := cellbuf.Render(screenBuf)
 	return strings.ReplaceAll(finalView, "\r", "")
 }
@@ -548,13 +568,15 @@ func (m *Model) findViewAt(x, y int) common.IMouseAware {
 
 var _ tea.Model = (*wrapper)(nil)
 
-type frameTickMsg struct{}
-type wrapper struct {
-	ui                 *Model
-	scheduledNextFrame bool
-	render             bool
-	cachedFrame        string
-}
+type (
+	frameTickMsg struct{}
+	wrapper      struct {
+		ui                 *Model
+		scheduledNextFrame bool
+		render             bool
+		cachedFrame        string
+	}
+)
 
 func (w *wrapper) Init() tea.Cmd {
 	return w.ui.Init()

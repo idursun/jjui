@@ -8,10 +8,13 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"runtime"
 	"slices"
+	"strings"
 	"sync"
 
-	"github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/askpass"
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
@@ -24,6 +27,7 @@ type CommandRunner interface {
 
 type MainCommandRunner struct {
 	Location string
+	Askpass  *askpass.Server
 }
 
 func (a *MainCommandRunner) RunCommandImmediate(args []string) ([]byte, error) {
@@ -66,18 +70,32 @@ func (a *MainCommandRunner) RunCommand(args []string, continuations ...tea.Cmd) 
 	commands := make([]tea.Cmd, 0)
 	commands = append(commands,
 		func() tea.Msg {
+			started, cancel, env := a.Askpass.NewSubprocess(strings.Join(args, " "))
+			defer cancel()
 			if !slices.Contains(args, "--color") {
 				args = append([]string{"--color", "always"}, args...)
 			}
 			c := exec.Command("jj", args...)
 			c.Dir = a.Location
+			c.Env = append(os.Environ(), env...)
 			var output bytes.Buffer
 			c.Stderr = &output
-			_, err := c.Output()
+			if err := c.Start(); err != nil {
+				return common.CommandCompletedMsg{
+					Err: err,
+				}
+			}
+			started(c.Process.Pid)
+
+			err := c.Wait()
 			if err != nil {
 				var exitError *exec.ExitError
 				if errors.As(err, &exitError) {
-					err = errors.New(output.String())
+					msg := output.String()
+					if len(env) == 0 && slices.Contains([]string{"linux", "darwin"}, runtime.GOOS) {
+						msg += "\nHint: enable ssh.hijack_askpass if you expected a password prompt (e.g. ssh passphrase)"
+					}
+					err = errors.New(msg)
 				}
 			}
 			return common.CommandCompletedMsg{

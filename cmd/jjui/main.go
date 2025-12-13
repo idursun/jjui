@@ -11,8 +11,10 @@ import (
 	"os/exec"
 	"runtime/debug"
 	"strings"
+	"unicode"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/askpass"
 	"github.com/idursun/jjui/internal/ui/common"
 
 	"github.com/idursun/jjui/internal/config"
@@ -78,6 +80,11 @@ func getJJRootDir(location string) (string, error) {
 }
 
 func main() {
+	askpassServer := askpass.NewUnstartedServer("JJUI")
+	if askpassServer.IsSubprocess() {
+		return
+	}
+
 	flag.Parse()
 	switch {
 	case help:
@@ -126,7 +133,7 @@ func main() {
 		config.Current.Limit = limit
 	}
 
-	appContext := context.NewAppContext(rootLocation)
+	appContext := context.NewAppContext(rootLocation, askpassServer)
 	defer appContext.Histories.Flush()
 	if output, err := config.LoadConfigFile(); err == nil {
 		if err := config.Current.Load(string(output)); err != nil {
@@ -197,8 +204,47 @@ func main() {
 	appContext.CurrentRevset = appContext.DefaultRevset
 
 	p := tea.NewProgram(ui.New(appContext), tea.WithAltScreen(), tea.WithReportFocus(), tea.WithMouseCellMotion())
+	if config.Current.Ssh.HijackAskpass {
+		if err := askpassServer.StartListening(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: ssh.hijack_askpass: %v\n", err)
+			os.Exit(1)
+		}
+		defer askpassServer.Close()
+
+		go askpassServer.Serve(showPassword(p.Send))
+
+		// uncomment the line below to show a fake prompt upon startup
+		// go showPassword(p.Send)("test", "Enter PIN for 'ssh': ", make(<-chan struct{}))
+	}
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error running program: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+func showPassword(send func(tea.Msg)) func(name, prompt string, done <-chan struct{}) (string, bool) {
+	adjustPrompt := func(s string) string {
+		// ensure that the prompt is not only made of spaces
+		for _, r := range s {
+			if !unicode.IsSpace(r) {
+				return s
+			}
+		}
+		return "ssh-askpass: "
+	}
+	return func(name, prompt string, done <-chan struct{}) (string, bool) {
+		password := make(chan string, 1)
+		send(common.TogglePasswordMsg{
+			Prompt:   adjustPrompt(prompt),
+			Password: password,
+		})
+
+		select {
+		case <-done:
+			send(common.TogglePasswordMsg{})
+			return "", false
+		case pw, ok := <-password:
+			return pw, ok
+		}
 	}
 }
