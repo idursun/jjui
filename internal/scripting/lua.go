@@ -10,6 +10,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	lua "github.com/yuin/gopher-lua"
 
+	"github.com/idursun/jjui/internal/ui/choose"
 	"github.com/idursun/jjui/internal/ui/common"
 	uicontext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
@@ -261,6 +262,49 @@ func registerAPI(L *lua.LState, runner *Runner) {
 		L.Push(lua.LNil)
 		return 2
 	})
+	splitLinesFn := L.NewFunction(func(L *lua.LState) int {
+		text := L.CheckString(1)
+		keepEmpty := false
+		if L.GetTop() >= 2 {
+			keepEmpty = L.CheckBool(2)
+		}
+		tbl := L.NewTable()
+		for _, line := range strings.Split(text, "\n") {
+			line = strings.TrimSuffix(line, "\r")
+			if line == "" && !keepEmpty {
+				continue
+			}
+			tbl.Append(lua.LString(line))
+		}
+		L.Push(tbl)
+		return 1
+	})
+	chooseFn := L.NewFunction(func(L *lua.LState) int {
+		var (
+			options []string
+			title   string
+		)
+		if L.GetTop() == 1 {
+			if tbl, ok := L.Get(1).(*lua.LTable); ok {
+				if optVal := tbl.RawGetString("options"); optVal != lua.LNil {
+					if optTbl, ok := optVal.(*lua.LTable); ok {
+						options = stringSliceFromTable(optTbl)
+					} else if s, ok := optVal.(lua.LString); ok {
+						options = []string{s.String()}
+					}
+				}
+				if titleVal := tbl.RawGetString("title"); titleVal != lua.LNil {
+					title = titleVal.String()
+				}
+				if options == nil {
+					options = stringSliceFromTable(tbl)
+				}
+				return yieldStep(L, step{cmd: choose.ShowWithTitle(options, title), matcher: matchChoose})
+			}
+		}
+		options = argsFromLua(L)
+		return yieldStep(L, step{cmd: choose.ShowWithTitle(options, ""), matcher: matchChoose})
+	})
 
 	// make sure we have a `jjui` namespace
 	root := L.NewTable()
@@ -271,6 +315,8 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	root.RawSetString("jj", jjFn)
 	root.RawSetString("flash", flashFn)
 	root.RawSetString("copy_to_clipboard", copyToClipboardFn)
+	root.RawSetString("split_lines", splitLinesFn)
+	root.RawSetString("choose", chooseFn)
 	L.SetGlobal("jjui", root)
 
 	// but also expose at the top level for convenience
@@ -281,6 +327,8 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	L.SetGlobal("jj", jjFn)
 	L.SetGlobal("flash", flashFn)
 	L.SetGlobal("copy_to_clipboard", copyToClipboardFn)
+	L.SetGlobal("split_lines", splitLinesFn)
+	L.SetGlobal("choose", chooseFn)
 }
 
 func payloadFromTop(L *lua.LState) map[string]any {
@@ -476,4 +524,15 @@ func matchCloseViewMsg(msg tea.Msg) (bool, []lua.LValue) {
 		return true, []lua.LValue{lua.LBool(closeMsg.Applied)}
 	}
 	return false, nil
+}
+
+func matchChoose(msg tea.Msg) (bool, []lua.LValue) {
+	switch msg := msg.(type) {
+	case choose.SelectedMsg:
+		return true, []lua.LValue{lua.LString(msg.Value)}
+	case choose.CancelledMsg:
+		return true, []lua.LValue{lua.LNil}
+	default:
+		return false, nil
+	}
 }

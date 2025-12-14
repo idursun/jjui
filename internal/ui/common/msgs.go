@@ -39,6 +39,10 @@ type (
 		Line string
 		Mode ExecMode
 	}
+	ShowChooseMsg struct {
+		Options []string
+		Title   string
+	}
 	ExecProcessCompletedMsg struct {
 		Err error
 		Msg ExecMsg

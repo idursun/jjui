@@ -19,6 +19,7 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/bookmarks"
+	"github.com/idursun/jjui/internal/ui/choose"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	customcommands "github.com/idursun/jjui/internal/ui/custom_commands"
@@ -360,6 +361,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.scriptRunner = nil
 		}
 		return cmd
+	case common.ShowChooseMsg:
+		model := choose.NewWithTitle(msg.Options, msg.Title)
+		model.Parent = m.ViewNode
+		m.stacked = model
+		return m.stacked.Init()
+	case choose.SelectedMsg, choose.CancelledMsg:
+		m.stacked = nil
 	case common.ShowPreview:
 		m.previewModel.SetVisible(bool(msg))
 		cmds = append(cmds, common.SelectionChanged)
