@@ -1,11 +1,12 @@
 {
   lib,
   buildGoModule,
+  version ? "dev",
 }:
 
 buildGoModule {
+  inherit version;
   pname = "jjui";
-  version = "dev"; # TODO: update this to use version/git hash
 
   src = lib.fileset.toSource {
     root = ./..;
@@ -19,6 +20,12 @@ buildGoModule {
   };
   vendorHash = lib.strings.trim (builtins.readFile ./vendor-hash);
   doCheck = false;
+
+  ldflags = [
+    "-s"
+    "-w"
+    "-X main.Version=${version}"
+  ];
 
   meta = {
     description = "A Text User Interface (TUI) designed for interacting with the Jujutsu version control system";

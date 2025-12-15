@@ -1,11 +1,16 @@
-{ lib, ... }:
+{ inputs, ... }:
 {
   perSystem =
     { pkgs, ... }:
+    let
+      jjui = pkgs.callPackage ./package.nix {
+        version = inputs.self.shortRev or inputs.self.dirtyShortRev or "dev";
+      };
+    in
     {
       packages = {
-        default = pkgs.callPackage ./package.nix { };
-        jjui = pkgs.callPackage ./package.nix { };
+        inherit jjui;
+        default = jjui;
       };
     };
 }
