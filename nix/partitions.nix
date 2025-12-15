@@ -8,6 +8,7 @@
     devShells = "dev";
     formatter = "dev";
     checks = "dev";
+    apps = "dev";
   };
 
   partitions.dev = {
@@ -19,6 +20,7 @@
           inputs.treefmt-nix.flakeModule
           ./shells.nix
           ./treefmt.nix
+          ./utils.nix
         ];
       };
   };

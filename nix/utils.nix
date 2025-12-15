@@ -1,7 +1,7 @@
 {
   perSystem =
     { pkgs, ... }:
-    {
+    let
       update-vendor-hash = pkgs.writeShellApplication {
         name = "update-vendor-hash";
 
@@ -29,6 +29,14 @@
           echo "$NEW_HASH" > "$HASH_FILE"
           echo "Updated $HASH_FILE to $NEW_HASH"
         '';
+      };
+    in
+    {
+      apps = {
+        update-vendor-hash = {
+          type = "app";
+          program = "${update-vendor-hash}/bin/update-vendor-hash";
+        };
       };
     };
 }
