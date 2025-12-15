@@ -31,7 +31,14 @@ buildGoModule {
     description = "A Text User Interface (TUI) designed for interacting with the Jujutsu version control system";
     homepage = "https://github.com/idursun/jjui";
     license = lib.licenses.mit;
-    maintainers = [ "idursun" ];
+    maintainers =
+      with lib.maintainers;
+      [ adda ]
+      ++ [
+        "idursun"
+        "vic"
+        "doprz"
+      ];
     platforms = lib.platforms.unix;
     mainProgram = "jjui";
   };

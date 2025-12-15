@@ -113,20 +113,21 @@ paru -S jjui-bin
 yay -S jjui-bin
 ```
 
-### Nix (maintained by [@Adda0](https://github.com/Adda0))
+### Nix
 
-You can install `jjui` using nix from the unstable channel.
-
+Available in nixpkgs (maintained by [@Adda0](https://github.com/Adda0)):
 ```shell
-nix-env -iA nixpkgs.jjui
+nix run nixpkgs#jjui
 ```
 
-If you need to use a particular branch/revision that
-has not yet landed into nixpkgs. You can install it via
-our provided flake.
-
+This repo also provides a flake (maintained by [@vic](https://github.com/vic) and [@doprz](https://github.com/doprz)) with [flake-compat](https://github.com/NixOS/flake-compat) and an overlay:
 ```shell
-nix profile install github:idursun/jjui/main
+nix run github:idursun/jjui
+```
+
+For development:
+```shell
+nix develop github:idursun/jjui
 ```
 
 ### From go install
