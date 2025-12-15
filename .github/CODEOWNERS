@@ -1,0 +1,9 @@
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence, @idursun will be requested for
+# review when someone opens a pull request.
+* @idursun
+
+# Nix-related
+/nix/ @vic @doprz
+*.nix @vic @doprz
+flake.lock @vic @doprz
