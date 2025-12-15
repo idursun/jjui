@@ -371,11 +371,16 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		cmds = append(cmds, common.SelectionChanged)
 		return tea.Batch(cmds...)
 	case common.TogglePasswordMsg:
+		if m.password != nil {
+			// let the current prompt clean itself
+			m.password.Update(msg)
+		}
 		if msg.Password == nil {
 			m.password = nil
-		} else if m.password != nil {
-			// todo: check conflict
 		} else {
+			// overwrite current prompt. This can happen for ssh-sk keys:
+			//   - first prompt reads "Confirm user presence for ..."
+			//   - if the user denies the request on the device, a new prompt automatically happen "Enter PIN for ...
 			m.password = password.New(msg, m.ViewNode)
 		}
 

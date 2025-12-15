@@ -48,10 +48,11 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case common.TogglePasswordMsg:
+		close(m.passwordCh)
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
-			close(m.passwordCh)
 			return func() tea.Msg {
 				return common.TogglePasswordMsg{}
 			}
