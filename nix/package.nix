@@ -19,7 +19,7 @@ buildGoModule {
     ];
   };
   vendorHash = lib.strings.trim (builtins.readFile ./vendor-hash);
-  doCheck = false;
+  doCheck = true;
 
   ldflags = [
     "-s"
