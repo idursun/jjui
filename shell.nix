@@ -1,12 +1,10 @@
 (import (
   let
-    lock = builtins.fromJSON (builtins.readFile ./flake.lock);
-    nodeName = lock.nodes.root.inputs.flake-compat;
+    rev = "v1.1.0";
+    sha256 = "sha256:19d2z6xsvpxm184m41qrpi1bplilwipgnzv9jy17fgw421785q1m";
   in
   fetchTarball {
-    url =
-      lock.nodes.${nodeName}.locked.url
-        or "https://github.com/NixOS/flake-compat/archive/${lock.nodes.${nodeName}.locked.rev}.tar.gz";
-    sha256 = lock.nodes.${nodeName}.locked.narHash;
+    inherit sha256;
+    url = "https://github.com/NixOS/flake-compat/archive/${rev}.tar.gz";
   }
 ) { src = ./.; }).shellNix
