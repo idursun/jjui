@@ -226,7 +226,7 @@ func run() int {
 	return 0
 }
 
-func showPassword(send func(tea.Msg)) func(name, prompt string, done <-chan struct{}) (string, bool) {
+func showPassword(send func(tea.Msg)) func(name, prompt string, done <-chan struct{}) []byte {
 	adjustPrompt := func(s string) string {
 		// ensure that the prompt is not only made of spaces
 		for _, r := range s {
@@ -236,8 +236,8 @@ func showPassword(send func(tea.Msg)) func(name, prompt string, done <-chan stru
 		}
 		return "ssh-askpass: "
 	}
-	return func(name, prompt string, done <-chan struct{}) (string, bool) {
-		password := make(chan string, 1)
+	return func(name, prompt string, done <-chan struct{}) []byte {
+		password := make(chan []byte, 1)
 		send(common.TogglePasswordMsg{
 			Prompt:   adjustPrompt(prompt),
 			Password: password,
@@ -246,9 +246,9 @@ func showPassword(send func(tea.Msg)) func(name, prompt string, done <-chan stru
 		select {
 		case <-done:
 			send(common.TogglePasswordMsg{})
-			return "", false
-		case pw, ok := <-password:
-			return pw, ok
+			return nil
+		case pw := <-password:
+			return pw
 		}
 	}
 }

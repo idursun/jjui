@@ -134,7 +134,7 @@ func (s *Server) Close() error {
 //   - name comes from [Server.NewSubprocess]
 //   - prompt is the prompt line provided by askpass
 //   - done will be closed when the parent process returned (hence the password is no longer needed)
-func (s *Server) Serve(askpass func(name, prompt string, done <-chan struct{}) (string, bool)) error {
+func (s *Server) Serve(askpass func(name, prompt string, done <-chan struct{}) []byte) error {
 	ln := s.ln.Load()
 
 	for {
@@ -151,7 +151,7 @@ func (s *Server) Serve(askpass func(name, prompt string, done <-chan struct{}) (
 	}
 }
 
-func (s *Server) handle(conn *net.UnixConn, askpass func(name, prompt string, done <-chan struct{}) (string, bool)) error {
+func (s *Server) handle(conn *net.UnixConn, askpass func(name, prompt string, done <-chan struct{}) []byte) error {
 	defer conn.Close()
 
 	// the read phase should be quick
@@ -185,10 +185,12 @@ func (s *Server) handle(conn *net.UnixConn, askpass func(name, prompt string, do
 	}
 
 	// wait for the user input
-	pass, ok := askpass(sub.name, scan.Text(), sub.done)
-	if !ok {
+	pass := askpass(sub.name, scan.Text(), sub.done)
+	if pass == nil {
+		// user did not submit a password: close the connection
 		return nil
 	}
+	defer clear(pass)
 	select {
 	case <-sub.done:
 		return nil
@@ -199,7 +201,7 @@ func (s *Server) handle(conn *net.UnixConn, askpass func(name, prompt string, do
 	if err := conn.SetDeadline(time.Now().Add(3 * time.Second)); err != nil {
 		return err
 	}
-	_, err := conn.Write([]byte(" " + pass)) // leading byte means user provided a password
+	_, err := conn.Write(append([]byte{' '}, pass...)) // leading byte means user provided a password
 	return err
 }
 

@@ -14,7 +14,7 @@ var _ common.Model = (*Model)(nil)
 type Model struct {
 	*common.ViewNode
 	textinput  textinput.Model
-	passwordCh chan<- string
+	passwordCh chan<- []byte
 
 	context *appContext.MainContext
 	styles  styles
@@ -57,7 +57,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				return common.TogglePasswordMsg{}
 			}
 		case tea.KeyEnter:
-			m.passwordCh <- m.textinput.Value()
+			m.passwordCh <- []byte(m.textinput.Value())
 			return func() tea.Msg {
 				return common.TogglePasswordMsg{}
 			}

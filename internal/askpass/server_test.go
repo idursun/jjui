@@ -103,14 +103,14 @@ func TestServerAskpass(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s.Close() })
-	go s.Serve(func(name, prompt string, done <-chan struct{}) (string, bool) {
+	go s.Serve(func(name, prompt string, done <-chan struct{}) []byte {
 		switch authFail.Load() {
 		case 2:
-			return expectedPassword, true
+			return []byte(expectedPassword)
 		case 1:
-			return "wrong password", true
+			return []byte("wrong password")
 		case 0:
-			return rand.Text(), false
+			return nil // user denied
 		default:
 			panic(fmt.Sprintf("%d failure", authFail.Load()))
 		}
@@ -165,7 +165,7 @@ func startSSHServer(t *testing.T, auth func(username, password string) error) (a
 
 	knownHostPath = filepath.Join(t.TempDir(), "known_hosts")
 	line := "127.0.0.1 " + string(ssh.MarshalAuthorizedKey(key.PublicKey()))
-	err = os.WriteFile(knownHostPath, []byte(line), 0666)
+	err = os.WriteFile(knownHostPath, []byte(line), 0o666)
 	if err != nil {
 		t.Fatal(err)
 	}
