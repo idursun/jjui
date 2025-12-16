@@ -216,11 +216,6 @@ func (h *Model) buildRightGroups() menuColumn {
 			h.newBindingItem(h.keyMap.OpLog.Restore),
 			helpItem{"", ""},
 		},
-
-		itemGroup{
-			h.newModeItem(&h.keyMap.Leader, "Leader"),
-			helpItem{"", ""},
-		},
 		customCommandItems,
 	}
 }

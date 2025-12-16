@@ -163,12 +163,6 @@ func run() int {
 		} else {
 			appContext.CustomCommands = registry
 		}
-		if registry, err := context.LoadLeader(string(output)); err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading leader keys: %v\n", err)
-			return 1
-		} else {
-			appContext.Leader = registry
-		}
 		if registry, err := actions.Load(string(output)); err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading actions: %v\n", err)
 			os.Exit(1)

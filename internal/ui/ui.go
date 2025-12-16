@@ -31,7 +31,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/exec_process"
 	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/helppage"
-	"github.com/idursun/jjui/internal/ui/leader"
 	"github.com/idursun/jjui/internal/ui/oplog"
 	"github.com/idursun/jjui/internal/ui/preview"
 	"github.com/idursun/jjui/internal/ui/redo"
@@ -50,7 +49,6 @@ type Model struct {
 	revsetModel           *revset.Model
 	previewModel          *preview.Model
 	diff                  *diff.Model
-	leader                *leader.Model
 	flash                 *flash.Model
 	state                 common.State
 	status                *status.Model
@@ -72,10 +70,6 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) handleFocusInputMessage(msg tea.Msg) (tea.Cmd, bool) {
 	if _, ok := msg.(common.CloseViewMsg); ok {
-		if m.leader != nil {
-			m.leader = nil
-			return nil, true
-		}
 		if m.diff != nil {
 			m.diff = nil
 			return nil, true
@@ -89,10 +83,6 @@ func (m *Model) handleFocusInputMessage(msg tea.Msg) (tea.Cmd, bool) {
 			return common.SelectionChanged, true
 		}
 		return nil, false
-	}
-
-	if m.leader != nil {
-		return m.leader.Update(msg), true
 	}
 
 	switch msg := msg.(type) {
@@ -356,10 +346,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.stacked = model
 			cmds = append(cmds, m.stacked.Init())
 			return tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Leader):
-			m.leader = leader.New(m.context)
-			cmds = append(cmds, leader.InitCmd)
-			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.FileSearch.Toggle):
 			rev := m.revisions.SelectedRevision()
 			if rev == nil {
@@ -519,9 +505,6 @@ func (m *Model) updateStatus() {
 		if s, ok := m.stacked.(help.KeyMap); ok {
 			m.status.SetHelp(s)
 		}
-	case m.leader != nil:
-		m.status.SetMode("leader")
-		m.status.SetHelp(m.leader)
 	default:
 		m.status.SetHelp(m.revisions)
 		m.status.SetMode(m.revisions.CurrentOperation().Name())

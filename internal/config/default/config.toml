@@ -35,7 +35,6 @@ limit = 0
   quick_search = ["/"]
   quick_search_cycle = ["'"]
   custom_commands = ["x"]
-  leader = ["\\"]
   suspend = ["ctrl+z"]
   set_parents = ["M"]
   [keys.rebase]

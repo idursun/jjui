@@ -61,7 +61,6 @@ type MainContext struct {
 	CheckedItems   []SelectedItem // Items checked ✓ by the user.
 	Location       string
 	CustomCommands map[string]CustomCommand
-	Leader         LeaderMap
 	JJConfig       *config.JJConfig
 	DefaultRevset  string
 	CurrentRevset  string
