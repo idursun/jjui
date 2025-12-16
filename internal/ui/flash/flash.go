@@ -98,13 +98,32 @@ func (m *Model) View() []FlashMessageView {
 
 	y := m.Height - 1
 	var messageBoxes []FlashMessageView
+	// reserve padding and calculate max width for messages
+	maxWidth := m.Width - 4
+
 	for _, message := range messages {
-		var content string
+		var text string
+		var style lipgloss.Style
 		if message.error != nil {
-			content = m.errorStyle.Render(message.error.Error())
+			text = message.error.Error()
+			style = m.errorStyle
 		} else {
-			content = m.successStyle.Render(message.text)
+			text = message.text
+			style = m.successStyle
 		}
+
+		// first render without width to check natural size
+		naturalContent := style.Render(text)
+		naturalWidth, _ := lipgloss.Size(naturalContent)
+
+		var content string
+		if naturalWidth <= maxWidth {
+			content = naturalContent
+		} else {
+			// width doesn't fit within maxWidth, set Width for line wrap
+			content = style.Width(maxWidth).Render(text)
+		}
+
 		w, h := lipgloss.Size(content)
 		y -= h
 		messageBoxes = append(messageBoxes, FlashMessageView{
