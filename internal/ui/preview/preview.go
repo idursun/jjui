@@ -16,8 +16,10 @@ import (
 	"github.com/idursun/jjui/internal/ui/context"
 )
 
-const scrollAmount = 3
-const handleSize = 3
+const (
+	scrollAmount = 3
+	handleSize   = 3
+)
 
 var _ common.Model = (*Model)(nil)
 
@@ -37,8 +39,10 @@ type Model struct {
 	keyMap                  config.KeyMappings[key.Binding]
 }
 
-const debounceId = "preview-refresh"
-const debounceDuration = 50 * time.Millisecond
+const (
+	debounceId       = "preview-refresh"
+	debounceDuration = 50 * time.Millisecond
+)
 
 type previewMsg struct {
 	msg tea.Msg
@@ -169,13 +173,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	}
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
-		if msg.Button == tea.MouseButtonWheelUp {
+		switch msg.Button {
+		case tea.MouseButtonWheelUp:
 			m.Scroll(-scrollAmount)
-		} else if msg.Button == tea.MouseButtonWheelDown {
+		case tea.MouseButtonWheelDown:
 			m.Scroll(scrollAmount)
-		} else if msg.Button == tea.MouseButtonWheelLeft {
+		case tea.MouseButtonWheelLeft:
 			m.ScrollHorizontal(-scrollAmount)
-		} else if msg.Button == tea.MouseButtonWheelRight {
+		case tea.MouseButtonWheelRight:
 			m.ScrollHorizontal(scrollAmount)
 		}
 	case common.SelectionChangedMsg, common.RefreshMsg:
