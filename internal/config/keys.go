@@ -44,7 +44,6 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		AceJump:          key.NewBinding(key.WithKeys(m.AceJump...), key.WithHelp(JoinKeys(m.AceJump), "ace jump")),
 		QuickSearch:      key.NewBinding(key.WithKeys(m.QuickSearch...), key.WithHelp(JoinKeys(m.QuickSearch), "quick search")),
 		QuickSearchCycle: key.NewBinding(key.WithKeys(m.QuickSearchCycle...), key.WithHelp(JoinKeys(m.QuickSearchCycle), "locate next match")),
-		CustomCommands:   key.NewBinding(key.WithKeys(m.CustomCommands...), key.WithHelp(JoinKeys(m.CustomCommands), "custom commands menu")),
 		Suspend:          key.NewBinding(key.WithKeys(m.Suspend...), key.WithHelp(JoinKeys(m.Suspend), "suspend")),
 		SetParents:       key.NewBinding(key.WithKeys(m.SetParents...), key.WithHelp(JoinKeys(m.SetParents), "set parents")),
 		ExecJJ:           key.NewBinding(key.WithKeys(m.ExecJJ...), key.WithHelp(JoinKeys(m.ExecJJ), "interactive jj")),
@@ -192,7 +191,6 @@ type KeyMappings[T any] struct {
 	AceJump           T                         `toml:"ace_jump"`
 	QuickSearch       T                         `toml:"quick_search"`
 	QuickSearchCycle  T                         `toml:"quick_search_cycle"`
-	CustomCommands    T                         `toml:"custom_commands"`
 	Suspend           T                         `toml:"suspend"`
 	SetParents        T                         `toml:"set_parents"`
 	Revert            revertModeKeys[T]         `toml:"revert"`

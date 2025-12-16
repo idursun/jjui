@@ -34,7 +34,6 @@ limit = 0
   ace_jump = ["f"]
   quick_search = ["/"]
   quick_search_cycle = ["'"]
-  custom_commands = ["x"]
   suspend = ["ctrl+z"]
   set_parents = ["M"]
   [keys.rebase]

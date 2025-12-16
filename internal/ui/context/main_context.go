@@ -57,16 +57,15 @@ func (s SelectedOperation) Equal(other SelectedItem) bool {
 
 type MainContext struct {
 	CommandRunner
-	SelectedItem   SelectedItem   // Single item where cursor is hover.
-	CheckedItems   []SelectedItem // Items checked ✓ by the user.
-	Location       string
-	CustomCommands map[string]CustomCommand
-	JJConfig       *config.JJConfig
-	DefaultRevset  string
-	CurrentRevset  string
-	Histories      *config.Histories
-	KeyBindings    []bindings.KeyBinding
-	Actions        map[string]actions.Action
+	SelectedItem  SelectedItem   // Single item where cursor is hover.
+	CheckedItems  []SelectedItem // Items checked ✓ by the user.
+	Location      string
+	JJConfig      *config.JJConfig
+	DefaultRevset string
+	CurrentRevset string
+	Histories     *config.Histories
+	KeyBindings   []bindings.KeyBinding
+	Actions       map[string]actions.Action
 }
 
 func NewAppContext(location string, aps *askpass.Server) *MainContext {

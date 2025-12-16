@@ -178,11 +178,6 @@ func (h *Model) buildMiddleGroups() menuColumn {
 }
 
 func (h *Model) buildRightGroups() menuColumn {
-	customCommandItems := []helpItem{h.newModeItem(&h.keyMap.CustomCommands, "Custom Commands")}
-	for _, command := range h.context.CustomCommands {
-		customCommandItems = append(customCommandItems, h.newBindingItem(command.Binding()))
-	}
-
 	return menuColumn{
 		itemGroup{
 			h.newModeItem(&h.keyMap.Preview.Mode, "Preview"),
@@ -216,6 +211,5 @@ func (h *Model) buildRightGroups() menuColumn {
 			h.newBindingItem(h.keyMap.OpLog.Restore),
 			helpItem{"", ""},
 		},
-		customCommandItems,
 	}
 }

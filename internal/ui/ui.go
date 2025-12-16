@@ -26,7 +26,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/choose"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	customcommands "github.com/idursun/jjui/internal/ui/custom_commands"
 	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/exec_process"
 	"github.com/idursun/jjui/internal/ui/git"
@@ -59,7 +58,6 @@ type Model struct {
 	stacked               common.SizableModel
 	dragTarget            common.Draggable
 	actionSequenceOverlay *actionbindings.SequenceOverlay
-	sequenceOverlay       *customcommands.SequenceOverlay
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -163,46 +161,6 @@ func (m *Model) shouldStartActionSequenceOverlay(msg tea.KeyMsg) bool {
 	return false
 }
 
-func (m *Model) handleCustomCommandSequence(msg tea.KeyMsg) tea.Cmd {
-	if !m.ensureSequenceOverlay(msg) {
-		return nil
-	}
-
-	res := m.sequenceOverlay.HandleKey(msg)
-	if !res.Active {
-		m.sequenceOverlay = nil
-	}
-	if res.Cmd != nil {
-		return res.Cmd
-	}
-	return nil
-}
-
-func (m *Model) ensureSequenceOverlay(msg tea.KeyMsg) bool {
-	if m.sequenceOverlay != nil {
-		return true
-	}
-	if !m.shouldStartSequenceOverlay(msg) {
-		return false
-	}
-	m.sequenceOverlay = customcommands.NewSequenceOverlay(m.context)
-	m.sequenceOverlay.Parent = m.ViewNode
-	return true
-}
-
-func (m *Model) shouldStartSequenceOverlay(msg tea.KeyMsg) bool {
-	for _, command := range customcommands.SortedCustomCommands(m.context) {
-		seq := command.Sequence()
-		if len(seq) == 0 || !command.IsApplicableTo(m.context.SelectedItem) {
-			continue
-		}
-		if key.Matches(msg, seq[0]) {
-			return true
-		}
-	}
-	return false
-}
-
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if cmd, handled := m.handleFocusInputMessage(msg); handled {
 		return cmd
@@ -257,17 +215,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 		if cmd, handled := m.dispatchActionByKey(msg); handled {
 			return cmd
-		}
-
-		// Forward all key presses to the custom sequence handler first.
-		wasPartialSequenceMatch := m.sequenceOverlay != nil
-		if cmd := m.handleCustomCommandSequence(msg); cmd != nil || m.sequenceOverlay != nil {
-			return cmd
-		}
-		if wasPartialSequenceMatch {
-			// If we were in a partial sequence but the key didn't match, don't
-			// process it further.
-			return nil
 		}
 
 		switch {
@@ -340,12 +287,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.keyMap.Preview.Shrink) && m.previewModel.Visible():
 			m.previewModel.Shrink()
 			return tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.CustomCommands):
-			model := customcommands.NewModel(m.context)
-			model.Parent = m.ViewNode
-			m.stacked = model
-			cmds = append(cmds, m.stacked.Init())
-			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.FileSearch.Toggle):
 			rev := m.revisions.SelectedRevision()
 			if rev == nil {
@@ -359,15 +300,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		case key.Matches(msg, m.keyMap.Suspend):
 			return tea.Suspend
-		default:
-			for _, command := range customcommands.SortedCustomCommands(m.context) {
-				if !command.IsApplicableTo(m.context.SelectedItem) {
-					continue
-				}
-				if key.Matches(msg, command.Binding()) {
-					return command.Prepare(m.context)
-				}
-			}
 		}
 	case common.ExecMsg:
 		return exec_process.ExecLine(m.context, msg)
@@ -394,15 +326,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		res := m.actionSequenceOverlay.HandleTimeout(msg)
 		if !res.Active {
 			m.actionSequenceOverlay = nil
-		}
-		return res.Cmd
-	case customcommands.SequenceTimeoutMsg:
-		if m.sequenceOverlay == nil {
-			return nil
-		}
-		res := m.sequenceOverlay.HandleTimeout(msg)
-		if !res.Active {
-			m.sequenceOverlay = nil
 		}
 		return res.Cmd
 	case triggerAutoRefreshMsg:
@@ -521,7 +444,10 @@ func (m *Model) UpdatePreviewPosition() {
 func (m *Model) actionState() map[string]any {
 	state := map[string]any{
 		"preview.visible": m.previewModel.Visible(),
-		"revisions":       m.oplog == nil && m.stacked == nil && m.diff == nil && m.sequenceOverlay == nil && m.revisions.InNormalMode(),
+		// Keep "revisions" true while the action-sequence overlay is active so
+		// bindings with `when = "revisions"` can still match during sequence entry.
+		"revisions":             m.oplog == nil && m.stacked == nil && m.diff == nil && m.revisions.InNormalMode(),
+		"action_sequence.active": m.actionSequenceOverlay != nil,
 		"rebase":          m.revisions.CurrentOperation().Name() == "rebase",
 		"abandon":         m.revisions.CurrentOperation().Name() == "abandon",
 		"squash":          m.revisions.CurrentOperation().Name() == "squash",
@@ -536,7 +462,6 @@ func (m *Model) actionState() map[string]any {
 		"bookmarks":       m.stacked != nil && m.stacked.Name() == "bookmarks",
 		"undo":            m.stacked != nil && m.stacked.Name() == "undo",
 		"redo":            m.stacked != nil && m.stacked.Name() == "redo",
-		"custom_commands": m.stacked != nil && m.stacked.Name() == "custom_commands",
 	}
 	return state
 }
@@ -642,12 +567,6 @@ func (m *Model) View() string {
 		m.actionSequenceOverlay.Parent = m.ViewNode
 		view := m.actionSequenceOverlay.View()
 		cellbuf.SetContentRect(screenBuf, view, m.actionSequenceOverlay.Frame)
-	}
-
-	if m.sequenceOverlay != nil {
-		m.sequenceOverlay.Parent = m.ViewNode
-		view := m.sequenceOverlay.View()
-		cellbuf.SetContentRect(screenBuf, view, m.sequenceOverlay.Frame)
 	}
 
 	flashMessageView := m.flash.View()
