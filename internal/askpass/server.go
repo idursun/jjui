@@ -106,7 +106,8 @@ func (s *Server) smokeTestPeerCred(ln *net.UnixListener) error {
 		if err != nil {
 			return
 		}
-		conn.Close()
+		defer conn.Close()
+		_, _ = conn.Read(make([]byte, 1)) // darwin needs an active connection for peercred
 	}()
 	conn, err := ln.AcceptUnix()
 	if err != nil {
@@ -261,7 +262,7 @@ func ensureConnFromDescendant(conn *net.UnixConn, parentPID int) error {
 	}
 
 	for pid != parentPID {
-		pid, err = readPPid(pid)
+		pid, err = getPPid(pid)
 		if err != nil {
 			return err
 		}
@@ -271,22 +272,4 @@ func ensureConnFromDescendant(conn *net.UnixConn, parentPID int) error {
 		}
 	}
 	return nil
-}
-
-func readPPid(pid int) (int, error) {
-	f, err := os.Open(fmt.Sprintf("/proc/%d/status", pid))
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-	scan := bufio.NewScanner(f)
-	for scan.Scan() {
-		prefix, suffix, ok := strings.Cut(scan.Text(), "\t")
-		if !ok || prefix != "PPid:" {
-			continue
-		}
-		return strconv.Atoi(suffix)
-	}
-
-	return 0, scan.Err()
 }
