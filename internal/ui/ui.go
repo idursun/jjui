@@ -468,16 +468,19 @@ func (m *Model) actionState() map[string]any {
 
 func (m *Model) dispatchActionByKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 	state := m.actionState()
-	for _, binding := range m.context.KeyBindings {
+	// Scan from the end so user config (appended last) takes precedence.
+	for i := len(m.context.KeyBindings) - 1; i >= 0; i-- {
+		binding := m.context.KeyBindings[i]
 		if len(binding.Keys) == 0 {
-			continue
-		}
-		if binding.Disabled {
 			continue
 		}
 		k := key.NewBinding(key.WithKeys(binding.Keys...))
 		if key.Matches(msg, k) {
 			if binding.Condition.Eval(state) {
+				// Disabled bindings act as an override to suppress earlier bindings.
+				if binding.Disabled {
+					return nil, true
+				}
 				if cmd := m.context.ActionCmd(binding.Action); cmd != nil {
 					return cmd, true
 				}
