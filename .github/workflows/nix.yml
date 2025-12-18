@@ -1,10 +1,8 @@
 name: nix flake check
-
 on:
   pull_request:
   push:
     branches: [main]
-
 jobs:
   flake-check:
     name: nix flake check

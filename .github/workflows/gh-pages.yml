@@ -26,7 +26,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          repository: '${{github.repository}}.wiki'
+          repository: "${{github.repository}}.wiki"
       - name: Build
         run: mdbook build
       - name: Setup Pages
@@ -34,7 +34,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './book'
+          path: "./book"
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
