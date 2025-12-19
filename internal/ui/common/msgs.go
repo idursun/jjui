@@ -43,6 +43,10 @@ type (
 		Options []string
 		Title   string
 	}
+	ShowInputMsg struct {
+		Title  string
+		Prompt string
+	}
 	ExecProcessCompletedMsg struct {
 		Err error
 		Msg ExecMsg

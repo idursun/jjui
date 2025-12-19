@@ -7,6 +7,7 @@ import (
 
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/intents"
 	lua "github.com/yuin/gopher-lua"
 
@@ -305,6 +306,21 @@ func registerAPI(L *lua.LState, runner *Runner) {
 		options = argsFromLua(L)
 		return yieldStep(L, step{cmd: choose.ShowWithTitle(options, ""), matcher: matchChoose})
 	})
+	inputFn := L.NewFunction(func(L *lua.LState) int {
+		var title, prompt string
+		if L.GetTop() == 1 {
+			if tbl, ok := L.Get(1).(*lua.LTable); ok {
+				if titleVal := tbl.RawGetString("title"); titleVal != lua.LNil {
+					title = titleVal.String()
+				}
+				if promptVal := tbl.RawGetString("prompt"); promptVal != lua.LNil {
+					prompt = promptVal.String()
+				}
+				return yieldStep(L, step{cmd: input.ShowWithTitle(title, prompt), matcher: matchInput})
+			}
+		}
+		return yieldStep(L, step{cmd: input.ShowWithTitle("", ""), matcher: matchInput})
+	})
 
 	// make sure we have a `jjui` namespace
 	root := L.NewTable()
@@ -317,6 +333,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	root.RawSetString("copy_to_clipboard", copyToClipboardFn)
 	root.RawSetString("split_lines", splitLinesFn)
 	root.RawSetString("choose", chooseFn)
+	root.RawSetString("input", inputFn)
 	L.SetGlobal("jjui", root)
 
 	// but also expose at the top level for convenience
@@ -329,6 +346,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	L.SetGlobal("copy_to_clipboard", copyToClipboardFn)
 	L.SetGlobal("split_lines", splitLinesFn)
 	L.SetGlobal("choose", chooseFn)
+	L.SetGlobal("input", inputFn)
 }
 
 func payloadFromTop(L *lua.LState) map[string]any {
@@ -531,6 +549,17 @@ func matchChoose(msg tea.Msg) (bool, []lua.LValue) {
 	case choose.SelectedMsg:
 		return true, []lua.LValue{lua.LString(msg.Value)}
 	case choose.CancelledMsg:
+		return true, []lua.LValue{lua.LNil}
+	default:
+		return false, nil
+	}
+}
+
+func matchInput(msg tea.Msg) (bool, []lua.LValue) {
+	switch msg := msg.(type) {
+	case input.SelectedMsg:
+		return true, []lua.LValue{lua.LString(msg.Value)}
+	case input.CancelledMsg:
 		return true, []lua.LValue{lua.LNil}
 	default:
 		return false, nil

@@ -28,6 +28,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/exec_process"
 	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/helppage"
+	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/leader"
 	"github.com/idursun/jjui/internal/ui/oplog"
 	"github.com/idursun/jjui/internal/ui/preview"
@@ -373,6 +374,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.stacked = model
 		return m.stacked.Init()
 	case choose.SelectedMsg, choose.CancelledMsg:
+		m.stacked = nil
+	case common.ShowInputMsg:
+		model := input.NewWithTitle(msg.Title, msg.Prompt)
+		model.Parent = m.ViewNode
+		m.stacked = model
+		return m.stacked.Init()
+	case input.SelectedMsg, input.CancelledMsg:
 		m.stacked = nil
 	case common.ShowPreview:
 		m.previewModel.SetVisible(bool(msg))
