@@ -4,6 +4,6 @@
 * @idursun
 
 # Nix-related
-/nix/ @vic @doprz
-*.nix @vic @doprz
-flake.lock @vic @doprz
+/nix/ @vic @doprz @adda0
+*.nix @vic @doprz @adda0
+flake.lock @vic @doprz @adda0
