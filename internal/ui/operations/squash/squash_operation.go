@@ -58,6 +58,8 @@ func (s *Operation) View() string {
 
 func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
+	case key.Matches(msg, s.keyMap.AceJump):
+		return common.StartAceJump()
 	case key.Matches(msg, s.keyMap.Apply, s.keyMap.ForceApply):
 		ignoreImmutable := key.Matches(msg, s.keyMap.ForceApply)
 		args := jj.Squash(s.from, s.current.GetChangeId(), s.files, s.keepEmptied, s.useDestinationMessage, s.interactive, ignoreImmutable)
@@ -123,6 +125,7 @@ func (s *Operation) ShortHelp() []key.Binding {
 		s.keyMap.Squash.KeepEmptied,
 		s.keyMap.Squash.UseDestinationMessage,
 		s.keyMap.Squash.Interactive,
+		s.keyMap.AceJump,
 	}
 }
 

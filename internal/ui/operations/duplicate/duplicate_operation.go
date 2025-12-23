@@ -71,6 +71,8 @@ func (r *Operation) View() string {
 
 func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
+	case key.Matches(msg, r.keyMap.AceJump):
+		return common.StartAceJump()
 	case key.Matches(msg, r.keyMap.Duplicate.Onto):
 		r.Target = TargetDestination
 	case key.Matches(msg, r.keyMap.Duplicate.After):
@@ -97,6 +99,7 @@ func (r *Operation) ShortHelp() []key.Binding {
 		r.keyMap.Duplicate.After,
 		r.keyMap.Duplicate.Before,
 		r.keyMap.Duplicate.Onto,
+		r.keyMap.AceJump,
 	}
 }
 

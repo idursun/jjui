@@ -105,6 +105,8 @@ func (r *Operation) View() string {
 
 func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
+	case key.Matches(msg, r.keyMap.AceJump):
+		return common.StartAceJump()
 	case key.Matches(msg, r.keyMap.Rebase.Revision):
 		r.Source = SourceRevision
 	case key.Matches(msg, r.keyMap.Rebase.Branch):
@@ -183,6 +185,7 @@ func (r *Operation) ShortHelp() []key.Binding {
 		r.keyMap.Rebase.Onto,
 		r.keyMap.Rebase.Insert,
 		r.keyMap.Rebase.SkipEmptied,
+		r.keyMap.AceJump,
 	}
 }
 

@@ -65,6 +65,10 @@ type (
 		Prompt   string
 		Password chan []byte
 	}
+	RestoreOperationMsg struct {
+		Operation any
+	}
+	StartAceJumpMsg struct{}
 	// DeferredUpdateMsg is used to defer an update until the next render cycle
 	// However, this is very hacky and should only be used for single model updates that doesn't interact with any other model
 	// Rule of thumb is that if you are updating a model with a public message, then you probably shouldn't use this
@@ -87,6 +91,18 @@ func Close() tea.Msg {
 
 func CloseApplied() tea.Msg {
 	return CloseViewMsg{Applied: true}
+}
+
+func RestoreOperation(op interface{}) tea.Cmd {
+	return func() tea.Msg {
+		return RestoreOperationMsg{Operation: op}
+	}
+}
+
+func StartAceJump() tea.Cmd {
+	return func() tea.Msg {
+		return StartAceJumpMsg{}
+	}
 }
 
 func SelectionChanged() tea.Msg {
