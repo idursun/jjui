@@ -1,17 +1,16 @@
 ---
 name: Implementation Proposal
 about: Propose how you plan to implement a feature or fix before starting work
-title: 'IP: '
-labels: ''
-assignees: ''
-
+title: "IP: "
+labels: ""
+assignees: ""
 ---
 
 If you have already started working on this, use `WIP` (Work In Progress) instead of `IP` (Implementation Proposal).
 
 Feel free to change, adapt, or remove any of the following sections as it makes sense to you.
 
-Nothing you write here is set in stone. The purpose of this issue is to help maintainers provide insights to aid contributors. 
+Nothing you write here is set in stone. The purpose of this issue is to help maintainers provide insights to aid contributors.
 
 Discussion can be moved once you have a PR to iterate on specific implementation details.
 
@@ -32,12 +31,14 @@ Briefly describe your planned feature approach:
 **Implementation Details**
 
 Does it help to have a checklist to track implementation progress?
+
 - [ ] Step 1: Description
-- [ ] Step 2: Description  
+- [ ] Step 2: Description
 - [ ] Step 3: Description
 
 **Testing Strategy**
 How do you plan to test this implementation?
+
 - Unit tests needed
 - Integration tests
 - Manual testing approach

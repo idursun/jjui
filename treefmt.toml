@@ -1,0 +1,29 @@
+[formatter.nixfmt]
+command = "nixfmt"
+excludes = []
+includes = ["*.nix"]
+options = []
+
+[formatter.gofmt]
+command = "gofmt"
+excludes = ["vendor/*"]
+includes = ["*.go"]
+options = ["-w"]
+
+[formatter.yamlfmt]
+command = "yamlfmt"
+excludes = []
+includes = ["*.yaml", "*.yml"]
+options = []
+
+[formatter.taplo]
+command = "taplo"
+excludes = ["internal/config/default/config.toml"]
+includes = ["*.toml"]
+options = ["format"]
+
+[formatter.prettier]
+command = "prettier"
+excludes = []
+includes = ["*.md", "*.mdx"]
+options = ["--write"]

@@ -9,11 +9,13 @@ If you are new `jjui`, have a look at [previously on jjui](https://github.com/id
 ## Features
 
 ### Change revset with auto-complete
+
 You can change revset while enjoying auto-complete and signature help while typing.
 
 ![GIF](https://github.com/idursun/jjui/wiki/gifs/jjui_revset.gif)
 
 ### Rebase
+
 You can rebase a revision or a branch onto another revision in the revision tree.
 
 ![GIF](https://github.com/idursun/jjui/wiki/gifs/jjui_rebase.gif)
@@ -21,6 +23,7 @@ You can rebase a revision or a branch onto another revision in the revision tree
 See [Rebase](https://github.com/idursun/jjui/wiki/Rebase) for detailed information.
 
 ### Squash
+
 You can squash revisions into one revision, by pressing `S`. The following revision will be automatically selected. However, you can change the selection using `j` and `k`.
 
 ![GIF](https://github.com/idursun/jjui/wiki/gifs/jjui_squash.gif)
@@ -30,6 +33,7 @@ You can squash revisions into one revision, by pressing `S`. The following revis
 Pressing `l` (as in going right into the details of a revision) will open the details view of the revision you selected.
 
 In this mode, you can:
+
 - Restore selected files using `r` (press `i` in the dialog for interactive chunk restore)
 - Split selected files using `s`
 - View diffs of the highlighted by pressing `d`
@@ -39,18 +43,20 @@ In this mode, you can:
 For detailed information, see [Details](https://github.com/idursun/jjui/wiki/Details) wiki page.
 
 ### Bookmarks
+
 You can move bookmarks to the revision you selected.
 
 ![GIF](https://github.com/idursun/jjui/wiki/gifs/jjui_bookmarks.gif)
 
-
 ### Op Log
+
 You can switch to op log view by pressing `o`. Pressing `r` restores the selected operation. For more information, see [Op log](https://github.com/idursun/jjui/wiki/Oplog) wiki page.
 
 ![GIF](https://github.com/idursun/jjui/wiki/gifs/jjui_oplog.gif)
 
 ### Preview
-You can open the preview window by pressing `p`. If the selected item is a revision, then the output of `jj show` command is displayed. Similarly, `jj diff` output is displayed for selected files,  and `jj op show` output is displayed for selected operations.
+
+You can open the preview window by pressing `p`. If the selected item is a revision, then the output of `jj show` command is displayed. Similarly, `jj diff` output is displayed for selected files, and `jj op show` output is displayed for selected operations.
 
 While the preview window is showing, you can press; `ctrl+n` to scroll one line down, `ctrl+p` to scroll one line up, `ctrl+d` to scroll half a page down, `ctrl+u` to scroll half a page up.
 
@@ -61,17 +67,18 @@ For detailed information, see [Preview](https://github.com/idursun/jjui/wiki/Pre
 ![GIF](https://github.com/idursun/jjui/wiki/gifs/jjui_preview.gif)
 
 Additionally,
-* View the diff of a revision by pressing `d`.
-* Edit the description of a revision by pressing `D`
-* Create a _new_ revision by pressing `n`
-* Split a revision by pressing `s`.
-* Abandon a revision by pressing `a`.
-* Absorb a revision by pressing `A`.
-* _Edit_ a revision by pressing `e`
-* Git _push_/_fetch_ by pressing `g`
-* Undo the last change by pressing `u`
-* Redo the last change by pressing `R`
-* Show evolog of a revision by pressing `v`
+
+- View the diff of a revision by pressing `d`.
+- Edit the description of a revision by pressing `D`
+- Create a _new_ revision by pressing `n`
+- Split a revision by pressing `s`.
+- Abandon a revision by pressing `a`.
+- Absorb a revision by pressing `A`.
+- _Edit_ a revision by pressing `e`
+- Git _push_/_fetch_ by pressing `g`
+- Undo the last change by pressing `u`
+- Redo the last change by pressing `R`
+- Show evolog of a revision by pressing `v`
 
 ## Configuration
 
@@ -94,7 +101,6 @@ scoop bucket add extras
 scoop install jjui
 ```
 
-
 ### Homebrew
 
 The latest release of `jjui` is available on Homebrew core:
@@ -116,16 +122,19 @@ yay -S jjui-bin
 ### Nix
 
 Available in nixpkgs (maintained by [@Adda0](https://github.com/Adda0)):
+
 ```shell
 nix run nixpkgs#jjui
 ```
 
 This repo also provides a flake (maintained by [@vic](https://github.com/vic) and [@doprz](https://github.com/doprz)) with [flake-compat](https://github.com/NixOS/flake-compat) and an overlay:
+
 ```shell
 nix run github:idursun/jjui
 ```
 
 For development:
+
 ```shell
 nix develop github:idursun/jjui
 ```
@@ -143,6 +152,7 @@ To install the latest commit from `main`:
 ```shell
 go install github.com/idursun/jjui/cmd/jjui@HEAD
 ```
+
 To install the latest commit from `main` bypassing the local cache:
 
 ```shell
@@ -159,8 +169,8 @@ cd jjui
 go install ./...
 ```
 
-
 ### From pre-built binaries
+
 You can download pre-built binaries from the [releases](https://github.com/idursun/jjui/releases) page.
 
 ## Compatibility
@@ -172,3 +182,33 @@ Minimum supported `jj` version is **v0.26**+.
 Feel free to submit a pull request.
 
 You can compile `jjui` by running `go build ./cmd/jjui` in the root of the repo.
+
+### Code Formatting
+
+This project uses [treefmt](https://github.com/numtide/treefmt) to format code.
+
+**With Nix:**
+
+```shell
+nix fmt
+```
+
+**Without Nix:**
+
+Install `treefmt` and the required formatters, then run:
+
+```shell
+treefmt
+```
+
+Required formatters:
+
+- gofmt
+- taplo
+- yamlfmt
+- prettier
+- nixfmt
+
+## License
+
+This project is licensed under the [MIT License](./LICENSE).

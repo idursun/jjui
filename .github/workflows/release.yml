@@ -1,9 +1,7 @@
 name: Build and Release Go Binaries
-
 on:
   release:
     types: [created]
-
 jobs:
   build:
     name: Build and Publish
@@ -23,16 +21,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.24"
-
       - name: Get release version
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
       - name: Build binaries
         env:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
@@ -41,11 +36,9 @@ jobs:
         run: |
           go build -ldflags="-X 'main.Version=$VERSION'" -o release/jjui-$VERSION-${{ matrix.os }}-${{ matrix.arch }}${{matrix.extension}} cmd/jjui/main.go
           zip -j release/jjui-$VERSION-${{ matrix.os }}-${{ matrix.arch }}.zip release/jjui-$VERSION-${{ matrix.os }}-${{ matrix.arch }}${{matrix.extension}}
-
       - name: Upload release binaries
         uses: softprops/action-gh-release@v2
         with:
-          files:
-            release/*.zip
+          files: release/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
