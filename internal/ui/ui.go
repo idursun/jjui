@@ -235,7 +235,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Quit) && m.isSafeToQuit():
 			return tea.Quit
-		case key.Matches(msg, m.keyMap.OpLog.Mode):
+		case key.Matches(msg, m.keyMap.OpLog.Mode) && m.revisions.InNormalMode():
 			m.oplog = oplog.New(m.context)
 			m.oplog.Parent = m.ViewNode
 			return m.oplog.Init()

@@ -253,17 +253,8 @@ func (m *Model) createMenuItems() []list.Item {
 					category: itemCategoryPush,
 				})
 			}
-			if b.IsPushable() {
-				items = append(items, item{
-					name:     fmt.Sprintf("git push --bookmark %s --allow-new --remote %s", b.Name, selectedRemote),
-					desc:     fmt.Sprintf("Git push new bookmark %s", b.Name),
-					command:  jj.GitPush("--bookmark", b.Name, "--allow-new", "--remote", selectedRemote),
-					category: itemCategoryPush,
-				})
-			}
 		}
 	}
-
 	items = append(items,
 		item{
 			name:     fmt.Sprintf("git push --remote %s", selectedRemote),
@@ -324,12 +315,6 @@ func (m *Model) createMenuItems() []list.Item {
 			command:  jj.GitPush("--tracked", "--remote", selectedRemote),
 			category: itemCategoryPush,
 			key:      "t",
-		},
-		item{
-			name:     fmt.Sprintf("git push --allow-new --remote %s", selectedRemote),
-			desc:     "Allow pushing new bookmarks",
-			command:  jj.GitPush("--allow-new", "--remote", selectedRemote),
-			category: itemCategoryPush,
 		},
 		item{
 			name:     fmt.Sprintf("git fetch --remote %s", selectedRemote),
