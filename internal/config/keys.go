@@ -91,6 +91,11 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Diff:                  key.NewBinding(key.WithKeys(m.Details.Diff...), key.WithHelp(JoinKeys(m.Details.Diff), "diff")),
 			ToggleSelect:          key.NewBinding(key.WithKeys(m.Details.ToggleSelect...), key.WithHelp(JoinKeys(m.Details.ToggleSelect), "details toggle select")),
 			RevisionsChangingFile: key.NewBinding(key.WithKeys(m.Details.RevisionsChangingFile...), key.WithHelp(JoinKeys(m.Details.RevisionsChangingFile), "show revisions changing file")),
+			Search:                key.NewBinding(key.WithKeys(m.Details.Search...), key.WithHelp(JoinKeys(m.Details.Search), "search in preview")),
+			NextMatch:             key.NewBinding(key.WithKeys(m.Details.NextMatch...), key.WithHelp(JoinKeys(m.Details.NextMatch), "next match")),
+			PreviousMatch:         key.NewBinding(key.WithKeys(m.Details.PreviousMatch...), key.WithHelp(JoinKeys(m.Details.PreviousMatch), "prev match")),
+			GoToStart:             key.NewBinding(key.WithKeys(m.Details.GoToStart...), key.WithHelp(JoinKeys(m.Details.GoToStart), "go to start")),
+			GoToEnd:               key.NewBinding(key.WithKeys(m.Details.GoToEnd...), key.WithHelp(JoinKeys(m.Details.GoToEnd), "go to end")),
 		},
 		Bookmark: bookmarkModeKeys[key.Binding]{
 			Mode:    key.NewBinding(key.WithKeys(m.Bookmark.Mode...), key.WithHelp(JoinKeys(m.Bookmark.Mode), "bookmarks")),
@@ -272,6 +277,11 @@ type detailsModeKeys[T any] struct {
 	Diff                  T `toml:"diff"`
 	ToggleSelect          T `toml:"select"`
 	RevisionsChangingFile T `toml:"revisions_changing_file"`
+	Search                T `toml:"search"`
+	NextMatch             T `toml:"next_match"`
+	PreviousMatch         T `toml:"previous_match"`
+	GoToStart             T `toml:"go_to_start"`
+	GoToEnd               T `toml:"go_to_end"`
 }
 
 type gitModeKeys[T any] struct {
