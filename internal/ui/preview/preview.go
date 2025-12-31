@@ -24,6 +24,8 @@ const (
 
 var _ common.Model = (*Model)(nil)
 
+var globalFileYOffsets = make(map[string]int)
+
 type Model struct {
 	*common.ViewNode
 	*common.MouseAware
@@ -39,8 +41,9 @@ type Model struct {
 	context                 *context.MainContext
 	keyMap                  config.KeyMappings[key.Binding]
 	searchQuery             string
-	searchMatches           []int // line numbers of matches
-	currentSearchIndex      int   // current match index
+	searchMatches           []int          // line numbers of matches
+	currentSearchIndex      int            // current match index
+	fileYOffsets            map[string]int // YOffset position per file key
 }
 
 const (
@@ -119,6 +122,7 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 	} else if delta < 0 {
 		m.view.ScrollUp(-delta)
 	}
+	m.saveCurrentYOffset()
 	return nil
 }
 
@@ -128,7 +132,6 @@ func (m *Model) ScrollHorizontal(delta int) tea.Cmd {
 	} else if delta < 0 {
 		m.view.ScrollLeft(-delta)
 	}
-
 	return nil
 }
 
@@ -203,8 +206,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.Scroll(-1)
 		case key.Matches(msg, m.keyMap.Preview.HalfPageDown):
 			m.view.HalfPageDown()
+			m.saveCurrentYOffset()
 		case key.Matches(msg, m.keyMap.Preview.HalfPageUp):
 			m.view.HalfPageUp()
+			m.saveCurrentYOffset()
 		case key.Matches(msg, m.keyMap.Details.NextMatch):
 			m.NextSearchMatch()
 		case key.Matches(msg, m.keyMap.Details.PreviousMatch):
@@ -221,6 +226,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 func (m *Model) SetContent(content string) {
 	m.content = strings.ReplaceAll(content, "\r", "")
 	m.updateViewportContent()
+	m.restoreYOffset()
 }
 
 func (m *Model) updateViewportContent() {
@@ -243,8 +249,42 @@ func (m *Model) View() string {
 }
 
 func (m *Model) reset() {
+	m.saveCurrentYOffset()
 	m.view.SetYOffset(0)
 	m.view.SetXOffset(0)
+}
+
+// saveCurrentYOffset saves the current YOffset for the current file
+func (m *Model) saveCurrentYOffset() {
+	fileKey := m.getFileKey()
+	if fileKey != "" {
+		m.fileYOffsets[fileKey] = m.view.YOffset
+	}
+}
+
+// restoreYOffset restores the saved YOffset for the current file
+func (m *Model) restoreYOffset() {
+	fileKey := m.getFileKey()
+	if fileKey == "" {
+		return
+	}
+
+	offset, found := m.fileYOffsets[fileKey]
+	if found {
+		m.view.SetYOffset(offset)
+	} else {
+		m.view.SetYOffset(0)
+	}
+}
+
+// getFileKey generates a unique key for the current file
+func (m *Model) getFileKey() string {
+	switch item := m.context.SelectedItem.(type) {
+	case context.SelectedFile:
+		return item.File
+	default:
+		return ""
+	}
 }
 
 func (m *Model) refreshPreview() tea.Cmd {
@@ -336,10 +376,12 @@ func (m *Model) PreviousSearchMatch() {
 
 func (m *Model) GoToBeginning() {
 	m.view.GotoTop()
+	m.saveCurrentYOffset()
 }
 
 func (m *Model) GoToEnd() {
 	m.view.GotoBottom()
+	m.saveCurrentYOffset()
 }
 
 func (m *Model) findMatches() {
@@ -366,6 +408,7 @@ func (m *Model) scrollToMatch(index int) {
 		targetY = 0
 	}
 	m.view.SetYOffset(targetY)
+	m.saveCurrentYOffset()
 }
 
 func New(context *context.MainContext) *Model {
@@ -392,5 +435,6 @@ func New(context *context.MainContext) *Model {
 		previewAtBottom:         previewAtBottom,
 		previewVisible:          config.Current.Preview.ShowAtStart,
 		previewWindowPercentage: config.Current.Preview.WidthPercentage,
+		fileYOffsets:            globalFileYOffsets,
 	}
 }
