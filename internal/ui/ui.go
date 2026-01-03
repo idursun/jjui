@@ -404,6 +404,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.SetFrame(cellbuf.Rect(0, 0, msg.Width, msg.Height))
 		m.flash.SetWidth(m.Width)
 		m.flash.SetHeight(m.Height)
+		m.context.ScreenWidth = msg.Width
 	}
 
 	cmds = append(cmds, m.revsetModel.Update(msg))

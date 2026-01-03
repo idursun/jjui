@@ -64,6 +64,7 @@ type MainContext struct {
 	DefaultRevset  string
 	CurrentRevset  string
 	Histories      *config.Histories
+	ScreenWidth    int // Current screen width for $width substitution
 }
 
 func NewAppContext(location string, aps *askpass.Server) *MainContext {

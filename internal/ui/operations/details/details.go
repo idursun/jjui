@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -130,8 +131,17 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 			if selected == nil {
 				return nil
 			}
+			args := jj.TemplatedArgs(config.Current.Diff.Command, map[string]string{
+				jj.ChangeIdPlaceholder: s.revision.GetChangeId(),
+				jj.CommitIdPlaceholder: s.revision.CommitId,
+				jj.FilePlaceholder:     selected.fileName,
+				jj.WidthPlaceholder:    strconv.Itoa(s.context.ScreenWidth),
+			})
+			if config.Current.Diff.Show == config.ShowOptionInteractive {
+				return s.context.RunInteractiveCommand(args, common.Refresh)
+			}
 			return func() tea.Msg {
-				output, _ := s.context.RunCommandImmediate(jj.Diff(s.revision.GetChangeId(), selected.fileName))
+				output, _ := s.context.RunCommandImmediate(args)
 				return common.ShowDiffMsg(output)
 			}
 		case key.Matches(msg, s.keyMap.Details.Split, s.keyMap.Details.SplitParallel):
