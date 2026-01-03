@@ -131,13 +131,16 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 			if selected == nil {
 				return nil
 			}
+			args := jj.TemplatedArgs(config.Current.Diff.Command, map[string]string{
+				jj.ChangeIdPlaceholder: s.revision.GetChangeId(),
+				jj.CommitIdPlaceholder: s.revision.CommitId,
+				jj.FilePlaceholder:     selected.fileName,
+				jj.WidthPlaceholder:    strconv.Itoa(s.context.ScreenWidth),
+			})
+			if config.Current.Diff.Show == config.ShowOptionInteractive {
+				return s.context.RunInteractiveCommand(args, common.Refresh)
+			}
 			return func() tea.Msg {
-				args := jj.TemplatedArgs(config.Current.Diff.Command, map[string]string{
-					jj.ChangeIdPlaceholder: s.revision.GetChangeId(),
-					jj.CommitIdPlaceholder: s.revision.CommitId,
-					jj.FilePlaceholder:     selected.fileName,
-					jj.WidthPlaceholder:    strconv.Itoa(s.context.ScreenWidth),
-				})
 				output, _ := s.context.RunCommandImmediate(args)
 				return common.ShowDiffMsg(output)
 			}

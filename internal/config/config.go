@@ -169,7 +169,8 @@ func GetPreviewPosition(c *Config) (PreviewPosition, error) {
 }
 
 type DiffConfig struct {
-	Command []string `toml:"command"`
+	Command []string   `toml:"command"`
+	Show    ShowOption `toml:"show"`
 }
 
 type OpLogConfig struct {
