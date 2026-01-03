@@ -21,6 +21,7 @@ type Config struct {
 	Suggest   SuggestConfig     `toml:"suggest"`
 	Revisions RevisionsConfig   `toml:"revisions"`
 	Preview   PreviewConfig     `toml:"preview"`
+	Diff      DiffConfig        `toml:"diff"`
 	OpLog     OpLogConfig       `toml:"oplog"`
 	Limit     int               `toml:"limit"`
 	Git       GitConfig         `toml:"git"`
@@ -165,6 +166,10 @@ func GetPreviewPosition(c *Config) (PreviewPosition, error) {
 	default:
 		return PreviewPositionAuto, fmt.Errorf("invalid value for 'preview.position': %q (expected one of: auto, bottom, right)", value)
 	}
+}
+
+type DiffConfig struct {
+	Command []string `toml:"command"`
 }
 
 type OpLogConfig struct {

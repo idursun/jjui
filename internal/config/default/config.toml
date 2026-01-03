@@ -142,6 +142,9 @@ limit = 0
   width_percentage = 50.0
   width_increment_percentage = 5.0
 
+[diff]
+  command = ["diff", "--color", "always", "-r", "$change_id", "$file"]
+
 [oplog]
   limit = 200
 
