@@ -34,6 +34,7 @@ type (
 	}
 	SelectionChangedMsg struct{}
 	QuickSearchMsg      string
+	PreviewSearchMsg    string
 	UpdateRevSetMsg     string
 	ExecMsg             struct {
 		Line string
