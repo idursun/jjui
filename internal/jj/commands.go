@@ -9,12 +9,12 @@ import (
 )
 
 const (
-	ChangeIdPlaceholder     = "$change_id"
-	CommitIdPlaceholder     = "$commit_id"
-	FilePlaceholder         = "$file"
-	OperationIdPlaceholder  = "$operation_id"
-	RevsetPlaceholder       = "$revset"
-	WidthPlaceholder        = "$width"
+	ChangeIdPlaceholder    = "$change_id"
+	CommitIdPlaceholder    = "$commit_id"
+	FilePlaceholder        = "$file"
+	OperationIdPlaceholder = "$operation_id"
+	RevsetPlaceholder      = "$revset"
+	WidthPlaceholder       = "$width"
 
 	// user checked file names, separated by `\t` tab.
 	// tab is a lot less common than spaces on filenames,

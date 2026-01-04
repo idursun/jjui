@@ -226,24 +226,24 @@ func (m *Model) refreshPreview() tea.Cmd {
 		switch msg := m.context.SelectedItem.(type) {
 		case context.SelectedFile:
 			args = jj.TemplatedArgs(config.Current.Preview.FileCommand, map[string]string{
-				jj.RevsetPlaceholder:       m.context.CurrentRevset,
-				jj.ChangeIdPlaceholder:     msg.ChangeId,
-				jj.CommitIdPlaceholder:     msg.CommitId,
-				jj.FilePlaceholder:         msg.File,
-				jj.WidthPlaceholder:        width,
+				jj.RevsetPlaceholder:   m.context.CurrentRevset,
+				jj.ChangeIdPlaceholder: msg.ChangeId,
+				jj.CommitIdPlaceholder: msg.CommitId,
+				jj.FilePlaceholder:     msg.File,
+				jj.WidthPlaceholder:    width,
 			})
 		case context.SelectedRevision:
 			args = jj.TemplatedArgs(config.Current.Preview.RevisionCommand, map[string]string{
-				jj.RevsetPlaceholder:       m.context.CurrentRevset,
-				jj.ChangeIdPlaceholder:     msg.ChangeId,
-				jj.CommitIdPlaceholder:     msg.CommitId,
-				jj.WidthPlaceholder:        width,
+				jj.RevsetPlaceholder:   m.context.CurrentRevset,
+				jj.ChangeIdPlaceholder: msg.ChangeId,
+				jj.CommitIdPlaceholder: msg.CommitId,
+				jj.WidthPlaceholder:    width,
 			})
 		case context.SelectedOperation:
 			args = jj.TemplatedArgs(config.Current.Preview.OplogCommand, map[string]string{
-				jj.RevsetPlaceholder:       m.context.CurrentRevset,
-				jj.OperationIdPlaceholder:  msg.OperationId,
-				jj.WidthPlaceholder:        width,
+				jj.RevsetPlaceholder:      m.context.CurrentRevset,
+				jj.OperationIdPlaceholder: msg.OperationId,
+				jj.WidthPlaceholder:       width,
 			})
 		}
 
