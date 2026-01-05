@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -215,6 +216,25 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 			if current := s.current(); current != nil {
 				return tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(%s)", jj.EscapeFileName(current.fileName))))
 			}
+		case key.Matches(msg, s.keyMap.Details.Yank):
+			selectedFiles := s.getSelectedFiles(true)
+			if len(selectedFiles) == 0 {
+				return nil
+			}
+			text := strings.Join(selectedFiles, "\n")
+			if err := clipboard.WriteAll(text); err != nil {
+				return intents.Invoke(intents.AddMessage{
+					Text: fmt.Sprintf("Failed to copy to clipboard: %v", err),
+					Err:  err,
+				})
+			}
+			noun := "path"
+			if len(selectedFiles) > 1 {
+				noun = "paths"
+			}
+			return intents.Invoke(intents.AddMessage{
+				Text: fmt.Sprintf("Copied %d %s to clipboard", len(selectedFiles), noun),
+			})
 		}
 	}
 	return nil
@@ -257,6 +277,7 @@ func (s *Operation) ShortHelp() []key.Binding {
 		s.keyMap.Details.Restore,
 		s.keyMap.Details.Absorb,
 		s.keyMap.Details.RevisionsChangingFile,
+		s.keyMap.Details.Yank,
 	}
 }
 

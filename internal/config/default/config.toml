@@ -75,6 +75,7 @@ limit = 0
     diff = ["d"]
     select = ["m", " "]
     revisions_changing_file = ["*"]
+    yank = ["y"]
   [keys.evolog]
     mode = ["v"]
     diff = ["d"]

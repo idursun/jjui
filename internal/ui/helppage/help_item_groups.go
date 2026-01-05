@@ -138,6 +138,7 @@ func (h *Model) buildMiddleGroups() menuColumn {
 			h.newBindingItem(h.keyMap.Details.Squash),
 			h.newBindingItem(h.keyMap.Details.Diff),
 			h.newBindingItem(h.keyMap.Details.RevisionsChangingFile),
+			h.newBindingItem(h.keyMap.Details.Yank),
 			helpItem{"", ""},
 		},
 		itemGroup{
