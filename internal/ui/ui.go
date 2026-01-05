@@ -491,27 +491,34 @@ func (m *Model) View() string {
 	}
 
 	screenBuf := cellbuf.NewBuffer(m.Width, m.Height)
-	centerArea := cellbuf.Rect(0, 0, m.Width, m.Height)
-	var topArea, previewArea, bottomArea cellbuf.Rectangle
+	box := layout.NewBox(cellbuf.Rect(0, 0, m.Width, m.Height))
+	var previewArea cellbuf.Rectangle
 
 	topView := m.revsetModel.View()
 	topViewHeight := lipgloss.Height(topView)
-	topArea, centerArea = layout.SplitVertical(centerArea, layout.Fixed(topViewHeight))
-	cellbuf.SetContentRect(screenBuf, topView, topArea)
+	topArea, centerBox := box.CutTop(topViewHeight)
+	cellbuf.SetContentRect(screenBuf, topView, topArea.R)
 
-	centerArea, bottomArea = layout.SplitVertical(centerArea, layout.Fixed(centerArea.Dy()-footerHeight))
-	cellbuf.SetContentRect(screenBuf, footer, bottomArea)
+	centerBox, bottomBox := centerBox.CutBottom(footerHeight)
+	cellbuf.SetContentRect(screenBuf, footer, bottomBox.R)
 
 	if m.previewModel.Visible() {
 		m.UpdatePreviewPosition()
 		if m.previewModel.AtBottom() {
-			centerArea, previewArea = layout.SplitVertical(centerArea, layout.Percent(100-m.previewModel.WindowPercentage()))
+			pct := m.previewModel.WindowPercentage()
+			boxes := centerBox.V(layout.Percent(100-pct), layout.Fill(1))
+			centerBox = boxes[0]
+			previewArea = boxes[1].R
 		} else {
-			centerArea, previewArea = layout.SplitHorizontal(centerArea, layout.Percent(100-m.previewModel.WindowPercentage()))
+			pct := m.previewModel.WindowPercentage()
+			boxes := centerBox.H(layout.Percent(100-pct), layout.Fill(1))
+			centerBox = boxes[0]
+			previewArea = boxes[1].R
 		}
 		m.previewModel.SetFrame(previewArea)
 	}
 
+	centerArea := centerBox.R
 	var leftView string
 	if m.oplog != nil {
 		m.oplog.SetFrame(centerArea)
