@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"time"
 )
 
 //go:embed default/*.toml
@@ -125,8 +126,13 @@ type UIConfig struct {
 	Colors map[string]Color `toml:"colors"`
 	// TODO(ilyagr): It might make sense to rename this to `auto_refresh_period` to match `--period` option
 	// once we have a mechanism to deprecate the old name softly.
-	AutoRefreshInterval int          `toml:"auto_refresh_interval"`
-	Tracer              TracerConfig `toml:"tracer"`
+	AutoRefreshInterval        int          `toml:"auto_refresh_interval"`
+	FlashMessageDisplaySeconds int          `toml:"flash_message_display_seconds"`
+	Tracer                     TracerConfig `toml:"tracer"`
+}
+
+func GetExpiringFlashMessageTimeout(c *Config) time.Duration {
+	return time.Duration(c.UI.FlashMessageDisplaySeconds) * time.Second
 }
 
 type RevisionsConfig struct {

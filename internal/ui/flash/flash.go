@@ -7,12 +7,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 )
-
-const expiringMessageTimeout = 4 * time.Second
 
 type expireMessageMsg struct {
 	id uint64
@@ -59,9 +58,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case common.CommandCompletedMsg:
 		id := m.add(msg.Output, msg.Err)
 		if msg.Err == nil {
-			return tea.Tick(expiringMessageTimeout, func(t time.Time) tea.Msg {
-				return expireMessageMsg{id: id}
-			})
+			expiringMessageTimeout := config.GetExpiringFlashMessageTimeout(config.Current)
+			if expiringMessageTimeout > time.Duration(0) {
+				return tea.Tick(expiringMessageTimeout, func(t time.Time) tea.Msg {
+					return expireMessageMsg{id: id}
+				})
+			}
 		}
 		return nil
 	case common.UpdateRevisionsFailedMsg:
@@ -75,9 +77,12 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.AddMessage:
 		id := m.add(intent.Text, intent.Err)
 		if intent.Err == nil && !intent.NoTimeout && id != 0 {
-			return tea.Tick(expiringMessageTimeout, func(t time.Time) tea.Msg {
-				return expireMessageMsg{id: id}
-			})
+			expiringMessageTimeout := config.GetExpiringFlashMessageTimeout(config.Current)
+			if expiringMessageTimeout > time.Duration(0) {
+				return tea.Tick(expiringMessageTimeout, func(t time.Time) tea.Msg {
+					return expireMessageMsg{id: id}
+				})
+			}
 		}
 		return nil
 	case intents.DismissOldest:

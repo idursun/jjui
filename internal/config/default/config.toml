@@ -119,6 +119,7 @@ limit = 0
 [ui]
   theme = ""
   auto_refresh_interval = 0
+  flash_message_display_seconds = 4 # 0 means display until manually dismissed
   [ui.tracer]
     enabled = false
   [ui.colors]

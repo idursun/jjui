@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -55,6 +56,18 @@ auto_refresh_interval = 5000
 	err := config.Load(content)
 	assert.NoError(t, err)
 	assert.Equal(t, 5000, config.UI.AutoRefreshInterval)
+}
+
+func TestLoad_FlashMessageDisplaySeconds(t *testing.T) {
+	content := `
+[ui]
+flash_message_display_seconds = 10
+`
+	config := &Config{}
+	err := config.Load(content)
+	assert.NoError(t, err)
+	assert.Equal(t, 10, config.UI.FlashMessageDisplaySeconds)
+	assert.Equal(t, 10*time.Second, GetExpiringFlashMessageTimeout(config))
 }
 
 func TestLoad_Colors_StringAndObject(t *testing.T) {
