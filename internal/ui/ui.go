@@ -30,6 +30,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/helppage"
 	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/leader"
+	"github.com/idursun/jjui/internal/ui/operations/details"
 	"github.com/idursun/jjui/internal/ui/oplog"
 	"github.com/idursun/jjui/internal/ui/preview"
 	"github.com/idursun/jjui/internal/ui/redo"
@@ -118,6 +119,16 @@ func (m *Model) handleFocusInputMessage(msg tea.Msg) (tea.Cmd, bool) {
 
 		if m.revisions.IsEditing() {
 			return m.revisions.Update(msg), true
+		}
+
+		// Handle preview keys when in details mode
+		if _, ok := m.revisions.CurrentOperation().(*details.Operation); ok {
+			switch msg.String() {
+			case "/":
+				return m.status.StartPreviewSearch(), true
+			case "n", "N", "g", "G":
+				return preview.PreviewCmd(msg), true
+			}
 		}
 
 		if m.stacked != nil {
@@ -334,6 +345,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case common.ShowDiffMsg:
 		m.diff = diff.New(string(msg))
 		return m.diff.Init()
+	case common.PreviewSearchMsg:
+		return preview.PreviewCmd(msg)
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
 	case customcommands.SequenceTimeoutMsg:

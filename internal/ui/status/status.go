@@ -142,10 +142,16 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return cmd
 		case key.Matches(msg, accept) && m.IsFocused():
 			editMode := m.mode
+			if m.editStatus != nil {
+				_, editMode = m.editStatus()
+			}
 			input := m.input.Value()
 			prompt := m.input.Prompt
 			fuzzy := m.fuzzy
 			m.saveEditingSuggestions()
+
+			// Check mode before clearing it
+			isPreviewSearch := m.mode == "preview_search"
 
 			m.fuzzy = nil
 			m.command = ""
@@ -159,6 +165,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				return cmd
 			case strings.HasPrefix(editMode, "exec"):
 				return func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }
+			}
+			if isPreviewSearch {
+				return func() tea.Msg { return common.PreviewSearchMsg(input) }
 			}
 			return func() tea.Msg { return common.QuickSearchMsg(input) }
 		case key.Matches(msg, km.ExecJJ, km.ExecShell) && !m.IsFocused():
@@ -178,6 +187,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.input.Prompt = "> "
 			m.loadEditingSuggestions()
 			return m.input.Focus()
+		case key.Matches(msg, km.QuickSearch) && !m.IsFocused() && m.mode == "preview_search":
+			// This shouldn't happen, but handle it
+			fallthrough
 		default:
 			if m.IsFocused() {
 				var cmd tea.Cmd
@@ -255,6 +267,18 @@ func (m *Model) SetMode(mode string) {
 	if !m.IsFocused() {
 		m.mode = mode
 	}
+}
+
+func (m *Model) StartPreviewSearch() tea.Cmd {
+	if !m.IsFocused() {
+		m.editStatus = emptyEditStatus
+		m.mode = "preview_search"
+		m.input.Prompt = "/ "
+		m.loadEditingSuggestions()
+		cmd := m.input.Focus()
+		return cmd
+	}
+	return nil
 }
 
 func (m *Model) helpView(keyMap help.KeyMap) string {

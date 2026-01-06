@@ -2,6 +2,7 @@ package preview
 
 import (
 	"log"
+	"regexp"
 	"strings"
 	"time"
 
@@ -37,6 +38,9 @@ type Model struct {
 	contentWidth            int
 	context                 *context.MainContext
 	keyMap                  config.KeyMappings[key.Binding]
+	searchQuery             string
+	searchMatches           []int // line numbers of matches
+	currentSearchIndex      int   // current match index
 }
 
 const (
@@ -188,6 +192,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case updatePreviewContentMsg:
 		m.SetContent(msg.Content)
 		return nil
+	case common.PreviewSearchMsg:
+		m.SetSearchQuery(string(msg))
+		return nil
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Preview.ScrollDown):
@@ -198,6 +205,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.view.HalfPageDown()
 		case key.Matches(msg, m.keyMap.Preview.HalfPageUp):
 			m.view.HalfPageUp()
+		case key.Matches(msg, m.keyMap.Details.NextMatch):
+			m.NextSearchMatch()
+		case key.Matches(msg, m.keyMap.Details.PreviousMatch):
+			m.PreviousSearchMatch()
+		case key.Matches(msg, m.keyMap.Details.GoToStart):
+			m.GoToBeginning()
+		case key.Matches(msg, m.keyMap.Details.GoToEnd):
+			m.GoToEnd()
 		}
 	}
 	return nil
@@ -205,7 +220,21 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) SetContent(content string) {
 	m.content = strings.ReplaceAll(content, "\r", "")
-	m.view.SetContent(content)
+	m.updateViewportContent()
+}
+
+func (m *Model) updateViewportContent() {
+	if m.searchQuery == "" {
+		m.view.SetContent(m.content)
+		return
+	}
+
+	// Highlight matches with underline-only ANSI codes
+	re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(m.searchQuery))
+	highlighted := re.ReplaceAllStringFunc(m.content, func(match string) string {
+		return "\x1b[4m" + match + "\x1b[24m"
+	})
+	m.view.SetContent(highlighted)
 }
 
 func (m *Model) View() string {
@@ -264,6 +293,79 @@ func (m *Model) Expand() {
 
 func (m *Model) Shrink() {
 	m.SetWindowPercentage(m.previewWindowPercentage - config.Current.Preview.WidthIncrementPercentage)
+}
+
+func (m *Model) StartSearch() {
+	m.searchQuery = ""
+	m.searchMatches = nil
+	m.currentSearchIndex = -1
+}
+
+func (m *Model) SetSearchQuery(query string) {
+	m.searchQuery = query
+	m.searchMatches = nil
+	m.currentSearchIndex = -1
+	if query != "" {
+		m.findMatches()
+		if len(m.searchMatches) > 0 {
+			m.currentSearchIndex = 0
+			m.scrollToMatch(0)
+		}
+	}
+	m.updateViewportContent()
+}
+
+func (m *Model) NextSearchMatch() {
+	if len(m.searchMatches) == 0 {
+		return
+	}
+	m.currentSearchIndex = (m.currentSearchIndex + 1) % len(m.searchMatches)
+	m.scrollToMatch(m.currentSearchIndex)
+}
+
+func (m *Model) PreviousSearchMatch() {
+	if len(m.searchMatches) == 0 {
+		return
+	}
+	m.currentSearchIndex--
+	if m.currentSearchIndex < 0 {
+		m.currentSearchIndex = len(m.searchMatches) - 1
+	}
+	m.scrollToMatch(m.currentSearchIndex)
+}
+
+func (m *Model) GoToBeginning() {
+	m.view.GotoTop()
+}
+
+func (m *Model) GoToEnd() {
+	m.view.GotoBottom()
+}
+
+func (m *Model) findMatches() {
+	m.searchMatches = nil
+	if m.searchQuery == "" {
+		return
+	}
+	lines := strings.Split(m.content, "\n")
+	for i, line := range lines {
+		if strings.Contains(strings.ToLower(line), strings.ToLower(m.searchQuery)) {
+			m.searchMatches = append(m.searchMatches, i)
+		}
+	}
+}
+
+func (m *Model) scrollToMatch(index int) {
+	if index < 0 || index >= len(m.searchMatches) {
+		return
+	}
+	lineNum := m.searchMatches[index]
+	// Scroll to make the match visible, with some context
+	targetY := lineNum - 2 // show 2 lines before
+	if targetY < 0 {
+		targetY = 0
+	}
+	m.view.SetYOffset(targetY)
 }
 
 func New(context *context.MainContext) *Model {
