@@ -222,7 +222,7 @@ func (m *Model) reset() {
 func (m *Model) refreshPreview() tea.Cmd {
 	return common.Debounce(debounceId, debounceDuration, func() tea.Msg {
 		var args []string
-		width := strconv.Itoa(m.view.Width)
+		previewWidth := strconv.Itoa(m.view.Width)
 		switch msg := m.context.SelectedItem.(type) {
 		case context.SelectedFile:
 			args = jj.TemplatedArgs(config.Current.Preview.FileCommand, map[string]string{
@@ -230,20 +230,20 @@ func (m *Model) refreshPreview() tea.Cmd {
 				jj.ChangeIdPlaceholder: msg.ChangeId,
 				jj.CommitIdPlaceholder: msg.CommitId,
 				jj.FilePlaceholder:     msg.File,
-				jj.WidthPlaceholder:    width,
+				jj.WidthPlaceholder:    previewWidth,
 			})
 		case context.SelectedRevision:
 			args = jj.TemplatedArgs(config.Current.Preview.RevisionCommand, map[string]string{
 				jj.RevsetPlaceholder:   m.context.CurrentRevset,
 				jj.ChangeIdPlaceholder: msg.ChangeId,
 				jj.CommitIdPlaceholder: msg.CommitId,
-				jj.WidthPlaceholder:    width,
+				jj.WidthPlaceholder:    previewWidth,
 			})
 		case context.SelectedOperation:
 			args = jj.TemplatedArgs(config.Current.Preview.OplogCommand, map[string]string{
 				jj.RevsetPlaceholder:      m.context.CurrentRevset,
 				jj.OperationIdPlaceholder: msg.OperationId,
-				jj.WidthPlaceholder:       width,
+				jj.WidthPlaceholder:       previewWidth,
 			})
 		}
 
