@@ -41,6 +41,6 @@ func TestOperation_Update_RestoresStashedDescription(t *testing.T) {
 	operation := NewOperation(ctx, revision)
 	operation.Parent = common.NewViewNode(100, 100)
 	test.SimulateModel(operation, operation.Init())
-	view := operation.View()
+	view := operation.ViewRect()
 	assert.Contains(t, view, "restored description")
 }

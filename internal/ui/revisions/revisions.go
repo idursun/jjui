@@ -9,11 +9,14 @@ import (
 	"log"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/ops"
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
 	"github.com/idursun/jjui/internal/ui/operations/revert"
@@ -51,7 +54,6 @@ var (
 )
 
 type Model struct {
-	*common.ViewNode
 	*common.MouseAware
 	rows             []parser.Row
 	tag              atomic.Uint64
@@ -132,23 +134,24 @@ func (m *Model) ClickAt(x, y int) tea.Cmd {
 		return nil
 	}
 
-	localY := y - m.Frame.Min.Y
-
-	currentStart := m.renderer.ViewRange.Start
-	if localY >= m.Height {
-		localY = m.Height - 1
-		if localY < 0 {
-			return nil
-		}
-	}
-	line := currentStart + localY
-	row := m.rowAtLine(line)
-	if row == -1 {
-		return nil
-	}
-
-	m.SetCursor(row)
-	return m.updateSelection()
+	//localY := y - m.Frame.Min.Y
+	//
+	//currentStart := m.renderer.ViewRange.Start
+	//if localY >= m.Height {
+	//	localY = m.Height - 1
+	//	if localY < 0 {
+	//		return nil
+	//	}
+	//}
+	//line := currentStart + localY
+	//row := m.rowAtLine(line)
+	return nil
+	//if row == -1 {
+	//	return nil
+	//}
+	//
+	//m.SetCursor(row)
+	//return m.updateSelection()
 }
 
 func (m *Model) rowAtLine(line int) int {
@@ -168,7 +171,9 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 	}
 
 	totalLines := m.renderer.AbsoluteLineCount()
-	maxStart := totalLines - m.Height
+	//height := m.Height
+	height := 0
+	maxStart := totalLines - height
 	if maxStart < 0 {
 		maxStart = 0
 	}
@@ -178,7 +183,7 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 	}
 	m.renderer.ViewRange.Start = newStart
 
-	if m.hasMore && (desiredStart > maxStart || newStart+m.Height >= totalLines-1) {
+	if m.hasMore && (desiredStart > maxStart || newStart+height >= totalLines-1) {
 		return m.requestMoreRows(m.tag.Load())
 	}
 	return nil
@@ -313,6 +318,22 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				return m.Scroll(3)
 			}
 			return nil
+		}
+
+	case common.ClickMsg:
+		if strings.HasPrefix(msg.ID, "revision-row:") {
+			indexStr := strings.TrimPrefix(msg.ID, "revision-row:")
+			if index, err := strconv.Atoi(indexStr); err == nil {
+				if index >= 0 && index < len(m.rows) {
+					m.SetCursor(index)
+					return m.updateSelection()
+				}
+			}
+		}
+
+	case common.ScrollMsg:
+		if msg.ID == "revisions-scroll" {
+			return m.Scroll(-msg.Delta * 3)
 		}
 
 	case common.CloseViewMsg:
@@ -584,7 +605,6 @@ func (m *Model) openDetails(_ intents.OpenDetails) tea.Cmd {
 		return nil
 	}
 	model := details.NewOperation(m.context, m.SelectedRevision())
-	model.Parent = m.ViewNode
 	m.op = model
 	return m.op.Init()
 }
@@ -826,7 +846,6 @@ func (m *Model) startEvolog(intent intents.StartEvolog) tea.Cmd {
 		return nil
 	}
 	model := evolog.NewOperation(m.context, commit)
-	model.Parent = m.ViewNode
 	m.op = model
 	return m.op.Init()
 }
@@ -840,7 +859,6 @@ func (m *Model) startInlineDescribe(intent intents.StartInlineDescribe) tea.Cmd 
 		return nil
 	}
 	model := describe.NewOperation(m.context, commit)
-	model.Parent = m.ViewNode
 	m.op = model
 	return m.op.Init()
 }
@@ -936,13 +954,16 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 		m.SetCursor(0)
 	}
 }
-
-func (m *Model) View() string {
+func (m *Model) ViewRect(box layout.Box) *ops.DisplayList {
+	width := box.R.Dx()
+	height := box.R.Dy()
 	if len(m.rows) == 0 {
 		if m.isLoading {
-			return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading")
+			content := lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, "loading")
+			return ops.FromString(content, box.R)
 		}
-		return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "(no matching revisions)")
+		content := lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, "(no matching revisions)")
+		return ops.FromString(content, box.R)
 	}
 
 	if config.Current.UI.Tracer.Enabled {
@@ -954,9 +975,13 @@ func (m *Model) View() string {
 	}
 
 	m.renderer.selections = m.context.GetSelectedRevisions()
+	m.renderer.SetInteractionIDPrefix("revision-row")
+	dl := m.renderer.RenderWithOptions(list.RenderOptions{Box: box, FocusIndex: m.cursor, EnsureFocusVisible: m.ensureCursorView})
 
-	output := m.renderer.RenderWithOptions(list.RenderOptions{FocusIndex: m.cursor, EnsureFocusVisible: m.ensureCursorView})
-	return output
+	// Add scrollable region for the whole view
+	dl.AddScrollable(box.R, "revisions-scroll", 0)
+
+	return dl
 }
 
 func (m *Model) load(revset string, selectedRevision string) tea.Cmd {
@@ -1066,7 +1091,6 @@ func (m *Model) GetCommitIds() []string {
 func New(c *appContext.MainContext) *Model {
 	keymap := config.Current.GetKeyMap()
 	m := Model{
-		ViewNode:      common.NewViewNode(0, 0),
 		MouseAware:    common.NewMouseAware(),
 		context:       c,
 		keymap:        keymap,
@@ -1079,7 +1103,7 @@ func New(c *appContext.MainContext) *Model {
 		selectedStyle: common.DefaultPalette.Get("revisions selected"),
 		matchedStyle:  common.DefaultPalette.Get("revisions matched"),
 	}
-	m.renderer = newRevisionListRenderer(&m, m.ViewNode)
+	m.renderer = newRevisionListRenderer(&m)
 	return &m
 }
 

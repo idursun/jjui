@@ -21,7 +21,7 @@ func TestConfirm(t *testing.T) {
 	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	model.Parent = common.NewViewNode(100, 20)
 	test.SimulateModel(model, model.Init())
-	assert.Contains(t, model.View(), "undo")
+	assert.Contains(t, model.ViewRect(), "undo")
 
 	test.SimulateModel(model, test.Press(tea.KeyEnter))
 }
@@ -35,7 +35,7 @@ func TestCancel(t *testing.T) {
 	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	model.Parent = common.NewViewNode(100, 20)
 	test.SimulateModel(model, model.Init())
-	assert.Contains(t, model.View(), "undo")
+	assert.Contains(t, model.ViewRect(), "undo")
 
 	test.SimulateModel(model, test.Press(tea.KeyEsc))
 }

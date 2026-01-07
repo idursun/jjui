@@ -2,17 +2,17 @@ package details
 
 import (
 	"fmt"
-	"io"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common/list"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 var _ list.IList = (*DetailsList)(nil)
 
 type DetailsList struct {
-	*common.ViewNode
 	files          []*item
 	cursor         int
 	renderer       *list.ListRenderer
@@ -21,16 +21,15 @@ type DetailsList struct {
 	styles         styles
 }
 
-func NewDetailsList(styles styles, size *common.ViewNode) *DetailsList {
+func NewDetailsList(styles styles) *DetailsList {
 	d := &DetailsList{
-		ViewNode:       size,
 		files:          []*item{},
 		cursor:         -1,
 		selectedHint:   "",
 		unselectedHint: "",
 		styles:         styles,
 	}
-	d.renderer = list.NewRenderer(d, size)
+	d.renderer = list.NewRenderer(d)
 	return d
 }
 
@@ -126,7 +125,8 @@ func (i itemRenderer) showHint() bool {
 	return i.selectedHint != "" || i.unselectedHint != ""
 }
 
-func (i itemRenderer) Render(w io.Writer, _ int) {
+func (i itemRenderer) Render(dl *ops.DisplayList, rect cellbuf.Rectangle, _ int) {
+	var sb strings.Builder
 	title := i.item.Title()
 	if i.item.selected {
 		title = "✓" + title
@@ -134,14 +134,18 @@ func (i itemRenderer) Render(w io.Writer, _ int) {
 		title = " " + title
 	}
 
-	_, _ = fmt.Fprint(w, i.style.PaddingRight(1).Render(title))
+	fmt.Fprint(&sb, i.style.PaddingRight(1).Render(title))
 	if i.item.conflict {
-		_, _ = fmt.Fprint(w, i.styles.Conflict.Render("conflict "))
+		fmt.Fprint(&sb, i.styles.Conflict.Render("conflict "))
 	}
 	if i.hint != "" {
-		_, _ = fmt.Fprint(w, i.styles.Dimmed.Render(i.hint))
+		fmt.Fprint(&sb, i.styles.Dimmed.Render(i.hint))
 	}
-	_, _ = fmt.Fprintln(w)
+
+	content := sb.String()
+	if content != "" {
+		dl.AddDraw(rect, content, 0)
+	}
 }
 
 func (i itemRenderer) Height() int {

@@ -11,6 +11,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 type expireMessageMsg struct {
@@ -31,7 +32,6 @@ type FlashMessageView struct {
 }
 
 type Model struct {
-	*common.ViewNode
 	context      *context.MainContext
 	messages     []flashMessage
 	successStyle lipgloss.Style
@@ -95,16 +95,16 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	return nil
 }
 
-func (m *Model) View() []FlashMessageView {
+func (m *Model) View(box layout.Box) []FlashMessageView {
 	messages := m.messages
 	if len(messages) == 0 {
 		return nil
 	}
 
-	y := m.Height - 1
+	y := box.R.Dy() - 1
 	var messageBoxes []FlashMessageView
 	// reserve padding and calculate max width for messages
-	maxWidth := m.Width - 4
+	maxWidth := box.R.Dx() - 4
 
 	for _, message := range messages {
 		var text string
@@ -133,7 +133,7 @@ func (m *Model) View() []FlashMessageView {
 		y -= h
 		messageBoxes = append(messageBoxes, FlashMessageView{
 			Content: content,
-			Rect:    cellbuf.Rect(m.Width-w, y, w, h),
+			Rect:    cellbuf.Rect(box.R.Dx()-w, y, w, h),
 		})
 	}
 	return messageBoxes
@@ -173,7 +173,6 @@ func New(context *context.MainContext) *Model {
 	successStyle := common.DefaultPalette.GetBorder("success", lipgloss.NormalBorder()).Foreground(fg).PaddingLeft(1).PaddingRight(1)
 	errorStyle := common.DefaultPalette.GetBorder("error", lipgloss.NormalBorder()).Foreground(fg).PaddingLeft(1).PaddingRight(1)
 	return &Model{
-		ViewNode:     common.NewViewNode(0, 0),
 		context:      context,
 		messages:     make([]flashMessage, 0),
 		successStyle: successStyle,

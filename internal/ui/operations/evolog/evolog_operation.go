@@ -7,6 +7,7 @@ import (
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -14,6 +15,7 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 type updateEvologMsg struct {
@@ -33,7 +35,6 @@ var _ common.Focusable = (*Operation)(nil)
 var _ common.Overlay = (*Operation)(nil)
 
 type Operation struct {
-	*common.ViewNode
 	context  *context.MainContext
 	renderer *list.ListRenderer
 	revision *jj.Commit
@@ -57,16 +58,12 @@ func (o *Operation) Init() tea.Cmd {
 	return o.load
 }
 
-func (o *Operation) View() string {
+func (o *Operation) ViewRect(box layout.Box) *ops.DisplayList {
 	if len(o.rows) == 0 {
-		return "loading"
+		return ops.FromString("loading", box.R)
 	}
-	o.SetWidth(o.Parent.Width)
-	o.renderer.SetWidth(o.Width)
-	o.renderer.SetHeight(min(o.Parent.Height-5, len(o.rows)*2))
-	content := o.renderer.Render(o.cursor)
-	content = lipgloss.PlaceHorizontal(o.Width, lipgloss.Left, content)
-	return content
+	o.renderer.SetInteractionIDPrefix("evolog-row")
+	return o.renderer.RenderWithOptions(list.RenderOptions{Box: box, FocusIndex: o.cursor, EnsureFocusVisible: true})
 }
 
 func (o *Operation) Len() int {
@@ -200,7 +197,8 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return ""
 	}
-	return o.View()
+	dl := o.ViewRect(layout.TODO)
+	return dl.RenderToString(layout.TODO.R.Dx(), layout.TODO.R.Dy())
 }
 
 func (o *Operation) Name() string {
@@ -228,7 +226,6 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 		selectedStyle: common.DefaultPalette.Get("evolog selected"),
 	}
 	o := &Operation{
-		ViewNode: common.NewViewNode(0, 0),
 		context:  context,
 		keyMap:   config.Current.GetKeyMap(),
 		revision: revision,
@@ -236,7 +233,6 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 		cursor:   0,
 		styles:   styles,
 	}
-	o.renderer = list.NewRenderer(o, common.NewViewNode(0, 0))
-	o.renderer.Parent = o.ViewNode
+	o.renderer = list.NewRenderer(o)
 	return o
 }

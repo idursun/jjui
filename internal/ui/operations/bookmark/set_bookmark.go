@@ -4,12 +4,14 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/idursun/jjui/internal/ui/layout"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 var _ operations.Operation = (*SetBookmarkOperation)(nil)
@@ -56,8 +58,8 @@ func (s *SetBookmarkOperation) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (s *SetBookmarkOperation) View() string {
-	return s.name.View()
+func (s *SetBookmarkOperation) ViewRect(box layout.Box) *ops.DisplayList {
+	return ops.FromString(s.name.View(), box.R)
 }
 
 func (s *SetBookmarkOperation) IsFocused() bool {

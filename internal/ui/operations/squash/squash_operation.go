@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/ui/layout"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -12,6 +13,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 var (
@@ -52,8 +54,8 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (s *Operation) View() string {
-	return ""
+func (s *Operation) ViewRect(box layout.Box) *ops.DisplayList {
+	return ops.FromString("", box.R)
 }
 
 func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {

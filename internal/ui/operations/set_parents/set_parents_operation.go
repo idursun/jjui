@@ -12,7 +12,9 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 var _ operations.Operation = (*Model)(nil)
@@ -44,8 +46,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) View() string {
-	return ""
+func (m *Model) ViewRect(box layout.Box) *ops.DisplayList {
+	return ops.FromString("", box.R)
 }
 
 func (m *Model) ShortHelp() []key.Binding {

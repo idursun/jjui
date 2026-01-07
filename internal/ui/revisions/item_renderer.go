@@ -6,10 +6,12 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 var _ list.IItemRenderer = (*itemRenderer)(nil)
@@ -52,7 +54,10 @@ func (ir itemRenderer) writeSection(w io.Writer, current parser.GraphGutter, ext
 	}
 }
 
-func (ir itemRenderer) Render(w io.Writer, width int) {
+func (ir itemRenderer) Render(dl *ops.DisplayList, rect cellbuf.Rectangle, width int) {
+	var sb strings.Builder
+	w := io.Writer(&sb)
+
 	ir.renderBeforeSection(w, width)
 
 	descriptionOverlay := ""
@@ -68,6 +73,14 @@ func (ir itemRenderer) Render(w io.Writer, width int) {
 
 	ir.renderAfterSection(w, width)
 	ir.renderNonHighlightableLines(w, width)
+
+	// Add the rendered content to the DisplayList
+	content := sb.String()
+	if content != "" {
+		// Remove trailing newline to avoid extra blank line
+		content = strings.TrimSuffix(content, "\n")
+		dl.AddDraw(rect, content, 0)
+	}
 }
 
 // renderBeforeSection renders content before the main revision lines by extending

@@ -11,6 +11,8 @@ import (
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 type SequenceEntry struct {
@@ -147,7 +149,7 @@ func (s *SequenceOverlay) HandleTimeout(msg SequenceTimeoutMsg) SequenceResult {
 	return s.handleTimeout(msg)
 }
 
-func (s *SequenceOverlay) View() string {
+func (s *SequenceOverlay) ViewRect(box layout.Box) *ops.DisplayList {
 	var view strings.Builder
 	for i, it := range s.items {
 		view.WriteString(s.matchedStyle.Render(s.prefix))
@@ -177,8 +179,10 @@ func (s *SequenceOverlay) View() string {
 	h := lipgloss.Height(content)
 	sy := s.Parent.Frame.Dy() - h - 1
 
-	s.SetFrame(cellbuf.Rect(0, sy, w, h))
-	return content
+	//s.SetFrame(cellbuf.Rect(0, sy, w, h))
+	dl := ops.NewDisplayList()
+	dl.AddDraw(cellbuf.Rect(0, sy, w, h), content, 0)
+	return dl
 }
 
 func (s *SequenceOverlay) advance(msg tea.KeyMsg) ([]SequenceCandidate, SequenceResult) {

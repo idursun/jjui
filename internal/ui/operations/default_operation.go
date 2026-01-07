@@ -1,10 +1,12 @@
 package operations
 
 import (
+	"github.com/idursun/jjui/internal/ui/ops"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 var _ Operation = (*Default)(nil)
@@ -21,8 +23,9 @@ func (n *Default) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (n *Default) View() string {
-	return ""
+func (n *Default) ViewRect(box layout.Box) *ops.DisplayList {
+	content := ""
+	return ops.FromString(content, box.R)
 }
 
 func (n *Default) ShortHelp() []key.Binding {

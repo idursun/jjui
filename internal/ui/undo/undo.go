@@ -9,17 +9,19 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 var _ common.Model = (*Model)(nil)
 
 type Model struct {
 	*common.ViewNode
-	confirmation *confirmation.Model
+	menu *confirmation.Model
 }
 
 func (m *Model) ShortHelp() []key.Binding {
-	return m.confirmation.ShortHelp()
+	return m.menu.ShortHelp()
 }
 
 func (m *Model) FullHelp() [][]key.Binding {
@@ -27,21 +29,22 @@ func (m *Model) FullHelp() [][]key.Binding {
 }
 
 func (m *Model) Init() tea.Cmd {
-	return m.confirmation.Init()
+	return m.menu.Init()
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
-	return m.confirmation.Update(msg)
+	return m.menu.Update(msg)
 }
 
-func (m *Model) View() string {
-	v := m.confirmation.View()
+func (m *Model) ViewRect(box layout.Box) *ops.DisplayList {
+	vDL := m.menu.ViewRect(box)
+	v := vDL.RenderToString(box.R.Dx(), box.R.Dy())
 	w, h := lipgloss.Size(v)
 	pw, ph := m.Parent.Width, m.Parent.Height
 	sx := (pw - w) / 2
 	sy := (ph - h) / 2
 	m.SetFrame(cellbuf.Rect(sx, sy, w, h))
-	return v
+	return vDL
 }
 
 func NewModel(context *context.MainContext) *Model {
@@ -55,7 +58,7 @@ func NewModel(context *context.MainContext) *Model {
 	)
 	model.Styles.Border = common.DefaultPalette.GetBorder("undo border", lipgloss.NormalBorder()).Padding(1)
 	return &Model{
-		ViewNode:     common.NewViewNode(0, 0),
-		confirmation: model,
+		ViewNode: common.NewViewNode(0, 0),
+		menu:     model,
 	}
 }

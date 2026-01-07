@@ -90,7 +90,7 @@ func TestModel_OperationIntents(t *testing.T) {
 			model.SetFrame(cellbuf.Rect(0, 0, 100, 50))
 			model.updateGraphRows(rows, "a")
 			test.SimulateModel(model, model.Update(tc.intent))
-			assert.Contains(t, model.View(), tc.expected)
+			assert.Contains(t, model.ViewRect(), tc.expected)
 		})
 	}
 }

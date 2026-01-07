@@ -1,6 +1,7 @@
 package confirmation
 
 import (
+	"github.com/idursun/jjui/internal/ui/ops"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -8,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 var (
@@ -127,7 +129,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) View() string {
+func (m *Model) ViewRect(box layout.Box) *ops.DisplayList {
 	w := strings.Builder{}
 	for i, message := range m.messages {
 		w.WriteString(m.Styles.Text.PaddingLeft(1).Render(message))
@@ -145,7 +147,8 @@ func (m *Model) View() string {
 	content := w.String()
 	width, height := lipgloss.Size(content)
 	content = lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content, lipgloss.WithWhitespaceBackground(m.Styles.Text.GetBackground()))
-	return m.Styles.Border.Render(content)
+	content = m.Styles.Border.Render(content)
+	return ops.FromString(content, box.R)
 }
 
 // getStyleKey prefixes the key with the style prefix if one is set

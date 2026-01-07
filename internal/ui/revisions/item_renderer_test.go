@@ -10,6 +10,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/stretchr/testify/assert"
 )
@@ -37,7 +38,7 @@ func (m *mockOperation) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *mockOperation) View() string {
+func (m *mockOperation) ViewRect(layout.Box) string {
 	return ""
 }
 

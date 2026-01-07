@@ -2,11 +2,12 @@ package oplog
 
 import (
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common/list"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 var _ list.IItemRenderer = (*itemRenderer)(nil)
@@ -16,7 +17,8 @@ type itemRenderer struct {
 	style lipgloss.Style
 }
 
-func (i itemRenderer) Render(w io.Writer, width int) {
+func (i itemRenderer) Render(dl *ops.DisplayList, rect cellbuf.Rectangle, width int) {
+	var sb strings.Builder
 	row := i.row
 
 	for _, rowLine := range row.Lines {
@@ -25,8 +27,14 @@ func (i itemRenderer) Render(w io.Writer, width int) {
 			fmt.Fprint(&lw, segment.Style.Inherit(i.style).Render(segment.Text))
 		}
 		line := lw.String()
-		fmt.Fprint(w, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceBackground(i.style.GetBackground())))
-		fmt.Fprint(w, "\n")
+		fmt.Fprint(&sb, lipgloss.PlaceHorizontal(width, 0, line, lipgloss.WithWhitespaceBackground(i.style.GetBackground())))
+		fmt.Fprint(&sb, "\n")
+	}
+
+	content := sb.String()
+	if content != "" {
+		content = strings.TrimSuffix(content, "\n")
+		dl.AddDraw(rect, content, 0)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,7 +29,7 @@ func (m *mockNonFocusableOperation) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *mockNonFocusableOperation) View() string {
+func (m *mockNonFocusableOperation) ViewRect(layout.Box) string {
 	return ""
 }
 

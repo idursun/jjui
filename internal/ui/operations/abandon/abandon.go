@@ -9,7 +9,9 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 var (
@@ -35,8 +37,9 @@ func (a *Operation) Update(msg tea.Msg) tea.Cmd {
 	return a.model.Update(msg)
 }
 
-func (a *Operation) View() string {
-	return a.model.View()
+func (a *Operation) ViewRect(box layout.Box) *ops.DisplayList {
+	vDL := a.model.ViewRect(box)
+	return vDL
 }
 
 func (a *Operation) ShortHelp() []key.Binding {
@@ -63,7 +66,8 @@ func (a *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return ""
 	}
-	return a.View()
+	dl := a.ViewRect(layout.TODO)
+	return dl.RenderToString(layout.TODO.R.Dx(), layout.TODO.R.Dy())
 }
 
 func (a *Operation) Name() string {

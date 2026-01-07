@@ -128,7 +128,7 @@ func TestModel_View(t *testing.T) {
 			if tc.scrollBy.Y > 0 {
 				model.Scroll(tc.scrollBy.Y)
 			}
-			v := test.Stripped(model.View())
+			v := test.Stripped(model.ViewRect())
 
 			assert.Equal(t, tc.expected, v)
 		})

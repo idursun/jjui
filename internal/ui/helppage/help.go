@@ -2,6 +2,7 @@
 package helppage
 
 import (
+	"github.com/idursun/jjui/internal/ui/ops"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -12,6 +13,7 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 type helpItem struct {
@@ -78,17 +80,17 @@ func (h *Model) Update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-func (h *Model) View() string {
+func (h *Model) ViewRect(box layout.Box) *ops.DisplayList {
 	// NOTE: add new lines between search bar and help menu
-	content := "\n\n" + h.renderMenu()
+	menuContent := "\n\n" + h.renderMenu()
 
-	v := h.styles.border.Render(h.searchQuery.View(), content)
-	w, height := lipgloss.Size(v)
+	content := h.styles.border.Render(h.searchQuery.View(), menuContent)
+	w, height := lipgloss.Size(content)
 	pw, ph := h.Parent.Width, h.Parent.Height
 	sx := (pw - w) / 2
 	sy := (ph - height) / 2
 	h.SetFrame(cellbuf.Rect(sx, sy, w, height))
-	return v
+	return ops.FromString(content, box.R)
 }
 
 func (h *Model) filterMenu() {

@@ -11,7 +11,9 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 var (
@@ -59,7 +61,7 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if pos != operations.RenderOverDescription {
 		return ""
 	}
-	return o.View()
+	return o.ViewRect(layout.TODO).RenderToString(0, 0)
 }
 
 func (o *Operation) Name() string {
@@ -113,11 +115,13 @@ func (o *Operation) Init() tea.Cmd {
 	return nil
 }
 
-func (o *Operation) View() string {
-	o.SetWidth(o.Parent.Width)
+func (o *Operation) ViewRect(box layout.Box) *ops.DisplayList {
+	//o.SetWidth(o.Parent.Width)
 	o.input.SetWidth(o.Width)
 	o.input.SetHeight(o.Height)
-	return o.input.View()
+	dl := ops.NewDisplayList()
+	dl.AddDraw(box.R, o.input.View(), 0)
+	return dl
 }
 
 func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation {

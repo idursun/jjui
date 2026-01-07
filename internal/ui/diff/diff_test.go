@@ -14,11 +14,11 @@ import (
 func TestNew_TrimsCarriageReturnsAndHandlesEmpty(t *testing.T) {
 	model := New("line1\r\nline2\r\n")
 	model.SetFrame(cellbuf.Rect(0, 0, 20, 5))
-	assert.Equal(t, "line1\nline2", test.Stripped(model.View()))
+	assert.Equal(t, "line1\nline2", test.Stripped(model.ViewRect()))
 
 	emptyModel := New("")
 	emptyModel.SetFrame(cellbuf.Rect(0, 0, 10, 3))
-	assert.Equal(t, "(empty)", test.Stripped(emptyModel.View()))
+	assert.Equal(t, "(empty)", test.Stripped(emptyModel.ViewRect()))
 }
 
 func TestScroll_AdjustsViewportOffset(t *testing.T) {

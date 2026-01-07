@@ -18,7 +18,9 @@ import (
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 type updateCommitStatusMsg struct {
@@ -220,22 +222,28 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (s *Operation) View() string {
+func (s *Operation) ViewRect(box layout.Box) *ops.DisplayList {
 	confirmationView := ""
-	ch := 0
+	dl := ops.NewDisplayList()
+	//ch := 0
 	if s.confirmation != nil {
-		confirmationView = s.confirmation.View()
-		ch = lipgloss.Height(confirmationView)
+
+		confirmationView = s.confirmation.ViewRect(box).RenderToString(box.R.Dx(), box.R.Dy())
+		dl.AddDraw(box.R, confirmationView, 0)
+		//ch = lipgloss.Height(confirmationView)
 	}
 	if s.Len() == 0 {
-		return s.styles.Dimmed.Render("No changes\n")
+		dl.AddDraw(box.R, s.styles.Dimmed.Render("No changes\n"), 0)
+		return dl
 	}
-	s.SetHeight(min(s.Parent.Height-5-ch, s.Len()))
+	//s.SetHeight(min(s.Parent.Height-5-ch, s.Len()))
 	filesView := s.renderer.Render(s.cursor)
-	if confirmationView != "" {
-		return lipgloss.JoinVertical(lipgloss.Top, filesView, confirmationView)
-	}
-	return filesView + "\n"
+	dl.Merge(filesView)
+	//if confirmationView != "" {
+	//	return dl
+	//}
+	//dl.AddDraw(box.R, filesView, 0)
+	return dl
 }
 
 func (s *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
@@ -269,7 +277,7 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return ""
 	}
-	return s.View()
+	return s.ViewRect(layout.TODO).RenderToString(0, 0)
 }
 
 func (s *Operation) Name() string {
@@ -382,7 +390,7 @@ func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation 
 		Conflict: common.DefaultPalette.Get("revisions details conflict"),
 	}
 
-	l := NewDetailsList(s, common.NewViewNode(0, 0))
+	l := NewDetailsList(s)
 	op := &Operation{
 		DetailsList:       l,
 		context:           context,
@@ -392,6 +400,5 @@ func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation 
 		keymap:            config.Current.GetKeyMap(),
 		targetMarkerStyle: common.DefaultPalette.Get("revisions details target_marker"),
 	}
-	l.Parent = op.ViewNode
 	return op
 }

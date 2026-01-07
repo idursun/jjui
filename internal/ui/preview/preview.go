@@ -10,11 +10,12 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 const (
@@ -25,7 +26,6 @@ const (
 var _ common.Model = (*Model)(nil)
 
 type Model struct {
-	*common.ViewNode
 	*common.MouseAware
 	*common.DragAware
 	view                    viewport.Model
@@ -62,17 +62,6 @@ type updatePreviewContentMsg struct {
 
 func (m *Model) Init() tea.Cmd {
 	return nil
-}
-
-func (m *Model) SetFrame(frame cellbuf.Rectangle) {
-	m.ViewNode.SetFrame(frame)
-	if m.AtBottom() {
-		m.view.Width = frame.Dx()
-		m.view.Height = frame.Dy() - 1
-	} else {
-		m.view.Width = frame.Dx() - 1
-		m.view.Height = frame.Dy()
-	}
 }
 
 func (m *Model) Visible() bool {
@@ -130,26 +119,27 @@ func (m *Model) ScrollHorizontal(delta int) tea.Cmd {
 }
 
 func (m *Model) DragStart(x, y int) bool {
-	if !m.previewVisible {
-		return false
-	}
-
-	if m.Parent.Width == 0 || m.Parent.Height == 0 {
-		return false
-	}
-
-	if m.AtBottom() {
-		if y-m.Frame.Min.Y > handleSize {
-			return false
-		}
-	} else {
-		if x-m.Frame.Min.X > handleSize {
-			return false
-		}
-	}
-
-	m.BeginDrag(m.Frame.Min.X, y)
-	return true
+	return false
+	//if !m.previewVisible {
+	//	return false
+	//}
+	//
+	//if m.Parent.Width == 0 || m.Parent.Height == 0 {
+	//	return false
+	//}
+	//
+	//if m.AtBottom() {
+	//	if y-m.Frame.Min.Y > handleSize {
+	//		return false
+	//	}
+	//} else {
+	//	if x-m.Frame.Min.X > handleSize {
+	//		return false
+	//	}
+	//}
+	//
+	//m.BeginDrag(m.Frame.Min.X, y)
+	//return true
 }
 
 func (m *Model) DragMove(x, y int) tea.Cmd {
@@ -157,14 +147,14 @@ func (m *Model) DragMove(x, y int) tea.Cmd {
 		return nil
 	}
 
-	var percentage float64
-	if m.AtBottom() {
-		percentage = float64((m.Parent.Height-y)*100) / float64(m.Parent.Height)
-	} else {
-		percentage = float64((m.Parent.Width-x)*100) / float64(m.Parent.Width)
-	}
+	//var percentage float64
+	//if m.AtBottom() {
+	//	percentage = float64((m.Parent.Height-y)*100) / float64(m.Parent.Height)
+	//} else {
+	//	percentage = float64((m.Parent.Width-x)*100) / float64(m.Parent.Width)
+	//}
 
-	m.SetWindowPercentage(percentage)
+	//m.SetWindowPercentage(percentage)
 	return nil
 }
 
@@ -209,9 +199,12 @@ func (m *Model) SetContent(content string) {
 	m.view.SetContent(content)
 }
 
-func (m *Model) View() string {
+func (m *Model) ViewRect(box layout.Box) *ops.DisplayList {
 	border := lipgloss.NewStyle().Border(lipgloss.NormalBorder(), m.AtBottom(), false, false, !m.AtBottom())
-	return border.Render(m.view.View())
+	m.view.Height = box.R.Dy() - handleSize
+	m.view.Width = box.R.Dx()
+	content := border.Render(m.view.View())
+	return ops.FromString(content, box.R)
 }
 
 func (m *Model) reset() {
@@ -286,7 +279,6 @@ func New(context *context.MainContext) *Model {
 	}
 
 	return &Model{
-		ViewNode:                &common.ViewNode{Width: 0, Height: 0},
 		MouseAware:              common.NewMouseAware(),
 		DragAware:               common.NewDragAware(),
 		context:                 context,

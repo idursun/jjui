@@ -2,6 +2,8 @@ package layout
 
 import "github.com/charmbracelet/x/cellbuf"
 
+var TODO = NewBox(cellbuf.Rect(0, 0, 0, 0))
+
 // Box wraps a cellbuf.Rectangle to provide a fluent API for layout calculations.
 // It enables declarative layout syntax instead of manual rectangle arithmetic.
 type Box struct {

@@ -2,6 +2,8 @@ package oplog
 
 import (
 	"bytes"
+	"strconv"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -11,6 +13,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 type updateOpLogMsg struct {
@@ -25,7 +29,6 @@ var (
 )
 
 type Model struct {
-	*common.ViewNode
 	*common.MouseAware
 	context          *context.MainContext
 	renderer         *list.ListRenderer
@@ -97,28 +100,29 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) ClickAt(x, y int) tea.Cmd {
-	if len(m.rows) == 0 {
-		return nil
-	}
-
-	localY := y - m.Frame.Min.Y
-
-	currentStart := m.renderer.ViewRange.Start
-	if localY >= m.Height {
-		localY = m.Height - 1
-		if localY < 0 {
-			return nil
-		}
-	}
-	line := currentStart + localY
-	row := m.rowAtLine(line)
-	if row == -1 {
-		return nil
-	}
-
-	m.cursor = row
-	m.ensureCursorView = true
-	return m.updateSelection()
+	return nil
+	//if len(m.rows) == 0 {
+	//	return nil
+	//}
+	//
+	//localY := y - m.Frame.Min.Y
+	//
+	//currentStart := m.renderer.ViewRange.Start
+	//if localY >= m.Height {
+	//	localY = m.Height - 1
+	//	if localY < 0 {
+	//		return nil
+	//	}
+	//}
+	//line := currentStart + localY
+	//row := m.rowAtLine(line)
+	//if row == -1 {
+	//	return nil
+	//}
+	//
+	//m.cursor = row
+	//m.ensureCursorView = true
+	//return m.updateSelection()
 }
 
 func (m *Model) rowAtLine(line int) int {
@@ -138,7 +142,9 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 	}
 
 	totalLines := m.renderer.AbsoluteLineCount()
-	maxStart := totalLines - m.Height
+	//height := m.Height
+	height := 0
+	maxStart := totalLines - height
 	if maxStart < 0 {
 		maxStart = 0
 	}
@@ -156,6 +162,25 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.rows = msg.Rows
 		m.renderer.Reset()
 		return m.updateSelection()
+	case common.ClickMsg:
+		if msg.ID == "oplog-scroll" || len(m.rows) == 0 {
+			return nil
+		}
+		// Handle row clicks
+		if strings.HasPrefix(msg.ID, "oplog-row:") {
+			indexStr := strings.TrimPrefix(msg.ID, "oplog-row:")
+			if index, err := strconv.Atoi(indexStr); err == nil {
+				if index >= 0 && index < len(m.rows) {
+					m.cursor = index
+					m.ensureCursorView = true
+					return m.updateSelection()
+				}
+			}
+		}
+	case common.ScrollMsg:
+		if msg.ID == "oplog-scroll" {
+			return m.Scroll(-msg.Delta * 3)
+		}
 	case tea.MouseMsg:
 		switch msg.Action {
 		case tea.MouseActionPress:
@@ -214,16 +239,21 @@ func (m *Model) updateSelection() tea.Cmd {
 	return m.context.SetSelectedItem(context.SelectedOperation{OperationId: m.rows[m.cursor].OperationId})
 }
 
-func (m *Model) View() string {
+func (m *Model) ViewRect(box layout.Box) *ops.DisplayList {
 	if m.rows == nil {
-		return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading")
+		dl := ops.NewDisplayList()
+		loadingText := lipgloss.Place(box.R.Dx(), box.R.Dy(), lipgloss.Center, lipgloss.Center, "loading")
+		dl.AddDraw(box.R, loadingText, 0)
+		return dl
 	}
 
-	m.renderer.Reset()
-	m.renderer.SetWidth(m.Width)
-	m.renderer.SetHeight(m.Height)
-	content := m.renderer.RenderWithOptions(list.RenderOptions{FocusIndex: m.cursor, EnsureFocusVisible: m.ensureCursorView})
-	return m.textStyle.Render(content)
+	m.renderer.SetInteractionIDPrefix("oplog-row")
+	dl := m.renderer.RenderWithOptions(list.RenderOptions{Box: box, FocusIndex: m.cursor, EnsureFocusVisible: m.ensureCursorView})
+
+	// Add scrollable region for entire view
+	dl.AddScrollable(box.R, "oplog-scroll", 0)
+
+	return dl
 }
 
 func (m *Model) load() tea.Cmd {
@@ -240,9 +270,7 @@ func (m *Model) load() tea.Cmd {
 
 func New(context *context.MainContext) *Model {
 	keyMap := config.Current.GetKeyMap()
-	node := common.NewViewNode(0, 0)
 	m := &Model{
-		ViewNode:      node,
 		MouseAware:    common.NewMouseAware(),
 		context:       context,
 		keymap:        keyMap,
@@ -251,6 +279,6 @@ func New(context *context.MainContext) *Model {
 		textStyle:     common.DefaultPalette.Get("oplog text"),
 		selectedStyle: common.DefaultPalette.Get("oplog selected"),
 	}
-	m.renderer = list.NewRenderer(m, node)
+	m.renderer = list.NewRenderer(m)
 	return m
 }

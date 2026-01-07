@@ -45,14 +45,14 @@ func TestHelpMenuTriggeredFromMainUI(t *testing.T) {
 		return tea.WindowSizeMsg{Width: 140, Height: 80}
 	})
 
-	beforeView := model.View()
+	beforeView := model.ViewRect()
 	if strings.Contains(beforeView, "Search: ") {
 		t.Fatalf("expected main view to not include help search prompt before toggle")
 	}
 
 	test.SimulateModel(model, test.Type("?"))
 
-	afterView := model.View()
+	afterView := model.ViewRect()
 	if !strings.Contains(afterView, "Search: ") {
 		t.Fatalf("expected help overlay to include search prompt, view: \n%q", afterView)
 	}
@@ -78,13 +78,13 @@ func TestHelpMenuLayoutStaysFixedWhileFiltering(t *testing.T) {
 	model.Parent = common.NewViewNode(100, 40)
 	test.SimulateModel(model, model.Init())
 
-	defaultView := model.View()
+	defaultView := model.ViewRect()
 	defaultWidth := lipgloss.Width(defaultView)
 	defaultHeight := lipgloss.Height(defaultView)
 
 	_ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
 
-	filteredView := model.View()
+	filteredView := model.ViewRect()
 	filteredWidth := lipgloss.Width(filteredView)
 	filteredHeight := lipgloss.Height(filteredView)
 

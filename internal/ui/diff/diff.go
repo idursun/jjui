@@ -3,17 +3,19 @@ package diff
 import (
 	"strings"
 
+	"github.com/idursun/jjui/internal/ui/ops"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 var _ common.Model = (*Model)(nil)
 
 type Model struct {
-	*common.ViewNode
 	*common.MouseAware
 	view   viewport.Model
 	keymap config.KeyMappings[key.Binding]
@@ -60,10 +62,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-func (m *Model) View() string {
-	m.view.Height = m.Height
-	m.view.Width = m.Width
-	return m.view.View()
+func (m *Model) ViewRect(box layout.Box) *ops.DisplayList {
+	m.view.Height = box.R.Dy()
+	m.view.Width = box.R.Dx()
+	content := m.view.View()
+	return ops.FromString(content, box.R)
 }
 
 func New(output string) *Model {
@@ -74,7 +77,6 @@ func New(output string) *Model {
 	}
 	view.SetContent(content)
 	return &Model{
-		ViewNode:   common.NewViewNode(0, 0),
 		MouseAware: common.NewMouseAware(),
 		view:       view,
 		keymap:     config.Current.GetKeyMap(),

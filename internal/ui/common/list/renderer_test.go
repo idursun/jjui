@@ -1,12 +1,13 @@
 package list
 
 import (
-	"io"
 	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/charmbracelet/x/cellbuf"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/ops"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,10 +19,16 @@ type testItemRenderer struct {
 	height int
 }
 
-func (t testItemRenderer) Render(w io.Writer, width int) {
+func (t testItemRenderer) Render(dl *ops.DisplayList, rect cellbuf.Rectangle, width int) {
+	var sb strings.Builder
 	line := strings.Repeat(strconv.Itoa(t.index), width)
 	for i := 0; i < t.height; i++ {
-		io.WriteString(w, line+"\n")
+		sb.WriteString(line + "\n")
+	}
+	content := sb.String()
+	if content != "" {
+		content = strings.TrimSuffix(content, "\n")
+		dl.AddDraw(rect, content, 0)
 	}
 }
 
@@ -94,11 +101,14 @@ func TestListRenderer_RowRanges(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			renderer := NewRenderer(&tc.list, common.NewViewNode(20, tc.height))
+			renderer := NewRenderer(&tc.list)
 			renderer.Start = tc.viewRangeStart
 
+			box := layout.NewBox(cellbuf.Rect(0, 0, 20, tc.height))
+			tc.opts.Box = box
 			v := renderer.RenderWithOptions(tc.opts)
-			assert.NotEmpty(t, v)
+			assert.NotNil(t, v)
+			assert.Greater(t, v.Len(), 0)
 
 			ranges := renderer.RowRanges()
 			require.Equal(t, tc.expected, ranges)
@@ -111,15 +121,17 @@ func TestListRenderer_AbsoluteLineCount_AllowsScrollAfterFocusedRender(t *testin
 	l := testList{
 		itemHeights: []int{2, 3, 1},
 	}
-	renderer := NewRenderer(&l, common.NewViewNode(20, 3))
+	renderer := NewRenderer(&l)
 
-	_ = renderer.RenderWithOptions(RenderOptions{FocusIndex: 1, EnsureFocusVisible: true})
+	box := layout.NewBox(cellbuf.Rect(0, 0, 20, 3))
+	_ = renderer.RenderWithOptions(RenderOptions{Box: box, FocusIndex: 1, EnsureFocusVisible: true})
 
 	totalLines := renderer.TotalLineCount()
 	absoluteLines := renderer.AbsoluteLineCount()
 	assert.Equal(t, 3, totalLines)
 	assert.Equal(t, 6, absoluteLines)
 
-	maxStart := absoluteLines - renderer.Height
+	height := box.R.Dy()
+	maxStart := absoluteLines - height
 	assert.Greater(t, maxStart, 0)
 }

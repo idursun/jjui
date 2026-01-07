@@ -10,7 +10,9 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 type Target int
@@ -65,8 +67,8 @@ func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (r *Operation) View() string {
-	return ""
+func (r *Operation) ViewRect(box layout.Box) *ops.DisplayList {
+	return ops.FromString("", box.R)
 }
 
 func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {

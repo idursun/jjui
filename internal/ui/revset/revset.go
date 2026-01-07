@@ -10,6 +10,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 type EditRevSetMsg struct {
@@ -30,7 +32,6 @@ func RevsetCmd(msg tea.Msg) tea.Cmd {
 }
 
 type Model struct {
-	*common.ViewNode
 	Editing         bool
 	autoComplete    *autocompletion.AutoCompletionInput
 	keymap          keymap
@@ -82,7 +83,6 @@ func New(context *appContext.MainContext) *Model {
 	autoComplete.Focus()
 
 	return &Model{
-		ViewNode:        &common.ViewNode{Width: 0, Height: 0},
 		context:         context,
 		Editing:         false,
 		keymap:          keymap{},
@@ -231,13 +231,16 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	return nil
 }
 
-func (m *Model) View() string {
+func (m *Model) ViewRect(box layout.Box) *ops.DisplayList {
 	var w strings.Builder
 	w.WriteString(m.styles.promptStyle.PaddingRight(1).Render("revset:"))
 	if m.Editing {
-		w.WriteString(m.autoComplete.View())
+		w.WriteString(m.autoComplete.ViewRect(box).RenderToString(box.R.Dx(), box.R.Dy()-1))
 	} else {
 		w.WriteString(m.styles.textStyle.Render(m.context.CurrentRevset))
 	}
-	return lipgloss.Place(m.Width, m.Height, 0, 0, w.String(), lipgloss.WithWhitespaceBackground(m.styles.textStyle.GetBackground()))
+	dl := ops.NewDisplayList()
+	dl.AddDraw(box.R, w.String(), 0)
+	return dl
+	//return lipgloss.Place(box.R.Dx(), box.R.Dy(), 0, 0, w.String(), lipgloss.WithWhitespaceBackground(m.styles.textStyle.GetBackground()))
 }

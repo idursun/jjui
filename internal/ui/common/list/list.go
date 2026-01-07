@@ -1,9 +1,9 @@
 package list
 
 import (
-	"io"
-
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/ops"
 )
 
 type IList interface {
@@ -17,7 +17,7 @@ type IListCursor interface {
 }
 
 type IItemRenderer interface {
-	Render(w io.Writer, width int)
+	Render(dl *ops.DisplayList, rect cellbuf.Rectangle, width int)
 	Height() int
 }
 

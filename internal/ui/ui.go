@@ -10,6 +10,7 @@ import (
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/ops"
 	"github.com/idursun/jjui/internal/ui/password"
 
 	"github.com/idursun/jjui/internal/ui/flash"
@@ -39,7 +40,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/undo"
 )
 
-var _ common.Model = (*Model)(nil)
+//var _ common.Model = (*Model)(nil)
 
 type SizableModel interface {
 	common.Model
@@ -64,6 +65,13 @@ type Model struct {
 	stacked         SizableModel
 	dragTarget      common.Draggable
 	sequenceOverlay *customcommands.SequenceOverlay
+	displayList     *ops.DisplayList
+	dragState       *dragState
+}
+
+type dragState struct {
+	active      bool
+	interaction *ops.InteractionOp
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -188,27 +196,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			// for now, stacked windows don't respond to mouse events
 			return nil
 		}
-		if m.dragTarget != nil && m.dragTarget.IsDragging() {
-			switch msg.Action {
-			case tea.MouseActionRelease:
-				cmd := m.dragTarget.DragEnd(msg.X, msg.Y)
-				m.dragTarget = nil
-				return cmd
-			case tea.MouseActionMotion:
-				return m.dragTarget.DragMove(msg.X, msg.Y)
-			}
-		} else if m.dragTarget != nil && !m.dragTarget.IsDragging() {
-			m.dragTarget = nil
-		}
 
-		if model := m.findViewAt(msg.X, msg.Y); model != nil {
-			if draggable, ok := model.(common.Draggable); ok && msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
-				if draggable.DragStart(msg.X, msg.Y) {
-					m.dragTarget = draggable
-					return nil
-				}
-			}
-			return model.Update(msg)
+		// Handle DisplayList-based interactions
+		if cmd := m.handleMouseInteractions(msg); cmd != nil {
+			return cmd
 		}
 		return nil
 	case tea.KeyMsg:
@@ -237,7 +228,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return tea.Quit
 		case key.Matches(msg, m.keyMap.OpLog.Mode):
 			m.oplog = oplog.New(m.context)
-			m.oplog.Parent = m.ViewNode
 			return m.oplog.Init()
 		case key.Matches(msg, m.keyMap.Revset) && m.revisions.InNormalMode():
 			return m.revsetModel.Update(intents.Edit{Clear: m.state != common.Error})
@@ -402,8 +392,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	case tea.WindowSizeMsg:
 		m.SetFrame(cellbuf.Rect(0, 0, msg.Width, msg.Height))
-		m.flash.SetWidth(m.Width)
-		m.flash.SetHeight(m.Height)
+		//m.flash.SetWidth(m.Width)
+		//m.flash.SetHeight(m.Height)
 	}
 
 	cmds = append(cmds, m.revsetModel.Update(msg))
@@ -469,26 +459,32 @@ func (m *Model) View() string {
 		return ""
 	}
 	m.updateStatus()
-	m.status.SetWidth(m.Width)
-	footer := m.status.View()
-	footerHeight := lipgloss.Height(footer)
+	//m.status.SetWidth(m.Width)
 
-	if m.diff != nil {
-		m.diff.SetFrame(cellbuf.Rect(0, footerHeight, m.Width, m.Height-footerHeight))
-		return lipgloss.JoinVertical(0, m.diff.View(), footer)
-	}
+	// Initialize display list for collecting interactions
+	m.displayList = ops.NewDisplayList()
 
 	screenBuf := cellbuf.NewBuffer(m.Width, m.Height)
 	box := layout.NewBox(cellbuf.Rect(0, 0, m.Width, m.Height))
-	var previewArea cellbuf.Rectangle
+	mainArea, footerArea := box.CutBottom(1)
 
-	topView := m.revsetModel.View()
-	topViewHeight := lipgloss.Height(topView)
-	topArea, centerBox := box.CutTop(topViewHeight)
-	cellbuf.SetContentRect(screenBuf, topView, topArea.R)
+	footer := m.status.ViewRect(footerArea)
+	m.displayList.Merge(footer)
 
-	centerBox, bottomBox := centerBox.CutBottom(footerHeight)
-	cellbuf.SetContentRect(screenBuf, footer, bottomBox.R)
+	if m.diff != nil {
+		m.displayList.Merge(m.diff.ViewRect(mainArea))
+		//return lipgloss.JoinVertical(0, m.diff.ViewRect(mainArea), footer)
+	}
+
+	var previewArea layout.Box
+	topArea, centerBox := mainArea.CutTop(1)
+
+	topView := m.revsetModel.ViewRect(topArea)
+	m.displayList.Merge(topView)
+	//cellbuf.SetContentRect(screenBuf, topView, topArea.R)
+
+	// centerBox already accounts for footer since we used mainArea
+	// No need to cut footer again
 
 	if m.previewModel.Visible() {
 		m.UpdatePreviewPosition()
@@ -496,43 +492,44 @@ func (m *Model) View() string {
 			pct := m.previewModel.WindowPercentage()
 			boxes := centerBox.V(layout.Percent(100-pct), layout.Fill(1))
 			centerBox = boxes[0]
-			previewArea = boxes[1].R
+			previewArea = boxes[1]
 		} else {
 			pct := m.previewModel.WindowPercentage()
 			boxes := centerBox.H(layout.Percent(100-pct), layout.Fill(1))
 			centerBox = boxes[0]
-			previewArea = boxes[1].R
+			previewArea = boxes[1]
 		}
-		m.previewModel.SetFrame(previewArea)
 	}
 
-	centerArea := centerBox.R
-	var leftView string
 	if m.oplog != nil {
-		m.oplog.SetFrame(centerArea)
-		leftView = m.oplog.View()
+		// oplog now returns DisplayList
+		oplogDL := m.oplog.ViewRect(centerBox)
+		m.displayList.Merge(oplogDL)
 	} else {
-		m.revisions.SetFrame(centerArea)
-		leftView = m.revisions.View()
+		// revisions now returns DisplayList
+		revisionsDL := m.revisions.ViewRect(centerBox)
+		m.displayList.Merge(revisionsDL)
 	}
-
-	cellbuf.SetContentRect(screenBuf, leftView, centerArea)
 	if m.previewModel.Visible() {
-		cellbuf.SetContentRect(screenBuf, m.previewModel.View(), previewArea)
+		m.previewModel.ViewRect(previewArea)
+		m.displayList.Merge(m.previewModel.ViewRect(previewArea))
+		//cellbuf.SetContentRect(screenBuf, m.previewModel.ViewRect(previewArea), previewArea.R)
 	}
 
 	if m.stacked != nil {
-		stackedView := m.stacked.View()
-		cellbuf.SetContentRect(screenBuf, stackedView, m.stacked.GetViewNode().Frame)
+		stackedView := m.stacked.ViewRect(box)
+		m.displayList.Merge(stackedView)
+		//cellbuf.SetContentRect(screenBuf, stackedView, m.stacked.GetViewNode().Frame)
 	}
 
 	if m.sequenceOverlay != nil {
 		m.sequenceOverlay.Parent = m.ViewNode
-		view := m.sequenceOverlay.View()
-		cellbuf.SetContentRect(screenBuf, view, m.sequenceOverlay.Frame)
+		view := m.sequenceOverlay.ViewRect(box)
+		m.displayList.Merge(view)
+		//cellbuf.SetContentRect(screenBuf, view, m.sequenceOverlay.Frame)
 	}
 
-	flashMessageView := m.flash.View()
+	flashMessageView := m.flash.View(box)
 	if flashMessageView != nil {
 		for _, v := range flashMessageView {
 			cellbuf.SetContentRect(screenBuf, v.Content, v.Rect)
@@ -545,9 +542,12 @@ func (m *Model) View() string {
 	}
 
 	if m.password != nil {
-		view := m.password.View()
-		cellbuf.SetContentRect(screenBuf, view, m.password.Frame)
+		view := m.password.ViewRect(box)
+		m.displayList.Merge(view)
+		//cellbuf.SetContentRect(screenBuf, view, m.password.Frame)
 	}
+
+	m.displayList.Render(screenBuf)
 
 	finalView := cellbuf.Render(screenBuf)
 	return strings.ReplaceAll(finalView, "\r", "")
@@ -576,20 +576,121 @@ func (m *Model) isSafeToQuit() bool {
 	return false
 }
 
-func (m *Model) findViewAt(x, y int) common.IMouseAware {
-	// well, these are all the views that can receive mouse input for now
-	pt := cellbuf.Pos(x, y)
-	if m.diff != nil && pt.In(m.diff.Frame) {
-		return m.diff
+func (m *Model) handleMouseInteractions(msg tea.MouseMsg) tea.Cmd {
+	if m.displayList == nil {
+		return nil
 	}
-	if m.oplog != nil && pt.In(m.oplog.Frame) {
-		return m.oplog
+
+	pos := cellbuf.Pos(msg.X, msg.Y)
+
+	switch msg.Action {
+	case tea.MouseActionPress:
+		if msg.Button != tea.MouseButtonLeft {
+			return nil
+		}
+
+		// Check for drag start (highest priority)
+		for _, inter := range m.displayList.InteractionsList() {
+			if inter.Type&ops.InteractionDrag != 0 && pos.In(inter.Rect) {
+				m.dragState = &dragState{
+					active:      true,
+					interaction: &inter,
+				}
+				localX := msg.X - inter.Rect.Min.X
+				localY := msg.Y - inter.Rect.Min.Y
+				return m.routeInteractionMessage(common.DragStartMsg{
+					ID: inter.ID,
+					X:  localX,
+					Y:  localY,
+				})
+			}
+		}
+
+		// Handle click
+		for _, inter := range m.displayList.InteractionsList() {
+			if inter.Type&ops.InteractionClick != 0 && pos.In(inter.Rect) {
+				localX := msg.X - inter.Rect.Min.X
+				localY := msg.Y - inter.Rect.Min.Y
+				return m.routeInteractionMessage(common.ClickMsg{
+					ID: inter.ID,
+					X:  localX,
+					Y:  localY,
+				})
+			}
+		}
+
+	case tea.MouseActionRelease:
+		if m.dragState != nil && m.dragState.active {
+			inter := m.dragState.interaction
+			cmd := m.routeInteractionMessage(common.DragEndMsg{
+				ID: inter.ID,
+				X:  msg.X,
+				Y:  msg.Y,
+			})
+			m.dragState = nil
+			return cmd
+		}
+
+	case tea.MouseActionMotion:
+		if m.dragState != nil && m.dragState.active {
+			inter := m.dragState.interaction
+			return m.routeInteractionMessage(common.DragMoveMsg{
+				ID: inter.ID,
+				X:  msg.X,
+				Y:  msg.Y,
+			})
+		}
+
+		//case tea.MouseButtonWheelUp, tea.MouseButtonWheelDown:
+		//	delta := 1
+		//	if msg.Action == tea.MouseButtonWheelDown {
+		//		delta = -1
+		//	}
+		//
+		//	for _, inter := range m.displayList.InteractionsList() {
+		//		if inter.Type&ops.InteractionScroll != 0 && pos.In(inter.Rect) {
+		//			return m.routeInteractionMessage(common.ScrollMsg{
+		//				ID:    inter.ID,
+		//				Delta: delta,
+		//			})
+		//		}
+		//	}
 	}
-	if m.oplog == nil && pt.In(m.revisions.Frame) {
-		return m.revisions
+
+	return nil
+}
+
+func (m *Model) routeInteractionMessage(msg tea.Msg) tea.Cmd {
+	// Route to appropriate child models
+	// For now, broadcast to all children that might handle it
+	var cmds []tea.Cmd
+
+	if m.oplog != nil {
+		if cmd := m.oplog.Update(msg); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
 	}
-	if m.previewModel.Visible() && pt.In(m.previewModel.Frame) {
-		return m.previewModel
+
+	if m.revisions != nil {
+		if cmd := m.revisions.Update(msg); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
+
+	if m.previewModel != nil {
+		if cmd := m.previewModel.Update(msg); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
+
+	if m.diff != nil {
+		if cmd := m.diff.Update(msg); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
+
+	if len(cmds) > 0 {
+		return tea.Batch(cmds...)
 	}
 	return nil
 }
@@ -630,6 +731,7 @@ func (w *wrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (w *wrapper) View() string {
 	if w.render {
 		w.cachedFrame = w.ui.View()
+		//w.cachedFrame = w.ui.ViewRect(layout.NewBox(cellbuf.Rect(0, 0, w.ui.Width, w.ui.Height)))
 		w.render = false
 	}
 	return w.cachedFrame
@@ -639,19 +741,11 @@ func NewUI(c *context.MainContext) *Model {
 	frame := common.NewViewNode(0, 0)
 
 	revisionsModel := revisions.New(c)
-	revisionsModel.Parent = frame
 
 	statusModel := status.New(c)
-	statusModel.Parent = frame
-
 	flashView := flash.New(c)
-	flashView.Parent = frame
-
 	previewModel := preview.New(c)
-	previewModel.Parent = frame
-
 	revsetModel := revset.New(c)
-	revsetModel.Parent = frame
 
 	return &Model{
 		ViewNode:     frame,

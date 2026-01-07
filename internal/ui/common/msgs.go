@@ -75,6 +75,28 @@ type (
 	DeferredUpdateMsg struct {
 		Fn func() tea.Cmd
 	}
+
+	// Interaction messages for immediate mode UI system
+	ClickMsg struct {
+		ID   string // The ID from InteractionOp
+		X, Y int    // Local coordinates within the region
+	}
+	ScrollMsg struct {
+		ID    string
+		Delta int // Positive = up, Negative = down
+	}
+	DragStartMsg struct {
+		ID   string
+		X, Y int // Local coordinates within the region
+	}
+	DragMoveMsg struct {
+		ID   string
+		X, Y int // Absolute coordinates
+	}
+	DragEndMsg struct {
+		ID   string
+		X, Y int // Absolute coordinates
+	}
 )
 
 type State int

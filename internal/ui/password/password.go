@@ -1,12 +1,14 @@
 package password
 
 import (
+	"github.com/idursun/jjui/internal/ui/ops"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 var _ common.Model = (*Model)(nil)
@@ -70,12 +72,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) View() string {
+func (m *Model) ViewRect(box layout.Box) *ops.DisplayList {
 	pw, ph := m.Parent.Width, m.Parent.Height
-	v := m.styles.border.Width(pw - 2).Render(m.textinput.View())
-	w, h := lipgloss.Size(v)
+	content := m.styles.border.Width(pw - 2).Render(m.textinput.View())
+	w, h := lipgloss.Size(content)
 	sx := (pw - w) / 2
 	sy := (ph - h) / 2
 	m.SetFrame(cellbuf.Rect(sx, sy, w, h))
-	return v
+	return ops.FromString(content, box.R)
 }

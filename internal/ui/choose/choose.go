@@ -1,6 +1,7 @@
 package choose
 
 import (
+	"github.com/idursun/jjui/internal/ui/ops"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -8,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 type SelectedMsg struct {
@@ -102,7 +104,7 @@ func (m *Model) selectCurrent() tea.Cmd {
 	return newCmd(SelectedMsg{Value: value})
 }
 
-func (m *Model) View() string {
+func (m *Model) ViewRect(box layout.Box) *ops.DisplayList {
 	var rows []string
 	if m.title != "" {
 		rows = append(rows, m.styles.title.Render(m.title))
@@ -126,7 +128,7 @@ func (m *Model) View() string {
 		m.SetFrame(cellbuf.Rect(sx, sy, w, h))
 	}
 
-	return content
+	return ops.FromString(content, box.R)
 }
 
 func (m *Model) ShortHelp() []key.Binding {

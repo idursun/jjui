@@ -1,6 +1,7 @@
 package git
 
 import (
+	"github.com/idursun/jjui/internal/ui/ops"
 	"fmt"
 	"strings"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/menu"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 type itemCategory string
@@ -150,15 +152,15 @@ func (m *Model) filtered(filter string) tea.Cmd {
 	return m.menu.Filtered(filter)
 }
 
-func (m *Model) View() string {
+func (m *Model) ViewRect(box layout.Box) *ops.DisplayList {
 	pw, ph := m.Parent.Width, m.Parent.Height
 	m.menu.SetFrame(cellbuf.Rect(0, 0, min(pw, 80), min(ph, 40)).Inset(2))
-	v := m.menu.View()
-	w, h := lipgloss.Size(v)
+	content := m.menu.View()
+	w, h := lipgloss.Size(content)
 	sx := (pw - w) / 2
 	sy := (ph - h) / 2
 	m.SetFrame(cellbuf.Rect(sx, sy, w, h))
-	return v
+	return ops.FromString(content, box.R)
 }
 
 func (m *Model) displayRemotes() string {

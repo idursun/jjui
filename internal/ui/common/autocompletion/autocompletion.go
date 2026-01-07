@@ -1,12 +1,14 @@
 package autocompletion
 
 import (
+	"github.com/idursun/jjui/internal/ui/ops"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 var _ common.Model = (*AutoCompletionInput)(nil)
@@ -210,7 +212,7 @@ func findMatchedPrefix(input, suggestion string) string {
 	return ""
 }
 
-func (ac *AutoCompletionInput) View() string {
+func (ac *AutoCompletionInput) ViewRect(box layout.Box) *ops.DisplayList {
 	var builder strings.Builder
 
 	builder.WriteString(ac.TextInput.View())
@@ -248,5 +250,6 @@ func (ac *AutoCompletionInput) View() string {
 		builder.WriteString(ac.Styles.Dimmed.Render("\nNo suggestions"))
 	}
 
-	return builder.String()
+	content := builder.String()
+	return ops.FromString(content, box.R)
 }
