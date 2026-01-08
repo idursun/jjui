@@ -145,6 +145,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			input := m.input.Value()
 			prompt := m.input.Prompt
 			fuzzy := m.fuzzy
+			// If there's a selected match in the fuzzy list, use that instead
+			if fuzzy != nil {
+				if selected := fuzzy_search.SelectedMatch(fuzzy); selected != "" {
+					// SelectedMatch returns the value wrapped in single quotes, remove them
+					input = strings.Trim(selected, "'")
+					m.input.SetValue(input)
+				}
+			}
 			m.saveEditingSuggestions()
 
 			m.fuzzy = nil
