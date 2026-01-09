@@ -102,7 +102,7 @@ func SquashFiles(from string, into string, files []string) CommandArgs {
 }
 
 func Describe(revisions SelectedRevisions) CommandArgs {
-	args := []string{"describe", "--edit"}
+	args := []string{"describe", "--editor"}
 	args = append(args, revisions.AsArgs()...)
 	return args
 }
