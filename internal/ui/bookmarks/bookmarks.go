@@ -152,6 +152,16 @@ func (m *Model) loadAll() tea.Msg {
 				args:     jj.BookmarkForget(b.Name),
 			})
 
+			// Track local bookmarks as they have no remotes
+			if b.IsTrackable() {
+				items = append(items, item{
+					name:     fmt.Sprintf("track '%s'", b.Name),
+					priority: trackCommand,
+					dist:     distance,
+					args:     jj.BookmarkTrack(b.Name),
+				})
+			}
+
 			for _, remote := range b.Remotes {
 				nameWithRemote := fmt.Sprintf("%s@%s", b.Name, remote.Remote)
 				if remote.Tracked {
@@ -159,7 +169,7 @@ func (m *Model) loadAll() tea.Msg {
 						name:     fmt.Sprintf("untrack '%s'", nameWithRemote),
 						priority: untrackCommand,
 						dist:     distance,
-						args:     jj.BookmarkUntrack(nameWithRemote),
+						args:     jj.BookmarkUntrack(b.Name, remote.Remote),
 					})
 				} else {
 					items = append(items, item{
@@ -170,7 +180,6 @@ func (m *Model) loadAll() tea.Msg {
 					})
 				}
 			}
-
 		}
 		return updateItemsMsg{items: items}
 	}

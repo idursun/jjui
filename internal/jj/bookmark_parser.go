@@ -28,6 +28,10 @@ func (b Bookmark) IsDeletable() bool {
 	return b.Local != nil
 }
 
+func (b Bookmark) IsTrackable() bool {
+	return b.Local != nil && len(b.Remotes) == 0
+}
+
 func ParseBookmarkListOutput(output string) []Bookmark {
 	lines := strings.Split(output, "\n")
 	bookmarkMap := make(map[string]*Bookmark)

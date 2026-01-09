@@ -199,8 +199,8 @@ func BookmarkTrack(name string) CommandArgs {
 	return []string{"bookmark", "track", name}
 }
 
-func BookmarkUntrack(name string) CommandArgs {
-	return []string{"bookmark", "untrack", name}
+func BookmarkUntrack(name string, remote string) CommandArgs {
+	return []string{"bookmark", "untrack", name, "--remote", remote}
 }
 
 func Squash(from SelectedRevisions, destination string, files []string, keepEmptied bool, useDestinationMessage bool, interactive bool, ignoreImmutable bool) CommandArgs {
