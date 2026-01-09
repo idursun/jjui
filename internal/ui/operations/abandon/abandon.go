@@ -1,29 +1,37 @@
 package abandon
 
 import (
-	"fmt"
-
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/operations"
 )
 
 var (
-	_ operations.Operation = (*Operation)(nil)
-	_ common.Editable      = (*Operation)(nil)
+	_ operations.Operation       = (*Operation)(nil)
+	_ operations.SegmentRenderer = (*Operation)(nil)
+	_ common.Focusable           = (*Operation)(nil)
 )
 
 type Operation struct {
-	model   *confirmation.Model
-	current *jj.Commit
-	context *context.MainContext
+	context           *context.MainContext
+	selectedRevisions jj.SelectedRevisions
+	current           *jj.Commit
+	keyMap            config.KeyMappings[key.Binding]
+	styles            styles
 }
 
-func (a *Operation) IsEditing() bool {
+type styles struct {
+	sourceMarker lipgloss.Style
+}
+
+func (a *Operation) IsFocused() bool {
 	return true
 }
 
@@ -32,21 +40,55 @@ func (a *Operation) Init() tea.Cmd {
 }
 
 func (a *Operation) Update(msg tea.Msg) tea.Cmd {
-	return a.model.Update(msg)
+	if msg, ok := msg.(tea.KeyMsg); ok {
+		return a.HandleKey(msg)
+	}
+	return nil
 }
 
 func (a *Operation) View() string {
-	return a.model.View()
+	return ""
+}
+
+func (a *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
+	switch {
+	case key.Matches(msg, a.keyMap.AceJump):
+		return common.StartAceJump()
+	case key.Matches(msg, a.keyMap.Apply):
+		if len(a.selectedRevisions.Revisions) == 0 {
+			return nil
+		}
+		return a.context.RunCommand(jj.Abandon(a.selectedRevisions, false), common.Refresh, common.Close)
+	case key.Matches(msg, a.keyMap.ForceApply):
+		if len(a.selectedRevisions.Revisions) == 0 {
+			return nil
+		}
+		return a.context.RunCommand(jj.Abandon(a.selectedRevisions, true), common.Refresh, common.Close)
+	case key.Matches(msg, a.keyMap.ToggleSelect):
+		if a.current == nil {
+			return nil
+		}
+		item := context.SelectedRevision{
+			ChangeId: a.current.GetChangeId(),
+			CommitId: a.current.CommitId,
+		}
+		a.context.ToggleCheckedItem(item)
+		a.toggleSelectedRevision(a.current)
+		return nil
+	case key.Matches(msg, a.keyMap.Cancel):
+		return common.Close
+	}
+	return nil
 }
 
 func (a *Operation) ShortHelp() []key.Binding {
-	baseHelp := a.model.ShortHelp()
-
-	additionalHelp := key.NewBinding(
-		key.WithKeys("alt+enter"),
-		key.WithHelp("alt+enter", "force apply"),
-	)
-	return append(baseHelp, additionalHelp)
+	return []key.Binding{
+		a.keyMap.Apply,
+		a.keyMap.ForceApply,
+		a.keyMap.ToggleSelect,
+		a.keyMap.Cancel,
+		a.keyMap.AceJump,
+	}
 }
 
 func (a *Operation) FullHelp() [][]key.Binding {
@@ -59,11 +101,37 @@ func (a *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 }
 
 func (a *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
-	isSelected := commit != nil && commit.GetChangeId() == a.current.GetChangeId()
-	if !isSelected || pos != operations.RenderPositionAfter {
+	if pos != operations.RenderBeforeChangeId {
 		return ""
 	}
-	return a.View()
+	if !a.selectedRevisions.Contains(commit) {
+		return ""
+	}
+	return a.styles.sourceMarker.Render("<< abandon >>")
+}
+
+func (a *Operation) RenderSegment(currentStyle lipgloss.Style, segment *screen.Segment, row parser.Row) string {
+	if row.Commit == nil || !a.selectedRevisions.Contains(row.Commit) {
+		return ""
+	}
+	return currentStyle.Strikethrough(true).Render(segment.Text)
+}
+
+func (a *Operation) toggleSelectedRevision(commit *jj.Commit) {
+	if commit == nil {
+		return
+	}
+	if a.selectedRevisions.Contains(commit) {
+		var kept []*jj.Commit
+		for _, revision := range a.selectedRevisions.Revisions {
+			if revision.GetChangeId() != commit.GetChangeId() {
+				kept = append(kept, revision)
+			}
+		}
+		a.selectedRevisions = jj.NewSelectedRevisions(kept...)
+		return
+	}
+	a.selectedRevisions = jj.NewSelectedRevisions(append(a.selectedRevisions.Revisions, commit)...)
 }
 
 func (a *Operation) Name() string {
@@ -71,30 +139,13 @@ func (a *Operation) Name() string {
 }
 
 func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRevisions) *Operation {
-	var ids []string
-	var conflictingWarning string
-	for _, rev := range selectedRevisions.Revisions {
-		ids = append(ids, rev.GetChangeId())
-		if rev.IsConflicting() {
-			conflictingWarning = "conflicting "
-		}
+	styles := styles{
+		sourceMarker: common.DefaultPalette.Get("abandon source_marker"),
 	}
-	message := fmt.Sprintf("Are you sure you want to abandon this %srevision?", conflictingWarning)
-	if len(selectedRevisions.Revisions) > 1 {
-		message = fmt.Sprintf("Are you sure you want to abandon %d %srevisions?", len(selectedRevisions.Revisions), conflictingWarning)
+	return &Operation{
+		context:           context,
+		selectedRevisions: selectedRevisions,
+		keyMap:            config.Current.GetKeyMap(),
+		styles:            styles,
 	}
-	cmd := func(ignoreImmutable bool) tea.Cmd {
-		return context.RunCommand(jj.Abandon(selectedRevisions, ignoreImmutable), common.Refresh, common.Close)
-	}
-	model := confirmation.New(
-		[]string{message},
-		confirmation.WithAltOption("Yes", cmd(false), cmd(true), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-		confirmation.WithOption("No", common.Close, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
-		confirmation.WithStylePrefix("abandon"),
-	)
-
-	op := &Operation{
-		model: model,
-	}
-	return op
 }

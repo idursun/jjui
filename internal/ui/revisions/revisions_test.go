@@ -23,7 +23,8 @@ Absorbed changes into these revisions:
   nyqzpsmt 8b1e95e3 change third file
 Working copy now at: okrwsxvv 5233c94f (empty) (no description set)
 Parent commit      : nyqzpsmt 8b1e95e3 change third file
-`, err: nil}
+`, err: nil,
+	}
 	_ = model.highlightChanges()
 	assert.False(t, model.rows[0].IsAffected)
 	assert.True(t, model.rows[1].IsAffected)
@@ -35,7 +36,9 @@ var rows = []parser.Row{
 		Lines: []*parser.GraphRowLine{
 			{
 				Gutter:   parser.GraphGutter{Segments: []*screen.Segment{{Text: "|"}}},
-				Segments: []*screen.Segment{{Text: "a"}}},
+				Segments: []*screen.Segment{{Text: "a"}},
+				Flags:    parser.Revision,
+			},
 		},
 	},
 	{
@@ -43,7 +46,9 @@ var rows = []parser.Row{
 		Lines: []*parser.GraphRowLine{
 			{
 				Gutter:   parser.GraphGutter{Segments: []*screen.Segment{{Text: "|"}}},
-				Segments: []*screen.Segment{{Text: "b"}}},
+				Segments: []*screen.Segment{{Text: "b"}},
+				Flags:    parser.Revision,
+			},
 		},
 	},
 }
@@ -90,6 +95,7 @@ func TestModel_OperationIntents(t *testing.T) {
 			model.SetFrame(cellbuf.Rect(0, 0, 100, 50))
 			model.updateGraphRows(rows, "a")
 			test.SimulateModel(model, model.Update(tc.intent))
+			assert.False(t, model.InNormalMode())
 			assert.Contains(t, model.View(), tc.expected)
 		})
 	}
