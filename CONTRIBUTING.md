@@ -1,6 +1,6 @@
 # Contributing to Jujutsu UI
 
-Thank you for your interest in contributing to `jjui`! 
+Thank you for your interest in contributing to `jjui`!
 
 We welcome contributions from the community and appreciate your help in making this project better.
 
@@ -44,6 +44,7 @@ For new features, we prefer a discussion-first approach:
 4. Submit a pull request with the implementation
 
 This process helps ensure that:
+
 - The feature aligns with the project's goals
 - We avoid duplicate work
 - The implementation follows the project's patterns and conventions
@@ -62,7 +63,7 @@ This process helps ensure that:
 
 ### Testing
 
-- Test your changes with different scenarios and configurations. 
+- Test your changes with different scenarios and configurations.
 - If adding new features, consider adding appropriate test cases (although I know it is a pain at the moment)
 
 ## Development Tips
@@ -83,4 +84,4 @@ This process helps ensure that:
 
 ---
 
-Thank you for contributing to `jjui`! 
+Thank you for contributing to `jjui`!
