@@ -228,6 +228,85 @@ func registerAPI(L *lua.LState, runner *Runner) {
 		return 1
 	}))
 
+	contextTable := L.NewTable()
+	contextTable.RawSetString("change_id", L.NewFunction(func(L *lua.LState) int {
+		switch item := runner.ctx.SelectedItem.(type) {
+		case uicontext.SelectedRevision:
+			L.Push(lua.LString(item.ChangeId))
+			return 1
+		case uicontext.SelectedFile:
+			L.Push(lua.LString(item.ChangeId))
+			return 1
+		}
+		return 0
+	}))
+	contextTable.RawSetString("commit_id", L.NewFunction(func(L *lua.LState) int {
+		switch item := runner.ctx.SelectedItem.(type) {
+		case uicontext.SelectedRevision:
+			L.Push(lua.LString(item.CommitId))
+			return 1
+		case uicontext.SelectedFile:
+			L.Push(lua.LString(item.CommitId))
+			return 1
+		case uicontext.SelectedCommit:
+			L.Push(lua.LString(item.CommitId))
+			return 1
+		}
+		return 0
+	}))
+	contextTable.RawSetString("file", L.NewFunction(func(L *lua.LState) int {
+		if item, ok := runner.ctx.SelectedItem.(uicontext.SelectedFile); ok {
+			L.Push(lua.LString(item.File))
+			return 1
+		}
+		return 0
+	}))
+	contextTable.RawSetString("operation_id", L.NewFunction(func(L *lua.LState) int {
+		if item, ok := runner.ctx.SelectedItem.(uicontext.SelectedOperation); ok {
+			L.Push(lua.LString(item.OperationId))
+			return 1
+		}
+		return 0
+	}))
+	contextTable.RawSetString("checked_files", L.NewFunction(func(L *lua.LState) int {
+		tbl := L.NewTable()
+		for _, item := range runner.ctx.CheckedItems {
+			if f, ok := item.(uicontext.SelectedFile); ok {
+				tbl.Append(lua.LString(f.File))
+			}
+		}
+		L.Push(tbl)
+		return 1
+	}))
+	contextTable.RawSetString("checked_change_ids", L.NewFunction(func(L *lua.LState) int {
+		tbl := L.NewTable()
+		for _, item := range runner.ctx.CheckedItems {
+			switch i := item.(type) {
+			case uicontext.SelectedRevision:
+				tbl.Append(lua.LString(i.ChangeId))
+			case uicontext.SelectedFile:
+				tbl.Append(lua.LString(i.ChangeId))
+			}
+		}
+		L.Push(tbl)
+		return 1
+	}))
+	contextTable.RawSetString("checked_commit_ids", L.NewFunction(func(L *lua.LState) int {
+		tbl := L.NewTable()
+		for _, item := range runner.ctx.CheckedItems {
+			switch i := item.(type) {
+			case uicontext.SelectedRevision:
+				tbl.Append(lua.LString(i.CommitId))
+			case uicontext.SelectedFile:
+				tbl.Append(lua.LString(i.CommitId))
+			case uicontext.SelectedCommit:
+				tbl.Append(lua.LString(i.CommitId))
+			}
+		}
+		L.Push(tbl)
+		return 1
+	}))
+
 	jjAsyncFn := L.NewFunction(func(L *lua.LState) int {
 		args := argsFromLua(L)
 		return yieldStep(L, step{cmd: runner.ctx.RunCommand(args)})
@@ -326,6 +405,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	root := L.NewTable()
 	root.RawSetString("revisions", revisionsTable)
 	root.RawSetString("revset", revsetTable)
+	root.RawSetString("context", contextTable)
 	root.RawSetString("jj_async", jjAsyncFn)
 	root.RawSetString("jj_interactive", jjInteractiveFn)
 	root.RawSetString("jj", jjFn)
@@ -339,6 +419,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	// but also expose at the top level for convenience
 	L.SetGlobal("revisions", revisionsTable)
 	L.SetGlobal("revset", revsetTable)
+	L.SetGlobal("context", contextTable)
 	L.SetGlobal("jj_async", jjAsyncFn)
 	L.SetGlobal("jj_interactive", jjInteractiveFn)
 	L.SetGlobal("jj", jjFn)
