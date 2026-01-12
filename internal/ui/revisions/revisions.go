@@ -14,10 +14,12 @@ import (
 
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
 	"github.com/idursun/jjui/internal/ui/operations/revert"
 	"github.com/idursun/jjui/internal/ui/operations/set_parents"
+	"github.com/idursun/jjui/internal/ui/render"
 
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/operations/describe"
@@ -26,6 +28,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -53,28 +56,29 @@ var (
 type Model struct {
 	*common.ViewNode
 	*common.MouseAware
-	rows             []parser.Row
-	tag              atomic.Uint64
-	revisionToSelect string
-	offScreenRows    []parser.Row
-	streamer         *graph.GraphStreamer
-	hasMore          bool
-	op               common.Model
-	cursor           int
-	context          *appContext.MainContext
-	keymap           config.KeyMappings[key.Binding]
-	output           string
-	err              error
-	quickSearch      string
-	previousOpLogId  string
-	isLoading        bool
-	renderer         *revisionListRenderer
-	textStyle        lipgloss.Style
-	dimmedStyle      lipgloss.Style
-	selectedStyle    lipgloss.Style
-	matchedStyle     lipgloss.Style
-	ensureCursorView bool
-	requestInFlight  bool
+	rows                []parser.Row
+	tag                 atomic.Uint64
+	revisionToSelect    string
+	offScreenRows       []parser.Row
+	streamer            *graph.GraphStreamer
+	hasMore             bool
+	op                  common.Model
+	cursor              int
+	context             *appContext.MainContext
+	keymap              config.KeyMappings[key.Binding]
+	output              string
+	err                 error
+	quickSearch         string
+	previousOpLogId     string
+	isLoading           bool
+	renderer            *revisionListRenderer
+	displayListRenderer *DisplayListRenderer
+	textStyle           lipgloss.Style
+	dimmedStyle         lipgloss.Style
+	selectedStyle       lipgloss.Style
+	matchedStyle        lipgloss.Style
+	ensureCursorView    bool
+	requestInFlight     bool
 }
 
 type revisionsMsg struct {
@@ -167,7 +171,8 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 		desiredStart = 0
 	}
 
-	totalLines := m.renderer.AbsoluteLineCount()
+	// Calculate total lines based on all items
+	totalLines := m.calculateTotalLines()
 	maxStart := totalLines - m.Height
 	if maxStart < 0 {
 		maxStart = 0
@@ -182,6 +187,60 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 		return m.requestMoreRows(m.tag.Load())
 	}
 	return nil
+}
+
+// calculateTotalLines calculates the total number of lines for all items
+func (m *Model) calculateTotalLines() int {
+	if len(m.rows) == 0 {
+		return 0
+	}
+
+	// Get the operation if any
+	var op operations.Operation
+	if opModel, ok := m.op.(operations.Operation); ok {
+		op = opModel
+	}
+
+	totalLines := 0
+	for i, item := range m.rows {
+		// Calculate height for each item (selected items might have different heights)
+		isSelected := i == m.cursor
+		height := len(item.Lines)
+
+		// Add operation height if item is selected and operation exists
+		if isSelected && op != nil {
+			// Count lines in before section
+			before := op.Render(item.Commit, operations.RenderPositionBefore)
+			if before != "" {
+				height += strings.Count(before, "\n") + 1
+			}
+
+			// Count lines in overlay section (replaces description)
+			overlay := op.Render(item.Commit, operations.RenderOverDescription)
+			if overlay != "" {
+				overlayLines := strings.Count(overlay, "\n") + 1
+				// Count how many description lines would be replaced
+				descLines := 0
+				for _, line := range item.Lines {
+					if line.Flags&parser.Highlightable == parser.Highlightable &&
+						line.Flags&parser.Revision != parser.Revision {
+						descLines++
+					}
+				}
+				height = height - descLines + overlayLines
+			}
+
+			// Count lines in after section
+			after := op.Render(item.Commit, operations.RenderPositionAfter)
+			if after != "" {
+				height += strings.Count(after, "\n") + 1
+			}
+		}
+
+		totalLines += height
+	}
+
+	return totalLines
 }
 
 func (m *Model) Len() int {
@@ -950,6 +1009,49 @@ func (m *Model) View() string {
 		return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "(no matching revisions)")
 	}
 
+	// Use DisplayListRenderer if available
+	if m.displayListRenderer != nil {
+		// Create a new DisplayList
+		dl := render.NewDisplayList()
+
+		// Set selections
+		m.displayListRenderer.SetSelections(m.context.GetSelectedRevisions())
+
+		// Setup viewport
+		viewport := render.Viewport{
+			StartLine: m.renderer.Start,
+			ViewRect: layout.Box{
+				R: cellbuf.Rect(0, 0, m.Width, m.Height),
+			},
+		}
+		m.displayListRenderer.SetViewport(viewport)
+
+		// Render to DisplayList
+		var op operations.Operation
+		if opModel, ok := m.op.(operations.Operation); ok {
+			op = opModel
+		}
+
+		m.displayListRenderer.Render(
+			dl,
+			m.rows,
+			m.cursor,
+			viewport.ViewRect,
+			op,
+			m.ensureCursorView,
+		)
+
+		// Sync the updated scroll position back
+		m.renderer.Start = m.displayListRenderer.GetScrollOffset()
+
+		// Reset the flag after ensuring cursor is visible
+		m.ensureCursorView = false
+
+		// Convert to string
+		return dl.RenderToString(m.Width, m.Height)
+	}
+
+	// Fallback to old renderer
 	if config.Current.UI.Tracer.Enabled {
 		start, end := m.renderer.FirstRowIndex, m.renderer.LastRowIndex+1 // +1 because the last row is inclusive in the view range
 		log.Println("Visible row range:", start, end, "Cursor:", m.cursor, "Total rows:", len(m.rows))
@@ -1085,6 +1187,7 @@ func New(c *appContext.MainContext) *Model {
 		matchedStyle:  common.DefaultPalette.Get("revisions matched"),
 	}
 	m.renderer = newRevisionListRenderer(&m, m.ViewNode)
+	m.displayListRenderer = NewDisplayListRenderer(m.textStyle, m.dimmedStyle, m.selectedStyle, m.matchedStyle)
 	return &m
 }
 

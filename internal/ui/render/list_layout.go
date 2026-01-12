@@ -79,8 +79,8 @@ func LayoutAll(
 				rect := cellbuf.Rect(
 					viewport.ViewRect.R.Min.X,
 					y,
-					viewport.ViewRect.R.Min.X+viewport.ViewRect.R.Dx(),
-					y+visible,
+					viewport.ViewRect.R.Dx(),
+					visible,
 				)
 				spans = append(spans, Span{
 					Index:      i,
