@@ -11,6 +11,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/password"
+	"github.com/idursun/jjui/internal/ui/render"
 
 	"github.com/idursun/jjui/internal/ui/flash"
 
@@ -64,6 +65,7 @@ type Model struct {
 	stacked         SizableModel
 	dragTarget      common.Draggable
 	sequenceOverlay *customcommands.SequenceOverlay
+	displayList     *render.DisplayList
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -196,6 +198,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.dragTarget = nil
 		}
 
+		// Process interactions from DisplayList first
+		if m.displayList != nil {
+			if interactionMsg := render.ProcessMouseEvent(m.displayList.InteractionsList(), msg); interactionMsg != nil {
+				// Send the interaction message back through Update
+				return func() tea.Msg { return interactionMsg }
+			}
+		}
+
+		// Fall back to existing findViewAt approach for models not using DisplayList
 		if model := m.findViewAt(msg.X, msg.Y); model != nil {
 			if draggable, ok := model.(common.Draggable); ok && msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
 				if draggable.DragStart(msg.X, msg.Y) {
@@ -519,13 +530,19 @@ func (m *Model) View() string {
 	}
 
 	centerArea := centerBox.R
+
+	// Create DisplayList for this frame
+	m.displayList = render.NewDisplayList()
+
 	var leftView string
 	if m.oplog != nil {
 		m.oplog.SetFrame(centerArea)
 		leftView = m.oplog.View()
 	} else {
 		m.revisions.SetFrame(centerArea)
-		leftView = m.revisions.View()
+		// Use DisplayList rendering for revisions
+		m.revisions.RenderToDisplayList(m.displayList, centerArea)
+		leftView = m.displayList.RenderToString(centerArea.Dx(), centerArea.Dy())
 	}
 
 	cellbuf.SetContentRect(screenBuf, leftView, centerArea)

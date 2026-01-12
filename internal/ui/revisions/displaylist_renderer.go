@@ -13,7 +13,7 @@ import (
 
 // DisplayListRenderer renders the revisions list using the DisplayList approach
 type DisplayListRenderer struct {
-	viewport      render.Viewport
+	listRenderer  *render.ListRenderer
 	selections    map[string]bool
 	textStyle     lipgloss.Style
 	dimmedStyle   lipgloss.Style
@@ -24,19 +24,12 @@ type DisplayListRenderer struct {
 // NewDisplayListRenderer creates a new DisplayList-based renderer
 func NewDisplayListRenderer(textStyle, dimmedStyle, selectedStyle, matchedStyle lipgloss.Style) *DisplayListRenderer {
 	return &DisplayListRenderer{
+		listRenderer:  render.NewListRenderer(ViewportScrollMsg{}),
 		textStyle:     textStyle,
 		dimmedStyle:   dimmedStyle,
 		selectedStyle: selectedStyle,
 		matchedStyle:  matchedStyle,
-		viewport: render.Viewport{
-			StartLine: 0,
-		},
 	}
-}
-
-// SetViewport updates the viewport for scrolling
-func (r *DisplayListRenderer) SetViewport(viewport render.Viewport) {
-	r.viewport = viewport
 }
 
 // SetSelections sets the selected revisions for rendering checkboxes
@@ -57,63 +50,69 @@ func (r *DisplayListRenderer) Render(
 		return
 	}
 
-	// Update viewport with current view rectangle
-	r.viewport.ViewRect = layout.Box{
-		R: cellbuf.Rect(0, 0, viewRect.R.Dx(), viewRect.R.Dy()),
+	// Measure function - calculates height for each item
+	measure := func(index int) int {
+		item := items[index]
+		isSelected := index == cursor
+		return r.calculateItemHeight(item, isSelected, operation)
 	}
 
-	// Ensure the cursor is visible by adjusting StartLine (only if requested)
-	if ensureCursorVisible {
-		r.ensureCursorVisible(items, cursor, operation)
-	}
+	// Render function - renders each visible item
+	renderItem := func(dl *render.DisplayList, index int, rect cellbuf.Rectangle) {
+		item := items[index]
+		isSelected := index == cursor
 
-	// Use list_layout.LayoutAll to determine visible items
-	measure := func(req render.MeasureRequest) render.MeasureResult {
-		if req.Index >= len(items) {
-			return render.MeasureResult{DesiredLine: 0, MinLine: 0}
-		}
+		// Render the item content
+		r.renderItemToDisplayList(dl, item, rect, isSelected, operation)
 
-		item := items[req.Index]
-		isSelected := req.Index == cursor
-		height := r.calculateItemHeight(item, isSelected, operation)
-
-		return render.MeasureResult{
-			DesiredLine: height,
-			MinLine:     height,
+		// Add highlights for selected item (only for Highlightable lines)
+		if isSelected {
+			r.addHighlights(dl, item, rect, operation)
 		}
 	}
 
-	spans, _ := render.LayoutAll(r.viewport, len(items), measure)
-
-	// Render each visible item
-	for _, span := range spans {
-		if span.Index >= len(items) {
-			continue
-		}
-
-		item := items[span.Index]
-		isSelected := span.Index == cursor
-
-		r.renderItemToDisplayList(
-			dl,
-			item,
-			span.Rect,
-			isSelected,
-			operation,
-			span.LineOffset,
-			span.LineCount,
-		)
+	// Click message factory
+	clickMsg := func(index int) render.ClickMessage {
+		return ItemClickedMsg{Index: index}
 	}
 
-	// Add selection effect on top
-	if cursor >= 0 && cursor < len(items) {
-		for _, span := range spans {
-			if span.Index == cursor {
-				// Use highlight effect for selection highlight
-				dl.AddHighlight(span.Rect, r.selectedStyle, 1000)
-				break
-			}
+	// Use the generic list renderer
+	r.listRenderer.Render(
+		dl,
+		viewRect,
+		len(items),
+		cursor,
+		ensureCursorVisible,
+		measure,
+		renderItem,
+		clickMsg,
+	)
+}
+
+// addHighlights adds highlight effects for lines with Highlightable flag
+func (r *DisplayListRenderer) addHighlights(
+	dl *render.DisplayList,
+	item parser.Row,
+	rect cellbuf.Rectangle,
+	operation operations.Operation,
+) {
+	y := rect.Min.Y
+
+	// Account for operation "before" lines
+	if operation != nil {
+		before := operation.Render(item.Commit, operations.RenderPositionBefore)
+		if before != "" {
+			y += strings.Count(before, "\n") + 1
 		}
+	}
+
+	// Add highlights only for lines with Highlightable flag
+	for _, line := range item.Lines {
+		if line.Flags&parser.Highlightable == parser.Highlightable {
+			lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
+			dl.AddHighlight(lineRect, r.selectedStyle, 1)
+		}
+		y++
 	}
 }
 
@@ -170,8 +169,6 @@ func (r *DisplayListRenderer) renderItemToDisplayList(
 	rect cellbuf.Rectangle,
 	isSelected bool,
 	operation operations.Operation,
-	lineOffset int,
-	lineCount int,
 ) {
 	y := rect.Min.Y
 	width := rect.Dx()
@@ -211,7 +208,7 @@ func (r *DisplayListRenderer) renderItemToDisplayList(
 					break
 				}
 
-				content := r.renderOperationLine(extended, line, width, isSelected)
+				content := r.renderOperationLine(extended, line, width)
 				lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
 				dl.AddDraw(lineRect, content, 0)
 				y++
@@ -226,14 +223,9 @@ func (r *DisplayListRenderer) renderItemToDisplayList(
 	}
 
 	// Render main lines
-	linesPrinted := 0
 	descriptionRendered := false
 
 	for i := 0; i < len(item.Lines); i++ {
-		if linesPrinted >= lineCount {
-			break
-		}
-
 		line := item.Lines[i]
 
 		// Skip elided lines when we have description overlay
@@ -253,11 +245,10 @@ func (r *DisplayListRenderer) renderItemToDisplayList(
 					break
 				}
 
-				content := r.renderOperationLine(line.Gutter, overlayLine, width, isSelected)
+				content := r.renderOperationLine(line.Gutter, overlayLine, width)
 				lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
 				dl.AddDraw(lineRect, content, 0)
 				y++
-				linesPrinted++
 			}
 
 			descriptionRendered = true
@@ -274,11 +265,10 @@ func (r *DisplayListRenderer) renderItemToDisplayList(
 			break
 		}
 
-		content := ir.renderLineToString(line, i, width)
+		content := ir.renderLineToString(line, width)
 		lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
 		dl.AddDraw(lineRect, content, 0)
 		y++
-		linesPrinted++
 	}
 
 	// Handle operation rendering for after section
@@ -293,7 +283,7 @@ func (r *DisplayListRenderer) renderItemToDisplayList(
 					break
 				}
 
-				content := r.renderOperationLine(extended, line, width, isSelected)
+				content := r.renderOperationLine(extended, line, width)
 				lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
 				dl.AddDraw(lineRect, content, 0)
 				y++
@@ -303,7 +293,7 @@ func (r *DisplayListRenderer) renderItemToDisplayList(
 }
 
 // renderLineToString renders a line to a string (helper for itemRenderer)
-func (ir *itemRenderer) renderLineToString(line *parser.GraphRowLine, lineIndex int, width int) string {
+func (ir *itemRenderer) renderLineToString(line *parser.GraphRowLine, width int) string {
 	var result strings.Builder
 
 	// Render gutter (no tracer support for now)
@@ -354,7 +344,7 @@ func (ir *itemRenderer) renderLineToString(line *parser.GraphRowLine, lineIndex 
 }
 
 // renderOperationLine renders an operation line with gutter
-func (r *DisplayListRenderer) renderOperationLine(gutter parser.GraphGutter, line string, width int, isSelected bool) string {
+func (r *DisplayListRenderer) renderOperationLine(gutter parser.GraphGutter, line string, width int) string {
 	var result strings.Builder
 
 	// Render gutter with text style (matching original behavior)
@@ -377,56 +367,10 @@ func (r *DisplayListRenderer) renderOperationLine(gutter parser.GraphGutter, lin
 
 // GetScrollOffset returns the current scroll offset
 func (r *DisplayListRenderer) GetScrollOffset() int {
-	return r.viewport.StartLine
+	return r.listRenderer.GetScrollOffset()
 }
 
 // SetScrollOffset sets the scroll offset
 func (r *DisplayListRenderer) SetScrollOffset(offset int) {
-	r.viewport.StartLine = offset
-}
-
-// ensureCursorVisible adjusts the viewport StartLine only when cursor goes outside viewport
-func (r *DisplayListRenderer) ensureCursorVisible(
-	items []parser.Row,
-	cursor int,
-	operation operations.Operation,
-) {
-	if cursor < 0 || cursor >= len(items) {
-		return
-	}
-
-	viewportHeight := r.viewport.ViewRect.R.Dy()
-	if viewportHeight <= 0 {
-		return
-	}
-
-	// Calculate the line position where the cursor item starts
-	cursorStart := 0
-	for i := 0; i < cursor && i < len(items); i++ {
-		cursorStart += r.calculateItemHeight(items[i], false, operation)
-	}
-
-	// Calculate the height of the cursor item
-	cursorHeight := r.calculateItemHeight(items[cursor], true, operation)
-	cursorEnd := cursorStart + cursorHeight
-
-	start := r.viewport.StartLine
-	if start < 0 {
-		start = 0
-	}
-
-	viewportEnd := start + viewportHeight
-
-	// Only adjust if cursor is outside the current viewport
-	// If cursor item starts before viewport top, scroll up to show it
-	if cursorStart < start {
-		r.viewport.StartLine = cursorStart
-	} else if cursorEnd > viewportEnd {
-		// If cursor item ends after viewport bottom, scroll down to show it
-		r.viewport.StartLine = cursorEnd - viewportHeight
-		if r.viewport.StartLine < 0 {
-			r.viewport.StartLine = 0
-		}
-	}
-	// Otherwise, cursor is already visible - don't adjust viewport
+	r.listRenderer.SetScrollOffset(offset)
 }

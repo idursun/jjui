@@ -92,6 +92,22 @@ func RevisionsCmd(msg tea.Msg) tea.Cmd {
 	}
 }
 
+// ItemClickedMsg is sent when a revision item is clicked
+type ItemClickedMsg struct {
+	Index int
+}
+
+// ViewportScrollMsg is sent when the viewport is scrolled via mouse wheel
+type ViewportScrollMsg struct {
+	Delta int
+}
+
+// SetDelta implements render.ScrollDeltaCarrier
+func (v ViewportScrollMsg) SetDelta(delta int) tea.Msg {
+	v.Delta = delta
+	return v
+}
+
 type updateRevisionsMsg struct {
 	rows             []parser.Row
 	selectedRevision string
@@ -129,39 +145,6 @@ func (m *Model) ListName() string {
 
 func (m *Model) HasMore() bool {
 	return m.hasMore
-}
-
-func (m *Model) ClickAt(x, y int) tea.Cmd {
-	if len(m.rows) == 0 {
-		return nil
-	}
-
-	localY := y - m.Frame.Min.Y
-
-	currentStart := m.renderer.ViewRange.Start
-	if localY >= m.Height {
-		localY = m.Height - 1
-		if localY < 0 {
-			return nil
-		}
-	}
-	line := currentStart + localY
-	row := m.rowAtLine(line)
-	if row == -1 {
-		return nil
-	}
-
-	m.SetCursor(row)
-	return m.updateSelection()
-}
-
-func (m *Model) rowAtLine(line int) int {
-	for _, rr := range m.renderer.RowRanges() {
-		if line >= rr.StartLine && line < rr.EndLine {
-			return rr.Row
-		}
-	}
-	return -1
 }
 
 func (m *Model) Scroll(delta int) tea.Cmd {
@@ -357,22 +340,14 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
 		return m.handleIntent(msg)
-	case tea.MouseMsg:
-		switch msg.Action {
-		case tea.MouseActionPress:
-			switch msg.Button {
-			case tea.MouseButtonLeft:
-				if !m.InNormalMode() {
-					return nil
-				}
-				return m.ClickAt(msg.X, msg.Y)
-			case tea.MouseButtonWheelUp:
-				return m.Scroll(-3)
-			case tea.MouseButtonWheelDown:
-				return m.Scroll(3)
-			}
+	case ItemClickedMsg:
+		if !m.InNormalMode() {
 			return nil
 		}
+		m.SetCursor(msg.Index)
+		return m.updateSelection()
+	case ViewportScrollMsg:
+		return m.Scroll(msg.Delta)
 
 	case common.CloseViewMsg:
 		m.op = operations.NewDefault()
@@ -1001,6 +976,55 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 	}
 }
 
+// RenderToDisplayList renders the revisions list into the given DisplayList
+func (m *Model) RenderToDisplayList(dl *render.DisplayList, area cellbuf.Rectangle) {
+	if len(m.rows) == 0 {
+		content := ""
+		if m.isLoading {
+			content = lipgloss.Place(area.Dx(), area.Dy(), lipgloss.Center, lipgloss.Center, "loading")
+		} else {
+			content = lipgloss.Place(area.Dx(), area.Dy(), lipgloss.Center, lipgloss.Center, "(no matching revisions)")
+		}
+		dl.AddDraw(area, content, 0)
+		return
+	}
+
+	// Use DisplayListRenderer
+	if m.displayListRenderer != nil {
+		// Set selections
+		m.displayListRenderer.SetSelections(m.context.GetSelectedRevisions())
+
+		// Set scroll position
+		m.displayListRenderer.SetScrollOffset(m.renderer.Start)
+
+		// Get operation if any
+		var op operations.Operation
+		if opModel, ok := m.op.(operations.Operation); ok {
+			op = opModel
+		}
+
+		// Render to DisplayList
+		m.displayListRenderer.Render(
+			dl,
+			m.rows,
+			m.cursor,
+			layout.Box{R: area},
+			op,
+			m.ensureCursorView,
+		)
+
+		// Sync the updated scroll position back
+		m.renderer.Start = m.displayListRenderer.GetScrollOffset()
+
+		// Reset the flag after ensuring cursor is visible
+		m.ensureCursorView = false
+		return
+	}
+
+	// Fallback to old renderer (shouldn't reach here if displayListRenderer is set)
+	panic("RenderToDisplayList called but displayListRenderer is nil")
+}
+
 func (m *Model) View() string {
 	if len(m.rows) == 0 {
 		if m.isLoading {
@@ -1017,14 +1041,8 @@ func (m *Model) View() string {
 		// Set selections
 		m.displayListRenderer.SetSelections(m.context.GetSelectedRevisions())
 
-		// Setup viewport
-		viewport := render.Viewport{
-			StartLine: m.renderer.Start,
-			ViewRect: layout.Box{
-				R: cellbuf.Rect(0, 0, m.Width, m.Height),
-			},
-		}
-		m.displayListRenderer.SetViewport(viewport)
+		// Set scroll position
+		m.displayListRenderer.SetScrollOffset(m.renderer.Start)
 
 		// Render to DisplayList
 		var op operations.Operation
@@ -1032,11 +1050,12 @@ func (m *Model) View() string {
 			op = opModel
 		}
 
+		viewRect := layout.Box{R: cellbuf.Rect(0, 0, m.Width, m.Height)}
 		m.displayListRenderer.Render(
 			dl,
 			m.rows,
 			m.cursor,
-			viewport.ViewRect,
+			viewRect,
 			op,
 			m.ensureCursorView,
 		)
