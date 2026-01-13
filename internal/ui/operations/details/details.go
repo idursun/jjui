@@ -12,13 +12,16 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 type updateCommitStatusMsg struct {
@@ -27,9 +30,10 @@ type updateCommitStatusMsg struct {
 }
 
 var (
-	_ operations.Operation = (*Operation)(nil)
-	_ common.Focusable     = (*Operation)(nil)
-	_ common.Overlay       = (*Operation)(nil)
+	_ operations.Operation           = (*Operation)(nil)
+	_ operations.DisplayListRenderer = (*Operation)(nil)
+	_ common.Focusable               = (*Operation)(nil)
+	_ common.Overlay                 = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -108,6 +112,16 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 
 func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case FileClickedMsg:
+		s.setCursor(msg.Index)
+		return s.context.SetSelectedItem(context.SelectedFile{
+			ChangeId: s.revision.GetChangeId(),
+			CommitId: s.revision.CommitId,
+			File:     s.current().fileName,
+		})
+	case FileListScrollMsg:
+		s.Scroll(msg.Delta)
+		return nil
 	case tea.KeyMsg:
 		if s.confirmation != nil {
 			return s.confirmation.Update(msg)
@@ -228,14 +242,14 @@ func (s *Operation) View() string {
 		ch = lipgloss.Height(confirmationView)
 	}
 	if s.Len() == 0 {
-		return s.styles.Dimmed.Render("No changes\n")
+		return s.styles.Dimmed.Render("No changes")
 	}
 	s.SetHeight(min(s.Parent.Height-5-ch, s.Len()))
-	filesView := s.renderer.Render(s.cursor)
+	filesView := strings.TrimRight(s.renderer.Render(s.cursor), "\n")
 	if confirmationView != "" {
 		return lipgloss.JoinVertical(lipgloss.Top, filesView, confirmationView)
 	}
-	return filesView + "\n"
+	return filesView
 }
 
 func (s *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
@@ -270,6 +284,37 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		return ""
 	}
 	return s.View()
+}
+
+// SupportsDisplayList returns true for RenderPositionAfter
+func (s *Operation) SupportsDisplayList(pos operations.RenderPosition) bool {
+	return pos == operations.RenderPositionAfter && s.confirmation == nil
+}
+
+// RenderToDisplayList renders the file list directly to the DisplayList
+func (s *Operation) RenderToDisplayList(dl *render.DisplayList, commit *jj.Commit, pos operations.RenderPosition, rect cellbuf.Rectangle, screenOffset cellbuf.Position) int {
+	isSelected := s.Current != nil && s.Current.GetChangeId() == commit.GetChangeId()
+	if !isSelected || pos != operations.RenderPositionAfter {
+		return 0
+	}
+
+	if s.Len() == 0 {
+		// Render "No changes" message
+		content := s.styles.Dimmed.Render("No changes")
+		dl.AddDraw(cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), 1), content, 0)
+		return 1
+	}
+
+	// Calculate available height
+	height := min(rect.Dy(), s.Len())
+	s.SetHeight(height)
+
+	// Render the file list to DisplayList
+	// Pass screen offset so interactions use absolute screen coordinates
+	viewRect := layout.Box{R: cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)}
+	s.RenderFileList(dl, viewRect, screenOffset)
+
+	return height
 }
 
 func (s *Operation) Name() string {

@@ -57,13 +57,16 @@ func (r *DisplayListRenderer) Render(
 		return r.calculateItemHeight(item, isSelected, operation)
 	}
 
+	// Screen offset for interactions (absolute screen position)
+	screenOffset := cellbuf.Pos(viewRect.R.Min.X, viewRect.R.Min.Y)
+
 	// Render function - renders each visible item
 	renderItem := func(dl *render.DisplayList, index int, rect cellbuf.Rectangle) {
 		item := items[index]
 		isSelected := index == cursor
 
 		// Render the item content
-		r.renderItemToDisplayList(dl, item, rect, isSelected, operation)
+		r.renderItemToDisplayList(dl, item, rect, isSelected, operation, screenOffset)
 
 		// Add highlights for selected item (only for Highlightable lines)
 		if isSelected {
@@ -169,6 +172,7 @@ func (r *DisplayListRenderer) renderItemToDisplayList(
 	rect cellbuf.Rectangle,
 	isSelected bool,
 	operation operations.Operation,
+	screenOffset cellbuf.Position,
 ) {
 	y := rect.Min.Y
 	width := rect.Dx()
@@ -273,20 +277,48 @@ func (r *DisplayListRenderer) renderItemToDisplayList(
 
 	// Handle operation rendering for after section
 	if isSelected && operation != nil && !item.Commit.IsRoot() {
-		after := operation.Render(item.Commit, operations.RenderPositionAfter)
-		if after != "" {
-			lines := strings.Split(after, "\n")
+		// Check if operation supports DisplayList rendering
+		if dlRenderer, ok := operation.(operations.DisplayListRenderer); ok && dlRenderer.SupportsDisplayList(operations.RenderPositionAfter) {
+			// Calculate extended gutter and its width for proper indentation
 			extended := item.Extend()
+			gutterWidth := 0
+			for _, segment := range extended.Segments {
+				gutterWidth += lipgloss.Width(segment.Text)
+			}
 
-			for _, line := range lines {
-				if y >= rect.Max.Y {
-					break
+			// Create content rect offset by gutter width
+			contentRect := cellbuf.Rect(rect.Min.X+gutterWidth, y, rect.Dx()-gutterWidth, rect.Max.Y-y)
+
+			// Screen offset for interactions - contentRect already includes the gutter offset
+			// and y position, so just pass the parent's screenOffset through
+			contentScreenOffset := screenOffset
+
+			// Render the operation content
+			height := dlRenderer.RenderToDisplayList(dl, item.Commit, operations.RenderPositionAfter, contentRect, contentScreenOffset)
+
+			// Render gutters for each line
+			for i := 0; i < height; i++ {
+				gutterContent := r.renderGutter(extended)
+				gutterRect := cellbuf.Rect(rect.Min.X, y+i, gutterWidth, 1)
+				dl.AddDraw(gutterRect, gutterContent, 0)
+			}
+		} else {
+			// Fall back to string-based rendering
+			after := operation.Render(item.Commit, operations.RenderPositionAfter)
+			if after != "" {
+				lines := strings.Split(after, "\n")
+				extended := item.Extend()
+
+				for _, line := range lines {
+					if y >= rect.Max.Y {
+						break
+					}
+
+					content := r.renderOperationLine(extended, line, width)
+					lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
+					dl.AddDraw(lineRect, content, 0)
+					y++
 				}
-
-				content := r.renderOperationLine(extended, line, width)
-				lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
-				dl.AddDraw(lineRect, content, 0)
-				y++
 			}
 		}
 	}
@@ -363,6 +395,16 @@ func (r *DisplayListRenderer) renderOperationLine(gutter parser.GraphGutter, lin
 	}
 
 	return content
+}
+
+// renderGutter renders just the gutter portion (for embedded operations)
+func (r *DisplayListRenderer) renderGutter(gutter parser.GraphGutter) string {
+	var result strings.Builder
+	for _, segment := range gutter.Segments {
+		style := segment.Style.Inherit(r.textStyle)
+		result.WriteString(style.Render(segment.Text))
+	}
+	return result.String()
 }
 
 // GetScrollOffset returns the current scroll offset

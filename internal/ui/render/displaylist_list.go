@@ -37,6 +37,7 @@ func NewListRenderer(scrollMsg tea.Msg) *ListRenderer {
 }
 
 // Render renders visible items to the DisplayList.
+// Uses viewRect.Min as the screen offset for interactions.
 //
 // Parameters:
 //   - dl: The DisplayList to render to
@@ -57,21 +58,50 @@ func (r *ListRenderer) Render(
 	render RenderItemFunc,
 	clickMsg ClickMessageFunc,
 ) {
+	r.RenderWithOffset(dl, viewRect, itemCount, cursor, ensureCursorVisible, measure, render, clickMsg, cellbuf.Pos(viewRect.R.Min.X, viewRect.R.Min.Y))
+}
+
+// RenderWithOffset renders visible items to the DisplayList with a custom screen offset.
+// Use this when the list is embedded inside another component and the screen offset
+// differs from the viewRect position.
+//
+// Parameters:
+//   - dl: The DisplayList to render to
+//   - viewRect: The area to render in (relative coordinates for the render buffer)
+//   - itemCount: Total number of items in the list
+//   - cursor: Current cursor position (used for ensureCursorVisible)
+//   - ensureCursorVisible: Whether to adjust scroll to keep cursor in view
+//   - measure: Function that returns height for item at index
+//   - render: Function that renders item at index to the DisplayList
+//   - clickMsg: Function that creates click message for item at index
+//   - screenOffset: The offset to add for mouse interactions (absolute screen position)
+func (r *ListRenderer) RenderWithOffset(
+	dl *DisplayList,
+	viewRect layout.Box,
+	itemCount int,
+	cursor int,
+	ensureCursorVisible bool,
+	measure MeasureItemFunc,
+	render RenderItemFunc,
+	clickMsg ClickMessageFunc,
+	screenOffset cellbuf.Position,
+) {
 	if itemCount <= 0 {
 		return
 	}
 
-	// Store the screen offset for interaction coordinates
-	// Draws use relative coordinates (0,0 based) for the render buffer
-	// Interactions use absolute screen coordinates for mouse hit testing
-	screenOffsetX := viewRect.R.Min.X
-	screenOffsetY := viewRect.R.Min.Y
+	// Use the provided screen offset for interaction coordinates
+	// Draws use the viewRect coordinates (relative to render buffer)
+	// Interactions use screenOffset (absolute screen coordinates for mouse hit testing)
+	screenOffsetX := screenOffset.X
+	screenOffsetY := screenOffset.Y
 
-	// Create viewport with relative coordinates for layout
+	// Create viewport for layout calculations
+	// Uses viewRect coordinates which may be relative to a parent component
 	viewport := Viewport{
 		StartLine: r.StartLine,
 		ViewRect: layout.Box{
-			R: cellbuf.Rect(0, 0, viewRect.R.Dx(), viewRect.R.Dy()),
+			R: cellbuf.Rect(viewRect.R.Min.X, viewRect.R.Min.Y, viewRect.R.Dx(), viewRect.R.Dy()),
 		},
 	}
 
@@ -120,8 +150,14 @@ func (r *ListRenderer) Render(
 
 	// Add scrollable region for the entire viewport (using absolute screen coordinates)
 	if r.ScrollMsg != nil {
+		scrollRect := cellbuf.Rect(
+			screenOffsetX,
+			screenOffsetY,
+			viewRect.R.Dx(),
+			viewRect.R.Dy(),
+		)
 		dl.AddInteraction(
-			viewRect.R,
+			scrollRect,
 			r.ScrollMsg,
 			InteractionScroll,
 			0,
