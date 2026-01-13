@@ -7,16 +7,16 @@ import (
 
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/idursun/jjui/internal/ui/input"
-	"github.com/idursun/jjui/internal/ui/intents"
-	lua "github.com/yuin/gopher-lua"
-
 	"github.com/idursun/jjui/internal/ui/choose"
 	"github.com/idursun/jjui/internal/ui/common"
 	uicontext "github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/exec_process"
+	"github.com/idursun/jjui/internal/ui/input"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/revisions"
 	"github.com/idursun/jjui/internal/ui/revset"
+	lua "github.com/yuin/gopher-lua"
 )
 
 type step struct {
@@ -342,6 +342,14 @@ func registerAPI(L *lua.LState, runner *Runner) {
 		L.Push(lua.LNil)
 		return 2
 	})
+	execShellFn := L.NewFunction(func(L *lua.LState) int {
+		command := L.CheckString(1)
+		msg := common.ExecMsg{
+			Line: command,
+			Mode: common.ExecShell,
+		}
+		return yieldStep(L, step{cmd: exec_process.ExecLine(runner.ctx, msg)})
+	})
 	splitLinesFn := L.NewFunction(func(L *lua.LState) int {
 		text := L.CheckString(1)
 		keepEmpty := false
@@ -411,6 +419,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	root.RawSetString("jj", jjFn)
 	root.RawSetString("flash", flashFn)
 	root.RawSetString("copy_to_clipboard", copyToClipboardFn)
+	root.RawSetString("exec_shell", execShellFn)
 	root.RawSetString("split_lines", splitLinesFn)
 	root.RawSetString("choose", chooseFn)
 	root.RawSetString("input", inputFn)
@@ -425,6 +434,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	L.SetGlobal("jj", jjFn)
 	L.SetGlobal("flash", flashFn)
 	L.SetGlobal("copy_to_clipboard", copyToClipboardFn)
+	L.SetGlobal("exec_shell", execShellFn)
 	L.SetGlobal("split_lines", splitLinesFn)
 	L.SetGlobal("choose", chooseFn)
 	L.SetGlobal("input", inputFn)
