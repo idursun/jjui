@@ -20,6 +20,14 @@ type MenuItemDelegate struct {
 }
 
 func (l MenuItemDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+	rendered := renderMenuItem(m, l.styles, l.ShowShortcuts, index, item)
+	if rendered == "" {
+		return
+	}
+	_, _ = fmt.Fprint(w, rendered)
+}
+
+func renderMenuItem(m list.Model, styles styles, showShortcuts bool, index int, item list.Item) string {
 	var (
 		title    string
 		desc     string
@@ -30,14 +38,14 @@ func (l MenuItemDelegate) Render(w io.Writer, m list.Model, index int, item list
 		desc = item.Description()
 		shortcut = item.ShortCut()
 	} else {
-		return
+		return ""
 	}
 	if m.Width() <= 0 {
 		// short-circuit
-		return
+		return ""
 	}
 
-	if !l.ShowShortcuts {
+	if !showShortcuts {
 		shortcut = ""
 	}
 
@@ -55,15 +63,15 @@ func (l MenuItemDelegate) Render(w io.Writer, m list.Model, index int, item list
 	}
 
 	var (
-		titleStyle    = l.styles.text
-		descStyle     = l.styles.dimmed
-		shortcutStyle = l.styles.shortcut
+		titleStyle    = styles.text
+		descStyle     = styles.dimmed
+		shortcutStyle = styles.shortcut
 	)
 
 	if index == m.Index() {
-		titleStyle = l.styles.selected
-		descStyle = l.styles.selected
-		shortcutStyle = shortcutStyle.Background(l.styles.selected.GetBackground())
+		titleStyle = styles.selected
+		descStyle = styles.selected
+		shortcutStyle = shortcutStyle.Background(styles.selected.GetBackground())
 	}
 
 	titleLine := ""
@@ -78,8 +86,7 @@ func (l MenuItemDelegate) Render(w io.Writer, m list.Model, index int, item list
 	descLine := descStyle.Render(desc)
 	descLine = lipgloss.PlaceHorizontal(m.Width()+2, 0, descLine, lipgloss.WithWhitespaceBackground(titleStyle.GetBackground()))
 
-	rendered := lipgloss.JoinVertical(lipgloss.Left, titleLine, descLine)
-	_, _ = fmt.Fprint(w, rendered)
+	return lipgloss.JoinVertical(lipgloss.Left, titleLine, descLine)
 }
 
 func (l MenuItemDelegate) Height() int {

@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common/menu"
 
@@ -253,13 +252,13 @@ func itemSorter(a list.Item, b list.Item) int {
 
 func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	pw, ph := box.R.Dx(), box.R.Dy()
-	m.menu.SetFrame(cellbuf.Rect(0, 0, min(pw, 80), min(ph, 40)).Inset(2))
-	v := m.menu.View()
-	w, h := lipgloss.Size(v)
-	sx := box.R.Min.X + max((pw-w)/2, 0)
-	sy := box.R.Min.Y + max((ph-h)/2, 0)
-	m.SetFrame(cellbuf.Rect(sx, sy, w, h))
-	dl.AddDraw(m.Frame, v, 0)
+	contentRect := cellbuf.Rect(0, 0, min(pw, 80), min(ph, 40)).Inset(2)
+	menuWidth := max(contentRect.Dx()+2, 0)
+	menuHeight := max(contentRect.Dy()+2, 0)
+	sx := box.R.Min.X + max((pw-menuWidth)/2, 0)
+	sy := box.R.Min.Y + max((ph-menuHeight)/2, 0)
+	m.SetFrame(cellbuf.Rect(sx, sy, menuWidth, menuHeight))
+	m.menu.ViewRect(dl, layout.Box{R: m.Frame})
 }
 
 func (m *Model) distance(commitId string) int {

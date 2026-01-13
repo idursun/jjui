@@ -7,8 +7,11 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 type Menu struct {
@@ -21,6 +24,9 @@ type Menu struct {
 	Title         string
 	Subtitle      string
 	styles        styles
+	listRenderer  *render.ListRenderer
+	showShortcuts bool
+	itemDelegate  MenuItemDelegate
 }
 
 type styles struct {
@@ -71,12 +77,14 @@ func NewMenu(items []list.Item, keyMap config.KeyMappings[key.Binding], options 
 		KeyMap:        keyMap,
 		FilterMatches: DefaultFilterMatch,
 		styles:        createStyles(""),
+		listRenderer:  render.NewListRenderer(nil),
 	}
 	for _, opt := range options {
 		opt(&m)
 	}
 
 	l := list.New(items, MenuItemDelegate{styles: m.styles}, 0, 0)
+	m.itemDelegate = MenuItemDelegate{styles: m.styles}
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetShowFilter(true)
@@ -96,17 +104,23 @@ func NewMenu(items []list.Item, keyMap config.KeyMappings[key.Binding], options 
 }
 
 func (m *Menu) ShowShortcuts(show bool) {
-	m.List.SetDelegate(MenuItemDelegate{ShowShortcuts: show, styles: m.styles})
+	m.showShortcuts = show
+	m.itemDelegate = MenuItemDelegate{ShowShortcuts: show, styles: m.styles}
+	m.List.SetDelegate(m.itemDelegate)
 }
 
 func (m *Menu) Filtered(filter string) tea.Cmd {
 	m.Filter = filter
 	if m.Filter == "" {
-		m.List.SetDelegate(MenuItemDelegate{ShowShortcuts: false, styles: m.styles})
+		m.showShortcuts = false
+		m.itemDelegate = MenuItemDelegate{ShowShortcuts: false, styles: m.styles}
+		m.List.SetDelegate(m.itemDelegate)
 		return m.List.SetItems(m.Items)
 	}
 
-	m.List.SetDelegate(MenuItemDelegate{ShowShortcuts: true, styles: m.styles})
+	m.showShortcuts = true
+	m.itemDelegate = MenuItemDelegate{ShowShortcuts: true, styles: m.styles}
+	m.List.SetDelegate(m.itemDelegate)
 	var filtered []list.Item
 	for _, i := range m.Items {
 		if m.FilterMatches(i, m.Filter) {
@@ -189,4 +203,83 @@ func (m *Menu) View() string {
 	content := lipgloss.JoinVertical(0, views...)
 	content = lipgloss.Place(m.Width, m.Height, 0, 0, content)
 	return m.styles.border.Render(content)
+}
+
+func (m *Menu) ViewRect(dl *render.DisplayList, box layout.Box) {
+	if box.R.Dx() <= 0 || box.R.Dy() <= 0 {
+		return
+	}
+
+	contentRect := box.R.Inset(1)
+	if contentRect.Dx() <= 0 || contentRect.Dy() <= 0 {
+		return
+	}
+
+	m.SetFrame(contentRect)
+
+	base := lipgloss.NewStyle().Width(m.Width).Height(m.Height).Render("")
+	bordered := m.styles.border.Render(base)
+	dl.AddDraw(box.R, bordered, 0)
+
+	var headerLines []string
+	headerLines = append(headerLines, m.renderTitle()...)
+	headerLines = append(headerLines, "")
+	headerLines = append(headerLines, m.renderFilterView())
+
+	if m.List.SettingFilter() {
+		filterInput := lipgloss.PlaceHorizontal(m.Width, 0, m.List.FilterInput.View())
+		headerLines = append(headerLines, filterInput)
+	}
+
+	headerHeight := 0
+	for _, line := range headerLines {
+		h := lipgloss.Height(line)
+		if h == 0 {
+			h = 1
+			line = lipgloss.NewStyle().Width(m.Width).Render("")
+		}
+		rect := cellbuf.Rect(contentRect.Min.X, contentRect.Min.Y+headerHeight, m.Width, h)
+		dl.AddDraw(rect, line, 1)
+		headerHeight += h
+	}
+
+	listHeight := m.Height - headerHeight
+	if listHeight <= 0 {
+		return
+	}
+
+	listWidth := max(m.Width-2, 0)
+	m.List.SetWidth(listWidth)
+	m.List.SetHeight(listHeight)
+
+	items := m.List.VisibleItems()
+	itemCount := len(items)
+	if itemCount == 0 {
+		return
+	}
+
+	itemHeight := m.itemDelegate.Height() + m.itemDelegate.Spacing()
+	start, _ := m.List.Paginator.GetSliceBounds(itemCount)
+	m.listRenderer.StartLine = start * itemHeight
+
+	listRect := layout.Box{R: cellbuf.Rect(contentRect.Min.X, contentRect.Min.Y+headerHeight, m.Width, listHeight)}
+	m.listRenderer.Render(
+		dl,
+		listRect,
+		itemCount,
+		m.List.Index(),
+		false,
+		func(_ int) int { return itemHeight },
+		func(dl *render.DisplayList, index int, rect cellbuf.Rectangle) {
+			if index < 0 || index >= itemCount {
+				return
+			}
+			content := renderMenuItem(m.List, m.styles, m.showShortcuts, index, items[index])
+			if content == "" {
+				return
+			}
+			dl.AddDraw(rect, content, 1)
+		},
+		func(_ int) tea.Msg { return nil },
+	)
 }
