@@ -12,6 +12,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 type updateOpLogMsg struct {
@@ -19,10 +21,10 @@ type updateOpLogMsg struct {
 }
 
 var (
-	_ list.IList           = (*Model)(nil)
-	_ list.IScrollableList = (*Model)(nil)
-	_ common.Model         = (*Model)(nil)
-	_ common.IMouseAware   = (*Model)(nil)
+	_ list.IList            = (*Model)(nil)
+	_ list.IScrollableList  = (*Model)(nil)
+	_ common.ImmediateModel = (*Model)(nil)
+	_ common.IMouseAware    = (*Model)(nil)
 )
 
 type Model struct {
@@ -280,16 +282,18 @@ func (m *Model) revert(intent intents.OpLogRevert) tea.Cmd {
 	return tea.Batch(common.Close, m.context.RunCommand(jj.OpRevert(opId), common.Refresh))
 }
 
-func (m *Model) View() string {
+func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	if m.rows == nil {
-		return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading")
+		content := lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading")
+		dl.AddDraw(box.R, content, 0)
+		return
 	}
 
 	m.renderer.Reset()
 	m.renderer.SetWidth(m.Width)
 	m.renderer.SetHeight(m.Height)
 	content := m.renderer.RenderWithOptions(list.RenderOptions{FocusIndex: m.cursor, EnsureFocusVisible: m.ensureCursorView})
-	return m.textStyle.Render(content)
+	dl.AddDraw(box.R, m.textStyle.Render(content), 0)
 }
 
 func (m *Model) load() tea.Cmd {

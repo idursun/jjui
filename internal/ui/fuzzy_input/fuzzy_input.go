@@ -12,8 +12,11 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -41,20 +44,19 @@ func (fzf *model) Init() tea.Cmd {
 	return newCmd(initMsg{})
 }
 
-func (fzf *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (fzf *model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case initMsg:
 		fzf.search("")
 	case fuzzy_search.SearchMsg:
 		if cmd := fzf.handleKey(msg.Pressed); cmd != nil {
-			return fzf, cmd
-		} else {
-			fzf.search(msg.Input)
+			return cmd
 		}
+		fzf.search(msg.Input)
 	case tea.KeyMsg:
-		return fzf, fzf.handleKey(msg)
+		return fzf.handleKey(msg)
 	}
-	return fzf, nil
+	return nil
 }
 
 func (fzf *model) handleKey(msg tea.KeyMsg) tea.Cmd {
@@ -195,7 +197,17 @@ func (fzf *model) searchRegex(input string) fuzzy.Matches {
 	return matches
 }
 
-func (fzf *model) View() string {
+func (fzf *model) ViewRect(dl *render.DisplayList, box layout.Box) {
+	content := fzf.viewContent()
+	if content == "" {
+		return
+	}
+	_, h := lipgloss.Size(content)
+	rect := cellbuf.Rect(box.R.Min.X, box.R.Max.Y-h, box.R.Dx(), h)
+	dl.AddDraw(rect, content, 1)
+}
+
+func (fzf *model) viewContent() string {
 	matches := len(fzf.matches)
 	if matches == 0 {
 		return ""

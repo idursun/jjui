@@ -11,7 +11,11 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
+
+var _ common.ImmediateModel = (*Model)(nil)
 
 type expireMessageMsg struct {
 	id uint64
@@ -95,16 +99,16 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	return nil
 }
 
-func (m *Model) View() []FlashMessageView {
+func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	messages := m.messages
 	if len(messages) == 0 {
-		return nil
+		return
 	}
 
-	y := m.Height - 1
-	var messageBoxes []FlashMessageView
+	area := box.R
+	y := area.Max.Y - 1
 	// reserve padding and calculate max width for messages
-	maxWidth := m.Width - 4
+	maxWidth := area.Dx() - 4
 
 	for _, message := range messages {
 		var text string
@@ -131,12 +135,10 @@ func (m *Model) View() []FlashMessageView {
 
 		w, h := lipgloss.Size(content)
 		y -= h
-		messageBoxes = append(messageBoxes, FlashMessageView{
-			Content: content,
-			Rect:    cellbuf.Rect(m.Width-w, y, w, h),
-		})
+		// Use z-index 1 for overlay rendering (flash messages appear above other content)
+		rect := cellbuf.Rect(area.Max.X-w, y, w, h)
+		dl.AddDraw(rect, content, 200)
 	}
-	return messageBoxes
 }
 
 func (m *Model) add(text string, error error) uint64 {

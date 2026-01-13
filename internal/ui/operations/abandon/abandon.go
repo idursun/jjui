@@ -10,7 +10,9 @@ import (
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 var (
@@ -46,9 +48,7 @@ func (a *Operation) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (a *Operation) View() string {
-	return ""
-}
+func (a *Operation) ViewRect(_ *render.DisplayList, _ layout.Box) {}
 
 func (a *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {

@@ -21,7 +21,7 @@ type Styles struct {
 
 type Model interface {
 	fuzzy.Source
-	tea.Model
+	common.ImmediateModel
 	Max() int
 	Matches() fuzzy.Matches
 	SelectedMatch() int
@@ -60,15 +60,6 @@ func SelectedMatch(model Model) string {
 	}
 	m := matches[idx]
 	return fmt.Sprintf("'%s'", model.String(m.Index))
-}
-
-// helper to upcast: Model => tea.Model => Model
-func Update(model Model, msg tea.Msg) (Model, tea.Cmd) {
-	m, c := model.Update(msg)
-	if m, ok := m.(Model); ok {
-		return m, c
-	}
-	return model, c // should never happen.
 }
 
 func View(fzf Model) string {

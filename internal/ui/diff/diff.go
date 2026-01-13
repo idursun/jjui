@@ -8,9 +8,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
-var _ common.Model = (*Model)(nil)
+var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
 	*common.ViewNode
@@ -60,10 +62,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-func (m *Model) View() string {
-	m.view.Height = m.Height
-	m.view.Width = m.Width
-	return m.view.View()
+func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+	area := box.R
+	m.view.Height = area.Dy()
+	m.view.Width = area.Dx()
+	dl.AddDraw(area, m.view.View(), 0)
 }
 
 func New(output string) *Model {

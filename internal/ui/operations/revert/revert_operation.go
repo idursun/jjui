@@ -11,7 +11,9 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 type Target int
@@ -69,9 +71,7 @@ func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (r *Operation) View() string {
-	return ""
-}
+func (r *Operation) ViewRect(_ *render.DisplayList, _ layout.Box) {}
 
 func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {

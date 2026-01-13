@@ -10,13 +10,15 @@ import (
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 type EditRevSetMsg struct {
 	Clear bool
 }
 
-var _ common.Model = (*Model)(nil)
+var _ common.ImmediateModel = (*Model)(nil)
 
 type revsetMsg struct {
 	msg tea.Msg
@@ -231,7 +233,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	return nil
 }
 
-func (m *Model) View() string {
+func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	var w strings.Builder
 	w.WriteString(m.styles.promptStyle.PaddingRight(1).Render("revset:"))
 	if m.Editing {
@@ -239,5 +241,5 @@ func (m *Model) View() string {
 	} else {
 		w.WriteString(m.styles.textStyle.Render(m.context.CurrentRevset))
 	}
-	return lipgloss.Place(m.Width, m.Height, 0, 0, w.String(), lipgloss.WithWhitespaceBackground(m.styles.textStyle.GetBackground()))
+	dl.AddDraw(box.R, w.String(), 1)
 }

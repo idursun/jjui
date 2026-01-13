@@ -23,7 +23,7 @@ const (
 )
 
 type Operation interface {
-	common.Model
+	common.ImmediateModel
 	Render(commit *jj.Commit, renderPosition RenderPosition) string
 	Name() string
 }

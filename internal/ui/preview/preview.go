@@ -15,6 +15,8 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 const (
@@ -22,7 +24,7 @@ const (
 	handleSize   = 3
 )
 
-var _ common.Model = (*Model)(nil)
+var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
 	*common.ViewNode
@@ -222,9 +224,10 @@ func (m *Model) SetContent(content string) {
 	m.view.SetContent(content)
 }
 
-func (m *Model) View() string {
+func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	border := lipgloss.NewStyle().Border(lipgloss.NormalBorder(), m.AtBottom(), false, false, !m.AtBottom())
-	return border.Render(m.view.View())
+	content := border.Render(m.view.View())
+	dl.AddDraw(box.R, content, 0)
 }
 
 func (m *Model) reset() {

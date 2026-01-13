@@ -6,10 +6,14 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 var _ operations.Operation = (*SetBookmarkOperation)(nil)
@@ -56,8 +60,11 @@ func (s *SetBookmarkOperation) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (s *SetBookmarkOperation) View() string {
-	return s.name.View()
+func (s *SetBookmarkOperation) ViewRect(dl *render.DisplayList, box layout.Box) {
+	content := s.viewContent()
+	w, h := lipgloss.Size(content)
+	rect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, w, h)
+	dl.AddDraw(rect, content, 0)
 }
 
 func (s *SetBookmarkOperation) IsFocused() bool {
@@ -68,7 +75,7 @@ func (s *SetBookmarkOperation) Render(commit *jj.Commit, pos operations.RenderPo
 	if pos != operations.RenderBeforeCommitId || commit.GetChangeId() != s.revision {
 		return ""
 	}
-	return s.name.View() + s.name.TextStyle.Render(" ")
+	return s.viewContent() + s.name.TextStyle.Render(" ")
 }
 
 func (s *SetBookmarkOperation) Name() string {
@@ -97,4 +104,8 @@ func NewSetBookmarkOperation(context *context.MainContext, changeId string) *Set
 		context:  context,
 	}
 	return op
+}
+
+func (s *SetBookmarkOperation) viewContent() string {
+	return s.name.View()
 }

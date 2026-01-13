@@ -13,7 +13,9 @@ import (
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 var (
@@ -138,9 +140,7 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (o *Operation) View() string {
-	return ""
-}
+func (o *Operation) ViewRect(_ *render.DisplayList, _ layout.Box) {}
 
 func (o *Operation) Render(*jj.Commit, operations.RenderPosition) string {
 	return ""

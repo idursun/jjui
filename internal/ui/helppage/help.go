@@ -12,6 +12,8 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 type helpItem struct {
@@ -30,7 +32,7 @@ type helpMenu struct {
 	rightList     menuColumn
 }
 
-var _ common.Model = (*Model)(nil)
+var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
 	*common.ViewNode
@@ -78,17 +80,17 @@ func (h *Model) Update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-func (h *Model) View() string {
+func (h *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	// NOTE: add new lines between search bar and help menu
 	content := "\n\n" + h.renderMenu()
 
 	v := h.styles.border.Render(h.searchQuery.View(), content)
 	w, height := lipgloss.Size(v)
-	pw, ph := h.Parent.Width, h.Parent.Height
-	sx := (pw - w) / 2
-	sy := (ph - height) / 2
+	pw, ph := box.R.Dx(), box.R.Dy()
+	sx := box.R.Min.X + max((pw-w)/2, 0)
+	sy := box.R.Min.Y + max((ph-height)/2, 0)
 	h.SetFrame(cellbuf.Rect(sx, sy, w, height))
-	return v
+	dl.AddDraw(h.Frame, v, 3)
 }
 
 func (h *Model) filterMenu() {

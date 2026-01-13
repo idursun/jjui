@@ -234,22 +234,12 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (s *Operation) View() string {
-	confirmationView := ""
-	ch := 0
-	if s.confirmation != nil {
-		confirmationView = s.confirmation.View()
-		ch = lipgloss.Height(confirmationView)
-	}
-	if s.Len() == 0 {
-		return s.styles.Dimmed.Render("No changes")
-	}
-	s.SetHeight(min(s.Parent.Height-5-ch, s.Len()))
-	filesView := strings.TrimRight(s.renderer.Render(s.cursor), "\n")
-	if confirmationView != "" {
-		return lipgloss.JoinVertical(lipgloss.Top, filesView, confirmationView)
-	}
-	return filesView
+func (s *Operation) ViewRect(dl *render.DisplayList, box layout.Box) {
+	content := s.viewContent(box.R.Dy())
+	w, h := lipgloss.Size(content)
+	rect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, w, h)
+	s.SetFrame(rect)
+	dl.AddDraw(rect, content, 0)
 }
 
 func (s *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
@@ -283,7 +273,7 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return ""
 	}
-	return s.View()
+	return s.viewContent(s.Parent.Height)
 }
 
 // SupportsDisplayList returns true for RenderPositionAfter
@@ -439,4 +429,22 @@ func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation 
 	}
 	l.Parent = op.ViewNode
 	return op
+}
+
+func (s *Operation) viewContent(maxHeight int) string {
+	confirmationView := ""
+	ch := 0
+	if s.confirmation != nil {
+		confirmationView = s.confirmation.View()
+		ch = lipgloss.Height(confirmationView)
+	}
+	if s.Len() == 0 {
+		return s.styles.Dimmed.Render("No changes")
+	}
+	s.SetHeight(min(maxHeight-5-ch, s.Len()))
+	filesView := strings.TrimRight(s.renderer.Render(s.cursor), "\n")
+	if confirmationView != "" {
+		return lipgloss.JoinVertical(lipgloss.Top, filesView, confirmationView)
+	}
+	return filesView
 }

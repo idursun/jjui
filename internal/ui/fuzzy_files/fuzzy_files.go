@@ -11,11 +11,14 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/preview"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revisions"
 	"github.com/sahilm/fuzzy"
 )
@@ -58,36 +61,36 @@ func (fzf *fuzzyFiles) Init() tea.Cmd {
 	return newCmd(initMsg{})
 }
 
-func (fzf *fuzzyFiles) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (fzf *fuzzyFiles) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case initMsg:
 		fzf.search("")
 	case fuzzy_search.SearchMsg:
 		if cmd := fzf.handleKey(msg.Pressed); cmd != nil {
-			return fzf, cmd
+			return cmd
 		}
 		fzf.search(msg.Input)
 		if fzf.revsetPreview {
 			fzf.debounceTag++
 			tag := debouncePreview(fzf.debounceTag)
-			return fzf, tea.Tick(debounceDuration, func(_ time.Time) tea.Msg {
+			return tea.Tick(debounceDuration, func(_ time.Time) tea.Msg {
 				return tag
 			})
 		}
 	case debouncePreview:
 		if int(msg) != fzf.debounceTag {
-			return fzf, nil
+			return nil
 		}
 		if fzf.revsetPreview {
-			return fzf, tea.Batch(
+			return tea.Batch(
 				fzf.updateRevSet(),
 				newCmd(common.ShowPreview(true)),
 			)
 		}
 	case tea.KeyMsg:
-		return fzf, fzf.handleKey(msg)
+		return fzf.handleKey(msg)
 	}
-	return fzf, nil
+	return nil
 }
 
 func (fzf *fuzzyFiles) updateRevSet() tea.Cmd {
@@ -209,8 +212,21 @@ func (fzf *fuzzyFiles) search(input string) {
 	fzf.matches = src.Search(input, fzf.max)
 }
 
-func (fzf *fuzzyFiles) View() string {
+func (fzf *fuzzyFiles) ViewRect(dl *render.DisplayList, box layout.Box) {
+	content := fzf.viewContent()
+	if content == "" {
+		return
+	}
+	_, h := lipgloss.Size(content)
+	rect := cellbuf.Rect(box.R.Min.X, box.R.Max.Y-h, box.R.Dx(), h)
+	dl.AddDraw(rect, content, 1)
+}
+
+func (fzf *fuzzyFiles) viewContent() string {
 	shown := len(fzf.matches)
+	if shown == 0 {
+		return ""
+	}
 	title := fzf.styles.SelectedMatch.Render(
 		"  ",
 		strconv.Itoa(shown),

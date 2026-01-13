@@ -14,6 +14,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/menu"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 type item struct {
@@ -48,7 +50,7 @@ func (i item) Description() string {
 	return i.desc
 }
 
-var _ common.Model = (*Model)(nil)
+var _ common.ImmediateModel = (*Model)(nil)
 
 // SortedCustomCommands returns commands ordered by name for deterministic iteration.
 func SortedCustomCommands(ctx *context.MainContext) []context.CustomCommand {
@@ -119,15 +121,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-func (m *Model) View() string {
-	pw, ph := m.Parent.Width, m.Parent.Height
+func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+	pw, ph := box.R.Dx(), box.R.Dy()
 	m.menu.SetFrame(cellbuf.Rect(0, 0, min(pw, 80), min(ph, 40)).Inset(2))
 	v := m.menu.View()
 	w, h := lipgloss.Size(v)
-	sx := (pw - w) / 2
-	sy := (ph - h) / 2
+	sx := box.R.Min.X + max((pw-w)/2, 0)
+	sy := box.R.Min.Y + max((ph-h)/2, 0)
 	m.SetFrame(cellbuf.Rect(sx, sy, w, h))
-	return v
+	dl.AddDraw(m.Frame, v, 0)
 }
 
 func NewModel(ctx *context.MainContext) *Model {

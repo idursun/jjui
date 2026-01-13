@@ -9,9 +9,11 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
-var _ common.Model = (*Model)(nil)
+var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
 	*common.ViewNode
@@ -34,14 +36,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return m.confirmation.Update(msg)
 }
 
-func (m *Model) View() string {
+func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	v := m.confirmation.View()
 	w, h := lipgloss.Size(v)
-	pw, ph := m.Parent.Width, m.Parent.Height
-	sx := (pw - w) / 2
-	sy := (ph - h) / 2
+	pw, ph := box.R.Dx(), box.R.Dy()
+	sx := box.R.Min.X + max((pw-w)/2, 0)
+	sy := box.R.Min.Y + max((ph-h)/2, 0)
 	m.SetFrame(cellbuf.Rect(sx, sy, w, h))
-	return v
+	dl.AddDraw(m.Frame, v, 0)
 }
 
 func NewModel(context *context.MainContext) *Model {

@@ -5,6 +5,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 var _ Operation = (*Default)(nil)
@@ -21,9 +23,7 @@ func (n *Default) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (n *Default) View() string {
-	return ""
-}
+func (n *Default) ViewRect(_ *render.DisplayList, _ layout.Box) {}
 
 func (n *Default) ShortHelp() []key.Binding {
 	return []key.Binding{

@@ -17,7 +17,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/bookmarks"
@@ -40,10 +39,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/undo"
 )
 
-var _ common.Model = (*Model)(nil)
-
 type SizableModel interface {
-	common.Model
+	common.ImmediateModel
 	common.IViewNode
 }
 
@@ -491,27 +488,27 @@ func (m *Model) View() string {
 	if m.Width == 0 || m.Height == 0 {
 		return ""
 	}
-	m.updateStatus()
-	m.status.SetWidth(m.Width)
-	footer := m.status.View()
-	footerHeight := lipgloss.Height(footer)
 
-	if m.diff != nil {
-		m.diff.SetFrame(cellbuf.Rect(0, footerHeight, m.Width, m.Height-footerHeight))
-		return lipgloss.JoinVertical(0, m.diff.View(), footer)
-	}
+	m.displayList = render.NewDisplayList()
+
+	m.updateStatus()
+
+	box := layout.NewBox(cellbuf.Rect(0, 0, m.Width, m.Height))
+	topArea, centerBox := box.CutTop(1)
+	centerBox, bottomBox := centerBox.CutBottom(1)
 
 	screenBuf := cellbuf.NewBuffer(m.Width, m.Height)
-	box := layout.NewBox(cellbuf.Rect(0, 0, m.Width, m.Height))
-	var previewArea cellbuf.Rectangle
 
-	topView := m.revsetModel.View()
-	topViewHeight := lipgloss.Height(topView)
-	topArea, centerBox := box.CutTop(topViewHeight)
-	cellbuf.SetContentRect(screenBuf, topView, topArea.R)
+	m.status.ViewRect(m.displayList, bottomBox)
+	if m.diff != nil {
+		m.diff.ViewRect(m.displayList, topArea)
+		m.displayList.Render(screenBuf)
+		return cellbuf.Render(screenBuf)
+	}
 
-	centerBox, bottomBox := centerBox.CutBottom(footerHeight)
-	cellbuf.SetContentRect(screenBuf, footer, bottomBox.R)
+	var previewArea layout.Box
+
+	m.revsetModel.ViewRect(m.displayList, topArea)
 
 	if m.previewModel.Visible() {
 		m.UpdatePreviewPosition()
@@ -519,65 +516,47 @@ func (m *Model) View() string {
 			pct := m.previewModel.WindowPercentage()
 			boxes := centerBox.V(layout.Percent(100-pct), layout.Fill(1))
 			centerBox = boxes[0]
-			previewArea = boxes[1].R
+			previewArea = boxes[1]
 		} else {
 			pct := m.previewModel.WindowPercentage()
 			boxes := centerBox.H(layout.Percent(100-pct), layout.Fill(1))
 			centerBox = boxes[0]
-			previewArea = boxes[1].R
+			previewArea = boxes[1]
 		}
-		m.previewModel.SetFrame(previewArea)
+		m.previewModel.SetFrame(previewArea.R)
 	}
 
 	centerArea := centerBox.R
 
-	// Create DisplayList for this frame
-	m.displayList = render.NewDisplayList()
-
-	var leftView string
 	if m.oplog != nil {
 		m.oplog.SetFrame(centerArea)
-		leftView = m.oplog.View()
+		m.oplog.ViewRect(m.displayList, centerBox)
 	} else {
 		m.revisions.SetFrame(centerArea)
-		// Use DisplayList rendering for revisions
-		m.revisions.RenderToDisplayList(m.displayList, centerArea)
-		leftView = m.displayList.RenderToString(centerArea.Dx(), centerArea.Dy())
+		m.revisions.ViewRect(m.displayList, centerBox)
 	}
 
-	cellbuf.SetContentRect(screenBuf, leftView, centerArea)
 	if m.previewModel.Visible() {
-		cellbuf.SetContentRect(screenBuf, m.previewModel.View(), previewArea)
+		m.previewModel.ViewRect(m.displayList, previewArea)
 	}
 
 	if m.stacked != nil {
-		stackedView := m.stacked.View()
-		cellbuf.SetContentRect(screenBuf, stackedView, m.stacked.GetViewNode().Frame)
+		m.stacked.ViewRect(m.displayList, box)
 	}
 
 	if m.sequenceOverlay != nil {
 		m.sequenceOverlay.Parent = m.ViewNode
-		view := m.sequenceOverlay.View()
-		cellbuf.SetContentRect(screenBuf, view, m.sequenceOverlay.Frame)
+		m.sequenceOverlay.ViewRect(m.displayList, box)
 	}
 
-	flashMessageView := m.flash.View()
-	if flashMessageView != nil {
-		for _, v := range flashMessageView {
-			cellbuf.SetContentRect(screenBuf, v.Content, v.Rect)
-		}
-	}
-	statusFuzzyView := m.status.FuzzyView()
-	if statusFuzzyView != "" {
-		_, mh := lipgloss.Size(statusFuzzyView)
-		cellbuf.SetContentRect(screenBuf, statusFuzzyView, cellbuf.Rect(0, m.Height-mh-1, m.Width, mh))
-	}
+	m.flash.ViewRect(m.displayList, box)
 
 	if m.password != nil {
 		view := m.password.View()
 		cellbuf.SetContentRect(screenBuf, view, m.password.Frame)
 	}
 
+	m.displayList.Render(screenBuf)
 	finalView := cellbuf.Render(screenBuf)
 	return strings.ReplaceAll(finalView, "\r", "")
 }

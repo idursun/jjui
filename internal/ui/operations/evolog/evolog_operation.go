@@ -7,10 +7,13 @@ import (
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/render"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -57,16 +60,12 @@ func (o *Operation) Init() tea.Cmd {
 	return o.load
 }
 
-func (o *Operation) View() string {
-	if len(o.rows) == 0 {
-		return "loading"
-	}
-	o.SetWidth(o.Parent.Width)
-	o.renderer.SetWidth(o.Width)
-	o.renderer.SetHeight(min(o.Parent.Height-5, len(o.rows)*2))
-	content := o.renderer.Render(o.cursor)
-	content = lipgloss.PlaceHorizontal(o.Width, lipgloss.Left, content)
-	return content
+func (o *Operation) ViewRect(dl *render.DisplayList, box layout.Box) {
+	content := o.viewContent(box.R.Dx(), box.R.Dy())
+	w, h := lipgloss.Size(content)
+	rect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, w, h)
+	o.SetFrame(rect)
+	dl.AddDraw(rect, content, 0)
 }
 
 func (o *Operation) Len() int {
@@ -199,7 +198,7 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return ""
 	}
-	return o.View()
+	return o.viewContent(o.Parent.Width, o.Parent.Height)
 }
 
 func (o *Operation) Name() string {
@@ -238,4 +237,16 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 	o.renderer = list.NewRenderer(o, common.NewViewNode(0, 0))
 	o.renderer.Parent = o.ViewNode
 	return o
+}
+
+func (o *Operation) viewContent(width, height int) string {
+	if len(o.rows) == 0 {
+		return "loading"
+	}
+	o.SetWidth(width)
+	o.renderer.SetWidth(o.Width)
+	o.renderer.SetHeight(min(height-5, len(o.rows)*2))
+	content := o.renderer.Render(o.cursor)
+	content = lipgloss.PlaceHorizontal(o.Width, lipgloss.Left, content)
+	return content
 }

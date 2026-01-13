@@ -11,7 +11,11 @@ import (
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
+
+var _ common.ImmediateModel = (*SequenceOverlay)(nil)
 
 type SequenceEntry struct {
 	Name      string
@@ -179,6 +183,43 @@ func (s *SequenceOverlay) View() string {
 
 	s.SetFrame(cellbuf.Rect(0, sy, w, h))
 	return content
+}
+
+func (s *SequenceOverlay) ViewRect(dl *render.DisplayList, box layout.Box) {
+	var view strings.Builder
+	for i, it := range s.items {
+		view.WriteString(s.matchedStyle.Render(s.prefix))
+		if len(it.Remaining) == 0 {
+			continue
+		}
+		for _, r := range it.Remaining {
+			view.WriteString(" → ")
+			view.WriteString(s.shortcutStyle.Render(r))
+		}
+		view.WriteString(" ")
+		view.WriteString(it.Name)
+		if i < len(s.items)-1 {
+			view.WriteString("\n")
+		}
+	}
+
+	area := box.R
+	w := area.Dx()
+
+	content := view.String()
+	style := lipgloss.NewStyle().
+		PaddingLeft(1).
+		PaddingRight(1).
+		Border(lipgloss.RoundedBorder()).
+		Width(w - 2)
+	content = style.Render(content)
+
+	h := lipgloss.Height(content)
+	sy := area.Max.Y - h - 1
+
+	rect := cellbuf.Rect(area.Min.X, sy, w, h)
+	s.SetFrame(rect)
+	dl.AddDraw(rect, content, 200)
 }
 
 func (s *SequenceOverlay) advance(msg tea.KeyMsg) ([]SequenceCandidate, SequenceResult) {

@@ -44,13 +44,14 @@ import (
 )
 
 var (
-	_ list.IList           = (*Model)(nil)
-	_ list.IListCursor     = (*Model)(nil)
-	_ list.IScrollableList = (*Model)(nil)
-	_ list.IStreamableList = (*Model)(nil)
-	_ common.Focusable     = (*Model)(nil)
-	_ common.Editable      = (*Model)(nil)
-	_ common.IMouseAware   = (*Model)(nil)
+	_ list.IList            = (*Model)(nil)
+	_ list.IListCursor      = (*Model)(nil)
+	_ list.IScrollableList  = (*Model)(nil)
+	_ list.IStreamableList  = (*Model)(nil)
+	_ common.Focusable      = (*Model)(nil)
+	_ common.Editable       = (*Model)(nil)
+	_ common.IMouseAware    = (*Model)(nil)
+	_ common.ImmediateModel = (*Model)(nil)
 )
 
 type Model struct {
@@ -62,7 +63,7 @@ type Model struct {
 	offScreenRows       []parser.Row
 	streamer            *graph.GraphStreamer
 	hasMore             bool
-	op                  common.Model
+	op                  common.ImmediateModel
 	cursor              int
 	context             *appContext.MainContext
 	keymap              config.KeyMappings[key.Binding]
@@ -976,8 +977,8 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 	}
 }
 
-// RenderToDisplayList renders the revisions list into the given DisplayList
-func (m *Model) RenderToDisplayList(dl *render.DisplayList, area cellbuf.Rectangle) {
+func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+	area := box.R
 	if len(m.rows) == 0 {
 		content := ""
 		if m.isLoading {

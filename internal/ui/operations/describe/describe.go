@@ -6,12 +6,15 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 var (
@@ -59,7 +62,7 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if pos != operations.RenderOverDescription {
 		return ""
 	}
-	return o.View()
+	return o.viewContent(o.Parent.Width)
 }
 
 func (o *Operation) Name() string {
@@ -113,11 +116,12 @@ func (o *Operation) Init() tea.Cmd {
 	return nil
 }
 
-func (o *Operation) View() string {
-	o.SetWidth(o.Parent.Width)
-	o.input.SetWidth(o.Width)
-	o.input.SetHeight(o.Height)
-	return o.input.View()
+func (o *Operation) ViewRect(dl *render.DisplayList, box layout.Box) {
+	content := o.viewContent(box.R.Dx())
+	w, h := lipgloss.Size(content)
+	rect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, w, h)
+	o.SetFrame(rect)
+	dl.AddDraw(rect, content, 0)
 }
 
 func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation {
@@ -153,4 +157,11 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 		originalDesc: originalDesc,
 		revision:     revision,
 	}
+}
+
+func (o *Operation) viewContent(width int) string {
+	o.SetWidth(width)
+	o.input.SetWidth(o.Width)
+	o.input.SetHeight(o.Height)
+	return o.input.View()
 }

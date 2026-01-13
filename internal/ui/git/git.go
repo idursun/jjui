@@ -14,6 +14,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/menu"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 type itemCategory string
@@ -54,7 +56,7 @@ type styles struct {
 	noRemoteStyle lipgloss.Style
 }
 
-var _ common.Model = (*Model)(nil)
+var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
 	*common.ViewNode
@@ -150,15 +152,15 @@ func (m *Model) filtered(filter string) tea.Cmd {
 	return m.menu.Filtered(filter)
 }
 
-func (m *Model) View() string {
-	pw, ph := m.Parent.Width, m.Parent.Height
+func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+	pw, ph := box.R.Dx(), box.R.Dy()
 	m.menu.SetFrame(cellbuf.Rect(0, 0, min(pw, 80), min(ph, 40)).Inset(2))
 	v := m.menu.View()
 	w, h := lipgloss.Size(v)
-	sx := (pw - w) / 2
-	sy := (ph - h) / 2
+	sx := box.R.Min.X + max((pw-w)/2, 0)
+	sy := box.R.Min.Y + max((ph-h)/2, 0)
 	m.SetFrame(cellbuf.Rect(sx, sy, w, h))
-	return v
+	dl.AddDraw(m.Frame, v, 0)
 }
 
 func (m *Model) displayRemotes() string {

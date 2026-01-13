@@ -6,7 +6,10 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -31,7 +34,7 @@ const (
 	commandFailed
 )
 
-var _ common.Model = (*Model)(nil)
+var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
 	*common.ViewNode
@@ -68,13 +71,6 @@ func emptyEditStatus() (help.KeyMap, string) {
 
 func (m *Model) IsFocused() bool {
 	return m.editStatus != nil
-}
-
-func (m *Model) FuzzyView() string {
-	if m.fuzzy == nil {
-		return ""
-	}
-	return m.fuzzy.View()
 }
 
 const CommandClearDuration = 3 * time.Second
@@ -133,7 +129,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, km.Cancel) && m.IsFocused():
 			var cmd tea.Cmd
 			if m.fuzzy != nil {
-				_, cmd = m.fuzzy.Update(msg)
+				cmd = m.fuzzy.Update(msg)
 			}
 
 			m.fuzzy = nil
@@ -163,7 +159,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 			switch {
 			case strings.HasSuffix(editMode, "file"):
-				_, cmd := fuzzy.Update(msg)
+				cmd := fuzzy.Update(msg)
 				return cmd
 			case strings.HasPrefix(editMode, "exec"):
 				return func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }
@@ -203,7 +199,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.spinner, cmd = m.spinner.Update(msg)
 		}
 		if m.fuzzy != nil {
-			m.fuzzy, cmd = fuzzy_search.Update(m.fuzzy, msg)
+			cmd = m.fuzzy.Update(msg)
 		}
 		return cmd
 	}
@@ -225,7 +221,9 @@ func (m *Model) loadEditingSuggestions() {
 	m.input.SetSuggestions([]string(history))
 }
 
-func (m *Model) View() string {
+func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+	m.SetFrame(box.R)
+
 	commandStatusMark := m.styles.text.Render(" ")
 	if m.status == commandRunning {
 		commandStatusMark = m.styles.text.Render(m.spinner.View())
@@ -251,8 +249,15 @@ func (m *Model) View() string {
 	}
 	mode := m.styles.title.Width(modeWith).Render("", m.mode)
 	ret = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), commandStatusMark, ret)
-	height := lipgloss.Height(ret)
-	return lipgloss.Place(m.Width, height, 0, 0, ret, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
+	dl.AddDraw(box.R, ret, 0)
+
+	if m.fuzzy != nil && m.Parent != nil {
+		availableHeight := box.R.Min.Y - m.Parent.Frame.Min.Y
+		if availableHeight > 0 {
+			fuzzyBox := layout.Box{R: cellbuf.Rect(m.Parent.Frame.Min.X, m.Parent.Frame.Min.Y, m.Parent.Width, availableHeight)}
+			m.fuzzy.ViewRect(dl, fuzzyBox)
+		}
+	}
 }
 
 func (m *Model) SetHelp(keyMap help.KeyMap) {
