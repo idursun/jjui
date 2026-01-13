@@ -36,7 +36,6 @@ var _ common.Focusable = (*Operation)(nil)
 var _ common.Overlay = (*Operation)(nil)
 
 type Operation struct {
-	*common.ViewNode
 	context  *context.MainContext
 	renderer *list.ListRenderer
 	revision *jj.Commit
@@ -46,6 +45,7 @@ type Operation struct {
 	keyMap   config.KeyMappings[key.Binding]
 	target   *jj.Commit
 	styles   styles
+	frame    cellbuf.Rectangle
 }
 
 func (o *Operation) IsOverlay() bool {
@@ -64,7 +64,7 @@ func (o *Operation) ViewRect(dl *render.DisplayList, box layout.Box) {
 	content := o.viewContent(box.R.Dx(), box.R.Dy())
 	w, h := lipgloss.Size(content)
 	rect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, w, h)
-	o.SetFrame(rect)
+	o.frame = rect
 	dl.AddDraw(rect, content, 0)
 }
 
@@ -198,7 +198,7 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return ""
 	}
-	return o.viewContent(o.Parent.Width, o.Parent.Height)
+	return o.viewContent(o.frame.Dx(), o.frame.Dy())
 }
 
 func (o *Operation) Name() string {
@@ -226,7 +226,6 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 		selectedStyle: common.DefaultPalette.Get("evolog selected"),
 	}
 	o := &Operation{
-		ViewNode: common.NewViewNode(0, 0),
 		context:  context,
 		keyMap:   config.Current.GetKeyMap(),
 		revision: revision,
@@ -234,8 +233,7 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 		cursor:   0,
 		styles:   styles,
 	}
-	o.renderer = list.NewRenderer(o, common.NewViewNode(0, 0))
-	o.renderer.Parent = o.ViewNode
+	o.renderer = list.NewRenderer(o, 0, 0)
 	return o
 }
 
@@ -243,10 +241,9 @@ func (o *Operation) viewContent(width, height int) string {
 	if len(o.rows) == 0 {
 		return "loading"
 	}
-	o.SetWidth(width)
-	o.renderer.SetWidth(o.Width)
-	o.renderer.SetHeight(min(height-5, len(o.rows)*2))
+	o.renderer.ViewRange.Width = width
+	o.renderer.ViewRange.Height = min(height-5, len(o.rows)*2)
 	content := o.renderer.Render(o.cursor)
-	content = lipgloss.PlaceHorizontal(o.Width, lipgloss.Left, content)
+	content = lipgloss.PlaceHorizontal(width, lipgloss.Left, content)
 	return content
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -15,10 +16,10 @@ import (
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
-	*common.ViewNode
 	*common.MouseAware
 	view   viewport.Model
 	keymap config.KeyMappings[key.Binding]
+	frame  cellbuf.Rectangle
 }
 
 func (m *Model) ShortHelp() []key.Binding {
@@ -64,6 +65,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	area := box.R
+	m.frame = area
 	m.view.Height = area.Dy()
 	m.view.Width = area.Dx()
 	dl.AddDraw(area, m.view.View(), 0)
@@ -77,9 +79,12 @@ func New(output string) *Model {
 	}
 	view.SetContent(content)
 	return &Model{
-		ViewNode:   common.NewViewNode(0, 0),
 		MouseAware: common.NewMouseAware(),
 		view:       view,
 		keymap:     config.Current.GetKeyMap(),
 	}
+}
+
+func (m *Model) Frame() cellbuf.Rectangle {
+	return m.frame
 }

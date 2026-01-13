@@ -35,7 +35,6 @@ type helpMenu struct {
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
-	*common.ViewNode
 	keyMap       config.KeyMappings[key.Binding]
 	context      *context.MainContext
 	styles       styles
@@ -89,8 +88,8 @@ func (h *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	pw, ph := box.R.Dx(), box.R.Dy()
 	sx := box.R.Min.X + max((pw-w)/2, 0)
 	sy := box.R.Min.Y + max((ph-height)/2, 0)
-	h.SetFrame(cellbuf.Rect(sx, sy, w, height))
-	dl.AddDraw(h.Frame, v, 3)
+	frame := cellbuf.Rect(sx, sy, w, height)
+	dl.AddDraw(frame, v, 3)
 }
 
 func (h *Model) filterMenu() {
@@ -158,7 +157,6 @@ func New(context *context.MainContext) *Model {
 	filter.Focus()
 
 	m := &Model{
-		ViewNode:    common.NewViewNode(0, 0),
 		context:     context,
 		keyMap:      config.Current.GetKeyMap(),
 		styles:      styles,

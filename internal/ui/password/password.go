@@ -6,25 +6,23 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common"
-	appContext "github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
-var _ common.Model = (*Model)(nil)
+var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
-	*common.ViewNode
 	textinput  textinput.Model
 	passwordCh chan<- []byte
-
-	context *appContext.MainContext
-	styles  styles
+	styles     styles
 }
 
 type styles struct {
 	border lipgloss.Style
 }
 
-func New(msg common.TogglePasswordMsg, parent *common.ViewNode) *Model {
+func New(msg common.TogglePasswordMsg) *Model {
 	styles := styles{
 		border: common.DefaultPalette.GetBorder("password border", lipgloss.NormalBorder()).Padding(1),
 	}
@@ -35,7 +33,6 @@ func New(msg common.TogglePasswordMsg, parent *common.ViewNode) *Model {
 	ti.Focus()
 
 	return &Model{
-		ViewNode:   &common.ViewNode{Width: 0, Height: 0, Parent: parent},
 		styles:     styles,
 		textinput:  ti,
 		passwordCh: msg.Password,
@@ -70,12 +67,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) View() string {
-	pw, ph := m.Parent.Width, m.Parent.Height
-	v := m.styles.border.Width(pw - 2).Render(m.textinput.View())
+func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+	pw, ph := box.R.Dx(), box.R.Dy()
+	v := m.styles.border.Width(max(pw-2, 0)).Render(m.textinput.View())
 	w, h := lipgloss.Size(v)
-	sx := (pw - w) / 2
-	sy := (ph - h) / 2
-	m.SetFrame(cellbuf.Rect(sx, sy, w, h))
-	return v
+	sx := box.R.Min.X + max((pw-w)/2, 0)
+	sy := box.R.Min.Y + max((ph-h)/2, 0)
+	rect := cellbuf.Rect(sx, sy, w, h)
+	dl.AddDraw(rect, v, 300)
 }

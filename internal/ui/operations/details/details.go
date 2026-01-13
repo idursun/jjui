@@ -239,6 +239,7 @@ func (s *Operation) ViewRect(dl *render.DisplayList, box layout.Box) {
 	w, h := lipgloss.Size(content)
 	rect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, w, h)
 	s.SetFrame(rect)
+	s.DetailsList.SetFrame(rect)
 	dl.AddDraw(rect, content, 0)
 }
 
@@ -273,7 +274,11 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return ""
 	}
-	return s.viewContent(s.Parent.Height)
+	maxHeight := s.frame.Dy()
+	if maxHeight <= 0 {
+		maxHeight = s.Len() + 5
+	}
+	return s.viewContent(maxHeight)
 }
 
 // SupportsDisplayList returns true for RenderPositionAfter
@@ -297,7 +302,7 @@ func (s *Operation) RenderToDisplayList(dl *render.DisplayList, commit *jj.Commi
 
 	// Calculate available height
 	height := min(rect.Dy(), s.Len())
-	s.SetHeight(height)
+	s.SetFrame(cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height))
 
 	// Render the file list to DisplayList
 	// Pass screen offset so interactions use absolute screen coordinates
@@ -417,7 +422,7 @@ func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation 
 		Conflict: common.DefaultPalette.Get("revisions details conflict"),
 	}
 
-	l := NewDetailsList(s, common.NewViewNode(0, 0))
+	l := NewDetailsList(s)
 	op := &Operation{
 		DetailsList:       l,
 		context:           context,
@@ -427,7 +432,6 @@ func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation 
 		keymap:            config.Current.GetKeyMap(),
 		targetMarkerStyle: common.DefaultPalette.Get("revisions details target_marker"),
 	}
-	l.Parent = op.ViewNode
 	return op
 }
 
@@ -441,7 +445,15 @@ func (s *Operation) viewContent(maxHeight int) string {
 	if s.Len() == 0 {
 		return s.styles.Dimmed.Render("No changes")
 	}
-	s.SetHeight(min(maxHeight-5-ch, s.Len()))
+	width := s.frame.Dx()
+	if width <= 0 {
+		width = 80
+	}
+	height := min(maxHeight-5-ch, s.Len())
+	if height < 0 {
+		height = 0
+	}
+	s.SetFrame(cellbuf.Rect(s.frame.Min.X, s.frame.Min.Y, width, height))
 	filesView := strings.TrimRight(s.renderer.Render(s.cursor), "\n")
 	if confirmationView != "" {
 		return lipgloss.JoinVertical(lipgloss.Top, filesView, confirmationView)

@@ -55,7 +55,6 @@ var (
 )
 
 type Model struct {
-	*common.ViewNode
 	*common.MouseAware
 	rows                []parser.Row
 	tag                 atomic.Uint64
@@ -80,6 +79,7 @@ type Model struct {
 	matchedStyle        lipgloss.Style
 	ensureCursorView    bool
 	requestInFlight     bool
+	frame               cellbuf.Rectangle
 }
 
 type revisionsMsg struct {
@@ -157,7 +157,7 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 
 	// Calculate total lines based on all items
 	totalLines := m.calculateTotalLines()
-	maxStart := totalLines - m.Height
+	maxStart := totalLines - m.renderer.ViewRange.Height
 	if maxStart < 0 {
 		maxStart = 0
 	}
@@ -167,7 +167,7 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 	}
 	m.renderer.ViewRange.Start = newStart
 
-	if m.hasMore && (desiredStart > maxStart || newStart+m.Height >= totalLines-1) {
+	if m.hasMore && (desiredStart > maxStart || newStart+m.renderer.ViewRange.Height >= totalLines-1) {
 		return m.requestMoreRows(m.tag.Load())
 	}
 	return nil
@@ -624,7 +624,6 @@ func (m *Model) openDetails(_ intents.OpenDetails) tea.Cmd {
 		return nil
 	}
 	model := details.NewOperation(m.context, m.SelectedRevision())
-	model.Parent = m.ViewNode
 	m.op = model
 	return m.op.Init()
 }
@@ -866,7 +865,6 @@ func (m *Model) startEvolog(intent intents.StartEvolog) tea.Cmd {
 		return nil
 	}
 	model := evolog.NewOperation(m.context, commit)
-	model.Parent = m.ViewNode
 	m.op = model
 	return m.op.Init()
 }
@@ -880,7 +878,6 @@ func (m *Model) startInlineDescribe(intent intents.StartInlineDescribe) tea.Cmd 
 		return nil
 	}
 	model := describe.NewOperation(m.context, commit)
-	model.Parent = m.ViewNode
 	m.op = model
 	return m.op.Init()
 }
@@ -979,6 +976,9 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 
 func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	area := box.R
+	m.frame = area
+	m.renderer.ViewRange.Width = area.Dx()
+	m.renderer.ViewRange.Height = area.Dy()
 	if len(m.rows) == 0 {
 		content := ""
 		if m.isLoading {
@@ -1027,11 +1027,16 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 }
 
 func (m *Model) View() string {
+	width := m.frame.Dx()
+	height := m.frame.Dy()
+	if width <= 0 || height <= 0 {
+		return ""
+	}
 	if len(m.rows) == 0 {
 		if m.isLoading {
-			return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading")
+			return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, "loading")
 		}
-		return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "(no matching revisions)")
+		return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, "(no matching revisions)")
 	}
 
 	// Use DisplayListRenderer if available
@@ -1051,7 +1056,7 @@ func (m *Model) View() string {
 			op = opModel
 		}
 
-		viewRect := layout.Box{R: cellbuf.Rect(0, 0, m.Width, m.Height)}
+		viewRect := layout.Box{R: cellbuf.Rect(0, 0, width, height)}
 		m.displayListRenderer.Render(
 			dl,
 			m.rows,
@@ -1068,7 +1073,7 @@ func (m *Model) View() string {
 		m.ensureCursorView = false
 
 		// Convert to string
-		return dl.RenderToString(m.Width, m.Height)
+		return dl.RenderToString(width, height)
 	}
 
 	// Fallback to old renderer
@@ -1193,7 +1198,6 @@ func (m *Model) GetCommitIds() []string {
 func New(c *appContext.MainContext) *Model {
 	keymap := config.Current.GetKeyMap()
 	m := Model{
-		ViewNode:      common.NewViewNode(0, 0),
 		MouseAware:    common.NewMouseAware(),
 		context:       c,
 		keymap:        keymap,
@@ -1206,9 +1210,19 @@ func New(c *appContext.MainContext) *Model {
 		selectedStyle: common.DefaultPalette.Get("revisions selected"),
 		matchedStyle:  common.DefaultPalette.Get("revisions matched"),
 	}
-	m.renderer = newRevisionListRenderer(&m, m.ViewNode)
+	m.renderer = newRevisionListRenderer(&m)
 	m.displayListRenderer = NewDisplayListRenderer(m.textStyle, m.dimmedStyle, m.selectedStyle, m.matchedStyle)
 	return &m
+}
+
+func (m *Model) SetFrame(frame cellbuf.Rectangle) {
+	m.frame = frame
+	m.renderer.ViewRange.Width = frame.Dx()
+	m.renderer.ViewRange.Height = frame.Dy()
+}
+
+func (m *Model) Frame() cellbuf.Rectangle {
+	return m.frame
 }
 
 func (m *Model) jumpToParent(revisions jj.SelectedRevisions) {

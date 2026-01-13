@@ -16,7 +16,6 @@ import (
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
-	*common.ViewNode
 	confirmation *confirmation.Model
 }
 
@@ -42,8 +41,8 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	pw, ph := box.R.Dx(), box.R.Dy()
 	sx := box.R.Min.X + max((pw-w)/2, 0)
 	sy := box.R.Min.Y + max((ph-h)/2, 0)
-	m.SetFrame(cellbuf.Rect(sx, sy, w, h))
-	dl.AddDraw(m.Frame, v, 0)
+	frame := cellbuf.Rect(sx, sy, w, h)
+	dl.AddDraw(frame, v, 0)
 }
 
 func NewModel(context *context.MainContext) *Model {
@@ -57,7 +56,6 @@ func NewModel(context *context.MainContext) *Model {
 	)
 	model.Styles.Border = common.DefaultPalette.GetBorder("redo border", lipgloss.NormalBorder()).Padding(1)
 	return &Model{
-		ViewNode:     common.NewViewNode(0, 0),
 		confirmation: model,
 	}
 }

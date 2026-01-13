@@ -17,9 +17,9 @@ type ListRenderer struct {
 	absoluteLines    int // total lines including skipped content (for scrolling/clicks)
 }
 
-func NewRenderer(list IList, size *common.ViewNode) *ListRenderer {
+func NewRenderer(list IList, width int, height int) *ListRenderer {
 	return &ListRenderer{
-		ViewRange: &common.ViewRange{ViewNode: size, Start: 0, FirstRowIndex: -1, LastRowIndex: -1},
+		ViewRange: &common.ViewRange{Width: width, Height: height, Start: 0, FirstRowIndex: -1, LastRowIndex: -1},
 		list:      list,
 		buffer:    bytes.Buffer{},
 	}

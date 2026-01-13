@@ -30,12 +30,14 @@ type stashedDescription struct {
 }
 
 type Operation struct {
-	*common.ViewNode
 	context      *context.MainContext
 	keyMap       config.KeyMappings[key.Binding]
 	input        textarea.Model
 	revision     *jj.Commit
 	originalDesc string
+	width        int
+	height       int
+	frame        cellbuf.Rectangle
 }
 
 func (o *Operation) IsEditing() bool {
@@ -62,7 +64,7 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if pos != operations.RenderOverDescription {
 		return ""
 	}
-	return o.viewContent(o.Parent.Width)
+	return o.viewContent(o.width)
 }
 
 func (o *Operation) Name() string {
@@ -106,7 +108,7 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	newValue := o.input.Value()
 	h := lipgloss.Height(newValue)
 	if h >= o.input.Height() {
-		o.SetHeight(h + 1)
+		o.setHeight(h + 1)
 	}
 
 	return cmd
@@ -120,7 +122,9 @@ func (o *Operation) ViewRect(dl *render.DisplayList, box layout.Box) {
 	content := o.viewContent(box.R.Dx())
 	w, h := lipgloss.Size(content)
 	rect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, w, h)
-	o.SetFrame(rect)
+	o.frame = rect
+	o.width = w
+	o.height = h
 	dl.AddDraw(rect, content, 0)
 }
 
@@ -150,18 +154,32 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 	input.Focus()
 
 	return &Operation{
-		ViewNode:     common.NewViewNode(0, h+1),
 		context:      context,
 		keyMap:       config.Current.GetKeyMap(),
 		input:        input,
 		originalDesc: originalDesc,
 		revision:     revision,
+		height:       h + 1,
 	}
 }
 
 func (o *Operation) viewContent(width int) string {
-	o.SetWidth(width)
-	o.input.SetWidth(o.Width)
-	o.input.SetHeight(o.Height)
+	if width <= 0 {
+		width = 80
+	}
+	o.width = width
+	if o.height <= 0 {
+		o.height = lipgloss.Height(o.input.Value()) + 1
+		if o.height <= 0 {
+			o.height = 1
+		}
+	}
+	o.input.SetWidth(o.width)
+	o.input.SetHeight(o.height)
 	return o.input.View()
+}
+
+func (o *Operation) setHeight(height int) {
+	o.height = height
+	o.input.SetHeight(height)
 }

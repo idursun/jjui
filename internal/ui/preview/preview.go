@@ -27,7 +27,6 @@ const (
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
-	*common.ViewNode
 	*common.MouseAware
 	*common.DragAware
 	view                    viewport.Model
@@ -40,6 +39,8 @@ type Model struct {
 	contentWidth            int
 	context                 *context.MainContext
 	keyMap                  config.KeyMappings[key.Binding]
+	frame                   cellbuf.Rectangle
+	parentFrame             cellbuf.Rectangle
 }
 
 const (
@@ -67,7 +68,7 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) SetFrame(frame cellbuf.Rectangle) {
-	m.ViewNode.SetFrame(frame)
+	m.frame = frame
 	if m.AtBottom() {
 		m.view.Width = frame.Dx()
 		m.view.Height = frame.Dy() - 1
@@ -140,21 +141,21 @@ func (m *Model) DragStart(x, y int) bool {
 		return false
 	}
 
-	if m.Parent.Width == 0 || m.Parent.Height == 0 {
+	if m.parentFrame.Dx() == 0 || m.parentFrame.Dy() == 0 {
 		return false
 	}
 
 	if m.AtBottom() {
-		if y-m.Frame.Min.Y > handleSize {
+		if y-m.frame.Min.Y > handleSize {
 			return false
 		}
 	} else {
-		if x-m.Frame.Min.X > handleSize {
+		if x-m.frame.Min.X > handleSize {
 			return false
 		}
 	}
 
-	m.BeginDrag(m.Frame.Min.X, y)
+	m.BeginDrag(m.frame.Min.X, y)
 	return true
 }
 
@@ -165,9 +166,9 @@ func (m *Model) DragMove(x, y int) tea.Cmd {
 
 	var percentage float64
 	if m.AtBottom() {
-		percentage = float64((m.Parent.Height-y)*100) / float64(m.Parent.Height)
+		percentage = float64((m.parentFrame.Max.Y-y)*100) / float64(m.parentFrame.Dy())
 	} else {
-		percentage = float64((m.Parent.Width-x)*100) / float64(m.Parent.Width)
+		percentage = float64((m.parentFrame.Max.X-x)*100) / float64(m.parentFrame.Dx())
 	}
 
 	m.SetWindowPercentage(percentage)
@@ -225,6 +226,7 @@ func (m *Model) SetContent(content string) {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+	m.frame = box.R
 	border := lipgloss.NewStyle().Border(lipgloss.NormalBorder(), m.AtBottom(), false, false, !m.AtBottom())
 	content := border.Render(m.view.View())
 	dl.AddDraw(box.R, content, 0)
@@ -312,7 +314,6 @@ func New(context *context.MainContext) *Model {
 	}
 
 	return &Model{
-		ViewNode:                &common.ViewNode{Width: 0, Height: 0},
 		MouseAware:              common.NewMouseAware(),
 		DragAware:               common.NewDragAware(),
 		context:                 context,
@@ -322,4 +323,12 @@ func New(context *context.MainContext) *Model {
 		previewVisible:          config.Current.Preview.ShowAtStart,
 		previewWindowPercentage: config.Current.Preview.WidthPercentage,
 	}
+}
+
+func (m *Model) Frame() cellbuf.Rectangle {
+	return m.frame
+}
+
+func (m *Model) SetParentFrame(frame cellbuf.Rectangle) {
+	m.parentFrame = frame
 }

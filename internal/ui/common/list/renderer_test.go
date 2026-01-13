@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -94,7 +93,7 @@ func TestListRenderer_RowRanges(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			renderer := NewRenderer(&tc.list, common.NewViewNode(20, tc.height))
+			renderer := NewRenderer(&tc.list, 20, tc.height)
 			renderer.Start = tc.viewRangeStart
 
 			v := renderer.RenderWithOptions(tc.opts)
@@ -111,7 +110,7 @@ func TestListRenderer_AbsoluteLineCount_AllowsScrollAfterFocusedRender(t *testin
 	l := testList{
 		itemHeights: []int{2, 3, 1},
 	}
-	renderer := NewRenderer(&l, common.NewViewNode(20, 3))
+	renderer := NewRenderer(&l, 20, 3)
 
 	_ = renderer.RenderWithOptions(RenderOptions{FocusIndex: 1, EnsureFocusVisible: true})
 

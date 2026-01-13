@@ -1,10 +1,10 @@
 package menu
 
 import (
-	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
@@ -15,18 +15,25 @@ import (
 )
 
 type Menu struct {
-	*common.ViewNode
-	List          list.Model
-	Items         []list.Item
-	Filter        string
-	KeyMap        config.KeyMappings[key.Binding]
-	FilterMatches func(item list.Item, filter string) bool
-	Title         string
-	Subtitle      string
-	styles        styles
-	listRenderer  *render.ListRenderer
-	showShortcuts bool
-	itemDelegate  MenuItemDelegate
+	Items               []Item
+	filteredItems       []Item
+	Filter              string
+	KeyMap              config.KeyMappings[key.Binding]
+	FilterMatches       func(item Item, filter string) bool
+	TextFilterMatches   func(item Item, filter string) bool
+	Title               string
+	Subtitle            string
+	styles              styles
+	listRenderer        *render.ListRenderer
+	showShortcuts       bool
+	showShortcutsBase   bool
+	cursor              int
+	filterInput         textinput.Model
+	filterState         filterState
+	ensureCursorVisible bool
+	FilterKey           key.Binding
+	cancelFilterKey     key.Binding
+	acceptFilterKey     key.Binding
 }
 
 type styles struct {
@@ -40,10 +47,35 @@ type styles struct {
 	border   lipgloss.Style
 }
 
-type FilterMatchFunc func(list.Item, string) bool
+type FilterMatchFunc func(Item, string) bool
 
-func DefaultFilterMatch(item list.Item, filter string) bool {
+type filterState int
+
+const (
+	filterOff filterState = iota
+	filterEditing
+	filterApplied
+)
+
+type MenuClickMsg struct {
+	Index int
+}
+
+type MenuScrollMsg struct {
+	Delta int
+}
+
+func (m MenuScrollMsg) SetDelta(delta int) tea.Msg {
+	m.Delta = delta
+	return m
+}
+
+func DefaultFilterMatch(item Item, filter string) bool {
 	return true
+}
+
+func DefaultTextFilterMatch(item Item, filter string) bool {
+	return strings.Contains(strings.ToLower(item.FilterValue()), strings.ToLower(filter))
 }
 
 type Option func(menu *Menu)
@@ -70,68 +102,144 @@ func createStyles(prefix string) styles {
 	}
 }
 
-func NewMenu(items []list.Item, keyMap config.KeyMappings[key.Binding], options ...Option) Menu {
+func NewMenu(items []Item, keyMap config.KeyMappings[key.Binding], options ...Option) Menu {
 	m := Menu{
-		ViewNode:      common.NewViewNode(0, 0),
-		Items:         items,
-		KeyMap:        keyMap,
-		FilterMatches: DefaultFilterMatch,
-		styles:        createStyles(""),
-		listRenderer:  render.NewListRenderer(nil),
+		Items:             items,
+		KeyMap:            keyMap,
+		FilterMatches:     DefaultFilterMatch,
+		TextFilterMatches: DefaultTextFilterMatch,
+		styles:            createStyles(""),
+		listRenderer:      render.NewListRenderer(MenuScrollMsg{}),
+		FilterKey: key.NewBinding(
+			key.WithKeys("/"),
+			key.WithHelp("/", "filter"),
+		),
+		cancelFilterKey: key.NewBinding(
+			key.WithKeys("esc"),
+			key.WithHelp("esc", "cancel"),
+		),
+		acceptFilterKey: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "apply filter"),
+		),
 	}
 	for _, opt := range options {
 		opt(&m)
 	}
 
-	l := list.New(items, MenuItemDelegate{styles: m.styles}, 0, 0)
-	m.itemDelegate = MenuItemDelegate{styles: m.styles}
-	l.SetShowTitle(false)
-	l.SetShowStatusBar(false)
-	l.SetShowFilter(true)
-	l.SetShowPagination(false)
-	l.SetFilteringEnabled(true)
-	l.SetShowHelp(false)
-	l.DisableQuitKeybindings()
-	l.Styles.NoItems = m.styles.dimmed
-	l.Styles.PaginationStyle = m.styles.title.Width(10)
-	l.Styles.ActivePaginationDot = m.styles.title
-	l.Styles.InactivePaginationDot = m.styles.title
-	l.FilterInput.PromptStyle = m.styles.matched
-	l.FilterInput.Cursor.Style = m.styles.text
-
-	m.List = l
+	m.filteredItems = items
+	m.filterInput = textinput.New()
+	m.filterInput.Prompt = "Filter: "
+	m.filterInput.PromptStyle = m.styles.matched
+	m.filterInput.TextStyle = m.styles.text
+	m.filterInput.Cursor.Style = m.styles.text
 	return m
 }
 
 func (m *Menu) ShowShortcuts(show bool) {
-	m.showShortcuts = show
-	m.itemDelegate = MenuItemDelegate{ShowShortcuts: show, styles: m.styles}
-	m.List.SetDelegate(m.itemDelegate)
+	m.showShortcutsBase = show
+	m.showShortcuts = show || m.Filter != ""
 }
 
 func (m *Menu) Filtered(filter string) tea.Cmd {
 	m.Filter = filter
-	if m.Filter == "" {
-		m.showShortcuts = false
-		m.itemDelegate = MenuItemDelegate{ShowShortcuts: false, styles: m.styles}
-		m.List.SetDelegate(m.itemDelegate)
-		return m.List.SetItems(m.Items)
-	}
-
-	m.showShortcuts = true
-	m.itemDelegate = MenuItemDelegate{ShowShortcuts: true, styles: m.styles}
-	m.List.SetDelegate(m.itemDelegate)
-	var filtered []list.Item
-	for _, i := range m.Items {
-		if m.FilterMatches(i, m.Filter) {
-			filtered = append(filtered, i)
-		}
-	}
-	m.List.ResetSelected()
-	return m.List.SetItems(filtered)
+	m.showShortcuts = m.showShortcutsBase || m.Filter != ""
+	m.applyFilters(true)
+	return nil
 }
 
-func (m *Menu) renderFilterView() string {
+func (m *Menu) SetItems(items []Item) tea.Cmd {
+	m.Items = items
+	m.applyFilters(false)
+	return nil
+}
+
+func (m *Menu) SelectedItem() Item {
+	items := m.visibleItems()
+	if m.cursor < 0 || m.cursor >= len(items) {
+		return nil
+	}
+	return items[m.cursor]
+}
+
+func (m *Menu) VisibleItems() []Item {
+	return m.visibleItems()
+}
+
+func (m *Menu) SettingFilter() bool {
+	return m.filterState == filterEditing
+}
+
+func (m *Menu) IsFiltered() bool {
+	return m.filterState == filterApplied
+}
+
+func (m *Menu) ResetFilter() {
+	m.filterInput.SetValue("")
+	m.filterState = filterOff
+	m.filterInput.Blur()
+	m.applyFilters(true)
+}
+
+func (m *Menu) Update(msg tea.Msg) tea.Cmd {
+	switch msg := msg.(type) {
+	case MenuClickMsg:
+		items := m.visibleItems()
+		if msg.Index >= 0 && msg.Index < len(items) {
+			m.cursor = msg.Index
+			m.ensureCursorVisible = true
+		}
+	case MenuScrollMsg:
+		m.ensureCursorVisible = false
+		m.listRenderer.StartLine += msg.Delta
+		if m.listRenderer.StartLine < 0 {
+			m.listRenderer.StartLine = 0
+		}
+	case tea.KeyMsg:
+		if m.filterState == filterEditing {
+			if key.Matches(msg, m.cancelFilterKey) {
+				m.ResetFilter()
+				return nil
+			}
+			if key.Matches(msg, m.acceptFilterKey) {
+				if m.filterInput.Value() == "" {
+					m.ResetFilter()
+					return nil
+				}
+				m.filterState = filterApplied
+				m.filterInput.Blur()
+				return nil
+			}
+			updated, cmd := m.filterInput.Update(msg)
+			filterChanged := m.filterInput.Value() != updated.Value()
+			m.filterInput = updated
+			if filterChanged {
+				m.applyFilters(false)
+			}
+			return cmd
+		}
+		switch {
+		case key.Matches(msg, m.FilterKey):
+			m.filterState = filterEditing
+			m.filterInput.Focus()
+			m.filterInput.CursorEnd()
+			return nil
+		case key.Matches(msg, m.KeyMap.Up):
+			m.moveCursor(-1)
+		case key.Matches(msg, m.KeyMap.Down):
+			m.moveCursor(1)
+		case key.Matches(msg, m.KeyMap.ScrollUp):
+			m.ensureCursorVisible = false
+			m.listRenderer.StartLine -= m.itemHeight()
+		case key.Matches(msg, m.KeyMap.ScrollDown):
+			m.ensureCursorVisible = false
+			m.listRenderer.StartLine += m.itemHeight()
+		}
+	}
+	return nil
+}
+
+func (m *Menu) renderFilterView(width int) string {
 	filterStyle := m.styles.text.PaddingLeft(1)
 	filterValueStyle := m.styles.matched
 
@@ -139,14 +247,11 @@ func (m *Menu) renderFilterView() string {
 	if m.Filter != "" {
 		filterView = lipgloss.JoinHorizontal(0, filterStyle.Render("Showing only "), filterValueStyle.Render(m.Filter))
 	}
-	filterViewWidth := lipgloss.Width(filterView)
-	paginationView := m.styles.text.AlignHorizontal(1).PaddingRight(1).Width(m.Width - filterViewWidth).Render(fmt.Sprintf("%d/%d", m.List.Paginator.Page+1, m.List.Paginator.TotalPages))
-	content := lipgloss.JoinHorizontal(0, filterView, paginationView)
-	return m.styles.text.Width(m.Width).Render(content)
+	return m.styles.text.Width(width).Render(filterView)
 }
 
-func (m *Menu) renderHelpView(helpKeys []key.Binding) string {
-	if m.List.SettingFilter() {
+func (m *Menu) renderHelpView(width int, helpKeys []key.Binding) string {
+	if m.SettingFilter() {
 		return ""
 	}
 
@@ -157,13 +262,13 @@ func (m *Menu) renderHelpView(helpKeys []key.Binding) string {
 		}
 	}
 
-	if m.List.IsFiltered() {
+	if m.IsFiltered() {
 		bindings = append(bindings, m.renderKey(m.KeyMap.Cancel))
 	} else {
-		bindings = append(bindings, m.renderKey(m.List.KeyMap.Filter))
+		bindings = append(bindings, m.renderKey(m.FilterKey))
 	}
 
-	return m.styles.text.PaddingLeft(1).Width(m.Width).Render(lipgloss.JoinHorizontal(0, bindings...))
+	return m.styles.text.PaddingLeft(1).Width(width).Render(lipgloss.JoinHorizontal(0, bindings...))
 }
 
 func (m *Menu) renderKey(k key.Binding) string {
@@ -173,36 +278,12 @@ func (m *Menu) renderKey(k key.Binding) string {
 	return lipgloss.JoinHorizontal(0, m.styles.shortcut.Render(k.Help().Key, ""), m.styles.dimmed.Render(k.Help().Desc, ""))
 }
 
-func (m *Menu) renderTitle() []string {
-	titleView := []string{m.styles.text.Width(m.Width).Render(m.styles.title.Render(m.Title))}
+func (m *Menu) renderTitle(width int) []string {
+	titleView := []string{m.styles.text.Width(width).Render(m.styles.title.Render(m.Title))}
 	if m.Subtitle != "" {
-		titleView = append(titleView, m.styles.text.Width(m.Width).Render(m.styles.subtitle.Render(m.Subtitle)))
+		titleView = append(titleView, m.styles.text.Width(width).Render(m.styles.subtitle.Render(m.Subtitle)))
 	}
 	return titleView
-}
-
-func (m *Menu) View() string {
-	views := m.renderTitle()
-	// one empty line for padding between title and content
-	views = append(views, "")
-
-	// Calculate remaining height for the list
-	remainingHeight := m.Height
-	for i := range views {
-		remainingHeight -= lipgloss.Height(views[i])
-	}
-	// reserve space for filter view
-	remainingHeight -= 1
-
-	// set list dimensions before rendering filter view so pagination calculates correctly
-	m.List.SetWidth(m.Width - 2)
-	m.List.SetHeight(remainingHeight)
-
-	views = append(views, m.renderFilterView())
-	views = append(views, m.List.View())
-	content := lipgloss.JoinVertical(0, views...)
-	content = lipgloss.Place(m.Width, m.Height, 0, 0, content)
-	return m.styles.border.Render(content)
 }
 
 func (m *Menu) ViewRect(dl *render.DisplayList, box layout.Box) {
@@ -215,19 +296,21 @@ func (m *Menu) ViewRect(dl *render.DisplayList, box layout.Box) {
 		return
 	}
 
-	m.SetFrame(contentRect)
+	contentWidth := contentRect.Dx()
+	contentHeight := contentRect.Dy()
 
-	base := lipgloss.NewStyle().Width(m.Width).Height(m.Height).Render("")
+	base := lipgloss.NewStyle().Width(contentWidth).Height(contentHeight).Render("")
 	bordered := m.styles.border.Render(base)
 	dl.AddDraw(box.R, bordered, 0)
 
 	var headerLines []string
-	headerLines = append(headerLines, m.renderTitle()...)
+	headerLines = append(headerLines, m.renderTitle(contentWidth)...)
 	headerLines = append(headerLines, "")
-	headerLines = append(headerLines, m.renderFilterView())
+	headerLines = append(headerLines, m.renderFilterView(contentWidth))
 
-	if m.List.SettingFilter() {
-		filterInput := lipgloss.PlaceHorizontal(m.Width, 0, m.List.FilterInput.View())
+	if m.SettingFilter() {
+		m.filterInput.Width = max(contentWidth-2, 0)
+		filterInput := lipgloss.PlaceHorizontal(contentWidth, 0, m.filterInput.View())
 		headerLines = append(headerLines, filterInput)
 	}
 
@@ -236,50 +319,117 @@ func (m *Menu) ViewRect(dl *render.DisplayList, box layout.Box) {
 		h := lipgloss.Height(line)
 		if h == 0 {
 			h = 1
-			line = lipgloss.NewStyle().Width(m.Width).Render("")
+			line = lipgloss.NewStyle().Width(contentWidth).Render("")
 		}
-		rect := cellbuf.Rect(contentRect.Min.X, contentRect.Min.Y+headerHeight, m.Width, h)
+		rect := cellbuf.Rect(contentRect.Min.X, contentRect.Min.Y+headerHeight, contentWidth, h)
 		dl.AddDraw(rect, line, 1)
 		headerHeight += h
 	}
 
-	listHeight := m.Height - headerHeight
+	listHeight := contentHeight - headerHeight
 	if listHeight <= 0 {
 		return
 	}
 
-	listWidth := max(m.Width-2, 0)
-	m.List.SetWidth(listWidth)
-	m.List.SetHeight(listHeight)
-
-	items := m.List.VisibleItems()
+	listWidth := max(contentWidth-2, 0)
+	items := m.visibleItems()
 	itemCount := len(items)
 	if itemCount == 0 {
 		return
 	}
 
-	itemHeight := m.itemDelegate.Height() + m.itemDelegate.Spacing()
-	start, _ := m.List.Paginator.GetSliceBounds(itemCount)
-	m.listRenderer.StartLine = start * itemHeight
+	itemHeight := m.itemHeight()
+	m.clampScroll(listHeight, itemCount, itemHeight)
 
-	listRect := layout.Box{R: cellbuf.Rect(contentRect.Min.X, contentRect.Min.Y+headerHeight, m.Width, listHeight)}
+	listRect := layout.Box{R: cellbuf.Rect(contentRect.Min.X, contentRect.Min.Y+headerHeight, contentWidth, listHeight)}
 	m.listRenderer.Render(
 		dl,
 		listRect,
 		itemCount,
-		m.List.Index(),
-		false,
+		m.cursor,
+		m.ensureCursorVisible,
 		func(_ int) int { return itemHeight },
 		func(dl *render.DisplayList, index int, rect cellbuf.Rectangle) {
 			if index < 0 || index >= itemCount {
 				return
 			}
-			content := renderMenuItem(m.List, m.styles, m.showShortcuts, index, items[index])
+			content := renderMenuItem(listWidth, m.styles, m.showShortcuts, m.cursor, index, items[index])
 			if content == "" {
 				return
 			}
 			dl.AddDraw(rect, content, 1)
 		},
-		func(_ int) tea.Msg { return nil },
+		func(index int) tea.Msg { return MenuClickMsg{Index: index} },
 	)
+	m.ensureCursorVisible = false
+}
+
+func (m *Menu) visibleItems() []Item {
+	return m.filteredItems
+}
+
+func (m *Menu) itemHeight() int {
+	return 3
+}
+
+func (m *Menu) moveCursor(delta int) {
+	items := m.visibleItems()
+	if len(items) == 0 {
+		m.cursor = 0
+		return
+	}
+	next := m.cursor + delta
+	if next < 0 {
+		next = 0
+	} else if next >= len(items) {
+		next = len(items) - 1
+	}
+	if next != m.cursor {
+		m.cursor = next
+		m.ensureCursorVisible = true
+	}
+}
+
+func (m *Menu) applyFilters(resetCursor bool) {
+	items := m.Items
+	if m.Filter != "" {
+		filtered := make([]Item, 0, len(items))
+		for _, item := range items {
+			if m.FilterMatches(item, m.Filter) {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
+
+	filterText := strings.TrimSpace(m.filterInput.Value())
+	if filterText != "" {
+		filtered := make([]Item, 0, len(items))
+		for _, item := range items {
+			if m.TextFilterMatches(item, filterText) {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
+
+	m.filteredItems = items
+	if resetCursor || m.cursor >= len(m.filteredItems) {
+		m.cursor = 0
+	}
+	m.listRenderer.StartLine = 0
+}
+
+func (m *Menu) clampScroll(listHeight int, itemCount int, itemHeight int) {
+	if m.listRenderer.StartLine < 0 {
+		m.listRenderer.StartLine = 0
+	}
+	totalLines := itemCount * itemHeight
+	maxStart := totalLines - listHeight
+	if maxStart < 0 {
+		maxStart = 0
+	}
+	if m.listRenderer.StartLine > maxStart {
+		m.listRenderer.StartLine = maxStart
+	}
 }

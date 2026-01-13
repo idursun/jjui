@@ -32,7 +32,6 @@ func RevsetCmd(msg tea.Msg) tea.Cmd {
 }
 
 type Model struct {
-	*common.ViewNode
 	Editing         bool
 	autoComplete    *autocompletion.AutoCompletionInput
 	keymap          keymap
@@ -84,7 +83,6 @@ func New(context *appContext.MainContext) *Model {
 	autoComplete.Focus()
 
 	return &Model{
-		ViewNode:        &common.ViewNode{Width: 0, Height: 0},
 		context:         context,
 		Editing:         false,
 		keymap:          keymap{},

@@ -41,7 +41,6 @@ type SequenceResult struct {
 
 // SequenceOverlay renders a lightweight hint panel for in-flight key sequences.
 type SequenceOverlay struct {
-	*common.ViewNode
 	ctx           *context.MainContext
 	prefix        string
 	items         []SequenceEntry
@@ -57,7 +56,6 @@ const sequenceTimeout = 4 * time.Second
 
 func NewSequenceOverlay(ctx *context.MainContext) *SequenceOverlay {
 	return &SequenceOverlay{
-		ViewNode:      common.NewViewNode(0, 0),
 		ctx:           ctx,
 		shortcutStyle: common.DefaultPalette.Get("shortcut"),
 		matchedStyle:  common.DefaultPalette.Get("matched"),
@@ -151,40 +149,6 @@ func (s *SequenceOverlay) HandleTimeout(msg SequenceTimeoutMsg) SequenceResult {
 	return s.handleTimeout(msg)
 }
 
-func (s *SequenceOverlay) View() string {
-	var view strings.Builder
-	for i, it := range s.items {
-		view.WriteString(s.matchedStyle.Render(s.prefix))
-		if len(it.Remaining) == 0 {
-			continue
-		}
-		for _, r := range it.Remaining {
-			view.WriteString(" → ")
-			view.WriteString(s.shortcutStyle.Render(r))
-		}
-		view.WriteString(" ")
-		view.WriteString(it.Name)
-		if i < len(s.items)-1 {
-			view.WriteString("\n")
-		}
-	}
-	w := s.Parent.Frame.Dx()
-
-	content := view.String()
-	style := lipgloss.NewStyle().
-		PaddingLeft(1).
-		PaddingRight(1).
-		Border(lipgloss.RoundedBorder()).
-		Width(w - 2)
-	content = style.Render(content)
-
-	h := lipgloss.Height(content)
-	sy := s.Parent.Frame.Dy() - h - 1
-
-	s.SetFrame(cellbuf.Rect(0, sy, w, h))
-	return content
-}
-
 func (s *SequenceOverlay) ViewRect(dl *render.DisplayList, box layout.Box) {
 	var view strings.Builder
 	for i, it := range s.items {
@@ -218,7 +182,6 @@ func (s *SequenceOverlay) ViewRect(dl *render.DisplayList, box layout.Box) {
 	sy := area.Max.Y - h - 1
 
 	rect := cellbuf.Rect(area.Min.X, sy, w, h)
-	s.SetFrame(rect)
 	dl.AddDraw(rect, content, 200)
 }
 

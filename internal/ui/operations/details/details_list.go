@@ -8,7 +8,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -32,7 +31,6 @@ func (f FileListScrollMsg) SetDelta(delta int) tea.Msg {
 }
 
 type DetailsList struct {
-	*common.ViewNode
 	files          []*item
 	cursor         int
 	renderer       *list.ListRenderer
@@ -40,18 +38,18 @@ type DetailsList struct {
 	selectedHint   string
 	unselectedHint string
 	styles         styles
+	frame          cellbuf.Rectangle
 }
 
-func NewDetailsList(styles styles, size *common.ViewNode) *DetailsList {
+func NewDetailsList(styles styles) *DetailsList {
 	d := &DetailsList{
-		ViewNode:       size,
 		files:          []*item{},
 		cursor:         -1,
 		selectedHint:   "",
 		unselectedHint: "",
 		styles:         styles,
 	}
-	d.renderer = list.NewRenderer(d, size)
+	d.renderer = list.NewRenderer(d, 0, 0)
 	d.listRenderer = render.NewListRenderer(FileListScrollMsg{})
 	return d
 }
@@ -66,6 +64,16 @@ func (d *DetailsList) setItems(files []*item) {
 	}
 	d.renderer.Reset()
 	d.listRenderer.SetScrollOffset(0)
+}
+
+func (d *DetailsList) SetFrame(rect cellbuf.Rectangle) {
+	d.frame = rect
+	d.renderer.ViewRange.Width = rect.Dx()
+	d.renderer.ViewRange.Height = rect.Dy()
+}
+
+func (d *DetailsList) Frame() cellbuf.Rectangle {
+	return d.frame
 }
 
 func (d *DetailsList) cursorUp() {

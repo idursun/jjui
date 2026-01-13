@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
@@ -59,7 +58,6 @@ type styles struct {
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
-	*common.ViewNode
 	context           *context.MainContext
 	keymap            config.KeyMappings[key.Binding]
 	menu              menu.Menu
@@ -75,7 +73,7 @@ func (m *Model) ShortHelp() []key.Binding {
 		m.keymap.Apply,
 		m.keymap.Git.Push,
 		m.keymap.Git.Fetch,
-		m.menu.List.KeyMap.Filter,
+		m.menu.FilterKey,
 		key.NewBinding(
 			key.WithKeys("tab/shift+tab"),
 			key.WithHelp("tab/shift+tab", "cycle remotes")),
@@ -108,13 +106,13 @@ func (m *Model) cycleRemotes(step int) tea.Cmd {
 		// NOTE: return tea.Cmd to keep the internal filter
 		return m.menu.Filtered(m.menu.Filter)
 	}
-	return m.menu.List.SetItems(m.menu.Items)
+	return m.menu.SetItems(m.menu.Items)
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if m.menu.List.SettingFilter() {
+		if m.menu.SettingFilter() {
 			break
 		}
 		switch {
@@ -123,11 +121,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case msg.Type == tea.KeyShiftTab:
 			return m.cycleRemotes(-1)
 		case key.Matches(msg, m.keymap.Apply):
-			action := m.menu.List.SelectedItem().(item)
+			action := m.menu.SelectedItem().(item)
 			return m.context.RunCommand(jj.Args(action.command...), common.Refresh, common.Close)
 		case key.Matches(msg, m.keymap.Cancel):
-			if m.menu.Filter != "" || m.menu.List.IsFiltered() {
-				m.menu.List.ResetFilter()
+			if m.menu.Filter != "" || m.menu.IsFiltered() {
+				m.menu.ResetFilter()
 				return m.filtered("")
 			}
 			return common.Close
@@ -136,16 +134,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.keymap.Git.Fetch) && m.menu.Filter != string(itemCategoryFetch):
 			return m.filtered(string(itemCategoryFetch))
 		default:
-			for _, listItem := range m.menu.List.Items() {
+			for _, listItem := range m.menu.VisibleItems() {
 				if item, ok := listItem.(item); ok && m.menu.Filter != "" && item.key == msg.String() {
 					return m.context.RunCommand(jj.Args(item.command...), common.Refresh, common.Close)
 				}
 			}
 		}
 	}
-	var cmd tea.Cmd
-	m.menu.List, cmd = m.menu.List.Update(msg)
-	return cmd
+	return m.menu.Update(msg)
 }
 
 func (m *Model) filtered(filter string) tea.Cmd {
@@ -159,8 +155,8 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	menuHeight := max(contentRect.Dy()+2, 0)
 	sx := box.R.Min.X + max((pw-menuWidth)/2, 0)
 	sy := box.R.Min.Y + max((ph-menuHeight)/2, 0)
-	m.SetFrame(cellbuf.Rect(sx, sy, menuWidth, menuHeight))
-	m.menu.ViewRect(dl, layout.Box{R: m.Frame})
+	frame := cellbuf.Rect(sx, sy, menuWidth, menuHeight)
+	m.menu.ViewRect(dl, layout.Box{R: frame})
 }
 
 func (m *Model) displayRemotes() string {
@@ -205,7 +201,6 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions) *Model {
 	}
 
 	m := &Model{
-		ViewNode:          common.NewViewNode(0, 0),
 		context:           c,
 		keymap:            keymap,
 		revisions:         revisions,
@@ -216,10 +211,9 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions) *Model {
 
 	items := m.createMenuItems()
 	m.menu = menu.NewMenu(items, m.keymap, menu.WithStylePrefix("git"))
-	m.menu.Parent = m.ViewNode
 	m.menu.Title = "Git Operations"
 	m.menu.Subtitle = m.displayRemotes()
-	m.menu.FilterMatches = func(i list.Item, filter string) bool {
+	m.menu.FilterMatches = func(i menu.Item, filter string) bool {
 		if gitItem, ok := i.(item); ok {
 			return gitItem.category == itemCategory(filter)
 		}
@@ -229,9 +223,9 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions) *Model {
 	return m
 }
 
-func (m *Model) createMenuItems() []list.Item {
+func (m *Model) createMenuItems() []menu.Item {
 	revisions := m.revisions
-	var items []list.Item
+	var items []menu.Item
 	hasRemote := len(m.remoteNames) > 0
 	var selectedRemote string
 	if hasRemote {

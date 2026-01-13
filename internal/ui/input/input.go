@@ -21,12 +21,10 @@ type CancelledMsg struct{}
 
 var (
 	_ common.ImmediateModel = (*Model)(nil)
-	_ common.IViewNode      = (*Model)(nil)
 	_ help.KeyMap           = (*Model)(nil)
 )
 
 type Model struct {
-	*common.ViewNode
 	input  textinput.Model
 	title  string
 	prompt string
@@ -54,11 +52,10 @@ func NewWithTitle(title string, prompt string) *Model {
 	}
 
 	return &Model{
-		ViewNode: common.NewViewNode(0, 0),
-		input:    ti,
-		title:    title,
-		prompt:   prompt,
-		keymap:   keymap,
+		input:  ti,
+		title:  title,
+		prompt: prompt,
+		keymap: keymap,
 		styles: styles{
 			border: common.DefaultPalette.GetBorder("input border", lipgloss.RoundedBorder()),
 			text:   common.DefaultPalette.Get("input text"),
@@ -110,8 +107,8 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	pw, ph := box.R.Dx(), box.R.Dy()
 	sx := box.R.Min.X + max((pw-w)/2, 0)
 	sy := box.R.Min.Y + max((ph-h)/2, 0)
-	m.SetFrame(cellbuf.Rect(sx, sy, w, h))
-	dl.AddDraw(m.Frame, content, 0)
+	frame := cellbuf.Rect(sx, sy, w, h)
+	dl.AddDraw(frame, content, 0)
 }
 
 func (m *Model) ShortHelp() []key.Binding {

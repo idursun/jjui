@@ -41,7 +41,6 @@ import (
 
 type SizableModel interface {
 	common.ImmediateModel
-	common.IViewNode
 }
 
 type Model struct {
@@ -150,7 +149,6 @@ func (m *Model) ensureSequenceOverlay(msg tea.KeyMsg) bool {
 		return false
 	}
 	m.sequenceOverlay = customcommands.NewSequenceOverlay(m.context)
-	m.sequenceOverlay.Parent = m.ViewNode
 	return true
 }
 
@@ -240,31 +238,26 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return tea.Quit
 		case key.Matches(msg, m.keyMap.OpLog.Mode) && m.revisions.InNormalMode():
 			m.oplog = oplog.New(m.context)
-			m.oplog.Parent = m.ViewNode
 			return m.oplog.Init()
 		case key.Matches(msg, m.keyMap.Revset) && m.revisions.InNormalMode():
 			return m.revsetModel.Update(intents.Edit{Clear: m.state != common.Error})
 		case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
 			model := git.NewModel(m.context, m.revisions.SelectedRevisions())
-			model.Parent = m.ViewNode
 			m.stacked = model
 			return m.stacked.Init()
 		case key.Matches(msg, m.keyMap.Undo) && m.revisions.InNormalMode():
 			model := undo.NewModel(m.context)
-			model.Parent = m.ViewNode
 			m.stacked = model
 			cmds = append(cmds, m.stacked.Init())
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Redo) && m.revisions.InNormalMode():
 			model := redo.NewModel(m.context)
-			model.Parent = m.ViewNode
 			m.stacked = model
 			cmds = append(cmds, m.stacked.Init())
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Bookmark.Mode) && m.revisions.InNormalMode():
 			changeIds := m.revisions.GetCommitIds()
 			model := bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds)
-			model.Parent = m.ViewNode
 			m.stacked = model
 			cmds = append(cmds, m.stacked.Init())
 			return tea.Batch(cmds...)
@@ -294,7 +287,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.CustomCommands):
 			model := customcommands.NewModel(m.context)
-			model.Parent = m.ViewNode
 			m.stacked = model
 			cmds = append(cmds, m.stacked.Init())
 			return tea.Batch(cmds...)
@@ -334,7 +326,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case common.ToggleHelpMsg:
 		if m.stacked == nil {
 			h := helppage.New(m.context)
-			h.Parent = m.ViewNode
 			m.stacked = h
 		} else {
 			m.stacked = nil
@@ -379,14 +370,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return cmd
 	case common.ShowChooseMsg:
 		model := choose.NewWithTitle(msg.Options, msg.Title)
-		model.Parent = m.ViewNode
 		m.stacked = model
 		return m.stacked.Init()
 	case choose.SelectedMsg, choose.CancelledMsg:
 		m.stacked = nil
 	case common.ShowInputMsg:
 		model := input.NewWithTitle(msg.Title, msg.Prompt)
-		model.Parent = m.ViewNode
 		m.stacked = model
 		return m.stacked.Init()
 	case input.SelectedMsg, input.CancelledMsg:
@@ -406,13 +395,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			// overwrite current prompt. This can happen for ssh-sk keys:
 			//   - first prompt reads "Confirm user presence for ..."
 			//   - if the user denies the request on the device, a new prompt automatically happen "Enter PIN for ...
-			m.password = password.New(msg, m.ViewNode)
+			m.password = password.New(msg)
 		}
 
 	case tea.WindowSizeMsg:
 		m.SetFrame(cellbuf.Rect(0, 0, msg.Width, msg.Height))
-		m.flash.SetWidth(m.Width)
-		m.flash.SetHeight(m.Height)
 	}
 
 	// Unhandled key messages go to the main view (oplog or revisions)
@@ -499,6 +486,7 @@ func (m *Model) View() string {
 
 	screenBuf := cellbuf.NewBuffer(m.Width, m.Height)
 
+	m.previewModel.SetParentFrame(box.R)
 	m.status.ViewRect(m.displayList, bottomBox)
 	if m.diff != nil {
 		m.diff.ViewRect(m.displayList, topArea)
@@ -529,7 +517,6 @@ func (m *Model) View() string {
 	centerArea := centerBox.R
 
 	if m.oplog != nil {
-		m.oplog.SetFrame(centerArea)
 		m.oplog.ViewRect(m.displayList, centerBox)
 	} else {
 		m.revisions.SetFrame(centerArea)
@@ -545,15 +532,21 @@ func (m *Model) View() string {
 	}
 
 	if m.sequenceOverlay != nil {
-		m.sequenceOverlay.Parent = m.ViewNode
 		m.sequenceOverlay.ViewRect(m.displayList, box)
+	}
+
+	if fuzzy := m.status.FuzzyModel(); fuzzy != nil {
+		availableHeight := bottomBox.R.Min.Y - box.R.Min.Y
+		if availableHeight > 0 {
+			fuzzyBox := layout.Box{R: cellbuf.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), availableHeight)}
+			fuzzy.ViewRect(m.displayList, fuzzyBox)
+		}
 	}
 
 	m.flash.ViewRect(m.displayList, box)
 
 	if m.password != nil {
-		view := m.password.View()
-		cellbuf.SetContentRect(screenBuf, view, m.password.Frame)
+		m.password.ViewRect(m.displayList, box)
 	}
 
 	m.displayList.Render(screenBuf)
@@ -587,16 +580,16 @@ func (m *Model) isSafeToQuit() bool {
 func (m *Model) findViewAt(x, y int) common.IMouseAware {
 	// well, these are all the views that can receive mouse input for now
 	pt := cellbuf.Pos(x, y)
-	if m.diff != nil && pt.In(m.diff.Frame) {
+	if m.diff != nil && pt.In(m.diff.Frame()) {
 		return m.diff
 	}
-	if m.oplog != nil && pt.In(m.oplog.Frame) {
+	if m.oplog != nil && pt.In(m.oplog.Frame()) {
 		return m.oplog
 	}
-	if m.oplog == nil && pt.In(m.revisions.Frame) {
+	if m.oplog == nil && pt.In(m.revisions.Frame()) {
 		return m.revisions
 	}
-	if m.previewModel.Visible() && pt.In(m.previewModel.Frame) {
+	if m.previewModel.Visible() && pt.In(m.previewModel.Frame()) {
 		return m.previewModel
 	}
 	return nil
@@ -647,19 +640,14 @@ func NewUI(c *context.MainContext) *Model {
 	frame := common.NewViewNode(0, 0)
 
 	revisionsModel := revisions.New(c)
-	revisionsModel.Parent = frame
 
 	statusModel := status.New(c)
-	statusModel.Parent = frame
 
 	flashView := flash.New(c)
-	flashView.Parent = frame
 
 	previewModel := preview.New(c)
-	previewModel.Parent = frame
 
 	revsetModel := revset.New(c)
-	revsetModel.Parent = frame
 
 	return &Model{
 		ViewNode:     frame,

@@ -2,7 +2,6 @@ package revisions
 
 import (
 	"github.com/idursun/jjui/internal/parser"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/list"
 )
 
@@ -12,8 +11,8 @@ type revisionListRenderer struct {
 	selections map[string]bool
 }
 
-func newRevisionListRenderer(l list.IList, size *common.ViewNode) *revisionListRenderer {
+func newRevisionListRenderer(l list.IList) *revisionListRenderer {
 	return &revisionListRenderer{
-		ListRenderer: list.NewRenderer(l, size),
+		ListRenderer: list.NewRenderer(l, 0, 0),
 	}
 }

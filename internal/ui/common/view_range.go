@@ -1,7 +1,8 @@
 package common
 
 type ViewRange struct {
-	*ViewNode
+	Width         int
+	Height        int
 	Start         int
 	FirstRowIndex int
 	LastRowIndex  int

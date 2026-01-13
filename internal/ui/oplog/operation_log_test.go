@@ -15,7 +15,6 @@ import (
 
 func TestCancelKeyRefreshesPreview(t *testing.T) {
 	m := &Model{
-		ViewNode:   common.NewViewNode(0, 0),
 		MouseAware: common.NewMouseAware(),
 		context:    &context.MainContext{},
 		rows: []row{
@@ -75,7 +74,6 @@ func TestCancelKeyRefreshesPreview(t *testing.T) {
 
 func TestOpLogCloseIntent(t *testing.T) {
 	m := &Model{
-		ViewNode:   common.NewViewNode(0, 0),
 		MouseAware: common.NewMouseAware(),
 		context:    &context.MainContext{},
 		rows: []row{
@@ -123,9 +121,7 @@ func TestOpLogCloseIntent(t *testing.T) {
 }
 
 func TestOpLogNavigateIntent(t *testing.T) {
-	node := common.NewViewNode(0, 0)
 	m := &Model{
-		ViewNode:   node,
 		MouseAware: common.NewMouseAware(),
 		context:    &context.MainContext{},
 		rows: []row{
@@ -136,7 +132,7 @@ func TestOpLogNavigateIntent(t *testing.T) {
 		cursor: 0,
 		keymap: config.Current.GetKeyMap(),
 	}
-	m.renderer = list.NewRenderer(m, node)
+	m.renderer = list.NewRenderer(m, 0, 0)
 
 	cmd := m.Update(intents.OpLogNavigate{Delta: 1, IsPage: false})
 	if cmd != nil {

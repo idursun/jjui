@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -28,7 +29,6 @@ var (
 )
 
 type Model struct {
-	*common.ViewNode
 	*common.MouseAware
 	context          *context.MainContext
 	renderer         *list.ListRenderer
@@ -38,6 +38,7 @@ type Model struct {
 	textStyle        lipgloss.Style
 	selectedStyle    lipgloss.Style
 	ensureCursorView bool
+	frame            cellbuf.Rectangle
 }
 
 func (m *Model) Len() int {
@@ -104,11 +105,11 @@ func (m *Model) ClickAt(x, y int) tea.Cmd {
 		return nil
 	}
 
-	localY := y - m.Frame.Min.Y
+	localY := y - m.frame.Min.Y
 
 	currentStart := m.renderer.ViewRange.Start
-	if localY >= m.Height {
-		localY = m.Height - 1
+	if localY >= m.renderer.ViewRange.Height {
+		localY = m.renderer.ViewRange.Height - 1
 		if localY < 0 {
 			return nil
 		}
@@ -141,7 +142,7 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 	}
 
 	totalLines := m.renderer.AbsoluteLineCount()
-	maxStart := totalLines - m.Height
+	maxStart := totalLines - m.renderer.ViewRange.Height
 	if maxStart < 0 {
 		maxStart = 0
 	}
@@ -283,17 +284,19 @@ func (m *Model) revert(intent intents.OpLogRevert) tea.Cmd {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+	m.frame = box.R
+	m.renderer.ViewRange.Width = box.R.Dx()
+	m.renderer.ViewRange.Height = box.R.Dy()
 	if m.rows == nil {
-		content := lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, "loading")
+		content := lipgloss.Place(m.renderer.ViewRange.Width, m.renderer.ViewRange.Height, lipgloss.Center, lipgloss.Center, "loading")
 		dl.AddDraw(box.R, content, 0)
 		return
 	}
 
 	m.renderer.Reset()
-	m.renderer.SetWidth(m.Width)
-	m.renderer.SetHeight(m.Height)
 	content := m.renderer.RenderWithOptions(list.RenderOptions{FocusIndex: m.cursor, EnsureFocusVisible: m.ensureCursorView})
 	dl.AddDraw(box.R, m.textStyle.Render(content), 0)
+	m.ensureCursorView = false
 }
 
 func (m *Model) load() tea.Cmd {
@@ -310,9 +313,7 @@ func (m *Model) load() tea.Cmd {
 
 func New(context *context.MainContext) *Model {
 	keyMap := config.Current.GetKeyMap()
-	node := common.NewViewNode(0, 0)
 	m := &Model{
-		ViewNode:      node,
 		MouseAware:    common.NewMouseAware(),
 		context:       context,
 		keymap:        keyMap,
@@ -321,6 +322,10 @@ func New(context *context.MainContext) *Model {
 		textStyle:     common.DefaultPalette.Get("oplog text"),
 		selectedStyle: common.DefaultPalette.Get("oplog selected"),
 	}
-	m.renderer = list.NewRenderer(m, node)
+	m.renderer = list.NewRenderer(m, 0, 0)
 	return m
+}
+
+func (m *Model) Frame() cellbuf.Rectangle {
+	return m.frame
 }
