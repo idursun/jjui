@@ -131,9 +131,14 @@ func (r *DisplayListRenderer) calculateItemHeight(
 	// Add operation height if item is selected and operation exists
 	if isSelected && operation != nil {
 		// Count lines in before section
-		before := operation.Render(item.Commit, operations.RenderPositionBefore)
-		if before != "" {
-			height += strings.Count(before, "\n") + 1
+		// Use DesiredHeight if available for DisplayList operations
+		if dlOp, ok := operation.(operations.DisplayListRenderer); ok && dlOp.SupportsDisplayList(operations.RenderPositionBefore) {
+			height += dlOp.DesiredHeight(item.Commit, operations.RenderPositionBefore)
+		} else {
+			before := operation.Render(item.Commit, operations.RenderPositionBefore)
+			if before != "" {
+				height += strings.Count(before, "\n") + 1
+			}
 		}
 
 		// Count lines in overlay section (replaces description)
@@ -156,9 +161,14 @@ func (r *DisplayListRenderer) calculateItemHeight(
 		}
 
 		// Count lines in after section
-		after := operation.Render(item.Commit, operations.RenderPositionAfter)
-		if after != "" {
-			height += strings.Count(after, "\n") + 1
+		// Use DesiredHeight if available for DisplayList operations
+		if dlOp, ok := operation.(operations.DisplayListRenderer); ok && dlOp.SupportsDisplayList(operations.RenderPositionAfter) {
+			height += dlOp.DesiredHeight(item.Commit, operations.RenderPositionAfter)
+		} else {
+			after := operation.Render(item.Commit, operations.RenderPositionAfter)
+			if after != "" {
+				height += strings.Count(after, "\n") + 1
+			}
 		}
 	}
 

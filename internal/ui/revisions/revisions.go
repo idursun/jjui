@@ -979,6 +979,7 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	m.frame = area
 	m.renderer.ViewRange.Width = area.Dx()
 	m.renderer.ViewRange.Height = area.Dy()
+
 	if len(m.rows) == 0 {
 		content := ""
 		if m.isLoading {

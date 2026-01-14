@@ -49,4 +49,9 @@ type DisplayListRenderer interface {
 	// for the given position. Operations can support DisplayList for some
 	// positions but not others.
 	SupportsDisplayList(pos RenderPosition) bool
+
+	// DesiredHeight returns the desired height in lines for the given position.
+	// This is used during the measurement phase to allocate space before rendering.
+	// Returns 0 if no space is needed for this position.
+	DesiredHeight(commit *jj.Commit, pos RenderPosition) int
 }

@@ -45,7 +45,8 @@ type Operation struct {
 	revision          *jj.Commit
 	confirmation      *confirmation.Model
 	keyMap            config.KeyMappings[key.Binding]
-	styles            styles
+	styles styles
+	frame  cellbuf.Rectangle
 }
 
 func (s *Operation) IsOverlay() bool {
@@ -235,10 +236,12 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 }
 
 func (s *Operation) ViewRect(dl *render.DisplayList, box layout.Box) {
+	s.frame = box.R
+	s.DetailsList.SetFrame(box.R)
 	content := s.viewContent(box.R.Dy())
 	w, h := lipgloss.Size(content)
 	rect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, w, h)
-	s.SetFrame(rect)
+	s.frame = rect
 	s.DetailsList.SetFrame(rect)
 	dl.AddDraw(rect, content, 0)
 }
@@ -276,7 +279,7 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	}
 	maxHeight := s.frame.Dy()
 	if maxHeight <= 0 {
-		maxHeight = s.Len() + 5
+		maxHeight = s.Len() + 5 // fallback to content-based height
 	}
 	return s.viewContent(maxHeight)
 }
@@ -284,6 +287,18 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 // SupportsDisplayList returns true for RenderPositionAfter
 func (s *Operation) SupportsDisplayList(pos operations.RenderPosition) bool {
 	return pos == operations.RenderPositionAfter && s.confirmation == nil
+}
+
+// DesiredHeight returns the desired height for the operation
+func (s *Operation) DesiredHeight(commit *jj.Commit, pos operations.RenderPosition) int {
+	isSelected := s.Current != nil && s.Current.GetChangeId() == commit.GetChangeId()
+	if !isSelected || pos != operations.RenderPositionAfter {
+		return 0
+	}
+	if s.Len() == 0 {
+		return 1 // "No changes" message
+	}
+	return s.Len()
 }
 
 // RenderToDisplayList renders the file list directly to the DisplayList
@@ -302,7 +317,8 @@ func (s *Operation) RenderToDisplayList(dl *render.DisplayList, commit *jj.Commi
 
 	// Calculate available height
 	height := min(rect.Dy(), s.Len())
-	s.SetFrame(cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height))
+	s.frame = cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)
+	s.DetailsList.SetFrame(s.frame)
 
 	// Render the file list to DisplayList
 	// Pass screen offset so interactions use absolute screen coordinates
@@ -447,13 +463,14 @@ func (s *Operation) viewContent(maxHeight int) string {
 	}
 	width := s.frame.Dx()
 	if width <= 0 {
-		width = 80
+		width = 80 // sensible default
 	}
 	height := min(maxHeight-5-ch, s.Len())
 	if height < 0 {
 		height = 0
 	}
-	s.SetFrame(cellbuf.Rect(s.frame.Min.X, s.frame.Min.Y, width, height))
+	s.renderer.ViewRange.Width = width
+	s.renderer.ViewRange.Height = height
 	filesView := strings.TrimRight(s.renderer.Render(s.cursor), "\n")
 	if confirmationView != "" {
 		return lipgloss.JoinVertical(lipgloss.Top, filesView, confirmationView)
