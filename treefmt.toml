@@ -21,9 +21,3 @@ command = "taplo"
 excludes = ["internal/config/default/config.toml"]
 includes = ["*.toml"]
 options = ["format"]
-
-[formatter.prettier]
-command = "prettier"
-excludes = []
-includes = ["*.md", "*.mdx"]
-options = ["--write"]

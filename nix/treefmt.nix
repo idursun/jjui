@@ -1,6 +1,6 @@
 {
   perSystem =
-    { pkgs, lib, ... }:
+    { lib, ... }:
     let
       tomlPath = ../treefmt.toml;
       tomlConfig =
@@ -15,7 +15,6 @@
         programs.gofmt.enable = true;
         programs.yamlfmt.enable = true;
         programs.taplo.enable = true;
-        programs.prettier.enable = true;
 
         settings.formatter = filterCommands (tomlConfig.formatter or { });
       };
