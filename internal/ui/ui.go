@@ -179,10 +179,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case tea.FocusMsg:
 		return tea.Batch(common.RefreshAndKeepSelections, tea.EnableMouseCellMotion)
 	case tea.MouseMsg:
-		if m.stacked != nil {
-			// for now, stacked windows don't respond to mouse events
-			return nil
-		}
 		if m.dragTarget != nil && m.dragTarget.IsDragging() {
 			switch msg.Action {
 			case tea.MouseActionRelease:
