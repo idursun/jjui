@@ -12,10 +12,14 @@ import (
 // Operations are accumulated during the layout/render pass,
 // then executed in order by batch and Z-index.
 type DisplayList struct {
-	draws        []drawOp
-	effects      []effectOp
-	interactions []interactionOp
-	orderCounter int
+	draws         []drawOp
+	effects       []effectOp
+	interactions  []interactionOp
+	orderCounter  int
+	windows       []windowOp
+	windowCounter int
+	parent        *DisplayList
+	windowID      int
 }
 
 // NewDisplayList creates a new empty display list.
@@ -24,17 +28,48 @@ func NewDisplayList() *DisplayList {
 		draws:        make([]drawOp, 0, 16),
 		effects:      make([]effectOp, 0, 8),
 		interactions: make([]interactionOp, 0, 8),
+		windows:      make([]windowOp, 0, 4),
 	}
 }
 
+// Window creates a scoped display list that routes interactions to a window.
+func (dl *DisplayList) Window(rect cellbuf.Rectangle, z int) *DisplayList {
+	root := dl.root()
+	root.windowCounter++
+	id := root.windowCounter
+	root.windows = append(root.windows, windowOp{
+		ID:    id,
+		Rect:  rect,
+		Z:     z,
+		Order: root.nextOrder(),
+	})
+	return &DisplayList{parent: root, windowID: id}
+}
+
+func (dl *DisplayList) root() *DisplayList {
+	if dl.parent == nil {
+		return dl
+	}
+	return dl.parent
+}
+
 func (dl *DisplayList) nextOrder() int {
-	dl.orderCounter++
-	return dl.orderCounter
+	root := dl.root()
+	root.orderCounter++
+	return root.orderCounter
+}
+
+func (dl *DisplayList) currentWindowID() int {
+	if dl.parent == nil {
+		return 0
+	}
+	return dl.windowID
 }
 
 // AddDraw adds a Draw to the display list.
 func (dl *DisplayList) AddDraw(rect cellbuf.Rectangle, content string, z int) {
-	dl.draws = append(dl.draws, drawOp{
+	root := dl.root()
+	root.draws = append(root.draws, drawOp{
 		Draw: Draw{
 			Rect:    rect,
 			Content: content,
@@ -47,7 +82,8 @@ func (dl *DisplayList) AddDraw(rect cellbuf.Rectangle, content string, z int) {
 // AddEffect adds a custom Effect to the display list.
 // This is the generic method that accepts any Effect implementation.
 func (dl *DisplayList) AddEffect(effect Effect) {
-	dl.effects = append(dl.effects, effectOp{
+	root := dl.root()
+	root.effects = append(root.effects, effectOp{
 		effect: effect,
 		order:  dl.nextOrder(),
 		z:      effect.GetZ(),
@@ -86,24 +122,29 @@ func (dl *DisplayList) AddHighlight(rect cellbuf.Rectangle, style lipgloss.Style
 
 // AddInteraction adds an InteractionOp to the display list.
 func (dl *DisplayList) AddInteraction(rect cellbuf.Rectangle, msg tea.Msg, typ InteractionType, z int) {
-	dl.interactions = append(dl.interactions, interactionOp{
+	root := dl.root()
+	root.interactions = append(root.interactions, interactionOp{
 		InteractionOp: InteractionOp{
 			Rect: rect,
 			Msg:  msg,
 			Type: typ,
 			Z:    z,
 		},
-		order: dl.nextOrder(),
+		windowID: dl.currentWindowID(),
+		order:    dl.nextOrder(),
 	})
 }
 
 // Clear removes all operations from the display list.
 // Useful for reusing a DisplayList across frames.
 func (dl *DisplayList) Clear() {
-	dl.draws = dl.draws[:0]
-	dl.effects = dl.effects[:0]
-	dl.interactions = dl.interactions[:0]
-	dl.orderCounter = 0
+	root := dl.root()
+	root.draws = root.draws[:0]
+	root.effects = root.effects[:0]
+	root.interactions = root.interactions[:0]
+	root.windows = root.windows[:0]
+	root.orderCounter = 0
+	root.windowCounter = 0
 }
 
 // Render executes all operations in the display list to the given cellbuf.
@@ -111,12 +152,18 @@ func (dl *DisplayList) Clear() {
 // 1. Draw sorted by Z-index (low to high)
 // 2. Effects sorted by Z-index (low to high)
 func (dl *DisplayList) Render(buf *cellbuf.Buffer) {
-	if len(dl.draws) == 0 && len(dl.effects) == 0 {
+	root := dl.root()
+	if root != dl {
+		root.Render(buf)
 		return
 	}
 
-	ops := make([]renderOp, 0, len(dl.draws)+len(dl.effects))
-	for _, op := range dl.draws {
+	if len(root.draws) == 0 && len(root.effects) == 0 {
+		return
+	}
+
+	ops := make([]renderOp, 0, len(root.draws)+len(root.effects))
+	for _, op := range root.draws {
 		ops = append(ops, renderOp{
 			z:      op.Z,
 			order:  op.order,
@@ -124,7 +171,7 @@ func (dl *DisplayList) Render(buf *cellbuf.Buffer) {
 			isDraw: true,
 		})
 	}
-	for _, op := range dl.effects {
+	for _, op := range root.effects {
 		ops = append(ops, renderOp{
 			z:      op.z,
 			order:  op.order,
@@ -158,8 +205,9 @@ func (dl *DisplayList) RenderToString(width, height int) string {
 
 // DrawList returns a copy of all Draw calls (useful for debugging/inspection)
 func (dl *DisplayList) DrawList() []Draw {
-	result := make([]Draw, len(dl.draws))
-	for i, op := range dl.draws {
+	root := dl.root()
+	result := make([]Draw, len(root.draws))
+	for i, op := range root.draws {
 		result[i] = op.Draw
 	}
 	return result
@@ -167,8 +215,9 @@ func (dl *DisplayList) DrawList() []Draw {
 
 // EffectsList returns a copy of all Effects (useful for debugging/inspection)
 func (dl *DisplayList) EffectsList() []Effect {
-	result := make([]Effect, len(dl.effects))
-	for i, op := range dl.effects {
+	root := dl.root()
+	result := make([]Effect, len(root.effects))
+	for i, op := range root.effects {
 		result[i] = op.effect
 	}
 	return result
@@ -176,13 +225,14 @@ func (dl *DisplayList) EffectsList() []Effect {
 
 // InteractionsList returns all interactions sorted by Z-index (highest first for priority).
 func (dl *DisplayList) InteractionsList() []InteractionOp {
-	sorted := make([]interactionOp, len(dl.interactions))
-	copy(sorted, dl.interactions)
+	root := dl.root()
+	sorted := make([]interactionOp, len(root.interactions))
+	copy(sorted, root.interactions)
 	sort.SliceStable(sorted, func(i, j int) bool {
 		if sorted[i].Z != sorted[j].Z {
 			return sorted[i].Z > sorted[j].Z
 		}
-		return sorted[i].order > sorted[j].order
+		return sorted[i].order < sorted[j].order
 	})
 	result := make([]InteractionOp, len(sorted))
 	for i, op := range sorted {
@@ -193,32 +243,56 @@ func (dl *DisplayList) InteractionsList() []InteractionOp {
 
 // Merge adds all operations from another DisplayList into this one.
 func (dl *DisplayList) Merge(other *DisplayList) {
-	for _, op := range other.draws {
-		dl.draws = append(dl.draws, drawOp{
-			Draw:  op.Draw,
-			order: dl.nextOrder(),
+	root := dl.root()
+	source := other.root()
+
+	windowMap := make(map[int]int, len(source.windows))
+	for _, win := range source.windows {
+		root.windowCounter++
+		newID := root.windowCounter
+		windowMap[win.ID] = newID
+		root.windows = append(root.windows, windowOp{
+			ID:    newID,
+			Rect:  win.Rect,
+			Z:     win.Z,
+			Order: root.nextOrder(),
 		})
 	}
 
-	for _, op := range other.effects {
-		dl.effects = append(dl.effects, effectOp{
+	for _, op := range source.draws {
+		root.draws = append(root.draws, drawOp{
+			Draw:  op.Draw,
+			order: root.nextOrder(),
+		})
+	}
+
+	for _, op := range source.effects {
+		root.effects = append(root.effects, effectOp{
 			effect: op.effect,
-			order:  dl.nextOrder(),
+			order:  root.nextOrder(),
 			z:      op.z,
 		})
 	}
 
-	for _, op := range other.interactions {
-		dl.interactions = append(dl.interactions, interactionOp{
+	for _, op := range source.interactions {
+		windowID := op.windowID
+		if windowID != 0 {
+			if remapped, ok := windowMap[windowID]; ok {
+				windowID = remapped
+			}
+		}
+		root.interactions = append(root.interactions, interactionOp{
 			InteractionOp: op.InteractionOp,
-			order:         dl.nextOrder(),
+			windowID:      windowID,
+			order:         root.nextOrder(),
 		})
 	}
 }
 
 // Len returns the total number of operations in the display list
 func (dl *DisplayList) Len() int {
-	return len(dl.draws) + len(dl.effects) + len(dl.interactions)
+	root := dl.root()
+	return len(root.draws) + len(root.effects) + len(root.interactions)
 }
 
 type drawOp struct {
@@ -234,7 +308,8 @@ type effectOp struct {
 
 type interactionOp struct {
 	InteractionOp
-	order int
+	windowID int
+	order    int
 }
 
 type renderOp struct {
@@ -243,4 +318,17 @@ type renderOp struct {
 	draw   Draw
 	effect Effect
 	isDraw bool
+}
+
+type windowOp struct {
+	ID    int
+	Rect  cellbuf.Rectangle
+	Z     int
+	Order int
+}
+
+// ProcessMouseEvent routes a mouse event through the window stack.
+func (dl *DisplayList) ProcessMouseEvent(msg tea.MouseMsg) (tea.Msg, bool) {
+	root := dl.root()
+	return ProcessMouseEventWithWindows(root.interactions, root.windows, msg)
 }

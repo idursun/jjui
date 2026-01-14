@@ -291,6 +291,8 @@ func (m *Menu) ViewRect(dl *render.DisplayList, box layout.Box) {
 		return
 	}
 
+	dl = dl.Window(box.R, 10)
+
 	contentRect := box.R.Inset(1)
 	if contentRect.Dx() <= 0 || contentRect.Dy() <= 0 {
 		return

@@ -1,6 +1,8 @@
 package render
 
 import (
+	"sort"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/cellbuf"
 )
@@ -73,4 +75,88 @@ func ProcessMouseEvent(interactions []InteractionOp, msg tea.MouseMsg) tea.Msg {
 	}
 
 	return nil
+}
+
+// ProcessMouseEventWithWindows routes a mouse event through window scopes.
+func ProcessMouseEventWithWindows(interactions []interactionOp, windows []windowOp, msg tea.MouseMsg) (tea.Msg, bool) {
+	windowID, windowHit := topWindowAt(windows, msg.X, msg.Y)
+	if msg.Action != tea.MouseActionPress {
+		return nil, windowHit
+	}
+
+	sorted := make([]interactionOp, len(interactions))
+	copy(sorted, interactions)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		if sorted[i].Z != sorted[j].Z {
+			return sorted[i].Z > sorted[j].Z
+		}
+		return sorted[i].order < sorted[j].order
+	})
+
+	if msg.Button == tea.MouseButtonLeft {
+		for _, interaction := range sorted {
+			if !windowMatch(interaction.windowID, windowID, windowHit) {
+				continue
+			}
+			if interaction.Type&InteractionClick == 0 {
+				continue
+			}
+			if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
+				msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
+				return interaction.Msg, true
+			}
+		}
+	}
+
+	if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown {
+		delta := -3
+		if msg.Button == tea.MouseButtonWheelDown {
+			delta = 3
+		}
+		for _, interaction := range sorted {
+			if !windowMatch(interaction.windowID, windowID, windowHit) {
+				continue
+			}
+			if interaction.Type&InteractionScroll == 0 {
+				continue
+			}
+			if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
+				msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
+				if carrier, ok := interaction.Msg.(ScrollDeltaCarrier); ok {
+					return carrier.SetDelta(delta), true
+				}
+				return interaction.Msg, true
+			}
+		}
+	}
+
+	return nil, windowHit
+}
+
+func topWindowAt(windows []windowOp, x, y int) (int, bool) {
+	if len(windows) == 0 {
+		return 0, false
+	}
+	sorted := make([]windowOp, len(windows))
+	copy(sorted, windows)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		if sorted[i].Z != sorted[j].Z {
+			return sorted[i].Z > sorted[j].Z
+		}
+		return sorted[i].Order > sorted[j].Order
+	})
+	for _, win := range sorted {
+		if x >= win.Rect.Min.X && x < win.Rect.Max.X &&
+			y >= win.Rect.Min.Y && y < win.Rect.Max.Y {
+			return win.ID, true
+		}
+	}
+	return 0, false
+}
+
+func windowMatch(interactionWindowID, windowID int, windowHit bool) bool {
+	if windowHit {
+		return interactionWindowID == windowID
+	}
+	return interactionWindowID == 0
 }

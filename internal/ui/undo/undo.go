@@ -42,7 +42,8 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	sx := box.R.Min.X + max((pw-w)/2, 0)
 	sy := box.R.Min.Y + max((ph-h)/2, 0)
 	frame := cellbuf.Rect(sx, sy, w, h)
-	dl.AddDraw(frame, v, 0)
+	window := dl.Window(frame, 10)
+	window.AddDraw(frame, v, 0)
 }
 
 func NewModel(context *context.MainContext) *Model {

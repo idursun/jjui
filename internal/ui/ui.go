@@ -199,9 +199,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 		// Process interactions from DisplayList first
 		if m.displayList != nil {
-			if interactionMsg := render.ProcessMouseEvent(m.displayList.InteractionsList(), msg); interactionMsg != nil {
-				// Send the interaction message back through Update
-				return func() tea.Msg { return interactionMsg }
+			if interactionMsg, handled := m.displayList.ProcessMouseEvent(msg); handled {
+				if interactionMsg != nil {
+					// Send the interaction message back through Update
+					return func() tea.Msg { return interactionMsg }
+				}
+				return nil
 			}
 		}
 
