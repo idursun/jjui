@@ -1,19 +1,14 @@
 package details
 
 import (
-	"fmt"
-	"io"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
-
-var _ list.IList = (*DetailsList)(nil)
 
 // FileClickedMsg is sent when a file item is clicked
 type FileClickedMsg struct {
@@ -33,7 +28,6 @@ func (f FileListScrollMsg) SetDelta(delta int) tea.Msg {
 type DetailsList struct {
 	files          []*item
 	cursor         int
-	renderer       *list.ListRenderer
 	listRenderer   *render.ListRenderer
 	selectedHint   string
 	unselectedHint string
@@ -49,7 +43,6 @@ func NewDetailsList(styles styles) *DetailsList {
 		unselectedHint: "",
 		styles:         styles,
 	}
-	d.renderer = list.NewRenderer(d, 0, 0)
 	d.listRenderer = render.NewListRenderer(FileListScrollMsg{})
 	return d
 }
@@ -62,18 +55,7 @@ func (d *DetailsList) setItems(files []*item) {
 	if d.cursor < 0 {
 		d.cursor = 0
 	}
-	d.renderer.Reset()
 	d.listRenderer.SetScrollOffset(0)
-}
-
-func (d *DetailsList) SetFrame(rect cellbuf.Rectangle) {
-	d.frame = rect
-	d.renderer.ViewRange.Width = rect.Dx()
-	d.renderer.ViewRange.Height = rect.Dy()
-}
-
-func (d *DetailsList) Frame() cellbuf.Rectangle {
-	return d.frame
 }
 
 func (d *DetailsList) cursorUp() {
@@ -219,87 +201,10 @@ func (d *DetailsList) Scroll(delta int) {
 	d.listRenderer.SetScrollOffset(d.listRenderer.GetScrollOffset() + delta)
 }
 
-// GetItemRenderer returns the item renderer for the old list.ListRenderer (kept for compatibility)
-func (d *DetailsList) GetItemRenderer(index int) list.IItemRenderer {
-	item := d.files[index]
-	var style lipgloss.Style
-	switch item.status {
-	case Added:
-		style = d.styles.Added
-	case Deleted:
-		style = d.styles.Deleted
-	case Modified:
-		style = d.styles.Modified
-	case Renamed:
-		style = d.styles.Renamed
-	case Copied:
-		style = d.styles.Copied
-	}
-
-	if index == d.cursor {
-		style = style.Bold(true).Background(d.styles.Selected.GetBackground())
-	} else {
-		style = style.Background(d.styles.Text.GetBackground())
-	}
-
-	hint := ""
-	if d.showHint() {
-		hint = d.unselectedHint
-		if item.selected || (index == d.cursor) {
-			hint = d.selectedHint
-		}
-	}
-	r := itemRenderer{
-		item:   item,
-		styles: d.styles,
-		style:  style,
-		hint:   hint,
-	}
-	return r
-}
-
 func (d *DetailsList) Len() int {
 	return len(d.files)
 }
 
 func (d *DetailsList) showHint() bool {
 	return d.selectedHint != "" || d.unselectedHint != ""
-}
-
-var _ list.IItemRenderer = (*itemRenderer)(nil)
-
-type itemRenderer struct {
-	item           *item
-	styles         styles
-	style          lipgloss.Style
-	selectedHint   string
-	unselectedHint string
-	isChecked      bool
-	hint           string
-}
-
-func (i itemRenderer) showHint() bool {
-	return i.selectedHint != "" || i.unselectedHint != ""
-}
-
-func (i itemRenderer) Render(w io.Writer, _ int) {
-	title := i.item.Title()
-	if i.item.selected {
-		title = "✓" + title
-	} else {
-		title = " " + title
-	}
-
-	_, _ = fmt.Fprint(w, i.style.PaddingRight(1).Render(title))
-	if i.item.conflict {
-		_, _ = fmt.Fprint(w, i.styles.Conflict.Render("conflict "))
-	}
-	if i.hint != "" {
-		_, _ = fmt.Fprint(w, i.styles.Dimmed.Render(i.hint))
-	}
-	_, _ = fmt.Fprintln(w)
-}
-
-func (i itemRenderer) Height() int {
-	return 1
 }

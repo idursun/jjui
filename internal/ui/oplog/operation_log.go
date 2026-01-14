@@ -21,6 +21,21 @@ type updateOpLogMsg struct {
 	Rows []row
 }
 
+// OpLogClickedMsg is sent when an operation log item is clicked.
+type OpLogClickedMsg struct {
+	Index int
+}
+
+// OpLogScrollMsg is sent when the operation log is scrolled via mouse wheel.
+type OpLogScrollMsg struct {
+	Delta int
+}
+
+// SetDelta implements render.ScrollDeltaCarrier.
+func (o OpLogScrollMsg) SetDelta(delta int) tea.Msg {
+	return OpLogScrollMsg{Delta: delta}
+}
+
 var (
 	_ list.IList            = (*Model)(nil)
 	_ list.IScrollableList  = (*Model)(nil)
@@ -31,7 +46,7 @@ var (
 type Model struct {
 	*common.MouseAware
 	context          *context.MainContext
-	renderer         *list.ListRenderer
+	listRenderer     *render.ListRenderer
 	rows             []row
 	cursor           int
 	keymap           config.KeyMappings[key.Binding]
@@ -60,7 +75,7 @@ func (m *Model) SetCursor(index int) {
 }
 
 func (m *Model) VisibleRange() (int, int) {
-	return m.renderer.FirstRowIndex, m.renderer.LastRowIndex
+	return m.listRenderer.GetFirstRowIndex(), m.listRenderer.GetLastRowIndex()
 }
 
 func (m *Model) ListName() string {
@@ -100,49 +115,17 @@ func (m *Model) Init() tea.Cmd {
 	return m.load()
 }
 
-func (m *Model) ClickAt(x, y int) tea.Cmd {
-	if len(m.rows) == 0 {
-		return nil
-	}
-
-	localY := y - m.frame.Min.Y
-
-	currentStart := m.renderer.ViewRange.Start
-	if localY >= m.renderer.ViewRange.Height {
-		localY = m.renderer.ViewRange.Height - 1
-		if localY < 0 {
-			return nil
-		}
-	}
-	line := currentStart + localY
-	row := m.rowAtLine(line)
-	if row == -1 {
-		return nil
-	}
-
-	m.cursor = row
-	m.ensureCursorView = true
-	return m.updateSelection()
-}
-
-func (m *Model) rowAtLine(line int) int {
-	for _, rr := range m.renderer.RowRanges() {
-		if line >= rr.StartLine && line < rr.EndLine {
-			return rr.Row
-		}
-	}
-	return -1
-}
-
 func (m *Model) Scroll(delta int) tea.Cmd {
 	m.ensureCursorView = false
-	desiredStart := m.renderer.ViewRange.Start + delta
+	currentStart := m.listRenderer.GetScrollOffset()
+	desiredStart := currentStart + delta
 	if desiredStart < 0 {
 		desiredStart = 0
 	}
 
-	totalLines := m.renderer.AbsoluteLineCount()
-	maxStart := totalLines - m.renderer.ViewRange.Height
+	totalLines := m.totalLineCount()
+	viewHeight := m.frame.Dy()
+	maxStart := totalLines - viewHeight
 	if maxStart < 0 {
 		maxStart = 0
 	}
@@ -150,7 +133,7 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 	if newStart > maxStart {
 		newStart = maxStart
 	}
-	m.renderer.ViewRange.Start = newStart
+	m.listRenderer.SetScrollOffset(newStart)
 	return nil
 }
 
@@ -160,21 +143,17 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return m.handleIntent(msg)
 	case updateOpLogMsg:
 		m.rows = msg.Rows
-		m.renderer.Reset()
 		return m.updateSelection()
-	case tea.MouseMsg:
-		switch msg.Action {
-		case tea.MouseActionPress:
-			switch msg.Button {
-			case tea.MouseButtonLeft:
-				return m.ClickAt(msg.X, msg.Y)
-			case tea.MouseButtonWheelUp:
-				return intents.Invoke(intents.OpLogNavigate{Delta: -3, IsPage: false})
-			case tea.MouseButtonWheelDown:
-				return intents.Invoke(intents.OpLogNavigate{Delta: 3, IsPage: false})
-			}
-			return nil
+	case OpLogClickedMsg:
+		if msg.Index >= 0 && msg.Index < len(m.rows) {
+			m.cursor = msg.Index
+			m.ensureCursorView = true
+			return m.updateSelection()
 		}
+	case tea.MouseMsg:
+		return nil
+	case OpLogScrollMsg:
+		return m.Scroll(msg.Delta)
 	case tea.KeyMsg:
 		return m.keyToIntent(msg)
 	}
@@ -285,17 +264,52 @@ func (m *Model) revert(intent intents.OpLogRevert) tea.Cmd {
 
 func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	m.frame = box.R
-	m.renderer.ViewRange.Width = box.R.Dx()
-	m.renderer.ViewRange.Height = box.R.Dy()
 	if m.rows == nil {
-		content := lipgloss.Place(m.renderer.ViewRange.Width, m.renderer.ViewRange.Height, lipgloss.Center, lipgloss.Center, "loading")
+		content := lipgloss.Place(box.R.Dx(), box.R.Dy(), lipgloss.Center, lipgloss.Center, "loading")
 		dl.AddDraw(box.R, content, 0)
 		return
 	}
 
-	m.renderer.Reset()
-	content := m.renderer.RenderWithOptions(list.RenderOptions{FocusIndex: m.cursor, EnsureFocusVisible: m.ensureCursorView})
-	dl.AddDraw(box.R, m.textStyle.Render(content), 0)
+	measure := func(index int) int {
+		return len(m.rows[index].Lines)
+	}
+
+	renderItem := func(dl *render.DisplayList, index int, itemRect cellbuf.Rectangle) {
+		row := m.rows[index]
+		isSelected := index == m.cursor
+		styleOverride := m.textStyle
+		if isSelected {
+			styleOverride = m.selectedStyle
+		}
+
+		y := itemRect.Min.Y
+		for _, line := range row.Lines {
+			var content bytes.Buffer
+			for _, segment := range line.Segments {
+				content.WriteString(segment.Style.Inherit(styleOverride).Render(segment.Text))
+			}
+			lineContent := lipgloss.PlaceHorizontal(itemRect.Dx(), 0, content.String(), lipgloss.WithWhitespaceBackground(styleOverride.GetBackground()))
+			lineRect := cellbuf.Rect(itemRect.Min.X, y, itemRect.Dx(), 1)
+			dl.AddDraw(lineRect, lineContent, 0)
+			y++
+		}
+	}
+
+	clickMsg := func(index int) render.ClickMessage {
+		return OpLogClickedMsg{Index: index}
+	}
+
+	m.listRenderer.Render(
+		dl,
+		layout.Box{R: box.R},
+		len(m.rows),
+		m.cursor,
+		m.ensureCursorView,
+		measure,
+		renderItem,
+		clickMsg,
+	)
+
 	m.ensureCursorView = false
 }
 
@@ -322,10 +336,17 @@ func New(context *context.MainContext) *Model {
 		textStyle:     common.DefaultPalette.Get("oplog text"),
 		selectedStyle: common.DefaultPalette.Get("oplog selected"),
 	}
-	m.renderer = list.NewRenderer(m, 0, 0)
+	m.listRenderer = render.NewListRenderer(OpLogScrollMsg{})
 	return m
 }
 
-func (m *Model) Frame() cellbuf.Rectangle {
-	return m.frame
+func (m *Model) totalLineCount() int {
+	if len(m.rows) == 0 {
+		return 0
+	}
+	total := 0
+	for _, row := range m.rows {
+		total += len(row.Lines)
+	}
+	return total
 }

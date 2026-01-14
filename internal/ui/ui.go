@@ -207,17 +207,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				return nil
 			}
 		}
-
-		// Fall back to existing findViewAt approach for models not using DisplayList
-		if model := m.findViewAt(msg.X, msg.Y); model != nil {
-			if draggable, ok := model.(common.Draggable); ok && msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
-				if draggable.DragStart(msg.X, msg.Y) {
-					m.dragTarget = draggable
-					return nil
-				}
-			}
-			return model.Update(msg)
-		}
 		return nil
 	case tea.KeyMsg:
 		// Forward all key presses to the custom sequence handler first.
@@ -400,6 +389,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			//   - if the user denies the request on the device, a new prompt automatically happen "Enter PIN for ...
 			m.password = password.New(msg)
 		}
+	case common.DragStartMsg:
+		if msg.Target == nil {
+			return nil
+		}
+		if msg.Target.DragStart(msg.X, msg.Y) {
+			m.dragTarget = msg.Target
+		}
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -573,24 +569,6 @@ func (m *Model) isSafeToQuit() bool {
 		return true
 	}
 	return false
-}
-
-func (m *Model) findViewAt(x, y int) common.IMouseAware {
-	// well, these are all the views that can receive mouse input for now
-	pt := cellbuf.Pos(x, y)
-	if m.diff != nil && pt.In(m.diff.Frame()) {
-		return m.diff
-	}
-	if m.oplog != nil && pt.In(m.oplog.Frame()) {
-		return m.oplog
-	}
-	if m.oplog == nil && pt.In(m.revisions.Frame()) {
-		return m.revisions
-	}
-	if m.previewModel.Visible() && pt.In(m.previewModel.Frame()) {
-		return m.previewModel
-	}
-	return nil
 }
 
 var _ tea.Model = (*wrapper)(nil)

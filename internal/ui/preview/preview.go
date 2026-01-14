@@ -38,7 +38,6 @@ type Model struct {
 	contentWidth        int
 	context             *context.MainContext
 	keyMap              config.KeyMappings[key.Binding]
-	frame               cellbuf.Rectangle
 }
 
 const (
@@ -59,6 +58,25 @@ func PreviewCmd(msg tea.Msg) tea.Cmd {
 
 type updatePreviewContentMsg struct {
 	Content string
+}
+
+type ScrollMsg struct {
+	Delta      int
+	Horizontal bool
+}
+
+// SetDelta implements render.ScrollDeltaCarrier.
+func (s ScrollMsg) SetDelta(delta int) tea.Msg {
+	s.Delta = delta
+	s.Horizontal = false
+	return s
+}
+
+// SetHorizontalDelta implements render.HorizontalScrollDeltaCarrier.
+func (s ScrollMsg) SetHorizontalDelta(delta int) tea.Msg {
+	s.Delta = delta
+	s.Horizontal = true
+	return s
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -124,18 +142,7 @@ func (m *Model) DragStart(x, y int) bool {
 		return false
 	}
 
-	// Check if click is on the resize handle area
-	if m.AtBottom() {
-		if y-m.frame.Min.Y > handleSize {
-			return false
-		}
-	} else {
-		if x-m.frame.Min.X > handleSize {
-			return false
-		}
-	}
-
-	m.BeginDrag(m.frame.Min.X, y)
+	m.BeginDrag(x, y)
 	return true
 }
 
@@ -159,6 +166,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.ScrollHorizontal(-scrollAmount)
 		case tea.MouseButtonWheelRight:
 			m.ScrollHorizontal(scrollAmount)
+		}
+	case ScrollMsg:
+		if msg.Horizontal {
+			m.ScrollHorizontal(msg.Delta)
+		} else {
+			m.Scroll(msg.Delta)
 		}
 	case common.SelectionChangedMsg:
 		if msg.Item != nil {
@@ -195,7 +208,6 @@ func (m *Model) SetContent(content string) {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
-	m.frame = box.R
 	if m.AtBottom() {
 		m.view.Width = box.R.Dx()
 		m.view.Height = box.R.Dy() - 1
@@ -206,6 +218,17 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	border := lipgloss.NewStyle().Border(lipgloss.NormalBorder(), m.AtBottom(), false, false, !m.AtBottom())
 	content := border.Render(m.view.View())
 	dl.AddDraw(box.R, content, 0)
+
+	scrollRect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), box.R.Dy())
+	dl.AddInteraction(scrollRect, ScrollMsg{}, render.InteractionScroll, 0)
+
+	var handleRect cellbuf.Rectangle
+	if m.AtBottom() {
+		handleRect = cellbuf.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), handleSize)
+	} else {
+		handleRect = cellbuf.Rect(box.R.Min.X, box.R.Min.Y, handleSize, box.R.Dy())
+	}
+	dl.AddInteraction(handleRect, common.DragStartMsg{Target: m}, render.InteractionDrag, 0)
 }
 
 func (m *Model) reset() {
@@ -281,8 +304,4 @@ func New(context *context.MainContext) *Model {
 		previewAtBottom:     previewAtBottom,
 		previewVisible:      config.Current.Preview.ShowAtStart,
 	}
-}
-
-func (m *Model) Frame() cellbuf.Rectangle {
-	return m.frame
 }

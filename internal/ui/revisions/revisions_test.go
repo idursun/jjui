@@ -3,7 +3,6 @@ package revisions
 import (
 	"testing"
 
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
@@ -56,7 +55,6 @@ var rows = []parser.Row{
 func TestModel_Navigate(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
-	model.SetFrame(cellbuf.Rect(0, 0, 100, 50))
 	model.updateGraphRows(rows, "a")
 
 	test.SimulateModel(model, model.Update(intents.Navigate{Delta: 1}))
@@ -92,11 +90,11 @@ func TestModel_OperationIntents(t *testing.T) {
 			ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 
 			model := New(ctx)
-			model.SetFrame(cellbuf.Rect(0, 0, 100, 50))
 			model.updateGraphRows(rows, "a")
 			test.SimulateModel(model, model.Update(tc.intent))
 			assert.False(t, model.InNormalMode())
-			assert.Contains(t, model.View(), tc.expected)
+			rendered := test.RenderImmediate(model, 100, 50)
+			assert.Contains(t, rendered, tc.expected)
 		})
 	}
 }

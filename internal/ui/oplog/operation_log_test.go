@@ -6,9 +6,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -132,7 +132,7 @@ func TestOpLogNavigateIntent(t *testing.T) {
 		cursor: 0,
 		keymap: config.Current.GetKeyMap(),
 	}
-	m.renderer = list.NewRenderer(m, 0, 0)
+	m.listRenderer = render.NewListRenderer(OpLogScrollMsg{})
 
 	cmd := m.Update(intents.OpLogNavigate{Delta: 1, IsPage: false})
 	if cmd != nil {

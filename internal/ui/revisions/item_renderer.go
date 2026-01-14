@@ -15,19 +15,16 @@ import (
 var _ list.IItemRenderer = (*itemRenderer)(nil)
 
 type itemRenderer struct {
-	row              parser.Row
-	isHighlighted    bool
-	selectedStyle    lipgloss.Style
-	textStyle        lipgloss.Style
-	dimmedStyle      lipgloss.Style
-	matchedStyle     lipgloss.Style
-	isGutterInLane   func(lineIndex, segmentIndex int) bool
-	updateGutterText func(lineIndex, segmentIndex int, text string) string
-	inLane           bool
-	op               operations.Operation
-	SearchText       string
-	AceJumpPrefix    *string
-	isChecked        bool
+	row           parser.Row
+	isHighlighted bool
+	selectedStyle lipgloss.Style
+	textStyle     lipgloss.Style
+	dimmedStyle   lipgloss.Style
+	matchedStyle  lipgloss.Style
+	op            operations.Operation
+	SearchText    string
+	AceJumpPrefix *string
+	isChecked     bool
 }
 
 func (ir itemRenderer) writeSection(w io.Writer, current parser.GraphGutter, extended parser.GraphGutter, highlight bool, section string, width int) {
@@ -106,15 +103,15 @@ func (ir itemRenderer) renderMainLines(w io.Writer, width int, descriptionOverla
 			break
 		}
 		if !ir.isHighlighted || !needDescription || descriptionRendered {
-			ir.renderLine(w, width, lineIndex, *segmentedLine)
+			ir.renderLine(w, width, *segmentedLine)
 			continue
 		}
 		if segmentedLine.Flags&parser.Highlightable != parser.Highlightable {
-			ir.renderLine(w, width, lineIndex, *segmentedLine)
+			ir.renderLine(w, width, *segmentedLine)
 			continue
 		}
 		if segmentedLine.Flags&parser.Revision == parser.Revision {
-			ir.renderLine(w, width, lineIndex, *segmentedLine)
+			ir.renderLine(w, width, *segmentedLine)
 			continue
 		}
 
@@ -144,9 +141,9 @@ func (ir itemRenderer) skipHighlightableLines(startIndex int) int {
 // different segments (ChangeID, CommitID, description, etc)
 // and an optional marker indicating if the revision was affected by the last
 // operation.
-func (ir itemRenderer) renderLine(w io.Writer, width int, lineIndex int, segmentedLine parser.GraphRowLine) {
+func (ir itemRenderer) renderLine(w io.Writer, width int, segmentedLine parser.GraphRowLine) {
 	lw := strings.Builder{}
-	ir.renderGutter(&lw, lineIndex, segmentedLine)
+	ir.renderGutter(&lw, segmentedLine)
 	ir.renderSegments(&lw, segmentedLine)
 	ir.renderAffectedMarker(&lw, segmentedLine)
 
@@ -162,16 +159,11 @@ func (ir itemRenderer) renderLine(w io.Writer, width int, lineIndex int, segment
 // renderGutter renders the graph gutter portion
 // For revision lines, it also renders the checkbox and any operation-specific
 // content before the ChangeID.
-func (ir itemRenderer) renderGutter(lw *strings.Builder, lineIndex int, segmentedLine parser.GraphRowLine) {
-	for i, segment := range segmentedLine.Gutter.Segments {
-		gutterInLane := ir.isGutterInLane(lineIndex, i)
-		text := ir.updateGutterText(lineIndex, i, segment.Text)
+func (ir itemRenderer) renderGutter(lw *strings.Builder, segmentedLine parser.GraphRowLine) {
+	for _, segment := range segmentedLine.Gutter.Segments {
+		text := segment.Text
 		style := segment.Style
-		if gutterInLane {
-			style = style.Inherit(ir.textStyle)
-		} else {
-			style = style.Inherit(ir.dimmedStyle).Faint(true)
-		}
+		style = style.Inherit(ir.textStyle)
 		fmt.Fprint(lw, style.Render(text))
 	}
 
@@ -220,10 +212,8 @@ func (ir itemRenderer) getSegmentStyle(segment screen.Segment) lipgloss.Style {
 	style := segment.Style
 	if ir.isHighlighted {
 		style = style.Inherit(ir.selectedStyle)
-	} else if ir.inLane {
-		style = style.Inherit(ir.textStyle)
 	} else {
-		style = style.Inherit(ir.dimmedStyle).Faint(true)
+		style = style.Inherit(ir.textStyle)
 	}
 	return style
 }
@@ -259,18 +249,13 @@ func (ir itemRenderer) renderAfterSection(w io.Writer, width int) {
 // content.
 // These lines are always rendered with normal style and cannot be selected.
 func (ir itemRenderer) renderNonHighlightableLines(w io.Writer, width int) {
-	for lineIndex, segmentedLine := range ir.row.RowLinesIter(parser.Excluding(parser.Highlightable)) {
+	for _, segmentedLine := range ir.row.RowLinesIter(parser.Excluding(parser.Highlightable)) {
 		var lw strings.Builder
-		for i, segment := range segmentedLine.Gutter.Segments {
-			gutterInLane := ir.isGutterInLane(lineIndex, i)
-			text := ir.updateGutterText(lineIndex, i, segment.Text)
+		for _, segment := range segmentedLine.Gutter.Segments {
+			text := segment.Text
 
 			style := segment.Style
-			if gutterInLane {
-				style = style.Inherit(ir.textStyle)
-			} else {
-				style = style.Inherit(ir.dimmedStyle).Faint(true)
-			}
+			style = style.Inherit(ir.textStyle)
 			fmt.Fprint(&lw, style.Render(text))
 		}
 		for _, segment := range segmentedLine.Segments {

@@ -49,7 +49,6 @@ func (m *mockNonFocusableOperation) IsOverlay() bool {
 func TestQuickSearch_EnterKeyClearsSearch(t *testing.T) {
 	model := &Model{
 		quickSearch: "test",
-		renderer:    newRevisionListRenderer(nil),
 		op:          &mockNonFocusableOperation{},
 		rows:        []parser.Row{{Commit: &jj.Commit{ChangeId: "test123"}}},
 	}
@@ -65,7 +64,6 @@ func TestQuickSearch_EnterKeyClearsSearch(t *testing.T) {
 func TestQuickSearch_EscapeKeyClearsSearch(t *testing.T) {
 	model := &Model{
 		quickSearch: "test",
-		renderer:    newRevisionListRenderer(nil),
 		op:          &mockNonFocusableOperation{},
 		rows:        []parser.Row{{Commit: &jj.Commit{ChangeId: "test123"}}},
 	}
@@ -81,7 +79,6 @@ func TestQuickSearch_EscapeKeyClearsSearch(t *testing.T) {
 func TestQuickSearch_EnterWithEmptySearch(t *testing.T) {
 	model := &Model{
 		quickSearch: "",
-		renderer:    newRevisionListRenderer(nil),
 		rows:        []parser.Row{{Commit: &jj.Commit{ChangeId: "test123"}}},
 		op:          &mockNonFocusableOperation{},
 	}

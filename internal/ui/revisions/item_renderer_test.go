@@ -83,13 +83,7 @@ func TestRenderMainLines_MultipleDescriptionLines(t *testing.T) {
 		textStyle:     lipgloss.NewStyle(),
 		dimmedStyle:   lipgloss.NewStyle(),
 		matchedStyle:  lipgloss.NewStyle(),
-		isGutterInLane: func(lineIndex, segmentIndex int) bool {
-			return true
-		},
-		updateGutterText: func(lineIndex, segmentIndex int, text string) string {
-			return text
-		},
-		op: &mockOperation{renderOverDescription: descriptionOverlay},
+		op:            &mockOperation{renderOverDescription: descriptionOverlay},
 	}
 
 	var buf bytes.Buffer
@@ -130,13 +124,7 @@ func TestRenderMainLines_WithElidedLine(t *testing.T) {
 		textStyle:     lipgloss.NewStyle(),
 		dimmedStyle:   lipgloss.NewStyle(),
 		matchedStyle:  lipgloss.NewStyle(),
-		isGutterInLane: func(lineIndex, segmentIndex int) bool {
-			return true
-		},
-		updateGutterText: func(lineIndex, segmentIndex int, text string) string {
-			return text
-		},
-		op: &mockOperation{},
+		op:            &mockOperation{},
 	}
 
 	var buf bytes.Buffer

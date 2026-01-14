@@ -192,7 +192,6 @@ func (r *DisplayListRenderer) renderItemToDisplayList(
 		row:           item,
 		isHighlighted: isSelected,
 		op:            operation,
-		inLane:        true, // No tracer support yet, so everything is in lane
 	}
 
 	// Check if this revision is selected (for checkbox)
@@ -432,4 +431,14 @@ func (r *DisplayListRenderer) GetScrollOffset() int {
 // SetScrollOffset sets the scroll offset
 func (r *DisplayListRenderer) SetScrollOffset(offset int) {
 	r.listRenderer.SetScrollOffset(offset)
+}
+
+// GetFirstRowIndex returns the first visible row index.
+func (r *DisplayListRenderer) GetFirstRowIndex() int {
+	return r.listRenderer.GetFirstRowIndex()
+}
+
+// GetLastRowIndex returns the last visible row index (inclusive).
+func (r *DisplayListRenderer) GetLastRowIndex() int {
+	return r.listRenderer.GetLastRowIndex()
 }

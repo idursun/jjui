@@ -32,6 +32,18 @@ type ScrollDeltaCarrier interface {
 	SetDelta(delta int) tea.Msg
 }
 
+// HorizontalScrollDeltaCarrier is an interface for messages that carry horizontal scroll deltas.
+// The ProcessMouseEvent function will set the Delta field for horizontal scroll interactions.
+type HorizontalScrollDeltaCarrier interface {
+	SetHorizontalDelta(delta int) tea.Msg
+}
+
+// DragStartCarrier is an interface for messages that carry drag start coordinates.
+// The ProcessMouseEvent function will set the drag start position for drag interactions.
+type DragStartCarrier interface {
+	SetDragStart(x, y int) tea.Msg
+}
+
 // ProcessMouseEvent matches a mouse event against interactions and returns the associated message.
 // Interactions are expected to be sorted by Z-index (highest first) for proper priority handling.
 // For scroll interactions, if the message implements ScrollDeltaCarrier, the delta will be set.
@@ -39,6 +51,20 @@ func ProcessMouseEvent(interactions []InteractionOp, msg tea.MouseMsg) tea.Msg {
 	switch msg.Action {
 	case tea.MouseActionPress:
 		if msg.Button == tea.MouseButtonLeft {
+			// Find highest-Z draggable region containing this point
+			for _, interaction := range interactions {
+				if interaction.Type&InteractionDrag == 0 {
+					continue
+				}
+				if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
+					msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
+					if carrier, ok := interaction.Msg.(DragStartCarrier); ok {
+						return carrier.SetDragStart(msg.X, msg.Y)
+					}
+					return interaction.Msg
+				}
+			}
+
 			// Find highest-Z clickable region containing this point
 			for _, interaction := range interactions {
 				if interaction.Type&InteractionClick == 0 {
@@ -72,6 +98,26 @@ func ProcessMouseEvent(interactions []InteractionOp, msg tea.MouseMsg) tea.Msg {
 				}
 			}
 		}
+
+		if msg.Button == tea.MouseButtonWheelLeft || msg.Button == tea.MouseButtonWheelRight {
+			delta := -3
+			if msg.Button == tea.MouseButtonWheelRight {
+				delta = 3
+			}
+
+			for _, interaction := range interactions {
+				if interaction.Type&InteractionScroll == 0 {
+					continue
+				}
+				if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
+					msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
+					if carrier, ok := interaction.Msg.(HorizontalScrollDeltaCarrier); ok {
+						return carrier.SetHorizontalDelta(delta)
+					}
+					return nil
+				}
+			}
+		}
 	}
 
 	return nil
@@ -97,6 +143,15 @@ func ProcessMouseEventWithWindows(interactions []interactionOp, windows []window
 		for _, interaction := range sorted {
 			if !windowMatch(interaction.windowID, windowID, windowHit) {
 				continue
+			}
+			if interaction.Type&InteractionDrag != 0 {
+				if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
+					msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
+					if carrier, ok := interaction.Msg.(DragStartCarrier); ok {
+						return carrier.SetDragStart(msg.X, msg.Y), true
+					}
+					return interaction.Msg, true
+				}
 			}
 			if interaction.Type&InteractionClick == 0 {
 				continue
@@ -126,6 +181,28 @@ func ProcessMouseEventWithWindows(interactions []interactionOp, windows []window
 					return carrier.SetDelta(delta), true
 				}
 				return interaction.Msg, true
+			}
+		}
+	}
+
+	if msg.Button == tea.MouseButtonWheelLeft || msg.Button == tea.MouseButtonWheelRight {
+		delta := -3
+		if msg.Button == tea.MouseButtonWheelRight {
+			delta = 3
+		}
+		for _, interaction := range sorted {
+			if !windowMatch(interaction.windowID, windowID, windowHit) {
+				continue
+			}
+			if interaction.Type&InteractionScroll == 0 {
+				continue
+			}
+			if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
+				msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
+				if carrier, ok := interaction.Msg.(HorizontalScrollDeltaCarrier); ok {
+					return carrier.SetHorizontalDelta(delta), true
+				}
+				return nil, true
 			}
 		}
 	}

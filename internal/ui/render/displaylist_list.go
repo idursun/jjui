@@ -24,15 +24,19 @@ type ClickMessageFunc func(index int) ClickMessage
 // It handles layout calculation, viewport management, and mouse interaction
 // registration. The actual item rendering is delegated to the caller.
 type ListRenderer struct {
-	StartLine int       // Current scroll position (line offset)
-	ScrollMsg tea.Msg   // Message type for scroll events (must implement ScrollDeltaCarrier)
+	StartLine     int     // Current scroll position (line offset)
+	ScrollMsg     tea.Msg // Message type for scroll events (must implement ScrollDeltaCarrier)
+	FirstRowIndex int     // First visible item index
+	LastRowIndex  int     // Last visible item index (inclusive)
 }
 
 // NewListRenderer creates a new ListRenderer with the given scroll message type.
 func NewListRenderer(scrollMsg tea.Msg) *ListRenderer {
 	return &ListRenderer{
-		StartLine: 0,
-		ScrollMsg: scrollMsg,
+		StartLine:     0,
+		ScrollMsg:     scrollMsg,
+		FirstRowIndex: -1,
+		LastRowIndex:  -1,
 	}
 }
 
@@ -124,6 +128,14 @@ func (r *ListRenderer) RenderWithOffset(
 	}
 
 	spans, _ := LayoutAll(viewport, itemCount, measureAdapter)
+	r.FirstRowIndex = -1
+	r.LastRowIndex = -1
+	for _, span := range spans {
+		if r.FirstRowIndex == -1 {
+			r.FirstRowIndex = span.Index
+		}
+		r.LastRowIndex = span.Index
+	}
 
 	// Render each visible item (using relative coordinates for draws)
 	for _, span := range spans {
@@ -214,4 +226,14 @@ func (r *ListRenderer) SetScrollOffset(offset int) {
 // GetScrollOffset returns the current scroll position.
 func (r *ListRenderer) GetScrollOffset() int {
 	return r.StartLine
+}
+
+// GetFirstRowIndex returns the first visible item index.
+func (r *ListRenderer) GetFirstRowIndex() int {
+	return r.FirstRowIndex
+}
+
+// GetLastRowIndex returns the last visible item index (inclusive).
+func (r *ListRenderer) GetLastRowIndex() int {
+	return r.LastRowIndex
 }

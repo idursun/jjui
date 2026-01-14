@@ -71,7 +71,6 @@ type Model struct {
 	quickSearch         string
 	previousOpLogId     string
 	isLoading           bool
-	renderer            *revisionListRenderer
 	displayListRenderer *DisplayListRenderer
 	textStyle           lipgloss.Style
 	dimmedStyle         lipgloss.Style
@@ -137,7 +136,7 @@ func (m *Model) SetCursor(index int) {
 }
 
 func (m *Model) VisibleRange() (int, int) {
-	return m.renderer.FirstRowIndex, m.renderer.LastRowIndex
+	return m.displayListRenderer.GetFirstRowIndex(), m.displayListRenderer.GetLastRowIndex()
 }
 
 func (m *Model) ListName() string {
@@ -150,14 +149,16 @@ func (m *Model) HasMore() bool {
 
 func (m *Model) Scroll(delta int) tea.Cmd {
 	m.ensureCursorView = false
-	desiredStart := m.renderer.ViewRange.Start + delta
+	currentStart := m.displayListRenderer.GetScrollOffset()
+	desiredStart := currentStart + delta
 	if desiredStart < 0 {
 		desiredStart = 0
 	}
 
 	// Calculate total lines based on all items
 	totalLines := m.calculateTotalLines()
-	maxStart := totalLines - m.renderer.ViewRange.Height
+	viewHeight := m.frame.Dy()
+	maxStart := totalLines - viewHeight
 	if maxStart < 0 {
 		maxStart = 0
 	}
@@ -165,9 +166,9 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 	if newStart > maxStart {
 		newStart = maxStart
 	}
-	m.renderer.ViewRange.Start = newStart
+	m.displayListRenderer.SetScrollOffset(newStart)
 
-	if m.hasMore && (desiredStart > maxStart || newStart+m.renderer.ViewRange.Height >= totalLines-1) {
+	if m.hasMore && (desiredStart > maxStart || newStart+viewHeight >= totalLines-1) {
 		return m.requestMoreRows(m.tag.Load())
 	}
 	return nil
@@ -233,7 +234,6 @@ func (m *Model) Len() int {
 
 func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
 	row := m.rows[index]
-	inLane := m.renderer.tracer.IsInSameLane(index)
 	isHighlighted := index == m.cursor
 
 	return &itemRenderer{
@@ -244,15 +244,8 @@ func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
 		dimmedStyle:   m.dimmedStyle,
 		selectedStyle: m.selectedStyle,
 		matchedStyle:  m.matchedStyle,
-		isChecked:     m.renderer.selections[row.Commit.GetChangeId()],
-		isGutterInLane: func(lineIndex, segmentIndex int) bool {
-			return m.renderer.tracer.IsGutterInLane(index, lineIndex, segmentIndex)
-		},
-		updateGutterText: func(lineIndex, segmentIndex int, text string) string {
-			return m.renderer.tracer.UpdateGutterText(index, lineIndex, segmentIndex, text)
-		},
-		inLane: inLane,
-		op:     m.op.(operations.Operation),
+		isChecked:     m.context.GetSelectedRevisions()[row.Commit.GetChangeId()],
+		op:            m.op.(operations.Operation),
 	}
 }
 
@@ -364,7 +357,6 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		m.quickSearch = strings.ToLower(string(msg))
 		m.SetCursor(m.search(0))
 		m.op = operations.NewDefault()
-		m.renderer.Reset()
 		return nil
 	case common.CommandCompletedMsg:
 		m.output = msg.Output
@@ -419,7 +411,8 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 
 		if m.hasMore {
 			// keep requesting rows until we reach the initial load count or the current cursor position
-			if len(m.offScreenRows) < m.cursor+1 || len(m.offScreenRows) < m.renderer.ViewRange.LastRowIndex+1 {
+			lastRowIndex := m.displayListRenderer.GetLastRowIndex()
+			if len(m.offScreenRows) < m.cursor+1 || len(m.offScreenRows) < lastRowIndex+1 {
 				return m.requestMoreRows(msg.tag)
 			}
 		} else if m.streamer != nil {
@@ -486,7 +479,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			// Create ace jump with parent operation
 			op := ace_jump.NewOperation(m, func(index int) parser.Row {
 				return m.rows[index]
-			}, m.renderer.FirstRowIndex, m.renderer.LastRowIndex, parentOp)
+			}, m.displayListRenderer.GetFirstRowIndex(), m.displayListRenderer.GetLastRowIndex(), parentOp)
 			m.op = op
 			return op.Init()
 		default:
@@ -497,7 +490,6 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			switch {
 			case m.quickSearch != "" && (msg.Type == tea.KeyEsc || msg.Type == tea.KeyEnter):
 				m.quickSearch = ""
-				m.renderer.Reset()
 				return nil
 			case key.Matches(msg, m.keymap.ToggleSelect):
 				commit := m.rows[m.cursor].Commit
@@ -508,11 +500,9 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			case key.Matches(msg, m.keymap.Cancel):
 				m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
 				m.op = operations.NewDefault()
-				m.renderer.Reset()
 				return nil
 			case key.Matches(msg, m.keymap.QuickSearchCycle):
 				m.SetCursor(m.search(m.cursor + 1))
-				m.renderer.Reset()
 				return nil
 			case key.Matches(msg, m.keymap.Details.Mode):
 				return m.handleIntent(intents.OpenDetails{})
@@ -977,8 +967,6 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	area := box.R
 	m.frame = area
-	m.renderer.ViewRange.Width = area.Dx()
-	m.renderer.ViewRange.Height = area.Dy()
 
 	if len(m.rows) == 0 {
 		content := ""
@@ -991,105 +979,27 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 		return
 	}
 
-	// Use DisplayListRenderer
-	if m.displayListRenderer != nil {
-		// Set selections
-		m.displayListRenderer.SetSelections(m.context.GetSelectedRevisions())
+	// Set selections
+	m.displayListRenderer.SetSelections(m.context.GetSelectedRevisions())
 
-		// Set scroll position
-		m.displayListRenderer.SetScrollOffset(m.renderer.Start)
-
-		// Get operation if any
-		var op operations.Operation
-		if opModel, ok := m.op.(operations.Operation); ok {
-			op = opModel
-		}
-
-		// Render to DisplayList
-		m.displayListRenderer.Render(
-			dl,
-			m.rows,
-			m.cursor,
-			layout.Box{R: area},
-			op,
-			m.ensureCursorView,
-		)
-
-		// Sync the updated scroll position back
-		m.renderer.Start = m.displayListRenderer.GetScrollOffset()
-
-		// Reset the flag after ensuring cursor is visible
-		m.ensureCursorView = false
-		return
+	// Get operation if any
+	var op operations.Operation
+	if opModel, ok := m.op.(operations.Operation); ok {
+		op = opModel
 	}
 
-	// Fallback to old renderer (shouldn't reach here if displayListRenderer is set)
-	panic("RenderToDisplayList called but displayListRenderer is nil")
-}
+	// Render to DisplayList
+	m.displayListRenderer.Render(
+		dl,
+		m.rows,
+		m.cursor,
+		layout.Box{R: area},
+		op,
+		m.ensureCursorView,
+	)
 
-func (m *Model) View() string {
-	width := m.frame.Dx()
-	height := m.frame.Dy()
-	if width <= 0 || height <= 0 {
-		return ""
-	}
-	if len(m.rows) == 0 {
-		if m.isLoading {
-			return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, "loading")
-		}
-		return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, "(no matching revisions)")
-	}
-
-	// Use DisplayListRenderer if available
-	if m.displayListRenderer != nil {
-		// Create a new DisplayList
-		dl := render.NewDisplayList()
-
-		// Set selections
-		m.displayListRenderer.SetSelections(m.context.GetSelectedRevisions())
-
-		// Set scroll position
-		m.displayListRenderer.SetScrollOffset(m.renderer.Start)
-
-		// Render to DisplayList
-		var op operations.Operation
-		if opModel, ok := m.op.(operations.Operation); ok {
-			op = opModel
-		}
-
-		viewRect := layout.Box{R: cellbuf.Rect(0, 0, width, height)}
-		m.displayListRenderer.Render(
-			dl,
-			m.rows,
-			m.cursor,
-			viewRect,
-			op,
-			m.ensureCursorView,
-		)
-
-		// Sync the updated scroll position back
-		m.renderer.Start = m.displayListRenderer.GetScrollOffset()
-
-		// Reset the flag after ensuring cursor is visible
-		m.ensureCursorView = false
-
-		// Convert to string
-		return dl.RenderToString(width, height)
-	}
-
-	// Fallback to old renderer
-	if config.Current.UI.Tracer.Enabled {
-		start, end := m.renderer.FirstRowIndex, m.renderer.LastRowIndex+1 // +1 because the last row is inclusive in the view range
-		log.Println("Visible row range:", start, end, "Cursor:", m.cursor, "Total rows:", len(m.rows))
-		m.renderer.tracer = parser.NewTracer(m.rows, m.cursor, start, end)
-	} else {
-		m.renderer.tracer = parser.NewNoopTracer()
-	}
-
-	m.renderer.selections = m.context.GetSelectedRevisions()
-
-	output := m.renderer.RenderWithOptions(list.RenderOptions{FocusIndex: m.cursor, EnsureFocusVisible: m.ensureCursorView})
-	return output
+	// Reset the flag after ensuring cursor is visible
+	m.ensureCursorView = false
 }
 
 func (m *Model) load(revset string, selectedRevision string) tea.Cmd {
@@ -1209,21 +1119,10 @@ func New(c *appContext.MainContext) *Model {
 		textStyle:     common.DefaultPalette.Get("revisions text"),
 		dimmedStyle:   common.DefaultPalette.Get("revisions dimmed"),
 		selectedStyle: common.DefaultPalette.Get("revisions selected"),
-		matchedStyle:  common.DefaultPalette.Get("revisions matched"),
+	matchedStyle:  common.DefaultPalette.Get("revisions matched"),
 	}
-	m.renderer = newRevisionListRenderer(&m)
 	m.displayListRenderer = NewDisplayListRenderer(m.textStyle, m.dimmedStyle, m.selectedStyle, m.matchedStyle)
 	return &m
-}
-
-func (m *Model) SetFrame(frame cellbuf.Rectangle) {
-	m.frame = frame
-	m.renderer.ViewRange.Width = frame.Dx()
-	m.renderer.ViewRange.Height = frame.Dy()
-}
-
-func (m *Model) Frame() cellbuf.Rectangle {
-	return m.frame
 }
 
 func (m *Model) jumpToParent(revisions jj.SelectedRevisions) {

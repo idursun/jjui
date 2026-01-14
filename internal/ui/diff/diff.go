@@ -6,7 +6,6 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -19,7 +18,6 @@ type Model struct {
 	*common.MouseAware
 	view   viewport.Model
 	keymap config.KeyMappings[key.Binding]
-	frame  cellbuf.Rectangle
 }
 
 func (m *Model) ShortHelp() []key.Binding {
@@ -50,6 +48,17 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 	return nil
 }
 
+// ScrollMsg is sent when the viewport is scrolled via mouse wheel.
+type ScrollMsg struct {
+	Delta int
+}
+
+// SetDelta implements render.ScrollDeltaCarrier.
+func (s ScrollMsg) SetDelta(delta int) tea.Msg {
+	s.Delta = delta
+	return s
+}
+
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -57,6 +66,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.keymap.Cancel):
 			return common.Close
 		}
+	case ScrollMsg:
+		return m.Scroll(msg.Delta)
 	}
 	var cmd tea.Cmd
 	m.view, cmd = m.view.Update(msg)
@@ -65,10 +76,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	area := box.R
-	m.frame = area
 	m.view.Height = area.Dy()
 	m.view.Width = area.Dx()
 	dl.AddDraw(area, m.view.View(), 0)
+	dl.AddInteraction(area, ScrollMsg{}, render.InteractionScroll, 0)
 }
 
 func New(output string) *Model {
@@ -83,8 +94,4 @@ func New(output string) *Model {
 		view:       view,
 		keymap:     config.Current.GetKeyMap(),
 	}
-}
-
-func (m *Model) Frame() cellbuf.Rectangle {
-	return m.frame
 }
