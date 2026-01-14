@@ -80,6 +80,10 @@ func DiffEdit(changeId string) CommandArgs {
 
 func Split(revision string, files []string, parallel bool) CommandArgs {
 	args := []string{"split", "-r", revision}
+	if config.Current.Split.NoEdit {
+		args = append(args, "--message")
+		args = append(args, "")
+	}
 	if parallel {
 		args = append(args, "--parallel")
 	}

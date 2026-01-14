@@ -26,6 +26,11 @@ type Config struct {
 	Limit     int               `toml:"limit"`
 	Git       GitConfig         `toml:"git"`
 	Ssh       SshConfig         `toml:"ssh"`
+	Split     SplitConfig       `toml:"split"`
+}
+
+type SplitConfig struct {
+	NoEdit bool `toml:"no_edit"`
 }
 
 type Color struct {

@@ -152,3 +152,6 @@ limit = 0
 
 [ssh]
   hijack_askpass = false
+
+[split]
+  no_edit = false
