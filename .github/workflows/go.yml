@@ -1,42 +1,34 @@
 name: Build & Test
-
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
-
+    branches: ["main"]
 jobs:
-
   test:
     strategy:
       matrix:
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.24'
-
-    - name: Test
-      run: go test -v ./...
-
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - name: Test
+        run: go test -v ./...
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.24'
-
-    - name: Check if `go fmt` and `go mod tidy` make any changes
-      run: |
-        set -x
-        go fmt ./...
-        go mod tidy
-        git diff --exit-code
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - name: Check if `go fmt` and `go mod tidy` make any changes
+        run: |
+          set -x
+          go fmt ./...
+          go mod tidy
+          git diff --exit-code
