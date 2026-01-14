@@ -21,14 +21,12 @@ import (
 
 const (
 	scrollAmount = 3
-	handleSize   = 3
 )
 
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
 	*common.MouseAware
-	*common.DragAware
 	view                viewport.Model
 	previewVisible      bool
 	previewAutoPosition bool
@@ -137,20 +135,6 @@ func (m *Model) ScrollHorizontal(delta int) tea.Cmd {
 	return nil
 }
 
-func (m *Model) DragStart(x, y int) bool {
-	if !m.previewVisible {
-		return false
-	}
-
-	m.BeginDrag(x, y)
-	return true
-}
-
-func (m *Model) DragMove(x, y int) tea.Cmd {
-	// Drag calculation is handled by ui.go via Split.DragTo
-	return nil
-}
-
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if k, ok := msg.(previewMsg); ok {
 		msg = k.msg
@@ -221,14 +205,6 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 
 	scrollRect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), box.R.Dy())
 	dl.AddInteraction(scrollRect, ScrollMsg{}, render.InteractionScroll, 0)
-
-	var handleRect cellbuf.Rectangle
-	if m.AtBottom() {
-		handleRect = cellbuf.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), handleSize)
-	} else {
-		handleRect = cellbuf.Rect(box.R.Min.X, box.R.Min.Y, handleSize, box.R.Dy())
-	}
-	dl.AddInteraction(handleRect, common.DragStartMsg{Target: m}, render.InteractionDrag, 0)
 }
 
 func (m *Model) reset() {
@@ -297,7 +273,6 @@ func New(context *context.MainContext) *Model {
 
 	return &Model{
 		MouseAware:          common.NewMouseAware(),
-		DragAware:           common.NewDragAware(),
 		context:             context,
 		keyMap:              config.Current.GetKeyMap(),
 		previewAutoPosition: previewAutoPosition,

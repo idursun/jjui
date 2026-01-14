@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -48,6 +49,7 @@ type Model struct {
 	history    map[string][]string
 	fuzzy      fuzzy_search.Model
 	styles     styles
+	overlayBox layout.Box
 }
 
 type styles struct {
@@ -247,6 +249,30 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	mode := m.styles.title.Width(modeWith).Render("", m.mode)
 	ret = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), commandStatusMark, ret)
 	dl.AddDraw(box.R, ret, 0)
+
+	if m.fuzzy == nil || m.overlayBox.R.Dx() <= 0 || m.overlayBox.R.Dy() <= 0 {
+		return
+	}
+
+	above := box.R.Min.Y - m.overlayBox.R.Min.Y
+	below := m.overlayBox.R.Max.Y - box.R.Max.Y
+	if above <= 0 && below <= 0 {
+		return
+	}
+
+	var overlayRect cellbuf.Rectangle
+	if above >= below {
+		if above <= 0 {
+			return
+		}
+		overlayRect = cellbuf.Rect(m.overlayBox.R.Min.X, m.overlayBox.R.Min.Y, m.overlayBox.R.Dx(), above)
+	} else {
+		if below <= 0 {
+			return
+		}
+		overlayRect = cellbuf.Rect(m.overlayBox.R.Min.X, box.R.Max.Y, m.overlayBox.R.Dx(), below)
+	}
+	m.fuzzy.ViewRect(dl, layout.Box{R: overlayRect})
 }
 
 func (m *Model) SetHelp(keyMap help.KeyMap) {
@@ -302,6 +328,6 @@ func New(context *context.MainContext) *Model {
 	}
 }
 
-func (m *Model) FuzzyModel() fuzzy_search.Model {
-	return m.fuzzy
+func (m *Model) SetOverlayBounds(box layout.Box) {
+	m.overlayBox = box
 }

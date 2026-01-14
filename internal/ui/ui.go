@@ -10,6 +10,7 @@ import (
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/layoutview"
 	"github.com/idursun/jjui/internal/ui/password"
 	"github.com/idursun/jjui/internal/ui/render"
 
@@ -48,8 +49,6 @@ type Model struct {
 	oplog           *oplog.Model
 	revsetModel     *revset.Model
 	previewModel    *preview.Model
-	previewSplit    *layout.Split
-	splitBox        layout.Box // Box that split is applied to, for drag calculations
 	diff            *diff.Model
 	leader          *leader.Model
 	flash           *flash.Model
@@ -60,14 +59,24 @@ type Model struct {
 	scriptRunner    *scripting.Runner
 	keyMap          config.KeyMappings[key.Binding]
 	stacked         SizableModel
-	dragTarget      common.Draggable
 	sequenceOverlay *customcommands.SequenceOverlay
 	displayList     *render.DisplayList
 	width           int
 	height          int
+	layouts         *UILayouts
+	revisionsSplit  *layoutview.Split
+	activeSplit     *layoutview.Split
+	splitActive     bool
+	diffSlot        *layoutview.ModelSlot
+	primarySlot     *layoutview.ModelSlot
 }
 
 type triggerAutoRefreshMsg struct{}
+
+type UILayouts struct {
+	Revisions layoutview.SlotContent
+	Diff      layoutview.SlotContent
+}
 
 func (m *Model) Init() tea.Cmd {
 	return tea.Batch(tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.scheduleAutoRefresh())
@@ -81,6 +90,9 @@ func (m *Model) handleFocusInputMessage(msg tea.Msg) (tea.Cmd, bool) {
 		}
 		if m.diff != nil {
 			m.diff = nil
+			if m.diffSlot != nil {
+				m.diffSlot.Model = nil
+			}
 			return nil, true
 		}
 		if m.stacked != nil {
@@ -89,6 +101,9 @@ func (m *Model) handleFocusInputMessage(msg tea.Msg) (tea.Cmd, bool) {
 		}
 		if m.oplog != nil {
 			m.oplog = nil
+			if m.primarySlot != nil {
+				m.primarySlot.Model = m.revisions
+			}
 			return common.SelectionChanged(m.context.SelectedItem), true
 		}
 		return nil, false
@@ -179,22 +194,16 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case tea.FocusMsg:
 		return tea.Batch(common.RefreshAndKeepSelections, tea.EnableMouseCellMotion)
 	case tea.MouseMsg:
-		if m.dragTarget != nil && m.dragTarget.IsDragging() {
+		if m.splitActive {
 			switch msg.Action {
 			case tea.MouseActionRelease:
-				cmd := m.dragTarget.DragEnd(msg.X, msg.Y)
-				m.dragTarget = nil
-				return cmd
+				m.splitActive = false
 			case tea.MouseActionMotion:
-				// Handle preview drag via split
-				if m.dragTarget == m.previewModel {
-					m.previewSplit.DragTo(m.splitBox, msg.X, msg.Y)
-					return nil
+				if m.activeSplit != nil {
+					m.activeSplit.DragTo(msg.X, msg.Y)
 				}
-				return m.dragTarget.DragMove(msg.X, msg.Y)
+				return nil
 			}
-		} else if m.dragTarget != nil && !m.dragTarget.IsDragging() {
-			m.dragTarget = nil
 		}
 
 		// Process interactions from DisplayList first
@@ -234,6 +243,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return tea.Quit
 		case key.Matches(msg, m.keyMap.OpLog.Mode) && m.revisions.InNormalMode():
 			m.oplog = oplog.New(m.context)
+			if m.primarySlot != nil {
+				m.primarySlot.Model = m.oplog
+			}
 			return m.oplog.Init()
 		case key.Matches(msg, m.keyMap.Revset) && m.revisions.InNormalMode():
 			return m.revsetModel.Update(intents.Edit{Clear: m.state != common.Error})
@@ -272,10 +284,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			cmds = append(cmds, common.SelectionChanged(m.context.SelectedItem))
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Preview.Expand) && m.previewModel.Visible():
-			m.previewSplit.Expand(config.Current.Preview.WidthIncrementPercentage)
+			if m.revisionsSplit != nil && m.revisionsSplit.State != nil {
+				m.revisionsSplit.State.Expand(config.Current.Preview.WidthIncrementPercentage)
+			}
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Preview.Shrink) && m.previewModel.Visible():
-			m.previewSplit.Shrink(config.Current.Preview.WidthIncrementPercentage)
+			if m.revisionsSplit != nil && m.revisionsSplit.State != nil {
+				m.revisionsSplit.State.Shrink(config.Current.Preview.WidthIncrementPercentage)
+			}
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.CustomCommands):
 			model := customcommands.NewModel(m.context)
@@ -325,6 +341,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case common.ShowDiffMsg:
 		m.diff = diff.New(string(msg))
+		if m.diffSlot != nil {
+			m.diffSlot.Model = m.diff
+		}
 		return m.diff.Init()
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
@@ -389,12 +408,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			//   - if the user denies the request on the device, a new prompt automatically happen "Enter PIN for ...
 			m.password = password.New(msg)
 		}
-	case common.DragStartMsg:
-		if msg.Target == nil {
-			return nil
-		}
-		if msg.Target.DragStart(msg.X, msg.Y) {
-			m.dragTarget = msg.Target
+	case layoutview.SplitDragMsg:
+		m.activeSplit = msg.Split
+		m.splitActive = true
+		if m.activeSplit != nil {
+			m.activeSplit.DragTo(msg.X, msg.Y)
 		}
 
 	case tea.WindowSizeMsg:
@@ -484,41 +502,26 @@ func (m *Model) View() string {
 	screenBuf := cellbuf.NewBuffer(m.width, m.height)
 
 	if m.diff != nil {
-		diffArea, bottomBox := box.CutBottom(1)
-		m.status.ViewRect(m.displayList, bottomBox)
-		m.diff.ViewRect(m.displayList, diffArea)
+		m.status.SetOverlayBounds(box)
+		if m.layouts != nil && m.layouts.Diff != nil {
+			m.layouts.Diff.Render(m.displayList, box)
+		}
 		m.displayList.Render(screenBuf)
 		content := cellbuf.Render(screenBuf)
 		return strings.ReplaceAll(content, "\r", "")
 	}
 
-	topArea, centerBox := box.CutTop(1)
-	centerBox, bottomBox := centerBox.CutBottom(1)
-
-	m.status.ViewRect(m.displayList, bottomBox)
-
-	var previewArea layout.Box
-
-	m.revsetModel.ViewRect(m.displayList, topArea)
-
-	// Store the box for split calculations (used during drag)
-	m.splitBox = centerBox
-
 	if m.previewModel.Visible() {
 		m.UpdatePreviewPosition()
-		// Sync split orientation with preview position
-		m.previewSplit.SetVertical(m.previewModel.AtBottom())
-		centerBox, previewArea = m.previewSplit.Apply(centerBox)
 	}
-
-	if m.oplog != nil {
-		m.oplog.ViewRect(m.displayList, centerBox)
-	} else {
-		m.revisions.ViewRect(m.displayList, centerBox)
+	m.syncPreviewSplitOrientation()
+	m.status.SetOverlayBounds(box)
+	activeLayout := layoutview.SlotContent(nil)
+	if m.layouts != nil {
+		activeLayout = m.layouts.Revisions
 	}
-
-	if m.previewModel.Visible() {
-		m.previewModel.ViewRect(m.displayList, previewArea)
+	if activeLayout != nil {
+		activeLayout.Render(m.displayList, box)
 	}
 
 	if m.stacked != nil {
@@ -527,14 +530,6 @@ func (m *Model) View() string {
 
 	if m.sequenceOverlay != nil {
 		m.sequenceOverlay.ViewRect(m.displayList, box)
-	}
-
-	if fuzzy := m.status.FuzzyModel(); fuzzy != nil {
-		availableHeight := bottomBox.R.Min.Y - box.R.Min.Y
-		if availableHeight > 0 {
-			fuzzyBox := layout.Box{R: cellbuf.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), availableHeight)}
-			fuzzy.ViewRect(m.displayList, fuzzyBox)
-		}
 	}
 
 	m.flash.ViewRect(m.displayList, box)
@@ -546,6 +541,45 @@ func (m *Model) View() string {
 	m.displayList.Render(screenBuf)
 	finalView := cellbuf.Render(screenBuf)
 	return strings.ReplaceAll(finalView, "\r", "")
+}
+
+func (m *Model) syncPreviewSplitOrientation() {
+	if m.revisionsSplit == nil {
+		return
+	}
+	vertical := m.previewModel.AtBottom()
+	if m.revisionsSplit != nil {
+		m.revisionsSplit.Vertical = vertical
+	}
+}
+
+func (m *Model) initLayouts() {
+	splitState := layoutview.NewSplitState(config.Current.Preview.WidthPercentage)
+
+	revsetSlot := layoutview.Model(m.revsetModel)
+	statusSlot := layoutview.Model(m.status)
+	m.primarySlot = layoutview.Model(m.revisions)
+	previewSlot := layoutview.Model(m.previewModel)
+
+	m.diffSlot = layoutview.Model(m.diff)
+
+	m.revisionsSplit = layoutview.HSplit(
+		splitState,
+		layoutview.Fill(1, m.primarySlot),
+		layoutview.Fill(1, previewSlot),
+	)
+
+	m.layouts = &UILayouts{
+		Revisions: layoutview.V(
+			layoutview.Fixed(1, revsetSlot),
+			layoutview.Fill(1, m.revisionsSplit),
+			layoutview.Fixed(1, statusSlot),
+		),
+		Diff: layoutview.V(
+			layoutview.Fill(1, m.diffSlot),
+			layoutview.Fixed(1, statusSlot),
+		),
+	}
 }
 
 func (m *Model) scheduleAutoRefresh() tea.Cmd {
@@ -614,35 +648,23 @@ func (w *wrapper) View() string {
 
 func NewUI(c *context.MainContext) *Model {
 	revisionsModel := revisions.New(c)
-
 	statusModel := status.New(c)
-
 	flashView := flash.New(c)
-
 	previewModel := preview.New(c)
-
 	revsetModel := revset.New(c)
 
-	// Determine initial preview orientation
-	previewAtBottom := false
-	previewPositionCfg, _ := config.GetPreviewPosition(config.Current)
-	if previewPositionCfg == config.PreviewPositionBottom {
-		previewAtBottom = true
-	}
-
-	previewSplit := layout.NewSplit(config.Current.Preview.WidthPercentage, previewAtBottom)
-
-	return &Model{
+	ui := &Model{
 		context:      c,
 		keyMap:       config.Current.GetKeyMap(),
 		state:        common.Loading,
 		revisions:    revisionsModel,
 		previewModel: previewModel,
-		previewSplit: previewSplit,
 		status:       statusModel,
 		revsetModel:  revsetModel,
 		flash:        flashView,
 	}
+	ui.initLayouts()
+	return ui
 }
 
 func New(c *context.MainContext) tea.Model {

@@ -71,11 +71,6 @@ type (
 		Operation any
 	}
 	StartAceJumpMsg struct{}
-	DragStartMsg   struct {
-		Target Draggable
-		X      int
-		Y      int
-	}
 )
 
 type State int
@@ -104,13 +99,6 @@ func StartAceJump() tea.Cmd {
 	return func() tea.Msg {
 		return StartAceJumpMsg{}
 	}
-}
-
-// SetDragStart implements render.DragStartCarrier.
-func (m DragStartMsg) SetDragStart(x, y int) tea.Msg {
-	m.X = x
-	m.Y = y
-	return m
 }
 
 func SelectionChanged(item SelectedItem) tea.Cmd {
