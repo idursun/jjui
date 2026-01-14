@@ -29,18 +29,16 @@ var _ common.ImmediateModel = (*Model)(nil)
 type Model struct {
 	*common.MouseAware
 	*common.DragAware
-	view                    viewport.Model
-	previewVisible          bool
-	previewAutoPosition     bool
-	previewAtBottom         bool
-	previewWindowPercentage float64
-	content                 string
-	contentLineCount        int
-	contentWidth            int
-	context                 *context.MainContext
-	keyMap                  config.KeyMappings[key.Binding]
-	frame                   cellbuf.Rectangle
-	parentFrame             cellbuf.Rectangle
+	view                viewport.Model
+	previewVisible      bool
+	previewAutoPosition bool
+	previewAtBottom     bool
+	content             string
+	contentLineCount    int
+	contentWidth        int
+	context             *context.MainContext
+	keyMap              config.KeyMappings[key.Binding]
+	frame               cellbuf.Rectangle
 }
 
 const (
@@ -109,10 +107,6 @@ func (m *Model) AtBottom() bool {
 	return m.previewAtBottom
 }
 
-func (m *Model) WindowPercentage() float64 {
-	return m.previewWindowPercentage
-}
-
 func (m *Model) YOffset() int {
 	return m.view.YOffset
 }
@@ -141,10 +135,7 @@ func (m *Model) DragStart(x, y int) bool {
 		return false
 	}
 
-	if m.parentFrame.Dx() == 0 || m.parentFrame.Dy() == 0 {
-		return false
-	}
-
+	// Check if click is on the resize handle area
 	if m.AtBottom() {
 		if y-m.frame.Min.Y > handleSize {
 			return false
@@ -160,18 +151,7 @@ func (m *Model) DragStart(x, y int) bool {
 }
 
 func (m *Model) DragMove(x, y int) tea.Cmd {
-	if !m.IsDragging() {
-		return nil
-	}
-
-	var percentage float64
-	if m.AtBottom() {
-		percentage = float64((m.parentFrame.Max.Y-y)*100) / float64(m.parentFrame.Dy())
-	} else {
-		percentage = float64((m.parentFrame.Max.X-x)*100) / float64(m.parentFrame.Dx())
-	}
-
-	m.SetWindowPercentage(percentage)
+	// Drag calculation is handled by ui.go via Split.DragTo
 	return nil
 }
 
@@ -282,23 +262,6 @@ func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
 	})
 }
 
-func (m *Model) SetWindowPercentage(percentage float64) {
-	m.previewWindowPercentage = percentage
-	if m.previewWindowPercentage < 10 {
-		m.previewWindowPercentage = 10
-	} else if m.previewWindowPercentage > 95 {
-		m.previewWindowPercentage = 95
-	}
-}
-
-func (m *Model) Expand() {
-	m.SetWindowPercentage(m.previewWindowPercentage + config.Current.Preview.WidthIncrementPercentage)
-}
-
-func (m *Model) Shrink() {
-	m.SetWindowPercentage(m.previewWindowPercentage - config.Current.Preview.WidthIncrementPercentage)
-}
-
 func New(context *context.MainContext) *Model {
 	previewAutoPosition := false
 	previewAtBottom := false
@@ -314,21 +277,16 @@ func New(context *context.MainContext) *Model {
 	}
 
 	return &Model{
-		MouseAware:              common.NewMouseAware(),
-		DragAware:               common.NewDragAware(),
-		context:                 context,
-		keyMap:                  config.Current.GetKeyMap(),
-		previewAutoPosition:     previewAutoPosition,
-		previewAtBottom:         previewAtBottom,
-		previewVisible:          config.Current.Preview.ShowAtStart,
-		previewWindowPercentage: config.Current.Preview.WidthPercentage,
+		MouseAware:          common.NewMouseAware(),
+		DragAware:           common.NewDragAware(),
+		context:             context,
+		keyMap:              config.Current.GetKeyMap(),
+		previewAutoPosition: previewAutoPosition,
+		previewAtBottom:     previewAtBottom,
+		previewVisible:      config.Current.Preview.ShowAtStart,
 	}
 }
 
 func (m *Model) Frame() cellbuf.Rectangle {
 	return m.frame
-}
-
-func (m *Model) SetParentFrame(frame cellbuf.Rectangle) {
-	m.parentFrame = frame
 }

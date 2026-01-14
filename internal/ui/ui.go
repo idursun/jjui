@@ -49,6 +49,8 @@ type Model struct {
 	oplog           *oplog.Model
 	revsetModel     *revset.Model
 	previewModel    *preview.Model
+	previewSplit    *layout.Split
+	splitBox        layout.Box // Box that split is applied to, for drag calculations
 	diff            *diff.Model
 	leader          *leader.Model
 	flash           *flash.Model
@@ -187,6 +189,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				m.dragTarget = nil
 				return cmd
 			case tea.MouseActionMotion:
+				// Handle preview drag via split
+				if m.dragTarget == m.previewModel {
+					m.previewSplit.DragTo(m.splitBox, msg.X, msg.Y)
+					return nil
+				}
 				return m.dragTarget.DragMove(msg.X, msg.Y)
 			}
 		} else if m.dragTarget != nil && !m.dragTarget.IsDragging() {
@@ -275,15 +282,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.previewModel.ToggleVisible()
 			cmds = append(cmds, common.SelectionChanged(m.context.SelectedItem))
 			return tea.Batch(cmds...)
-		case m.previewModel.Visible() && key.Matches(msg,
-			m.keyMap.Preview.Expand,
-			m.keyMap.Preview.Shrink,
-			m.keyMap.Preview.HalfPageDown,
-			m.keyMap.Preview.HalfPageUp,
-			m.keyMap.Preview.ScrollDown,
-			m.keyMap.Preview.ScrollUp):
-			cmd := m.previewModel.Update(msg)
-			cmds = append(cmds, cmd)
+		case key.Matches(msg, m.keyMap.Preview.Expand) && m.previewModel.Visible():
+			m.previewSplit.Expand(config.Current.Preview.WidthIncrementPercentage)
+			return tea.Batch(cmds...)
+		case key.Matches(msg, m.keyMap.Preview.Shrink) && m.previewModel.Visible():
+			m.previewSplit.Shrink(config.Current.Preview.WidthIncrementPercentage)
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.CustomCommands):
 			model := customcommands.NewModel(m.context)
@@ -486,7 +489,6 @@ func (m *Model) View() string {
 
 	screenBuf := cellbuf.NewBuffer(m.Width, m.Height)
 
-	m.previewModel.SetParentFrame(box.R)
 	m.status.ViewRect(m.displayList, bottomBox)
 	if m.diff != nil {
 		m.diff.ViewRect(m.displayList, topArea)
@@ -498,19 +500,14 @@ func (m *Model) View() string {
 
 	m.revsetModel.ViewRect(m.displayList, topArea)
 
+	// Store the box for split calculations (used during drag)
+	m.splitBox = centerBox
+
 	if m.previewModel.Visible() {
 		m.UpdatePreviewPosition()
-		if m.previewModel.AtBottom() {
-			pct := m.previewModel.WindowPercentage()
-			boxes := centerBox.V(layout.Percent(100-pct), layout.Fill(1))
-			centerBox = boxes[0]
-			previewArea = boxes[1]
-		} else {
-			pct := m.previewModel.WindowPercentage()
-			boxes := centerBox.H(layout.Percent(100-pct), layout.Fill(1))
-			centerBox = boxes[0]
-			previewArea = boxes[1]
-		}
+		// Sync split orientation with preview position
+		m.previewSplit.SetVertical(m.previewModel.AtBottom())
+		centerBox, previewArea = m.previewSplit.Apply(centerBox)
 		m.previewModel.SetFrame(previewArea.R)
 	}
 
@@ -649,6 +646,15 @@ func NewUI(c *context.MainContext) *Model {
 
 	revsetModel := revset.New(c)
 
+	// Determine initial preview orientation
+	previewAtBottom := false
+	previewPositionCfg, _ := config.GetPreviewPosition(config.Current)
+	if previewPositionCfg == config.PreviewPositionBottom {
+		previewAtBottom = true
+	}
+
+	previewSplit := layout.NewSplit(config.Current.Preview.WidthPercentage, previewAtBottom)
+
 	return &Model{
 		ViewNode:     frame,
 		context:      c,
@@ -656,6 +662,7 @@ func NewUI(c *context.MainContext) *Model {
 		state:        common.Loading,
 		revisions:    revisionsModel,
 		previewModel: previewModel,
+		previewSplit: previewSplit,
 		status:       statusModel,
 		revsetModel:  revsetModel,
 		flash:        flashView,
