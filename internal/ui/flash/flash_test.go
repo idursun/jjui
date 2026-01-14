@@ -5,7 +5,10 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -63,21 +66,21 @@ func TestView_StacksFromBottomRight(t *testing.T) {
 	m := New(test.NewTestContext(test.NewTestCommandRunner(t)))
 	m.successStyle = lipgloss.NewStyle()
 	m.errorStyle = lipgloss.NewStyle()
-	m.SetWidth(10)
-	m.SetHeight(3)
 
 	m.add("abc", nil)
 	m.add("de", nil)
 
-	views := m.View()
+	dl := render.NewDisplayList()
+	m.ViewRect(dl, layout.NewBox(cellbuf.Rect(0, 0, 10, 3)))
+	views := dl.DrawList()
 
 	if assert.Len(t, views, 2) {
 		w0, _ := lipgloss.Size(views[0].Content)
 		w1, _ := lipgloss.Size(views[1].Content)
 		assert.Equal(t, "abc", views[0].Content)
 		assert.Equal(t, "de", views[1].Content)
-		assert.Equal(t, m.Width-w0, views[0].Rect.Min.X)
-		assert.Equal(t, m.Width-w1, views[1].Rect.Min.X)
+		assert.Equal(t, 10-w0, views[0].Rect.Min.X)
+		assert.Equal(t, 10-w1, views[1].Rect.Min.X)
 		assert.Equal(t, 1, views[0].Rect.Min.Y)
 		assert.Equal(t, 0, views[1].Rect.Min.Y)
 	}

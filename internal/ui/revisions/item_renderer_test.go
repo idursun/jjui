@@ -10,7 +10,9 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,9 +39,7 @@ func (m *mockOperation) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *mockOperation) View() string {
-	return ""
-}
+func (m *mockOperation) ViewRect(_ *render.DisplayList, _ layout.Box) {}
 
 // Helper function to create a basic GraphRowLine
 func createGraphRowLine(text string, flags parser.RowLineFlags) *parser.GraphRowLine {

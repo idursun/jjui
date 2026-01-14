@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
@@ -239,5 +240,21 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	} else {
 		w.WriteString(m.styles.textStyle.Render(m.context.CurrentRevset))
 	}
-	dl.AddDraw(box.R, w.String(), 1)
+	content := w.String()
+	parts := strings.SplitN(content, "\n", 2)
+	line := parts[0]
+	dl.AddDraw(box.R, line, 1)
+
+	if !m.Editing || len(parts) < 2 {
+		return
+	}
+
+	overlay := parts[1]
+	overlayHeight := 1 + strings.Count(overlay, "\n")
+	if overlayHeight <= 0 {
+		return
+	}
+
+	overlayRect := cellbuf.Rect(box.R.Min.X, box.R.Max.Y, box.R.Dx(), overlayHeight)
+	dl.AddDraw(overlayRect, overlay, 2)
 }

@@ -65,17 +65,6 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) SetFrame(frame cellbuf.Rectangle) {
-	m.frame = frame
-	if m.AtBottom() {
-		m.view.Width = frame.Dx()
-		m.view.Height = frame.Dy() - 1
-	} else {
-		m.view.Width = frame.Dx() - 1
-		m.view.Height = frame.Dy()
-	}
-}
-
 func (m *Model) Visible() bool {
 	return m.previewVisible
 }
@@ -207,6 +196,13 @@ func (m *Model) SetContent(content string) {
 
 func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	m.frame = box.R
+	if m.AtBottom() {
+		m.view.Width = box.R.Dx()
+		m.view.Height = box.R.Dy() - 1
+	} else {
+		m.view.Width = box.R.Dx() - 1
+		m.view.Height = box.R.Dy()
+	}
 	border := lipgloss.NewStyle().Border(lipgloss.NormalBorder(), m.AtBottom(), false, false, !m.AtBottom())
 	content := border.Render(m.view.View())
 	dl.AddDraw(box.R, content, 0)

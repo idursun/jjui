@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/list"
+	"github.com/idursun/jjui/internal/ui/common/menu"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,7 +21,7 @@ func TestDistanceMap(t *testing.T) {
 }
 
 func Test_Sorting_MoveCommands(t *testing.T) {
-	items := []list.Item{
+	items := []menu.Item{
 		item{name: "move feature", dist: 5, priority: moveCommand},
 		item{name: "move main", dist: 1, priority: moveCommand},
 		item{name: "move very-old-feature", dist: 15, priority: moveCommand},
@@ -36,7 +36,7 @@ func Test_Sorting_MoveCommands(t *testing.T) {
 }
 
 func Test_Sorting_MixedCommands(t *testing.T) {
-	items := []list.Item{
+	items := []menu.Item{
 		item{name: "move very-old-feature", dist: 2, priority: moveCommand},
 		item{name: "move main", dist: 0, priority: moveCommand},
 		item{name: "delete very-old-feature", dist: 3, priority: deleteCommand},

@@ -4,9 +4,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,9 +16,8 @@ func Test_Push(t *testing.T) {
 	defer commandRunner.Verify()
 
 	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions())
-	op.SetFrame(cellbuf.Rect(0, 0, 100, 40))
-	op.Parent = common.NewViewNode(100, 40)
 	test.SimulateModel(op, op.Init())
+	_ = test.RenderImmediate(op, 100, 40)
 	test.SimulateModel(op, test.Press(tea.KeyEnter))
 }
 
@@ -31,9 +28,8 @@ func Test_Fetch(t *testing.T) {
 	defer commandRunner.Verify()
 
 	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions())
-	op.SetFrame(cellbuf.Rect(0, 0, 100, 40))
-	op.Parent = common.NewViewNode(100, 40)
 	test.SimulateModel(op, op.Init())
+	_ = test.RenderImmediate(op, 100, 40)
 	test.SimulateModel(op, test.Type("/fetch"))
 	test.SimulateModel(op, test.Press(tea.KeyEnter))
 	test.SimulateModel(op, test.Press(tea.KeyEnter))
@@ -65,12 +61,12 @@ func Test_PushChange(t *testing.T) {
 	defer commandRunner.Verify()
 
 	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(&jj.Commit{ChangeId: changeId}))
-	op.SetFrame(cellbuf.Rect(0, 0, 100, 40))
-	op.Parent = common.NewViewNode(100, 40)
 	test.SimulateModel(op, op.Init())
+	_ = test.RenderImmediate(op, 100, 40)
 
 	// Filter for the exact item and ensure selection is at index 0
 	test.SimulateModel(op, test.Type("/git push --change"))
 	test.SimulateModel(op, test.Press(tea.KeyDown)) // Ensure first item is selected
+	test.SimulateModel(op, test.Press(tea.KeyEnter))
 	test.SimulateModel(op, test.Press(tea.KeyEnter))
 }

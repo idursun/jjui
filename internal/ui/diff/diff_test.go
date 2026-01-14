@@ -5,7 +5,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
@@ -13,12 +12,10 @@ import (
 
 func TestNew_TrimsCarriageReturnsAndHandlesEmpty(t *testing.T) {
 	model := New("line1\r\nline2\r\n")
-	model.SetFrame(cellbuf.Rect(0, 0, 20, 5))
-	assert.Equal(t, "line1\nline2", test.Stripped(model.View()))
+	assert.Equal(t, "line1\nline2", test.Stripped(test.RenderImmediate(model, 20, 5)))
 
 	emptyModel := New("")
-	emptyModel.SetFrame(cellbuf.Rect(0, 0, 10, 3))
-	assert.Equal(t, "(empty)", test.Stripped(emptyModel.View()))
+	assert.Equal(t, "(empty)", test.Stripped(test.RenderImmediate(emptyModel, 10, 3)))
 }
 
 func TestScroll_AdjustsViewportOffset(t *testing.T) {
@@ -34,7 +31,6 @@ func TestScroll_AdjustsViewportOffset(t *testing.T) {
 
 func TestUpdate_CancelReturnsClose(t *testing.T) {
 	model := New("content")
-	model.SetFrame(cellbuf.Rect(0, 0, 10, 3))
 	model.keymap.Cancel = key.NewBinding(key.WithKeys("q"))
 
 	var msgs []tea.Msg

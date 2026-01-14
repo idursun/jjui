@@ -10,35 +10,48 @@ import (
 
 // DisplayList holds all rendering operations for a frame.
 // Operations are accumulated during the layout/render pass,
-// then executed in order (Draw calls by Z, then Effects by Z).
+// then executed in order by batch and Z-index.
 type DisplayList struct {
-	draws        []Draw
-	effects      []Effect
-	interactions []InteractionOp
+	draws        []drawOp
+	effects      []effectOp
+	interactions []interactionOp
+	orderCounter int
 }
 
 // NewDisplayList creates a new empty display list.
 func NewDisplayList() *DisplayList {
 	return &DisplayList{
-		draws:        make([]Draw, 0, 16),
-		effects:      make([]Effect, 0, 8),
-		interactions: make([]InteractionOp, 0, 8),
+		draws:        make([]drawOp, 0, 16),
+		effects:      make([]effectOp, 0, 8),
+		interactions: make([]interactionOp, 0, 8),
 	}
+}
+
+func (dl *DisplayList) nextOrder() int {
+	dl.orderCounter++
+	return dl.orderCounter
 }
 
 // AddDraw adds a Draw to the display list.
 func (dl *DisplayList) AddDraw(rect cellbuf.Rectangle, content string, z int) {
-	dl.draws = append(dl.draws, Draw{
-		Rect:    rect,
-		Content: content,
-		Z:       z,
+	dl.draws = append(dl.draws, drawOp{
+		Draw: Draw{
+			Rect:    rect,
+			Content: content,
+			Z:       z,
+		},
+		order: dl.nextOrder(),
 	})
 }
 
 // AddEffect adds a custom Effect to the display list.
 // This is the generic method that accepts any Effect implementation.
 func (dl *DisplayList) AddEffect(effect Effect) {
-	dl.effects = append(dl.effects, effect)
+	dl.effects = append(dl.effects, effectOp{
+		effect: effect,
+		order:  dl.nextOrder(),
+		z:      effect.GetZ(),
+	})
 }
 
 // AddReverse adds a ReverseEffect (reverses foreground/background colors).
@@ -73,11 +86,14 @@ func (dl *DisplayList) AddHighlight(rect cellbuf.Rectangle, style lipgloss.Style
 
 // AddInteraction adds an InteractionOp to the display list.
 func (dl *DisplayList) AddInteraction(rect cellbuf.Rectangle, msg tea.Msg, typ InteractionType, z int) {
-	dl.interactions = append(dl.interactions, InteractionOp{
-		Rect: rect,
-		Msg:  msg,
-		Type: typ,
-		Z:    z,
+	dl.interactions = append(dl.interactions, interactionOp{
+		InteractionOp: InteractionOp{
+			Rect: rect,
+			Msg:  msg,
+			Type: typ,
+			Z:    z,
+		},
+		order: dl.nextOrder(),
 	})
 }
 
@@ -87,6 +103,7 @@ func (dl *DisplayList) Clear() {
 	dl.draws = dl.draws[:0]
 	dl.effects = dl.effects[:0]
 	dl.interactions = dl.interactions[:0]
+	dl.orderCounter = 0
 }
 
 // Render executes all operations in the display list to the given cellbuf.
@@ -94,24 +111,40 @@ func (dl *DisplayList) Clear() {
 // 1. Draw sorted by Z-index (low to high)
 // 2. Effects sorted by Z-index (low to high)
 func (dl *DisplayList) Render(buf *cellbuf.Buffer) {
-	// Sort Draw calls by Z-index (stable sort maintains insertion order for equal Z)
-	sort.SliceStable(dl.draws, func(i, j int) bool {
-		return dl.draws[i].Z < dl.draws[j].Z
-	})
-
-	// Render all Draw calls
-	for _, op := range dl.draws {
-		cellbuf.SetContentRect(buf, op.Content, op.Rect)
+	if len(dl.draws) == 0 && len(dl.effects) == 0 {
+		return
 	}
 
-	// Sort Effects by Z-index
-	sort.SliceStable(dl.effects, func(i, j int) bool {
-		return dl.effects[i].GetZ() < dl.effects[j].GetZ()
+	ops := make([]renderOp, 0, len(dl.draws)+len(dl.effects))
+	for _, op := range dl.draws {
+		ops = append(ops, renderOp{
+			z:      op.Z,
+			order:  op.order,
+			draw:   op.Draw,
+			isDraw: true,
+		})
+	}
+	for _, op := range dl.effects {
+		ops = append(ops, renderOp{
+			z:      op.z,
+			order:  op.order,
+			effect: op.effect,
+		})
+	}
+
+	sort.SliceStable(ops, func(i, j int) bool {
+		if ops[i].z != ops[j].z {
+			return ops[i].z < ops[j].z
+		}
+		return ops[i].order < ops[j].order
 	})
 
-	// Apply all Effects
-	for _, effect := range dl.effects {
-		effect.Apply(buf)
+	for _, op := range ops {
+		if op.isDraw {
+			cellbuf.SetContentRect(buf, op.draw.Content, op.draw.Rect)
+			continue
+		}
+		op.effect.Apply(buf)
 	}
 }
 
@@ -126,35 +159,88 @@ func (dl *DisplayList) RenderToString(width, height int) string {
 // DrawList returns a copy of all Draw calls (useful for debugging/inspection)
 func (dl *DisplayList) DrawList() []Draw {
 	result := make([]Draw, len(dl.draws))
-	copy(result, dl.draws)
+	for i, op := range dl.draws {
+		result[i] = op.Draw
+	}
 	return result
 }
 
 // EffectsList returns a copy of all Effects (useful for debugging/inspection)
 func (dl *DisplayList) EffectsList() []Effect {
 	result := make([]Effect, len(dl.effects))
-	copy(result, dl.effects)
+	for i, op := range dl.effects {
+		result[i] = op.effect
+	}
 	return result
 }
 
 // InteractionsList returns all interactions sorted by Z-index (highest first for priority).
 func (dl *DisplayList) InteractionsList() []InteractionOp {
-	sorted := make([]InteractionOp, len(dl.interactions))
+	sorted := make([]interactionOp, len(dl.interactions))
 	copy(sorted, dl.interactions)
 	sort.SliceStable(sorted, func(i, j int) bool {
-		return sorted[i].Z > sorted[j].Z // Higher Z = higher priority
+		if sorted[i].Z != sorted[j].Z {
+			return sorted[i].Z > sorted[j].Z
+		}
+		return sorted[i].order > sorted[j].order
 	})
-	return sorted
+	result := make([]InteractionOp, len(sorted))
+	for i, op := range sorted {
+		result[i] = op.InteractionOp
+	}
+	return result
 }
 
 // Merge adds all operations from another DisplayList into this one.
 func (dl *DisplayList) Merge(other *DisplayList) {
-	dl.draws = append(dl.draws, other.draws...)
-	dl.effects = append(dl.effects, other.effects...)
-	dl.interactions = append(dl.interactions, other.interactions...)
+	for _, op := range other.draws {
+		dl.draws = append(dl.draws, drawOp{
+			Draw:  op.Draw,
+			order: dl.nextOrder(),
+		})
+	}
+
+	for _, op := range other.effects {
+		dl.effects = append(dl.effects, effectOp{
+			effect: op.effect,
+			order:  dl.nextOrder(),
+			z:      op.z,
+		})
+	}
+
+	for _, op := range other.interactions {
+		dl.interactions = append(dl.interactions, interactionOp{
+			InteractionOp: op.InteractionOp,
+			order:         dl.nextOrder(),
+		})
+	}
 }
 
 // Len returns the total number of operations in the display list
 func (dl *DisplayList) Len() int {
 	return len(dl.draws) + len(dl.effects) + len(dl.interactions)
+}
+
+type drawOp struct {
+	Draw
+	order int
+}
+
+type effectOp struct {
+	effect Effect
+	order  int
+	z      int
+}
+
+type interactionOp struct {
+	InteractionOp
+	order int
+}
+
+type renderOp struct {
+	z      int
+	order  int
+	draw   Draw
+	effect Effect
+	isDraw bool
 }

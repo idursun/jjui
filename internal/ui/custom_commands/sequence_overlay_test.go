@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/require"
@@ -70,7 +69,6 @@ func TestHandleKey_executes_single_key_sequence(t *testing.T) {
 	ctx.CustomCommands["run"] = cmd
 
 	overlay := NewSequenceOverlay(ctx)
-	overlay.ViewNode.Parent = common.NewViewNode(80, 24)
 	model := &overlayModel{overlay: overlay}
 
 	var msgs []tea.Msg
@@ -104,7 +102,6 @@ func TestHandleKey_executes_multi_key_sequence(t *testing.T) {
 	ctx.CustomCommands["go-run"] = cmd
 
 	overlay := NewSequenceOverlay(ctx)
-	overlay.ViewNode.Parent = common.NewViewNode(80, 24)
 	model := &overlayModel{overlay: overlay}
 
 	executed := false

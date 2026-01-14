@@ -6,13 +6,16 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/stretchr/testify/assert"
 )
 
 // mockNonFocusableOperation is a mock operation that is never focused, editing, or overlay
 type mockNonFocusableOperation struct{}
 
-func (m *mockNonFocusableOperation) Render(commit *jj.Commit, renderPosition int) string {
+func (m *mockNonFocusableOperation) Render(commit *jj.Commit, renderPosition operations.RenderPosition) string {
 	return ""
 }
 
@@ -28,9 +31,7 @@ func (m *mockNonFocusableOperation) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *mockNonFocusableOperation) View() string {
-	return ""
-}
+func (m *mockNonFocusableOperation) ViewRect(_ *render.DisplayList, _ layout.Box) {}
 
 func (m *mockNonFocusableOperation) IsFocused() bool {
 	return false
@@ -48,7 +49,7 @@ func (m *mockNonFocusableOperation) IsOverlay() bool {
 func TestQuickSearch_EnterKeyClearsSearch(t *testing.T) {
 	model := &Model{
 		quickSearch: "test",
-		renderer:    newRevisionListRenderer(nil, nil),
+		renderer:    newRevisionListRenderer(nil),
 		op:          &mockNonFocusableOperation{},
 		rows:        []parser.Row{{Commit: &jj.Commit{ChangeId: "test123"}}},
 	}
@@ -64,7 +65,7 @@ func TestQuickSearch_EnterKeyClearsSearch(t *testing.T) {
 func TestQuickSearch_EscapeKeyClearsSearch(t *testing.T) {
 	model := &Model{
 		quickSearch: "test",
-		renderer:    newRevisionListRenderer(nil, nil),
+		renderer:    newRevisionListRenderer(nil),
 		op:          &mockNonFocusableOperation{},
 		rows:        []parser.Row{{Commit: &jj.Commit{ChangeId: "test123"}}},
 	}
@@ -80,7 +81,7 @@ func TestQuickSearch_EscapeKeyClearsSearch(t *testing.T) {
 func TestQuickSearch_EnterWithEmptySearch(t *testing.T) {
 	model := &Model{
 		quickSearch: "",
-		renderer:    newRevisionListRenderer(nil, nil),
+		renderer:    newRevisionListRenderer(nil),
 		rows:        []parser.Row{{Commit: &jj.Commit{ChangeId: "test123"}}},
 		op:          &mockNonFocusableOperation{},
 	}

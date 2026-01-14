@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/stretchr/testify/assert"
@@ -31,9 +30,8 @@ func TestModel_Init_ExecutesStatusCommand(t *testing.T) {
 	defer commandRunner.Verify()
 
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
-	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
-	assert.Contains(t, model.View(), "file.txt")
+	assert.Contains(t, test.RenderImmediate(model, 100, 20), "file.txt")
 }
 
 func TestModel_Update_RestoresSelectedFiles(t *testing.T) {
@@ -44,9 +42,8 @@ func TestModel_Update_RestoresSelectedFiles(t *testing.T) {
 	defer commandRunner.Verify()
 
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
-	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
-	assert.Contains(t, model.View(), "file.txt")
+	assert.Contains(t, test.RenderImmediate(model, 100, 20), "file.txt")
 
 	test.SimulateModel(model, test.Press(tea.KeySpace))
 	test.SimulateModel(model, test.Type("r"))
@@ -61,9 +58,8 @@ func TestModel_Update_RestoresInteractively(t *testing.T) {
 	defer commandRunner.Verify()
 
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
-	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
-	assert.Contains(t, model.View(), "file.txt")
+	assert.Contains(t, test.RenderImmediate(model, 100, 20), "file.txt")
 	test.SimulateModel(model, test.Type("ri"))
 }
 
@@ -75,9 +71,8 @@ func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
 	defer commandRunner.Verify()
 
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
-	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
-	assert.Contains(t, model.View(), "file.txt")
+	assert.Contains(t, test.RenderImmediate(model, 100, 20), "file.txt")
 
 	test.SimulateModel(model, test.Press(tea.KeySpace))
 	test.SimulateModel(model, test.Type("s"))
@@ -92,9 +87,8 @@ func TestModel_Update_ParallelSplitsSelectedFiles(t *testing.T) {
 	defer commandRunner.Verify()
 
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
-	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
-	assert.Contains(t, model.View(), "file.txt")
+	assert.Contains(t, test.RenderImmediate(model, 100, 20), "file.txt")
 
 	test.SimulateModel(model, test.Press(tea.KeySpace))
 	test.SimulateModel(model, func() tea.Msg {
@@ -111,9 +105,8 @@ func TestModel_Update_HandlesMovedFiles(t *testing.T) {
 	defer commandRunner.Verify()
 
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
-	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
-	assert.Contains(t, model.View(), "file.go")
+	assert.Contains(t, test.RenderImmediate(model, 100, 20), "file.go")
 
 	test.SimulateModel(model, test.Press(tea.KeySpace))
 	test.SimulateModel(model, test.Press(tea.KeySpace))
@@ -129,9 +122,8 @@ func TestModel_Update_HandlesMovedFilesInDeepDirectories(t *testing.T) {
 	defer commandRunner.Verify()
 
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
-	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
-	assert.Contains(t, model.View(), "new_file.md")
+	assert.Contains(t, test.RenderImmediate(model, 100, 20), "new_file.md")
 
 	test.SimulateModel(model, test.Press(tea.KeySpace))
 	test.SimulateModel(model, test.Press(tea.KeySpace))
@@ -148,9 +140,8 @@ func TestModel_Update_HandlesFilenamesWithBraces(t *testing.T) {
 	defer commandRunner.Verify()
 
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
-	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
-	assert.Contains(t, model.View(), "file{with}braces.txt")
+	assert.Contains(t, test.RenderImmediate(model, 100, 20), "file{with}braces.txt")
 
 	test.SimulateModel(model, test.Press(tea.KeySpace))
 	test.SimulateModel(model, test.Press(tea.KeySpace))
@@ -165,7 +156,6 @@ func TestModel_Refresh_IgnoreVirtuallySelectedFiles(t *testing.T) {
 	defer commandRunner.Verify()
 
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
-	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	test.SimulateModel(model, model.Init())
 	test.SimulateModel(model, common.Refresh)
 	for _, file := range model.files {
@@ -195,7 +185,6 @@ func TestModel_Update_Quit(t *testing.T) {
 			commandRunner := test.NewTestCommandRunner(t)
 
 			model := NewOperation(test.NewTestContext(commandRunner), Commit)
-			model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 			model.keymap.Quit = key.NewBinding(key.WithKeys("esc", "q"))
 			var msgs []tea.Msg
 			test.SimulateModel(model, testCase.interaction, func(msg tea.Msg) {
@@ -220,7 +209,6 @@ A test/file3
 A test/file4`
 
 	model := NewOperation(test.NewTestContext(test.NewTestCommandRunner(t)), Commit)
-	model.SetFrame(cellbuf.Rect(0, 0, 100, 20))
 	files := model.createListItems(content, nil)
 	assert.Len(t, files, 4)
 }

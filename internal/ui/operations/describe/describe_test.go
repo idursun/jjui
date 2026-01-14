@@ -5,7 +5,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -39,8 +38,7 @@ func TestOperation_Update_RestoresStashedDescription(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	operation := NewOperation(ctx, revision)
-	operation.Parent = common.NewViewNode(100, 100)
 	test.SimulateModel(operation, operation.Init())
-	view := operation.View()
+	view := test.RenderImmediate(operation, 100, 20)
 	assert.Contains(t, view, "restored description")
 }

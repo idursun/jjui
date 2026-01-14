@@ -278,8 +278,13 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		return ""
 	}
 	maxHeight := s.frame.Dy()
-	if maxHeight <= 0 {
-		maxHeight = s.Len() + 5 // fallback to content-based height
+	confirmationHeight := 0
+	if s.confirmation != nil {
+		confirmationHeight = lipgloss.Height(s.confirmation.View())
+	}
+	desiredHeight := s.Len() + 5 + confirmationHeight
+	if maxHeight <= 0 || maxHeight < desiredHeight {
+		maxHeight = desiredHeight // ensure confirmation height is accounted for in measurements
 	}
 	return s.viewContent(maxHeight)
 }

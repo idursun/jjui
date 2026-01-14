@@ -201,7 +201,7 @@ func (ir itemRenderer) renderSegments(lw *strings.Builder, segmentedLine parser.
 		if sr, ok := ir.op.(operations.SegmentRenderer); ok {
 			rendered := sr.RenderSegment(style, segment, ir.row)
 			if rendered != "" {
-				fmt.Fprint(lw, style.Render(rendered))
+				fmt.Fprint(lw, rendered)
 				continue
 			}
 		}

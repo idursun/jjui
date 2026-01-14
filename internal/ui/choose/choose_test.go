@@ -21,7 +21,7 @@ func TestModel_View(t *testing.T) {
 	title := "Choose an option"
 	model := NewWithTitle(options, title)
 	test.SimulateModel(model, model.Init())
-	output := model.View()
+	output := test.RenderImmediate(model, 80, 20)
 	require.NotEmpty(t, output)
 
 	assert.Contains(t, output, title)

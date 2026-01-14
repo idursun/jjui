@@ -367,6 +367,13 @@ func (ir *itemRenderer) renderLineToString(line *parser.GraphRowLine, width int)
 		}
 
 		style := ir.getSegmentStyle(*segment)
+		if sr, ok := ir.op.(operations.SegmentRenderer); ok {
+			rendered := sr.RenderSegment(style, segment, ir.row)
+			if rendered != "" {
+				result.WriteString(rendered)
+				continue
+			}
+		}
 		result.WriteString(style.Render(segment.Text))
 	}
 

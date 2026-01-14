@@ -27,7 +27,7 @@ func TestModel_Update_Up_SetsCurrentRevset(t *testing.T) {
 	model := New(ctx)
 	test.SimulateModel(model, model.Init())
 	test.SimulateModel(model, test.Press(tea.KeyUp))
-	assert.Contains(t, model.View(), "current")
+	assert.Contains(t, test.RenderImmediate(model, 80, 5), "current")
 }
 
 func TestModel_View_DisplaysCurrentRevset(t *testing.T) {
@@ -38,5 +38,5 @@ func TestModel_View_DisplaysCurrentRevset(t *testing.T) {
 	ctx.CurrentRevset = "current"
 	ctx.DefaultRevset = "default"
 	model := New(ctx)
-	assert.Contains(t, model.View(), ctx.CurrentRevset)
+	assert.Contains(t, test.RenderImmediate(model, 80, 5), ctx.CurrentRevset)
 }

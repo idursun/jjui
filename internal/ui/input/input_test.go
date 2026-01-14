@@ -32,7 +32,7 @@ func TestModel_View(t *testing.T) {
 	prompt := "Text: "
 	model := NewWithTitle(title, prompt)
 	test.SimulateModel(model, model.Init())
-	output := model.View()
+	output := test.RenderImmediate(model, 80, 20)
 	require.NotEmpty(t, output)
 
 	assert.Contains(t, output, title)
@@ -43,7 +43,7 @@ func TestModel_View_NoTitle(t *testing.T) {
 	prompt := "Text: "
 	model := NewWithTitle("", prompt)
 	test.SimulateModel(model, model.Init())
-	output := model.View()
+	output := test.RenderImmediate(model, 80, 20)
 	require.NotEmpty(t, output)
 
 	assert.Contains(t, output, prompt)
@@ -52,7 +52,7 @@ func TestModel_View_NoTitle(t *testing.T) {
 func TestModel_View_OnlyInput(t *testing.T) {
 	model := New()
 	test.SimulateModel(model, model.Init())
-	output := model.View()
+	output := test.RenderImmediate(model, 80, 20)
 	require.NotEmpty(t, output)
 
 	assert.Contains(t, output, "> ")

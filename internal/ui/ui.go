@@ -44,7 +44,6 @@ type SizableModel interface {
 }
 
 type Model struct {
-	*common.ViewNode
 	revisions       *revisions.Model
 	oplog           *oplog.Model
 	revsetModel     *revset.Model
@@ -64,6 +63,8 @@ type Model struct {
 	dragTarget      common.Draggable
 	sequenceOverlay *customcommands.SequenceOverlay
 	displayList     *render.DisplayList
+	width           int
+	height          int
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -402,7 +403,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 
 	case tea.WindowSizeMsg:
-		m.SetFrame(cellbuf.Rect(0, 0, msg.Width, msg.Height))
+		m.width = msg.Width
+		m.height = msg.Height
 	}
 
 	// Unhandled key messages go to the main view (oplog or revisions)
@@ -469,13 +471,13 @@ func (m *Model) updateStatus() {
 
 func (m *Model) UpdatePreviewPosition() {
 	if m.previewModel.AutoPosition() {
-		atBottom := m.Height >= m.Width/2
+		atBottom := m.height >= m.width/2
 		m.previewModel.SetPosition(true, atBottom)
 	}
 }
 
 func (m *Model) View() string {
-	if m.Width == 0 || m.Height == 0 {
+	if m.width == 0 || m.height == 0 {
 		return ""
 	}
 
@@ -483,18 +485,22 @@ func (m *Model) View() string {
 
 	m.updateStatus()
 
-	box := layout.NewBox(cellbuf.Rect(0, 0, m.Width, m.Height))
+	box := layout.NewBox(cellbuf.Rect(0, 0, m.width, m.height))
+	screenBuf := cellbuf.NewBuffer(m.width, m.height)
+
+	if m.diff != nil {
+		diffArea, bottomBox := box.CutBottom(1)
+		m.status.ViewRect(m.displayList, bottomBox)
+		m.diff.ViewRect(m.displayList, diffArea)
+		m.displayList.Render(screenBuf)
+		content := cellbuf.Render(screenBuf)
+		return strings.ReplaceAll(content, "\r", "")
+	}
+
 	topArea, centerBox := box.CutTop(1)
 	centerBox, bottomBox := centerBox.CutBottom(1)
 
-	screenBuf := cellbuf.NewBuffer(m.Width, m.Height)
-
 	m.status.ViewRect(m.displayList, bottomBox)
-	if m.diff != nil {
-		m.diff.ViewRect(m.displayList, topArea)
-		m.displayList.Render(screenBuf)
-		return cellbuf.Render(screenBuf)
-	}
 
 	var previewArea layout.Box
 
@@ -508,15 +514,11 @@ func (m *Model) View() string {
 		// Sync split orientation with preview position
 		m.previewSplit.SetVertical(m.previewModel.AtBottom())
 		centerBox, previewArea = m.previewSplit.Apply(centerBox)
-		m.previewModel.SetFrame(previewArea.R)
 	}
-
-	centerArea := centerBox.R
 
 	if m.oplog != nil {
 		m.oplog.ViewRect(m.displayList, centerBox)
 	} else {
-		m.revisions.SetFrame(centerArea)
 		m.revisions.ViewRect(m.displayList, centerBox)
 	}
 
@@ -634,8 +636,6 @@ func (w *wrapper) View() string {
 }
 
 func NewUI(c *context.MainContext) *Model {
-	frame := common.NewViewNode(0, 0)
-
 	revisionsModel := revisions.New(c)
 
 	statusModel := status.New(c)
@@ -656,7 +656,6 @@ func NewUI(c *context.MainContext) *Model {
 	previewSplit := layout.NewSplit(config.Current.Preview.WidthPercentage, previewAtBottom)
 
 	return &Model{
-		ViewNode:     frame,
 		context:      c,
 		keyMap:       config.Current.GetKeyMap(),
 		state:        common.Loading,

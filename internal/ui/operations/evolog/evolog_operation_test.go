@@ -3,7 +3,6 @@ package evolog
 import (
 	"testing"
 
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +40,6 @@ func TestNewOperation_Mode(t *testing.T) {
 			commandRunner := test.NewTestCommandRunner(t)
 			context := test.NewTestContext(commandRunner)
 			operation := NewOperation(context, revision)
-			operation.SetFrame(cellbuf.Rect(0, 0, 100, 40))
 			operation.mode = args.mode
 
 			assert.Equal(t, args.isFocused, operation.IsFocused())
@@ -57,7 +55,6 @@ func TestOperation_Init(t *testing.T) {
 
 	context := test.NewTestContext(commandRunner)
 	operation := NewOperation(context, revision)
-	operation.SetFrame(cellbuf.Rect(0, 0, 100, 40))
 
 	test.SimulateModel(operation, operation.Init())
 
