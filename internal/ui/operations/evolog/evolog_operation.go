@@ -2,6 +2,7 @@ package evolog
 
 import (
 	"bytes"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/parser"
@@ -23,6 +24,21 @@ type updateEvologMsg struct {
 	rows []parser.Row
 }
 
+// EvologClickedMsg is sent when an evolog item is clicked
+type EvologClickedMsg struct {
+	Index int
+}
+
+// EvologScrollMsg is sent when the evolog list is scrolled via mouse wheel
+type EvologScrollMsg struct {
+	Delta int
+}
+
+// SetDelta implements render.ScrollDeltaCarrier
+func (e EvologScrollMsg) SetDelta(delta int) tea.Msg {
+	return EvologScrollMsg{Delta: delta}
+}
+
 type mode int
 
 const (
@@ -32,20 +48,22 @@ const (
 
 var _ list.IList = (*Operation)(nil)
 var _ operations.Operation = (*Operation)(nil)
+var _ operations.DisplayListRenderer = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
 var _ common.Overlay = (*Operation)(nil)
 
 type Operation struct {
-	context  *context.MainContext
-	renderer *list.ListRenderer
-	revision *jj.Commit
-	mode     mode
-	rows     []parser.Row
-	cursor   int
-	keyMap   config.KeyMappings[key.Binding]
-	target   *jj.Commit
-	styles   styles
-	frame    cellbuf.Rectangle
+	context    *context.MainContext
+	renderer   *list.ListRenderer
+	dlRenderer *render.ListRenderer
+	revision   *jj.Commit
+	mode       mode
+	rows       []parser.Row
+	cursor     int
+	keyMap     config.KeyMappings[key.Binding]
+	target     *jj.Commit
+	styles     styles
+	frame      cellbuf.Rectangle
 }
 
 func (o *Operation) IsOverlay() bool {
@@ -155,6 +173,14 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 		o.rows = msg.rows
 		o.cursor = 0
 		return o.updateSelection()
+	case EvologClickedMsg:
+		if msg.Index >= 0 && msg.Index < len(o.rows) {
+			o.cursor = msg.Index
+			return o.updateSelection()
+		}
+	case EvologScrollMsg:
+		o.dlRenderer.SetScrollOffset(o.dlRenderer.GetScrollOffset() + msg.Delta)
+		return nil
 	case tea.KeyMsg:
 		cmd := o.HandleKey(msg)
 		return cmd
@@ -208,6 +234,106 @@ func (o *Operation) Name() string {
 	return "evolog"
 }
 
+// SupportsDisplayList returns true for RenderPositionAfter in select mode
+func (o *Operation) SupportsDisplayList(pos operations.RenderPosition) bool {
+	return pos == operations.RenderPositionAfter && o.mode == selectMode
+}
+
+// DesiredHeight returns the desired height for the operation
+func (o *Operation) DesiredHeight(commit *jj.Commit, pos operations.RenderPosition) int {
+	isSelected := commit.GetChangeId() == o.revision.GetChangeId()
+	if !isSelected || pos != operations.RenderPositionAfter || o.mode != selectMode {
+		return 0
+	}
+	if len(o.rows) == 0 {
+		return 1 // "loading" message
+	}
+	// Sum up all row heights
+	total := 0
+	for _, row := range o.rows {
+		total += len(row.Lines)
+	}
+	return total
+}
+
+// RenderToDisplayList renders the evolog list directly to the DisplayList
+func (o *Operation) RenderToDisplayList(dl *render.DisplayList, commit *jj.Commit, pos operations.RenderPosition, rect cellbuf.Rectangle, screenOffset cellbuf.Position) int {
+	isSelected := commit.GetChangeId() == o.revision.GetChangeId()
+	if !isSelected || pos != operations.RenderPositionAfter || o.mode != selectMode {
+		return 0
+	}
+
+	if len(o.rows) == 0 {
+		content := "loading"
+		dl.AddDraw(cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), 1), content, 0)
+		return 1
+	}
+
+	// Calculate total height needed
+	totalHeight := 0
+	for _, row := range o.rows {
+		totalHeight += len(row.Lines)
+	}
+	height := min(rect.Dy(), totalHeight)
+	o.frame = cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)
+
+	// Measure function - returns height for each item
+	measure := func(index int) int {
+		return len(o.rows[index].Lines)
+	}
+
+	// Render function - renders each visible item
+	renderItem := func(dl *render.DisplayList, index int, itemRect cellbuf.Rectangle) {
+		row := o.rows[index]
+		isItemSelected := index == o.cursor
+		styleOverride := o.styles.textStyle
+		if isItemSelected {
+			styleOverride = o.styles.selectedStyle
+		}
+
+		y := itemRect.Min.Y
+		for _, line := range row.Lines {
+			var content strings.Builder
+			for _, segment := range line.Gutter.Segments {
+				content.WriteString(segment.Style.Render(segment.Text))
+			}
+			for _, segment := range line.Segments {
+				style := segment.Style.Inherit(styleOverride)
+				content.WriteString(style.Render(segment.Text))
+			}
+			lineContent := lipgloss.PlaceHorizontal(itemRect.Dx(), 0, content.String(), lipgloss.WithWhitespaceBackground(styleOverride.GetBackground()))
+			lineRect := cellbuf.Rect(itemRect.Min.X, y, itemRect.Dx(), 1)
+			dl.AddDraw(lineRect, lineContent, 0)
+
+			if isItemSelected {
+				dl.AddHighlight(lineRect, o.styles.selectedStyle, 1)
+			}
+			y++
+		}
+	}
+
+	// Click message factory
+	clickMsg := func(index int) render.ClickMessage {
+		return EvologClickedMsg{Index: index}
+	}
+
+	// Use the generic list renderer with screen offset for interactions
+	viewRect := layout.Box{R: cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)}
+	o.dlRenderer.RenderWithOffset(
+		dl,
+		viewRect,
+		len(o.rows),
+		o.cursor,
+		true, // ensureCursorVisible
+		measure,
+		renderItem,
+		clickMsg,
+		screenOffset,
+	)
+
+	return height
+}
+
 func (o *Operation) load() tea.Msg {
 	output, _ := o.context.RunCommandImmediate(jj.Evolog(o.revision.GetChangeId()))
 	rows := parser.ParseRows(bytes.NewReader(output))
@@ -226,12 +352,13 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 		selectedStyle: common.DefaultPalette.Get("evolog selected"),
 	}
 	o := &Operation{
-		context:  context,
-		keyMap:   config.Current.GetKeyMap(),
-		revision: revision,
-		rows:     nil,
-		cursor:   0,
-		styles:   styles,
+		context:    context,
+		keyMap:     config.Current.GetKeyMap(),
+		revision:   revision,
+		rows:       nil,
+		cursor:     0,
+		styles:     styles,
+		dlRenderer: render.NewListRenderer(EvologScrollMsg{}),
 	}
 	o.renderer = list.NewRenderer(o, 0, 0)
 	return o
