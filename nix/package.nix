@@ -33,11 +33,13 @@ buildGoModule {
     license = lib.licenses.mit;
     maintainers =
       with lib.maintainers;
-      [ adda ]
+      [
+        adda
+        doprz
+      ]
       ++ [
         "idursun"
         "vic"
-        "doprz"
       ];
     platforms = lib.platforms.unix;
     mainProgram = "jjui";
