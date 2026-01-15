@@ -59,7 +59,6 @@ type Operation struct {
 	keyMap     config.KeyMappings[key.Binding]
 	target     *jj.Commit
 	styles     styles
-	frame      cellbuf.Rectangle
 }
 
 func (o *Operation) IsOverlay() bool {
@@ -76,8 +75,7 @@ func (o *Operation) Init() tea.Cmd {
 
 func (o *Operation) ViewRect(dl *render.DisplayList, box layout.Box) {
 	screenOffset := cellbuf.Pos(box.R.Min.X, box.R.Min.Y)
-	height := o.renderListToDisplayList(dl, box.R, screenOffset, true)
-	o.frame = cellbuf.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), height)
+	o.renderListToDisplayList(dl, box.R, screenOffset, true)
 }
 
 func (o *Operation) Len() int {
@@ -205,7 +203,8 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return ""
 	}
-	return o.viewContent(o.frame.Dx(), o.frame.Dy())
+	// In selectMode with isSelected and pos==After, RenderToDisplayList handles rendering
+	return ""
 }
 
 func (o *Operation) Name() string {
@@ -288,7 +287,6 @@ func (o *Operation) renderListToDisplayList(
 		totalHeight += len(row.Lines)
 	}
 	height := min(rect.Dy(), totalHeight)
-	o.frame = cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)
 
 	measure := func(index int) int {
 		return len(o.rows[index].Lines)
@@ -343,37 +341,8 @@ func (o *Operation) renderListToDisplayList(
 	return height
 }
 
-func (o *Operation) viewContent(width, height int) string {
-	if width <= 0 {
-		width = 80
-	}
-	if height < 0 {
-		height = 0
-	}
-	dl := render.NewDisplayList()
-	rect := cellbuf.Rect(0, 0, width, height)
-	o.renderListToDisplayList(dl, rect, cellbuf.Pos(0, 0), true)
-	return dl.RenderToString(width, height)
-}
-
 func (o *Operation) scroll(delta int) {
 	currentStart := o.dlRenderer.GetScrollOffset()
 	desiredStart := currentStart + delta
-	if desiredStart < 0 {
-		desiredStart = 0
-	}
-
-	totalLines := 0
-	for _, row := range o.rows {
-		totalLines += len(row.Lines)
-	}
-	viewHeight := o.frame.Dy()
-	maxStart := totalLines - viewHeight
-	if maxStart < 0 {
-		maxStart = 0
-	}
-	if desiredStart > maxStart {
-		desiredStart = maxStart
-	}
 	o.dlRenderer.SetScrollOffset(desiredStart)
 }

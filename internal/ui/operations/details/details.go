@@ -45,7 +45,6 @@ type Operation struct {
 	confirmation      *confirmation.Model
 	keyMap            config.KeyMappings[key.Binding]
 	styles            styles
-	frame             cellbuf.Rectangle
 }
 
 func (s *Operation) IsOverlay() bool {
@@ -235,8 +234,7 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 }
 
 func (s *Operation) ViewRect(dl *render.DisplayList, box layout.Box) {
-	s.frame = box.R
-	content := s.viewContent(box.R.Dy())
+	content := s.viewContent(box.R.Dx(), box.R.Dy())
 	content = lipgloss.Place(
 		box.R.Dx(),
 		box.R.Dy(),
@@ -275,20 +273,11 @@ func (s *Operation) FullHelp() [][]key.Binding {
 }
 
 func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
-	isSelected := s.Current != nil && s.Current.GetChangeId() == commit.GetChangeId()
-	if !isSelected || pos != operations.RenderPositionAfter {
-		return ""
-	}
-	maxHeight := s.frame.Dy()
-	confirmationHeight := 0
-	if s.confirmation != nil {
-		confirmationHeight = lipgloss.Height(s.confirmation.View())
-	}
-	desiredHeight := s.Len() + 5 + confirmationHeight
-	if maxHeight <= 0 || maxHeight < desiredHeight {
-		maxHeight = desiredHeight // ensure confirmation height is accounted for in measurements
-	}
-	return s.viewContent(maxHeight)
+	// RenderToDisplayList handles the actual rendering
+	// This method is only called as a fallback when DesiredHeight returns 0,
+	// which only happens when !isSelected || pos != After - the same conditions
+	// that would make this return "" anyway.
+	return ""
 }
 
 // DesiredHeight returns the desired height for the operation
@@ -335,7 +324,6 @@ func (s *Operation) RenderToDisplayList(dl *render.DisplayList, commit *jj.Commi
 
 	// Calculate available height
 	height := min(availableListHeight, s.Len())
-	s.frame = cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)
 
 	// Render the file list to DisplayList
 	// viewRect is already absolute, so don't reapply the parent screen offset.
@@ -473,7 +461,7 @@ func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation 
 	return op
 }
 
-func (s *Operation) viewContent(maxHeight int) string {
+func (s *Operation) viewContent(width, maxHeight int) string {
 	confirmationView := ""
 	ch := 0
 	if s.confirmation != nil {
@@ -483,7 +471,6 @@ func (s *Operation) viewContent(maxHeight int) string {
 	if s.Len() == 0 {
 		return s.styles.Dimmed.Render("No changes")
 	}
-	width := s.frame.Dx()
 	if width <= 0 {
 		width = 80 // sensible default
 	}

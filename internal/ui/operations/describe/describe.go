@@ -37,7 +37,6 @@ type Operation struct {
 	originalDesc string
 	width        int
 	height       int
-	frame        cellbuf.Rectangle
 }
 
 func (o *Operation) IsEditing() bool {
@@ -130,7 +129,6 @@ func (o *Operation) ViewRect(dl *render.DisplayList, box layout.Box) {
 	content := o.viewContent(box.R.Dx())
 	w, h := lipgloss.Size(content)
 	rect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, w, h)
-	o.frame = rect
 	o.width = w
 	o.height = h
 	dl.AddDraw(rect, content, 0)

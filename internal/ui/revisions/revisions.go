@@ -28,7 +28,6 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -76,7 +75,6 @@ type Model struct {
 	matchedStyle        lipgloss.Style
 	ensureCursorView    bool
 	requestInFlight     bool
-	frame               cellbuf.Rectangle
 }
 
 type revisionsMsg struct {
@@ -149,81 +147,16 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 	m.ensureCursorView = false
 	currentStart := m.displayListRenderer.GetScrollOffset()
 	desiredStart := currentStart + delta
-	if desiredStart < 0 {
-		desiredStart = 0
-	}
+	m.displayListRenderer.SetScrollOffset(desiredStart)
 
-	// Calculate total lines based on all items
-	totalLines := m.calculateTotalLines()
-	viewHeight := m.frame.Dy()
-	maxStart := totalLines - viewHeight
-	if maxStart < 0 {
-		maxStart = 0
-	}
-	newStart := desiredStart
-	if newStart > maxStart {
-		newStart = maxStart
-	}
-	m.displayListRenderer.SetScrollOffset(newStart)
-
-	if m.hasMore && (desiredStart > maxStart || newStart+viewHeight >= totalLines-1) {
-		return m.requestMoreRows(m.tag.Load())
+	// Request more rows if scrolling down and near the end
+	if m.hasMore && delta > 0 {
+		lastRowIndex := m.displayListRenderer.GetLastRowIndex()
+		if lastRowIndex >= len(m.rows)-1 {
+			return m.requestMoreRows(m.tag.Load())
+		}
 	}
 	return nil
-}
-
-// calculateTotalLines calculates the total number of lines for all items
-func (m *Model) calculateTotalLines() int {
-	if len(m.rows) == 0 {
-		return 0
-	}
-
-	// Get the operation if any
-	var op operations.Operation
-	if opModel, ok := m.op.(operations.Operation); ok {
-		op = opModel
-	}
-
-	totalLines := 0
-	for i, item := range m.rows {
-		// Calculate height for each item (selected items might have different heights)
-		isSelected := i == m.cursor
-		height := len(item.Lines)
-
-		// Add operation height if item is selected and operation exists
-		if isSelected && op != nil {
-			// Count lines in before section
-			before := op.Render(item.Commit, operations.RenderPositionBefore)
-			if before != "" {
-				height += strings.Count(before, "\n") + 1
-			}
-
-			// Count lines in overlay section (replaces description)
-			overlay := op.Render(item.Commit, operations.RenderOverDescription)
-			if overlay != "" {
-				overlayLines := strings.Count(overlay, "\n") + 1
-				// Count how many description lines would be replaced
-				descLines := 0
-				for _, line := range item.Lines {
-					if line.Flags&parser.Highlightable == parser.Highlightable &&
-						line.Flags&parser.Revision != parser.Revision {
-						descLines++
-					}
-				}
-				height = height - descLines + overlayLines
-			}
-
-			// Count lines in after section
-			after := op.Render(item.Commit, operations.RenderPositionAfter)
-			if after != "" {
-				height += strings.Count(after, "\n") + 1
-			}
-		}
-
-		totalLines += height
-	}
-
-	return totalLines
 }
 
 func (m *Model) Len() int {
@@ -964,7 +897,6 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 
 func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	area := box.R
-	m.frame = area
 
 	if len(m.rows) == 0 {
 		content := ""

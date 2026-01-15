@@ -94,6 +94,23 @@ func (r *ListRenderer) RenderWithOffset(
 		return
 	}
 
+	// Clamp scroll offset to valid bounds
+	viewHeight := viewRect.R.Dy()
+	totalLines := 0
+	for i := 0; i < itemCount; i++ {
+		totalLines += measure(i)
+	}
+	maxStart := totalLines - viewHeight
+	if maxStart < 0 {
+		maxStart = 0
+	}
+	if r.StartLine < 0 {
+		r.StartLine = 0
+	}
+	if r.StartLine > maxStart {
+		r.StartLine = maxStart
+	}
+
 	// Use the provided screen offset for interaction coordinates
 	// Draws use the viewRect coordinates (relative to render buffer)
 	// Interactions use screenOffset (absolute screen coordinates for mouse hit testing)

@@ -32,7 +32,6 @@ type DetailsList struct {
 	selectedHint   string
 	unselectedHint string
 	styles         styles
-	frame          cellbuf.Rectangle
 }
 
 func NewDetailsList(styles styles) *DetailsList {

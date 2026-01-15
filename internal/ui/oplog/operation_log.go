@@ -51,7 +51,6 @@ type Model struct {
 	textStyle        lipgloss.Style
 	selectedStyle    lipgloss.Style
 	ensureCursorView bool
-	frame            cellbuf.Rectangle
 }
 
 func (m *Model) Len() int {
@@ -117,21 +116,7 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 	m.ensureCursorView = false
 	currentStart := m.listRenderer.GetScrollOffset()
 	desiredStart := currentStart + delta
-	if desiredStart < 0 {
-		desiredStart = 0
-	}
-
-	totalLines := m.totalLineCount()
-	viewHeight := m.frame.Dy()
-	maxStart := totalLines - viewHeight
-	if maxStart < 0 {
-		maxStart = 0
-	}
-	newStart := desiredStart
-	if newStart > maxStart {
-		newStart = maxStart
-	}
-	m.listRenderer.SetScrollOffset(newStart)
+	m.listRenderer.SetScrollOffset(desiredStart)
 	return nil
 }
 
@@ -259,7 +244,6 @@ func (m *Model) revert(intent intents.OpLogRevert) tea.Cmd {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
-	m.frame = box.R
 	if m.rows == nil {
 		content := lipgloss.Place(box.R.Dx(), box.R.Dy(), lipgloss.Center, lipgloss.Center, "loading")
 		dl.AddDraw(box.R, content, 0)
@@ -333,15 +317,4 @@ func New(context *context.MainContext) *Model {
 	}
 	m.listRenderer = render.NewListRenderer(OpLogScrollMsg{})
 	return m
-}
-
-func (m *Model) totalLineCount() int {
-	if len(m.rows) == 0 {
-		return 0
-	}
-	total := 0
-	for _, row := range m.rows {
-		total += len(row.Lines)
-	}
-	return total
 }
