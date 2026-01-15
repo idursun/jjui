@@ -10,7 +10,6 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -36,11 +35,7 @@ func (o OpLogScrollMsg) SetDelta(delta int) tea.Msg {
 	return OpLogScrollMsg{Delta: delta}
 }
 
-var (
-	_ list.IList            = (*Model)(nil)
-	_ list.IScrollableList  = (*Model)(nil)
-	_ common.ImmediateModel = (*Model)(nil)
-)
+var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
 	context          *context.MainContext
@@ -68,26 +63,6 @@ func (m *Model) SetCursor(index int) {
 	if index >= 0 && index < len(m.rows) {
 		m.cursor = index
 		m.ensureCursorView = true
-	}
-}
-
-func (m *Model) VisibleRange() (int, int) {
-	return m.listRenderer.GetFirstRowIndex(), m.listRenderer.GetLastRowIndex()
-}
-
-func (m *Model) ListName() string {
-	return "operation log"
-}
-
-func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
-	item := m.rows[index]
-	style := m.textStyle
-	if index == m.cursor {
-		style = m.selectedStyle
-	}
-	return &itemRenderer{
-		row:   item,
-		style: style,
 	}
 }
 
@@ -186,13 +161,29 @@ func (m *Model) navigate(delta int, page bool) tea.Cmd {
 		return nil
 	}
 
-	result := list.Scroll(m, delta, page)
-
-	if result.NavigateMessage != nil {
-		return func() tea.Msg { return *result.NavigateMessage }
+	// Calculate step (convert page scroll to item count)
+	step := delta
+	if page {
+		firstRowIndex := m.listRenderer.GetFirstRowIndex()
+		lastRowIndex := m.listRenderer.GetLastRowIndex()
+		span := max(lastRowIndex-firstRowIndex-1, 1)
+		if step < 0 {
+			step = -span
+		} else {
+			step = span
+		}
 	}
 
-	m.SetCursor(result.NewCursor)
+	// Calculate new cursor position
+	totalItems := len(m.rows)
+	newCursor := m.cursor + step
+	if newCursor < 0 {
+		newCursor = 0
+	} else if newCursor >= totalItems {
+		newCursor = totalItems - 1
+	}
+
+	m.SetCursor(newCursor)
 	return m.updateSelection()
 }
 

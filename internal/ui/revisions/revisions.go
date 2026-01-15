@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/idursun/jjui/internal/ui/common/list"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
@@ -43,10 +42,6 @@ import (
 )
 
 var (
-	_ list.IList            = (*Model)(nil)
-	_ list.IListCursor      = (*Model)(nil)
-	_ list.IScrollableList  = (*Model)(nil)
-	_ list.IStreamableList  = (*Model)(nil)
 	_ common.Focusable      = (*Model)(nil)
 	_ common.Editable       = (*Model)(nil)
 	_ common.ImmediateModel = (*Model)(nil)
@@ -131,14 +126,6 @@ func (m *Model) SetCursor(index int) {
 	}
 }
 
-func (m *Model) VisibleRange() (int, int) {
-	return m.displayContextRenderer.GetFirstRowIndex(), m.displayContextRenderer.GetLastRowIndex()
-}
-
-func (m *Model) ListName() string {
-	return fmt.Sprintf("revset `%s`", m.context.CurrentRevset)
-}
-
 func (m *Model) HasMore() bool {
 	return m.hasMore
 }
@@ -161,23 +148,6 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 
 func (m *Model) Len() int {
 	return len(m.rows)
-}
-
-func (m *Model) GetItemRenderer(index int) list.IItemRenderer {
-	row := m.rows[index]
-	isHighlighted := index == m.cursor
-
-	return &itemRenderer{
-		row:           row,
-		isHighlighted: isHighlighted,
-		SearchText:    m.quickSearch,
-		textStyle:     m.textStyle,
-		dimmedStyle:   m.dimmedStyle,
-		selectedStyle: m.selectedStyle,
-		matchedStyle:  m.matchedStyle,
-		isChecked:     m.context.GetSelectedRevisions()[row.Commit.GetChangeId()],
-		op:            m.op.(operations.Operation),
-	}
 }
 
 func (m *Model) IsEditing() bool {
@@ -408,7 +378,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.keymap.AceJump):
 			parentOp := m.op
 			// Create ace jump with parent operation
-			op := ace_jump.NewOperation(m, func(index int) parser.Row {
+			op := ace_jump.NewOperation(m.SetCursor, func(index int) parser.Row {
 				return m.rows[index]
 			}, m.displayContextRenderer.GetFirstRowIndex(), m.displayContextRenderer.GetLastRowIndex(), parentOp)
 			m.op = op
@@ -742,26 +712,39 @@ func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
 		delta = 1
 	}
 
-	// Temporarily override the CanStream based on allowStream parameter
-	origHasMore := m.hasMore
-	if !allowStream {
-		m.hasMore = false
+	// Calculate step (convert page scroll to item count)
+	step := delta
+	if intent.IsPage {
+		firstRowIndex := m.displayContextRenderer.GetFirstRowIndex()
+		lastRowIndex := m.displayContextRenderer.GetLastRowIndex()
+		span := max(lastRowIndex-firstRowIndex-1, 1)
+		if step < 0 {
+			step = -span
+		} else {
+			step = span
+		}
 	}
 
-	result := list.Scroll(m, delta, intent.IsPage)
+	// Calculate new cursor position
+	totalItems := len(m.rows)
+	newCursor := m.cursor + step
 
-	// Restore original hasMore
-	m.hasMore = origHasMore
-
-	if result.NavigateMessage != nil && intent.IsPage {
-		return func() tea.Msg { return *result.NavigateMessage }
+	if step > 0 {
+		// Moving down
+		if newCursor >= totalItems {
+			if allowStream && m.hasMore {
+				return m.requestMoreRows(m.tag.Load())
+			}
+			newCursor = totalItems - 1
+		}
+	} else {
+		// Moving up
+		if newCursor < 0 {
+			newCursor = 0
+		}
 	}
 
-	if result.RequestMore && allowStream {
-		return m.requestMoreRows(m.tag.Load())
-	}
-
-	m.SetCursor(result.NewCursor)
+	m.SetCursor(newCursor)
 	m.ensureCursorView = ensureView
 	return m.updateSelection()
 }

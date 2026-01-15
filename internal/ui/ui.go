@@ -40,10 +40,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/undo"
 )
 
-type SizableModel interface {
-	common.ImmediateModel
-}
-
 type Model struct {
 	revisions       *revisions.Model
 	oplog           *oplog.Model
@@ -58,7 +54,7 @@ type Model struct {
 	context         *context.MainContext
 	scriptRunner    *scripting.Runner
 	keyMap          config.KeyMappings[key.Binding]
-	stacked         SizableModel
+	stacked         common.ImmediateModel
 	sequenceOverlay *customcommands.SequenceOverlay
 	displayContext  *render.DisplayContext
 	width           int
