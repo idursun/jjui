@@ -323,9 +323,9 @@ func (s *Operation) RenderToDisplayList(dl *render.DisplayList, commit *jj.Commi
 	s.frame = cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)
 
 	// Render the file list to DisplayList
-	// Pass screen offset so interactions use absolute screen coordinates
+	// viewRect is already absolute, so don't reapply the parent screen offset.
 	viewRect := layout.Box{R: cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)}
-	s.RenderFileList(dl, viewRect, screenOffset)
+	s.RenderFileList(dl, viewRect, cellbuf.Pos(0, 0))
 
 	return height
 }
