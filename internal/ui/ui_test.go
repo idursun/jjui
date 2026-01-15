@@ -6,6 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/cellbuf"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/idursun/jjui/internal/ui/common"
@@ -59,16 +61,16 @@ func Test_Update_PreviewScrollKeysWorkWhenVisible(t *testing.T) {
 			ctx := test.NewTestContext(commandRunner)
 
 			model := NewUI(ctx)
-			model.SetFrame(cellbuf.Rect(0, 0, 100, 50))
-
 			model.previewModel.SetVisible(true)
-			model.previewModel.SetFrame(cellbuf.Rect(50, 0, 50, 5))
 
 			var content strings.Builder
 			for range 100 {
 				content.WriteString("line content here\n")
 			}
 			model.previewModel.SetContent(content.String())
+
+			// Force internal view port to have a size
+			model.previewModel.ViewRect(render.NewDisplayList(), layout.NewBox(cellbuf.Rect(0, 0, 100, 50)))
 
 			initialYOffset := model.previewModel.YOffset()
 
@@ -114,16 +116,12 @@ func Test_Update_PreviewResizeKeysWorkWhenVisible(t *testing.T) {
 			ctx := test.NewTestContext(commandRunner)
 
 			model := NewUI(ctx)
-			model.SetFrame(cellbuf.Rect(0, 0, 100, 50))
-
 			model.previewModel.SetVisible(true)
-			model.previewModel.SetFrame(cellbuf.Rect(50, 0, 50, 5))
 
-			initialWidth := model.previewModel.WindowPercentage()
-
+			initialWidth := model.revisionsSplit.State.Percent
 			model.Update(tc.key)
+			newWidth := model.revisionsSplit.State.Percent
 
-			newWidth := model.previewModel.WindowPercentage()
 			if tc.expectedResize > 0 {
 				assert.Greater(t, newWidth, initialWidth, "expected preview to expand for key %s", tc.name)
 			} else {

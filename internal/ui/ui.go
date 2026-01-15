@@ -293,6 +293,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				m.revisionsSplit.State.Shrink(config.Current.Preview.WidthIncrementPercentage)
 			}
 			return tea.Batch(cmds...)
+		case m.previewModel.Visible() && key.Matches(msg,
+			m.keyMap.Preview.HalfPageUp,
+			m.keyMap.Preview.HalfPageDown,
+			m.keyMap.Preview.ScrollUp,
+			m.keyMap.Preview.ScrollDown):
+			cmds = append(cmds, m.previewModel.Update(msg))
+			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.CustomCommands):
 			model := customcommands.NewModel(m.context)
 			m.stacked = model

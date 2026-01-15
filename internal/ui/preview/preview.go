@@ -164,10 +164,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.view.HalfPageDown()
 		case key.Matches(msg, m.keyMap.Preview.HalfPageUp):
 			m.view.HalfPageUp()
-		case key.Matches(msg, m.keyMap.Preview.Expand):
-			m.Expand()
-		case key.Matches(msg, m.keyMap.Preview.Shrink):
-			m.Shrink()
 		}
 	}
 	return nil
