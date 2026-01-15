@@ -274,11 +274,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.previewModel.ToggleVisible()
 			cmds = append(cmds, common.SelectionChanged(m.context.SelectedItem))
 			return tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Preview.Expand) && m.previewModel.Visible():
-			m.previewModel.Expand()
-			return tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Preview.Shrink) && m.previewModel.Visible():
-			m.previewModel.Shrink()
+		case m.previewModel.Visible() && key.Matches(msg,
+			m.keyMap.Preview.Expand,
+			m.keyMap.Preview.Shrink,
+			m.keyMap.Preview.HalfPageDown,
+			m.keyMap.Preview.HalfPageUp,
+			m.keyMap.Preview.ScrollDown,
+			m.keyMap.Preview.ScrollUp):
+			cmd := m.previewModel.Update(msg)
+			cmds = append(cmds, cmd)
 			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.CustomCommands):
 			model := customcommands.NewModel(m.context)

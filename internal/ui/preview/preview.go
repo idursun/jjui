@@ -110,6 +110,10 @@ func (m *Model) WindowPercentage() float64 {
 	return m.previewWindowPercentage
 }
 
+func (m *Model) YOffset() int {
+	return m.view.YOffset
+}
+
 func (m *Model) Scroll(delta int) tea.Cmd {
 	if delta > 0 {
 		m.view.ScrollDown(delta)
@@ -204,6 +208,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.view.HalfPageDown()
 		case key.Matches(msg, m.keyMap.Preview.HalfPageUp):
 			m.view.HalfPageUp()
+		case key.Matches(msg, m.keyMap.Preview.Expand):
+			m.Expand()
+		case key.Matches(msg, m.keyMap.Preview.Shrink):
+			m.Shrink()
 		}
 	}
 	return nil

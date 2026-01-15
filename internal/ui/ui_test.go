@@ -1,8 +1,11 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/idursun/jjui/internal/ui/common"
@@ -20,4 +23,112 @@ func Test_Update_RevsetWithEmptyInputKeepsDefaultRevset(t *testing.T) {
 	model.Update(common.UpdateRevSetMsg(""))
 
 	assert.Equal(t, ctx.DefaultRevset, ctx.CurrentRevset)
+}
+
+func Test_Update_PreviewScrollKeysWorkWhenVisible(t *testing.T) {
+	tests := []struct {
+		name           string
+		key            tea.KeyMsg
+		expectedScroll int // positive = down, negative = up
+	}{
+		{
+			name:           "ctrl+d scrolls half page down",
+			key:            tea.KeyMsg{Type: tea.KeyCtrlD},
+			expectedScroll: 1,
+		},
+		{
+			name:           "ctrl+u scrolls half page up",
+			key:            tea.KeyMsg{Type: tea.KeyCtrlU},
+			expectedScroll: -1,
+		},
+		{
+			name:           "ctrl+n scrolls down",
+			key:            tea.KeyMsg{Type: tea.KeyCtrlN},
+			expectedScroll: 1,
+		},
+		{
+			name:           "ctrl+p scrolls up",
+			key:            tea.KeyMsg{Type: tea.KeyCtrlP},
+			expectedScroll: -1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			commandRunner := test.NewTestCommandRunner(t)
+			ctx := test.NewTestContext(commandRunner)
+
+			model := NewUI(ctx)
+			model.SetFrame(cellbuf.Rect(0, 0, 100, 50))
+
+			model.previewModel.SetVisible(true)
+			model.previewModel.SetFrame(cellbuf.Rect(50, 0, 50, 5))
+
+			var content strings.Builder
+			for range 100 {
+				content.WriteString("line content here\n")
+			}
+			model.previewModel.SetContent(content.String())
+
+			initialYOffset := model.previewModel.YOffset()
+
+			// Send the key message
+			model.Update(tc.key)
+
+			newYOffset := model.previewModel.YOffset()
+			if tc.expectedScroll > 0 {
+				assert.Greater(t, newYOffset, initialYOffset, "expected scroll down for key %s", tc.name)
+			} else {
+				// For scroll up, we need content scrolled down first
+				model.previewModel.Scroll(50) // scroll down first
+				scrolledYOffset := model.previewModel.YOffset()
+				model.Update(tc.key)
+				newYOffset = model.previewModel.YOffset()
+				assert.Less(t, newYOffset, scrolledYOffset, "expected scroll up for key %s", tc.name)
+			}
+		})
+	}
+}
+
+func Test_Update_PreviewResizeKeysWorkWhenVisible(t *testing.T) {
+	tests := []struct {
+		name           string
+		key            tea.KeyMsg
+		expectedResize int // positive = expand, negative = shrink
+	}{
+		{
+			name:           "ctrl+l shrinks preview",
+			key:            tea.KeyMsg{Type: tea.KeyCtrlL},
+			expectedResize: -1,
+		},
+		{
+			name:           "ctrl+h expands preview",
+			key:            tea.KeyMsg{Type: tea.KeyCtrlH},
+			expectedResize: 1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			commandRunner := test.NewTestCommandRunner(t)
+			ctx := test.NewTestContext(commandRunner)
+
+			model := NewUI(ctx)
+			model.SetFrame(cellbuf.Rect(0, 0, 100, 50))
+
+			model.previewModel.SetVisible(true)
+			model.previewModel.SetFrame(cellbuf.Rect(50, 0, 50, 5))
+
+			initialWidth := model.previewModel.WindowPercentage()
+
+			model.Update(tc.key)
+
+			newWidth := model.previewModel.WindowPercentage()
+			if tc.expectedResize > 0 {
+				assert.Greater(t, newWidth, initialWidth, "expected preview to expand for key %s", tc.name)
+			} else {
+				assert.Less(t, newWidth, initialWidth, "expected preview to shrink for key %s", tc.name)
+			}
+		})
+	}
 }
