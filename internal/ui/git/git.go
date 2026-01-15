@@ -24,6 +24,11 @@ const (
 	itemCategoryFetch itemCategory = "fetch"
 )
 
+// SelectRemoteMsg is sent when a remote is clicked
+type SelectRemoteMsg struct {
+	Index int
+}
+
 type item struct {
 	category itemCategory
 	key      string
@@ -100,7 +105,7 @@ func (m *Model) cycleRemotes(step int) tea.Cmd {
 		m.selectedRemoteIdx = len(m.remoteNames) - 1
 	}
 
-	m.menu.Subtitle = m.displayRemotes()
+	// Remotes are rendered via TextBuilder in ViewRect, no need to update subtitle
 	m.menu.Items = m.createMenuItems()
 	if m.menu.Filter != "" {
 		// NOTE: return tea.Cmd to keep the internal filter
@@ -111,6 +116,13 @@ func (m *Model) cycleRemotes(step int) tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case SelectRemoteMsg:
+		if msg.Index >= 0 && msg.Index < len(m.remoteNames) {
+			m.selectedRemoteIdx = msg.Index
+			m.menu.Items = m.createMenuItems()
+			return m.menu.SetItems(m.menu.Items)
+		}
+		return nil
 	case tea.KeyMsg:
 		if m.menu.SettingFilter() {
 			break
@@ -157,6 +169,40 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	sy := box.R.Min.Y + max((ph-menuHeight)/2, 0)
 	frame := cellbuf.Rect(sx, sy, menuWidth, menuHeight)
 	m.menu.ViewRect(dl, layout.Box{R: frame})
+
+	// Render clickable remotes in the subtitle area
+	// Position: inside the menu border, after title line, with subtitle padding
+	remoteY := sy + 1 + 1 + 1 // border(1) + title(1) + subtitle top padding(1)
+	remoteX := sx + 1 + 1     // border(1) + subtitle left padding(1)
+	remoteWidth := menuWidth - 4
+	m.renderRemotes(dl, remoteX, remoteY, remoteWidth)
+}
+
+func (m *Model) renderRemotes(dl *render.DisplayList, x, y, width int) {
+	// Create a window for remotes with higher z-index than menu (z=10)
+	// so that clicks are routed to this window instead of the menu
+	remoteRect := cellbuf.Rect(x, y, width, 1)
+	windowedDl := dl.Window(remoteRect, 11)
+
+	// Use z=2 to render above menu content (menu uses z=0 for border, z=1 for content)
+	tb := windowedDl.Text(x, y, 2).
+		Styled("Remotes: ", m.styles.promptStyle)
+
+	if len(m.remoteNames) == 0 {
+		tb.Styled("NO REMOTE FOUND", m.styles.noRemoteStyle).Done()
+		return
+	}
+
+	for idx, remoteName := range m.remoteNames {
+		style := m.styles.textStyle
+		if idx == m.selectedRemoteIdx {
+			style = m.styles.selectedStyle
+		}
+		tb.Clickable(remoteName, style, SelectRemoteMsg{Index: idx}).
+			Write(" ")
+	}
+
+	tb.Done()
 }
 
 func (m *Model) displayRemotes() string {
@@ -212,7 +258,7 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions) *Model {
 	items := m.createMenuItems()
 	m.menu = menu.NewMenu(items, m.keymap, menu.WithStylePrefix("git"))
 	m.menu.Title = "Git Operations"
-	m.menu.Subtitle = m.displayRemotes()
+	m.menu.Subtitle = " " // placeholder to reserve space; actual remotes rendered via TextBuilder
 	m.menu.FilterMatches = func(i menu.Item, filter string) bool {
 		if gitItem, ok := i.(item); ok {
 			return gitItem.category == itemCategory(filter)
