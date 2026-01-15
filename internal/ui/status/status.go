@@ -49,7 +49,6 @@ type Model struct {
 	history    map[string][]string
 	fuzzy      fuzzy_search.Model
 	styles     styles
-	overlayBox layout.Box
 }
 
 type styles struct {
@@ -250,28 +249,11 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	ret = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), commandStatusMark, ret)
 	dl.AddDraw(box.R, ret, 0)
 
-	if m.fuzzy == nil || m.overlayBox.R.Dx() <= 0 || m.overlayBox.R.Dy() <= 0 {
+	if m.fuzzy == nil {
 		return
 	}
 
-	above := box.R.Min.Y - m.overlayBox.R.Min.Y
-	below := m.overlayBox.R.Max.Y - box.R.Max.Y
-	if above <= 0 && below <= 0 {
-		return
-	}
-
-	var overlayRect cellbuf.Rectangle
-	if above >= below {
-		if above <= 0 {
-			return
-		}
-		overlayRect = cellbuf.Rect(m.overlayBox.R.Min.X, m.overlayBox.R.Min.Y, m.overlayBox.R.Dx(), above)
-	} else {
-		if below <= 0 {
-			return
-		}
-		overlayRect = cellbuf.Rect(m.overlayBox.R.Min.X, box.R.Max.Y, m.overlayBox.R.Dx(), below)
-	}
+	overlayRect := cellbuf.Rect(box.R.Min.X, 0, box.R.Dx(), box.R.Min.Y-1)
 	m.fuzzy.ViewRect(dl, layout.Box{R: overlayRect})
 }
 
@@ -326,8 +308,4 @@ func New(context *context.MainContext) *Model {
 		keyMap:  nil,
 		styles:  styles,
 	}
-}
-
-func (m *Model) SetOverlayBounds(box layout.Box) {
-	m.overlayBox = box
 }

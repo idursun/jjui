@@ -10,7 +10,6 @@ import (
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
-	"github.com/idursun/jjui/internal/ui/layoutview"
 	"github.com/idursun/jjui/internal/ui/password"
 	"github.com/idursun/jjui/internal/ui/render"
 
@@ -59,20 +58,12 @@ type Model struct {
 	displayContext  *render.DisplayContext
 	width           int
 	height          int
-	layouts         *UILayouts
-	revisionsSplit  *layoutview.Split
-	activeSplit     *layoutview.Split
+	revisionsSplit  *split
+	activeSplit     *split
 	splitActive     bool
-	diffSlot        *layoutview.ModelSlot
-	primarySlot     *layoutview.ModelSlot
 }
 
 type triggerAutoRefreshMsg struct{}
-
-type UILayouts struct {
-	Revisions layoutview.SlotContent
-	Diff      layoutview.SlotContent
-}
 
 func (m *Model) Init() tea.Cmd {
 	return tea.Batch(tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.scheduleAutoRefresh())
@@ -86,9 +77,6 @@ func (m *Model) handleFocusInputMessage(msg tea.Msg) (tea.Cmd, bool) {
 		}
 		if m.diff != nil {
 			m.diff = nil
-			if m.diffSlot != nil {
-				m.diffSlot.Model = nil
-			}
 			return nil, true
 		}
 		if m.stacked != nil {
@@ -97,9 +85,6 @@ func (m *Model) handleFocusInputMessage(msg tea.Msg) (tea.Cmd, bool) {
 		}
 		if m.oplog != nil {
 			m.oplog = nil
-			if m.primarySlot != nil {
-				m.primarySlot.Model = m.revisions
-			}
 			return common.SelectionChanged(m.context.SelectedItem), true
 		}
 		return nil, false
@@ -239,9 +224,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return tea.Quit
 		case key.Matches(msg, m.keyMap.OpLog.Mode) && m.revisions.InNormalMode():
 			m.oplog = oplog.New(m.context)
-			if m.primarySlot != nil {
-				m.primarySlot.Model = m.oplog
-			}
 			return m.oplog.Init()
 		case key.Matches(msg, m.keyMap.Revset) && m.revisions.InNormalMode():
 			return m.revsetModel.Update(intents.Edit{Clear: m.state != common.Error})
@@ -344,9 +326,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case common.ShowDiffMsg:
 		m.diff = diff.New(string(msg))
-		if m.diffSlot != nil {
-			m.diffSlot.Model = m.diff
-		}
 		return m.diff.Init()
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
@@ -411,7 +390,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			//   - if the user denies the request on the device, a new prompt automatically happen "Enter PIN for ...
 			m.password = password.New(msg)
 		}
-	case layoutview.SplitDragMsg:
+	case SplitDragMsg:
 		m.activeSplit = msg.Split
 		m.splitActive = true
 		if m.activeSplit != nil {
@@ -505,10 +484,7 @@ func (m *Model) View() string {
 	screenBuf := cellbuf.NewBuffer(m.width, m.height)
 
 	if m.diff != nil {
-		m.status.SetOverlayBounds(box)
-		if m.layouts != nil && m.layouts.Diff != nil {
-			m.layouts.Diff.Render(m.displayContext, box)
-		}
+		m.renderDiffLayout(box)
 		m.displayContext.Render(screenBuf)
 		content := cellbuf.Render(screenBuf)
 		return strings.ReplaceAll(content, "\r", "")
@@ -518,13 +494,10 @@ func (m *Model) View() string {
 		m.UpdatePreviewPosition()
 	}
 	m.syncPreviewSplitOrientation()
-	m.status.SetOverlayBounds(box)
-	activeLayout := layoutview.SlotContent(nil)
-	if m.layouts != nil {
-		activeLayout = m.layouts.Revisions
-	}
-	if activeLayout != nil {
-		activeLayout.Render(m.displayContext, box)
+	if m.oplog != nil {
+		m.renderOpLogLayout(box)
+	} else {
+		m.renderRevisionsLayout(box)
 	}
 
 	if m.stacked != nil {
@@ -546,43 +519,62 @@ func (m *Model) View() string {
 	return strings.ReplaceAll(finalView, "\r", "")
 }
 
+func (m *Model) renderDiffLayout(box layout.Box) {
+	m.renderWithStatus(box, func(content layout.Box) {
+		m.diff.ViewRect(m.displayContext, content)
+	})
+}
+
+func (m *Model) renderOpLogLayout(box layout.Box) {
+	m.renderWithStatus(box, func(content layout.Box) {
+		m.renderSplit(m.oplog, content)
+	})
+}
+
+func (m *Model) renderRevisionsLayout(box layout.Box) {
+	rows := box.V(layout.Fixed(1), layout.Fill(1), layout.Fixed(1))
+	if len(rows) < 3 {
+		return
+	}
+	m.revsetModel.ViewRect(m.displayContext, rows[0])
+	m.renderSplit(m.revisions, rows[1])
+	m.status.ViewRect(m.displayContext, rows[2])
+}
+
+func (m *Model) renderWithStatus(box layout.Box, renderContent func(layout.Box)) {
+	rows := box.V(layout.Fill(1), layout.Fixed(1))
+	if len(rows) < 2 {
+		return
+	}
+	renderContent(rows[0])
+	m.status.ViewRect(m.displayContext, rows[1])
+}
+
+func (m *Model) renderSplit(primary common.ImmediateModel, box layout.Box) {
+	if m.revisionsSplit == nil {
+		return
+	}
+	m.revisionsSplit.Primary = primary
+	m.revisionsSplit.Secondary = m.previewModel
+	m.revisionsSplit.Render(m.displayContext, box)
+}
+
 func (m *Model) syncPreviewSplitOrientation() {
 	if m.revisionsSplit == nil {
 		return
 	}
 	vertical := m.previewModel.AtBottom()
-	if m.revisionsSplit != nil {
-		m.revisionsSplit.Vertical = vertical
-	}
+	m.revisionsSplit.Vertical = vertical
 }
 
-func (m *Model) initLayouts() {
-	splitState := layoutview.NewSplitState(config.Current.Preview.WidthPercentage)
+func (m *Model) initSplit() {
+	splitState := newSplitState(config.Current.Preview.WidthPercentage)
 
-	revsetSlot := layoutview.Model(m.revsetModel)
-	statusSlot := layoutview.Model(m.status)
-	m.primarySlot = layoutview.Model(m.revisions)
-	previewSlot := layoutview.Model(m.previewModel)
-
-	m.diffSlot = layoutview.Model(m.diff)
-
-	m.revisionsSplit = layoutview.HSplit(
+	m.revisionsSplit = newSplit(
 		splitState,
-		layoutview.Fill(1, m.primarySlot),
-		layoutview.Fill(1, previewSlot),
+		m.revisions,
+		m.previewModel,
 	)
-
-	m.layouts = &UILayouts{
-		Revisions: layoutview.V(
-			layoutview.Fixed(1, revsetSlot),
-			layoutview.Fill(1, m.revisionsSplit),
-			layoutview.Fixed(1, statusSlot),
-		),
-		Diff: layoutview.V(
-			layoutview.Fill(1, m.diffSlot),
-			layoutview.Fixed(1, statusSlot),
-		),
-	}
 }
 
 func (m *Model) scheduleAutoRefresh() tea.Cmd {
@@ -602,7 +594,7 @@ func (m *Model) isSafeToQuit() bool {
 	if m.oplog != nil {
 		return false
 	}
-	if m.revisions.CurrentOperation().Name() == "normal" {
+	if m.revisions.InNormalMode() {
 		return true
 	}
 	return false
@@ -666,7 +658,7 @@ func NewUI(c *context.MainContext) *Model {
 		revsetModel:  revsetModel,
 		flash:        flashView,
 	}
-	ui.initLayouts()
+	ui.initSplit()
 	return ui
 }
 
