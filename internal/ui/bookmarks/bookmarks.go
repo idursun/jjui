@@ -6,14 +6,14 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/ui/common/menu"
-
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/common/menu"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -23,14 +23,29 @@ type updateItemsMsg struct {
 	items []menu.Item
 }
 
+// SelectRemoteMsg is sent when a remote is clicked
+type SelectRemoteMsg struct {
+	Index int
+}
+
+type styles struct {
+	promptStyle   lipgloss.Style
+	textStyle     lipgloss.Style
+	selectedStyle lipgloss.Style
+	noRemoteStyle lipgloss.Style
+}
+
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
-	context     *context.MainContext
-	current     *jj.Commit
-	menu        menu.Menu
-	keymap      config.KeyMappings[key.Binding]
-	distanceMap map[string]int
+	context           *context.MainContext
+	current           *jj.Commit
+	menu              menu.Menu
+	keymap            config.KeyMappings[key.Binding]
+	distanceMap       map[string]int
+	remoteNames       []string
+	selectedRemoteIdx int
+	styles            styles
 }
 
 func (m *Model) ShortHelp() []key.Binding {
@@ -43,6 +58,9 @@ func (m *Model) ShortHelp() []key.Binding {
 		m.keymap.Bookmark.Track,
 		m.keymap.Bookmark.Untrack,
 		m.menu.FilterKey,
+		key.NewBinding(
+			key.WithKeys("tab/shift+tab"),
+			key.WithHelp("tab/shift+tab", "cycle remotes")),
 	}
 }
 
@@ -92,6 +110,24 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) filtered(filter string) tea.Cmd {
 	return m.menu.Filtered(filter)
+}
+
+func (m *Model) cycleRemotes(step int) tea.Cmd {
+	if len(m.remoteNames) == 0 {
+		return nil
+	}
+
+	m.selectedRemoteIdx += step
+	if m.selectedRemoteIdx >= len(m.remoteNames) {
+		m.selectedRemoteIdx = 0
+	} else if m.selectedRemoteIdx < 0 {
+		m.selectedRemoteIdx = len(m.remoteNames) - 1
+	}
+
+	if m.menu.Filter != "" {
+		return m.menu.Filtered(m.menu.Filter)
+	}
+	return m.menu.SetItems(m.menu.Items)
 }
 
 func (m *Model) loadMovables() tea.Msg {
@@ -186,11 +222,24 @@ func (m *Model) loadAll() tea.Msg {
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case SelectRemoteMsg:
+		if msg.Index >= 0 && msg.Index < len(m.remoteNames) {
+			m.selectedRemoteIdx = msg.Index
+			if m.menu.Filter != "" {
+				return m.menu.Filtered(m.menu.Filter)
+			}
+			return m.menu.SetItems(m.menu.Items)
+		}
+		return nil
 	case tea.KeyMsg:
 		if m.menu.SettingFilter() {
 			break
 		}
 		switch {
+		case msg.Type == tea.KeyTab:
+			return m.cycleRemotes(1)
+		case msg.Type == tea.KeyShiftTab:
+			return m.cycleRemotes(-1)
 		case key.Matches(msg, m.keymap.Cancel):
 			if m.menu.Filter != "" || m.menu.IsFiltered() {
 				m.menu.ResetFilter()
@@ -255,6 +304,40 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	sy := box.R.Min.Y + max((ph-menuHeight)/2, 0)
 	frame := cellbuf.Rect(sx, sy, menuWidth, menuHeight)
 	m.menu.ViewRect(dl, layout.Box{R: frame})
+
+	// Render clickable remotes in the subtitle area
+	// Position: inside the menu border, after title line, with subtitle padding
+	remoteY := sy + 1 + 1 + 1 // border(1) + title(1) + subtitle top padding(1)
+	remoteX := sx + 1 + 1     // border(1) + subtitle left padding(1)
+	remoteWidth := menuWidth - 4
+	m.renderRemotes(dl, remoteX, remoteY, remoteWidth)
+}
+
+func (m *Model) renderRemotes(dl *render.DisplayList, x, y, width int) {
+	// Create a window for remotes with higher z-index than menu (z=10)
+	// so that clicks are routed to this window instead of the menu
+	remoteRect := cellbuf.Rect(x, y, width, 1)
+	windowedDl := dl.Window(remoteRect, 11)
+
+	// Use z=2 to render above menu content (menu uses z=0 for border, z=1 for content)
+	tb := windowedDl.Text(x, y, 2).
+		Styled("Remotes: ", m.styles.promptStyle)
+
+	if len(m.remoteNames) == 0 {
+		tb.Styled("NO REMOTE FOUND", m.styles.noRemoteStyle).Done()
+		return
+	}
+
+	for idx, remoteName := range m.remoteNames {
+		style := m.styles.textStyle
+		if idx == m.selectedRemoteIdx {
+			style = m.styles.selectedStyle
+		}
+		tb.Clickable(remoteName, style, SelectRemoteMsg{Index: idx}).
+			Write(" ")
+	}
+
+	tb.Done()
 }
 
 func (m *Model) distance(commitId string) int {
@@ -264,23 +347,57 @@ func (m *Model) distance(commitId string) int {
 	return math.MinInt32
 }
 
+func loadRemoteNames(c context.CommandRunner) []string {
+	bytes, _ := c.RunCommandImmediate(jj.GitRemoteList())
+	remotes := jj.ParseRemoteListOutput(string(bytes))
+	return remotes
+}
+
 func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string) *Model {
 	var items []menu.Item
 	keymap := config.Current.GetKeyMap()
+	remotes := loadRemoteNames(c)
+
+	styles := styles{
+		promptStyle:   common.DefaultPalette.Get("title"),
+		textStyle:     common.DefaultPalette.Get("dimmed"),
+		selectedStyle: common.DefaultPalette.Get("menu selected"),
+		noRemoteStyle: common.DefaultPalette.Get("error"),
+	}
 
 	menuModel := menu.NewMenu(items, keymap, menu.WithStylePrefix("bookmarks"))
 	menuModel.Title = "Bookmark Operations"
-	menuModel.FilterMatches = func(i menu.Item, filter string) bool {
-		return strings.HasPrefix(i.FilterValue(), filter)
-	}
+	menuModel.Subtitle = " " // placeholder to reserve space; actual remotes rendered via TextBuilder
 
 	m := &Model{
-		context:     c,
-		keymap:      keymap,
-		menu:        menuModel,
-		current:     current,
-		distanceMap: calcDistanceMap(current.CommitId, commitIds),
+		context:           c,
+		keymap:            keymap,
+		menu:              menuModel,
+		current:           current,
+		distanceMap:       calcDistanceMap(current.CommitId, commitIds),
+		remoteNames:       remotes,
+		selectedRemoteIdx: 0,
+		styles:            styles,
 	}
+
+	// Set FilterMatches after m is created so the closure can reference m
+	m.menu.FilterMatches = func(i menu.Item, filter string) bool {
+		if !strings.HasPrefix(i.FilterValue(), filter) {
+			return false
+		}
+		// If filtering track/untrack and a remote is selected, filter by remote
+		if len(m.remoteNames) > 0 && m.selectedRemoteIdx < len(m.remoteNames) {
+			selectedRemote := m.remoteNames[m.selectedRemoteIdx]
+			if strings.HasPrefix(filter, "track") || strings.HasPrefix(filter, "untrack") {
+				// Only show items that contain @selectedRemote
+				if strings.Contains(i.FilterValue(), "@") {
+					return strings.Contains(i.FilterValue(), "@"+selectedRemote)
+				}
+			}
+		}
+		return true
+	}
+
 	return m
 }
 
