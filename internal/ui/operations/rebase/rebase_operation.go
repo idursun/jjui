@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -278,6 +279,14 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		r.styles.dimmed.Render(" "),
 		r.styles.changeId.Render(r.To.GetChangeId()),
 	)
+}
+
+func (r *Operation) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+	return 0
+}
+
+func (r *Operation) DesiredHeight(_ *jj.Commit, _ operations.RenderPosition) int {
+	return 0
 }
 
 func (r *Operation) Name() string {

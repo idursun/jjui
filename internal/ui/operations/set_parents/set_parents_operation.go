@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -134,6 +135,14 @@ func (m *Model) Render(commit *jj.Commit, renderPosition operations.RenderPositi
 		return m.styles.targetMarker.Render("<< to >>")
 	}
 	return ""
+}
+
+func (m *Model) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+	return 0
+}
+
+func (m *Model) DesiredHeight(_ *jj.Commit, _ operations.RenderPosition) int {
+	return 0
 }
 
 func (m *Model) Name() string {

@@ -3,6 +3,7 @@ package operations
 import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -50,6 +51,14 @@ func (n *Default) FullHelp() [][]key.Binding {
 
 func (n *Default) Render(*jj.Commit, RenderPosition) string {
 	return ""
+}
+
+func (n *Default) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+	return 0
+}
+
+func (n *Default) DesiredHeight(_ *jj.Commit, _ RenderPosition) int {
+	return 0
 }
 
 func (n *Default) Name() string {

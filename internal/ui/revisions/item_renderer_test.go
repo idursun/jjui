@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
@@ -25,6 +26,14 @@ func (m *mockOperation) Render(commit *jj.Commit, renderPosition operations.Rend
 		return m.renderOverDescription
 	}
 	return ""
+}
+
+func (m *mockOperation) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+	return 0
+}
+
+func (m *mockOperation) DesiredHeight(_ *jj.Commit, _ operations.RenderPosition) int {
+	return 0
 }
 
 func (m *mockOperation) Name() string {

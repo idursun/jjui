@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
@@ -144,6 +145,14 @@ func (o *Operation) ViewRect(_ *render.DisplayList, _ layout.Box) {}
 
 func (o *Operation) Render(*jj.Commit, operations.RenderPosition) string {
 	return ""
+}
+
+func (o *Operation) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+	return 0
+}
+
+func (o *Operation) DesiredHeight(_ *jj.Commit, _ operations.RenderPosition) int {
+	return 0
 }
 
 func (o *Operation) findAceKeys() *AceJump {

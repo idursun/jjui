@@ -132,8 +132,9 @@ func (r *DisplayListRenderer) calculateItemHeight(
 	if isSelected && operation != nil {
 		// Count lines in before section
 		// Use DesiredHeight if available for DisplayList operations
-		if dlOp, ok := operation.(operations.DisplayListRenderer); ok && dlOp.SupportsDisplayList(operations.RenderPositionBefore) {
-			height += dlOp.DesiredHeight(item.Commit, operations.RenderPositionBefore)
+		desired := operation.DesiredHeight(item.Commit, operations.RenderPositionBefore)
+		if desired > 0 {
+			height += desired
 		} else {
 			before := operation.Render(item.Commit, operations.RenderPositionBefore)
 			if before != "" {
@@ -162,8 +163,9 @@ func (r *DisplayListRenderer) calculateItemHeight(
 
 		// Count lines in after section
 		// Use DesiredHeight if available for DisplayList operations
-		if dlOp, ok := operation.(operations.DisplayListRenderer); ok && dlOp.SupportsDisplayList(operations.RenderPositionAfter) {
-			height += dlOp.DesiredHeight(item.Commit, operations.RenderPositionAfter)
+		desiredAfter := operation.DesiredHeight(item.Commit, operations.RenderPositionAfter)
+		if desiredAfter > 0 {
+			height += desiredAfter
 		} else {
 			after := operation.Render(item.Commit, operations.RenderPositionAfter)
 			if after != "" {
@@ -287,31 +289,33 @@ func (r *DisplayListRenderer) renderItemToDisplayList(
 	// Handle operation rendering for after section
 	if isSelected && operation != nil && !item.Commit.IsRoot() {
 		// Check if operation supports DisplayList rendering
-		if dlRenderer, ok := operation.(operations.DisplayListRenderer); ok && dlRenderer.SupportsDisplayList(operations.RenderPositionAfter) {
-			// Calculate extended gutter and its width for proper indentation
-			extended := item.Extend()
-			gutterWidth := 0
-			for _, segment := range extended.Segments {
-				gutterWidth += lipgloss.Width(segment.Text)
-			}
+		// Calculate extended gutter and its width for proper indentation
+		extended := item.Extend()
+		gutterWidth := 0
+		for _, segment := range extended.Segments {
+			gutterWidth += lipgloss.Width(segment.Text)
+		}
 
-			// Create content rect offset by gutter width
-			contentRect := cellbuf.Rect(rect.Min.X+gutterWidth, y, rect.Dx()-gutterWidth, rect.Max.Y-y)
+		// Create content rect offset by gutter width
+		contentRect := cellbuf.Rect(rect.Min.X+gutterWidth, y, rect.Dx()-gutterWidth, rect.Max.Y-y)
 
-			// Screen offset for interactions - contentRect already includes the gutter offset
-			// and y position, so just pass the parent's screenOffset through
-			contentScreenOffset := screenOffset
+		// Screen offset for interactions - contentRect already includes the gutter offset
+		// and y position, so just pass the parent's screenOffset through
+		contentScreenOffset := screenOffset
 
-			// Render the operation content
-			height := dlRenderer.RenderToDisplayList(dl, item.Commit, operations.RenderPositionAfter, contentRect, contentScreenOffset)
+		// Render the operation content
+		height := operation.RenderToDisplayList(dl, item.Commit, operations.RenderPositionAfter, contentRect, contentScreenOffset)
 
+		if height > 0 {
 			// Render gutters for each line
 			for i := 0; i < height; i++ {
 				gutterContent := r.renderGutter(extended)
 				gutterRect := cellbuf.Rect(rect.Min.X, y+i, gutterWidth, 1)
 				dl.AddDraw(gutterRect, gutterContent, 0)
 			}
-		} else {
+			return
+		}
+		{
 			// Fall back to string-based rendering
 			after := operation.Render(item.Commit, operations.RenderPositionAfter)
 			if after != "" {

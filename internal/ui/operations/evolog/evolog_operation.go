@@ -46,7 +46,6 @@ const (
 )
 
 var _ operations.Operation = (*Operation)(nil)
-var _ operations.DisplayListRenderer = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
 var _ common.Overlay = (*Operation)(nil)
 
@@ -214,11 +213,6 @@ func (o *Operation) Name() string {
 		return "restore"
 	}
 	return "evolog"
-}
-
-// SupportsDisplayList returns true for RenderPositionAfter in select mode
-func (o *Operation) SupportsDisplayList(pos operations.RenderPosition) bool {
-	return pos == operations.RenderPositionAfter && o.mode == selectMode
 }
 
 // DesiredHeight returns the desired height for the operation

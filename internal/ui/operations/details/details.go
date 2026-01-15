@@ -30,10 +30,9 @@ type updateCommitStatusMsg struct {
 }
 
 var (
-	_ operations.Operation           = (*Operation)(nil)
-	_ operations.DisplayListRenderer = (*Operation)(nil)
-	_ common.Focusable               = (*Operation)(nil)
-	_ common.Overlay                 = (*Operation)(nil)
+	_ operations.Operation = (*Operation)(nil)
+	_ common.Focusable     = (*Operation)(nil)
+	_ common.Overlay       = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -238,10 +237,15 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 func (s *Operation) ViewRect(dl *render.DisplayList, box layout.Box) {
 	s.frame = box.R
 	content := s.viewContent(box.R.Dy())
-	w, h := lipgloss.Size(content)
-	rect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, w, h)
-	s.frame = rect
-	dl.AddDraw(rect, content, 0)
+	content = lipgloss.Place(
+		box.R.Dx(),
+		box.R.Dy(),
+		lipgloss.Left,
+		lipgloss.Top,
+		content,
+		lipgloss.WithWhitespaceBackground(s.styles.Text.GetBackground()),
+	)
+	dl.AddDraw(box.R, content, 0)
 }
 
 func (s *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
@@ -287,11 +291,6 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	return s.viewContent(maxHeight)
 }
 
-// SupportsDisplayList returns true for RenderPositionAfter
-func (s *Operation) SupportsDisplayList(pos operations.RenderPosition) bool {
-	return pos == operations.RenderPositionAfter && s.confirmation == nil
-}
-
 // DesiredHeight returns the desired height for the operation
 func (s *Operation) DesiredHeight(commit *jj.Commit, pos operations.RenderPosition) int {
 	isSelected := s.Current != nil && s.Current.GetChangeId() == commit.GetChangeId()
@@ -301,7 +300,11 @@ func (s *Operation) DesiredHeight(commit *jj.Commit, pos operations.RenderPositi
 	if s.Len() == 0 {
 		return 1 // "No changes" message
 	}
-	return s.Len()
+	confirmationHeight := 0
+	if s.confirmation != nil {
+		confirmationHeight = lipgloss.Height(s.confirmation.View())
+	}
+	return s.Len() + confirmationHeight
 }
 
 // RenderToDisplayList renders the file list directly to the DisplayList
@@ -318,8 +321,20 @@ func (s *Operation) RenderToDisplayList(dl *render.DisplayList, commit *jj.Commi
 		return 1
 	}
 
+	confirmationView := ""
+	confirmationHeight := 0
+	if s.confirmation != nil {
+		confirmationView = s.confirmation.View()
+		confirmationHeight = lipgloss.Height(confirmationView)
+	}
+
+	availableListHeight := rect.Dy() - confirmationHeight
+	if availableListHeight < 0 {
+		availableListHeight = 0
+	}
+
 	// Calculate available height
-	height := min(rect.Dy(), s.Len())
+	height := min(availableListHeight, s.Len())
 	s.frame = cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)
 
 	// Render the file list to DisplayList
@@ -327,7 +342,12 @@ func (s *Operation) RenderToDisplayList(dl *render.DisplayList, commit *jj.Commi
 	viewRect := layout.Box{R: cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)}
 	s.RenderFileList(dl, viewRect, cellbuf.Pos(0, 0))
 
-	return height
+	if confirmationView != "" && confirmationHeight > 0 && height < rect.Dy() {
+		confirmRect := cellbuf.Rect(rect.Min.X, rect.Min.Y+height, rect.Dx(), confirmationHeight)
+		dl.AddDraw(confirmRect, confirmationView, 0)
+	}
+
+	return height + confirmationHeight
 }
 
 func (s *Operation) Name() string {

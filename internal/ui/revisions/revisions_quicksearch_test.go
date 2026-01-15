@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -17,6 +18,14 @@ type mockNonFocusableOperation struct{}
 
 func (m *mockNonFocusableOperation) Render(commit *jj.Commit, renderPosition operations.RenderPosition) string {
 	return ""
+}
+
+func (m *mockNonFocusableOperation) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+	return 0
+}
+
+func (m *mockNonFocusableOperation) DesiredHeight(_ *jj.Commit, _ operations.RenderPosition) int {
+	return 0
 }
 
 func (m *mockNonFocusableOperation) Name() string {

@@ -67,6 +67,14 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	return o.viewContent(o.width)
 }
 
+func (o *Operation) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+	return 0
+}
+
+func (o *Operation) DesiredHeight(_ *jj.Commit, _ operations.RenderPosition) int {
+	return 0
+}
+
 func (o *Operation) Name() string {
 	return "desc"
 }
