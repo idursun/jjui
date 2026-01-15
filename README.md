@@ -60,6 +60,16 @@ For detailed information, see [Preview](https://github.com/idursun/jjui/wiki/Pre
 
 ![GIF](https://github.com/idursun/jjui/wiki/gifs/jjui_preview.gif)
 
+### Custom Commands
+
+You can configure custom commands with lua scripts to set up `jjui` for you special use case.
+
+See [Custom Command ‐ Lua Scripting](https://github.com/idursun/jjui/wiki/Custom-Command-%E2%80%90-Lua-Scripting) for Lua API documentation and custom command examples.
+
+Below is a demo of [Quick Revset Switcher custom command](https://github.com/idursun/jjui/wiki/Custom-Command-%E2%80%90-Lua-Scripting#quick-revset-switcher):
+
+![GIF](https://raw.githubusercontent.com/wiki/idursun/jjui/gifs/jjui_custom_command.gif)
+
 Additionally,
 * View the diff of a revision by pressing `d`.
 * Edit the description of a revision by pressing `D`
@@ -70,8 +80,9 @@ Additionally,
 * _Edit_ a revision by pressing `e`
 * Git _push_/_fetch_ by pressing `g`
 * Undo the last change by pressing `u`
-* Redo the last change by pressing `R`
+* Redo the last change by pressing `U`
 * Show evolog of a revision by pressing `v`
+* Jump to a revision with ace jump by pressing `f`
 
 ## Configuration
 
