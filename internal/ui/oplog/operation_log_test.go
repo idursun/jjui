@@ -15,7 +15,6 @@ import (
 
 func TestCancelKeyRefreshesPreview(t *testing.T) {
 	m := &Model{
-		MouseAware: common.NewMouseAware(),
 		context:    &context.MainContext{},
 		rows: []row{
 			{
@@ -74,7 +73,6 @@ func TestCancelKeyRefreshesPreview(t *testing.T) {
 
 func TestOpLogCloseIntent(t *testing.T) {
 	m := &Model{
-		MouseAware: common.NewMouseAware(),
 		context:    &context.MainContext{},
 		rows: []row{
 			{
@@ -122,7 +120,6 @@ func TestOpLogCloseIntent(t *testing.T) {
 
 func TestOpLogNavigateIntent(t *testing.T) {
 	m := &Model{
-		MouseAware: common.NewMouseAware(),
 		context:    &context.MainContext{},
 		rows: []row{
 			{OperationId: "op1"},

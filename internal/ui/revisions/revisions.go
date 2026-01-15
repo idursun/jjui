@@ -50,12 +50,10 @@ var (
 	_ list.IStreamableList  = (*Model)(nil)
 	_ common.Focusable      = (*Model)(nil)
 	_ common.Editable       = (*Model)(nil)
-	_ common.IMouseAware    = (*Model)(nil)
 	_ common.ImmediateModel = (*Model)(nil)
 )
 
 type Model struct {
-	*common.MouseAware
 	rows                []parser.Row
 	tag                 atomic.Uint64
 	revisionToSelect    string
@@ -1109,7 +1107,6 @@ func (m *Model) GetCommitIds() []string {
 func New(c *appContext.MainContext) *Model {
 	keymap := config.Current.GetKeyMap()
 	m := Model{
-		MouseAware:    common.NewMouseAware(),
 		context:       c,
 		keymap:        keymap,
 		rows:          nil,

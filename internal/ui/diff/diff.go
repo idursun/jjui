@@ -15,7 +15,6 @@ import (
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
-	*common.MouseAware
 	view   viewport.Model
 	keymap config.KeyMappings[key.Binding]
 }
@@ -90,7 +89,6 @@ func New(output string) *Model {
 	}
 	view.SetContent(content)
 	return &Model{
-		MouseAware: common.NewMouseAware(),
 		view:       view,
 		keymap:     config.Current.GetKeyMap(),
 	}

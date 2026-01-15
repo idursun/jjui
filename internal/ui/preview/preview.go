@@ -26,7 +26,6 @@ const (
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
-	*common.MouseAware
 	view                viewport.Model
 	previewVisible      bool
 	previewAutoPosition bool
@@ -140,17 +139,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		msg = k.msg
 	}
 	switch msg := msg.(type) {
-	case tea.MouseMsg:
-		switch msg.Button {
-		case tea.MouseButtonWheelUp:
-			m.Scroll(-scrollAmount)
-		case tea.MouseButtonWheelDown:
-			m.Scroll(scrollAmount)
-		case tea.MouseButtonWheelLeft:
-			m.ScrollHorizontal(-scrollAmount)
-		case tea.MouseButtonWheelRight:
-			m.ScrollHorizontal(scrollAmount)
-		}
 	case ScrollMsg:
 		if msg.Horizontal {
 			m.ScrollHorizontal(msg.Delta)
@@ -272,7 +260,6 @@ func New(context *context.MainContext) *Model {
 	}
 
 	return &Model{
-		MouseAware:          common.NewMouseAware(),
 		context:             context,
 		keyMap:              config.Current.GetKeyMap(),
 		previewAutoPosition: previewAutoPosition,

@@ -40,11 +40,9 @@ var (
 	_ list.IList            = (*Model)(nil)
 	_ list.IScrollableList  = (*Model)(nil)
 	_ common.ImmediateModel = (*Model)(nil)
-	_ common.IMouseAware    = (*Model)(nil)
 )
 
 type Model struct {
-	*common.MouseAware
 	context          *context.MainContext
 	listRenderer     *render.ListRenderer
 	rows             []row
@@ -150,8 +148,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.ensureCursorView = true
 			return m.updateSelection()
 		}
-	case tea.MouseMsg:
-		return nil
 	case OpLogScrollMsg:
 		return m.Scroll(msg.Delta)
 	case tea.KeyMsg:
@@ -328,7 +324,6 @@ func (m *Model) load() tea.Cmd {
 func New(context *context.MainContext) *Model {
 	keyMap := config.Current.GetKeyMap()
 	m := &Model{
-		MouseAware:    common.NewMouseAware(),
 		context:       context,
 		keymap:        keyMap,
 		rows:          nil,
