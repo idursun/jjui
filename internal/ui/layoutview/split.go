@@ -130,34 +130,79 @@ func (s *Split) Render(dl *render.DisplayList, box layout.Box) {
 
 func (s *Split) renderBoth(dl *render.DisplayList, box layout.Box) {
 	primaryPercent := 100 - s.State.Percent
-	var boxes []layout.Box
-	if s.Vertical {
-		boxes = box.V(layout.Percent(primaryPercent), layout.Fill(1))
-	} else {
-		boxes = box.H(layout.Percent(primaryPercent), layout.Fill(1))
+	thickness := s.SeparatorThickness
+	if thickness <= 0 {
+		thickness = 1
 	}
+	if !s.SeparatorVisible {
+		thickness = 0
+	}
+	if s.Vertical {
+		if box.R.Dy() <= 0 {
+			return
+		}
+		if thickness >= box.R.Dy() {
+			thickness = 0
+		}
+		usable := box.R.Dy() - thickness
+		splitBox := box
+		if thickness > 0 {
+			splitBox.R.Max.Y = splitBox.R.Min.Y + usable
+		}
+		boxes := splitBox.V(layout.Percent(primaryPercent), layout.Fill(1))
+		if len(boxes) < 2 {
+			return
+		}
+		if thickness > 0 {
+			sepRect := cellbuf.Rect(box.R.Min.X, boxes[0].R.Max.Y, box.R.Dx(), thickness)
+			secondaryBox := boxes[1]
+			secondaryBox.R.Min.Y += thickness
+			secondaryBox.R.Max.Y += thickness
+			s.Primary.Content.Render(dl, boxes[0])
+			s.Secondary.Content.Render(dl, secondaryBox)
+			dl.AddInteraction(sepRect, SplitDragMsg{Split: s}, render.InteractionDrag, 0)
+			drawRect, content := separatorContent(sepRect, s.Vertical)
+			if drawRect.Dx() > 0 && drawRect.Dy() > 0 && content != "" {
+				dl.AddDraw(drawRect, content, 1)
+			}
+			return
+		}
+		s.Primary.Content.Render(dl, boxes[0])
+		s.Secondary.Content.Render(dl, boxes[1])
+		return
+	}
+
+	if box.R.Dx() <= 0 {
+		return
+	}
+	if thickness >= box.R.Dx() {
+		thickness = 0
+	}
+	usable := box.R.Dx() - thickness
+	splitBox := box
+	if thickness > 0 {
+		splitBox.R.Max.X = splitBox.R.Min.X + usable
+	}
+	boxes := splitBox.H(layout.Percent(primaryPercent), layout.Fill(1))
 	if len(boxes) < 2 {
+		return
+	}
+	if thickness > 0 {
+		sepRect := cellbuf.Rect(boxes[0].R.Max.X, box.R.Min.Y, thickness, box.R.Dy())
+		secondaryBox := boxes[1]
+		secondaryBox.R.Min.X += thickness
+		secondaryBox.R.Max.X += thickness
+		s.Primary.Content.Render(dl, boxes[0])
+		s.Secondary.Content.Render(dl, secondaryBox)
+		dl.AddInteraction(sepRect, SplitDragMsg{Split: s}, render.InteractionDrag, 0)
+		drawRect, content := separatorContent(sepRect, s.Vertical)
+		if drawRect.Dx() > 0 && drawRect.Dy() > 0 && content != "" {
+			dl.AddDraw(drawRect, content, 1)
+		}
 		return
 	}
 	s.Primary.Content.Render(dl, boxes[0])
 	s.Secondary.Content.Render(dl, boxes[1])
-
-	if !s.SeparatorVisible {
-		return
-	}
-	thickness := s.SeparatorThickness
-	if thickness <= 0 {
-		thickness = 3
-	}
-	sepRect := separatorRect(box, boxes[1], s.Vertical, thickness)
-	if sepRect.Dx() <= 0 || sepRect.Dy() <= 0 {
-		return
-	}
-	dl.AddInteraction(sepRect, SplitDragMsg{Split: s}, render.InteractionDrag, 0)
-	drawRect, content := separatorContent(sepRect, s.Vertical)
-	if drawRect.Dx() > 0 && drawRect.Dy() > 0 && content != "" {
-		dl.AddDraw(drawRect, content, 1)
-	}
 }
 
 // Visible returns true if any child is visible.
@@ -188,47 +233,6 @@ func (m SplitDragMsg) SetDragStart(x, y int) tea.Msg {
 	return m
 }
 
-func separatorRect(parent layout.Box, second layout.Box, vertical bool, thickness int) cellbuf.Rectangle {
-	if thickness < 1 {
-		thickness = 1
-	}
-	if vertical {
-		boundaryY := second.R.Min.Y
-		startY := boundaryY - thickness/2
-		if startY < parent.R.Min.Y {
-			startY = parent.R.Min.Y
-		}
-		if startY+thickness > parent.R.Max.Y {
-			startY = parent.R.Max.Y - thickness
-		}
-		if startY < parent.R.Min.Y {
-			startY = parent.R.Min.Y
-		}
-		height := thickness
-		if parent.R.Dy() < height {
-			height = parent.R.Dy()
-		}
-		return cellbuf.Rect(parent.R.Min.X, startY, parent.R.Dx(), height)
-	}
-
-	boundaryX := second.R.Min.X
-	startX := boundaryX - thickness/2
-	if startX < parent.R.Min.X {
-		startX = parent.R.Min.X
-	}
-	if startX+thickness > parent.R.Max.X {
-		startX = parent.R.Max.X - thickness
-	}
-	if startX < parent.R.Min.X {
-		startX = parent.R.Min.X
-	}
-	width := thickness
-	if parent.R.Dx() < width {
-		width = parent.R.Dx()
-	}
-	return cellbuf.Rect(startX, parent.R.Min.Y, width, parent.R.Dy())
-}
-
 func separatorContent(sepRect cellbuf.Rectangle, vertical bool) (cellbuf.Rectangle, string) {
 	if sepRect.Dx() <= 0 || sepRect.Dy() <= 0 {
 		return cellbuf.Rectangle{}, ""
@@ -240,5 +244,8 @@ func separatorContent(sepRect cellbuf.Rectangle, vertical bool) (cellbuf.Rectang
 	}
 	centerX := sepRect.Min.X + sepRect.Dx()/2
 	drawRect := cellbuf.Rect(centerX, sepRect.Min.Y, 1, sepRect.Dy())
-	return drawRect, strings.Repeat("|", drawRect.Dy())
+	if drawRect.Dy() == 1 {
+		return drawRect, "|"
+	}
+	return drawRect, strings.Repeat("|\n", drawRect.Dy()-1) + "|"
 }

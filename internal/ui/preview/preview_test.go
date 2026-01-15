@@ -39,8 +39,8 @@ func TestModel_View(t *testing.T) {
 			+++++..
 			`),
 			expected: test.Stripped(`
-			│++++
-			│+abc
+			+++++
+			+abcd
 			`),
 		},
 		{
@@ -55,9 +55,9 @@ func TestModel_View(t *testing.T) {
 			+++++..
 			`),
 			expected: test.Stripped(`
-			─────
 			+++++
 			+abcd
+			+++++
 			`),
 		},
 		{
@@ -71,8 +71,8 @@ func TestModel_View(t *testing.T) {
 			.......
 			`),
 			expected: test.Stripped(`
-			│abcd
-			│....
+			abcde
+			.....
 			`),
 		},
 		{
@@ -87,7 +87,6 @@ func TestModel_View(t *testing.T) {
 			.......
 			`),
 			expected: test.Stripped(`
-			─────
 			.abcd
 			.....
 			`),
@@ -104,9 +103,9 @@ func TestModel_View(t *testing.T) {
 			.......
 			`),
 			expected: test.Stripped(`
-			─────
 			.....
 			bcde.
+			.....
 			`),
 		},
 	}

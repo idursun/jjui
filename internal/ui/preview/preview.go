@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
@@ -180,16 +179,9 @@ func (m *Model) SetContent(content string) {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
-	if m.AtBottom() {
-		m.view.Width = box.R.Dx()
-		m.view.Height = box.R.Dy() - 1
-	} else {
-		m.view.Width = box.R.Dx() - 1
-		m.view.Height = box.R.Dy()
-	}
-	border := lipgloss.NewStyle().Border(lipgloss.NormalBorder(), m.AtBottom(), false, false, !m.AtBottom())
-	content := border.Render(m.view.View())
-	dl.AddDraw(box.R, content, 0)
+	m.view.Width = box.R.Dx()
+	m.view.Height = box.R.Dy()
+	dl.AddDraw(box.R, m.view.View(), 0)
 
 	scrollRect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), box.R.Dy())
 	dl.AddInteraction(scrollRect, ScrollMsg{}, render.InteractionScroll, 0)
