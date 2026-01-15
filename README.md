@@ -196,7 +196,6 @@ Required formatters:
 - gofmt
 - taplo
 - yamlfmt
-- prettier
 - nixfmt
 
 ## License
