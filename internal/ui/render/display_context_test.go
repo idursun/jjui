@@ -7,8 +7,8 @@ import (
 	"github.com/charmbracelet/x/cellbuf"
 )
 
-func TestDisplayList_AddDraw(t *testing.T) {
-	dl := NewDisplayList()
+func TestDisplayContext_AddDraw(t *testing.T) {
+	dl := NewDisplayContext()
 	rect := cellbuf.Rect(0, 0, 10, 1)
 
 	dl.AddDraw(rect, "test", 0)
@@ -22,8 +22,8 @@ func TestDisplayList_AddDraw(t *testing.T) {
 	}
 }
 
-func TestDisplayList_ZIndexSorting(t *testing.T) {
-	dl := NewDisplayList()
+func TestDisplayContext_ZIndexSorting(t *testing.T) {
+	dl := NewDisplayContext()
 	rect := cellbuf.Rect(0, 0, 10, 1)
 
 	// Add draws in reverse Z order
@@ -45,8 +45,8 @@ func TestDisplayList_ZIndexSorting(t *testing.T) {
 	// (We can't directly observe this, but we test behavior)
 }
 
-func TestDisplayList_BasicRender(t *testing.T) {
-	dl := NewDisplayList()
+func TestDisplayContext_BasicRender(t *testing.T) {
+	dl := NewDisplayContext()
 
 	// Create a simple draw operation
 	dl.AddDraw(cellbuf.Rect(0, 0, 5, 1), "Hello", 0)
@@ -62,8 +62,8 @@ func TestDisplayList_BasicRender(t *testing.T) {
 	}
 }
 
-func TestDisplayList_LayeredRender(t *testing.T) {
-	dl := NewDisplayList()
+func TestDisplayContext_LayeredRender(t *testing.T) {
+	dl := NewDisplayContext()
 
 	// Layer 0: Background
 	dl.AddDraw(cellbuf.Rect(0, 0, 10, 1), "Background", 0)
@@ -83,7 +83,7 @@ func TestDisplayList_LayeredRender(t *testing.T) {
 }
 
 func TestEffectOp_Reverse(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 
 	// Draw some content
 	dl.AddDraw(cellbuf.Rect(0, 0, 5, 1), "Hello", 0)
@@ -110,7 +110,7 @@ func TestEffectOp_Reverse(t *testing.T) {
 }
 
 func TestEffectOp_Bold(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 
 	// Draw content
 	dl.AddDraw(cellbuf.Rect(0, 0, 4, 1), "Test", 0)
@@ -129,7 +129,7 @@ func TestEffectOp_Bold(t *testing.T) {
 }
 
 func TestEffectOp_Underline(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 
 	// Draw content
 	dl.AddDraw(cellbuf.Rect(0, 0, 4, 1), "Link", 0)
@@ -148,7 +148,7 @@ func TestEffectOp_Underline(t *testing.T) {
 }
 
 func TestEffectOp_Dim(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 
 	// Draw content
 	dl.AddDraw(cellbuf.Rect(0, 0, 4, 1), "Faint", 0)
@@ -167,7 +167,7 @@ func TestEffectOp_Dim(t *testing.T) {
 }
 
 func TestEffectOp_MultipleEffects(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 
 	// Draw content
 	dl.AddDraw(cellbuf.Rect(0, 0, 10, 1), "MultiStyle", 0)
@@ -189,7 +189,7 @@ func TestEffectOp_MultipleEffects(t *testing.T) {
 }
 
 func TestEffectOp_EffectAfterDraw(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 
 	// Important: DrawOps must be rendered before EffectOps
 	dl.AddDraw(cellbuf.Rect(0, 0, 6, 1), "Normal", 0)
@@ -206,7 +206,7 @@ func TestEffectOp_EffectAfterDraw(t *testing.T) {
 }
 
 func TestRenderToString(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 
 	dl.AddDraw(cellbuf.Rect(0, 0, 5, 1), "Quick", 0)
 
@@ -218,7 +218,7 @@ func TestRenderToString(t *testing.T) {
 }
 
 func TestIterateCells_BoundsChecking(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 
 	// Try to draw outside buffer bounds
 	dl.AddDraw(cellbuf.Rect(0, 0, 5, 1), "Hello", 0)
@@ -237,10 +237,10 @@ func TestIterateCells_BoundsChecking(t *testing.T) {
 	}
 }
 
-func TestEmptyDisplayList(t *testing.T) {
-	dl := NewDisplayList()
+func TestEmptyDisplayContext(t *testing.T) {
+	dl := NewDisplayContext()
 
-	// Rendering empty display list should not panic
+	// Rendering empty display context should not panic
 	buf := cellbuf.NewBuffer(10, 1)
 	dl.Render(buf)
 
@@ -249,8 +249,8 @@ func TestEmptyDisplayList(t *testing.T) {
 	_ = cellbuf.Render(buf)
 }
 
-func TestDisplayList_Reuse(t *testing.T) {
-	dl := NewDisplayList()
+func TestDisplayContext_Reuse(t *testing.T) {
+	dl := NewDisplayContext()
 
 	// First frame
 	dl.AddDraw(cellbuf.Rect(0, 0, 5, 1), "Frame1", 0)

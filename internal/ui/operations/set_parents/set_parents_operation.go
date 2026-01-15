@@ -47,7 +47,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) ViewRect(_ *render.DisplayList, _ layout.Box) {}
+func (m *Model) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 
 func (m *Model) ShortHelp() []key.Binding {
 	return []key.Binding{
@@ -137,7 +137,7 @@ func (m *Model) Render(commit *jj.Commit, renderPosition operations.RenderPositi
 	return ""
 }
 
-func (m *Model) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+func (m *Model) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
 	return 0
 }
 

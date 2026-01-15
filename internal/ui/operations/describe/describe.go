@@ -66,7 +66,7 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	return o.viewContent(o.width)
 }
 
-func (o *Operation) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+func (o *Operation) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
 	return 0
 }
 
@@ -125,7 +125,7 @@ func (o *Operation) Init() tea.Cmd {
 	return nil
 }
 
-func (o *Operation) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	content := o.viewContent(box.R.Dx())
 	w, h := lipgloss.Size(content)
 	rect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, w, h)

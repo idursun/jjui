@@ -149,7 +149,7 @@ func (s *SequenceOverlay) HandleTimeout(msg SequenceTimeoutMsg) SequenceResult {
 	return s.handleTimeout(msg)
 }
 
-func (s *SequenceOverlay) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (s *SequenceOverlay) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	var view strings.Builder
 	for i, it := range s.items {
 		view.WriteString(s.matchedStyle.Render(s.prefix))

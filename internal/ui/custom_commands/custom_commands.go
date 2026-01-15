@@ -116,7 +116,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return m.menu.Update(msg)
 }
 
-func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	pw, ph := box.R.Dx(), box.R.Dy()
 	contentRect := cellbuf.Rect(0, 0, min(pw, 80), min(ph, 40)).Inset(2)
 	menuWidth := max(contentRect.Dx()+2, 0)

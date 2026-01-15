@@ -8,9 +8,9 @@ import (
 
 // RenderImmediate renders an immediate model into a fixed-size buffer.
 func RenderImmediate(model interface {
-	ViewRect(dl *render.DisplayList, box layout.Box)
+	ViewRect(dl *render.DisplayContext, box layout.Box)
 }, width, height int) string {
-	dl := render.NewDisplayList()
+	dl := render.NewDisplayContext()
 	box := layout.NewBox(cellbuf.Rect(0, 0, width, height))
 	model.ViewRect(dl, box)
 	screen := cellbuf.NewBuffer(width, height)

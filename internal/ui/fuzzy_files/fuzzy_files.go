@@ -212,7 +212,7 @@ func (fzf *fuzzyFiles) search(input string) {
 	fzf.matches = src.Search(input, fzf.max)
 }
 
-func (fzf *fuzzyFiles) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (fzf *fuzzyFiles) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	content := fzf.viewContent()
 	if content == "" {
 		return

@@ -25,7 +25,7 @@ const (
 type Operation interface {
 	common.ImmediateModel
 	Render(commit *jj.Commit, renderPosition RenderPosition) string
-	RenderToDisplayList(dl *render.DisplayList, commit *jj.Commit, pos RenderPosition, rect cellbuf.Rectangle, screenOffset cellbuf.Position) int
+	RenderToDisplayContext(dl *render.DisplayContext, commit *jj.Commit, pos RenderPosition, rect cellbuf.Rectangle, screenOffset cellbuf.Position) int
 	DesiredHeight(commit *jj.Commit, pos RenderPosition) int
 	Name() string
 }

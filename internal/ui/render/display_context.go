@@ -8,23 +8,23 @@ import (
 	"github.com/charmbracelet/x/cellbuf"
 )
 
-// DisplayList holds all rendering operations for a frame.
+// DisplayContext holds all rendering operations for a frame.
 // Operations are accumulated during the layout/render pass,
 // then executed in order by batch and Z-index.
-type DisplayList struct {
+type DisplayContext struct {
 	draws         []drawOp
 	effects       []effectOp
 	interactions  []interactionOp
 	orderCounter  int
 	windows       []windowOp
 	windowCounter int
-	parent        *DisplayList
+	parent        *DisplayContext
 	windowID      int
 }
 
-// NewDisplayList creates a new empty display list.
-func NewDisplayList() *DisplayList {
-	return &DisplayList{
+// NewDisplayContext creates a new empty display context.
+func NewDisplayContext() *DisplayContext {
+	return &DisplayContext{
 		draws:        make([]drawOp, 0, 16),
 		effects:      make([]effectOp, 0, 8),
 		interactions: make([]interactionOp, 0, 8),
@@ -32,8 +32,8 @@ func NewDisplayList() *DisplayList {
 	}
 }
 
-// Window creates a scoped display list that routes interactions to a window.
-func (dl *DisplayList) Window(rect cellbuf.Rectangle, z int) *DisplayList {
+// Window creates a scoped display context that routes interactions to a window.
+func (dl *DisplayContext) Window(rect cellbuf.Rectangle, z int) *DisplayContext {
 	root := dl.root()
 	root.windowCounter++
 	id := root.windowCounter
@@ -43,31 +43,31 @@ func (dl *DisplayList) Window(rect cellbuf.Rectangle, z int) *DisplayList {
 		Z:     z,
 		Order: root.nextOrder(),
 	})
-	return &DisplayList{parent: root, windowID: id}
+	return &DisplayContext{parent: root, windowID: id}
 }
 
-func (dl *DisplayList) root() *DisplayList {
+func (dl *DisplayContext) root() *DisplayContext {
 	if dl.parent == nil {
 		return dl
 	}
 	return dl.parent
 }
 
-func (dl *DisplayList) nextOrder() int {
+func (dl *DisplayContext) nextOrder() int {
 	root := dl.root()
 	root.orderCounter++
 	return root.orderCounter
 }
 
-func (dl *DisplayList) currentWindowID() int {
+func (dl *DisplayContext) currentWindowID() int {
 	if dl.parent == nil {
 		return 0
 	}
 	return dl.windowID
 }
 
-// AddDraw adds a Draw to the display list.
-func (dl *DisplayList) AddDraw(rect cellbuf.Rectangle, content string, z int) {
+// AddDraw adds a Draw to the display context.
+func (dl *DisplayContext) AddDraw(rect cellbuf.Rectangle, content string, z int) {
 	root := dl.root()
 	root.draws = append(root.draws, drawOp{
 		Draw: Draw{
@@ -79,9 +79,9 @@ func (dl *DisplayList) AddDraw(rect cellbuf.Rectangle, content string, z int) {
 	})
 }
 
-// AddEffect adds a custom Effect to the display list.
+// AddEffect adds a custom Effect to the display context.
 // This is the generic method that accepts any Effect implementation.
-func (dl *DisplayList) AddEffect(effect Effect) {
+func (dl *DisplayContext) AddEffect(effect Effect) {
 	root := dl.root()
 	root.effects = append(root.effects, effectOp{
 		effect: effect,
@@ -91,37 +91,37 @@ func (dl *DisplayList) AddEffect(effect Effect) {
 }
 
 // AddReverse adds a ReverseEffect (reverses foreground/background colors).
-func (dl *DisplayList) AddReverse(rect cellbuf.Rectangle, z int) {
+func (dl *DisplayContext) AddReverse(rect cellbuf.Rectangle, z int) {
 	dl.AddEffect(ReverseEffect{Rect: rect, Z: z})
 }
 
 // AddDim adds a DimEffect (dims the content).
-func (dl *DisplayList) AddDim(rect cellbuf.Rectangle, z int) {
+func (dl *DisplayContext) AddDim(rect cellbuf.Rectangle, z int) {
 	dl.AddEffect(DimEffect{Rect: rect, Z: z})
 }
 
 // AddUnderline adds an UnderlineEffect.
-func (dl *DisplayList) AddUnderline(rect cellbuf.Rectangle, z int) {
+func (dl *DisplayContext) AddUnderline(rect cellbuf.Rectangle, z int) {
 	dl.AddEffect(UnderlineEffect{Rect: rect, Z: z})
 }
 
 // AddBold adds a BoldEffect.
-func (dl *DisplayList) AddBold(rect cellbuf.Rectangle, z int) {
+func (dl *DisplayContext) AddBold(rect cellbuf.Rectangle, z int) {
 	dl.AddEffect(BoldEffect{Rect: rect, Z: z})
 }
 
 // AddStrike adds a StrikeEffect (strikethrough).
-func (dl *DisplayList) AddStrike(rect cellbuf.Rectangle, z int) {
+func (dl *DisplayContext) AddStrike(rect cellbuf.Rectangle, z int) {
 	dl.AddEffect(StrikeEffect{Rect: rect, Z: z})
 }
 
 // AddHighlight adds a HighlightEffect.
-func (dl *DisplayList) AddHighlight(rect cellbuf.Rectangle, style lipgloss.Style, z int) {
+func (dl *DisplayContext) AddHighlight(rect cellbuf.Rectangle, style lipgloss.Style, z int) {
 	dl.AddEffect(HighlightEffect{Rect: rect, Style: style, Z: z})
 }
 
-// AddInteraction adds an InteractionOp to the display list.
-func (dl *DisplayList) AddInteraction(rect cellbuf.Rectangle, msg tea.Msg, typ InteractionType, z int) {
+// AddInteraction adds an InteractionOp to the display context.
+func (dl *DisplayContext) AddInteraction(rect cellbuf.Rectangle, msg tea.Msg, typ InteractionType, z int) {
 	root := dl.root()
 	root.interactions = append(root.interactions, interactionOp{
 		InteractionOp: InteractionOp{
@@ -135,9 +135,9 @@ func (dl *DisplayList) AddInteraction(rect cellbuf.Rectangle, msg tea.Msg, typ I
 	})
 }
 
-// Clear removes all operations from the display list.
-// Useful for reusing a DisplayList across frames.
-func (dl *DisplayList) Clear() {
+// Clear removes all operations from the display context.
+// Useful for reusing a DisplayContext across frames.
+func (dl *DisplayContext) Clear() {
 	root := dl.root()
 	root.draws = root.draws[:0]
 	root.effects = root.effects[:0]
@@ -147,11 +147,11 @@ func (dl *DisplayList) Clear() {
 	root.windowCounter = 0
 }
 
-// Render executes all operations in the display list to the given cellbuf.
+// Render executes all operations in the display context to the given cellbuf.
 // Order of execution:
 // 1. Draw sorted by Z-index (low to high)
 // 2. Effects sorted by Z-index (low to high)
-func (dl *DisplayList) Render(buf *cellbuf.Buffer) {
+func (dl *DisplayContext) Render(buf *cellbuf.Buffer) {
 	root := dl.root()
 	if root != dl {
 		root.Render(buf)
@@ -197,14 +197,14 @@ func (dl *DisplayList) Render(buf *cellbuf.Buffer) {
 
 // RenderToString is a convenience method that renders to a new buffer
 // and returns the final string output.
-func (dl *DisplayList) RenderToString(width, height int) string {
+func (dl *DisplayContext) RenderToString(width, height int) string {
 	buf := cellbuf.NewBuffer(width, height)
 	dl.Render(buf)
 	return cellbuf.Render(buf)
 }
 
 // DrawList returns a copy of all Draw calls (useful for debugging/inspection)
-func (dl *DisplayList) DrawList() []Draw {
+func (dl *DisplayContext) DrawList() []Draw {
 	root := dl.root()
 	result := make([]Draw, len(root.draws))
 	for i, op := range root.draws {
@@ -214,7 +214,7 @@ func (dl *DisplayList) DrawList() []Draw {
 }
 
 // EffectsList returns a copy of all Effects (useful for debugging/inspection)
-func (dl *DisplayList) EffectsList() []Effect {
+func (dl *DisplayContext) EffectsList() []Effect {
 	root := dl.root()
 	result := make([]Effect, len(root.effects))
 	for i, op := range root.effects {
@@ -224,7 +224,7 @@ func (dl *DisplayList) EffectsList() []Effect {
 }
 
 // InteractionsList returns all interactions sorted by Z-index (highest first for priority).
-func (dl *DisplayList) InteractionsList() []InteractionOp {
+func (dl *DisplayContext) InteractionsList() []InteractionOp {
 	root := dl.root()
 	sorted := make([]interactionOp, len(root.interactions))
 	copy(sorted, root.interactions)
@@ -241,8 +241,8 @@ func (dl *DisplayList) InteractionsList() []InteractionOp {
 	return result
 }
 
-// Merge adds all operations from another DisplayList into this one.
-func (dl *DisplayList) Merge(other *DisplayList) {
+// Merge adds all operations from another DisplayContext into this one.
+func (dl *DisplayContext) Merge(other *DisplayContext) {
 	root := dl.root()
 	source := other.root()
 
@@ -289,8 +289,8 @@ func (dl *DisplayList) Merge(other *DisplayList) {
 	}
 }
 
-// Len returns the total number of operations in the display list
-func (dl *DisplayList) Len() int {
+// Len returns the total number of operations in the display context
+func (dl *DisplayContext) Len() int {
 	root := dl.root()
 	return len(root.draws) + len(root.effects) + len(root.interactions)
 }
@@ -328,7 +328,7 @@ type windowOp struct {
 }
 
 // ProcessMouseEvent routes a mouse event through the window stack.
-func (dl *DisplayList) ProcessMouseEvent(msg tea.MouseMsg) (tea.Msg, bool) {
+func (dl *DisplayContext) ProcessMouseEvent(msg tea.MouseMsg) (tea.Msg, bool) {
 	root := dl.root()
 	return ProcessMouseEventWithWindows(root.interactions, root.windows, msg)
 }

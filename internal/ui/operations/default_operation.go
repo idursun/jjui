@@ -24,7 +24,7 @@ func (n *Default) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (n *Default) ViewRect(_ *render.DisplayList, _ layout.Box) {}
+func (n *Default) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 
 func (n *Default) ShortHelp() []key.Binding {
 	return []key.Binding{
@@ -53,7 +53,7 @@ func (n *Default) Render(*jj.Commit, RenderPosition) string {
 	return ""
 }
 
-func (n *Default) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+func (n *Default) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
 	return 0
 }
 

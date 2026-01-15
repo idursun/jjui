@@ -243,7 +243,7 @@ func (m *Model) revert(intent intents.OpLogRevert) tea.Cmd {
 	return tea.Batch(common.Close, m.context.RunCommand(jj.OpRevert(opId), common.Refresh))
 }
 
-func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if m.rows == nil {
 		content := lipgloss.Place(box.R.Dx(), box.R.Dy(), lipgloss.Center, lipgloss.Center, "loading")
 		dl.AddDraw(box.R, content, 0)
@@ -254,7 +254,7 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 		return len(m.rows[index].Lines)
 	}
 
-	renderItem := func(dl *render.DisplayList, index int, itemRect cellbuf.Rectangle) {
+	renderItem := func(dl *render.DisplayContext, index int, itemRect cellbuf.Rectangle) {
 		row := m.rows[index]
 		isSelected := index == m.cursor
 		styleOverride := m.textStyle

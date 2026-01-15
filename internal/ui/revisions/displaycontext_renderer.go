@@ -11,8 +11,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
-// DisplayListRenderer renders the revisions list using the DisplayList approach
-type DisplayListRenderer struct {
+// DisplayContextRenderer renders the revisions list using the DisplayContext approach
+type DisplayContextRenderer struct {
 	listRenderer  *render.ListRenderer
 	selections    map[string]bool
 	textStyle     lipgloss.Style
@@ -21,9 +21,9 @@ type DisplayListRenderer struct {
 	matchedStyle  lipgloss.Style
 }
 
-// NewDisplayListRenderer creates a new DisplayList-based renderer
-func NewDisplayListRenderer(textStyle, dimmedStyle, selectedStyle, matchedStyle lipgloss.Style) *DisplayListRenderer {
-	return &DisplayListRenderer{
+// NewDisplayContextRenderer creates a new DisplayContext-based renderer
+func NewDisplayContextRenderer(textStyle, dimmedStyle, selectedStyle, matchedStyle lipgloss.Style) *DisplayContextRenderer {
+	return &DisplayContextRenderer{
 		listRenderer:  render.NewListRenderer(ViewportScrollMsg{}),
 		textStyle:     textStyle,
 		dimmedStyle:   dimmedStyle,
@@ -33,13 +33,13 @@ func NewDisplayListRenderer(textStyle, dimmedStyle, selectedStyle, matchedStyle 
 }
 
 // SetSelections sets the selected revisions for rendering checkboxes
-func (r *DisplayListRenderer) SetSelections(selections map[string]bool) {
+func (r *DisplayContextRenderer) SetSelections(selections map[string]bool) {
 	r.selections = selections
 }
 
-// Render renders the revisions list to a DisplayList
-func (r *DisplayListRenderer) Render(
-	dl *render.DisplayList,
+// Render renders the revisions list to a DisplayContext
+func (r *DisplayContextRenderer) Render(
+	dl *render.DisplayContext,
 	items []parser.Row,
 	cursor int,
 	viewRect layout.Box,
@@ -61,12 +61,12 @@ func (r *DisplayListRenderer) Render(
 	screenOffset := cellbuf.Pos(viewRect.R.Min.X, viewRect.R.Min.Y)
 
 	// Render function - renders each visible item
-	renderItem := func(dl *render.DisplayList, index int, rect cellbuf.Rectangle) {
+	renderItem := func(dl *render.DisplayContext, index int, rect cellbuf.Rectangle) {
 		item := items[index]
 		isSelected := index == cursor
 
 		// Render the item content
-		r.renderItemToDisplayList(dl, item, rect, isSelected, operation, screenOffset)
+		r.renderItemToDisplayContext(dl, item, rect, isSelected, operation, screenOffset)
 
 		// Add highlights for selected item (only for Highlightable lines)
 		if isSelected {
@@ -93,8 +93,8 @@ func (r *DisplayListRenderer) Render(
 }
 
 // addHighlights adds highlight effects for lines with Highlightable flag
-func (r *DisplayListRenderer) addHighlights(
-	dl *render.DisplayList,
+func (r *DisplayContextRenderer) addHighlights(
+	dl *render.DisplayContext,
 	item parser.Row,
 	rect cellbuf.Rectangle,
 	operation operations.Operation,
@@ -120,7 +120,7 @@ func (r *DisplayListRenderer) addHighlights(
 }
 
 // calculateItemHeight calculates the height of an item in lines
-func (r *DisplayListRenderer) calculateItemHeight(
+func (r *DisplayContextRenderer) calculateItemHeight(
 	item parser.Row,
 	isSelected bool,
 	operation operations.Operation,
@@ -131,7 +131,7 @@ func (r *DisplayListRenderer) calculateItemHeight(
 	// Add operation height if item is selected and operation exists
 	if isSelected && operation != nil {
 		// Count lines in before section
-		// Use DesiredHeight if available for DisplayList operations
+		// Use DesiredHeight if available for DisplayContext operations
 		desired := operation.DesiredHeight(item.Commit, operations.RenderPositionBefore)
 		if desired > 0 {
 			height += desired
@@ -162,7 +162,7 @@ func (r *DisplayListRenderer) calculateItemHeight(
 		}
 
 		// Count lines in after section
-		// Use DesiredHeight if available for DisplayList operations
+		// Use DesiredHeight if available for DisplayContext operations
 		desiredAfter := operation.DesiredHeight(item.Commit, operations.RenderPositionAfter)
 		if desiredAfter > 0 {
 			height += desiredAfter
@@ -177,9 +177,9 @@ func (r *DisplayListRenderer) calculateItemHeight(
 	return height
 }
 
-// renderItemToDisplayList renders a single item to the DisplayList
-func (r *DisplayListRenderer) renderItemToDisplayList(
-	dl *render.DisplayList,
+// renderItemToDisplayContext renders a single item to the DisplayContext
+func (r *DisplayContextRenderer) renderItemToDisplayContext(
+	dl *render.DisplayContext,
 	item parser.Row,
 	rect cellbuf.Rectangle,
 	isSelected bool,
@@ -288,7 +288,7 @@ func (r *DisplayListRenderer) renderItemToDisplayList(
 
 	// Handle operation rendering for after section
 	if isSelected && operation != nil && !item.Commit.IsRoot() {
-		// Check if operation supports DisplayList rendering
+		// Check if operation supports DisplayContext rendering
 		// Calculate extended gutter and its width for proper indentation
 		extended := item.Extend()
 		gutterWidth := 0
@@ -304,7 +304,7 @@ func (r *DisplayListRenderer) renderItemToDisplayList(
 		contentScreenOffset := screenOffset
 
 		// Render the operation content
-		height := operation.RenderToDisplayList(dl, item.Commit, operations.RenderPositionAfter, contentRect, contentScreenOffset)
+		height := operation.RenderToDisplayContext(dl, item.Commit, operations.RenderPositionAfter, contentRect, contentScreenOffset)
 
 		if height > 0 {
 			// Render gutters for each line
@@ -396,7 +396,7 @@ func (ir *itemRenderer) renderLineToString(line *parser.GraphRowLine, width int)
 }
 
 // renderOperationLine renders an operation line with gutter
-func (r *DisplayListRenderer) renderOperationLine(gutter parser.GraphGutter, line string, width int) string {
+func (r *DisplayContextRenderer) renderOperationLine(gutter parser.GraphGutter, line string, width int) string {
 	var result strings.Builder
 
 	// Render gutter with text style (matching original behavior)
@@ -418,7 +418,7 @@ func (r *DisplayListRenderer) renderOperationLine(gutter parser.GraphGutter, lin
 }
 
 // renderGutter renders just the gutter portion (for embedded operations)
-func (r *DisplayListRenderer) renderGutter(gutter parser.GraphGutter) string {
+func (r *DisplayContextRenderer) renderGutter(gutter parser.GraphGutter) string {
 	var result strings.Builder
 	for _, segment := range gutter.Segments {
 		style := segment.Style.Inherit(r.textStyle)
@@ -428,21 +428,21 @@ func (r *DisplayListRenderer) renderGutter(gutter parser.GraphGutter) string {
 }
 
 // GetScrollOffset returns the current scroll offset
-func (r *DisplayListRenderer) GetScrollOffset() int {
+func (r *DisplayContextRenderer) GetScrollOffset() int {
 	return r.listRenderer.GetScrollOffset()
 }
 
 // SetScrollOffset sets the scroll offset
-func (r *DisplayListRenderer) SetScrollOffset(offset int) {
+func (r *DisplayContextRenderer) SetScrollOffset(offset int) {
 	r.listRenderer.SetScrollOffset(offset)
 }
 
 // GetFirstRowIndex returns the first visible row index.
-func (r *DisplayListRenderer) GetFirstRowIndex() int {
+func (r *DisplayContextRenderer) GetFirstRowIndex() int {
 	return r.listRenderer.GetFirstRowIndex()
 }
 
 // GetLastRowIndex returns the last visible row index (inclusive).
-func (r *DisplayListRenderer) GetLastRowIndex() int {
+func (r *DisplayContextRenderer) GetLastRowIndex() int {
 	return r.listRenderer.GetLastRowIndex()
 }

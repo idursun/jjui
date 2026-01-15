@@ -108,7 +108,7 @@ func HSplit(state *SplitState, primary, secondary Slot) *Split {
 }
 
 // Render lays out and renders the split.
-func (s *Split) Render(dl *render.DisplayList, box layout.Box) {
+func (s *Split) Render(dl *render.DisplayContext, box layout.Box) {
 	if s.State == nil {
 		s.State = NewSplitState(50)
 	}
@@ -128,7 +128,7 @@ func (s *Split) Render(dl *render.DisplayList, box layout.Box) {
 	}
 }
 
-func (s *Split) renderBoth(dl *render.DisplayList, box layout.Box) {
+func (s *Split) renderBoth(dl *render.DisplayContext, box layout.Box) {
 	primaryPercent := 100 - s.State.Percent
 	thickness := s.SeparatorThickness
 	if thickness <= 0 {

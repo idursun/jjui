@@ -82,8 +82,8 @@ func (d *DetailsList) current() *item {
 	return d.files[d.cursor]
 }
 
-// RenderFileList renders the file list to a DisplayList
-func (d *DetailsList) RenderFileList(dl *render.DisplayList, viewRect layout.Box, screenOffset cellbuf.Position) {
+// RenderFileList renders the file list to a DisplayContext
+func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.Box, screenOffset cellbuf.Position) {
 	if len(d.files) == 0 {
 		return
 	}
@@ -94,7 +94,7 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayList, viewRect layout.Box
 	}
 
 	// Render function - renders each visible item
-	renderItem := func(dl *render.DisplayList, index int, rect cellbuf.Rectangle) {
+	renderItem := func(dl *render.DisplayContext, index int, rect cellbuf.Rectangle) {
 		item := d.files[index]
 		isSelected := index == d.cursor
 

@@ -197,7 +197,7 @@ func (fzf *model) searchRegex(input string) fuzzy.Matches {
 	return matches
 }
 
-func (fzf *model) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (fzf *model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	content := fzf.viewContent()
 	if content == "" {
 		return

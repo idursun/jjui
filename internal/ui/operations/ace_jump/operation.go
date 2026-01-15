@@ -141,13 +141,13 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (o *Operation) ViewRect(_ *render.DisplayList, _ layout.Box) {}
+func (o *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 
 func (o *Operation) Render(*jj.Commit, operations.RenderPosition) string {
 	return ""
 }
 
-func (o *Operation) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+func (o *Operation) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
 	return 0
 }
 

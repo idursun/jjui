@@ -160,7 +160,7 @@ func (m *Model) filtered(filter string) tea.Cmd {
 	return m.menu.Filtered(filter)
 }
 
-func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	pw, ph := box.R.Dx(), box.R.Dy()
 	contentRect := cellbuf.Rect(0, 0, min(pw, 80), min(ph, 40)).Inset(2)
 	menuWidth := max(contentRect.Dx()+2, 0)
@@ -178,7 +178,7 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	m.renderRemotes(dl, remoteX, remoteY, remoteWidth)
 }
 
-func (m *Model) renderRemotes(dl *render.DisplayList, x, y, width int) {
+func (m *Model) renderRemotes(dl *render.DisplayContext, x, y, width int) {
 	// Create a window for remotes with higher z-index than menu (z=10)
 	// so that clicks are routed to this window instead of the menu
 	remoteRect := cellbuf.Rect(x, y, width, 1)

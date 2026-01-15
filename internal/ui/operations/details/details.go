@@ -233,7 +233,7 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (s *Operation) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (s *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	content := s.viewContent(box.R.Dx(), box.R.Dy())
 	content = lipgloss.Place(
 		box.R.Dx(),
@@ -273,7 +273,7 @@ func (s *Operation) FullHelp() [][]key.Binding {
 }
 
 func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
-	// RenderToDisplayList handles the actual rendering
+	// RenderToDisplayContext handles the actual rendering
 	// This method is only called as a fallback when DesiredHeight returns 0,
 	// which only happens when !isSelected || pos != After - the same conditions
 	// that would make this return "" anyway.
@@ -296,8 +296,8 @@ func (s *Operation) DesiredHeight(commit *jj.Commit, pos operations.RenderPositi
 	return s.Len() + confirmationHeight
 }
 
-// RenderToDisplayList renders the file list directly to the DisplayList
-func (s *Operation) RenderToDisplayList(dl *render.DisplayList, commit *jj.Commit, pos operations.RenderPosition, rect cellbuf.Rectangle, screenOffset cellbuf.Position) int {
+// RenderToDisplayContext renders the file list directly to the DisplayContext
+func (s *Operation) RenderToDisplayContext(dl *render.DisplayContext, commit *jj.Commit, pos operations.RenderPosition, rect cellbuf.Rectangle, screenOffset cellbuf.Position) int {
 	isSelected := s.Current != nil && s.Current.GetChangeId() == commit.GetChangeId()
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return 0
@@ -325,7 +325,7 @@ func (s *Operation) RenderToDisplayList(dl *render.DisplayList, commit *jj.Commi
 	// Calculate available height
 	height := min(availableListHeight, s.Len())
 
-	// Render the file list to DisplayList
+	// Render the file list to DisplayContext
 	// viewRect is already absolute, so don't reapply the parent screen offset.
 	viewRect := layout.Box{R: cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)}
 	s.RenderFileList(dl, viewRect, cellbuf.Pos(0, 0))
@@ -478,7 +478,7 @@ func (s *Operation) viewContent(width, maxHeight int) string {
 	if height < 0 {
 		height = 0
 	}
-	dl := render.NewDisplayList()
+	dl := render.NewDisplayContext()
 	viewRect := layout.Box{R: cellbuf.Rect(0, 0, width, height)}
 	if height > 0 {
 		s.RenderFileList(dl, viewRect, cellbuf.Pos(0, 0))

@@ -70,7 +70,7 @@ func Test_Update_PreviewScrollKeysWorkWhenVisible(t *testing.T) {
 			model.previewModel.SetContent(content.String())
 
 			// Force internal view port to have a size
-			model.previewModel.ViewRect(render.NewDisplayList(), layout.NewBox(cellbuf.Rect(0, 0, 100, 50)))
+			model.previewModel.ViewRect(render.NewDisplayContext(), layout.NewBox(cellbuf.Rect(0, 0, 100, 50)))
 
 			initialYOffset := model.previewModel.YOffset()
 

@@ -13,7 +13,7 @@ type Slot struct {
 
 // SlotContent is anything that can be rendered in a slot.
 type SlotContent interface {
-	Render(dl *render.DisplayList, box layout.Box)
+	Render(dl *render.DisplayContext, box layout.Box)
 	Visible() bool
 }
 
@@ -34,7 +34,7 @@ func Percent(pct int, content SlotContent) Slot {
 
 type emptySlot struct{}
 
-func (e emptySlot) Render(_ *render.DisplayList, _ layout.Box) {}
+func (e emptySlot) Render(_ *render.DisplayContext, _ layout.Box) {}
 func (e emptySlot) Visible() bool {
 	return true
 }

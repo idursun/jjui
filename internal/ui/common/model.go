@@ -15,5 +15,5 @@ type Model interface {
 type ImmediateModel interface {
 	Init() tea.Cmd
 	Update(msg tea.Msg) tea.Cmd
-	ViewRect(dl *render.DisplayList, box layout.Box)
+	ViewRect(dl *render.DisplayContext, box layout.Box)
 }

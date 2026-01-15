@@ -286,7 +286,7 @@ func (m *Menu) renderTitle(width int) []string {
 	return titleView
 }
 
-func (m *Menu) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (m *Menu) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if box.R.Dx() <= 0 || box.R.Dy() <= 0 {
 		return
 	}
@@ -351,7 +351,7 @@ func (m *Menu) ViewRect(dl *render.DisplayList, box layout.Box) {
 		m.cursor,
 		m.ensureCursorVisible,
 		func(_ int) int { return itemHeight },
-		func(dl *render.DisplayList, index int, rect cellbuf.Rectangle) {
+		func(dl *render.DisplayContext, index int, rect cellbuf.Rectangle) {
 			if index < 0 || index >= itemCount {
 				return
 			}

@@ -79,7 +79,7 @@ func (h *Model) Update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-func (h *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (h *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	// NOTE: add new lines between search bar and help menu
 	content := "\n\n" + h.renderMenu()
 

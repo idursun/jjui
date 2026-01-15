@@ -53,28 +53,28 @@ var (
 )
 
 type Model struct {
-	rows                []parser.Row
-	tag                 atomic.Uint64
-	revisionToSelect    string
-	offScreenRows       []parser.Row
-	streamer            *graph.GraphStreamer
-	hasMore             bool
-	op                  common.ImmediateModel
-	cursor              int
-	context             *appContext.MainContext
-	keymap              config.KeyMappings[key.Binding]
-	output              string
-	err                 error
-	quickSearch         string
-	previousOpLogId     string
-	isLoading           bool
-	displayListRenderer *DisplayListRenderer
-	textStyle           lipgloss.Style
-	dimmedStyle         lipgloss.Style
-	selectedStyle       lipgloss.Style
-	matchedStyle        lipgloss.Style
-	ensureCursorView    bool
-	requestInFlight     bool
+	rows                   []parser.Row
+	tag                    atomic.Uint64
+	revisionToSelect       string
+	offScreenRows          []parser.Row
+	streamer               *graph.GraphStreamer
+	hasMore                bool
+	op                     common.ImmediateModel
+	cursor                 int
+	context                *appContext.MainContext
+	keymap                 config.KeyMappings[key.Binding]
+	output                 string
+	err                    error
+	quickSearch            string
+	previousOpLogId        string
+	isLoading              bool
+	displayContextRenderer *DisplayContextRenderer
+	textStyle              lipgloss.Style
+	dimmedStyle            lipgloss.Style
+	selectedStyle          lipgloss.Style
+	matchedStyle           lipgloss.Style
+	ensureCursorView       bool
+	requestInFlight        bool
 }
 
 type revisionsMsg struct {
@@ -132,7 +132,7 @@ func (m *Model) SetCursor(index int) {
 }
 
 func (m *Model) VisibleRange() (int, int) {
-	return m.displayListRenderer.GetFirstRowIndex(), m.displayListRenderer.GetLastRowIndex()
+	return m.displayContextRenderer.GetFirstRowIndex(), m.displayContextRenderer.GetLastRowIndex()
 }
 
 func (m *Model) ListName() string {
@@ -145,13 +145,13 @@ func (m *Model) HasMore() bool {
 
 func (m *Model) Scroll(delta int) tea.Cmd {
 	m.ensureCursorView = false
-	currentStart := m.displayListRenderer.GetScrollOffset()
+	currentStart := m.displayContextRenderer.GetScrollOffset()
 	desiredStart := currentStart + delta
-	m.displayListRenderer.SetScrollOffset(desiredStart)
+	m.displayContextRenderer.SetScrollOffset(desiredStart)
 
 	// Request more rows if scrolling down and near the end
 	if m.hasMore && delta > 0 {
-		lastRowIndex := m.displayListRenderer.GetLastRowIndex()
+		lastRowIndex := m.displayContextRenderer.GetLastRowIndex()
 		if lastRowIndex >= len(m.rows)-1 {
 			return m.requestMoreRows(m.tag.Load())
 		}
@@ -342,7 +342,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 
 		if m.hasMore {
 			// keep requesting rows until we reach the initial load count or the current cursor position
-			lastRowIndex := m.displayListRenderer.GetLastRowIndex()
+			lastRowIndex := m.displayContextRenderer.GetLastRowIndex()
 			if len(m.offScreenRows) < m.cursor+1 || len(m.offScreenRows) < lastRowIndex+1 {
 				return m.requestMoreRows(msg.tag)
 			}
@@ -410,7 +410,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			// Create ace jump with parent operation
 			op := ace_jump.NewOperation(m, func(index int) parser.Row {
 				return m.rows[index]
-			}, m.displayListRenderer.GetFirstRowIndex(), m.displayListRenderer.GetLastRowIndex(), parentOp)
+			}, m.displayContextRenderer.GetFirstRowIndex(), m.displayContextRenderer.GetLastRowIndex(), parentOp)
 			m.op = op
 			return op.Init()
 		default:
@@ -895,7 +895,7 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 	}
 }
 
-func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	area := box.R
 
 	if len(m.rows) == 0 {
@@ -910,7 +910,7 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 	}
 
 	// Set selections
-	m.displayListRenderer.SetSelections(m.context.GetSelectedRevisions())
+	m.displayContextRenderer.SetSelections(m.context.GetSelectedRevisions())
 
 	// Get operation if any
 	var op operations.Operation
@@ -918,8 +918,8 @@ func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
 		op = opModel
 	}
 
-	// Render to DisplayList
-	m.displayListRenderer.Render(
+	// Render to DisplayContext
+	m.displayContextRenderer.Render(
 		dl,
 		m.rows,
 		m.cursor,
@@ -1048,9 +1048,9 @@ func New(c *appContext.MainContext) *Model {
 		textStyle:     common.DefaultPalette.Get("revisions text"),
 		dimmedStyle:   common.DefaultPalette.Get("revisions dimmed"),
 		selectedStyle: common.DefaultPalette.Get("revisions selected"),
-	matchedStyle:  common.DefaultPalette.Get("revisions matched"),
+		matchedStyle:  common.DefaultPalette.Get("revisions matched"),
 	}
-	m.displayListRenderer = NewDisplayListRenderer(m.textStyle, m.dimmedStyle, m.selectedStyle, m.matchedStyle)
+	m.displayContextRenderer = NewDisplayContextRenderer(m.textStyle, m.dimmedStyle, m.selectedStyle, m.matchedStyle)
 	return &m
 }
 

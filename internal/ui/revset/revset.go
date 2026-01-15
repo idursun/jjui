@@ -232,7 +232,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	return nil
 }
 
-func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	var w strings.Builder
 	w.WriteString(m.styles.promptStyle.PaddingRight(1).Render("revset:"))
 	if m.Editing {

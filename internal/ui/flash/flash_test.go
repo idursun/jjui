@@ -70,7 +70,7 @@ func TestView_StacksFromBottomRight(t *testing.T) {
 	m.add("abc", nil)
 	m.add("de", nil)
 
-	dl := render.NewDisplayList()
+	dl := render.NewDisplayContext()
 	m.ViewRect(dl, layout.NewBox(cellbuf.Rect(0, 0, 10, 3)))
 	views := dl.DrawList()
 

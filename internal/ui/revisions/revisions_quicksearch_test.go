@@ -20,7 +20,7 @@ func (m *mockNonFocusableOperation) Render(commit *jj.Commit, renderPosition ope
 	return ""
 }
 
-func (m *mockNonFocusableOperation) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+func (m *mockNonFocusableOperation) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
 	return 0
 }
 
@@ -40,7 +40,7 @@ func (m *mockNonFocusableOperation) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *mockNonFocusableOperation) ViewRect(_ *render.DisplayList, _ layout.Box) {}
+func (m *mockNonFocusableOperation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 
 func (m *mockNonFocusableOperation) IsFocused() bool {
 	return false

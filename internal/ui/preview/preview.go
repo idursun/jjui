@@ -174,7 +174,7 @@ func (m *Model) SetContent(content string) {
 	m.view.SetContent(content)
 }
 
-func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.view.Width = box.R.Dx()
 	m.view.Height = box.R.Dy()
 	dl.AddDraw(box.R, m.view.View(), 0)

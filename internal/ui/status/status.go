@@ -221,7 +221,7 @@ func (m *Model) loadEditingSuggestions() {
 	m.input.SetSuggestions([]string(history))
 }
 
-func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	width := box.R.Dx()
 	commandStatusMark := m.styles.text.Render(" ")
 	if m.status == commandRunning {

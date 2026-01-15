@@ -13,7 +13,7 @@ type testClickMsg struct {
 }
 
 func TestTextBuilder_Write(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 
 	dl.Text(0, 0, 0).
 		Write("Hello").
@@ -30,7 +30,7 @@ func TestTextBuilder_Write(t *testing.T) {
 }
 
 func TestTextBuilder_Styled(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 	style := lipgloss.NewStyle().Bold(true)
 
 	dl.Text(0, 0, 0).
@@ -49,7 +49,7 @@ func TestTextBuilder_Styled(t *testing.T) {
 }
 
 func TestTextBuilder_Clickable(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 
 	dl.Text(0, 0, 0).
 		Clickable("Click", lipgloss.Style{}, testClickMsg{ID: 1}).
@@ -79,7 +79,7 @@ func TestTextBuilder_Clickable(t *testing.T) {
 }
 
 func TestTextBuilder_MultipleSegments(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 
 	dl.Text(0, 0, 0).
 		Write("A").
@@ -111,7 +111,7 @@ func TestTextBuilder_MultipleSegments(t *testing.T) {
 }
 
 func TestTextBuilder_WindowedInteractions(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 
 	// Create a window and add clickable text
 	windowRect := cellbuf.Rect(10, 5, 20, 1)
@@ -152,7 +152,7 @@ func TestTextBuilder_WindowedInteractions(t *testing.T) {
 }
 
 func TestTextBuilder_WindowPriority(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 
 	// Create lower-priority window (z=5)
 	lowerWindow := dl.Window(cellbuf.Rect(0, 0, 50, 10), 5)
@@ -191,7 +191,7 @@ func TestTextBuilder_WindowPriority(t *testing.T) {
 }
 
 func TestTextBuilder_EmptyText(t *testing.T) {
-	dl := NewDisplayList()
+	dl := NewDisplayContext()
 
 	dl.Text(0, 0, 0).
 		Write("").

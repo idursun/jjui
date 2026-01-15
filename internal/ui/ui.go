@@ -60,7 +60,7 @@ type Model struct {
 	keyMap          config.KeyMappings[key.Binding]
 	stacked         SizableModel
 	sequenceOverlay *customcommands.SequenceOverlay
-	displayList     *render.DisplayList
+	displayContext  *render.DisplayContext
 	width           int
 	height          int
 	layouts         *UILayouts
@@ -206,9 +206,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 		}
 
-		// Process interactions from DisplayList first
-		if m.displayList != nil {
-			if interactionMsg, handled := m.displayList.ProcessMouseEvent(msg); handled {
+		// Process interactions from DisplayContext first
+		if m.displayContext != nil {
+			if interactionMsg, handled := m.displayContext.ProcessMouseEvent(msg); handled {
 				if interactionMsg != nil {
 					// Send the interaction message back through Update
 					return func() tea.Msg { return interactionMsg }
@@ -501,7 +501,7 @@ func (m *Model) View() string {
 		return ""
 	}
 
-	m.displayList = render.NewDisplayList()
+	m.displayContext = render.NewDisplayContext()
 
 	m.updateStatus()
 
@@ -511,9 +511,9 @@ func (m *Model) View() string {
 	if m.diff != nil {
 		m.status.SetOverlayBounds(box)
 		if m.layouts != nil && m.layouts.Diff != nil {
-			m.layouts.Diff.Render(m.displayList, box)
+			m.layouts.Diff.Render(m.displayContext, box)
 		}
-		m.displayList.Render(screenBuf)
+		m.displayContext.Render(screenBuf)
 		content := cellbuf.Render(screenBuf)
 		return strings.ReplaceAll(content, "\r", "")
 	}
@@ -528,24 +528,24 @@ func (m *Model) View() string {
 		activeLayout = m.layouts.Revisions
 	}
 	if activeLayout != nil {
-		activeLayout.Render(m.displayList, box)
+		activeLayout.Render(m.displayContext, box)
 	}
 
 	if m.stacked != nil {
-		m.stacked.ViewRect(m.displayList, box)
+		m.stacked.ViewRect(m.displayContext, box)
 	}
 
 	if m.sequenceOverlay != nil {
-		m.sequenceOverlay.ViewRect(m.displayList, box)
+		m.sequenceOverlay.ViewRect(m.displayContext, box)
 	}
 
-	m.flash.ViewRect(m.displayList, box)
+	m.flash.ViewRect(m.displayContext, box)
 
 	if m.password != nil {
-		m.password.ViewRect(m.displayList, box)
+		m.password.ViewRect(m.displayContext, box)
 	}
 
-	m.displayList.Render(screenBuf)
+	m.displayContext.Render(screenBuf)
 	finalView := cellbuf.Render(screenBuf)
 	return strings.ReplaceAll(finalView, "\r", "")
 }

@@ -55,7 +55,7 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (s *Operation) ViewRect(_ *render.DisplayList, _ layout.Box) {}
+func (s *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 
 func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
@@ -114,7 +114,7 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	return ""
 }
 
-func (s *Operation) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+func (s *Operation) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
 	return 0
 }
 

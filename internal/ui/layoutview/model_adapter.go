@@ -26,7 +26,7 @@ func ModelWhen(m common.ImmediateModel, visible func() bool) *ModelSlot {
 	return &ModelSlot{Model: m, visible: visible}
 }
 
-func (m *ModelSlot) Render(dl *render.DisplayList, box layout.Box) {
+func (m *ModelSlot) Render(dl *render.DisplayContext, box layout.Box) {
 	if m == nil || m.Model == nil {
 		return
 	}

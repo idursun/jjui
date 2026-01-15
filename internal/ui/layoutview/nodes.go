@@ -16,7 +16,7 @@ func V(slots ...Slot) *VStack {
 }
 
 // Render lays out and renders visible slots.
-func (v *VStack) Render(dl *render.DisplayList, box layout.Box) {
+func (v *VStack) Render(dl *render.DisplayContext, box layout.Box) {
 	visible := visibleSlots(v.slots)
 	if len(visible) == 0 {
 		return
@@ -55,7 +55,7 @@ func H(slots ...Slot) *HStack {
 }
 
 // Render lays out and renders visible slots.
-func (h *HStack) Render(dl *render.DisplayList, box layout.Box) {
+func (h *HStack) Render(dl *render.DisplayContext, box layout.Box) {
 	visible := visibleSlots(h.slots)
 	if len(visible) == 0 {
 		return

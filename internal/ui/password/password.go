@@ -67,7 +67,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	pw, ph := box.R.Dx(), box.R.Dy()
 	v := m.styles.border.Width(max(pw-2, 0)).Render(m.textinput.View())
 	w, h := lipgloss.Size(v)

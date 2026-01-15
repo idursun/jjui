@@ -60,7 +60,7 @@ func (s *SetBookmarkOperation) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (s *SetBookmarkOperation) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (s *SetBookmarkOperation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	content := s.viewContent()
 	w, h := lipgloss.Size(content)
 	rect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, w, h)
@@ -78,7 +78,7 @@ func (s *SetBookmarkOperation) Render(commit *jj.Commit, pos operations.RenderPo
 	return s.viewContent() + s.name.TextStyle.Render(" ")
 }
 
-func (s *SetBookmarkOperation) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+func (s *SetBookmarkOperation) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
 	return 0
 }
 

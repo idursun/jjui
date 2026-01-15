@@ -35,7 +35,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return m.confirmation.Update(msg)
 }
 
-func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	v := m.confirmation.View()
 	w, h := lipgloss.Size(v)
 	pw, ph := box.R.Dx(), box.R.Dy()

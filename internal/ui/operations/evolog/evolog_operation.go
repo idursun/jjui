@@ -73,9 +73,9 @@ func (o *Operation) Init() tea.Cmd {
 	return o.load
 }
 
-func (o *Operation) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	screenOffset := cellbuf.Pos(box.R.Min.X, box.R.Min.Y)
-	o.renderListToDisplayList(dl, box.R, screenOffset, true)
+	o.renderListToDisplayContext(dl, box.R, screenOffset, true)
 }
 
 func (o *Operation) Len() int {
@@ -203,7 +203,7 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return ""
 	}
-	// In selectMode with isSelected and pos==After, RenderToDisplayList handles rendering
+	// In selectMode with isSelected and pos==After, RenderToDisplayContext handles rendering
 	return ""
 }
 
@@ -231,14 +231,14 @@ func (o *Operation) DesiredHeight(commit *jj.Commit, pos operations.RenderPositi
 	return total
 }
 
-// RenderToDisplayList renders the evolog list directly to the DisplayList
-func (o *Operation) RenderToDisplayList(dl *render.DisplayList, commit *jj.Commit, pos operations.RenderPosition, rect cellbuf.Rectangle, screenOffset cellbuf.Position) int {
+// RenderToDisplayContext renders the evolog list directly to the DisplayContext
+func (o *Operation) RenderToDisplayContext(dl *render.DisplayContext, commit *jj.Commit, pos operations.RenderPosition, rect cellbuf.Rectangle, screenOffset cellbuf.Position) int {
 	isSelected := commit.GetChangeId() == o.revision.GetChangeId()
 	if !isSelected || pos != operations.RenderPositionAfter || o.mode != selectMode {
 		return 0
 	}
 
-	return o.renderListToDisplayList(dl, rect, screenOffset, true)
+	return o.renderListToDisplayContext(dl, rect, screenOffset, true)
 }
 
 func (o *Operation) load() tea.Msg {
@@ -270,8 +270,8 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 	return o
 }
 
-func (o *Operation) renderListToDisplayList(
-	dl *render.DisplayList,
+func (o *Operation) renderListToDisplayContext(
+	dl *render.DisplayContext,
 	rect cellbuf.Rectangle,
 	screenOffset cellbuf.Position,
 	ensureCursorVisible bool,
@@ -292,7 +292,7 @@ func (o *Operation) renderListToDisplayList(
 		return len(o.rows[index].Lines)
 	}
 
-	renderItem := func(dl *render.DisplayList, index int, itemRect cellbuf.Rectangle) {
+	renderItem := func(dl *render.DisplayContext, index int, itemRect cellbuf.Rectangle) {
 		row := o.rows[index]
 		isItemSelected := index == o.cursor
 		styleOverride := o.styles.textStyle

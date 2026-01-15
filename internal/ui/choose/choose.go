@@ -101,7 +101,7 @@ func (m *Model) selectCurrent() tea.Cmd {
 	return newCmd(SelectedMsg{Value: value})
 }
 
-func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	var rows []string
 	if m.title != "" {
 		rows = append(rows, m.styles.title.Render(m.title))

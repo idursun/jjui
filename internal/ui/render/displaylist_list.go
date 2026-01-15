@@ -6,31 +6,21 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 )
 
-// RenderItemFunc is called for each visible item. The implementor has full control
-// over what gets drawn - they know their items, cursor position, and can call
-// dl.AddDraw, dl.AddHighlight, etc. as needed.
-type RenderItemFunc func(dl *DisplayList, index int, rect cellbuf.Rectangle)
+type RenderItemFunc func(dl *DisplayContext, index int, rect cellbuf.Rectangle)
 
-// MeasureItemFunc returns the height (in lines) for the item at the given index.
 type MeasureItemFunc func(index int) int
 
-// ClickMessage is a type alias for tea.Msg used for click interactions.
 type ClickMessage = tea.Msg
 
-// ClickMessageFunc creates the message to send when item at index is clicked.
 type ClickMessageFunc func(index int) ClickMessage
 
-// ListRenderer provides generic list rendering with DisplayList.
-// It handles layout calculation, viewport management, and mouse interaction
-// registration. The actual item rendering is delegated to the caller.
 type ListRenderer struct {
-	StartLine     int     // Current scroll position (line offset)
-	ScrollMsg     tea.Msg // Message type for scroll events (must implement ScrollDeltaCarrier)
-	FirstRowIndex int     // First visible item index
-	LastRowIndex  int     // Last visible item index (inclusive)
+	StartLine     int
+	ScrollMsg     tea.Msg
+	FirstRowIndex int
+	LastRowIndex  int
 }
 
-// NewListRenderer creates a new ListRenderer with the given scroll message type.
 func NewListRenderer(scrollMsg tea.Msg) *ListRenderer {
 	return &ListRenderer{
 		StartLine:     0,
@@ -40,20 +30,10 @@ func NewListRenderer(scrollMsg tea.Msg) *ListRenderer {
 	}
 }
 
-// Render renders visible items to the DisplayList.
+// Render renders visible items to the DisplayContext.
 // Uses viewRect.Min as the screen offset for interactions.
-//
-// Parameters:
-//   - dl: The DisplayList to render to
-//   - viewRect: The screen area for the list (absolute coordinates)
-//   - itemCount: Total number of items in the list
-//   - cursor: Current cursor position (used for ensureCursorVisible)
-//   - ensureCursorVisible: Whether to adjust scroll to keep cursor in view
-//   - measure: Function that returns height for item at index
-//   - render: Function that renders item at index to the DisplayList
-//   - clickMsg: Function that creates click message for item at index
 func (r *ListRenderer) Render(
-	dl *DisplayList,
+	dl *DisplayContext,
 	viewRect layout.Box,
 	itemCount int,
 	cursor int,
@@ -65,22 +45,10 @@ func (r *ListRenderer) Render(
 	r.RenderWithOffset(dl, viewRect, itemCount, cursor, ensureCursorVisible, measure, render, clickMsg, cellbuf.Pos(viewRect.R.Min.X, viewRect.R.Min.Y))
 }
 
-// RenderWithOffset renders visible items to the DisplayList with a custom screen offset.
-// Use this when the list is embedded inside another component and the screen offset
-// differs from the viewRect position.
-//
-// Parameters:
-//   - dl: The DisplayList to render to
-//   - viewRect: The area to render in (relative coordinates for the render buffer)
-//   - itemCount: Total number of items in the list
-//   - cursor: Current cursor position (used for ensureCursorVisible)
-//   - ensureCursorVisible: Whether to adjust scroll to keep cursor in view
-//   - measure: Function that returns height for item at index
-//   - render: Function that renders item at index to the DisplayList
-//   - clickMsg: Function that creates click message for item at index
-//   - screenOffset: The offset to add for mouse interactions (absolute screen position)
+// RenderWithOffset renders visible items with a custom screen offset.
+// Use when the list is embedded and screen offset differs from viewRect position.
 func (r *ListRenderer) RenderWithOffset(
-	dl *DisplayList,
+	dl *DisplayContext,
 	viewRect layout.Box,
 	itemCount int,
 	cursor int,
@@ -94,7 +62,6 @@ func (r *ListRenderer) RenderWithOffset(
 		return
 	}
 
-	// Clamp scroll offset to valid bounds
 	viewHeight := viewRect.R.Dy()
 	totalLines := 0
 	for i := 0; i < itemCount; i++ {
@@ -111,14 +78,9 @@ func (r *ListRenderer) RenderWithOffset(
 		r.StartLine = maxStart
 	}
 
-	// Use the provided screen offset for interaction coordinates
-	// Draws use the viewRect coordinates (relative to render buffer)
-	// Interactions use screenOffset (absolute screen coordinates for mouse hit testing)
 	screenOffsetX := screenOffset.X
 	screenOffsetY := screenOffset.Y
 
-	// Create viewport for layout calculations
-	// Uses viewRect coordinates which may be relative to a parent component
 	viewport := Viewport{
 		StartLine: r.StartLine,
 		ViewRect: layout.Box{
@@ -126,13 +88,11 @@ func (r *ListRenderer) RenderWithOffset(
 		},
 	}
 
-	// Ensure cursor is visible by adjusting scroll position
 	if ensureCursorVisible && cursor >= 0 && cursor < itemCount {
 		r.ensureCursorVisible(cursor, itemCount, viewRect.R.Dy(), measure)
 		viewport.StartLine = r.StartLine
 	}
 
-	// Calculate layout for visible items
 	measureAdapter := func(req MeasureRequest) MeasureResult {
 		if req.Index >= itemCount {
 			return MeasureResult{DesiredLine: 0, MinLine: 0}
@@ -154,7 +114,6 @@ func (r *ListRenderer) RenderWithOffset(
 		r.LastRowIndex = span.Index
 	}
 
-	// Render each visible item (using relative coordinates for draws)
 	for _, span := range spans {
 		if span.Index >= itemCount {
 			continue
@@ -162,8 +121,6 @@ func (r *ListRenderer) RenderWithOffset(
 		render(dl, span.Index, span.Rect)
 	}
 
-	// Add click interactions for each visible item
-	// span.Rect is already in absolute screen coordinates (includes viewRect.R.Min offset from LayoutAll)
 	for _, span := range spans {
 		if span.Index >= itemCount {
 			continue
@@ -177,7 +134,6 @@ func (r *ListRenderer) RenderWithOffset(
 		)
 	}
 
-	// Add scrollable region for the entire viewport (using absolute screen coordinates)
 	if r.ScrollMsg != nil {
 		scrollRect := cellbuf.Rect(
 			screenOffsetX,
@@ -194,7 +150,6 @@ func (r *ListRenderer) RenderWithOffset(
 	}
 }
 
-// ensureCursorVisible adjusts StartLine to keep the cursor visible in the viewport.
 func (r *ListRenderer) ensureCursorVisible(
 	cursor int,
 	itemCount int,
@@ -205,13 +160,11 @@ func (r *ListRenderer) ensureCursorVisible(
 		return
 	}
 
-	// Calculate the line position where the cursor item starts
 	cursorStart := 0
 	for i := 0; i < cursor && i < itemCount; i++ {
 		cursorStart += measure(i)
 	}
 
-	// Calculate the height of the cursor item
 	cursorHeight := measure(cursor)
 	cursorEnd := cursorStart + cursorHeight
 
@@ -222,12 +175,9 @@ func (r *ListRenderer) ensureCursorVisible(
 
 	viewportEnd := start + viewportHeight
 
-	// Only adjust if cursor is outside the current viewport
 	if cursorStart < start {
-		// Cursor is above viewport, scroll up
 		r.StartLine = cursorStart
 	} else if cursorEnd > viewportEnd {
-		// Cursor is below viewport, scroll down
 		r.StartLine = cursorEnd - viewportHeight
 		if r.StartLine < 0 {
 			r.StartLine = 0
@@ -235,22 +185,18 @@ func (r *ListRenderer) ensureCursorVisible(
 	}
 }
 
-// SetScrollOffset sets the scroll position.
 func (r *ListRenderer) SetScrollOffset(offset int) {
 	r.StartLine = offset
 }
 
-// GetScrollOffset returns the current scroll position.
 func (r *ListRenderer) GetScrollOffset() int {
 	return r.StartLine
 }
 
-// GetFirstRowIndex returns the first visible item index.
 func (r *ListRenderer) GetFirstRowIndex() int {
 	return r.FirstRowIndex
 }
 
-// GetLastRowIndex returns the last visible item index (inclusive).
 func (r *ListRenderer) GetLastRowIndex() int {
 	return r.LastRowIndex
 }

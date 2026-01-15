@@ -28,7 +28,7 @@ func (m *mockOperation) Render(commit *jj.Commit, renderPosition operations.Rend
 	return ""
 }
 
-func (m *mockOperation) RenderToDisplayList(_ *render.DisplayList, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+func (m *mockOperation) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
 	return 0
 }
 
@@ -48,7 +48,7 @@ func (m *mockOperation) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *mockOperation) ViewRect(_ *render.DisplayList, _ layout.Box) {}
+func (m *mockOperation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 
 // Helper function to create a basic GraphRowLine
 func createGraphRowLine(text string, flags parser.RowLineFlags) *parser.GraphRowLine {

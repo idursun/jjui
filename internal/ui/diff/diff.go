@@ -73,7 +73,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-func (m *Model) ViewRect(dl *render.DisplayList, box layout.Box) {
+func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	area := box.R
 	m.view.Height = area.Dy()
 	m.view.Width = area.Dx()
@@ -89,7 +89,7 @@ func New(output string) *Model {
 	}
 	view.SetContent(content)
 	return &Model{
-		view:       view,
-		keymap:     config.Current.GetKeyMap(),
+		view:   view,
+		keymap: config.Current.GetKeyMap(),
 	}
 }
