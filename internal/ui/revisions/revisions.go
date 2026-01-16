@@ -76,26 +76,24 @@ type revisionsMsg struct {
 	msg tea.Msg
 }
 
-// Allow a message to be targetted to this component.
 func RevisionsCmd(msg tea.Msg) tea.Cmd {
 	return func() tea.Msg {
 		return revisionsMsg{msg: msg}
 	}
 }
 
-// ItemClickedMsg is sent when a revision item is clicked
 type ItemClickedMsg struct {
 	Index int
 }
 
-// ViewportScrollMsg is sent when the viewport is scrolled via mouse wheel
 type ViewportScrollMsg struct {
-	Delta int
+	Delta      int
+	Horizontal bool
 }
 
-// SetDelta implements render.ScrollDeltaCarrier
-func (v ViewportScrollMsg) SetDelta(delta int) tea.Msg {
+func (v ViewportScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 	v.Delta = delta
+	v.Horizontal = horizontal
 	return v
 }
 
@@ -242,6 +240,9 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		m.SetCursor(msg.Index)
 		return m.updateSelection()
 	case ViewportScrollMsg:
+		if msg.Horizontal {
+			return nil
+		}
 		return m.Scroll(msg.Delta)
 
 	case common.CloseViewMsg:

@@ -62,11 +62,13 @@ type MenuClickMsg struct {
 }
 
 type MenuScrollMsg struct {
-	Delta int
+	Delta      int
+	Horizontal bool
 }
 
-func (m MenuScrollMsg) SetDelta(delta int) tea.Msg {
+func (m MenuScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 	m.Delta = delta
+	m.Horizontal = horizontal
 	return m
 }
 
@@ -190,6 +192,9 @@ func (m *Menu) Update(msg tea.Msg) tea.Cmd {
 			m.ensureCursorVisible = true
 		}
 	case MenuScrollMsg:
+		if msg.Horizontal {
+			return nil
+		}
 		m.ensureCursorVisible = false
 		m.listRenderer.StartLine += msg.Delta
 		if m.listRenderer.StartLine < 0 {

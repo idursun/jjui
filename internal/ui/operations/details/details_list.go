@@ -10,19 +10,17 @@ import (
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
-// FileClickedMsg is sent when a file item is clicked
 type FileClickedMsg struct {
 	Index int
 }
 
-// FileListScrollMsg is sent when the file list is scrolled via mouse wheel
 type FileListScrollMsg struct {
-	Delta int
+	Delta      int
+	Horizontal bool
 }
 
-// SetDelta implements render.ScrollDeltaCarrier
-func (f FileListScrollMsg) SetDelta(delta int) tea.Msg {
-	return FileListScrollMsg{Delta: delta}
+func (f FileListScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
+	return FileListScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 type DetailsList struct {

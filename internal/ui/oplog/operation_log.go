@@ -20,19 +20,17 @@ type updateOpLogMsg struct {
 	Rows []row
 }
 
-// OpLogClickedMsg is sent when an operation log item is clicked.
 type OpLogClickedMsg struct {
 	Index int
 }
 
-// OpLogScrollMsg is sent when the operation log is scrolled via mouse wheel.
 type OpLogScrollMsg struct {
-	Delta int
+	Delta      int
+	Horizontal bool
 }
 
-// SetDelta implements render.ScrollDeltaCarrier.
-func (o OpLogScrollMsg) SetDelta(delta int) tea.Msg {
-	return OpLogScrollMsg{Delta: delta}
+func (o OpLogScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
+	return OpLogScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 var _ common.ImmediateModel = (*Model)(nil)
@@ -109,6 +107,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.updateSelection()
 		}
 	case OpLogScrollMsg:
+		if msg.Horizontal {
+			return nil
+		}
 		return m.Scroll(msg.Delta)
 	case tea.KeyMsg:
 		return m.keyToIntent(msg)

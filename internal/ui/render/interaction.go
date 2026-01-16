@@ -29,13 +29,7 @@ type InteractionOp struct {
 // ScrollDeltaCarrier is an interface for messages that carry scroll delta information.
 // The ProcessMouseEvent function will set the Delta field for scroll interactions.
 type ScrollDeltaCarrier interface {
-	SetDelta(delta int) tea.Msg
-}
-
-// HorizontalScrollDeltaCarrier is an interface for messages that carry horizontal scroll deltas.
-// The ProcessMouseEvent function will set the Delta field for horizontal scroll interactions.
-type HorizontalScrollDeltaCarrier interface {
-	SetHorizontalDelta(delta int) tea.Msg
+	SetDelta(delta int, horizontal bool) tea.Msg
 }
 
 // DragStartCarrier is an interface for messages that carry drag start coordinates.
@@ -44,82 +38,98 @@ type DragStartCarrier interface {
 	SetDragStart(x, y int) tea.Msg
 }
 
-// ProcessMouseEvent matches a mouse event against interactions and returns the associated message.
-// Interactions are expected to be sorted by Z-index (highest first) for proper priority handling.
-// For scroll interactions, if the message implements ScrollDeltaCarrier, the delta will be set.
-func ProcessMouseEvent(interactions []InteractionOp, msg tea.MouseMsg) tea.Msg {
-	switch msg.Action {
-	case tea.MouseActionPress:
-		if msg.Button == tea.MouseButtonLeft {
-			// Find highest-Z draggable region containing this point
-			for _, interaction := range interactions {
-				if interaction.Type&InteractionDrag == 0 {
-					continue
-				}
-				if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
-					msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
-					if carrier, ok := interaction.Msg.(DragStartCarrier); ok {
-						return carrier.SetDragStart(msg.X, msg.Y)
-					}
-					return interaction.Msg
-				}
-			}
+type interactionMatcher func(interactionOp) bool
 
-			// Find highest-Z clickable region containing this point
-			for _, interaction := range interactions {
-				if interaction.Type&InteractionClick == 0 {
-					continue
+func processMouseEvent(interactions []interactionOp, msg tea.MouseMsg, match interactionMatcher) (tea.Msg, bool) {
+	if msg.Action != tea.MouseActionPress {
+		return nil, false
+	}
+
+	if msg.Button == tea.MouseButtonLeft {
+		// Find highest-Z draggable region containing this point
+		for _, interaction := range interactions {
+			if !match(interaction) || interaction.Type&InteractionDrag == 0 {
+				continue
+			}
+			if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
+				msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
+				if carrier, ok := interaction.Msg.(DragStartCarrier); ok {
+					return carrier.SetDragStart(msg.X, msg.Y), true
 				}
-				if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
-					msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
-					return interaction.Msg
-				}
+				return interaction.Msg, true
 			}
 		}
 
-		if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown {
-			delta := -3
-			if msg.Button == tea.MouseButtonWheelDown {
-				delta = 3
+		// Find highest-Z clickable region containing this point
+		for _, interaction := range interactions {
+			if !match(interaction) || interaction.Type&InteractionClick == 0 {
+				continue
 			}
-
-			// Find scrollable region containing this point
-			for _, interaction := range interactions {
-				if interaction.Type&InteractionScroll == 0 {
-					continue
-				}
-				if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
-					msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
-					// If the message can carry delta, set it
-					if carrier, ok := interaction.Msg.(ScrollDeltaCarrier); ok {
-						return carrier.SetDelta(delta)
-					}
-					return interaction.Msg
-				}
-			}
-		}
-
-		if msg.Button == tea.MouseButtonWheelLeft || msg.Button == tea.MouseButtonWheelRight {
-			delta := -3
-			if msg.Button == tea.MouseButtonWheelRight {
-				delta = 3
-			}
-
-			for _, interaction := range interactions {
-				if interaction.Type&InteractionScroll == 0 {
-					continue
-				}
-				if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
-					msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
-					if carrier, ok := interaction.Msg.(HorizontalScrollDeltaCarrier); ok {
-						return carrier.SetHorizontalDelta(delta)
-					}
-					return nil
-				}
+			if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
+				msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
+				return interaction.Msg, true
 			}
 		}
 	}
 
+	if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown {
+		delta := -3
+		if msg.Button == tea.MouseButtonWheelDown {
+			delta = 3
+		}
+		for _, interaction := range interactions {
+			if !match(interaction) || interaction.Type&InteractionScroll == 0 {
+				continue
+			}
+			if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
+				msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
+				if carrier, ok := interaction.Msg.(ScrollDeltaCarrier); ok {
+					return carrier.SetDelta(delta, false), true
+				}
+				return interaction.Msg, true
+			}
+		}
+	}
+
+	if msg.Button == tea.MouseButtonWheelLeft || msg.Button == tea.MouseButtonWheelRight {
+		delta := -3
+		if msg.Button == tea.MouseButtonWheelRight {
+			delta = 3
+		}
+		for _, interaction := range interactions {
+			if !match(interaction) || interaction.Type&InteractionScroll == 0 {
+				continue
+			}
+			if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
+				msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
+				if carrier, ok := interaction.Msg.(ScrollDeltaCarrier); ok {
+					return carrier.SetDelta(delta, true), true
+				}
+				return nil, true
+			}
+		}
+	}
+
+	return nil, false
+}
+
+// ProcessMouseEvent matches a mouse event against interactions and returns the associated message.
+// Interactions are expected to be sorted by Z-index (highest first) for proper priority handling.
+// For scroll interactions, if the message implements ScrollDeltaCarrier, the delta will be set.
+func ProcessMouseEvent(interactions []InteractionOp, msg tea.MouseMsg) tea.Msg {
+	wrapped := make([]interactionOp, len(interactions))
+	for i, interaction := range interactions {
+		wrapped[i] = interactionOp{
+			InteractionOp: interaction,
+			order:         i,
+		}
+	}
+	msgResult, handled := processMouseEvent(wrapped, msg, func(interactionOp) bool {
+		return true
+	})
+	if handled {
+		return msgResult
+	}
 	return nil
 }
 
@@ -139,74 +149,12 @@ func ProcessMouseEventWithWindows(interactions []interactionOp, windows []window
 		return sorted[i].order < sorted[j].order
 	})
 
-	if msg.Button == tea.MouseButtonLeft {
-		for _, interaction := range sorted {
-			if !windowMatch(interaction.windowID, windowID, windowHit) {
-				continue
-			}
-			if interaction.Type&InteractionDrag != 0 {
-				if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
-					msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
-					if carrier, ok := interaction.Msg.(DragStartCarrier); ok {
-						return carrier.SetDragStart(msg.X, msg.Y), true
-					}
-					return interaction.Msg, true
-				}
-			}
-			if interaction.Type&InteractionClick == 0 {
-				continue
-			}
-			if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
-				msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
-				return interaction.Msg, true
-			}
-		}
+	msgResult, handled := processMouseEvent(sorted, msg, func(interaction interactionOp) bool {
+		return windowMatch(interaction.windowID, windowID, windowHit)
+	})
+	if handled {
+		return msgResult, true
 	}
-
-	if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown {
-		delta := -3
-		if msg.Button == tea.MouseButtonWheelDown {
-			delta = 3
-		}
-		for _, interaction := range sorted {
-			if !windowMatch(interaction.windowID, windowID, windowHit) {
-				continue
-			}
-			if interaction.Type&InteractionScroll == 0 {
-				continue
-			}
-			if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
-				msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
-				if carrier, ok := interaction.Msg.(ScrollDeltaCarrier); ok {
-					return carrier.SetDelta(delta), true
-				}
-				return interaction.Msg, true
-			}
-		}
-	}
-
-	if msg.Button == tea.MouseButtonWheelLeft || msg.Button == tea.MouseButtonWheelRight {
-		delta := -3
-		if msg.Button == tea.MouseButtonWheelRight {
-			delta = 3
-		}
-		for _, interaction := range sorted {
-			if !windowMatch(interaction.windowID, windowID, windowHit) {
-				continue
-			}
-			if interaction.Type&InteractionScroll == 0 {
-				continue
-			}
-			if msg.X >= interaction.Rect.Min.X && msg.X < interaction.Rect.Max.X &&
-				msg.Y >= interaction.Rect.Min.Y && msg.Y < interaction.Rect.Max.Y {
-				if carrier, ok := interaction.Msg.(HorizontalScrollDeltaCarrier); ok {
-					return carrier.SetHorizontalDelta(delta), true
-				}
-				return nil, true
-			}
-		}
-	}
-
 	return nil, windowHit
 }
 

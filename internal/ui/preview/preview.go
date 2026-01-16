@@ -61,17 +61,9 @@ type ScrollMsg struct {
 	Horizontal bool
 }
 
-// SetDelta implements render.ScrollDeltaCarrier.
-func (s ScrollMsg) SetDelta(delta int) tea.Msg {
+func (s ScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 	s.Delta = delta
-	s.Horizontal = false
-	return s
-}
-
-// SetHorizontalDelta implements render.HorizontalScrollDeltaCarrier.
-func (s ScrollMsg) SetHorizontalDelta(delta int) tea.Msg {
-	s.Delta = delta
-	s.Horizontal = true
+	s.Horizontal = horizontal
 	return s
 }
 

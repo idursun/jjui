@@ -47,14 +47,14 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 	return nil
 }
 
-// ScrollMsg is sent when the viewport is scrolled via mouse wheel.
 type ScrollMsg struct {
-	Delta int
+	Delta      int
+	Horizontal bool
 }
 
-// SetDelta implements render.ScrollDeltaCarrier.
-func (s ScrollMsg) SetDelta(delta int) tea.Msg {
+func (s ScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 	s.Delta = delta
+	s.Horizontal = horizontal
 	return s
 }
 
@@ -66,6 +66,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return common.Close
 		}
 	case ScrollMsg:
+		if msg.Horizontal {
+			return nil
+		}
 		return m.Scroll(msg.Delta)
 	}
 	var cmd tea.Cmd

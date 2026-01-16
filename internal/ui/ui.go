@@ -416,6 +416,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	cmds = append(cmds, m.revsetModel.Update(msg))
 	cmds = append(cmds, m.status.Update(msg))
 	cmds = append(cmds, m.flash.Update(msg))
+	if m.diff != nil {
+		cmds = append(cmds, m.diff.Update(msg))
+	}
 
 	if m.stacked != nil {
 		cmds = append(cmds, m.stacked.Update(msg))

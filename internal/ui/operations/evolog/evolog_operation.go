@@ -23,19 +23,17 @@ type updateEvologMsg struct {
 	rows []parser.Row
 }
 
-// EvologClickedMsg is sent when an evolog item is clicked
 type EvologClickedMsg struct {
 	Index int
 }
 
-// EvologScrollMsg is sent when the evolog list is scrolled via mouse wheel
 type EvologScrollMsg struct {
-	Delta int
+	Delta      int
+	Horizontal bool
 }
 
-// SetDelta implements render.ScrollDeltaCarrier
-func (e EvologScrollMsg) SetDelta(delta int) tea.Msg {
-	return EvologScrollMsg{Delta: delta}
+func (e EvologScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
+	return EvologScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 type mode int
@@ -158,6 +156,9 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 			return o.updateSelection()
 		}
 	case EvologScrollMsg:
+		if msg.Horizontal {
+			return nil
+		}
 		o.scroll(msg.Delta)
 		return nil
 	case tea.KeyMsg:

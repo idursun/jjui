@@ -119,6 +119,9 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 			File:     s.current().fileName,
 		})
 	case FileListScrollMsg:
+		if msg.Horizontal {
+			return nil
+		}
 		s.Scroll(msg.Delta)
 		return nil
 	case tea.KeyMsg:
