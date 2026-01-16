@@ -15,7 +15,7 @@ import (
 
 func TestCancelKeyRefreshesPreview(t *testing.T) {
 	m := &Model{
-		context:    &context.MainContext{},
+		context: &context.MainContext{},
 		rows: []row{
 			{
 				OperationId: "op1",
@@ -73,7 +73,7 @@ func TestCancelKeyRefreshesPreview(t *testing.T) {
 
 func TestOpLogCloseIntent(t *testing.T) {
 	m := &Model{
-		context:    &context.MainContext{},
+		context: &context.MainContext{},
 		rows: []row{
 			{
 				OperationId: "op1",
@@ -120,7 +120,7 @@ func TestOpLogCloseIntent(t *testing.T) {
 
 func TestOpLogNavigateIntent(t *testing.T) {
 	m := &Model{
-		context:    &context.MainContext{},
+		context: &context.MainContext{},
 		rows: []row{
 			{OperationId: "op1"},
 			{OperationId: "op2"},
