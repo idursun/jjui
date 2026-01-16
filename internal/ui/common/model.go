@@ -6,12 +6,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
-type Model interface {
-	Init() tea.Cmd
-	Update(msg tea.Msg) tea.Cmd
-	View() string
-}
-
 type ImmediateModel interface {
 	Init() tea.Cmd
 	Update(msg tea.Msg) tea.Cmd

@@ -31,8 +31,6 @@ type Styles struct {
 	Text     lipgloss.Style
 }
 
-var _ common.Model = (*Model)(nil)
-
 type Model struct {
 	options     []option
 	selected    int

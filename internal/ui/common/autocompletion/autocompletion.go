@@ -9,8 +9,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
-var _ common.Model = (*AutoCompletionInput)(nil)
-
 type AutoCompletionInput struct {
 	TextInput          textinput.Model
 	CompletionProvider CompletionProvider
