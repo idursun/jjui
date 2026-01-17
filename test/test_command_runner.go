@@ -67,6 +67,16 @@ func (t *CommandRunner) RunCommandStreaming(_ context.Context, args []string) (*
 	}, err
 }
 
+func (t *CommandRunner) RunCommandWithInput(args []string, input string, continuations ...tea.Cmd) tea.Cmd {
+	cmds := make([]tea.Cmd, 0)
+	cmds = append(cmds, func() tea.Msg {
+		output, err := t.RunCommandImmediate(args)
+		return common.CommandCompletedMsg{Output: string(output), Err: err}
+	})
+	cmds = append(cmds, continuations...)
+	return tea.Batch(cmds...)
+}
+
 func (t *CommandRunner) RunCommand(args []string, continuations ...tea.Cmd) tea.Cmd {
 	cmds := make([]tea.Cmd, 0)
 	cmds = append(cmds, func() tea.Msg {

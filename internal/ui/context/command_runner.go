@@ -22,6 +22,7 @@ type CommandRunner interface {
 	RunCommandImmediate(args []string) ([]byte, error)
 	RunCommandStreaming(ctx context.Context, args []string) (*StreamingCommand, error)
 	RunCommand(args []string, continuations ...tea.Cmd) tea.Cmd
+	RunCommandWithInput(args []string, input string, continuations ...tea.Cmd) tea.Cmd
 	RunInteractiveCommand(args []string, continuation tea.Cmd) tea.Cmd
 }
 
@@ -66,7 +67,7 @@ func (a *MainCommandRunner) RunCommandStreaming(ctx context.Context, args []stri
 	}, nil
 }
 
-func (a *MainCommandRunner) RunCommand(args []string, continuations ...tea.Cmd) tea.Cmd {
+func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, continuations []tea.Cmd) tea.Cmd {
 	commands := make([]tea.Cmd, 0)
 	commands = append(commands,
 		func() tea.Msg {
@@ -78,6 +79,20 @@ func (a *MainCommandRunner) RunCommand(args []string, continuations ...tea.Cmd) 
 			c := exec.Command("jj", args...)
 			c.Dir = a.Location
 			c.Env = append(os.Environ(), env...)
+
+			if input != nil {
+				stdin, err := c.StdinPipe()
+				if err != nil {
+					return common.CommandCompletedMsg{
+						Err: err,
+					}
+				}
+				go func() {
+					defer stdin.Close()
+					io.WriteString(stdin, *input)
+				}()
+			}
+
 			var output bytes.Buffer
 			c.Stderr = &output
 			if err := c.Start(); err != nil {
@@ -108,6 +123,14 @@ func (a *MainCommandRunner) RunCommand(args []string, continuations ...tea.Cmd) 
 		common.CommandRunning(args),
 		tea.Sequence(commands...),
 	)
+}
+
+func (a *MainCommandRunner) RunCommandWithInput(args []string, input string, continuations ...tea.Cmd) tea.Cmd {
+	return a.runCommandWithInput(args, &input, continuations)
+}
+
+func (a *MainCommandRunner) RunCommand(args []string, continuations ...tea.Cmd) tea.Cmd {
+	return a.runCommandWithInput(args, nil, continuations)
 }
 
 func (a *MainCommandRunner) RunInteractiveCommand(args []string, continuation tea.Cmd) tea.Cmd {

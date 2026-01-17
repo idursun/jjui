@@ -135,15 +135,17 @@ func (o *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 
 func (o *Operation) runInlineDescribeEditor() tea.Cmd {
 	selectedRevisions := jj.NewSelectedRevisions(o.revision)
-	return o.context.RunCommand(
-		jj.SetDescription(o.revision.GetChangeId(), o.input.Value()),
+	cmd := jj.SetDescription(o.revision.GetChangeId(), o.input.Value())
+	return o.context.RunCommandWithInput(
+		cmd.Args, cmd.Input,
 		common.CloseApplied,
 		o.context.RunInteractiveCommand(jj.Describe(selectedRevisions), common.Refresh),
 	)
 }
 
 func (o *Operation) runInlineDescribeAccept() tea.Cmd {
-	return o.context.RunCommand(jj.SetDescription(o.revision.GetChangeId(), o.input.Value()), common.CloseApplied, common.Refresh)
+	cmd := jj.SetDescription(o.revision.GetChangeId(), o.input.Value())
+	return o.context.RunCommandWithInput(cmd.Args, cmd.Input, common.CloseApplied, common.Refresh)
 }
 
 func (o *Operation) Init() tea.Cmd {

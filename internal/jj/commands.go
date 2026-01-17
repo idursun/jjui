@@ -30,6 +30,10 @@ const (
 )
 
 type CommandArgs []string
+type CommandWithStdin struct {
+	Args  CommandArgs
+	Input string
+}
 
 func ConfigListAll() CommandArgs {
 	return []string{"config", "list", "--color", "never", "--include-defaults", "--ignore-working-copy"}
@@ -97,8 +101,11 @@ func Describe(revisions SelectedRevisions) CommandArgs {
 	return args
 }
 
-func SetDescription(revision string, description string) CommandArgs {
-	return []string{"describe", "-r", revision, "-m", description}
+func SetDescription(revision string, description string) CommandWithStdin {
+	return CommandWithStdin{
+		Args:  []string{"describe", "-r", revision, "--stdin"},
+		Input: description,
+	}
 }
 
 func GetDescription(revision string) CommandArgs {
