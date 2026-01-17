@@ -208,3 +208,49 @@ func TestTextBuilder_EmptyText(t *testing.T) {
 		t.Errorf("expected 'Hello', got '%s'", draws[0].Content)
 	}
 }
+
+func TestTextBuilder_NewLineAndMeasure(t *testing.T) {
+	dl := NewDisplayContext()
+
+	tb := dl.Text(0, 0, 0).
+		Write("A").
+		NewLine().
+		Write("BB")
+
+	width, height := tb.Measure()
+	if width != 2 || height != 2 {
+		t.Fatalf("expected width=2 height=2, got width=%d height=%d", width, height)
+	}
+
+	tb.Done()
+	draws := dl.DrawList()
+	if len(draws) != 2 {
+		t.Fatalf("expected 2 draws, got %d", len(draws))
+	}
+
+	if draws[0].Rect.Min.X != 0 || draws[0].Rect.Min.Y != 0 {
+		t.Errorf("expected first segment at 0,0 got %d,%d", draws[0].Rect.Min.X, draws[0].Rect.Min.Y)
+	}
+	if draws[1].Rect.Min.X != 0 || draws[1].Rect.Min.Y != 1 {
+		t.Errorf("expected second segment at 0,1 got %d,%d", draws[1].Rect.Min.X, draws[1].Rect.Min.Y)
+	}
+}
+
+func TestTextBuilder_Space(t *testing.T) {
+	dl := NewDisplayContext()
+
+	dl.Text(0, 0, 0).
+		Write("A").
+		Space(2).
+		Write("B").
+		Done()
+
+	draws := dl.DrawList()
+	if len(draws) != 3 {
+		t.Fatalf("expected 3 draws, got %d", len(draws))
+	}
+
+	if draws[2].Rect.Min.X != 3 {
+		t.Errorf("expected last segment at x=3, got x=%d", draws[2].Rect.Min.X)
+	}
+}
