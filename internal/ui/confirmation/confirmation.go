@@ -6,8 +6,11 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 var (
@@ -16,6 +19,10 @@ var (
 )
 
 type CloseMsg struct{}
+
+type SelectOptionMsg struct {
+	Index int
+}
 
 type option struct {
 	label      string
@@ -95,6 +102,13 @@ func (m *Model) Init() tea.Cmd {
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	km := config.Current.GetKeyMap()
 	switch msg := msg.(type) {
+	case SelectOptionMsg:
+		if msg.Index >= 0 && msg.Index < len(m.options) {
+			m.selected = msg.Index
+			selectedOption := m.options[m.selected]
+			return selectedOption.cmd
+		}
+		return nil
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, left):
@@ -146,6 +160,57 @@ func (m *Model) View() string {
 	return m.Styles.Border.Render(content)
 }
 
+func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	if box.R.Dx() <= 0 || box.R.Dy() <= 0 {
+		return
+	}
+
+	measure := dl.Text(0, 0, 0)
+	m.buildContent(measure)
+	contentWidth, contentHeight := measure.Measure()
+	if contentWidth <= 0 {
+		contentWidth = 1
+	}
+	if contentHeight <= 0 {
+		contentHeight = 1
+	}
+
+	base := lipgloss.NewStyle().Width(contentWidth).Height(contentHeight).Render("")
+	bordered := m.Styles.Border.Render(base)
+	bw, bh := lipgloss.Size(bordered)
+
+	sx := box.R.Min.X
+	sy := box.R.Min.Y
+
+	frame := cellbuf.Rect(sx, sy, bw, bh)
+	window := dl.Window(frame, 10)
+	window.AddDraw(frame, bordered, 0)
+
+	mt, mr, mb, ml := m.Styles.Border.GetMargin()
+	pt, pr, pb, pl := m.Styles.Border.GetPadding()
+	bl := m.Styles.Border.GetBorderLeftSize()
+	br := m.Styles.Border.GetBorderRightSize()
+	bt := m.Styles.Border.GetBorderTopSize()
+	bb := m.Styles.Border.GetBorderBottomSize()
+
+	contentRect := cellbuf.Rect(
+		frame.Min.X+ml+bl+pl,
+		frame.Min.Y+mt+bt+pt,
+		max(frame.Dx()-ml-mr-bl-br-pl-pr, 0),
+		max(frame.Dy()-mt-mb-bt-bb-pt-pb, 0),
+	)
+	if contentRect.Dx() <= 0 || contentRect.Dy() <= 0 {
+		return
+	}
+
+	background := lipgloss.NewStyle().Background(m.Styles.Text.GetBackground())
+	window.AddFill(contentRect, ' ', background, 1)
+
+	tb := window.Text(contentRect.Min.X, contentRect.Min.Y, 2)
+	m.buildContent(tb)
+	tb.Done()
+}
+
 // getStyleKey prefixes the key with the style prefix if one is set
 func (m *Model) getStyleKey(key string) string {
 	if m.stylePrefix == "" {
@@ -179,4 +244,21 @@ func New(messages []string, opts ...Option) *Model {
 
 func Close() tea.Msg {
 	return CloseMsg{}
+}
+
+func (m *Model) buildContent(tb *render.TextBuilder) {
+	for i, message := range m.messages {
+		tb.Styled(message, m.Styles.Text.PaddingLeft(1))
+		if i < len(m.messages)-1 {
+			tb.NewLine()
+		}
+	}
+
+	for idx, option := range m.options {
+		style := m.Styles.Dimmed
+		if idx == m.selected {
+			style = m.Styles.Selected
+		}
+		tb.Clickable(option.label, style, SelectOptionMsg{Index: idx})
+	}
 }

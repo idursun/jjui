@@ -111,6 +111,11 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 
 func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case confirmation.SelectOptionMsg:
+		if s.confirmation != nil {
+			return s.confirmation.Update(msg)
+		}
+		return nil
 	case FileClickedMsg:
 		s.setCursor(msg.Index)
 		return s.context.SetSelectedItem(context.SelectedFile{
@@ -313,11 +318,9 @@ func (s *Operation) RenderToDisplayContext(dl *render.DisplayContext, commit *jj
 		return 1
 	}
 
-	confirmationView := ""
 	confirmationHeight := 0
 	if s.confirmation != nil {
-		confirmationView = s.confirmation.View()
-		confirmationHeight = lipgloss.Height(confirmationView)
+		confirmationHeight = lipgloss.Height(s.confirmation.View())
 	}
 
 	availableListHeight := rect.Dy() - confirmationHeight
@@ -333,9 +336,9 @@ func (s *Operation) RenderToDisplayContext(dl *render.DisplayContext, commit *jj
 	viewRect := layout.Box{R: cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)}
 	s.RenderFileList(dl, viewRect, cellbuf.Pos(0, 0))
 
-	if confirmationView != "" && confirmationHeight > 0 && height < rect.Dy() {
+	if s.confirmation != nil && confirmationHeight > 0 && height < rect.Dy() {
 		confirmRect := cellbuf.Rect(rect.Min.X, rect.Min.Y+height, rect.Dx(), confirmationHeight)
-		dl.AddDraw(confirmRect, confirmationView, 0)
+		s.confirmation.ViewRect(dl, layout.Box{R: confirmRect})
 	}
 
 	return height + confirmationHeight
