@@ -43,6 +43,17 @@ DEBUG=1 ./jjui
 - `context/` - Application context (`MainContext`) shared across components, holds selected items, command runner, and custom commands
 - `common/` - Shared types, messages, and interfaces used across UI components
 - `intents/` - Intent types that represent user actions (Navigate, StartRebase, etc.)
+- `render/` - Immediate-mode rendering primitives (DisplayContext, TextBuilder, interactions)
+
+### Immediate View System (DisplayContext)
+
+Most UI models render via the immediate view system instead of returning strings.
+
+- **Render entrypoint**: models implement `common.ImmediateModel` with `ViewRect(dl *render.DisplayContext, box layout.Box)`.
+- **Frame lifecycle**: the root model (`internal/ui/ui.go`) creates a `render.DisplayContext` each frame, calls `ViewRect` on children, then renders the accumulated operations to the terminal.
+- **Drawing**: use `DisplayContext` APIs (`AddDraw`, `AddFill`, effects, windows) rather than concatenating strings.
+- **Interactive text**: use `render.TextBuilder` (`dl.Text(...).Styled(...).Clickable(...).Done()`) to build clickable/interactive UI segments.
+- **Mouse interactions**: register interactions via `DisplayContext` (or `TextBuilder.Clickable`) so `ProcessMouseEvent` can route clicks.
 
 **`internal/jj/`** - Jujutsu command builders:
 - `commands.go` - Functions that build jj command arguments (Log, Rebase, Squash, etc.)
