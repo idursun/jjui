@@ -79,6 +79,18 @@ func (dl *DisplayContext) AddDraw(rect cellbuf.Rectangle, content string, z int)
 	})
 }
 
+// AddFill fills a rectangle with the provided rune and style.
+func (dl *DisplayContext) AddFill(rect cellbuf.Rectangle, ch rune, style lipgloss.Style, z int) {
+	if rect.Dx() <= 0 || rect.Dy() <= 0 {
+		return
+	}
+	content := fillString(rect.Dx(), rect.Dy(), ch, style)
+	if content == "" {
+		return
+	}
+	dl.AddDraw(rect, content, z)
+}
+
 // AddEffect adds a custom Effect to the display context.
 // This is the generic method that accepts any Effect implementation.
 func (dl *DisplayContext) AddEffect(effect Effect) {

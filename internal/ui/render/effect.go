@@ -1,6 +1,8 @@
 package render
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
 )
@@ -143,6 +145,23 @@ func (e HighlightEffect) Apply(buf *cellbuf.Buffer) {
 
 func (e HighlightEffect) GetZ() int                  { return e.Z }
 func (e HighlightEffect) GetRect() cellbuf.Rectangle { return e.Rect }
+
+func fillString(width, height int, ch rune, style lipgloss.Style) string {
+	if width <= 0 || height <= 0 {
+		return ""
+	}
+	line := strings.Repeat(string(ch), width)
+	styledLine := style.Render(line)
+	var b strings.Builder
+	b.Grow((len(styledLine) + 1) * height)
+	for i := 0; i < height; i++ {
+		if i > 0 {
+			b.WriteByte('\n')
+		}
+		b.WriteString(styledLine)
+	}
+	return b.String()
+}
 
 // iterateCells iterates over all cells in a rectangle, applies a transformation,
 // and writes the modified cells back to the buffer.

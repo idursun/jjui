@@ -168,6 +168,10 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	sx := box.R.Min.X + max((pw-menuWidth)/2, 0)
 	sy := box.R.Min.Y + max((ph-menuHeight)/2, 0)
 	frame := cellbuf.Rect(sx, sy, menuWidth, menuHeight)
+	if len(m.menu.VisibleItems()) == 0 {
+		fillRect := frame.Inset(1)
+		dl.AddFill(fillRect, ' ', lipgloss.NewStyle(), 1)
+	}
 	m.menu.ViewRect(dl, layout.Box{R: frame})
 
 	// Render clickable remotes in the subtitle area
