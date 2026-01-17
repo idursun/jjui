@@ -187,7 +187,6 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 	screenOffset cellbuf.Position,
 ) {
 	y := rect.Min.Y
-	width := rect.Dx()
 
 	// Create an item renderer for this item
 	ir := itemRenderer{
@@ -223,9 +222,8 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 					break
 				}
 
-				content := r.renderOperationLine(extended, line, width)
 				lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
-				dl.AddDraw(lineRect, content, 0)
+				r.renderOperationLine(dl, lineRect, extended, line)
 				y++
 			}
 		}
@@ -260,9 +258,8 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 					break
 				}
 
-				content := r.renderOperationLine(line.Gutter, overlayLine, width)
 				lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
-				dl.AddDraw(lineRect, content, 0)
+				r.renderOperationLine(dl, lineRect, line.Gutter, overlayLine)
 				y++
 			}
 
@@ -280,9 +277,11 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 			break
 		}
 
-		content := ir.renderLineToString(line, width)
 		lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
-		dl.AddDraw(lineRect, content, 0)
+		dl.AddFill(lineRect, ' ', lipgloss.NewStyle(), 0)
+		tb := dl.Text(lineRect.Min.X, lineRect.Min.Y, 0)
+		ir.renderLine(tb, line)
+		tb.Done()
 		y++
 	}
 
@@ -327,9 +326,8 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 						break
 					}
 
-					content := r.renderOperationLine(extended, line, width)
 					lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
-					dl.AddDraw(lineRect, content, 0)
+					r.renderOperationLine(dl, lineRect, extended, line)
 					y++
 				}
 			}
@@ -337,24 +335,22 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 	}
 }
 
-// renderLineToString renders a line to a string (helper for itemRenderer)
-func (ir *itemRenderer) renderLineToString(line *parser.GraphRowLine, width int) string {
-	var result strings.Builder
-
+// renderLine writes a line into a TextBuilder (helper for itemRenderer)
+func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRowLine) {
 	// Render gutter (no tracer support for now)
 	for _, segment := range line.Gutter.Segments {
 		style := segment.Style.Inherit(ir.textStyle)
-		result.WriteString(style.Render(segment.Text))
+		tb.Styled(segment.Text, style)
 	}
 
 	// Add checkbox and operation content before ChangeID
 	if line.Flags&parser.Revision == parser.Revision {
 		if ir.isChecked {
-			result.WriteString(ir.selectedStyle.Render("✓ "))
+			tb.Styled("✓ ", ir.selectedStyle)
 		}
 		beforeChangeID := ir.op.Render(ir.row.Commit, operations.RenderBeforeChangeId)
 		if beforeChangeID != "" {
-			result.WriteString(beforeChangeID)
+			tb.Write(beforeChangeID)
 		}
 	}
 
@@ -366,55 +362,45 @@ func (ir *itemRenderer) renderLineToString(line *parser.GraphRowLine, width int)
 
 	for _, segment := range line.Segments {
 		if beforeCommitID != "" && segment.Text == ir.row.Commit.CommitId {
-			result.WriteString(beforeCommitID)
+			tb.Write(beforeCommitID)
 		}
 
 		style := ir.getSegmentStyle(*segment)
 		if sr, ok := ir.op.(operations.SegmentRenderer); ok {
 			rendered := sr.RenderSegment(style, segment, ir.row)
 			if rendered != "" {
-				result.WriteString(rendered)
+				tb.Write(rendered)
 				continue
 			}
 		}
-		result.WriteString(style.Render(segment.Text))
+		tb.Styled(segment.Text, style)
 	}
 
 	// Add affected marker
 	if line.Flags&parser.Revision == parser.Revision && ir.row.IsAffected {
 		style := ir.dimmedStyle
-		result.WriteString(style.Render(" (affected by last operation)"))
+		tb.Styled(" (affected by last operation)", style)
 	}
-
-	// Pad to width
-	content := result.String()
-	if lipgloss.Width(content) < width {
-		content = lipgloss.PlaceHorizontal(width, lipgloss.Left, content)
-	}
-
-	return content
 }
 
 // renderOperationLine renders an operation line with gutter
-func (r *DisplayContextRenderer) renderOperationLine(gutter parser.GraphGutter, line string, width int) string {
-	var result strings.Builder
-
+func (r *DisplayContextRenderer) renderOperationLine(
+	dl *render.DisplayContext,
+	rect cellbuf.Rectangle,
+	gutter parser.GraphGutter,
+	line string,
+) {
+	dl.AddFill(rect, ' ', lipgloss.NewStyle(), 0)
+	tb := dl.Text(rect.Min.X, rect.Min.Y, 0)
 	// Render gutter with text style (matching original behavior)
 	for _, segment := range gutter.Segments {
 		style := segment.Style.Inherit(r.textStyle)
-		result.WriteString(style.Render(segment.Text))
+		tb.Styled(segment.Text, style)
 	}
 
 	// Add line content
-	result.WriteString(line)
-
-	// Pad to width
-	content := result.String()
-	if lipgloss.Width(content) < width {
-		content = lipgloss.PlaceHorizontal(width, lipgloss.Left, content)
-	}
-
-	return content
+	tb.Write(line)
+	tb.Done()
 }
 
 // renderGutter renders just the gutter portion (for embedded operations)

@@ -1,8 +1,6 @@
 package details
 
 import (
-	"strings"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
@@ -96,11 +94,18 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 		item := d.files[index]
 		isSelected := index == d.cursor
 
-		// Build the content string
-		content := d.renderItemContent(item, index, rect.Dx())
+		baseStyle := d.getStatusStyle(item.status)
+		if isSelected {
+			baseStyle = baseStyle.Bold(true).Background(d.styles.Selected.GetBackground())
+		} else {
+			baseStyle = baseStyle.Background(d.styles.Text.GetBackground())
+		}
+		background := lipgloss.NewStyle().Background(baseStyle.GetBackground())
+		dl.AddFill(rect, ' ', background, 0)
 
-		// Add draw for the item
-		dl.AddDraw(rect, content, 0)
+		tb := dl.Text(rect.Min.X, rect.Min.Y, 0)
+		d.renderItemContent(tb, item, index, baseStyle)
+		tb.Done()
 
 		// Add highlight for selected item
 		if isSelected {
@@ -129,17 +134,7 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 }
 
 // renderItemContent renders a single item to a string
-func (d *DetailsList) renderItemContent(item *item, index int, width int) string {
-	var result strings.Builder
-
-	// Get style based on status
-	style := d.getStatusStyle(item.status)
-	if index == d.cursor {
-		style = style.Bold(true).Background(d.styles.Selected.GetBackground())
-	} else {
-		style = style.Background(d.styles.Text.GetBackground())
-	}
-
+func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, index int, style lipgloss.Style) {
 	// Build title with checkbox
 	title := item.Title()
 	if item.selected {
@@ -148,11 +143,11 @@ func (d *DetailsList) renderItemContent(item *item, index int, width int) string
 		title = " " + title
 	}
 
-	result.WriteString(style.PaddingRight(1).Render(title))
+	tb.Styled(title, style.PaddingRight(1))
 
 	// Add conflict marker
 	if item.conflict {
-		result.WriteString(d.styles.Conflict.Render("conflict "))
+		tb.Styled("conflict ", d.styles.Conflict)
 	}
 
 	// Add hint
@@ -164,16 +159,8 @@ func (d *DetailsList) renderItemContent(item *item, index int, width int) string
 		}
 	}
 	if hint != "" {
-		result.WriteString(d.styles.Dimmed.Render(hint))
+		tb.Styled(hint, d.styles.Dimmed)
 	}
-
-	// Pad to width
-	content := result.String()
-	if lipgloss.Width(content) < width {
-		content = lipgloss.PlaceHorizontal(width, lipgloss.Left, content)
-	}
-
-	return content
 }
 
 func (d *DetailsList) getStatusStyle(s status) lipgloss.Style {
