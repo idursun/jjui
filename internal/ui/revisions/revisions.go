@@ -350,6 +350,13 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		return tea.Batch(cmds...)
 	}
 
+	if intent, ok := msg.(intents.Intent); ok {
+		if cmd := m.handleIntent(intent); cmd != nil {
+			return cmd
+		}
+		return m.op.Update(msg)
+	}
+
 	// Non-input messages are broadcast to the current operation
 	if !common.IsInputMessage(msg) {
 		return m.op.Update(msg)
@@ -382,13 +389,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
 			return m.handleIntent(intents.Navigate{Target: intents.TargetWorkingCopy})
 		case key.Matches(msg, m.keymap.AceJump):
-			parentOp := m.op
-			// Create ace jump with parent operation
-			op := ace_jump.NewOperation(m.SetCursor, func(index int) parser.Row {
-				return m.rows[index]
-			}, m.displayContextRenderer.GetFirstRowIndex(), m.displayContextRenderer.GetLastRowIndex(), parentOp)
-			m.op = op
-			return op.Init()
+			return m.handleIntent(intents.StartAceJump{})
 		default:
 			if op, ok := m.op.(common.Focusable); ok && op.IsFocused() {
 				return m.op.Update(msg)
@@ -396,21 +397,13 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 
 			switch {
 			case m.quickSearch != "" && (msg.Type == tea.KeyEsc || msg.Type == tea.KeyEnter):
-				m.quickSearch = ""
-				return nil
+				return m.handleIntent(intents.RevisionsQuickSearchClear{})
 			case key.Matches(msg, m.keymap.ToggleSelect):
-				commit := m.rows[m.cursor].Commit
-				changeId := commit.GetChangeId()
-				item := appContext.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
-				m.context.ToggleCheckedItem(item)
-				m.jumpToParent(jj.NewSelectedRevisions(commit))
+				return m.handleIntent(intents.RevisionsToggleSelect{})
 			case key.Matches(msg, m.keymap.Cancel):
-				m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
-				m.op = operations.NewDefault()
-				return nil
+				return m.handleIntent(intents.Cancel{})
 			case key.Matches(msg, m.keymap.QuickSearchCycle):
-				m.SetCursor(m.search(m.cursor + 1))
-				return nil
+				return m.handleIntent(intents.QuickSearchCycle{})
 			case key.Matches(msg, m.keymap.Details.Mode):
 				return m.handleIntent(intents.OpenDetails{})
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
@@ -429,8 +422,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			case key.Matches(msg, m.keymap.Abandon):
 				return m.handleIntent(intents.StartAbandon{})
 			case key.Matches(msg, m.keymap.Bookmark.Set):
-				m.op = bookmark.NewSetBookmarkOperation(m.context, m.SelectedRevision().GetChangeId())
-				return m.op.Init()
+				return m.handleIntent(intents.BookmarksSet{})
 			case key.Matches(msg, m.keymap.Split, m.keymap.SplitParallel):
 				return m.handleIntent(intents.StartSplit{
 					IsParallel: key.Matches(msg, m.keymap.SplitParallel),
@@ -486,6 +478,15 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.startDuplicate(intent)
 	case intents.SetParents:
 		return m.startSetParents(intent)
+	case intents.BookmarksSet:
+		return m.startBookmarkSet()
+	case intents.RevisionsToggleSelect:
+		commit := m.rows[m.cursor].Commit
+		changeId := commit.GetChangeId()
+		item := appContext.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
+		m.context.ToggleCheckedItem(item)
+		m.jumpToParent(jj.NewSelectedRevisions(commit))
+		return nil
 	case intents.Navigate:
 		return m.navigate(intent)
 	case intents.StartDescribe:
@@ -500,8 +501,35 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.startRebase(intent)
 	case intents.Refresh:
 		return m.refresh(intent)
+	case intents.Cancel:
+		m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
+		m.op = operations.NewDefault()
+		return nil
+	case intents.QuickSearchCycle:
+		m.SetCursor(m.search(m.cursor + 1))
+		return nil
+	case intents.RevisionsQuickSearchClear:
+		m.quickSearch = ""
+		return nil
+	case intents.StartAceJump:
+		parentOp := m.op
+		// Create ace jump with parent operation
+		op := ace_jump.NewOperation(m.SetCursor, func(index int) parser.Row {
+			return m.rows[index]
+		}, m.displayContextRenderer.GetFirstRowIndex(), m.displayContextRenderer.GetLastRowIndex(), parentOp)
+		m.op = op
+		return op.Init()
 	}
 	return nil
+}
+
+func (m *Model) startBookmarkSet() tea.Cmd {
+	rev := m.SelectedRevision()
+	if rev == nil {
+		return nil
+	}
+	m.op = bookmark.NewSetBookmarkOperation(m.context, rev.GetChangeId())
+	return m.op.Init()
 }
 
 func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
@@ -554,14 +582,8 @@ func (m *Model) startRebase(intent intents.StartRebase) tea.Cmd {
 		return nil
 	}
 
-	source := intent.Source
-	if source == 0 {
-		source = rebase.SourceRevision
-	}
-	target := intent.Target
-	if target == 0 {
-		target = rebase.TargetDestination
-	}
+	source := rebaseSourceFromIntent(intent.Source)
+	target := rebaseTargetFromIntent(intent.Target)
 	m.op = rebase.NewOperation(m.context, selected, source, target)
 	return m.op.Init()
 }
@@ -575,12 +597,46 @@ func (m *Model) startRevert(intent intents.StartRevert) tea.Cmd {
 		return nil
 	}
 
-	target := intent.Target
-	if target == 0 {
-		target = revert.TargetDestination
-	}
+	target := revertTargetFromIntent(intent.Target)
 	m.op = revert.NewOperation(m.context, selected, target)
 	return m.op.Init()
+}
+
+func rebaseSourceFromIntent(source intents.RebaseSource) rebase.Source {
+	switch source {
+	case intents.RebaseSourceBranch:
+		return rebase.SourceBranch
+	case intents.RebaseSourceDescendants:
+		return rebase.SourceDescendants
+	default:
+		return rebase.SourceRevision
+	}
+}
+
+func rebaseTargetFromIntent(target intents.RebaseTarget) rebase.Target {
+	switch target {
+	case intents.RebaseTargetAfter:
+		return rebase.TargetAfter
+	case intents.RebaseTargetBefore:
+		return rebase.TargetBefore
+	case intents.RebaseTargetInsert:
+		return rebase.TargetInsert
+	default:
+		return rebase.TargetDestination
+	}
+}
+
+func revertTargetFromIntent(target intents.RevertTarget) revert.Target {
+	switch target {
+	case intents.RevertTargetAfter:
+		return revert.TargetAfter
+	case intents.RevertTargetBefore:
+		return revert.TargetBefore
+	case intents.RevertTargetInsert:
+		return revert.TargetInsert
+	default:
+		return revert.TargetDestination
+	}
 }
 
 func (m *Model) startDuplicate(intent intents.StartDuplicate) tea.Cmd {

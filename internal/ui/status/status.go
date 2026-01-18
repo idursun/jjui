@@ -164,23 +164,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				return func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }
 			}
 			return func() tea.Msg { return common.QuickSearchMsg(input) }
-		case key.Matches(msg, km.ExecJJ, km.ExecShell) && !m.IsFocused():
-			mode := common.ExecJJ
-			if key.Matches(msg, km.ExecShell) {
-				mode = common.ExecShell
-			}
-			m.mode = "exec " + mode.Mode
-			m.input.Prompt = mode.Prompt
-			m.loadEditingSuggestions()
-
-			m.fuzzy, m.editStatus = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
-			return tea.Batch(m.fuzzy.Init(), m.input.Focus())
-		case key.Matches(msg, km.QuickSearch) && !m.IsFocused():
-			m.editStatus = emptyEditStatus
-			m.mode = "search"
-			m.input.Prompt = "> "
-			m.loadEditingSuggestions()
-			return m.input.Focus()
 		default:
 			if m.IsFocused() {
 				var cmd tea.Cmd
@@ -202,6 +185,23 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return cmd
 	}
+}
+
+func (m *Model) StartExec(mode common.ExecMode) tea.Cmd {
+	m.mode = "exec " + mode.Mode
+	m.input.Prompt = mode.Prompt
+	m.loadEditingSuggestions()
+
+	m.fuzzy, m.editStatus = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
+	return tea.Batch(m.fuzzy.Init(), m.input.Focus())
+}
+
+func (m *Model) StartQuickSearch() tea.Cmd {
+	m.editStatus = emptyEditStatus
+	m.mode = "search"
+	m.input.Prompt = "> "
+	m.loadEditingSuggestions()
+	return m.input.Focus()
 }
 
 func (m *Model) saveEditingSuggestions() {

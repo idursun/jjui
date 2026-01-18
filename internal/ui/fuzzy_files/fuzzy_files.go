@@ -16,8 +16,8 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
-	"github.com/idursun/jjui/internal/ui/preview"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revisions"
 	"github.com/sahilm/fuzzy"
@@ -63,6 +63,8 @@ func (fzf *fuzzyFiles) Init() tea.Cmd {
 
 func (fzf *fuzzyFiles) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case intents.Intent:
+		return fzf.handleIntent(msg)
 	case initMsg:
 		fzf.search("")
 	case fuzzy_search.SearchMsg:
@@ -124,45 +126,73 @@ func (fzf *fuzzyFiles) handleKey(msg tea.KeyMsg) tea.Cmd {
 	if fzf.revsetPreview {
 		switch {
 		case key.Matches(msg, fzfKm.Up, fzfKm.Down):
-			return revisions.RevisionsCmd(msg)
-		case key.Matches(msg, previewKm.ScrollUp, previewKm.ScrollDown, previewKm.HalfPageUp, previewKm.HalfPageDown):
-			return preview.PreviewCmd(msg)
+			return fzf.handleIntent(intents.FileSearchRevisionNavigate{Key: msg})
+		case key.Matches(msg, previewKm.ScrollUp):
+			return fzf.handleIntent(intents.FileSearchPreviewScroll{Kind: intents.PreviewScrollUp})
+		case key.Matches(msg, previewKm.ScrollDown):
+			return fzf.handleIntent(intents.FileSearchPreviewScroll{Kind: intents.PreviewScrollDown})
+		case key.Matches(msg, previewKm.HalfPageUp):
+			return fzf.handleIntent(intents.FileSearchPreviewScroll{Kind: intents.PreviewHalfPageUp})
+		case key.Matches(msg, previewKm.HalfPageDown):
+			return fzf.handleIntent(intents.FileSearchPreviewScroll{Kind: intents.PreviewHalfPageDown})
 		}
 	} else {
 		switch {
 		case key.Matches(msg, fzfKm.Up, previewKm.ScrollUp):
-			fzf.moveCursor(1)
-			return skipSearch
+			return fzf.handleIntent(intents.FileSearchNavigate{Delta: 1})
 		case key.Matches(msg, fzfKm.Down, previewKm.ScrollDown):
-			fzf.moveCursor(-1)
-			return skipSearch
+			return fzf.handleIntent(intents.FileSearchNavigate{Delta: -1})
 		}
 	}
 
 	switch {
 	case key.Matches(msg, fzf.keyMap.Cancel):
+		return fzf.handleIntent(intents.FileSearchCancel{})
+	case key.Matches(msg, fzfKm.Edit):
+		return fzf.handleIntent(intents.FileSearchEdit{})
+	case key.Matches(msg, fzfKm.Toggle):
+		return fzf.handleIntent(intents.FileSearchTogglePreview{})
+	case key.Matches(msg, fzfKm.Accept, fzf.inputKm.AcceptSuggestion):
+		return fzf.handleIntent(intents.FileSearchAccept{})
+	case fzf.isInputMovement(msg):
+		return skipSearch
+	}
+
+	return nil
+}
+
+func (fzf *fuzzyFiles) handleIntent(intent intents.Intent) tea.Cmd {
+	switch intent := intent.(type) {
+	case intents.FileSearchNavigate:
+		fzf.moveCursor(intent.Delta)
+		return skipSearch
+	case intents.FileSearchCancel:
 		return tea.Batch(
 			common.UpdateRevSet(fzf.revset),
 			newCmd(common.ShowPreview(fzf.wasPreviewShown)),
 		)
-	case key.Matches(msg, fzfKm.Edit):
+	case intents.FileSearchEdit:
 		path := fuzzy_search.SelectedMatch(fzf)
 		return newCmd(common.ExecMsg{
 			Line: config.GetDefaultEditor() + " " + path,
 			Mode: common.ExecShell,
 		})
-	case key.Matches(msg, fzfKm.Toggle):
+	case intents.FileSearchTogglePreview:
 		fzf.revsetPreview = !fzf.revsetPreview
 		return tea.Batch(
 			newCmd(common.ShowPreview(fzf.revsetPreview)),
 			fzf.updateRevSet(),
 		)
-	case key.Matches(msg, fzfKm.Accept, fzf.inputKm.AcceptSuggestion):
+	case intents.FileSearchAccept:
 		return fzf.updateRevSet()
-	case fzf.isInputMovement(msg):
-		return skipSearch
+	case intents.FileSearchPreviewScroll:
+		// Dispatch to ui.go which handles preview scroll intents
+		return func() tea.Msg {
+			return intents.PreviewScroll{Kind: intent.Kind}
+		}
+	case intents.FileSearchRevisionNavigate:
+		return revisions.RevisionsCmd(intent.Key)
 	}
-
 	return nil
 }
 

@@ -13,7 +13,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/exec_process"
 	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/intents"
-	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/revisions"
 	"github.com/idursun/jjui/internal/ui/revset"
 	lua "github.com/yuin/gopher-lua"
@@ -604,27 +603,27 @@ func matchUpdateRevisionsSuccess(msg tea.Msg) (bool, []lua.LValue) {
 	}
 }
 
-func parseRebaseSource(val string) rebase.Source {
+func parseRebaseSource(val string) intents.RebaseSource {
 	switch strings.ToLower(val) {
 	case "branch":
-		return rebase.SourceBranch
+		return intents.RebaseSourceBranch
 	case "descendants", "source":
-		return rebase.SourceDescendants
+		return intents.RebaseSourceDescendants
 	default:
-		return rebase.SourceRevision
+		return intents.RebaseSourceRevision
 	}
 }
 
-func parseRebaseTarget(val string) rebase.Target {
+func parseRebaseTarget(val string) intents.RebaseTarget {
 	switch strings.ToLower(val) {
 	case "after":
-		return rebase.TargetAfter
+		return intents.RebaseTargetAfter
 	case "before":
-		return rebase.TargetBefore
+		return intents.RebaseTargetBefore
 	case "insert":
-		return rebase.TargetInsert
+		return intents.RebaseTargetInsert
 	default:
-		return rebase.TargetDestination
+		return intents.RebaseTargetDestination
 	}
 }
 

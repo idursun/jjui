@@ -7,6 +7,10 @@ type OpLogNavigate struct {
 
 func (OpLogNavigate) isIntent() {}
 
+type OpLogOpen struct{}
+
+func (OpLogOpen) isIntent() {}
+
 type OpLogClose struct{}
 
 func (OpLogClose) isIntent() {}

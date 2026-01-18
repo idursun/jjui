@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/cellbuf"
@@ -33,7 +32,6 @@ type Model struct {
 	contentLineCount    int
 	contentWidth        int
 	context             *context.MainContext
-	keyMap              config.KeyMappings[key.Binding]
 }
 
 const (
@@ -125,6 +123,16 @@ func (m *Model) ScrollHorizontal(delta int) tea.Cmd {
 	return nil
 }
 
+func (m *Model) HalfPageDown() tea.Cmd {
+	m.view.HalfPageDown()
+	return nil
+}
+
+func (m *Model) HalfPageUp() tea.Cmd {
+	m.view.HalfPageUp()
+	return nil
+}
+
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if k, ok := msg.(previewMsg); ok {
 		msg = k.msg
@@ -146,17 +154,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case updatePreviewContentMsg:
 		m.SetContent(msg.Content)
 		return nil
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.keyMap.Preview.ScrollDown):
-			m.Scroll(1)
-		case key.Matches(msg, m.keyMap.Preview.ScrollUp):
-			m.Scroll(-1)
-		case key.Matches(msg, m.keyMap.Preview.HalfPageDown):
-			m.view.HalfPageDown()
-		case key.Matches(msg, m.keyMap.Preview.HalfPageUp):
-			m.view.HalfPageUp()
-		}
 	}
 	return nil
 }
@@ -242,7 +239,6 @@ func New(context *context.MainContext) *Model {
 
 	return &Model{
 		context:             context,
-		keyMap:              config.Current.GetKeyMap(),
 		previewAutoPosition: previewAutoPosition,
 		previewAtBottom:     previewAtBottom,
 		previewVisible:      config.Current.Preview.ShowAtStart,

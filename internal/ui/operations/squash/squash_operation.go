@@ -12,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -49,8 +50,37 @@ func (s *Operation) Init() tea.Cmd {
 }
 
 func (s *Operation) Update(msg tea.Msg) tea.Cmd {
-	if msg, ok := msg.(tea.KeyMsg); ok {
+	switch msg := msg.(type) {
+	case intents.Intent:
+		return s.handleIntent(msg)
+	case tea.KeyMsg:
 		return s.HandleKey(msg)
+	default:
+		return nil
+	}
+}
+
+func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
+	switch intent := intent.(type) {
+	case intents.StartAceJump:
+		return common.StartAceJump()
+	case intents.Apply:
+		args := jj.Squash(s.from, s.current.GetChangeId(), s.files, s.keepEmptied, s.useDestinationMessage, s.interactive, intent.Force)
+		continuation := common.RefreshAndSelect(s.current.GetChangeId())
+		if s.interactive || !s.useDestinationMessage {
+			return tea.Batch(common.Close, s.context.RunInteractiveCommand(args, continuation))
+		}
+		return tea.Batch(common.Close, s.context.RunCommand(args, continuation))
+	case intents.Cancel:
+		return common.Close
+	case intents.SquashToggleKeepEmptied:
+		s.keepEmptied = !s.keepEmptied
+	case intents.SquashToggleUseDestinationMessage:
+		s.useDestinationMessage = !s.useDestinationMessage
+	case intents.SquashToggleInteractive:
+		s.interactive = !s.interactive
+	default:
+		return nil
 	}
 	return nil
 }
@@ -60,24 +90,17 @@ func (s *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, s.keyMap.AceJump):
-		return common.StartAceJump()
+		return s.handleIntent(intents.StartAceJump{})
 	case key.Matches(msg, s.keyMap.Apply, s.keyMap.ForceApply):
-		ignoreImmutable := key.Matches(msg, s.keyMap.ForceApply)
-		args := jj.Squash(s.from, s.current.GetChangeId(), s.files, s.keepEmptied, s.useDestinationMessage, s.interactive, ignoreImmutable)
-		continuation := common.RefreshAndSelect(s.current.GetChangeId())
-		if s.interactive || !s.useDestinationMessage {
-			return tea.Batch(common.Close, s.context.RunInteractiveCommand(args, continuation))
-		} else {
-			return tea.Batch(common.Close, s.context.RunCommand(args, continuation))
-		}
+		return s.handleIntent(intents.Apply{Force: key.Matches(msg, s.keyMap.ForceApply)})
 	case key.Matches(msg, s.keyMap.Cancel):
-		return common.Close
+		return s.handleIntent(intents.Cancel{})
 	case key.Matches(msg, s.keyMap.Squash.KeepEmptied):
-		s.keepEmptied = !s.keepEmptied
+		return s.handleIntent(intents.SquashToggleKeepEmptied{})
 	case key.Matches(msg, s.keyMap.Squash.UseDestinationMessage):
-		s.useDestinationMessage = !s.useDestinationMessage
+		return s.handleIntent(intents.SquashToggleUseDestinationMessage{})
 	case key.Matches(msg, s.keyMap.Squash.Interactive):
-		s.interactive = !s.interactive
+		return s.handleIntent(intents.SquashToggleInteractive{})
 	}
 	return nil
 }

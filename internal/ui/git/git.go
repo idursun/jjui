@@ -13,6 +13,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/menu"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
@@ -123,37 +124,64 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.menu.SetItems(m.menu.Items)
 		}
 		return nil
+	case intents.Intent:
+		return m.handleIntent(msg)
 	case tea.KeyMsg:
 		if m.menu.SettingFilter() {
 			break
 		}
 		switch {
 		case msg.Type == tea.KeyTab:
-			return m.cycleRemotes(1)
+			return m.handleIntent(intents.GitCycleRemotes{Delta: 1})
 		case msg.Type == tea.KeyShiftTab:
-			return m.cycleRemotes(-1)
+			return m.handleIntent(intents.GitCycleRemotes{Delta: -1})
 		case key.Matches(msg, m.keymap.Apply):
-			action := m.menu.SelectedItem().(item)
-			return m.context.RunCommand(jj.Args(action.command...), common.Refresh, common.Close)
+			return m.handleIntent(intents.Apply{})
 		case key.Matches(msg, m.keymap.Cancel):
-			if m.menu.Filter != "" || m.menu.IsFiltered() {
-				m.menu.ResetFilter()
-				return m.filtered("")
-			}
-			return common.Close
+			return m.handleIntent(intents.Cancel{})
 		case key.Matches(msg, m.keymap.Git.Push) && m.menu.Filter != string(itemCategoryPush):
-			return m.filtered(string(itemCategoryPush))
+			return m.handleIntent(intents.GitFilter{Kind: intents.GitFilterPush})
 		case key.Matches(msg, m.keymap.Git.Fetch) && m.menu.Filter != string(itemCategoryFetch):
-			return m.filtered(string(itemCategoryFetch))
+			return m.handleIntent(intents.GitFilter{Kind: intents.GitFilterFetch})
 		default:
-			for _, listItem := range m.menu.VisibleItems() {
-				if item, ok := listItem.(item); ok && m.menu.Filter != "" && item.key == msg.String() {
-					return m.context.RunCommand(jj.Args(item.command...), common.Refresh, common.Close)
-				}
+			if cmd := m.handleIntent(intents.GitApplyShortcut{Key: msg.String()}); cmd != nil {
+				return cmd
 			}
 		}
 	}
 	return m.menu.Update(msg)
+}
+
+func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
+	switch msg := intent.(type) {
+	case intents.Apply:
+		if m.menu.SelectedItem() == nil {
+			return nil
+		}
+		action := m.menu.SelectedItem().(item)
+		return m.context.RunCommand(jj.Args(action.command...), common.Refresh, common.Close)
+	case intents.GitFilter:
+		filter := string(msg.Kind)
+		if filter != "" && m.menu.Filter != filter {
+			return m.filtered(filter)
+		}
+	case intents.GitCycleRemotes:
+		return m.cycleRemotes(msg.Delta)
+	case intents.GitApplyShortcut:
+		for _, listItem := range m.menu.VisibleItems() {
+			if item, ok := listItem.(item); ok && m.menu.Filter != "" && item.key == msg.Key {
+				return m.context.RunCommand(jj.Args(item.command...), common.Refresh, common.Close)
+			}
+		}
+		return nil
+	case intents.Cancel:
+		if m.menu.Filter != "" || m.menu.IsFiltered() {
+			m.menu.ResetFilter()
+			return m.filtered("")
+		}
+		return common.Close
+	}
+	return nil
 }
 
 func (m *Model) filtered(filter string) tea.Cmd {

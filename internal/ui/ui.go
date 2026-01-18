@@ -210,98 +210,64 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 
+		if key.Matches(msg, m.keyMap.Cancel) && (m.state == common.Error || m.stacked != nil || m.flash.Any()) {
+			return m.handleIntent(intents.Cancel{})
+		}
+
 		switch {
-		case key.Matches(msg, m.keyMap.Cancel) && m.state == common.Error:
-			m.state = common.Ready
-			return tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Cancel) && m.stacked != nil:
-			m.stacked = nil
-			return tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Cancel) && m.flash.Any():
-			m.flash.DeleteOldest()
-			return tea.Batch(cmds...)
 		case key.Matches(msg, m.keyMap.Quit) && m.isSafeToQuit():
-			return tea.Quit
+			return m.handleIntent(intents.Quit{})
 		case key.Matches(msg, m.keyMap.OpLog.Mode) && m.revisions.InNormalMode():
-			m.oplog = oplog.New(m.context)
-			return m.oplog.Init()
+			return m.handleIntent(intents.OpLogOpen{})
 		case key.Matches(msg, m.keyMap.Revset) && m.revisions.InNormalMode():
-			return m.revsetModel.Update(intents.Edit{Clear: m.state != common.Error})
+			return m.handleIntent(intents.Edit{Clear: m.state != common.Error})
 		case key.Matches(msg, m.keyMap.Git.Mode) && m.revisions.InNormalMode():
-			model := git.NewModel(m.context, m.revisions.SelectedRevisions())
-			m.stacked = model
-			return m.stacked.Init()
+			return m.handleIntent(intents.OpenGit{})
 		case key.Matches(msg, m.keyMap.Undo) && m.revisions.InNormalMode():
-			model := undo.NewModel(m.context)
-			m.stacked = model
-			cmds = append(cmds, m.stacked.Init())
-			return tea.Batch(cmds...)
+			return m.handleIntent(intents.Undo{})
 		case key.Matches(msg, m.keyMap.Redo) && m.revisions.InNormalMode():
-			model := redo.NewModel(m.context)
-			m.stacked = model
-			cmds = append(cmds, m.stacked.Init())
-			return tea.Batch(cmds...)
+			return m.handleIntent(intents.Redo{})
 		case key.Matches(msg, m.keyMap.Bookmark.Mode) && m.revisions.InNormalMode():
-			changeIds := m.revisions.GetCommitIds()
-			model := bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds)
-			m.stacked = model
-			cmds = append(cmds, m.stacked.Init())
-			return tea.Batch(cmds...)
+			return m.handleIntent(intents.OpenBookmarks{})
 		case key.Matches(msg, m.keyMap.Help):
-			cmds = append(cmds, common.ToggleHelp)
-			return tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Preview.Mode, m.keyMap.Preview.ToggleBottom):
-			if key.Matches(msg, m.keyMap.Preview.ToggleBottom) {
-				previewPos := m.previewModel.AtBottom()
-				m.previewModel.SetPosition(false, !previewPos)
-				if m.previewModel.Visible() {
-					return tea.Batch(cmds...)
-				}
-			}
-			m.previewModel.ToggleVisible()
-			cmds = append(cmds, common.SelectionChanged(m.context.SelectedItem))
-			return tea.Batch(cmds...)
+			return m.handleIntent(intents.HelpToggle{})
+		case key.Matches(msg, m.keyMap.Preview.Mode):
+			return m.handleIntent(intents.PreviewToggle{})
+		case key.Matches(msg, m.keyMap.Preview.ToggleBottom):
+			return m.handleIntent(intents.PreviewToggleBottom{})
 		case key.Matches(msg, m.keyMap.Preview.Expand) && m.previewModel.Visible():
-			if m.revisionsSplit != nil && m.revisionsSplit.State != nil {
-				m.revisionsSplit.State.Expand(config.Current.Preview.WidthIncrementPercentage)
-			}
-			return tea.Batch(cmds...)
+			return m.handleIntent(intents.PreviewExpand{})
 		case key.Matches(msg, m.keyMap.Preview.Shrink) && m.previewModel.Visible():
-			if m.revisionsSplit != nil && m.revisionsSplit.State != nil {
-				m.revisionsSplit.State.Shrink(config.Current.Preview.WidthIncrementPercentage)
-			}
-			return tea.Batch(cmds...)
+			return m.handleIntent(intents.PreviewShrink{})
 		case m.previewModel.Visible() && key.Matches(msg,
 			m.keyMap.Preview.HalfPageUp,
 			m.keyMap.Preview.HalfPageDown,
 			m.keyMap.Preview.ScrollUp,
 			m.keyMap.Preview.ScrollDown):
-			cmds = append(cmds, m.previewModel.Update(msg))
-			return tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.CustomCommands):
-			model := customcommands.NewModel(m.context)
-			m.stacked = model
-			cmds = append(cmds, m.stacked.Init())
-			return tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.Leader):
-			m.leader = leader.New(m.context)
-			cmds = append(cmds, leader.InitCmd)
-			return tea.Batch(cmds...)
-		case key.Matches(msg, m.keyMap.FileSearch.Toggle):
-			rev := m.revisions.SelectedRevision()
-			if rev == nil {
-				// noop if current revset does not exist (#264)
-				return nil
+			switch {
+			case key.Matches(msg, m.keyMap.Preview.HalfPageUp):
+				return m.handleIntent(intents.PreviewScroll{Kind: intents.PreviewHalfPageUp})
+			case key.Matches(msg, m.keyMap.Preview.HalfPageDown):
+				return m.handleIntent(intents.PreviewScroll{Kind: intents.PreviewHalfPageDown})
+			case key.Matches(msg, m.keyMap.Preview.ScrollUp):
+				return m.handleIntent(intents.PreviewScroll{Kind: intents.PreviewScrollUp})
+			case key.Matches(msg, m.keyMap.Preview.ScrollDown):
+				return m.handleIntent(intents.PreviewScroll{Kind: intents.PreviewScrollDown})
 			}
-			out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
-			return common.FileSearch(m.context.CurrentRevset, m.previewModel.Visible(), rev, out)
-		case key.Matches(msg, m.keyMap.QuickSearch) && m.oplog != nil:
-			// HACK: prevents quick search from activating in op log view
-			return nil
-		case key.Matches(msg, m.keyMap.ExecJJ, m.keyMap.ExecShell, m.keyMap.QuickSearch) && m.revisions.InNormalMode():
-			return m.status.Update(msg)
+		case key.Matches(msg, m.keyMap.CustomCommands):
+			return m.handleIntent(intents.OpenCustomCommands{})
+		case key.Matches(msg, m.keyMap.Leader):
+			return m.handleIntent(intents.OpenLeader{})
+		case key.Matches(msg, m.keyMap.FileSearch.Toggle):
+			return m.handleIntent(intents.FileSearchToggle{})
+		case key.Matches(msg, m.keyMap.ExecJJ) && m.revisions.InNormalMode():
+			return m.handleIntent(intents.ExecJJ{})
+		case key.Matches(msg, m.keyMap.ExecShell) && m.revisions.InNormalMode():
+			return m.handleIntent(intents.ExecShell{})
+		case key.Matches(msg, m.keyMap.QuickSearch) && m.revisions.InNormalMode():
+			return m.handleIntent(intents.QuickSearch{})
 		case key.Matches(msg, m.keyMap.Suspend):
-			return tea.Suspend
+			return m.handleIntent(intents.Suspend{})
 		default:
 			for _, command := range customcommands.SortedCustomCommands(m.context) {
 				if !command.IsApplicableTo(m.context.SelectedItem) {
@@ -311,6 +277,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 					return command.Prepare(m.context)
 				}
 			}
+		}
+	case intents.Intent:
+		if cmd := m.handleIntent(msg); cmd != nil {
+			return cmd
 		}
 	case common.ExecMsg:
 		return exec_process.ExecLine(m.context, msg)
@@ -588,6 +558,148 @@ func (m *Model) scheduleAutoRefresh() tea.Cmd {
 		})
 	}
 	return nil
+}
+
+func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
+	switch intent := intent.(type) {
+	case intents.Cancel:
+		switch {
+		case m.state == common.Error:
+			m.state = common.Ready
+		case m.stacked != nil:
+			m.stacked = nil
+		case m.flash.Any():
+			m.flash.DeleteOldest()
+		}
+		return nil
+	case intents.Undo:
+		if !m.revisions.InNormalMode() {
+			return nil
+		}
+		model := undo.NewModel(m.context)
+		m.stacked = model
+		return m.stacked.Init()
+	case intents.Redo:
+		if !m.revisions.InNormalMode() {
+			return nil
+		}
+		model := redo.NewModel(m.context)
+		m.stacked = model
+		return m.stacked.Init()
+	case intents.ExecJJ:
+		if !m.revisions.InNormalMode() {
+			return nil
+		}
+		return m.status.StartExec(common.ExecJJ)
+	case intents.ExecShell:
+		if !m.revisions.InNormalMode() {
+			return nil
+		}
+		return m.status.StartExec(common.ExecShell)
+	case intents.Quit:
+		if !m.isSafeToQuit() {
+			return nil
+		}
+		return tea.Quit
+	case intents.Suspend:
+		return tea.Suspend
+	case intents.HelpToggle:
+		return common.ToggleHelp
+	case intents.OpenBookmarks:
+		if !m.revisions.InNormalMode() {
+			return nil
+		}
+		changeIds := m.revisions.GetCommitIds()
+		model := bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds)
+		m.stacked = model
+		return m.stacked.Init()
+	case intents.OpenGit:
+		if !m.revisions.InNormalMode() {
+			return nil
+		}
+		model := git.NewModel(m.context, m.revisions.SelectedRevisions())
+		m.stacked = model
+		return m.stacked.Init()
+	case intents.OpLogOpen:
+		if !m.revisions.InNormalMode() {
+			return nil
+		}
+		m.oplog = oplog.New(m.context)
+		return m.oplog.Init()
+	case intents.Edit:
+		if !m.revisions.InNormalMode() {
+			return nil
+		}
+		return m.revsetModel.Update(intent)
+	case intents.PreviewToggle:
+		m.previewModel.ToggleVisible()
+		return common.SelectionChanged(m.context.SelectedItem)
+	case intents.PreviewToggleBottom:
+		previewPos := m.previewModel.AtBottom()
+		m.previewModel.SetPosition(false, !previewPos)
+		if m.previewModel.Visible() {
+			return nil
+		}
+		m.previewModel.ToggleVisible()
+		return common.SelectionChanged(m.context.SelectedItem)
+	case intents.PreviewExpand:
+		if !m.previewModel.Visible() {
+			return nil
+		}
+		if m.revisionsSplit != nil && m.revisionsSplit.State != nil {
+			m.revisionsSplit.State.Expand(config.Current.Preview.WidthIncrementPercentage)
+		}
+		return nil
+	case intents.PreviewShrink:
+		if !m.previewModel.Visible() {
+			return nil
+		}
+		if m.revisionsSplit != nil && m.revisionsSplit.State != nil {
+			m.revisionsSplit.State.Shrink(config.Current.Preview.WidthIncrementPercentage)
+		}
+		return nil
+	case intents.PreviewScroll:
+		if !m.previewModel.Visible() {
+			return nil
+		}
+		switch intent.Kind {
+		case intents.PreviewScrollUp:
+			return m.previewModel.Scroll(-1)
+		case intents.PreviewScrollDown:
+			return m.previewModel.Scroll(1)
+		case intents.PreviewHalfPageUp:
+			return m.previewModel.HalfPageUp()
+		case intents.PreviewHalfPageDown:
+			return m.previewModel.HalfPageDown()
+		}
+		return nil
+	case intents.QuickSearch:
+		if m.oplog != nil {
+			// HACK: prevents quick search from activating in op log view
+			return nil
+		}
+		if !m.revisions.InNormalMode() {
+			return nil
+		}
+		return m.status.StartQuickSearch()
+	case intents.FileSearchToggle:
+		rev := m.revisions.SelectedRevision()
+		if rev == nil {
+			// noop if current revset does not exist (#264)
+			return nil
+		}
+		out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
+		return common.FileSearch(m.context.CurrentRevset, m.previewModel.Visible(), rev, out)
+	case intents.OpenCustomCommands:
+		model := customcommands.NewModel(m.context)
+		m.stacked = model
+		return m.stacked.Init()
+	case intents.OpenLeader:
+		m.leader = leader.New(m.context)
+		return leader.InitCmd
+	default:
+		return nil
+	}
 }
 
 func (m *Model) isSafeToQuit() bool {

@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -81,42 +82,19 @@ func (o *Operation) Len() int {
 }
 
 func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	switch o.mode {
-	case selectMode:
-		switch {
-		case key.Matches(msg, o.keyMap.Cancel):
-			return common.Close
-		case key.Matches(msg, o.keyMap.Up):
-			if o.cursor > 0 {
-				o.cursor--
-				o.ensureCursorView = true
-				return o.updateSelection()
-			}
-		case key.Matches(msg, o.keyMap.Down):
-			if o.cursor < len(o.rows)-1 {
-				o.cursor++
-				o.ensureCursorView = true
-				return o.updateSelection()
-			}
-		case key.Matches(msg, o.keyMap.Evolog.Diff):
-			return func() tea.Msg {
-				selectedCommitId := o.getSelectedEvolog().CommitId
-				output, _ := o.context.RunCommandImmediate(jj.Diff(selectedCommitId, ""))
-				return common.ShowDiffMsg(output)
-			}
-		case key.Matches(msg, o.keyMap.Evolog.Restore):
-			o.mode = restoreMode
-		}
-	case restoreMode:
-		switch {
-		case key.Matches(msg, o.keyMap.Cancel):
-			o.mode = selectMode
-			return nil
-		case key.Matches(msg, o.keyMap.Apply):
-			from := o.getSelectedEvolog().CommitId
-			into := o.target.GetChangeId()
-			return o.context.RunCommand(jj.RestoreEvolog(from, into), common.Close, common.Refresh)
-		}
+	switch {
+	case key.Matches(msg, o.keyMap.Cancel):
+		return o.handleIntent(intents.Cancel{})
+	case key.Matches(msg, o.keyMap.Up):
+		return o.handleIntent(intents.EvologNavigate{Delta: -1})
+	case key.Matches(msg, o.keyMap.Down):
+		return o.handleIntent(intents.EvologNavigate{Delta: 1})
+	case key.Matches(msg, o.keyMap.Evolog.Diff):
+		return o.handleIntent(intents.EvologDiff{})
+	case key.Matches(msg, o.keyMap.Evolog.Restore):
+		return o.handleIntent(intents.EvologRestore{})
+	case key.Matches(msg, o.keyMap.Apply):
+		return o.handleIntent(intents.Apply{})
 	}
 	return nil
 }
@@ -166,9 +144,60 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 		o.ensureCursorView = false
 		o.scroll(msg.Delta)
 		return nil
+	case intents.Intent:
+		return o.handleIntent(msg)
 	case tea.KeyMsg:
 		cmd := o.HandleKey(msg)
 		return cmd
+	}
+	return nil
+}
+
+func (o *Operation) handleIntent(intent intents.Intent) tea.Cmd {
+	switch msg := intent.(type) {
+	case intents.Cancel:
+		if o.mode == restoreMode {
+			o.mode = selectMode
+			return nil
+		}
+		return common.Close
+	case intents.EvologNavigate:
+		if o.mode != selectMode {
+			return nil
+		}
+		if msg.Delta < 0 && o.cursor > 0 {
+			o.cursor--
+			o.ensureCursorView = true
+			return o.updateSelection()
+		}
+		if msg.Delta > 0 && o.cursor < len(o.rows)-1 {
+			o.cursor++
+			o.ensureCursorView = true
+			return o.updateSelection()
+		}
+		return nil
+	case intents.EvologDiff:
+		if o.mode != selectMode {
+			return nil
+		}
+		return func() tea.Msg {
+			selectedCommitId := o.getSelectedEvolog().CommitId
+			output, _ := o.context.RunCommandImmediate(jj.Diff(selectedCommitId, ""))
+			return common.ShowDiffMsg(output)
+		}
+	case intents.EvologRestore:
+		if o.mode != selectMode {
+			return nil
+		}
+		o.mode = restoreMode
+		return nil
+	case intents.Apply:
+		if o.mode != restoreMode {
+			return nil
+		}
+		from := o.getSelectedEvolog().CommitId
+		into := o.target.GetChangeId()
+		return o.context.RunCommand(jj.RestoreEvolog(from, into), common.Close, common.Refresh)
 	}
 	return nil
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/menu"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
@@ -231,42 +232,34 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.menu.SetItems(m.menu.Items)
 		}
 		return nil
+	case intents.Intent:
+		return m.handleIntent(msg)
 	case tea.KeyMsg:
 		if m.menu.SettingFilter() {
 			break
 		}
 		switch {
 		case msg.Type == tea.KeyTab:
-			return m.cycleRemotes(1)
+			return m.handleIntent(intents.BookmarksCycleRemotes{Delta: 1})
 		case msg.Type == tea.KeyShiftTab:
-			return m.cycleRemotes(-1)
+			return m.handleIntent(intents.BookmarksCycleRemotes{Delta: -1})
 		case key.Matches(msg, m.keymap.Cancel):
-			if m.menu.Filter != "" || m.menu.IsFiltered() {
-				m.menu.ResetFilter()
-				return m.filtered("")
-			}
-			return common.Close
+			return m.handleIntent(intents.Cancel{})
 		case key.Matches(msg, m.keymap.Apply):
-			if m.menu.SelectedItem() == nil {
-				break
-			}
-			action := m.menu.SelectedItem().(item)
-			return m.context.RunCommand(action.args, common.Refresh, common.Close)
+			return m.handleIntent(intents.Apply{})
 		case key.Matches(msg, m.keymap.Bookmark.Move) && m.menu.Filter != "move":
-			return m.filtered("move")
+			return m.handleIntent(intents.BookmarksFilter{Kind: intents.BookmarksFilterMove})
 		case key.Matches(msg, m.keymap.Bookmark.Delete) && m.menu.Filter != "delete":
-			return m.filtered("delete")
+			return m.handleIntent(intents.BookmarksFilter{Kind: intents.BookmarksFilterDelete})
 		case key.Matches(msg, m.keymap.Bookmark.Forget) && m.menu.Filter != "forget":
-			return m.filtered("forget")
+			return m.handleIntent(intents.BookmarksFilter{Kind: intents.BookmarksFilterForget})
 		case key.Matches(msg, m.keymap.Bookmark.Track) && m.menu.Filter != "track":
-			return m.filtered("track")
+			return m.handleIntent(intents.BookmarksFilter{Kind: intents.BookmarksFilterTrack})
 		case key.Matches(msg, m.keymap.Bookmark.Untrack) && m.menu.Filter != "untrack":
-			return m.filtered("untrack")
+			return m.handleIntent(intents.BookmarksFilter{Kind: intents.BookmarksFilterUntrack})
 		default:
-			for _, listItem := range m.menu.VisibleItems() {
-				if item, ok := listItem.(item); ok && m.menu.Filter != "" && item.key == msg.String() {
-					return m.context.RunCommand(jj.Args(item.args...), common.Refresh, common.Close)
-				}
+			if cmd := m.handleIntent(intents.BookmarksApplyShortcut{Key: msg.String()}); cmd != nil {
+				return cmd
 			}
 		}
 	case updateItemsMsg:
@@ -275,6 +268,38 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return m.menu.SetItems(m.menu.Items)
 	}
 	return m.menu.Update(msg)
+}
+
+func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
+	switch msg := intent.(type) {
+	case intents.Apply:
+		if m.menu.SelectedItem() == nil {
+			return nil
+		}
+		action := m.menu.SelectedItem().(item)
+		return m.context.RunCommand(action.args, common.Refresh, common.Close)
+	case intents.BookmarksFilter:
+		filter := string(msg.Kind)
+		if filter != "" && m.menu.Filter != filter {
+			return m.filtered(filter)
+		}
+	case intents.BookmarksCycleRemotes:
+		return m.cycleRemotes(msg.Delta)
+	case intents.BookmarksApplyShortcut:
+		for _, listItem := range m.menu.VisibleItems() {
+			if item, ok := listItem.(item); ok && m.menu.Filter != "" && item.key == msg.Key {
+				return m.context.RunCommand(jj.Args(item.args...), common.Refresh, common.Close)
+			}
+		}
+		return nil
+	case intents.Cancel:
+		if m.menu.Filter != "" || m.menu.IsFiltered() {
+			m.menu.ResetFilter()
+			return m.filtered("")
+		}
+		return common.Close
+	}
+	return nil
 }
 
 func itemSorter(a menu.Item, b menu.Item) int {

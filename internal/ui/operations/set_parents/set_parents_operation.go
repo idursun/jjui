@@ -13,6 +13,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -41,7 +42,10 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
-	if msg, ok := msg.(tea.KeyMsg); ok {
+	switch msg := msg.(type) {
+	case intents.Intent:
+		return m.handleIntent(msg)
+	case tea.KeyMsg:
 		return m.HandleKey(msg)
 	}
 	return nil
@@ -78,8 +82,22 @@ func (m *Model) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 func (m *Model) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, m.keyMap.AceJump):
-		return common.StartAceJump()
+		return m.handleIntent(intents.StartAceJump{})
 	case key.Matches(msg, m.keyMap.ToggleSelect):
+		return m.handleIntent(intents.SetParentsToggleSelect{})
+	case key.Matches(msg, m.keyMap.Apply):
+		return m.handleIntent(intents.Apply{})
+	case key.Matches(msg, m.keyMap.Cancel):
+		return m.handleIntent(intents.Cancel{})
+	}
+	return nil
+}
+
+func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
+	switch intent.(type) {
+	case intents.StartAceJump:
+		return common.StartAceJump()
+	case intents.SetParentsToggleSelect:
 		if m.current.GetChangeId() == m.target.GetChangeId() {
 			return nil
 		}
@@ -98,7 +116,8 @@ func (m *Model) HandleKey(msg tea.KeyMsg) tea.Cmd {
 				m.toAdd = append(m.toAdd, changeId)
 			}
 		}
-	case key.Matches(msg, m.keyMap.Apply):
+		return nil
+	case intents.Apply:
 		if len(m.toAdd) == 0 && len(m.toRemove) == 0 {
 			return common.Close
 		}
@@ -111,7 +130,7 @@ func (m *Model) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		}
 
 		return m.context.RunCommand(jj.SetParents(m.target.GetChangeId(), parentsToAdd, parentsToRemove), common.RefreshAndSelect(m.target.GetChangeId()), common.Close)
-	case key.Matches(msg, m.keyMap.Cancel):
+	case intents.Cancel:
 		return common.Close
 	}
 	return nil

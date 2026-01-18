@@ -27,19 +27,11 @@ func TestCancelKeyRefreshesPreview(t *testing.T) {
 
 	keyMsg := tea.KeyMsg{Type: tea.KeyEsc}
 
-	// Send the Cancel key, which produces a command to generate an intent
+	// Send the Cancel key - now directly routes through handleIntent and returns the batch command
 	cmd := m.Update(keyMsg)
 	require.NotNil(t, cmd)
 
-	// Execute the command to get the intent message
-	intentMsg := cmd()
-	require.NotNil(t, intentMsg)
-
-	// Now send the intent to Update to get the actual action command
-	actionCmd := m.Update(intentMsg)
-	require.NotNil(t, actionCmd)
-
-	msg := actionCmd()
+	msg := cmd()
 	msgs := []tea.Msg{}
 
 	// The command should be a Batch with Close, Refresh, and SelectionChanged

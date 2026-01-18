@@ -11,6 +11,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -62,10 +63,44 @@ func (r *Operation) Init() tea.Cmd {
 }
 
 func (r *Operation) Update(msg tea.Msg) tea.Cmd {
-	if msg, ok := msg.(tea.KeyMsg); ok {
+	switch msg := msg.(type) {
+	case intents.Intent:
+		return r.handleIntent(msg)
+	case tea.KeyMsg:
 		return r.HandleKey(msg)
+	default:
+		return nil
+	}
+}
+
+func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
+	switch msg := intent.(type) {
+	case intents.StartAceJump:
+		return common.StartAceJump()
+	case intents.DuplicateSetTarget:
+		r.Target = duplicateTargetFromIntent(msg.Target)
+	case intents.Apply:
+		target := targetToFlags[r.Target]
+		return r.context.RunCommand(jj.Duplicate(r.From, r.To.GetChangeId(), target), common.RefreshAndSelect(r.From.Last()), common.Close)
+	case intents.Cancel:
+		return common.Close
+	default:
+		return nil
 	}
 	return nil
+}
+
+func duplicateTargetFromIntent(target intents.DuplicateTarget) Target {
+	switch target {
+	case intents.DuplicateTargetDestination:
+		return TargetDestination
+	case intents.DuplicateTargetAfter:
+		return TargetAfter
+	case intents.DuplicateTargetBefore:
+		return TargetBefore
+	default:
+		return TargetDestination
+	}
 }
 
 func (r *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
@@ -73,18 +108,17 @@ func (r *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, r.keyMap.AceJump):
-		return common.StartAceJump()
+		return r.handleIntent(intents.StartAceJump{})
 	case key.Matches(msg, r.keyMap.Duplicate.Onto):
-		r.Target = TargetDestination
+		return r.handleIntent(intents.DuplicateSetTarget{Target: intents.DuplicateTargetDestination})
 	case key.Matches(msg, r.keyMap.Duplicate.After):
-		r.Target = TargetAfter
+		return r.handleIntent(intents.DuplicateSetTarget{Target: intents.DuplicateTargetAfter})
 	case key.Matches(msg, r.keyMap.Duplicate.Before):
-		r.Target = TargetBefore
+		return r.handleIntent(intents.DuplicateSetTarget{Target: intents.DuplicateTargetBefore})
 	case key.Matches(msg, r.keyMap.Apply):
-		target := targetToFlags[r.Target]
-		return r.context.RunCommand(jj.Duplicate(r.From, r.To.GetChangeId(), target), common.RefreshAndSelect(r.From.Last()), common.Close)
+		return r.handleIntent(intents.Apply{})
 	case key.Matches(msg, r.keyMap.Cancel):
-		return common.Close
+		return r.handleIntent(intents.Cancel{})
 	}
 	return nil
 }

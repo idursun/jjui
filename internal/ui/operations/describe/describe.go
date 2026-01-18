@@ -89,25 +89,14 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, o.keyMap.Cancel):
-			unsavedDescription := o.input.Value()
-			if o.originalDesc == "" {
-				stashed = &stashedDescription{
-					revision:    o.revision,
-					description: unsavedDescription,
-				}
-				return tea.Batch(common.Close, intents.Invoke(intents.AddMessage{Text: "Unsaved description is stashed. Edit again to restore."}))
-			}
-			return common.Close
+			return o.handleIntent(intents.Cancel{})
 		case key.Matches(msg, o.keyMap.InlineDescribe.Editor):
-			selectedRevisions := jj.NewSelectedRevisions(o.revision)
-			return o.context.RunCommand(
-				jj.SetDescription(o.revision.GetChangeId(), o.input.Value()),
-				common.CloseApplied,
-				o.context.RunInteractiveCommand(jj.Describe(selectedRevisions), common.Refresh),
-			)
+			return o.handleIntent(intents.InlineDescribeEditor{})
 		case key.Matches(msg, o.keyMap.InlineDescribe.Accept):
-			return o.context.RunCommand(jj.SetDescription(o.revision.GetChangeId(), o.input.Value()), common.CloseApplied, common.Refresh)
+			return o.handleIntent(intents.InlineDescribeAccept{})
 		}
+	case intents.Intent:
+		return o.handleIntent(msg)
 	}
 
 	o.input, cmd = o.input.Update(msg)
@@ -119,6 +108,42 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	}
 
 	return cmd
+}
+
+func (o *Operation) handleIntent(intent intents.Intent) tea.Cmd {
+	switch intent.(type) {
+	case intents.Cancel:
+		unsavedDescription := o.input.Value()
+		if o.originalDesc == "" {
+			stashed = &stashedDescription{
+				revision:    o.revision,
+				description: unsavedDescription,
+			}
+			return tea.Batch(common.Close, func() tea.Msg {
+				return intents.AddMessage{Text: "Unsaved description is stashed. Edit again to restore."}
+			})
+		}
+		return common.Close
+	case intents.InlineDescribeEditor:
+		return o.runInlineDescribeEditor()
+	case intents.InlineDescribeAccept:
+		return o.runInlineDescribeAccept()
+	default:
+		return nil
+	}
+}
+
+func (o *Operation) runInlineDescribeEditor() tea.Cmd {
+	selectedRevisions := jj.NewSelectedRevisions(o.revision)
+	return o.context.RunCommand(
+		jj.SetDescription(o.revision.GetChangeId(), o.input.Value()),
+		common.CloseApplied,
+		o.context.RunInteractiveCommand(jj.Describe(selectedRevisions), common.Refresh),
+	)
+}
+
+func (o *Operation) runInlineDescribeAccept() tea.Cmd {
+	return o.context.RunCommand(jj.SetDescription(o.revision.GetChangeId(), o.input.Value()), common.CloseApplied, common.Refresh)
 }
 
 func (o *Operation) Init() tea.Cmd {

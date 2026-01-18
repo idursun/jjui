@@ -136,23 +136,23 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 func (m *Model) keyToIntent(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, m.keymap.Cancel):
-		return intents.Invoke(intents.OpLogClose{})
+		return m.handleIntent(intents.OpLogClose{})
 	case key.Matches(msg, m.keymap.Up, m.keymap.ScrollUp):
-		return intents.Invoke(intents.OpLogNavigate{
+		return m.handleIntent(intents.OpLogNavigate{
 			Delta:  -1,
 			IsPage: key.Matches(msg, m.keymap.ScrollUp),
 		})
 	case key.Matches(msg, m.keymap.Down, m.keymap.ScrollDown):
-		return intents.Invoke(intents.OpLogNavigate{
+		return m.handleIntent(intents.OpLogNavigate{
 			Delta:  1,
 			IsPage: key.Matches(msg, m.keymap.ScrollDown),
 		})
 	case key.Matches(msg, m.keymap.Diff):
-		return intents.Invoke(intents.OpLogShowDiff{})
+		return m.handleIntent(intents.OpLogShowDiff{})
 	case key.Matches(msg, m.keymap.OpLog.Restore):
-		return intents.Invoke(intents.OpLogRestore{})
+		return m.handleIntent(intents.OpLogRestore{})
 	case key.Matches(msg, m.keymap.OpLog.Revert):
-		return intents.Invoke(intents.OpLogRevert{})
+		return m.handleIntent(intents.OpLogRevert{})
 	}
 	return nil
 }

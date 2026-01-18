@@ -14,6 +14,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -91,15 +92,74 @@ func (r *Operation) Init() tea.Cmd {
 }
 
 func (r *Operation) Update(msg tea.Msg) tea.Cmd {
-	if msg, ok := msg.(updateHighlightedIdsMsg); ok {
+	switch msg := msg.(type) {
+	case updateHighlightedIdsMsg:
 		r.highlightedIds = msg.ids
 		return nil
-	}
-
-	if msg, ok := msg.(tea.KeyMsg); ok {
+	case intents.Intent:
+		return r.handleIntent(msg)
+	case tea.KeyMsg:
 		return r.HandleKey(msg)
+	default:
+		return nil
+	}
+}
+
+func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
+	switch msg := intent.(type) {
+	case intents.StartAceJump:
+		return common.StartAceJump()
+	case intents.RebaseSetSource:
+		r.Source = rebaseSourceFromIntent(msg.Source)
+	case intents.RebaseSetTarget:
+		r.Target = rebaseTargetFromIntent(msg.Target)
+		if r.Target == TargetInsert {
+			r.InsertStart = r.To
+		}
+	case intents.RebaseToggleSkipEmptied:
+		r.SkipEmptied = !r.SkipEmptied
+	case intents.Apply:
+		skipEmptied := r.SkipEmptied
+		if r.Target == TargetInsert {
+			return r.context.RunCommand(jj.RebaseInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId(), skipEmptied, msg.Force), common.RefreshAndSelect(r.From.Last()), common.Close)
+		}
+		source := sourceToFlags[r.Source]
+		target := targetToFlags[r.Target]
+		return r.context.RunCommand(jj.Rebase(r.From, r.To.GetChangeId(), source, target, skipEmptied, msg.Force), common.RefreshAndSelect(r.From.Last()), common.Close)
+	case intents.Cancel:
+		return common.Close
+	default:
+		return nil
 	}
 	return nil
+}
+
+func rebaseSourceFromIntent(source intents.RebaseSource) Source {
+	switch source {
+	case intents.RebaseSourceRevision:
+		return SourceRevision
+	case intents.RebaseSourceBranch:
+		return SourceBranch
+	case intents.RebaseSourceDescendants:
+		return SourceDescendants
+	default:
+		return SourceRevision
+	}
+}
+
+func rebaseTargetFromIntent(target intents.RebaseTarget) Target {
+	switch target {
+	case intents.RebaseTargetDestination:
+		return TargetDestination
+	case intents.RebaseTargetAfter:
+		return TargetAfter
+	case intents.RebaseTargetBefore:
+		return TargetBefore
+	case intents.RebaseTargetInsert:
+		return TargetInsert
+	default:
+		return TargetDestination
+	}
 }
 
 func (r *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
@@ -107,39 +167,27 @@ func (r *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, r.keyMap.AceJump):
-		return common.StartAceJump()
+		return r.handleIntent(intents.StartAceJump{})
 	case key.Matches(msg, r.keyMap.Rebase.Revision):
-		r.Source = SourceRevision
+		return r.handleIntent(intents.RebaseSetSource{Source: intents.RebaseSourceRevision})
 	case key.Matches(msg, r.keyMap.Rebase.Branch):
-		r.Source = SourceBranch
+		return r.handleIntent(intents.RebaseSetSource{Source: intents.RebaseSourceBranch})
 	case key.Matches(msg, r.keyMap.Rebase.Source):
-		r.Source = SourceDescendants
+		return r.handleIntent(intents.RebaseSetSource{Source: intents.RebaseSourceDescendants})
 	case key.Matches(msg, r.keyMap.Rebase.Onto):
-		r.Target = TargetDestination
+		return r.handleIntent(intents.RebaseSetTarget{Target: intents.RebaseTargetDestination})
 	case key.Matches(msg, r.keyMap.Rebase.After):
-		r.Target = TargetAfter
+		return r.handleIntent(intents.RebaseSetTarget{Target: intents.RebaseTargetAfter})
 	case key.Matches(msg, r.keyMap.Rebase.Before):
-		r.Target = TargetBefore
+		return r.handleIntent(intents.RebaseSetTarget{Target: intents.RebaseTargetBefore})
 	case key.Matches(msg, r.keyMap.Rebase.Insert):
-		r.Target = TargetInsert
-		r.InsertStart = r.To
-	case key.Matches(msg, r.keyMap.Rebase.Insert):
-		r.Target = TargetInsert
-		r.InsertStart = r.To
+		return r.handleIntent(intents.RebaseSetTarget{Target: intents.RebaseTargetInsert})
 	case key.Matches(msg, r.keyMap.Rebase.SkipEmptied):
-		r.SkipEmptied = !r.SkipEmptied
+		return r.handleIntent(intents.RebaseToggleSkipEmptied{})
 	case key.Matches(msg, r.keyMap.Apply, r.keyMap.ForceApply):
-		ignoreImmutable := key.Matches(msg, r.keyMap.ForceApply)
-		skipEmptied := r.SkipEmptied
-		if r.Target == TargetInsert {
-			return r.context.RunCommand(jj.RebaseInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId(), skipEmptied, ignoreImmutable), common.RefreshAndSelect(r.From.Last()), common.Close)
-		} else {
-			source := sourceToFlags[r.Source]
-			target := targetToFlags[r.Target]
-			return r.context.RunCommand(jj.Rebase(r.From, r.To.GetChangeId(), source, target, skipEmptied, ignoreImmutable), common.RefreshAndSelect(r.From.Last()), common.Close)
-		}
+		return r.handleIntent(intents.Apply{Force: key.Matches(msg, r.keyMap.ForceApply)})
 	case key.Matches(msg, r.keyMap.Cancel):
-		return common.Close
+		return r.handleIntent(intents.Cancel{})
 	}
 	return nil
 }

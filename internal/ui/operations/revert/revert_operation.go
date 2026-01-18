@@ -12,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -66,10 +67,51 @@ func (r *Operation) Init() tea.Cmd {
 }
 
 func (r *Operation) Update(msg tea.Msg) tea.Cmd {
-	if msg, ok := msg.(tea.KeyMsg); ok {
+	switch msg := msg.(type) {
+	case intents.Intent:
+		return r.handleIntent(msg)
+	case tea.KeyMsg:
 		return r.HandleKey(msg)
+	default:
+		return nil
+	}
+}
+
+func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
+	switch msg := intent.(type) {
+	case intents.RevertSetTarget:
+		r.Target = revertTargetFromIntent(msg.Target)
+		if r.Target == TargetInsert {
+			r.InsertStart = r.To
+		}
+	case intents.Apply:
+		if r.Target == TargetInsert {
+			return r.context.RunCommand(jj.RevertInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId()), common.RefreshAndSelect(r.From.Last()), common.Close)
+		}
+		source := "--revisions"
+		target := targetToFlags[r.Target]
+		return r.context.RunCommand(jj.Revert(r.From, r.To.GetChangeId(), source, target), common.RefreshAndSelect(r.From.Last()), common.Close)
+	case intents.Cancel:
+		return common.Close
+	default:
+		return nil
 	}
 	return nil
+}
+
+func revertTargetFromIntent(target intents.RevertTarget) Target {
+	switch target {
+	case intents.RevertTargetDestination:
+		return TargetDestination
+	case intents.RevertTargetAfter:
+		return TargetAfter
+	case intents.RevertTargetBefore:
+		return TargetBefore
+	case intents.RevertTargetInsert:
+		return TargetInsert
+	default:
+		return TargetDestination
+	}
 }
 
 func (r *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
@@ -77,24 +119,17 @@ func (r *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, r.keyMap.Revert.Onto):
-		r.Target = TargetDestination
+		return r.handleIntent(intents.RevertSetTarget{Target: intents.RevertTargetDestination})
 	case key.Matches(msg, r.keyMap.Revert.After):
-		r.Target = TargetAfter
+		return r.handleIntent(intents.RevertSetTarget{Target: intents.RevertTargetAfter})
 	case key.Matches(msg, r.keyMap.Revert.Before):
-		r.Target = TargetBefore
+		return r.handleIntent(intents.RevertSetTarget{Target: intents.RevertTargetBefore})
 	case key.Matches(msg, r.keyMap.Revert.Insert):
-		r.Target = TargetInsert
-		r.InsertStart = r.To
+		return r.handleIntent(intents.RevertSetTarget{Target: intents.RevertTargetInsert})
 	case key.Matches(msg, r.keyMap.Apply):
-		if r.Target == TargetInsert {
-			return r.context.RunCommand(jj.RevertInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId()), common.RefreshAndSelect(r.From.Last()), common.Close)
-		} else {
-			source := "--revisions"
-			target := targetToFlags[r.Target]
-			return r.context.RunCommand(jj.Revert(r.From, r.To.GetChangeId(), source, target), common.RefreshAndSelect(r.From.Last()), common.Close)
-		}
+		return r.handleIntent(intents.Apply{})
 	case key.Matches(msg, r.keyMap.Cancel):
-		return common.Close
+		return r.handleIntent(intents.Cancel{})
 	}
 	return nil
 }

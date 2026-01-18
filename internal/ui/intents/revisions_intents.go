@@ -1,10 +1,6 @@
 package intents
 
-import (
-	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/operations/rebase"
-	"github.com/idursun/jjui/internal/ui/operations/revert"
-)
+import "github.com/idursun/jjui/internal/jj"
 
 type OpenDetails struct{}
 
@@ -19,15 +15,15 @@ func (StartSquash) isIntent() {}
 
 type StartRebase struct {
 	Selected jj.SelectedRevisions
-	Source   rebase.Source
-	Target   rebase.Target
+	Source   RebaseSource
+	Target   RebaseTarget
 }
 
 func (StartRebase) isIntent() {}
 
 type StartRevert struct {
 	Selected jj.SelectedRevisions
-	Target   revert.Target
+	Target   RevertTarget
 }
 
 func (StartRevert) isIntent() {}
@@ -63,6 +59,14 @@ type StartSplit struct {
 }
 
 func (StartSplit) isIntent() {}
+
+type RevisionsToggleSelect struct{}
+
+func (RevisionsToggleSelect) isIntent() {}
+
+type RevisionsQuickSearchClear struct{}
+
+func (RevisionsQuickSearchClear) isIntent() {}
 
 type NavigationTarget int
 
@@ -120,6 +124,10 @@ type StartAbandon struct {
 
 func (StartAbandon) isIntent() {}
 
+type AbandonToggleSelect struct{}
+
+func (AbandonToggleSelect) isIntent() {}
+
 type StartDuplicate struct {
 	Selected jj.SelectedRevisions
 }
@@ -131,6 +139,10 @@ type SetParents struct {
 }
 
 func (SetParents) isIntent() {}
+
+type SetParentsToggleSelect struct{}
+
+func (SetParentsToggleSelect) isIntent() {}
 
 type Refresh struct {
 	KeepSelections   bool

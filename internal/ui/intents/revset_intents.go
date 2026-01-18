@@ -12,6 +12,7 @@ func (Cancel) isIntent() {}
 
 type Apply struct {
 	Value string
+	Force bool
 }
 
 func (Apply) isIntent() {}

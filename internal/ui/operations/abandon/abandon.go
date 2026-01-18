@@ -11,6 +11,7 @@ import (
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -43,7 +44,10 @@ func (a *Operation) Init() tea.Cmd {
 }
 
 func (a *Operation) Update(msg tea.Msg) tea.Cmd {
-	if msg, ok := msg.(tea.KeyMsg); ok {
+	switch msg := msg.(type) {
+	case intents.Intent:
+		return a.handleIntent(msg)
+	case tea.KeyMsg:
 		return a.HandleKey(msg)
 	}
 	return nil
@@ -54,18 +58,30 @@ func (a *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 func (a *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, a.keyMap.AceJump):
-		return common.StartAceJump()
+		return a.handleIntent(intents.StartAceJump{})
 	case key.Matches(msg, a.keyMap.Apply):
-		if len(a.selectedRevisions.Revisions) == 0 {
-			return nil
-		}
-		return a.context.RunCommand(jj.Abandon(a.selectedRevisions, false), common.Refresh, common.Close)
+		return a.handleIntent(intents.Apply{})
 	case key.Matches(msg, a.keyMap.ForceApply):
+		return a.handleIntent(intents.Apply{Force: true})
+	case key.Matches(msg, a.keyMap.ToggleSelect):
+		return a.handleIntent(intents.AbandonToggleSelect{})
+	case key.Matches(msg, a.keyMap.Cancel):
+		return a.handleIntent(intents.Cancel{})
+	}
+	return nil
+}
+
+func (a *Operation) handleIntent(intent intents.Intent) tea.Cmd {
+	switch intent.(type) {
+	case intents.StartAceJump:
+		return common.StartAceJump()
+	case intents.Apply:
+		force := intent.(intents.Apply).Force
 		if len(a.selectedRevisions.Revisions) == 0 {
 			return nil
 		}
-		return a.context.RunCommand(jj.Abandon(a.selectedRevisions, true), common.Refresh, common.Close)
-	case key.Matches(msg, a.keyMap.ToggleSelect):
+		return a.context.RunCommand(jj.Abandon(a.selectedRevisions, force), common.Refresh, common.Close)
+	case intents.AbandonToggleSelect:
 		if a.current == nil {
 			return nil
 		}
@@ -76,7 +92,7 @@ func (a *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		a.context.ToggleCheckedItem(item)
 		a.toggleSelectedRevision(a.current)
 		return nil
-	case key.Matches(msg, a.keyMap.Cancel):
+	case intents.Cancel:
 		return common.Close
 	}
 	return nil
