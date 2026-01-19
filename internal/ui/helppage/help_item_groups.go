@@ -67,23 +67,23 @@ func normalizeSearch(parts ...string) string {
 
 func (h *Model) setDefaultMenu() {
 	h.defaultMenu = helpMenu{
-		0, 0,
-		h.buildLeftGroups(),
-		h.buildMiddleGroups(),
-		h.buildRightGroups(),
+		h.buildGroup(),
 	}
-	// TODO: 132 is an arbitrary width that allows all column to display properly
 	// update to use dynamic width based on column contents
-	h.defaultMenu.width, h.defaultMenu.height = 132, h.calculateMaxHeight()
 	h.searchQuery.Width = len(h.searchQuery.Placeholder)
 }
 
-func (h *Model) buildLeftGroups() menuColumn {
+func (h *Model) buildGroup() menuColumn {
 	jumpKeys := fmt.Sprintf("%s/%s/%s",
 		h.keyMap.JumpToParent.Help().Key,
 		h.keyMap.JumpToChildren.Help().Key,
 		h.keyMap.JumpToWorkingCopy.Help().Key,
 	)
+
+	customCommandItems := []helpItem{h.newModeItem(&h.keyMap.CustomCommands, "Custom Commands")}
+	for _, command := range h.context.CustomCommands {
+		customCommandItems = append(customCommandItems, h.newBindingItem(command.Binding()))
+	}
 
 	return menuColumn{
 		itemGroup{
@@ -124,11 +124,6 @@ func (h *Model) buildLeftGroups() menuColumn {
 			h.newBindingItem(h.keyMap.InlineDescribe.Mode),
 			h.newBindingItem(h.keyMap.SetParents),
 		},
-	}
-}
-
-func (h *Model) buildMiddleGroups() menuColumn {
-	return menuColumn{
 		itemGroup{
 			h.newModeItem(&h.keyMap.Details.Mode, "Details"),
 			h.newBindingItem(h.keyMap.Details.Close),
@@ -138,24 +133,20 @@ func (h *Model) buildMiddleGroups() menuColumn {
 			h.newBindingItem(h.keyMap.Details.Squash),
 			h.newBindingItem(h.keyMap.Details.Diff),
 			h.newBindingItem(h.keyMap.Details.RevisionsChangingFile),
-			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Evolog.Mode, "Evolog"),
 			h.newBindingItem(h.keyMap.Evolog.Diff),
 			h.newBindingItem(h.keyMap.Evolog.Restore),
-			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Squash.Mode, "Squash"),
 			h.newBindingItem(h.keyMap.Squash.KeepEmptied),
 			h.newBindingItem(h.keyMap.Squash.UseDestinationMessage),
 			h.newBindingItem(h.keyMap.Squash.Interactive),
-			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Revert.Mode, "Revert"),
-			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Rebase.Mode, "Rebase"),
@@ -166,7 +157,6 @@ func (h *Model) buildMiddleGroups() menuColumn {
 			h.newBindingItem(h.keyMap.Rebase.After),
 			h.newBindingItem(h.keyMap.Rebase.Onto),
 			h.newBindingItem(h.keyMap.Rebase.Insert),
-			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Duplicate.Mode, "Duplicate"),
@@ -174,16 +164,6 @@ func (h *Model) buildMiddleGroups() menuColumn {
 			h.newBindingItem(h.keyMap.Duplicate.Before),
 			h.newBindingItem(h.keyMap.Duplicate.After),
 		},
-	}
-}
-
-func (h *Model) buildRightGroups() menuColumn {
-	customCommandItems := []helpItem{h.newModeItem(&h.keyMap.CustomCommands, "Custom Commands")}
-	for _, command := range h.context.CustomCommands {
-		customCommandItems = append(customCommandItems, h.newBindingItem(command.Binding()))
-	}
-
-	return menuColumn{
 		itemGroup{
 			h.newModeItem(&h.keyMap.Preview.Mode, "Preview"),
 			h.newBindingItem(h.keyMap.Preview.ScrollUp),
@@ -193,13 +173,11 @@ func (h *Model) buildRightGroups() menuColumn {
 			h.newBindingItem(h.keyMap.Preview.Expand),
 			h.newBindingItem(h.keyMap.Preview.Shrink),
 			h.newBindingItem(h.keyMap.Preview.ToggleBottom),
-			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Git.Mode, "Git"),
 			h.newBindingItem(h.keyMap.Git.Push),
 			h.newBindingItem(h.keyMap.Git.Fetch),
-			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Bookmark.Mode, "Bookmarks"),
@@ -208,19 +186,16 @@ func (h *Model) buildRightGroups() menuColumn {
 			h.newBindingItem(h.keyMap.Bookmark.Untrack),
 			h.newBindingItem(h.keyMap.Bookmark.Track),
 			h.newBindingItem(h.keyMap.Bookmark.Forget),
-			helpItem{"", ""},
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.OpLog.Mode, "Oplog"),
 			h.newBindingItem(h.keyMap.Diff),
 			h.newBindingItem(h.keyMap.OpLog.Restore),
 			h.newBindingItem(h.keyMap.OpLog.Revert),
-			helpItem{"", ""},
 		},
 
 		itemGroup{
 			h.newModeItem(&h.keyMap.Leader, "Leader"),
-			helpItem{"", ""},
 		},
 		customCommandItems,
 	}

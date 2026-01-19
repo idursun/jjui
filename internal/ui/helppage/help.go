@@ -16,6 +16,15 @@ import (
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
+type scrollMsg struct {
+	delta int
+}
+
+func (s scrollMsg) SetDelta(delta int, _ bool) tea.Msg {
+	s.delta = delta
+	return s
+}
+
 type helpItem struct {
 	display    string
 	searchTerm string
@@ -26,10 +35,7 @@ type itemGroup = []helpItem
 type menuColumn = []itemGroup
 
 type helpMenu struct {
-	width, height int
-	leftList      menuColumn
-	middleList    menuColumn
-	rightList     menuColumn
+	list menuColumn
 }
 
 var _ common.ImmediateModel = (*Model)(nil)
@@ -41,6 +47,8 @@ type Model struct {
 	defaultMenu  helpMenu
 	filteredMenu helpMenu
 	searchQuery  textinput.Model
+	renderer     *render.ListRenderer
+	cursor       int
 }
 
 type styles struct {
@@ -67,9 +75,18 @@ func (h *Model) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case scrollMsg:
+		h.cursor += msg.delta
+		if h.cursor < 0 {
+			h.cursor = 0
+		}
+		allItems := h.getAllItems()
+		if h.cursor >= len(allItems) {
+			h.cursor = len(allItems) - 1
+		}
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, h.keyMap.Help), key.Matches(msg, h.keyMap.Cancel):
+		case key.Matches(msg, h.keyMap.Cancel):
 			return common.Close
 		}
 	}
@@ -80,16 +97,49 @@ func (h *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (h *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	// NOTE: add new lines between search bar and help menu
-	content := "\n\n" + h.renderMenu()
+	topSection := max(box.R.Dy()-20, 0)
+	_, box = box.CutTop(topSection)
+	box, _ = box.CutBottom(1)
 
-	v := h.styles.border.Render(h.searchQuery.View(), content)
-	w, height := lipgloss.Size(v)
-	pw, ph := box.R.Dx(), box.R.Dy()
-	sx := box.R.Min.X + max((pw-w)/2, 0)
-	sy := box.R.Min.Y + max((ph-height)/2, 0)
-	frame := cellbuf.Rect(sx, sy, w, height)
-	dl.AddDraw(frame, v, 3)
+	dl.AddDraw(box.R, h.styles.border.Width(box.R.Dx()-2).Height(box.R.Dy()-2).Render(""), 2)
+	box = box.Inset(1)
+
+	queryBox, box := box.CutTop(2)
+
+	dl.AddDraw(queryBox.R, h.searchQuery.View(), 3)
+	allItems := h.getAllItems()
+
+	dl.AddInteraction(box.R, h.renderer.ScrollMsg, render.InteractionScroll, 3)
+	h.renderer.Render(dl,
+		box,
+		len(allItems),
+		h.cursor,
+		true,
+		func(index int) int {
+			return 1
+		}, func(dl *render.DisplayContext, index int, rect cellbuf.Rectangle) {
+			item := allItems[index]
+			dl.AddDraw(rect, item.display, 3)
+		}, func(index int) render.ClickMessage {
+			return nil
+		})
+}
+
+func (h *Model) getAllItems() []helpItem {
+	//TODO: cache this?
+	l := h.filteredMenu.list
+	if len(l) == 0 {
+		l = h.defaultMenu.list
+	}
+
+	var allItems []helpItem
+	for i, category := range l {
+		allItems = append(allItems, category...)
+		if i < len(l)-1 {
+			allItems = append(allItems, helpItem{}) // spacer between categories
+		}
+	}
+	return allItems
 }
 
 func (h *Model) filterMenu() {
@@ -101,9 +151,7 @@ func (h *Model) filterMenu() {
 	}
 
 	h.filteredMenu = helpMenu{
-		leftList:   filterList(h.defaultMenu.leftList, query),
-		middleList: filterList(h.defaultMenu.middleList, query),
-		rightList:  filterList(h.defaultMenu.rightList, query),
+		list: filterList(h.defaultMenu.list, query),
 	}
 }
 
@@ -130,7 +178,6 @@ func filterList(column menuColumn, query string) menuColumn {
 		}
 
 		if len(matchedItems) > 1 {
-			matchedItems = append(matchedItems, helpItem{"", ""})
 			filtered = append(filtered, matchedItems)
 		}
 	}
@@ -140,7 +187,7 @@ func filterList(column menuColumn, query string) menuColumn {
 
 func New(context *context.MainContext) *Model {
 	styles := styles{
-		border:   common.DefaultPalette.GetBorder("help border", lipgloss.NormalBorder()).Padding(1),
+		border:   common.DefaultPalette.GetBorder("help border", lipgloss.NormalBorder()),
 		title:    common.DefaultPalette.Get("help title").PaddingLeft(1),
 		text:     common.DefaultPalette.Get("help text"),
 		dimmed:   common.DefaultPalette.Get("help dimmed").PaddingLeft(1),
@@ -161,6 +208,7 @@ func New(context *context.MainContext) *Model {
 		keyMap:      config.Current.GetKeyMap(),
 		styles:      styles,
 		searchQuery: filter,
+		renderer:    render.NewListRenderer(scrollMsg{}),
 	}
 
 	m.setDefaultMenu()
