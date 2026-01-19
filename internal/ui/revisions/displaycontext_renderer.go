@@ -241,11 +241,82 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		descriptionOverlay = operation.Render(item.Commit, operations.RenderOverDescription)
 	}
 
+	// If we render an "after" operation (e.g. details) we defer elided markers so
+	// the operation can be inserted before elided markers (keeping them "between" commits).
+	insertAfterBeforeElided := false
+	if isSelected && operation != nil {
+		if desiredAfter := operation.DesiredHeight(item.Commit, operations.RenderPositionAfter); desiredAfter > 0 {
+			insertAfterBeforeElided = true
+		} else if after := operation.Render(item.Commit, operations.RenderPositionAfter); after != "" {
+			insertAfterBeforeElided = true
+		}
+	}
+
+	renderAfter := func() {
+		// Handle operation rendering for after section
+		if !isSelected || operation == nil || item.Commit.IsRoot() {
+			return
+		}
+
+		// Calculate extended gutter and its width for proper indentation
+		extended := item.Extend()
+		gutterWidth := 0
+		for _, segment := range extended.Segments {
+			gutterWidth += lipgloss.Width(segment.Text)
+		}
+
+		// Create content rect offset by gutter width
+		contentRect := cellbuf.Rect(rect.Min.X+gutterWidth, y, rect.Dx()-gutterWidth, rect.Max.Y-y)
+
+		// Screen offset for interactions - contentRect already includes the gutter offset
+		// and y position, so just pass the parent's screenOffset through
+		contentScreenOffset := screenOffset
+
+		// Render the operation content
+		height := operation.RenderToDisplayContext(dl, item.Commit, operations.RenderPositionAfter, contentRect, contentScreenOffset)
+
+		if height > 0 {
+			// Render gutters for each line
+			for i := 0; i < height; i++ {
+				gutterContent := r.renderGutter(extended)
+				gutterRect := cellbuf.Rect(rect.Min.X, y+i, gutterWidth, 1)
+				dl.AddDraw(gutterRect, gutterContent, 0)
+			}
+			y += height
+			return
+		}
+
+		// Fall back to string-based rendering
+		after := operation.Render(item.Commit, operations.RenderPositionAfter)
+		if after == "" {
+			return
+		}
+
+		lines := strings.Split(after, "\n")
+		for _, line := range lines {
+			if y >= rect.Max.Y {
+				break
+			}
+
+			lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
+			r.renderOperationLine(dl, lineRect, extended, line)
+			y++
+		}
+	}
+
 	// Render main lines
 	descriptionRendered := false
+	afterRendered := false
 
 	for i := 0; i < len(item.Lines); i++ {
 		line := item.Lines[i]
+
+		// If an "after" operation is active, render it before the first elided marker
+		// line so that elided markers stay visually between revisions.
+		if insertAfterBeforeElided && !afterRendered && line.Flags&parser.Elided == parser.Elided {
+			renderAfter()
+			afterRendered = true
+		}
 
 		// Skip elided lines when we have description overlay
 		if line.Flags&parser.Elided == parser.Elided && descriptionOverlay != "" {
@@ -291,53 +362,9 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		y++
 	}
 
-	// Handle operation rendering for after section
-	if isSelected && operation != nil && !item.Commit.IsRoot() {
-		// Check if operation supports DisplayContext rendering
-		// Calculate extended gutter and its width for proper indentation
-		extended := item.Extend()
-		gutterWidth := 0
-		for _, segment := range extended.Segments {
-			gutterWidth += lipgloss.Width(segment.Text)
-		}
-
-		// Create content rect offset by gutter width
-		contentRect := cellbuf.Rect(rect.Min.X+gutterWidth, y, rect.Dx()-gutterWidth, rect.Max.Y-y)
-
-		// Screen offset for interactions - contentRect already includes the gutter offset
-		// and y position, so just pass the parent's screenOffset through
-		contentScreenOffset := screenOffset
-
-		// Render the operation content
-		height := operation.RenderToDisplayContext(dl, item.Commit, operations.RenderPositionAfter, contentRect, contentScreenOffset)
-
-		if height > 0 {
-			// Render gutters for each line
-			for i := 0; i < height; i++ {
-				gutterContent := r.renderGutter(extended)
-				gutterRect := cellbuf.Rect(rect.Min.X, y+i, gutterWidth, 1)
-				dl.AddDraw(gutterRect, gutterContent, 0)
-			}
-			return
-		}
-		{
-			// Fall back to string-based rendering
-			after := operation.Render(item.Commit, operations.RenderPositionAfter)
-			if after != "" {
-				lines := strings.Split(after, "\n")
-				extended := item.Extend()
-
-				for _, line := range lines {
-					if y >= rect.Max.Y {
-						break
-					}
-
-					lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
-					r.renderOperationLine(dl, lineRect, extended, line)
-					y++
-				}
-			}
-		}
+	// Render operation after section if it wasn't already inserted before elided markers.
+	if !afterRendered {
+		renderAfter()
 	}
 }
 

@@ -1,0 +1,9 @@
+[1m[38;5;2m@[0m  _PREFIX:vzv_PREFIX:19_PREFIX:false [1m[38;5;13mvzv[38;5;8mklxpm[39m [38;5;3mibrahim@dursun.cc[39m [38;5;14m2025-03-15 23:36:03[39m [38;5;13mexp/log-parser[39m [38;5;12m19[38;5;8ma58c40[39m[0m
+│  [1mrefactor: add notemplate_parser[0m
+[1m[38;5;14m◆[0m  _PREFIX:u_PREFIX:9_PREFIX:false [1m[38;5;5mu[0m[38;5;8mzlqpksu[39m [38;5;3mibrahim@dursun.cc[39m [38;5;6m2025-03-15 22:42:14[39m [38;5;5mmain[39m [1m[38;5;4m9[0m[38;5;8m0d3c3f5[39m
+│  feat(absorb): support `jj absorb`
+[38;5;8m~[39m  [38;5;8m(elided revisions)[39m
+│ ○  _PREFIX:o_PREFIX:b3_PREFIX:false [1m[38;5;5mo[0m[38;5;8mwvurkmm[39m [38;5;3mibrahim@dursun.cc[39m [38;5;6m2025-03-15 12:16:34[39m [1m[38;5;4mb3[0m[38;5;8md83572[39m
+│ │  [38;5;3m(no description set)[39m
+│ ○  _PREFIX:m_PREFIX:3_PREFIX:false [1m[38;5;5mm[0m[38;5;8mxnulzmt[39m [38;5;3mibrahim@dursun.cc[39m [38;5;6m2025-03-14 21:07:40[39m [1m[38;5;4m3[0m[38;5;8m1787156[39m
+│ │  refactor: remove selection tracking code
