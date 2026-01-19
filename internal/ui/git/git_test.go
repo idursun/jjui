@@ -1,10 +1,15 @@
 package git
 
 import (
+	"fmt"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/common/menu"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -69,4 +74,29 @@ func Test_PushChange(t *testing.T) {
 	test.SimulateModel(op, test.Press(tea.KeyDown)) // Ensure first item is selected
 	test.SimulateModel(op, test.Press(tea.KeyEnter))
 	test.SimulateModel(op, test.Press(tea.KeyEnter))
+}
+
+// TestGit_ZIndex_RendersAboveMainContent verifies that the git overlay renders
+// at z-index >= menu.ZIndexBorder. This ensures the git operations menu
+// renders above the main revision list content.
+func TestGit_ZIndex_RendersAboveMainContent(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin"))
+
+	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions())
+	test.SimulateModel(op, op.Init())
+
+	dl := render.NewDisplayContext()
+	box := layout.Box{R: cellbuf.Rect(0, 0, 100, 40)}
+	op.ViewRect(dl, box)
+
+	draws := dl.DrawList()
+	assert.NotEqual(t, 0, len(draws), "Expected git overlay to produce draw operations")
+
+	for i, draw := range draws {
+		msg := fmt.Sprintf("Draw operation %d has z-index %d, expected >= %d. "+
+			"Git overlay must render above main content.",
+			i, draw.Z, menu.ZIndexBorder)
+		assert.GreaterOrEqual(t, draw.Z, menu.ZIndexBorder, msg)
+	}
 }

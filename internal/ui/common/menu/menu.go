@@ -57,6 +57,13 @@ const (
 	filterApplied
 )
 
+// Z-index constants for menu overlays.
+// Menu overlays render above main content (z=0-1) to ensure visibility.
+const (
+	ZIndexBorder  = 100 // Z-index for menu border
+	ZIndexContent = 101 // Z-index for menu content
+)
+
 type MenuClickMsg struct {
 	Index int
 }
@@ -308,7 +315,7 @@ func (m *Menu) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	base := lipgloss.NewStyle().Width(contentWidth).Height(contentHeight).Render("")
 	bordered := m.styles.border.Render(base)
-	dl.AddDraw(box.R, bordered, 0)
+	dl.AddDraw(box.R, bordered, ZIndexBorder)
 
 	var headerLines []string
 	headerLines = append(headerLines, m.renderTitle(contentWidth)...)
@@ -329,7 +336,7 @@ func (m *Menu) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			line = lipgloss.NewStyle().Width(contentWidth).Render("")
 		}
 		rect := cellbuf.Rect(contentRect.Min.X, contentRect.Min.Y+headerHeight, contentWidth, h)
-		dl.AddDraw(rect, line, 1)
+		dl.AddDraw(rect, line, ZIndexContent)
 		headerHeight += h
 	}
 
@@ -364,7 +371,7 @@ func (m *Menu) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			if content == "" {
 				return
 			}
-			dl.AddDraw(rect, content, 1)
+			dl.AddDraw(rect, content, ZIndexContent)
 		},
 		func(index int) tea.Msg { return MenuClickMsg{Index: index} },
 	)

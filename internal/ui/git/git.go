@@ -170,7 +170,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	frame := cellbuf.Rect(sx, sy, menuWidth, menuHeight)
 	if len(m.menu.VisibleItems()) == 0 {
 		fillRect := frame.Inset(1)
-		dl.AddFill(fillRect, ' ', lipgloss.NewStyle(), 1)
+		dl.AddFill(fillRect, ' ', lipgloss.NewStyle(), menu.ZIndexContent)
 	}
 	m.menu.ViewRect(dl, layout.Box{R: frame})
 
@@ -183,13 +183,13 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 }
 
 func (m *Model) renderRemotes(dl *render.DisplayContext, x, y, width int) {
-	// Create a window for remotes with higher z-index than menu (z=10)
+	// Create a window for remotes with higher z-index than menu
 	// so that clicks are routed to this window instead of the menu
-	remoteRect := cellbuf.Rect(x, y, width, 1)
-	windowedDl := dl.Window(remoteRect, 11)
+	remoteRect := cellbuf.Rect(x, y, width, menu.ZIndexContent)
+	windowedDl := dl.Window(remoteRect, menu.ZIndexContent)
 
-	// Use z=2 to render above menu content (menu uses z=0 for border, z=1 for content)
-	tb := windowedDl.Text(x, y, 2).
+	// Render above menu content
+	tb := windowedDl.Text(x, y, menu.ZIndexContent+1).
 		Styled("Remotes: ", m.styles.promptStyle)
 
 	if len(m.remoteNames) == 0 {

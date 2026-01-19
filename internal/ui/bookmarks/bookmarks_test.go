@@ -1,10 +1,16 @@
 package bookmarks
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 
+	"github.com/charmbracelet/x/cellbuf"
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common/menu"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -48,4 +54,31 @@ func Test_Sorting_MixedCommands(t *testing.T) {
 		sorted = append(sorted, i.(item).name)
 	}
 	assert.Equal(t, []string{"move main", "move very-old-feature", "delete main", "delete very-old-feature"}, sorted)
+}
+
+// TestBookmarks_ZIndex_RendersAboveMainContent verifies that the bookmarks
+// overlay renders at z-index >= menu.ZIndexBorder. This ensures the bookmarks
+// operations menu renders above the main revision list content.
+func TestBookmarks_ZIndex_RendersAboveMainContent(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(""))
+	commandRunner.Expect(jj.BookmarkListMovable("abc123")).SetOutput([]byte(""))
+
+	commit := &jj.Commit{ChangeId: "abc123", CommitId: "commit123"}
+	op := NewModel(test.NewTestContext(commandRunner), commit, []string{"commit123"})
+	test.SimulateModel(op, op.Init())
+
+	dl := render.NewDisplayContext()
+	box := layout.Box{R: cellbuf.Rect(0, 0, 100, 40)}
+	op.ViewRect(dl, box)
+
+	draws := dl.DrawList()
+
+	for i, draw := range draws {
+		msg := fmt.Sprintf("Draw operation %d has z-index %d, expected >= %d. "+
+			"Bookmarks overlay must render above main content.",
+			i, draw.Z, menu.ZIndexBorder)
+		assert.GreaterOrEqual(t, draw.Z, menu.ZIndexBorder, msg)
+	}
 }
