@@ -162,6 +162,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) SetContent(content string) {
+	m.reset()
 	m.content = strings.ReplaceAll(content, "\r", "")
 	m.view.SetContent(content)
 }
