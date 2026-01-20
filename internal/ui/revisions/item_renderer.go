@@ -23,9 +23,11 @@ type itemRenderer struct {
 	isChecked     bool
 }
 
-func (ir itemRenderer) getSegmentStyle(segment screen.Segment) lipgloss.Style {
+// getSegmentStyleForLine returns the style for a segment, considering whether the line is highlightable.
+// Only lines with the Highlightable flag should get the selected style when the row is selected.
+func (ir itemRenderer) getSegmentStyleForLine(segment screen.Segment, lineIsHighlightable bool) lipgloss.Style {
 	style := segment.Style
-	if ir.isHighlighted {
+	if ir.isHighlighted && lineIsHighlightable {
 		style = style.Inherit(ir.selectedStyle)
 	} else {
 		style = style.Inherit(ir.textStyle)
@@ -33,8 +35,9 @@ func (ir itemRenderer) getSegmentStyle(segment screen.Segment) lipgloss.Style {
 	return style
 }
 
-func (ir itemRenderer) renderSegment(tb *render.TextBuilder, segment *screen.Segment) {
-	baseStyle := ir.getSegmentStyle(*segment)
+// renderSegmentForLine renders a segment considering whether the line is highlightable.
+func (ir itemRenderer) renderSegmentForLine(tb *render.TextBuilder, segment *screen.Segment, lineIsHighlightable bool) {
+	baseStyle := ir.getSegmentStyleForLine(*segment, lineIsHighlightable)
 	if ir.SearchText == "" {
 		tb.Styled(segment.Text, baseStyle)
 		return

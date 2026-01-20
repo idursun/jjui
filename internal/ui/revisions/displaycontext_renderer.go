@@ -341,11 +341,6 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 			afterRendered = true
 		}
 
-		// Skip elided lines when we have description overlay
-		if line.Flags&parser.Elided == parser.Elided && descriptionOverlay != "" {
-			continue
-		}
-
 		// Handle description overlay
 		if descriptionOverlay != "" && !descriptionRendered &&
 			line.Flags&parser.Highlightable == parser.Highlightable &&
@@ -398,6 +393,9 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 
 // renderLine writes a line into a TextBuilder (helper for itemRenderer)
 func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRowLine) {
+	// Only highlight lines with the Highlightable flag
+	lineIsHighlightable := line.Flags&parser.Highlightable == parser.Highlightable
+
 	// Render gutter (no tracer support for now)
 	for _, segment := range line.Gutter.Segments {
 		style := segment.Style.Inherit(ir.textStyle)
@@ -426,7 +424,7 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 			tb.Write(beforeCommitID)
 		}
 
-		style := ir.getSegmentStyle(*segment)
+		style := ir.getSegmentStyleForLine(*segment, lineIsHighlightable)
 		if sr, ok := ir.op.(operations.SegmentRenderer); ok {
 			rendered := sr.RenderSegment(style, segment, ir.row)
 			if rendered != "" {
@@ -434,7 +432,7 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 				continue
 			}
 		}
-		ir.renderSegment(tb, segment)
+		ir.renderSegmentForLine(tb, segment, lineIsHighlightable)
 	}
 
 	// Add affected marker
