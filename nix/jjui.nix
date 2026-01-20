@@ -12,5 +12,9 @@
         inherit jjui;
         default = jjui;
       };
+
+      checks = {
+        inherit jjui;
+      };
     };
 }
