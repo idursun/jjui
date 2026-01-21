@@ -109,19 +109,39 @@ func (r *DisplayContextRenderer) addHighlights(
 	y := rect.Min.Y
 
 	// Account for operation "before" lines
+	overlay := ""
 	if operation != nil {
 		before := operation.Render(item.Commit, operations.RenderPositionBefore)
 		if before != "" {
 			y += strings.Count(before, "\n") + 1
 		}
+		overlay = operation.Render(item.Commit, operations.RenderOverDescription)
 	}
+	overlayRendered := false
 
-	// Add highlights only for lines with Highlightable flag
 	for _, line := range item.Lines {
-		if line.Flags&parser.Highlightable == parser.Highlightable {
-			lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
-			dl.AddHighlight(lineRect, r.selectedStyle, 1)
+		if y >= rect.Max.Y {
+			break
 		}
+
+		highlightable := line.Flags&parser.Highlightable != 0
+		descriptionLine := highlightable && line.Flags&parser.Revision == 0
+
+		if highlightable {
+			dl.AddHighlight(cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1), r.selectedStyle, 1)
+		}
+
+		// When overlay exists, render it once for the first description line, skip
+		// the rest
+		if descriptionLine && overlay != "" && !overlayRendered {
+			height := strings.Count(overlay, "\n") + 1
+			// create a rectangle covering the overlay lines
+			rect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), height)
+			dl.AddHighlight(rect, r.selectedStyle, 1)
+			overlayRendered = true
+			continue
+		}
+
 		y++
 	}
 }
