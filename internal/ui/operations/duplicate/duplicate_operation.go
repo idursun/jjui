@@ -14,6 +14,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
@@ -43,19 +44,31 @@ type styles struct {
 
 var _ operations.Operation = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
+var _ common.Overlay = (*Operation)(nil)
+var _ common.Editable = (*Operation)(nil)
 
 type Operation struct {
-	context     *appContext.MainContext
-	From        jj.SelectedRevisions
-	InsertStart *jj.Commit
-	To          *jj.Commit
-	Target      Target
-	keyMap      config.KeyMappings[key.Binding]
-	styles      styles
+	context      *appContext.MainContext
+	From         jj.SelectedRevisions
+	InsertStart  *jj.Commit
+	To           *jj.Commit
+	Target       Target
+	targetName   string
+	targetPicker *target_picker.Model
+	keyMap       config.KeyMappings[key.Binding]
+	styles       styles
 }
 
 func (r *Operation) IsFocused() bool {
 	return true
+}
+
+func (r *Operation) IsEditing() bool {
+	return r.targetPicker != nil
+}
+
+func (r *Operation) IsOverlay() bool {
+	return r.targetPicker != nil
 }
 
 func (r *Operation) Init() tea.Cmd {
@@ -64,11 +77,24 @@ func (r *Operation) Init() tea.Cmd {
 
 func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case target_picker.TargetSelectedMsg:
+		r.targetPicker = nil
+		r.targetName = strings.TrimSpace(msg.Target)
+		return r.handleIntent(intents.Apply{Force: msg.Force})
+	case target_picker.TargetPickerCancelMsg:
+		r.targetPicker = nil
+		return nil
 	case intents.Intent:
 		return r.handleIntent(msg)
 	case tea.KeyMsg:
+		if r.targetPicker != nil {
+			return r.targetPicker.Update(msg)
+		}
 		return r.HandleKey(msg)
 	default:
+		if r.targetPicker != nil {
+			return r.targetPicker.Update(msg)
+		}
 		return nil
 	}
 }
@@ -81,7 +107,7 @@ func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		r.Target = duplicateTargetFromIntent(msg.Target)
 	case intents.Apply:
 		target := targetToFlags[r.Target]
-		return r.context.RunCommand(jj.Duplicate(r.From, r.To.GetChangeId(), target), common.RefreshAndSelect(r.From.Last()), common.Close)
+		return r.context.RunCommand(jj.Duplicate(r.From, r.targetArg(), target), common.RefreshAndSelect(r.From.Last()), common.Close)
 	case intents.Cancel:
 		return common.Close
 	default:
@@ -103,9 +129,10 @@ func duplicateTargetFromIntent(target intents.DuplicateTarget) Target {
 	}
 }
 
-func (r *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
-
 func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
+	if r.targetPicker != nil {
+		return r.targetPicker.Update(msg)
+	}
 	switch {
 	case key.Matches(msg, r.keyMap.AceJump):
 		return r.handleIntent(intents.StartAceJump{})
@@ -115,6 +142,9 @@ func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		return r.handleIntent(intents.DuplicateSetTarget{Target: intents.DuplicateTargetAfter})
 	case key.Matches(msg, r.keyMap.Duplicate.Before):
 		return r.handleIntent(intents.DuplicateSetTarget{Target: intents.DuplicateTargetBefore})
+	case key.Matches(msg, r.keyMap.Duplicate.Target):
+		r.targetPicker = target_picker.NewModel(r.context)
+		return r.targetPicker.Init()
 	case key.Matches(msg, r.keyMap.Apply):
 		return r.handleIntent(intents.Apply{})
 	case key.Matches(msg, r.keyMap.Cancel):
@@ -134,6 +164,7 @@ func (r *Operation) ShortHelp() []key.Binding {
 		r.keyMap.Duplicate.After,
 		r.keyMap.Duplicate.Before,
 		r.keyMap.Duplicate.Onto,
+		r.keyMap.Duplicate.Target,
 		r.keyMap.AceJump,
 	}
 }
@@ -195,6 +226,22 @@ func (r *Operation) DesiredHeight(_ *jj.Commit, _ operations.RenderPosition) int
 
 func (r *Operation) Name() string {
 	return "duplicate"
+}
+
+func (r *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	if r.targetPicker != nil {
+		r.targetPicker.ViewRect(dl, box)
+	}
+}
+
+func (r *Operation) targetArg() string {
+	if strings.TrimSpace(r.targetName) != "" {
+		return r.targetName
+	}
+	if r.To != nil {
+		return r.To.GetChangeId()
+	}
+	return ""
 }
 
 func NewOperation(context *appContext.MainContext, from jj.SelectedRevisions, target Target) *Operation {

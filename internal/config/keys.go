@@ -52,6 +52,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		ExecShell:        key.NewBinding(key.WithKeys(m.ExecShell...), key.WithHelp(JoinKeys(m.ExecShell), "interactive shell command")),
 		Revert: revertModeKeys[key.Binding]{
 			Mode:   key.NewBinding(key.WithKeys(m.Revert.Mode...), key.WithHelp(JoinKeys(m.Revert.Mode), "revert")),
+			Target: key.NewBinding(key.WithKeys(m.Revert.Target...), key.WithHelp(JoinKeys(m.Revert.Target), "target")),
 			After:  key.NewBinding(key.WithKeys(m.Revert.After...), key.WithHelp(JoinKeys(m.Revert.After), "insert after")),
 			Before: key.NewBinding(key.WithKeys(m.Revert.Before...), key.WithHelp(JoinKeys(m.Revert.Before), "insert before")),
 			Onto:   key.NewBinding(key.WithKeys(m.Revert.Onto...), key.WithHelp(JoinKeys(m.Revert.Onto), "onto")),
@@ -62,6 +63,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Revision:    key.NewBinding(key.WithKeys(m.Rebase.Revision...), key.WithHelp(JoinKeys(m.Rebase.Revision), "revision")),
 			Source:      key.NewBinding(key.WithKeys(m.Rebase.Source...), key.WithHelp(JoinKeys(m.Rebase.Source), "source")),
 			Branch:      key.NewBinding(key.WithKeys(m.Rebase.Branch...), key.WithHelp(JoinKeys(m.Rebase.Branch), "branch")),
+			Target:      key.NewBinding(key.WithKeys(m.Rebase.Target...), key.WithHelp(JoinKeys(m.Rebase.Target), "target")),
 			After:       key.NewBinding(key.WithKeys(m.Rebase.After...), key.WithHelp(JoinKeys(m.Rebase.After), "insert after")),
 			Before:      key.NewBinding(key.WithKeys(m.Rebase.Before...), key.WithHelp(JoinKeys(m.Rebase.Before), "insert before")),
 			Onto:        key.NewBinding(key.WithKeys(m.Rebase.Onto...), key.WithHelp(JoinKeys(m.Rebase.Onto), "onto")),
@@ -70,12 +72,14 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		},
 		Duplicate: duplicateModeKeys[key.Binding]{
 			Mode:   key.NewBinding(key.WithKeys(m.Duplicate.Mode...), key.WithHelp(JoinKeys(m.Duplicate.Mode), "duplicate")),
+			Target: key.NewBinding(key.WithKeys(m.Duplicate.Target...), key.WithHelp(JoinKeys(m.Duplicate.Target), "target")),
 			After:  key.NewBinding(key.WithKeys(m.Duplicate.After...), key.WithHelp(JoinKeys(m.Duplicate.After), "duplicate after")),
 			Before: key.NewBinding(key.WithKeys(m.Duplicate.Before...), key.WithHelp(JoinKeys(m.Duplicate.Before), "duplicate before")),
 			Onto:   key.NewBinding(key.WithKeys(m.Duplicate.Onto...), key.WithHelp(JoinKeys(m.Duplicate.Onto), "duplicate onto")),
 		},
 		Squash: squashModeKeys[key.Binding]{
 			Mode:                  key.NewBinding(key.WithKeys(m.Squash.Mode...), key.WithHelp(JoinKeys(m.Squash.Mode), "squash")),
+			Target:                key.NewBinding(key.WithKeys(m.Squash.Target...), key.WithHelp(JoinKeys(m.Squash.Target), "target")),
 			KeepEmptied:           key.NewBinding(key.WithKeys(m.Squash.KeepEmptied...), key.WithHelp(JoinKeys(m.Squash.KeepEmptied), "keep emptied commits")),
 			UseDestinationMessage: key.NewBinding(key.WithKeys(m.Squash.UseDestinationMessage...), key.WithHelp(JoinKeys(m.Squash.UseDestinationMessage), "use destination message")),
 			Interactive:           key.NewBinding(key.WithKeys(m.Squash.Interactive...), key.WithHelp(JoinKeys(m.Squash.Interactive), "interactive")),
@@ -223,6 +227,7 @@ type bookmarkModeKeys[T any] struct {
 
 type squashModeKeys[T any] struct {
 	Mode                  T `toml:"mode"`
+	Target                T `toml:"target"`
 	KeepEmptied           T `toml:"keep_emptied"`
 	UseDestinationMessage T `toml:"use_destination_message"`
 	Interactive           T `toml:"interactive"`
@@ -230,6 +235,7 @@ type squashModeKeys[T any] struct {
 
 type revertModeKeys[T any] struct {
 	Mode   T `toml:"mode"`
+	Target T `toml:"target"`
 	After  T `toml:"after"`
 	Before T `toml:"before"`
 	Onto   T `toml:"onto"`
@@ -241,6 +247,7 @@ type rebaseModeKeys[T any] struct {
 	Revision    T `toml:"revision"`
 	Source      T `toml:"source"`
 	Branch      T `toml:"branch"`
+	Target      T `toml:"target"`
 	After       T `toml:"after"`
 	Before      T `toml:"before"`
 	Onto        T `toml:"onto"`
@@ -250,6 +257,7 @@ type rebaseModeKeys[T any] struct {
 
 type duplicateModeKeys[T any] struct {
 	Mode   T `toml:"mode"`
+	Target T `toml:"target"`
 	After  T `toml:"after"`
 	Before T `toml:"before"`
 	Onto   T `toml:"onto"`

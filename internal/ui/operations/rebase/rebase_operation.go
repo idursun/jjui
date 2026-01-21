@@ -17,6 +17,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
@@ -62,6 +63,8 @@ type styles struct {
 var (
 	_ operations.Operation = (*Operation)(nil)
 	_ common.Focusable     = (*Operation)(nil)
+	_ common.Overlay       = (*Operation)(nil)
+	_ common.Editable      = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -71,6 +74,8 @@ type Operation struct {
 	To             *jj.Commit
 	Source         Source
 	Target         Target
+	targetName     string
+	targetPicker   *target_picker.Model
 	keyMap         config.KeyMappings[key.Binding]
 	highlightedIds []string
 	styles         styles
@@ -87,20 +92,41 @@ func (r *Operation) IsFocused() bool {
 	return true
 }
 
+func (r *Operation) IsEditing() bool {
+	return r.targetPicker != nil
+}
+
+func (r *Operation) IsOverlay() bool {
+	return r.targetPicker != nil
+}
+
 func (r *Operation) Init() tea.Cmd {
 	return nil
 }
 
 func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case target_picker.TargetSelectedMsg:
+		r.targetPicker = nil
+		r.targetName = strings.TrimSpace(msg.Target)
+		return r.handleIntent(intents.Apply{Force: msg.Force})
+	case target_picker.TargetPickerCancelMsg:
+		r.targetPicker = nil
+		return nil
 	case updateHighlightedIdsMsg:
 		r.highlightedIds = msg.ids
 		return nil
 	case intents.Intent:
 		return r.handleIntent(msg)
 	case tea.KeyMsg:
+		if r.targetPicker != nil {
+			return r.targetPicker.Update(msg)
+		}
 		return r.HandleKey(msg)
 	default:
+		if r.targetPicker != nil {
+			return r.targetPicker.Update(msg)
+		}
 		return nil
 	}
 }
@@ -121,11 +147,13 @@ func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.Apply:
 		skipEmptied := r.SkipEmptied
 		if r.Target == TargetInsert {
-			return r.context.RunCommand(jj.RebaseInsert(r.From, r.InsertStart.GetChangeId(), r.To.GetChangeId(), skipEmptied, msg.Force), common.RefreshAndSelect(r.From.Last()), common.Close)
+			insertAfter := r.InsertStart.GetChangeId()
+			insertBefore := r.targetArg()
+			return r.context.RunCommand(jj.RebaseInsert(r.From, insertAfter, insertBefore, skipEmptied, msg.Force), common.RefreshAndSelect(r.From.Last()), common.Close)
 		}
 		source := sourceToFlags[r.Source]
 		target := targetToFlags[r.Target]
-		return r.context.RunCommand(jj.Rebase(r.From, r.To.GetChangeId(), source, target, skipEmptied, msg.Force), common.RefreshAndSelect(r.From.Last()), common.Close)
+		return r.context.RunCommand(jj.Rebase(r.From, r.targetArg(), source, target, skipEmptied, msg.Force), common.RefreshAndSelect(r.From.Last()), common.Close)
 	case intents.Cancel:
 		return common.Close
 	default:
@@ -162,9 +190,10 @@ func rebaseTargetFromIntent(target intents.RebaseTarget) Target {
 	}
 }
 
-func (r *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
-
 func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
+	if r.targetPicker != nil {
+		return r.targetPicker.Update(msg)
+	}
 	switch {
 	case key.Matches(msg, r.keyMap.AceJump):
 		return r.handleIntent(intents.StartAceJump{})
@@ -174,6 +203,9 @@ func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		return r.handleIntent(intents.RebaseSetSource{Source: intents.RebaseSourceBranch})
 	case key.Matches(msg, r.keyMap.Rebase.Source):
 		return r.handleIntent(intents.RebaseSetSource{Source: intents.RebaseSourceDescendants})
+	case key.Matches(msg, r.keyMap.Rebase.Target):
+		r.targetPicker = target_picker.NewModel(r.context)
+		return r.targetPicker.Init()
 	case key.Matches(msg, r.keyMap.Rebase.Onto):
 		return r.handleIntent(intents.RebaseSetTarget{Target: intents.RebaseTargetDestination})
 	case key.Matches(msg, r.keyMap.Rebase.After):
@@ -231,6 +263,7 @@ func (r *Operation) ShortHelp() []key.Binding {
 		r.keyMap.Rebase.After,
 		r.keyMap.Rebase.Onto,
 		r.keyMap.Rebase.Insert,
+		r.keyMap.Rebase.Target,
 		r.keyMap.Rebase.SkipEmptied,
 		r.keyMap.AceJump,
 	}
@@ -339,6 +372,22 @@ func (r *Operation) DesiredHeight(_ *jj.Commit, _ operations.RenderPosition) int
 
 func (r *Operation) Name() string {
 	return "rebase"
+}
+
+func (r *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	if r.targetPicker != nil {
+		r.targetPicker.ViewRect(dl, box)
+	}
+}
+
+func (r *Operation) targetArg() string {
+	if strings.TrimSpace(r.targetName) != "" {
+		return r.targetName
+	}
+	if r.To != nil {
+		return r.To.GetChangeId()
+	}
+	return ""
 }
 
 func NewOperation(context *context.MainContext, from jj.SelectedRevisions, source Source, target Target) *Operation {

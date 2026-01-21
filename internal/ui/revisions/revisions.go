@@ -972,6 +972,17 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.ensureCursorView,
 	)
 
+	switch overlayOp := m.op.(type) {
+	case *rebase.Operation:
+		overlayOp.ViewRect(dl, box)
+	case *duplicate.Operation:
+		overlayOp.ViewRect(dl, box)
+	case *revert.Operation:
+		overlayOp.ViewRect(dl, box)
+	case *squash.Operation:
+		overlayOp.ViewRect(dl, box)
+	}
+
 	// Reset the flag after ensuring cursor is visible
 	m.ensureCursorView = false
 }
