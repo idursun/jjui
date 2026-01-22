@@ -505,7 +505,8 @@ func (m *Model) renderOpLogLayout(box layout.Box) {
 }
 
 func (m *Model) renderRevisionsLayout(box layout.Box) {
-	rows := box.V(layout.Fixed(1), layout.Fill(1), layout.Fixed(1))
+	revsetHeight := m.revsetModel.Height()
+	rows := box.V(layout.Fixed(revsetHeight), layout.Fill(1), layout.Fixed(1))
 	if len(rows) < 3 {
 		return
 	}

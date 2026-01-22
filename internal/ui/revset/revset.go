@@ -190,6 +190,19 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return m.autoComplete.Update(msg)
 }
 
+func (m *Model) Height() int {
+	if !m.Editing {
+		return 1
+	}
+	// When editing, calculate height including suggestions
+	var w strings.Builder
+	w.WriteString(m.styles.promptStyle.PaddingRight(1).Render("revset:"))
+	w.WriteString(m.autoComplete.View())
+	content := w.String()
+	lines := strings.Count(content, "\n") + 1
+	return lines
+}
+
 func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	switch intent := intent.(type) {
 	case intents.Set:
@@ -255,6 +268,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
-	overlayRect := cellbuf.Rect(box.R.Min.X, box.R.Max.Y, box.R.Dx(), overlayHeight)
+	// Draw overlay within the allocated box, starting from the second line
+	overlayRect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y+1, box.R.Dx(), overlayHeight)
 	dl.AddDraw(overlayRect, overlay, 2)
 }
