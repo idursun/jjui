@@ -82,10 +82,13 @@ func DiffEdit(changeId string) CommandArgs {
 	return []string{"diffedit", "-r", changeId}
 }
 
-func Split(revision string, files []string, parallel bool) CommandArgs {
+func Split(revision string, files []string, parallel bool, interactive bool) CommandArgs {
 	args := []string{"split", "-r", revision}
 	if parallel {
 		args = append(args, "--parallel")
+	}
+	if interactive {
+		args = append(args, "--interactive")
 	}
 	var escapedFiles []string
 	for _, file := range files {
@@ -132,21 +135,16 @@ func Diff(revision string, fileName string, extraArgs ...string) CommandArgs {
 	return args
 }
 
-func Restore(revision string, files []string) CommandArgs {
+func Restore(revision string, files []string, interactive bool) CommandArgs {
 	args := []string{"restore", "-c", revision}
+	if interactive {
+		args = append(args, "--interactive")
+	}
 	var escapedFiles []string
 	for _, file := range files {
 		escapedFiles = append(escapedFiles, EscapeFileName(file))
 	}
 	args = append(args, escapedFiles...)
-	return args
-}
-
-func RestoreInteractive(revision string, file string) CommandArgs {
-	args := []string{"restore", "-c", revision, "--interactive"}
-	if file != "" {
-		args = append(args, EscapeFileName(file))
-	}
 	return args
 }
 

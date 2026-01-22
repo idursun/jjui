@@ -53,9 +53,10 @@ type ShowDiff struct {
 func (ShowDiff) isIntent() {}
 
 type StartSplit struct {
-	Selected   *jj.Commit
-	IsParallel bool
-	Files      []string
+	Selected      *jj.Commit
+	IsParallel    bool
+	IsInteractive bool
+	Files         []string
 }
 
 func (StartSplit) isIntent() {}

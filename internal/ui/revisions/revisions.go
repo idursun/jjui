@@ -871,7 +871,7 @@ func (m *Model) startSplit(intent intents.StartSplit) tea.Cmd {
 	if commit == nil {
 		return nil
 	}
-	return m.context.RunInteractiveCommand(jj.Split(commit.GetChangeId(), intent.Files, intent.IsParallel), common.Refresh)
+	return m.context.RunInteractiveCommand(jj.Split(commit.GetChangeId(), intent.Files, intent.IsParallel, intent.IsInteractive), common.Refresh)
 }
 
 func (m *Model) updateSelection() tea.Cmd {

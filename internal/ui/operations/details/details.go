@@ -202,8 +202,11 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 			[]string{"Are you sure you want to split the selected files?"},
 			confirmation.WithStylePrefix("revisions"),
 			confirmation.WithOption("Yes",
-				tea.Batch(s.context.RunInteractiveCommand(jj.Split(s.revision.GetChangeId(), selectedFiles, intent.IsParallel), common.Refresh), common.Close),
+				tea.Batch(s.context.RunInteractiveCommand(jj.Split(s.revision.GetChangeId(), selectedFiles, intent.IsParallel, false), common.Refresh), common.Close),
 				key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+			confirmation.WithOption("Interactive",
+				tea.Batch(s.context.RunInteractiveCommand(jj.Split(s.revision.GetChangeId(), selectedFiles, intent.IsParallel, true), common.Refresh), common.Close),
+				key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "interactive"))),
 			confirmation.WithOption("No",
 				confirmation.Close,
 				key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
@@ -219,17 +222,16 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 	case intents.DetailsRestore:
 		selectedFiles := s.getSelectedFiles(true)
-		selected := s.current()
 		s.selectedHint = "gets restored"
 		s.unselectedHint = "stays as is"
 		model := confirmation.New(
 			[]string{"Are you sure you want to restore the selected files?"},
 			confirmation.WithStylePrefix("revisions"),
 			confirmation.WithOption("Yes",
-				s.context.RunCommand(jj.Restore(s.revision.GetChangeId(), selectedFiles), common.Refresh, confirmation.Close),
+				s.context.RunCommand(jj.Restore(s.revision.GetChangeId(), selectedFiles, false), common.Refresh, confirmation.Close),
 				key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 			confirmation.WithOption("Interactive",
-				tea.Batch(s.context.RunInteractiveCommand(jj.RestoreInteractive(s.revision.GetChangeId(), selected.fileName), common.Refresh), common.Close),
+				tea.Batch(s.context.RunInteractiveCommand(jj.Restore(s.revision.GetChangeId(), selectedFiles, true), common.Refresh), common.Close),
 				key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "interactive"))),
 			confirmation.WithOption("No",
 				confirmation.Close,

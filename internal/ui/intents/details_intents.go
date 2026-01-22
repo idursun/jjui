@@ -15,7 +15,8 @@ type DetailsDiff struct{}
 func (DetailsDiff) isIntent() {}
 
 type DetailsSplit struct {
-	IsParallel bool
+	IsParallel    bool
+	IsInteractive bool
 }
 
 func (DetailsSplit) isIntent() {}
