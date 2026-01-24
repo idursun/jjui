@@ -431,6 +431,9 @@ func (m *Model) updateStatus() {
 	case m.leader != nil:
 		m.status.SetMode("leader")
 		m.status.SetHelp(m.leader)
+	case m.revsetModel.Editing:
+		m.status.SetMode("revset")
+		m.status.SetHelp(m.revsetModel)
 	default:
 		m.status.SetHelp(m.revisions)
 		m.status.SetMode(m.revisions.CurrentOperation().Name())

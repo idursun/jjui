@@ -261,10 +261,18 @@ func (m *Model) SetHelp(keyMap help.KeyMap) {
 	m.keyMap = keyMap
 }
 
+func (m *Model) Help() help.KeyMap {
+	return m.keyMap
+}
+
 func (m *Model) SetMode(mode string) {
 	if !m.IsFocused() {
 		m.mode = mode
 	}
+}
+
+func (m *Model) Mode() string {
+	return m.mode
 }
 
 func (m *Model) helpView(keyMap help.KeyMap) string {

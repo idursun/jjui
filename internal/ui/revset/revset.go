@@ -35,7 +35,6 @@ func RevsetCmd(msg tea.Msg) tea.Cmd {
 type Model struct {
 	Editing         bool
 	autoComplete    *autocompletion.AutoCompletionInput
-	keymap          keymap
 	History         []string
 	historyIndex    int
 	currentInput    string
@@ -54,20 +53,19 @@ func (m *Model) IsFocused() bool {
 	return m.Editing
 }
 
-type keymap struct{}
-
-func (k keymap) ShortHelp() []key.Binding {
+func (m *Model) ShortHelp() []key.Binding {
 	return []key.Binding{
 		key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "complete")),
 		key.NewBinding(key.WithKeys("ctrl+n"), key.WithHelp("ctrl+n", "next")),
 		key.NewBinding(key.WithKeys("ctrl+p"), key.WithHelp("ctrl+p", "prev")),
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "accept")),
 		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "quit")),
+		key.NewBinding(key.WithKeys("up/down"), key.WithHelp("↑/↓", "history")),
 	}
 }
 
-func (k keymap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{k.ShortHelp()}
+func (m *Model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{m.ShortHelp()}
 }
 
 func New(context *appContext.MainContext) *Model {
@@ -86,7 +84,6 @@ func New(context *appContext.MainContext) *Model {
 	return &Model{
 		context:         context,
 		Editing:         false,
-		keymap:          keymap{},
 		autoComplete:    autoComplete,
 		History:         []string{},
 		historyIndex:    -1,

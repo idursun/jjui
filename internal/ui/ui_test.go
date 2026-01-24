@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/revset"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/idursun/jjui/internal/ui/common"
@@ -129,4 +130,20 @@ func Test_Update_PreviewResizeKeysWorkWhenVisible(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_UpdateStatus_RevsetEditingShowsRevsetHelp(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+
+	model := NewUI(ctx)
+
+	// Activate revset editing
+	model.revsetModel.Update(revset.EditRevSetMsg{})
+	assert.True(t, model.revsetModel.Editing, "revset should be in editing mode")
+
+	// Trigger status update
+	model.updateStatus()
+	assert.Equal(t, "revset", model.status.Mode(), "status mode should be 'revset'")
+	assert.Equal(t, model.revsetModel, model.status.Help(), "status help should be set to revset model")
 }
