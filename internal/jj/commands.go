@@ -132,6 +132,18 @@ func Diff(revision string, fileName string, extraArgs ...string) CommandArgs {
 	return args
 }
 
+// DiffGit returns a command to get diff output in git format (for parsing)
+func DiffGit(revision string, files []string) CommandArgs {
+	args := []string{"diff", "-r", revision, "--git", "--color", "never", "--ignore-working-copy"}
+	for _, file := range files {
+		if file == "" {
+			continue
+		}
+		args = append(args, EscapeFileName(file))
+	}
+	return args
+}
+
 func Restore(revision string, files []string) CommandArgs {
 	args := []string{"restore", "-c", revision}
 	var escapedFiles []string

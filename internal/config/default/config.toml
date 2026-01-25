@@ -118,6 +118,17 @@ limit = 0
     down = ["down"]
     accept = ["enter"]
     edit = ["alt+e"]
+  [keys.diff_viewer]
+    next_hunk = ["n"]
+    prev_hunk = ["N"]
+    next_file = ["]"]
+    prev_file = ["["]
+    toggle_file_list = ["f"]
+    toggle_word_wrap = ["w"]
+    go_to_top = ["g"]
+    go_to_bottom = ["G"]
+    half_page_down = ["d"]
+    half_page_up = ["u"]
 
 
 [ui]

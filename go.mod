@@ -14,6 +14,7 @@ require (
 )
 
 require (
+	github.com/bluekeyes/go-gitdiff v0.8.1 // indirect
 	github.com/charmbracelet/colorprofile v0.3.3 // indirect
 	github.com/clipperhouse/displaywidth v0.6.0 // indirect
 	github.com/clipperhouse/stringish v0.1.1 // indirect
