@@ -17,7 +17,11 @@ type (
 		SelectedRevision string
 		KeepSelections   bool
 	}
-	ShowDiffMsg              string
+	ShowDiffMsg struct {
+		Revision   string   // Revision to show diff for (uses structured diff viewer)
+		Files      []string // Optional: specific files to show diff for
+		RawContent string   // Raw content to display (uses simple viewer, takes precedence if set)
+	}
 	UpdateRevisionsFailedMsg struct {
 		Output string
 		Err    error

@@ -137,6 +137,18 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Accept: key.NewBinding(key.WithKeys(m.FileSearch.Accept...), key.WithHelp(JoinKeys(m.FileSearch.Accept), "file revset")),
 			Edit:   key.NewBinding(key.WithKeys(m.FileSearch.Edit...), key.WithHelp(JoinKeys(m.FileSearch.Edit), "edit file")),
 		},
+		DiffViewer: diffViewerKeys[key.Binding]{
+			NextHunk:       key.NewBinding(key.WithKeys(m.DiffViewer.NextHunk...), key.WithHelp(JoinKeys(m.DiffViewer.NextHunk), "next hunk")),
+			PrevHunk:       key.NewBinding(key.WithKeys(m.DiffViewer.PrevHunk...), key.WithHelp(JoinKeys(m.DiffViewer.PrevHunk), "prev hunk")),
+			NextFile:       key.NewBinding(key.WithKeys(m.DiffViewer.NextFile...), key.WithHelp(JoinKeys(m.DiffViewer.NextFile), "next file")),
+			PrevFile:       key.NewBinding(key.WithKeys(m.DiffViewer.PrevFile...), key.WithHelp(JoinKeys(m.DiffViewer.PrevFile), "prev file")),
+			ToggleFileList: key.NewBinding(key.WithKeys(m.DiffViewer.ToggleFileList...), key.WithHelp(JoinKeys(m.DiffViewer.ToggleFileList), "toggle file list")),
+			ToggleWordWrap: key.NewBinding(key.WithKeys(m.DiffViewer.ToggleWordWrap...), key.WithHelp(JoinKeys(m.DiffViewer.ToggleWordWrap), "toggle word wrap")),
+			GoToTop:        key.NewBinding(key.WithKeys(m.DiffViewer.GoToTop...), key.WithHelp(JoinKeys(m.DiffViewer.GoToTop), "go to top")),
+			GoToBottom:     key.NewBinding(key.WithKeys(m.DiffViewer.GoToBottom...), key.WithHelp(JoinKeys(m.DiffViewer.GoToBottom), "go to bottom")),
+			HalfPageDown:   key.NewBinding(key.WithKeys(m.DiffViewer.HalfPageDown...), key.WithHelp(JoinKeys(m.DiffViewer.HalfPageDown), "half page down")),
+			HalfPageUp:     key.NewBinding(key.WithKeys(m.DiffViewer.HalfPageUp...), key.WithHelp(JoinKeys(m.DiffViewer.HalfPageUp), "half page up")),
+		},
 	}
 }
 
@@ -213,6 +225,7 @@ type KeyMappings[T any] struct {
 	Git               gitModeKeys[T]            `toml:"git"`
 	OpLog             opLogModeKeys[T]          `toml:"oplog"`
 	FileSearch        fileSearchKeys[T]         `toml:"file_search"`
+	DiffViewer        diffViewerKeys[T]         `toml:"diff_viewer"`
 }
 
 type bookmarkModeKeys[T any] struct {
@@ -317,4 +330,17 @@ type fileSearchKeys[T any] struct {
 	Down   T `toml:"down"`
 	Accept T `toml:"accept"`
 	Edit   T `toml:"edit"`
+}
+
+type diffViewerKeys[T any] struct {
+	NextHunk       T `toml:"next_hunk"`
+	PrevHunk       T `toml:"prev_hunk"`
+	NextFile       T `toml:"next_file"`
+	PrevFile       T `toml:"prev_file"`
+	ToggleFileList T `toml:"toggle_file_list"`
+	ToggleWordWrap T `toml:"toggle_word_wrap"`
+	GoToTop        T `toml:"go_to_top"`
+	GoToBottom     T `toml:"go_to_bottom"`
+	HalfPageDown   T `toml:"half_page_down"`
+	HalfPageUp     T `toml:"half_page_up"`
 }

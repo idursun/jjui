@@ -50,7 +50,7 @@ func (c CustomRunCommand) Prepare(ctx *MainContext) tea.Cmd {
 	case config.ShowOptionDiff:
 		return func() tea.Msg {
 			output, _ := ctx.RunCommandImmediate(jj.TemplatedArgs(c.Args, replacements))
-			return common.ShowDiffMsg(output)
+			return common.ShowDiffMsg{RawContent: string(output)}
 		}
 	case config.ShowOptionInteractive:
 		return ctx.RunInteractiveCommand(jj.TemplatedArgs(c.Args, replacements), common.Refresh)

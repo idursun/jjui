@@ -11,26 +11,26 @@ import (
 )
 
 func TestNew_TrimsCarriageReturnsAndHandlesEmpty(t *testing.T) {
-	model := New("line1\r\nline2\r\n")
+	model := New(nil, "", nil, "line1\r\nline2\r\n")
 	assert.Equal(t, "line1\nline2", test.Stripped(test.RenderImmediate(model, 20, 5)))
 
-	emptyModel := New("")
+	emptyModel := New(nil, "", nil, "")
 	assert.Equal(t, "(empty)", test.Stripped(test.RenderImmediate(emptyModel, 10, 3)))
 }
 
 func TestScroll_AdjustsViewportOffset(t *testing.T) {
 	content := "1\n2\n3\n4\n5\n"
-	model := New(content)
+	model := New(nil, "", nil, content)
 
 	model.Scroll(2)
-	assert.Equal(t, 2, model.view.YOffset)
+	assert.Equal(t, 2, model.startLine)
 
 	model.Scroll(-1)
-	assert.Equal(t, 1, model.view.YOffset)
+	assert.Equal(t, 1, model.startLine)
 }
 
 func TestUpdate_CancelReturnsClose(t *testing.T) {
-	model := New("content")
+	model := New(nil, "", nil, "content")
 	model.keymap.Cancel = key.NewBinding(key.WithKeys("q"))
 
 	var msgs []tea.Msg

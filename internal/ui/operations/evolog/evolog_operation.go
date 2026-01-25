@@ -180,10 +180,9 @@ func (o *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		if o.mode != selectMode {
 			return nil
 		}
+		selectedCommitId := o.getSelectedEvolog().CommitId
 		return func() tea.Msg {
-			selectedCommitId := o.getSelectedEvolog().CommitId
-			output, _ := o.context.RunCommandImmediate(jj.Diff(selectedCommitId, ""))
-			return common.ShowDiffMsg(output)
+			return common.ShowDiffMsg{Revision: selectedCommitId}
 		}
 	case intents.EvologRestore:
 		if o.mode != selectMode {

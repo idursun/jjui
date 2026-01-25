@@ -190,9 +190,10 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		if selected == nil {
 			return nil
 		}
+		changeId := s.revision.GetChangeId()
+		selectedFiles := s.getSelectedFiles(true)
 		return func() tea.Msg {
-			output, _ := s.context.RunCommandImmediate(jj.Diff(s.revision.GetChangeId(), selected.fileName))
-			return common.ShowDiffMsg(output)
+			return common.ShowDiffMsg{Revision: changeId, Files: selectedFiles}
 		}
 	case intents.DetailsSplit:
 		selectedFiles := s.getSelectedFiles(true)
