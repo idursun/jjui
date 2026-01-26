@@ -204,6 +204,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 	case FileSelectedMsg:
 		m.selectFile(msg.Index)
+	case TreeToggleMsg:
+		if m.fileList != nil {
+			m.fileList.ToggleExpand(msg.VisibleIndex)
+		}
 	}
 	return nil
 }
@@ -241,7 +245,9 @@ func (m *Model) navigateToNextFile() {
 		return
 	}
 	m.fileList.MoveDown()
-	m.selectFile(m.fileList.SelectedIndex())
+	if idx := m.fileList.SelectedIndex(); idx >= 0 {
+		m.selectFile(idx)
+	}
 }
 
 func (m *Model) navigateToPrevFile() {
@@ -249,7 +255,9 @@ func (m *Model) navigateToPrevFile() {
 		return
 	}
 	m.fileList.MoveUp()
-	m.selectFile(m.fileList.SelectedIndex())
+	if idx := m.fileList.SelectedIndex(); idx >= 0 {
+		m.selectFile(idx)
+	}
 }
 
 func (m *Model) selectFile(idx int) {
