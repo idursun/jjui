@@ -44,6 +44,7 @@ type Model struct {
 	Styles      Styles
 	messages    []string
 	stylePrefix string
+	zIndex      int
 }
 
 func (m *Model) ShortHelp() []key.Binding {
@@ -92,6 +93,13 @@ func WithOption(label string, cmd tea.Cmd, keyBinding key.Binding) Option {
 func WithAltOption(label string, cmd tea.Cmd, altCmd tea.Cmd, keyBinding key.Binding) Option {
 	return func(m *Model) {
 		m.options = append(m.options, option{label, cmd, keyBinding, altCmd})
+	}
+}
+
+// WithZIndex sets the z-index for rendering
+func WithZIndex(z int) Option {
+	return func(m *Model) {
+		m.zIndex = z
 	}
 }
 
@@ -165,6 +173,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
+	z := m.zIndex
+
 	measure := dl.Text(0, 0, 0)
 	m.buildContent(measure)
 	contentWidth, contentHeight := measure.Measure()
@@ -183,8 +193,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	sy := box.R.Min.Y
 
 	frame := cellbuf.Rect(sx, sy, bw, bh)
-	window := dl.Window(frame, 10)
-	window.AddDraw(frame, bordered, 0)
+	window := dl.Window(frame, z)
+	window.AddDraw(frame, bordered, z)
 
 	mt, mr, mb, ml := m.Styles.Border.GetMargin()
 	pt, pr, pb, pl := m.Styles.Border.GetPadding()
@@ -204,9 +214,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	background := lipgloss.NewStyle().Background(m.Styles.Text.GetBackground())
-	window.AddFill(contentRect, ' ', background, 1)
+	window.AddFill(contentRect, ' ', background, z+1)
 
-	tb := window.Text(contentRect.Min.X, contentRect.Min.Y, 2)
+	tb := window.Text(contentRect.Min.X, contentRect.Min.Y, z+2)
 	m.buildContent(tb)
 	tb.Done()
 }

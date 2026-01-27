@@ -55,11 +55,7 @@ type styles struct {
 	selected lipgloss.Style
 }
 
-const (
-	zIndexBorder    = 100
-	zIndexContent   = 101
-	maxVisibleItems = 20
-)
+const maxVisibleItems = 20
 
 func New(options []string) *Model {
 	return NewWithTitle(options, "")
@@ -187,20 +183,20 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
-	window := dl.Window(frame.R, zIndexContent)
+	window := dl.Window(frame.R, render.ZMenuContent)
 	contentBox := frame.Inset(1)
 	if contentBox.R.Dx() <= 0 || contentBox.R.Dy() <= 0 {
 		return
 	}
 
 	borderBase := lipgloss.NewStyle().Width(contentBox.R.Dx()).Height(contentBox.R.Dy()).Render("")
-	window.AddDraw(frame.R, m.styles.border.Render(borderBase), zIndexBorder)
+	window.AddDraw(frame.R, m.styles.border.Render(borderBase), render.ZMenuBorder)
 
 	listBox := contentBox
 	if titleHeight > 0 {
 		var titleBox layout.Box
 		titleBox, listBox = contentBox.CutTop(1)
-		window.AddDraw(titleBox.R, m.styles.title.Render(m.title), zIndexContent)
+		window.AddDraw(titleBox.R, m.styles.title.Render(m.title), render.ZMenuContent)
 	}
 
 	if listBox.R.Dx() <= 0 || listBox.R.Dy() <= 0 {
@@ -226,7 +222,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 				style = m.styles.selected
 			}
 			line := style.Padding(0, 1).Width(rect.Dx()).Render(m.options[index])
-			dl.AddDraw(rect, line, zIndexContent)
+			dl.AddDraw(rect, line, render.ZMenuContent)
 		},
 		func(index int) tea.Msg { return itemClickMsg{Index: index} },
 	)

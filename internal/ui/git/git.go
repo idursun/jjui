@@ -95,13 +95,6 @@ const (
 	filterApplied
 )
 
-// Z-index constants for menu overlays.
-// Menu overlays render above main content (z=0-1) to ensure visibility.
-const (
-	zIndexBorder  = 100 // Z-index for menu border
-	zIndexContent = 101 // Z-index for menu content
-)
-
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
@@ -308,7 +301,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	menuHeight := max(contentHeight+2, 0)
 	frame := box.Center(menuWidth, menuHeight)
 	if len(m.visibleItems()) == 0 {
-		dl.AddFill(frame.R.Inset(1), ' ', lipgloss.NewStyle(), zIndexContent)
+		dl.AddFill(frame.R.Inset(1), ' ', lipgloss.NewStyle(), render.ZMenuContent)
 	}
 	if frame.R.Dx() <= 0 || frame.R.Dy() <= 0 {
 		return
@@ -321,10 +314,10 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	borderBase := lipgloss.NewStyle().Width(contentBox.R.Dx()).Height(contentBox.R.Dy()).Render("")
-	window.AddDraw(frame.R, m.menuStyles.border.Render(borderBase), zIndexBorder)
+	window.AddDraw(frame.R, m.menuStyles.border.Render(borderBase), render.ZMenuBorder)
 
 	titleBox, contentBox := contentBox.CutTop(1)
-	window.AddDraw(titleBox.R, m.menuStyles.title.Render(m.title), zIndexContent)
+	window.AddDraw(titleBox.R, m.menuStyles.title.Render(m.title), render.ZMenuContent)
 
 	_, contentBox = contentBox.CutTop(1)
 	remoteBox, contentBox := contentBox.CutTop(1)
@@ -334,7 +327,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	filterBox, contentBox := contentBox.CutTop(1)
 	if m.filterState == filterEditing {
 		m.filterInput.Width = max(contentBox.R.Dx()-2, 0)
-		window.AddDraw(filterBox.R, m.filterInput.View(), zIndexContent)
+		window.AddDraw(filterBox.R, m.filterInput.View(), render.ZMenuContent)
 	} else {
 		m.renderFilterView(window, filterBox)
 	}
@@ -349,10 +342,10 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
 	if lineBox.R.Dx() <= 0 || lineBox.R.Dy() <= 0 {
 		return
 	}
-	windowedDl := dl.Window(lineBox.R, zIndexContent)
+	windowedDl := dl.Window(lineBox.R, render.ZMenuContent)
 
 	// Render above menu content
-	tb := windowedDl.Text(lineBox.R.Min.X, lineBox.R.Min.Y, zIndexContent+1).
+	tb := windowedDl.Text(lineBox.R.Min.X, lineBox.R.Min.Y, render.ZMenuContent+1).
 		Space(1).
 		Styled("Remotes: ", m.remoteStyles.promptStyle)
 
@@ -559,7 +552,7 @@ func (m *Model) renderFilterView(dl *render.DisplayContext, box layout.Box) {
 	if m.categoryFilter != "" {
 		filterView = lipgloss.JoinHorizontal(0, filterStyle.Render("Showing only "), filterValueStyle.Render(m.categoryFilter))
 	}
-	dl.AddDraw(box.R, m.menuStyles.text.Width(width).Render(filterView), zIndexContent)
+	dl.AddDraw(box.R, m.menuStyles.text.Width(width).Render(filterView), render.ZMenuContent)
 }
 
 func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
@@ -651,7 +644,7 @@ func renderItem(dl *render.DisplayContext, rect cellbuf.Rectangle, width int, st
 	if content == "" {
 		return
 	}
-	dl.AddDraw(rect, content, zIndexContent)
+	dl.AddDraw(rect, content, render.ZMenuContent)
 }
 
 func (m *Model) createMenuItems() []item {

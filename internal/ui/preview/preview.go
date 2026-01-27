@@ -167,10 +167,10 @@ func (m *Model) SetContent(content string) {
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.view.Width = box.R.Dx()
 	m.view.Height = box.R.Dy()
-	dl.AddDraw(box.R, m.view.View(), 0)
+	dl.AddDraw(box.R, m.view.View(), render.ZPreview)
 
 	scrollRect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), box.R.Dy())
-	dl.AddInteraction(scrollRect, ScrollMsg{}, render.InteractionScroll, 0)
+	dl.AddInteraction(scrollRect, ScrollMsg{}, render.InteractionScroll, render.ZPreview)
 }
 
 func (m *Model) reset() {

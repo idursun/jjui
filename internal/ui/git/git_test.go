@@ -76,7 +76,7 @@ func Test_PushChange(t *testing.T) {
 }
 
 // TestGit_ZIndex_RendersAboveMainContent verifies that the git overlay renders
-// at z-index >= zIndexBorder. This ensures the git operations menu
+// at z-index >= render.ZMenuBorder. This ensures the git operations menu
 // renders above the main revision list content.
 func TestGit_ZIndex_RendersAboveMainContent(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
@@ -95,7 +95,7 @@ func TestGit_ZIndex_RendersAboveMainContent(t *testing.T) {
 	for i, draw := range draws {
 		msg := fmt.Sprintf("Draw operation %d has z-index %d, expected >= %d. "+
 			"Git overlay must render above main content.",
-			i, draw.Z, zIndexBorder)
-		assert.GreaterOrEqual(t, draw.Z, zIndexBorder, msg)
+			i, draw.Z, render.ZMenuBorder)
+		assert.GreaterOrEqual(t, draw.Z, render.ZMenuBorder, msg)
 	}
 }

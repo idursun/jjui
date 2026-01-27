@@ -240,7 +240,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	content := w.String()
 	parts := strings.SplitN(content, "\n", 2)
 	line := parts[0]
-	dl.AddDraw(box.R, line, 1)
+	dl.AddDraw(box.R, line, render.ZFuzzyInput)
 
 	if !m.Editing || len(parts) < 2 {
 		return
@@ -253,5 +253,5 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	overlayRect := cellbuf.Rect(box.R.Min.X, box.R.Max.Y, box.R.Dx(), overlayHeight)
-	dl.AddDraw(overlayRect, overlay, 2)
+	dl.AddDraw(overlayRect, overlay, render.ZRevsetOverlay)
 }

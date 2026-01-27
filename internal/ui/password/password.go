@@ -69,5 +69,5 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	v := m.styles.border.Width(max(box.R.Dx()-2, 0)).Render(m.textInput.View())
 	box = box.Center(lipgloss.Size(v))
-	dl.AddDraw(box.R, v, 300)
+	dl.AddDraw(box.R, v, render.ZPassword)
 }

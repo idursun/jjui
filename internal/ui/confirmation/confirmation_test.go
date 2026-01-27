@@ -6,8 +6,11 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -99,4 +102,36 @@ func TestLegacyAddOption(t *testing.T) {
 		cmd()
 	}
 	assert.True(t, cmdCalled)
+}
+
+func TestViewRect_DefaultRendersAtZBase(t *testing.T) {
+	model := New([]string{"Test message"})
+
+	dl := render.NewDisplayContext()
+	box := layout.Box{R: cellbuf.Rect(0, 0, 50, 20)}
+	model.ViewRect(dl, box)
+
+	draws := dl.DrawList()
+	assert.NotEmpty(t, draws, "Expected confirmation to produce draw operations")
+
+	for _, draw := range draws {
+		assert.Less(t, draw.Z, render.ZPreview,
+			"Default confirmation should render below preview (ZBase level)")
+	}
+}
+
+func TestWithZIndex_RendersAtSpecifiedZIndex(t *testing.T) {
+	model := New([]string{"Test message"}, WithZIndex(render.ZDialogs))
+
+	dl := render.NewDisplayContext()
+	box := layout.Box{R: cellbuf.Rect(0, 0, 50, 20)}
+	model.ViewRect(dl, box)
+
+	draws := dl.DrawList()
+	assert.NotEmpty(t, draws, "Expected confirmation to produce draw operations")
+
+	for _, draw := range draws {
+		assert.GreaterOrEqual(t, draw.Z, render.ZDialogs,
+			"Confirmation with WithZIndex(ZDialogs) should render above preview")
+	}
 }

@@ -105,8 +105,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	content := lipgloss.JoinVertical(0, rows...)
 	content = m.styles.border.Padding(0, 1).Render(content)
 	box = box.Center(lipgloss.Size(content))
-	window := dl.Window(box.R, 10)
-	window.AddDraw(box.R, content, 1)
+	window := dl.Window(box.R, render.ZDialogs)
+	window.AddDraw(box.R, content, render.ZDialogs)
 }
 
 func (m *Model) ShortHelp() []key.Binding {

@@ -56,7 +56,7 @@ func Test_Sorting_MixedCommands(t *testing.T) {
 }
 
 // TestBookmarks_ZIndex_RendersAboveMainContent verifies that the bookmarks
-// overlay renders at z-index >= zIndexBorder. This ensures the bookmarks
+// overlay renders at z-index >= render.ZMenuBorder. This ensures the bookmarks
 // operations menu renders above the main revision list content.
 func TestBookmarks_ZIndex_RendersAboveMainContent(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
@@ -77,7 +77,7 @@ func TestBookmarks_ZIndex_RendersAboveMainContent(t *testing.T) {
 	for i, draw := range draws {
 		msg := fmt.Sprintf("Draw operation %d has z-index %d, expected >= %d. "+
 			"Bookmarks overlay must render above main content.",
-			i, draw.Z, zIndexBorder)
-		assert.GreaterOrEqual(t, draw.Z, zIndexBorder, msg)
+			i, draw.Z, render.ZMenuBorder)
+		assert.GreaterOrEqual(t, draw.Z, render.ZMenuBorder, msg)
 	}
 }

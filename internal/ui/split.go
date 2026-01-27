@@ -141,7 +141,7 @@ func (s *split) renderBoth(dl *render.DisplayContext, box layout.Box) {
 			dl.AddInteraction(sepRect, SplitDragMsg{Split: s}, render.InteractionDrag, 0)
 			drawRect, content := separatorContent(sepRect, s.Vertical)
 			if drawRect.Dx() > 0 && drawRect.Dy() > 0 && content != "" {
-				dl.AddDraw(drawRect, content, 1)
+				dl.AddDraw(drawRect, content, render.ZPreview)
 			}
 			return
 		}
@@ -175,7 +175,7 @@ func (s *split) renderBoth(dl *render.DisplayContext, box layout.Box) {
 		dl.AddInteraction(sepRect, SplitDragMsg{Split: s}, render.InteractionDrag, 0)
 		drawRect, content := separatorContent(sepRect, s.Vertical)
 		if drawRect.Dx() > 0 && drawRect.Dy() > 0 && content != "" {
-			dl.AddDraw(drawRect, content, 1)
+			dl.AddDraw(drawRect, content, render.ZPreview)
 		}
 		return
 	}

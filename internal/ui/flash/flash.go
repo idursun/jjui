@@ -135,9 +135,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			y -= h
 		}
 
-		// Use z-index 1 for overlay rendering (flash messages appear above other content)
 		rect := cellbuf.Rect(area.Max.X-w, y, w, h)
-		dl.AddDraw(rect, content, 200)
+		dl.AddDraw(rect, content, render.ZOverlay)
 	}
 }
 

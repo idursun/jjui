@@ -83,13 +83,6 @@ const (
 	filterApplied
 )
 
-// Z-index constants for menu overlays.
-// Menu overlays render above main content (z=0-1) to ensure visibility.
-const (
-	zIndexBorder  = 100 // Z-index for menu border
-	zIndexContent = 101 // Z-index for menu content
-)
-
 var _ common.ImmediateModel = (*Model)(nil)
 
 // SortedCustomCommands returns commands ordered by name for deterministic iteration.
@@ -243,16 +236,16 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	borderBase := lipgloss.NewStyle().Width(contentBox.R.Dx()).Height(contentBox.R.Dy()).Render("")
-	window.AddDraw(frame.R, m.styles.border.Render(borderBase), zIndexBorder)
+	window.AddDraw(frame.R, m.styles.border.Render(borderBase), render.ZMenuBorder)
 
 	titleBox, contentBox := contentBox.CutTop(1)
-	window.AddDraw(titleBox.R, m.styles.title.Render("Custom Commands"), zIndexContent)
+	window.AddDraw(titleBox.R, m.styles.title.Render("Custom Commands"), render.ZMenuContent)
 
 	_, contentBox = contentBox.CutTop(1)
 	filterBox, contentBox := contentBox.CutTop(1)
 	if m.filterState == filterEditing {
 		m.filterInput.Width = max(contentBox.R.Dx()-2, 0)
-		window.AddDraw(filterBox.R, m.filterInput.View(), zIndexContent)
+		window.AddDraw(filterBox.R, m.filterInput.View(), render.ZMenuContent)
 	} else {
 		m.renderFilterView(window, filterBox)
 	}
@@ -415,7 +408,7 @@ func (m *Model) renderFilterView(dl *render.DisplayContext, box layout.Box) {
 	if m.categoryFilter != "" {
 		filterView = lipgloss.JoinHorizontal(0, filterStyle.Render("Showing only "), filterValueStyle.Render(m.categoryFilter))
 	}
-	dl.AddDraw(box.R, m.styles.text.Width(width).Render(filterView), zIndexContent)
+	dl.AddDraw(box.R, m.styles.text.Width(width).Render(filterView), render.ZMenuContent)
 }
 
 func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
@@ -507,5 +500,5 @@ func renderItem(dl *render.DisplayContext, rect cellbuf.Rectangle, width int, st
 	if content == "" {
 		return
 	}
-	dl.AddDraw(rect, content, zIndexContent)
+	dl.AddDraw(rect, content, render.ZMenuContent)
 }

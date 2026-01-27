@@ -176,14 +176,14 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	centeredBox := box.Center(maxW, maxH)
 
 	borderContent := m.styles.border.Width(centeredBox.R.Dx() - 2).Height(centeredBox.R.Dy() - 2).Render("")
-	window := dl.Window(centeredBox.R, 100)
-	window.AddDraw(centeredBox.R, borderContent, 100)
+	window := dl.Window(centeredBox.R, render.ZMenuBorder)
+	window.AddDraw(centeredBox.R, borderContent, render.ZMenuBorder)
 	centeredBox = centeredBox.Inset(1)
 
 	inputBox, listBox := centeredBox.CutTop(1)
 	m.input.Width = inputBox.R.Dx()
 
-	window.AddDraw(inputBox.R, m.input.View(), 101)
+	window.AddDraw(inputBox.R, m.input.View(), render.ZMenuContent)
 
 	m.listRenderer.Render(
 		window,
@@ -202,20 +202,20 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 			pillText := m.renderPill(item.Kind)
 			pillRect := cellbuf.Rect(rect.Min.X, y, pillWidth, 1)
-			window.AddDraw(pillRect, pillText, 101)
+			window.AddDraw(pillRect, pillText, render.ZMenuContent)
 
 			isSelected := index == m.cursor
 			lineStyle := m.styles.bookmarkPill
 			matchStyle := m.styles.matchStyle
 			if isSelected {
-				window.AddHighlight(rect, m.styles.selected, 102)
+				window.AddHighlight(rect, m.styles.selected, render.ZMenuContent+1)
 			} else {
 				matchStyle = matchStyle.Inherit(lineStyle)
 			}
 			nameContent := fuzzy_search.HighlightMatched(item.Name, match, lineStyle, matchStyle)
 			nameX := rect.Min.X + pillWidth + 1
 			nameRect := cellbuf.Rect(nameX, y, rect.Dx()-pillWidth-1, 1)
-			window.AddDraw(nameRect, nameContent, 101)
+			window.AddDraw(nameRect, nameContent, render.ZMenuContent)
 		},
 		func(index int) tea.Msg { return itemClickedMsg{index: index} },
 	)

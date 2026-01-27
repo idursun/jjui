@@ -204,7 +204,7 @@ func (fzf *model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 	_, h := lipgloss.Size(content)
 	rect := cellbuf.Rect(box.R.Min.X, box.R.Max.Y-h, box.R.Dx(), h)
-	dl.AddDraw(rect, content, 1)
+	dl.AddDraw(rect, content, render.ZFuzzyInput)
 }
 
 func (fzf *model) viewContent() string {

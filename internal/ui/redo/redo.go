@@ -51,6 +51,7 @@ func NewModel(context *context.MainContext) *Model {
 	model := confirmation.New(
 		[]string{lastOperation, "Are you sure you want to redo last change?"},
 		confirmation.WithStylePrefix("redo"),
+		confirmation.WithZIndex(render.ZDialogs),
 		confirmation.WithOption("Yes", context.RunCommand(jj.Redo(), common.Refresh, common.Close), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 		confirmation.WithOption("No", common.Close, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 	)

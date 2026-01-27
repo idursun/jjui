@@ -182,7 +182,7 @@ func (s *SequenceOverlay) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	sy := area.Max.Y - h - 1
 
 	rect := cellbuf.Rect(area.Min.X, sy, w, h)
-	dl.AddDraw(rect, content, 200)
+	dl.AddDraw(rect, content, render.ZOverlay)
 }
 
 func (s *SequenceOverlay) advance(msg tea.KeyMsg) ([]SequenceCandidate, SequenceResult) {

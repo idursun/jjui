@@ -85,7 +85,7 @@ func (h *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	v := h.styles.border.Render(h.searchQuery.View(), content)
 	w, height := lipgloss.Size(v)
 	box = box.Center(w, height)
-	dl.AddDraw(box.R, v, 3)
+	dl.AddDraw(box.R, v, render.ZHelpPage)
 }
 
 func (h *Model) filterMenu() {
