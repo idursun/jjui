@@ -385,6 +385,21 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		y++
 	}
 
+	// If we have a description overlay but haven't rendered it yet after looping through all commit lines,
+	// render it now.
+	if descriptionOverlay != "" && !descriptionRendered && y < rect.Max.Y {
+		overlayLines := strings.Split(descriptionOverlay, "\n")
+		extended := item.Extend()
+		for _, overlayLine := range overlayLines {
+			if y >= rect.Max.Y {
+				break
+			}
+			lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
+			r.renderOperationLine(dl, lineRect, extended, overlayLine)
+			y++
+		}
+	}
+
 	// Render operation after section if it wasn't already inserted before elided markers.
 	if !afterRendered {
 		renderAfter()
