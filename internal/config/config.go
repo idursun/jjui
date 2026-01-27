@@ -281,7 +281,8 @@ func GetSuggestExecMode(c *Config) (SuggestMode, error) {
 }
 
 type GitConfig struct {
-	DefaultRemote string `toml:"default_remote"`
+	DefaultRemote       string `toml:"default_remote"`
+	DefaultTargetBranch string `toml:"default_target_branch"`
 }
 
 func GetGitDefaultRemote(c *Config) string {
@@ -290,6 +291,14 @@ func GetGitDefaultRemote(c *Config) string {
 		return "origin"
 	}
 	return remote
+}
+
+func GetGitDefaultTargetBranch(c *Config) string {
+	branch := c.Git.DefaultTargetBranch
+	if strings.TrimSpace(branch) == "" {
+		return "main"
+	}
+	return branch
 }
 
 type SshConfig struct {

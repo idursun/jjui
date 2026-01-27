@@ -116,9 +116,10 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Shrink:       key.NewBinding(key.WithKeys(m.Preview.Shrink...), key.WithHelp(JoinKeys(m.Preview.Shrink), "shrink width")),
 		},
 		Git: gitModeKeys[key.Binding]{
-			Mode:  key.NewBinding(key.WithKeys(m.Git.Mode...), key.WithHelp(JoinKeys(m.Git.Mode), "git")),
-			Push:  key.NewBinding(key.WithKeys(m.Git.Push...), key.WithHelp(JoinKeys(m.Git.Push), "git push")),
-			Fetch: key.NewBinding(key.WithKeys(m.Git.Fetch...), key.WithHelp(JoinKeys(m.Git.Fetch), "git fetch")),
+			Mode:     key.NewBinding(key.WithKeys(m.Git.Mode...), key.WithHelp(JoinKeys(m.Git.Mode), "git")),
+			Push:     key.NewBinding(key.WithKeys(m.Git.Push...), key.WithHelp(JoinKeys(m.Git.Push), "git push")),
+			Fetch:    key.NewBinding(key.WithKeys(m.Git.Fetch...), key.WithHelp(JoinKeys(m.Git.Fetch), "git fetch")),
+			CreatePR: key.NewBinding(key.WithKeys(m.Git.CreatePR...), key.WithHelp(JoinKeys(m.Git.CreatePR), "create PR")),
 		},
 		OpLog: opLogModeKeys[key.Binding]{
 			Mode:    key.NewBinding(key.WithKeys(m.OpLog.Mode...), key.WithHelp(JoinKeys(m.OpLog.Mode), "oplog")),
@@ -283,9 +284,10 @@ type detailsModeKeys[T any] struct {
 }
 
 type gitModeKeys[T any] struct {
-	Mode  T `toml:"mode"`
-	Push  T `toml:"push"`
-	Fetch T `toml:"fetch"`
+	Mode     T `toml:"mode"`
+	Push     T `toml:"push"`
+	Fetch    T `toml:"fetch"`
+	CreatePR T `toml:"create_pr"`
 }
 
 type previewModeKeys[T any] struct {

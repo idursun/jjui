@@ -46,3 +46,54 @@ func TestParseRemoteListOutput(t *testing.T) {
 		})
 	}
 }
+
+func TestParseRemoteListOutputFull(t *testing.T) {
+	tests := []struct {
+		name     string
+		output   string
+		expected []RemoteInfo
+	}{
+		{
+			name:   "single remote",
+			output: "origin https://github.com/user/repo.git\n",
+			expected: []RemoteInfo{
+				{Name: "origin", URL: "https://github.com/user/repo.git"},
+			},
+		},
+		{
+			name:   "multiple remotes",
+			output: "origin https://github.com/user/repo.git\nupstream https://github.com/upstream/repo.git\n",
+			expected: []RemoteInfo{
+				{Name: "origin", URL: "https://github.com/user/repo.git"},
+				{Name: "upstream", URL: "https://github.com/upstream/repo.git"},
+			},
+		},
+		{
+			name:     "empty output",
+			output:   "",
+			expected: nil,
+		},
+		{
+			name:   "SSH URL",
+			output: "origin git@github.com:user/repo.git\n",
+			expected: []RemoteInfo{
+				{Name: "origin", URL: "git@github.com:user/repo.git"},
+			},
+		},
+		{
+			name:   "mixed URLs",
+			output: "origin https://github.com/user/repo.git\nupstream git@gitlab.com:upstream/repo.git\n",
+			expected: []RemoteInfo{
+				{Name: "origin", URL: "https://github.com/user/repo.git"},
+				{Name: "upstream", URL: "git@gitlab.com:upstream/repo.git"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseRemoteListOutputFull(tt.output)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

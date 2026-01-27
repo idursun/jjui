@@ -108,6 +108,7 @@ limit = 0
     mode = ["g"]
     push = ["p"]
     fetch = ["f"]
+    create_pr = ["r"]
   [keys.oplog]
     mode = ["o"]
     restore = ["r"]
@@ -153,6 +154,7 @@ limit = 0
 
 [git]
   default_remote = "origin"
+  default_target_branch = "main"
 
 [ssh]
   hijack_askpass = false
