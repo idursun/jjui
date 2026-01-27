@@ -9,7 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
+	"github.com/idursun/jjui/internal/browser"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/git/provider"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -23,6 +25,7 @@ type itemCategory string
 const (
 	itemCategoryPush  itemCategory = "push"
 	itemCategoryFetch itemCategory = "fetch"
+	itemCategoryPR    itemCategory = "pr"
 )
 
 // SelectRemoteMsg is sent when a remote is clicked
@@ -31,11 +34,14 @@ type SelectRemoteMsg struct {
 }
 
 type item struct {
-	category itemCategory
-	key      string
-	name     string
-	desc     string
-	command  []string
+	category     itemCategory
+	key          string
+	name         string
+	desc         string
+	command      []string
+	prBookmark   string
+	prRemoteName string
+	prRemoteURL  string
 }
 
 func (i item) ShortCut() string {
@@ -128,6 +134,7 @@ func (m *Model) ShortHelp() []key.Binding {
 		m.keymap.Apply,
 		m.keymap.Git.Push,
 		m.keymap.Git.Fetch,
+		m.keymap.Git.CreatePR,
 		m.filterKey,
 		key.NewBinding(
 			key.WithKeys("tab/shift+tab"),
@@ -232,6 +239,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.handleIntent(intents.GitFilter{Kind: intents.GitFilterPush})
 		case key.Matches(msg, m.keymap.Git.Fetch) && m.categoryFilter != string(itemCategoryFetch):
 			return m.handleIntent(intents.GitFilter{Kind: intents.GitFilterFetch})
+		case key.Matches(msg, m.keymap.Git.CreatePR) && m.categoryFilter != string(itemCategoryPR):
+			return m.handleIntent(intents.GitFilter{Kind: intents.GitFilterPR})
 		case key.Matches(msg, m.keymap.Up):
 			m.moveCursor(-1)
 		case key.Matches(msg, m.keymap.Down):
@@ -258,6 +267,10 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		if !ok {
 			return nil
 		}
+		// Handle PR items differently - open browser instead of running command
+		if selected.category == itemCategoryPR {
+			return m.openPRInBrowser(selected)
+		}
 		return m.context.RunCommand(jj.Args(selected.command...), common.Refresh, common.Close)
 	case intents.GitFilter:
 		filter := string(msg.Kind)
@@ -273,6 +286,10 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 		for _, listItem := range m.visibleItems() {
 			if listItem.key == msg.Key {
+				// Handle PR items differently
+				if listItem.category == itemCategoryPR {
+					return m.openPRInBrowser(listItem)
+				}
 				return m.context.RunCommand(jj.Args(listItem.command...), common.Refresh, common.Close)
 			}
 		}
@@ -285,6 +302,25 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return common.Close
 	}
 	return nil
+}
+
+// openPRInBrowser builds the PR URL and opens it in the default browser
+func (m *Model) openPRInBrowser(selected item) tea.Cmd {
+	targetBranch := config.GetGitDefaultTargetBranch(config.Current)
+	prURL := provider.BuildPRURL(selected.prRemoteURL, selected.prBookmark, targetBranch)
+	if prURL == "" {
+		return func() tea.Msg {
+			return intents.AddMessage{Err: fmt.Errorf("unsupported git provider for remote %s", selected.prRemoteName)}
+		}
+	}
+
+	if err := browser.Open(prURL); err != nil {
+		return func() tea.Msg {
+			return intents.AddMessage{Err: fmt.Errorf("failed to open browser: %w", err)}
+		}
+	}
+
+	return common.Close
 }
 
 func (m *Model) filtered(filter string) tea.Cmd {
@@ -654,9 +690,6 @@ func (m *Model) createMenuItems() []item {
 	var selectedRemote string
 	if hasRemote {
 		selectedRemote = m.remoteNames[m.selectedRemoteIdx]
-	} else {
-		// set selectedRemote to empty string and `git` command fails gracefully
-		selectedRemote = ""
 	}
 
 	for _, commit := range revisions.Revisions {
@@ -757,5 +790,75 @@ func (m *Model) createMenuItems() []item {
 		},
 	)
 
+	items = append(items, m.createPRMenuItems()...)
+
 	return items
+}
+
+// createPRMenuItems creates menu items for creating pull requests
+func (m *Model) createPRMenuItems() []item {
+	var items []item
+	if len(m.remoteNames) == 0 {
+		return items
+	}
+
+	selectedRemoteName := m.remoteNames[m.selectedRemoteIdx]
+	remoteURL := m.getRemoteURL(selectedRemoteName)
+	if remoteURL == "" {
+		return items
+	}
+
+	seenBookmarks := make(map[string]bool)
+
+	for _, commit := range m.revisions.Revisions {
+		bookmarks := loadBookmarks(m.context, commit.GetChangeId())
+		for _, b := range bookmarks {
+			if b.Conflict {
+				continue
+			}
+			// Skip if we've already added this bookmark
+			if seenBookmarks[b.Name] {
+				continue
+			}
+			// Only show bookmarks that have been pushed to the selected remote
+			hasPushedToRemote := false
+			for _, remote := range b.Remotes {
+				if remote.Remote == selectedRemoteName {
+					hasPushedToRemote = true
+					break
+				}
+			}
+			if !hasPushedToRemote {
+				continue
+			}
+
+			seenBookmarks[b.Name] = true
+			providerDesc := provider.ProviderName(remoteURL)
+			if providerDesc == "" {
+				providerDesc = "repository"
+			}
+
+			items = append(items, item{
+				category:     itemCategoryPR,
+				name:         fmt.Sprintf("Create PR for %s", b.Name),
+				desc:         fmt.Sprintf("Open PR creation page on %s (%s)", selectedRemoteName, providerDesc),
+				prBookmark:   b.Name,
+				prRemoteName: selectedRemoteName,
+				prRemoteURL:  remoteURL,
+			})
+		}
+	}
+
+	return items
+}
+
+func (m *Model) getRemoteURL(remoteName string) string {
+	bytes, _ := m.context.RunCommandImmediate(jj.GitRemoteList())
+	remotes := jj.ParseRemoteListOutputFull(string(bytes))
+	for _, r := range remotes {
+		if r.Name == remoteName {
+			return r.URL
+		}
+	}
+	return ""
 }

@@ -73,6 +73,7 @@ type GitFilterKind string
 const (
 	GitFilterPush  GitFilterKind = "push"
 	GitFilterFetch GitFilterKind = "fetch"
+	GitFilterPR    GitFilterKind = "pr"
 )
 
 type GitFilter struct {

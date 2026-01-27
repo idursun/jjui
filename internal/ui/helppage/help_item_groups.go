@@ -199,6 +199,7 @@ func (h *Model) buildRightGroups() menuColumn {
 			h.newModeItem(&h.keyMap.Git.Mode, "Git"),
 			h.newBindingItem(h.keyMap.Git.Push),
 			h.newBindingItem(h.keyMap.Git.Fetch),
+			h.newBindingItem(h.keyMap.Git.CreatePR),
 			helpItem{"", ""},
 		},
 		itemGroup{
