@@ -347,21 +347,8 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 			line.Flags&parser.Revision != parser.Revision {
 
 			// Render description overlay
-			overlayLines := strings.Split(descriptionOverlay, "\n")
 			extended := item.Extend()
-			for i, overlayLine := range overlayLines {
-				if y >= rect.Max.Y {
-					break
-				}
-
-				lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
-				gutter := line.Gutter
-				if i > 0 {
-					gutter = extended
-				}
-				r.renderOperationLine(dl, lineRect, gutter, overlayLine)
-				y++
-			}
+			r.renderOverlayLines(dl, rect, &y, line.Gutter, extended, descriptionOverlay)
 
 			descriptionRendered = true
 			// Skip remaining description lines
@@ -388,16 +375,8 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 	// If we have a description overlay but haven't rendered it yet after looping through all commit lines,
 	// render it now.
 	if descriptionOverlay != "" && !descriptionRendered && y < rect.Max.Y {
-		overlayLines := strings.Split(descriptionOverlay, "\n")
 		extended := item.Extend()
-		for _, overlayLine := range overlayLines {
-			if y >= rect.Max.Y {
-				break
-			}
-			lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
-			r.renderOperationLine(dl, lineRect, extended, overlayLine)
-			y++
-		}
+		r.renderOverlayLines(dl, rect, &y, extended, extended, descriptionOverlay)
 	}
 
 	// Render operation after section if it wasn't already inserted before elided markers.
@@ -475,6 +454,30 @@ func (r *DisplayContextRenderer) renderOperationLine(
 	// Add line content
 	tb.Write(line)
 	tb.Done()
+}
+
+// renderOverlayLines renders description overlay lines with appropriate gutters
+func (r *DisplayContextRenderer) renderOverlayLines(
+	dl *render.DisplayContext,
+	rect cellbuf.Rectangle,
+	y *int,
+	firstGutter, // gutter for the first line
+	extendedGutter parser.GraphGutter, // gutter for subsequent lines
+	overlay string,
+) {
+	overlayLines := strings.Split(overlay, "\n")
+	for i, overlayLine := range overlayLines {
+		if *y >= rect.Max.Y {
+			break
+		}
+		lineRect := cellbuf.Rect(rect.Min.X, *y, rect.Dx(), 1)
+		gutter := firstGutter
+		if i > 0 {
+			gutter = extendedGutter
+		}
+		r.renderOperationLine(dl, lineRect, gutter, overlayLine)
+		(*y)++
+	}
 }
 
 // renderGutter renders just the gutter portion (for embedded operations)
