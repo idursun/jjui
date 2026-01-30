@@ -36,6 +36,10 @@ type DetailsToggleSelect struct{}
 
 func (DetailsToggleSelect) isIntent() {}
 
+type DetailsToggleTree struct{}
+
+func (DetailsToggleTree) isIntent() {}
+
 type DetailsRevisionsChangingFile struct{}
 
 func (DetailsRevisionsChangingFile) isIntent() {}

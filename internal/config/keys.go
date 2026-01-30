@@ -94,6 +94,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Absorb:                key.NewBinding(key.WithKeys(m.Details.Absorb...), key.WithHelp(JoinKeys(m.Details.Absorb), "absorb")),
 			Diff:                  key.NewBinding(key.WithKeys(m.Details.Diff...), key.WithHelp(JoinKeys(m.Details.Diff), "diff")),
 			ToggleSelect:          key.NewBinding(key.WithKeys(m.Details.ToggleSelect...), key.WithHelp(JoinKeys(m.Details.ToggleSelect), "details toggle select")),
+			ToggleTree:            key.NewBinding(key.WithKeys(m.Details.ToggleTree...), key.WithHelp(JoinKeys(m.Details.ToggleTree), "toggle tree view")),
 			RevisionsChangingFile: key.NewBinding(key.WithKeys(m.Details.RevisionsChangingFile...), key.WithHelp(JoinKeys(m.Details.RevisionsChangingFile), "show revisions changing file")),
 		},
 		Bookmark: bookmarkModeKeys[key.Binding]{
@@ -292,6 +293,7 @@ type detailsModeKeys[T any] struct {
 	Squash                T `toml:"squash"`
 	Diff                  T `toml:"diff"`
 	ToggleSelect          T `toml:"select"`
+	ToggleTree            T `toml:"toggle_tree"`
 	RevisionsChangingFile T `toml:"revisions_changing_file"`
 }
 

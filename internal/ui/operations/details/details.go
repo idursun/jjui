@@ -95,14 +95,14 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 		}
 		return selectionChangedCmd
 	default:
-		oldCursor := s.cursor
+		oldSelected := s.current()
 		var cmds []tea.Cmd
 		cmds = append(cmds, s.internalUpdate(msg))
-		if s.cursor != oldCursor {
+		if current := s.current(); current != nil && current != oldSelected {
 			cmds = append(cmds, s.context.SetSelectedItem(context.SelectedFile{
 				ChangeId: s.revision.GetChangeId(),
 				CommitId: s.revision.CommitId,
-				File:     s.current().fileName,
+				File:     current.fileName,
 			}))
 		}
 		return tea.Batch(cmds...)
@@ -123,6 +123,11 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 			CommitId: s.revision.CommitId,
 			File:     s.current().fileName,
 		})
+	case TreeToggleMsg:
+		if s.treeList != nil {
+			s.treeList.ToggleExpand(msg.VisibleIndex)
+		}
+		return nil
 	case FileListScrollMsg:
 		if msg.Horizontal {
 			return nil
@@ -164,6 +169,8 @@ func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		return s.handleIntent(intents.DetailsAbsorb{})
 	case key.Matches(msg, s.keyMap.Details.ToggleSelect):
 		return s.handleIntent(intents.DetailsToggleSelect{})
+	case key.Matches(msg, s.keyMap.Details.ToggleTree):
+		return s.handleIntent(intents.DetailsToggleTree{})
 	case key.Matches(msg, s.keyMap.Details.RevisionsChangingFile):
 		return s.handleIntent(intents.DetailsRevisionsChangingFile{})
 	}
@@ -273,6 +280,16 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 			s.cursorDown()
 		}
 		return nil
+	case intents.DetailsToggleTree:
+		s.ToggleTreeView()
+		if current := s.current(); current != nil {
+			return s.context.SetSelectedItem(context.SelectedFile{
+				ChangeId: s.revision.GetChangeId(),
+				CommitId: s.revision.CommitId,
+				File:     current.fileName,
+			})
+		}
+		return nil
 	case intents.DetailsRevisionsChangingFile:
 		if current := s.current(); current != nil {
 			return tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(%s)", jj.EscapeFileName(current.fileName))))
@@ -308,6 +325,7 @@ func (s *Operation) ShortHelp() []key.Binding {
 		s.keyMap.Cancel,
 		s.keyMap.Details.Diff,
 		s.keyMap.Details.ToggleSelect,
+		s.keyMap.Details.ToggleTree,
 		s.keyMap.Details.Split,
 		s.keyMap.Details.SplitParallel,
 		s.keyMap.Details.Squash,

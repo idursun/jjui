@@ -25,6 +25,10 @@ type item struct {
 }
 
 func (f item) Title() string {
+	return f.TitleWithName(f.name)
+}
+
+func (f item) TitleWithName(name string) string {
 	status := "M"
 	switch f.status {
 	case Added:
@@ -39,7 +43,7 @@ func (f item) Title() string {
 		status = "C"
 	}
 
-	return fmt.Sprintf("%s %s", status, f.name)
+	return fmt.Sprintf("%s %s", status, name)
 }
 func (f item) Description() string { return "" }
 func (f item) FilterValue() string { return f.name }

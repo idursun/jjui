@@ -78,6 +78,7 @@ limit = 0
     absorb = ["A"]
     diff = ["d"]
     select = ["m", " "]
+    toggle_tree = ["t"]
     revisions_changing_file = ["*"]
   [keys.evolog]
     mode = ["v"]
