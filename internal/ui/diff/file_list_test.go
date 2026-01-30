@@ -126,11 +126,14 @@ func TestFileList_CollapseSingleChildDirs(t *testing.T) {
 
 	// "src" -> "ui" -> "diff" should collapse to "src/ui/diff"
 	// visible should be: dir("src/ui/diff"), file("file.go")
-	assert.Equal(t, 2, len(fl.visible))
-	assert.True(t, fl.visible[0].node.isDir)
-	assert.Equal(t, "src/ui/diff", fl.visible[0].node.name)
-	assert.False(t, fl.visible[1].node.isDir)
-	assert.Equal(t, "file.go", fl.visible[1].node.name)
+	visible := fl.tree.VisibleItems()
+	assert.Equal(t, 2, len(visible))
+	firstNode := visible[0].Node.(*diffTreeNode)
+	secondNode := visible[1].Node.(*diffTreeNode)
+	assert.True(t, firstNode.isDir)
+	assert.Equal(t, "src/ui/diff", firstNode.name)
+	assert.False(t, secondNode.isDir)
+	assert.Equal(t, "file.go", secondNode.name)
 }
 
 func TestFileList_TreeNavigation_SkipsDirs(t *testing.T) {
@@ -189,7 +192,8 @@ func TestFileList_ToggleExpand(t *testing.T) {
 	// 2: src/ (dir)
 	// 3:   a.go
 	// 4:   b.go
-	assert.Equal(t, 5, len(fl.visible))
+	visible := fl.tree.VisibleItems()
+	assert.Equal(t, 5, len(visible))
 
 	// Collapse src/ dir (visible index 2)
 	fl.ToggleExpand(2)
@@ -198,14 +202,17 @@ func TestFileList_ToggleExpand(t *testing.T) {
 	// 0: lib/ (dir)
 	// 1:   c.go
 	// 2: src/ (dir, collapsed)
-	assert.Equal(t, 3, len(fl.visible))
-	assert.True(t, fl.visible[2].node.isDir)
-	assert.False(t, fl.visible[2].node.expanded)
+	visible = fl.tree.VisibleItems()
+	assert.Equal(t, 3, len(visible))
+	thirdNode := visible[2].Node.(*diffTreeNode)
+	assert.True(t, thirdNode.isDir)
+	assert.False(t, fl.tree.IsExpanded(visible[2].Node))
 
 	// Expand src/ dir again
 	fl.ToggleExpand(2)
-	assert.Equal(t, 5, len(fl.visible))
-	assert.True(t, fl.visible[2].node.expanded)
+	visible = fl.tree.VisibleItems()
+	assert.Equal(t, 5, len(visible))
+	assert.True(t, fl.tree.IsExpanded(visible[2].Node))
 }
 
 func TestFileList_ToggleExpand_RestoresSelection(t *testing.T) {
@@ -253,12 +260,12 @@ func TestFileList_SetSelectedIndex_ExpandsCollapsedParent(t *testing.T) {
 
 	// Collapse src/ dir (visible index 2)
 	fl.ToggleExpand(2)
-	assert.Equal(t, 3, len(fl.visible)) // lib/, c.go, src/
+	assert.Equal(t, 3, len(fl.tree.VisibleItems())) // lib/, c.go, src/
 
 	// SetSelectedIndex to file in collapsed dir should expand it
 	fl.SetSelectedIndex(0) // fileIndex 0 = src/a.go
 	assert.Equal(t, 0, fl.SelectedIndex())
-	assert.Equal(t, 4, len(fl.visible)) // lib/, c.go, src/, a.go
+	assert.Equal(t, 4, len(fl.tree.VisibleItems())) // lib/, c.go, src/, a.go
 }
 
 func TestFileList_TreeDirsFirstAlphabetical(t *testing.T) {
@@ -272,15 +279,16 @@ func TestFileList_TreeDirsFirstAlphabetical(t *testing.T) {
 	fl := NewFileList(files)
 
 	// Expected order: dir_a/(dir), y.go, dir_b/(dir), x.go, a.go(file), z.go(file)
-	assert.Equal(t, 6, len(fl.visible))
-	assert.True(t, fl.visible[0].node.isDir)
-	assert.Equal(t, "dir_a", fl.visible[0].node.name)
-	assert.Equal(t, "y.go", fl.visible[1].node.name)
-	assert.True(t, fl.visible[2].node.isDir)
-	assert.Equal(t, "dir_b", fl.visible[2].node.name)
-	assert.Equal(t, "x.go", fl.visible[3].node.name)
-	assert.Equal(t, "a.go", fl.visible[4].node.name)
-	assert.Equal(t, "z.go", fl.visible[5].node.name)
+	visible := fl.tree.VisibleItems()
+	assert.Equal(t, 6, len(visible))
+	assert.True(t, visible[0].Node.(*diffTreeNode).isDir)
+	assert.Equal(t, "dir_a", visible[0].Node.(*diffTreeNode).name)
+	assert.Equal(t, "y.go", visible[1].Node.(*diffTreeNode).name)
+	assert.True(t, visible[2].Node.(*diffTreeNode).isDir)
+	assert.Equal(t, "dir_b", visible[2].Node.(*diffTreeNode).name)
+	assert.Equal(t, "x.go", visible[3].Node.(*diffTreeNode).name)
+	assert.Equal(t, "a.go", visible[4].Node.(*diffTreeNode).name)
+	assert.Equal(t, "z.go", visible[5].Node.(*diffTreeNode).name)
 }
 
 func TestFileList_FlatFilesNoTree(t *testing.T) {
@@ -293,11 +301,12 @@ func TestFileList_FlatFilesNoTree(t *testing.T) {
 	fl := NewFileList(files)
 
 	// Files are sorted alphabetically
-	assert.Equal(t, 2, len(fl.visible))
-	assert.False(t, fl.visible[0].node.isDir)
-	assert.Equal(t, "a.go", fl.visible[0].node.name)
-	assert.False(t, fl.visible[1].node.isDir)
-	assert.Equal(t, "b.go", fl.visible[1].node.name)
+	visible := fl.tree.VisibleItems()
+	assert.Equal(t, 2, len(visible))
+	assert.False(t, visible[0].Node.(*diffTreeNode).isDir)
+	assert.Equal(t, "a.go", visible[0].Node.(*diffTreeNode).name)
+	assert.False(t, visible[1].Node.(*diffTreeNode).isDir)
+	assert.Equal(t, "b.go", visible[1].Node.(*diffTreeNode).name)
 }
 
 func TestFileList_ToggleExpand_NonDir(t *testing.T) {
@@ -308,9 +317,9 @@ func TestFileList_ToggleExpand_NonDir(t *testing.T) {
 	fl := NewFileList(files)
 
 	// Toggling a file node should be a no-op
-	initialLen := len(fl.visible)
+	initialLen := len(fl.tree.VisibleItems())
 	fl.ToggleExpand(0)
-	assert.Equal(t, initialLen, len(fl.visible))
+	assert.Equal(t, initialLen, len(fl.tree.VisibleItems()))
 }
 
 func TestFileList_ToggleExpand_OutOfRange(t *testing.T) {
