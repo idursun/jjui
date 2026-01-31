@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
@@ -17,6 +18,13 @@ import (
 )
 
 var _ common.ImmediateModel = (*Model)(nil)
+
+// searchMatch represents a single search match in the diff view
+type searchMatch struct {
+	lineIdx  int // Index into m.lines
+	startCol int // Starting byte position in content
+	endCol   int // Ending byte position in content
+}
 
 // Model represents the diff viewer
 type Model struct {
@@ -38,6 +46,13 @@ type Model struct {
 	wordWrap       bool // Whether word wrap is enabled
 	fileList       *FileList
 	selectedFileIdx int // Index of currently viewed file
+
+	// Search state
+	searchInput   textinput.Model
+	searchQuery   string        // Current active search query
+	searchMatches []searchMatch // All matches found
+	currentMatch  int           // Index of current match in searchMatches
+	isSearching   bool          // true when search input is focused
 
 	// Computed line data
 	lines        []viewLine // All rendered lines
@@ -83,6 +98,7 @@ func (m *Model) ShortHelp() []key.Binding {
 		m.keymap.DiffViewer.PrevFile,
 		m.keymap.DiffViewer.ToggleFileList,
 		m.keymap.DiffViewer.ToggleWordWrap,
+		m.keymap.DiffViewer.Search,
 		m.keymap.Cancel,
 	}
 }
@@ -153,9 +169,58 @@ func (s ScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Handle search input mode
+		if m.isSearching {
+			switch msg.Type {
+			case tea.KeyEnter:
+				// Confirm search
+				m.searchQuery = m.searchInput.Value()
+				m.isSearching = false
+				m.searchInput.Blur()
+				m.performSearch()
+				return nil
+			case tea.KeyEsc:
+				// Cancel search input (keep existing search if any)
+				m.isSearching = false
+				m.searchInput.Blur()
+				m.searchInput.SetValue(m.searchQuery) // restore previous query
+				return nil
+			default:
+				// Forward to text input
+				var cmd tea.Cmd
+				m.searchInput, cmd = m.searchInput.Update(msg)
+				return cmd
+			}
+		}
+
+		// Normal mode key handling
 		switch {
 		case key.Matches(msg, m.keymap.Cancel):
+			// If search is active, clear it first
+			if m.hasActiveSearch() {
+				m.clearSearch()
+				return nil
+			}
 			return common.Close
+		case key.Matches(msg, m.keymap.DiffViewer.Search):
+			// "/" key - start search input
+			m.isSearching = true
+			m.searchInput.Focus()
+			return nil
+		case key.Matches(msg, m.keymap.DiffViewer.NextHunk):
+			// "n" key - next match when search active, otherwise next hunk
+			if m.hasActiveSearch() {
+				m.jumpToNextMatch()
+				return nil
+			}
+			m.navigateToNextHunk()
+		case key.Matches(msg, m.keymap.DiffViewer.PrevHunk), key.Matches(msg, m.keymap.DiffViewer.SearchPrev):
+			// "N" key - previous match when search active, otherwise prev hunk
+			if m.hasActiveSearch() {
+				m.jumpToPrevMatch()
+				return nil
+			}
+			m.navigateToPrevHunk()
 		case key.Matches(msg, m.keymap.Up):
 			m.startLine--
 			m.clampStartLine()
@@ -168,10 +233,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.keymap.ScrollDown, m.keymap.DiffViewer.HalfPageDown):
 			m.startLine += m.height / 2
 			m.clampStartLine()
-		case key.Matches(msg, m.keymap.DiffViewer.NextHunk):
-			m.navigateToNextHunk()
-		case key.Matches(msg, m.keymap.DiffViewer.PrevHunk):
-			m.navigateToPrevHunk()
 		case key.Matches(msg, m.keymap.DiffViewer.NextFile):
 			m.navigateToNextFile()
 		case key.Matches(msg, m.keymap.DiffViewer.PrevFile):
@@ -296,6 +357,98 @@ func (m *Model) focusOnFile(fileName string) bool {
 	return false
 }
 
+// performSearch finds all case-insensitive matches of the search query in m.lines
+func (m *Model) performSearch() {
+	m.searchMatches = nil
+	m.currentMatch = 0
+
+	if m.searchQuery == "" {
+		return
+	}
+
+	queryLower := strings.ToLower(m.searchQuery)
+
+	for lineIdx, line := range m.lines {
+		contentLower := strings.ToLower(line.content)
+		startPos := 0
+		for {
+			idx := strings.Index(contentLower[startPos:], queryLower)
+			if idx == -1 {
+				break
+			}
+			matchStart := startPos + idx
+			matchEnd := matchStart + len(m.searchQuery)
+			m.searchMatches = append(m.searchMatches, searchMatch{
+				lineIdx:  lineIdx,
+				startCol: matchStart,
+				endCol:   matchEnd,
+			})
+			startPos = matchEnd
+		}
+	}
+
+	// If matches found, scroll to the first one at or after current position
+	if len(m.searchMatches) > 0 {
+		for i, match := range m.searchMatches {
+			if match.lineIdx >= m.startLine {
+				m.currentMatch = i
+				m.scrollToMatch(m.searchMatches[i])
+				return
+			}
+		}
+		// No match at or after current position, go to first match
+		m.currentMatch = 0
+		m.scrollToMatch(m.searchMatches[0])
+	}
+}
+
+// jumpToNextMatch moves to the next match, wrapping around
+func (m *Model) jumpToNextMatch() {
+	if len(m.searchMatches) == 0 {
+		return
+	}
+	m.currentMatch = (m.currentMatch + 1) % len(m.searchMatches)
+	m.scrollToMatch(m.searchMatches[m.currentMatch])
+}
+
+// jumpToPrevMatch moves to the previous match, wrapping around
+func (m *Model) jumpToPrevMatch() {
+	if len(m.searchMatches) == 0 {
+		return
+	}
+	m.currentMatch--
+	if m.currentMatch < 0 {
+		m.currentMatch = len(m.searchMatches) - 1
+	}
+	m.scrollToMatch(m.searchMatches[m.currentMatch])
+}
+
+// scrollToMatch scrolls the view to show the given match
+func (m *Model) scrollToMatch(match searchMatch) {
+	// Position the match line roughly in the middle of the viewport
+	targetLine := match.lineIdx - m.height/3
+	if targetLine < 0 {
+		targetLine = 0
+	}
+	m.startLine = targetLine
+	m.clampStartLine()
+}
+
+// clearSearch resets the search state
+func (m *Model) clearSearch() {
+	m.searchQuery = ""
+	m.searchMatches = nil
+	m.currentMatch = 0
+	m.isSearching = false
+	m.searchInput.SetValue("")
+	m.searchInput.Blur()
+}
+
+// hasActiveSearch returns true if there's an active search with matches
+func (m *Model) hasActiveSearch() bool {
+	return m.searchQuery != ""
+}
+
 func (m *Model) buildLines() {
 	m.lines = nil
 	m.hunkStarts = nil
@@ -380,16 +533,27 @@ func (m *Model) buildLines() {
 
 // ViewRect renders the diff viewer
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	m.height = box.R.Dy()
 	width := box.R.Dx()
 
-	if m.height <= 0 || width <= 0 {
+	if box.R.Dy() <= 0 || width <= 0 {
 		return
 	}
 
+	// Reserve bottom line for search bar when search is active or searching
+	contentBox := box
+	if m.isSearching || m.hasActiveSearch() {
+		rows := box.V(layout.Fill(1), layout.Fixed(1))
+		if len(rows) >= 2 {
+			contentBox = rows[0]
+			m.renderSearchBar(dl, rows[1])
+		}
+	}
+
+	m.height = contentBox.R.Dy()
+
 	// Raw content mode - simple display
 	if m.isRawMode {
-		m.renderRawContent(dl, box)
+		m.renderRawContent(dl, contentBox)
 		return
 	}
 
@@ -397,7 +561,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if m.showFileList && m.fileList != nil && width > 40 {
 		// Split layout: file list | diff content
 		fileListWidth := min(30, width/4)
-		cols := box.H(layout.Fixed(fileListWidth), layout.Fixed(1), layout.Fill(1))
+		cols := contentBox.H(layout.Fixed(fileListWidth), layout.Fixed(1), layout.Fill(1))
 		if len(cols) >= 3 {
 			m.fileList.ViewRect(dl, cols[0])
 			// Divider
@@ -405,7 +569,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			m.renderDiffContent(dl, cols[2])
 		}
 	} else {
-		m.renderDiffContent(dl, box)
+		m.renderDiffContent(dl, contentBox)
 	}
 
 	// Add scroll interaction
@@ -434,6 +598,51 @@ func (m *Model) renderDivider(dl *render.DisplayContext, box layout.Box) {
 	style := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	for y := box.R.Min.Y; y < box.R.Max.Y; y++ {
 		dl.AddDraw(cellbuf.Rect(box.R.Min.X, y, 1, 1), style.Render("│"), 0)
+	}
+}
+
+func (m *Model) renderSearchBar(dl *render.DisplayContext, box layout.Box) {
+	width := box.R.Dx()
+	y := box.R.Min.Y
+	x := box.R.Min.X
+
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	statusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+
+	if m.isSearching {
+		// Show search input
+		label := labelStyle.Render("/")
+		dl.AddDraw(cellbuf.Rect(x, y, 1, 1), label, 0)
+		x += 1
+
+		// Render text input
+		inputView := m.searchInput.View()
+		inputWidth := width - 1
+		if inputWidth > 0 {
+			dl.AddDraw(cellbuf.Rect(x, y, inputWidth, 1), inputView, 0)
+		}
+	} else if m.hasActiveSearch() {
+		// Show search status
+		label := labelStyle.Render("/")
+		dl.AddDraw(cellbuf.Rect(x, y, 1, 1), label, 0)
+		x += 1
+
+		query := m.searchQuery
+		maxQueryLen := width - 15 // Leave room for status
+		if len(query) > maxQueryLen && maxQueryLen > 3 {
+			query = query[:maxQueryLen-3] + "..."
+		}
+		dl.AddDraw(cellbuf.Rect(x, y, len(query), 1), query, 0)
+		x += len(query)
+
+		// Show match count
+		var status string
+		if len(m.searchMatches) == 0 {
+			status = " (no matches)"
+		} else {
+			status = fmt.Sprintf(" [%d/%d]", m.currentMatch+1, len(m.searchMatches))
+		}
+		dl.AddDraw(cellbuf.Rect(x, y, len(status), 1), statusStyle.Render(status), 0)
 	}
 }
 
@@ -484,37 +693,33 @@ func (m *Model) renderDiffContent(dl *render.DisplayContext, box layout.Box) {
 
 		// Render content
 		var contentStr string
-		var style lipgloss.Style
+		hasSegments := len(line.segments) > 0
 
 		switch line.lineType {
 		case lineViewFileHeader:
-			style = fileHeaderStyle
-			contentStr = line.content
+			contentStr = m.applySearchHighlight(line.content, i, fileHeaderStyle)
 		case lineViewHunkHeader:
-			style = hunkHeaderStyle
-			contentStr = line.content
+			contentStr = m.applySearchHighlight(line.content, i, hunkHeaderStyle)
 		case lineViewAdded:
-			style = addedStyle
-			contentStr = m.renderLineWithSegments(line, addedStyle, addedHighlightStyle)
+			if hasSegments {
+				contentStr = m.renderLineWithSegments(line, addedStyle, addedHighlightStyle)
+			} else {
+				contentStr = m.applySearchHighlight(line.content, i, addedStyle)
+			}
 		case lineViewRemoved:
-			style = removedStyle
-			contentStr = m.renderLineWithSegments(line, removedStyle, removedHighlightStyle)
+			if hasSegments {
+				contentStr = m.renderLineWithSegments(line, removedStyle, removedHighlightStyle)
+			} else {
+				contentStr = m.applySearchHighlight(line.content, i, removedStyle)
+			}
 		case lineViewContext:
-			style = contextStyle
-			contentStr = line.content
+			contentStr = m.applySearchHighlight(line.content, i, contextStyle)
 		case lineViewEmpty:
 			contentStr = line.content
 		}
 
-		// Apply style and handle word wrapping
-		if len(line.segments) == 0 && line.lineType != lineViewAdded && line.lineType != lineViewRemoved {
-			if m.wordWrap {
-				contentStr = style.Width(contentWidth).Render(contentStr)
-			} else {
-				contentStr = style.Render(contentStr)
-			}
-		} else if m.wordWrap {
-			// For segment lines, wrap after rendering
+		// Apply word wrapping if enabled
+		if m.wordWrap {
 			contentStr = lipgloss.NewStyle().Width(contentWidth).Render(contentStr)
 		}
 
@@ -570,10 +775,94 @@ func (m *Model) renderLineWithSegments(line viewLine, baseStyle, highlightStyle 
 	return result.String()
 }
 
+// getSearchMatchesForLine returns the search matches for a specific line index
+func (m *Model) getSearchMatchesForLine(lineIdx int) []searchMatch {
+	var matches []searchMatch
+	for _, match := range m.searchMatches {
+		if match.lineIdx == lineIdx {
+			matches = append(matches, match)
+		} else if match.lineIdx > lineIdx {
+			break // searchMatches is sorted by lineIdx
+		}
+	}
+	return matches
+}
+
+// isCurrentMatch returns true if the match at matchIdx is the current match
+func (m *Model) isCurrentMatch(matchIdx int) bool {
+	// Find the index of this match in searchMatches
+	idx := 0
+	for i, match := range m.searchMatches {
+		if match.lineIdx < matchIdx {
+			idx = i + 1
+		} else {
+			break
+		}
+	}
+	return idx == m.currentMatch
+}
+
+// applySearchHighlight applies search highlighting to content
+func (m *Model) applySearchHighlight(content string, lineIdx int, baseStyle lipgloss.Style) string {
+	if !m.hasActiveSearch() {
+		return baseStyle.Render(content)
+	}
+
+	matches := m.getSearchMatchesForLine(lineIdx)
+	if len(matches) == 0 {
+		return baseStyle.Render(content)
+	}
+
+	// Search highlight styles
+	searchStyle := lipgloss.NewStyle().Background(lipgloss.Color("226")).Foreground(lipgloss.Color("0"))          // Yellow background
+	currentSearchStyle := lipgloss.NewStyle().Background(lipgloss.Color("208")).Foreground(lipgloss.Color("0")).Bold(true) // Orange background, bold
+
+	var result strings.Builder
+	lastEnd := 0
+
+	for _, match := range matches {
+		// Render text before this match
+		if match.startCol > lastEnd {
+			result.WriteString(baseStyle.Render(content[lastEnd:match.startCol]))
+		}
+
+		// Determine if this is the current match
+		isCurrentSearchMatch := false
+		for i, sm := range m.searchMatches {
+			if sm.lineIdx == match.lineIdx && sm.startCol == match.startCol {
+				isCurrentSearchMatch = (i == m.currentMatch)
+				break
+			}
+		}
+
+		// Render the match with highlight
+		matchText := content[match.startCol:match.endCol]
+		if isCurrentSearchMatch {
+			result.WriteString(currentSearchStyle.Render(matchText))
+		} else {
+			result.WriteString(searchStyle.Render(matchText))
+		}
+
+		lastEnd = match.endCol
+	}
+
+	// Render remaining text after last match
+	if lastEnd < len(content) {
+		result.WriteString(baseStyle.Render(content[lastEnd:]))
+	}
+
+	return result.String()
+}
+
 // New creates a new diff viewer model
 func New(ctx *context.MainContext, revision string, focusFiles []string, focusFile string, rawContent string) *Model {
 	// Determine mode: raw content mode if revision is empty (use rawContent for display)
 	isRawMode := revision == ""
+
+	// Initialize search input
+	ti := textinput.New()
+	ti.Placeholder = "Search..."
+	ti.CharLimit = 256
 
 	m := &Model{
 		revision:      revision,
@@ -585,6 +874,7 @@ func New(ctx *context.MainContext, revision string, focusFiles []string, focusFi
 		keymap:        config.Current.GetKeyMap(),
 		showFileList:  true,
 		fileListWidth: 30,
+		searchInput:   ti,
 	}
 
 	// If in raw mode, build simple line list for scrolling

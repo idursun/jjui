@@ -130,6 +130,8 @@ limit = 0
     go_to_bottom = ["G"]
     half_page_down = ["d"]
     half_page_up = ["u"]
+    search = ["/"]
+    search_prev = ["N"]
 
 
 [ui]

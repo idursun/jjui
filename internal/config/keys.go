@@ -149,6 +149,8 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			GoToBottom:     key.NewBinding(key.WithKeys(m.DiffViewer.GoToBottom...), key.WithHelp(JoinKeys(m.DiffViewer.GoToBottom), "go to bottom")),
 			HalfPageDown:   key.NewBinding(key.WithKeys(m.DiffViewer.HalfPageDown...), key.WithHelp(JoinKeys(m.DiffViewer.HalfPageDown), "half page down")),
 			HalfPageUp:     key.NewBinding(key.WithKeys(m.DiffViewer.HalfPageUp...), key.WithHelp(JoinKeys(m.DiffViewer.HalfPageUp), "half page up")),
+			Search:         key.NewBinding(key.WithKeys(m.DiffViewer.Search...), key.WithHelp(JoinKeys(m.DiffViewer.Search), "search")),
+			SearchPrev:     key.NewBinding(key.WithKeys(m.DiffViewer.SearchPrev...), key.WithHelp(JoinKeys(m.DiffViewer.SearchPrev), "search prev")),
 		},
 	}
 }
@@ -345,4 +347,6 @@ type diffViewerKeys[T any] struct {
 	GoToBottom     T `toml:"go_to_bottom"`
 	HalfPageDown   T `toml:"half_page_down"`
 	HalfPageUp     T `toml:"half_page_up"`
+	Search         T `toml:"search"`
+	SearchPrev     T `toml:"search_prev"`
 }
