@@ -198,9 +198,12 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 			return nil
 		}
 		changeId := s.revision.GetChangeId()
-		selectedFiles := s.getSelectedFiles(true)
 		return func() tea.Msg {
-			return common.ShowDiffMsg{Revision: changeId, Files: selectedFiles}
+			return common.ShowDiffMsg{
+				Revision:  changeId,
+				Files:     nil,              // Show full diff (all files)
+				FocusFile: selected.fileName, // Focus on the currently selected file
+			}
 		}
 	case intents.DetailsSplit:
 		selectedFiles := s.getSelectedFiles(true)

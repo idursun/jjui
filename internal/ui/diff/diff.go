@@ -22,9 +22,10 @@ var _ common.ImmediateModel = (*Model)(nil)
 type Model struct {
 	// Content
 	revision      string
-	focusFiles    []string
-	rawContent    string // For raw content display (fallback mode)
-	isRawMode     bool   // Whether we're showing raw content vs structured diff
+	focusFiles    []string // Files to filter the diff command
+	focusFile     string   // Single file to focus cursor on (independent of filtering)
+	rawContent    string   // For raw content display (fallback mode)
+	isRawMode     bool     // Whether we're showing raw content vs structured diff
 	parsedDiff    *ParsedDiff
 	context       *context.MainContext
 	keymap        config.KeyMappings[key.Binding]
@@ -199,7 +200,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.fileList = NewFileList(m.parsedDiff.Files)
 		m.buildLines()
 		// Focus on specific file if requested
-		if len(m.focusFiles) > 0 {
+		if m.focusFile != "" {
+			m.focusOnFile(m.focusFile)
+		} else if len(m.focusFiles) > 0 {
 			m.focusOnFiles(m.focusFiles)
 		}
 	case FileSelectedMsg:
@@ -568,13 +571,14 @@ func (m *Model) renderLineWithSegments(line viewLine, baseStyle, highlightStyle 
 }
 
 // New creates a new diff viewer model
-func New(ctx *context.MainContext, revision string, focusFiles []string, rawContent string) *Model {
+func New(ctx *context.MainContext, revision string, focusFiles []string, focusFile string, rawContent string) *Model {
 	// Determine mode: raw content mode if revision is empty (use rawContent for display)
 	isRawMode := revision == ""
 
 	m := &Model{
 		revision:      revision,
 		focusFiles:    focusFiles,
+		focusFile:     focusFile,
 		rawContent:    rawContent,
 		isRawMode:     isRawMode,
 		context:       ctx,

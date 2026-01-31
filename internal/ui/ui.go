@@ -295,7 +295,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case common.ShowDiffMsg:
-		m.diff = diff.New(m.context, msg.Revision, msg.Files, msg.RawContent)
+		m.diff = diff.New(m.context, msg.Revision, msg.Files, msg.FocusFile, msg.RawContent)
 		return m.diff.Init()
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready

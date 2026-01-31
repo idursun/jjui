@@ -19,7 +19,8 @@ type (
 	}
 	ShowDiffMsg struct {
 		Revision   string   // Revision to show diff for (uses structured diff viewer)
-		Files      []string // Optional: specific files to show diff for
+		Files      []string // Optional: specific files to filter diff
+		FocusFile  string   // Optional: file to focus cursor on (independent of filtering)
 		RawContent string   // Raw content to display (uses simple viewer, takes precedence if set)
 	}
 	UpdateRevisionsFailedMsg struct {
