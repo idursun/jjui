@@ -138,3 +138,18 @@ func indexDetailsTreeFiles(node *detailsTreeNode, files map[string]*detailsTreeN
 		indexDetailsTreeFiles(child, files)
 	}
 }
+
+// collectDescendantItems collects all file items under a directory node.
+func collectDescendantItems(node *detailsTreeNode) []*item {
+	if node == nil {
+		return nil
+	}
+	if node.item != nil {
+		return []*item{node.item}
+	}
+	var items []*item
+	for _, child := range node.children {
+		items = append(items, collectDescendantItems(child)...)
+	}
+	return items
+}

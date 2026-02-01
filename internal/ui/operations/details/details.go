@@ -149,8 +149,20 @@ func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 		return s.handleIntent(intents.DetailsNavigate{Delta: -1})
 	case key.Matches(msg, s.keyMap.Down):
 		return s.handleIntent(intents.DetailsNavigate{Delta: 1})
-	case key.Matches(msg, s.keyMap.Cancel), key.Matches(msg, s.keyMap.Details.Close):
+	case key.Matches(msg, s.keyMap.Cancel):
 		return s.handleIntent(intents.DetailsClose{})
+	case key.Matches(msg, s.keyMap.Details.Close):
+		// h key: expand directory if on one, otherwise close
+		if s.treeView && s.IsCurrentNodeDirectory() {
+			return s.handleIntent(intents.DetailsExpandNode{})
+		}
+		return s.handleIntent(intents.DetailsClose{})
+	case key.Matches(msg, s.keyMap.Details.Mode):
+		// l key: collapse directory if on one (in tree view)
+		if s.treeView && s.IsCurrentNodeDirectory() {
+			return s.handleIntent(intents.DetailsCollapseNode{})
+		}
+		return nil
 	case key.Matches(msg, s.keyMap.Quit): // handle global quit after cancel
 		return s.handleIntent(intents.Quit{})
 	case key.Matches(msg, s.keyMap.Refresh):
@@ -199,11 +211,12 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		return func() tea.Msg {
 			return common.ShowDiffMsg{
 				Revision:  changeId,
-				Files:     nil,              // Show full diff (all files)
+				Files:     nil,               // Show full diff (all files)
 				FocusFile: selected.fileName, // Focus on the currently selected file
 			}
 		}
 	case intents.DetailsSplit:
+		s.applyDirectorySelection()
 		selectedFiles := s.getSelectedFiles(true)
 		s.selectedHint = "stays as is"
 		s.unselectedHint = "moves to the new revision"
@@ -227,26 +240,36 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 			}
 		}
 	case intents.DetailsRestore:
+		s.applyDirectorySelection()
 		selectedFiles := s.getSelectedFiles(true)
+		if len(selectedFiles) == 0 {
+			return nil // Nothing to restore
+		}
 		selected := s.current()
 		s.selectedHint = "gets restored"
 		s.unselectedHint = "stays as is"
-		model := confirmation.New(
-			[]string{"Are you sure you want to restore the selected files?"},
-			confirmation.WithStylePrefix("revisions"),
+		options := []confirmation.Option{
 			confirmation.WithOption("Yes",
 				s.context.RunCommand(jj.Restore(s.revision.GetChangeId(), selectedFiles), common.Refresh, confirmation.Close),
 				key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-			confirmation.WithOption("Interactive",
+		}
+		// Only show interactive option when on a specific file
+		if selected != nil {
+			options = append(options, confirmation.WithOption("Interactive",
 				tea.Batch(s.context.RunInteractiveCommand(jj.RestoreInteractive(s.revision.GetChangeId(), selected.fileName), common.Refresh), common.Close),
-				key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "interactive"))),
-			confirmation.WithOption("No",
-				confirmation.Close,
-				key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+				key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "interactive"))))
+		}
+		options = append(options, confirmation.WithOption("No",
+			confirmation.Close,
+			key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))))
+		model := confirmation.New(
+			[]string{"Are you sure you want to restore the selected files?"},
+			append([]confirmation.Option{confirmation.WithStylePrefix("revisions")}, options...)...,
 		)
 		s.confirmation = model
 		return s.confirmation.Init()
 	case intents.DetailsAbsorb:
+		s.applyDirectorySelection()
 		selectedFiles := s.getSelectedFiles(true)
 		s.selectedHint = "might get absorbed into parents"
 		s.unselectedHint = "stays as is"
@@ -263,6 +286,24 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		s.confirmation = model
 		return s.confirmation.Init()
 	case intents.DetailsToggleSelect:
+		// If in tree view and on a directory, toggle all children
+		if s.treeView && s.IsCurrentNodeDirectory() {
+			items := s.ToggleSelectChildren()
+			for _, it := range items {
+				checkedFile := context.SelectedFile{
+					ChangeId: s.revision.GetChangeId(),
+					CommitId: s.revision.CommitId,
+					File:     it.fileName,
+				}
+				if it.selected {
+					s.context.AddCheckedItem(checkedFile)
+				} else {
+					s.context.RemoveCheckedItem(checkedFile)
+				}
+			}
+			return nil
+		}
+		// Otherwise toggle the current file
 		if current := s.current(); current != nil {
 			isChecked := !current.selected
 			current.selected = isChecked
@@ -296,21 +337,38 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 			return tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(%s)", jj.EscapeFileName(current.fileName))))
 		}
 		return nil
+	case intents.DetailsExpandNode:
+		s.ExpandCurrentNode()
+		return nil
+	case intents.DetailsCollapseNode:
+		s.CollapseCurrentNode()
+		return nil
 	}
 	return nil
 }
 
 func (s *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	content := s.viewContent(box.R.Dx(), box.R.Dy())
-	content = lipgloss.Place(
-		box.R.Dx(),
-		box.R.Dy(),
-		lipgloss.Left,
-		lipgloss.Top,
-		content,
-		lipgloss.WithWhitespaceBackground(s.styles.Text.GetBackground()),
-	)
-	dl.AddDraw(box.R, content, 0)
+	confirmationHeight := 0
+	if s.confirmation != nil {
+		confirmationHeight = lipgloss.Height(s.confirmation.View())
+	}
+
+	if s.Len() == 0 {
+		content := s.styles.Dimmed.Render("No changes")
+		dl.AddDraw(cellbuf.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), 1), content, 0)
+		return
+	}
+
+	height := min(box.R.Dy()-confirmationHeight, s.Len())
+	if height > 0 {
+		listRect := layout.Box{R: cellbuf.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), height)}
+		s.RenderFileList(dl, listRect)
+	}
+
+	if s.confirmation != nil && confirmationHeight > 0 {
+		confirmRect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y+height, box.R.Dx(), confirmationHeight)
+		s.confirmation.ViewRect(dl, layout.Box{R: confirmRect})
+	}
 }
 
 func (s *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
@@ -408,6 +466,19 @@ func (s *Operation) Name() string {
 	return "details"
 }
 
+// applyDirectorySelection marks all files under the current directory as selected
+// and updates the context. This is called before operations to ensure hints display correctly.
+func (s *Operation) applyDirectorySelection() {
+	items := s.SelectCurrentDirectoryFiles()
+	for _, it := range items {
+		s.context.AddCheckedItem(context.SelectedFile{
+			ChangeId: s.revision.GetChangeId(),
+			CommitId: s.revision.CommitId,
+			File:     it.fileName,
+		})
+	}
+}
+
 func (s *Operation) getSelectedFiles(allowVirtualSelection bool) []string {
 	selectedFiles := make([]string, 0)
 	if len(s.files) == 0 {
@@ -420,7 +491,17 @@ func (s *Operation) getSelectedFiles(allowVirtualSelection bool) []string {
 		}
 	}
 	if len(selectedFiles) == 0 && allowVirtualSelection {
-		selectedFiles = append(selectedFiles, s.current().fileName)
+		// If on a file, use that file
+		if current := s.current(); current != nil {
+			selectedFiles = append(selectedFiles, current.fileName)
+			return selectedFiles
+		}
+		// If on a directory, use all files under it
+		if dirFiles := s.GetCurrentDirectoryFiles(); len(dirFiles) > 0 {
+			for _, f := range dirFiles {
+				selectedFiles = append(selectedFiles, f.fileName)
+			}
+		}
 		return selectedFiles
 	}
 	return selectedFiles
@@ -525,33 +606,4 @@ func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation 
 		targetMarkerStyle: common.DefaultPalette.Get("revisions details target_marker"),
 	}
 	return op
-}
-
-func (s *Operation) viewContent(width, maxHeight int) string {
-	confirmationView := ""
-	ch := 0
-	if s.confirmation != nil {
-		confirmationView = s.confirmation.View()
-		ch = lipgloss.Height(confirmationView)
-	}
-	if s.Len() == 0 {
-		return s.styles.Dimmed.Render("No changes")
-	}
-	if width <= 0 {
-		width = 80 // sensible default
-	}
-	height := min(maxHeight-5-ch, s.Len())
-	if height < 0 {
-		height = 0
-	}
-	dl := render.NewDisplayContext()
-	viewRect := layout.Box{R: cellbuf.Rect(0, 0, width, height)}
-	if height > 0 {
-		s.RenderFileList(dl, viewRect)
-	}
-	filesView := strings.TrimRight(dl.RenderToString(width, height), "\n")
-	if confirmationView != "" {
-		return lipgloss.JoinVertical(lipgloss.Top, filesView, confirmationView)
-	}
-	return filesView
 }

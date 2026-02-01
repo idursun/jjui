@@ -124,16 +124,20 @@ func (d *DetailsList) current() *item {
 	return d.files[d.cursor]
 }
 
-// RenderFileList renders the file list to a DisplayContext
+// RenderFileList dispatches to the appropriate renderer based on view mode
 func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.Box) {
 	if len(d.files) == 0 {
 		return
 	}
 	if d.treeView {
-		d.renderTreeList(dl, viewRect)
+		d.renderTreeView(dl, viewRect)
 		return
 	}
+	d.renderFlatList(dl, viewRect)
+}
 
+// renderFlatList renders files as a flat scrollable list
+func (d *DetailsList) renderFlatList(dl *render.DisplayContext, viewRect layout.Box) {
 	// Measure function - all items have height 1
 	measure := func(index int) int {
 		return 1
@@ -268,7 +272,8 @@ func (d *DetailsList) ToggleTreeView() {
 	}
 }
 
-func (d *DetailsList) renderTreeList(dl *render.DisplayContext, viewRect layout.Box) {
+// renderTreeView renders files in a tree structure
+func (d *DetailsList) renderTreeView(dl *render.DisplayContext, viewRect layout.Box) {
 	if d.treeRoot == nil {
 		return
 	}
@@ -289,8 +294,9 @@ func (d *DetailsList) renderTreeList(dl *render.DisplayContext, viewRect layout.
 }
 
 func (d *DetailsList) isTreeSelectable(node render.TreeNode) bool {
-	detailsNode, ok := node.(*detailsTreeNode)
-	return ok && detailsNode.item != nil
+	// All nodes are selectable (both files and directories)
+	_, ok := node.(*detailsTreeNode)
+	return ok
 }
 
 func (d *DetailsList) renderTreeNode(
@@ -324,6 +330,7 @@ func (d *DetailsList) renderTreeNode(
 	tb := dl.Text(rect.Min.X, rect.Min.Y, 0)
 
 	if detailsNode.item == nil {
+		// Directory node
 		arrow := "▾ "
 		if !isExpanded {
 			arrow = "▸ "
@@ -332,8 +339,12 @@ func (d *DetailsList) renderTreeNode(
 		if len(label) > width {
 			label = label[:width]
 		}
-		tb.Styled(label, d.styles.Dimmed.Background(baseStyle.GetBackground()))
+		dirStyle := d.styles.Dimmed.Background(baseStyle.GetBackground())
+		tb.Styled(label, dirStyle)
 		tb.Done()
+		if isSelected {
+			dl.AddHighlight(rect, dirStyle.Reverse(true), 1)
+		}
 		return
 	}
 
@@ -521,4 +532,114 @@ func (d *DetailsList) ToggleTreeExpand(visibleIndex int) {
 		return
 	}
 	render.ToggleExpanded(node.ID(), d.treeExpanded, true)
+}
+
+// currentTreeNode returns the currently selected tree node, or nil if none.
+func (d *DetailsList) currentTreeNode() *detailsTreeNode {
+	if d.treeSelectedID == "" {
+		return nil
+	}
+	idx := render.FindVisibleIndexByID(d.treeLastOutput.VisibleItems, d.treeSelectedID)
+	if idx < 0 || idx >= len(d.treeLastOutput.VisibleItems) {
+		return nil
+	}
+	node, ok := d.treeLastOutput.VisibleItems[idx].Node.(*detailsTreeNode)
+	if !ok {
+		return nil
+	}
+	return node
+}
+
+// IsCurrentNodeDirectory returns true if the current tree node is a directory.
+func (d *DetailsList) IsCurrentNodeDirectory() bool {
+	node := d.currentTreeNode()
+	return node != nil && node.item == nil
+}
+
+// IsCurrentNodeExpanded returns true if the current tree node is expanded.
+func (d *DetailsList) IsCurrentNodeExpanded() bool {
+	node := d.currentTreeNode()
+	if node == nil || node.item != nil {
+		return false
+	}
+	return render.IsNodeExpanded(node, d.treeExpanded, true)
+}
+
+// ExpandCurrentNode expands the current directory node.
+func (d *DetailsList) ExpandCurrentNode() {
+	node := d.currentTreeNode()
+	if node == nil || node.item != nil {
+		return
+	}
+	if !render.HasChildren(node) {
+		return
+	}
+	d.treeExpanded[node.ID()] = true
+}
+
+// CollapseCurrentNode collapses the current directory node.
+func (d *DetailsList) CollapseCurrentNode() {
+	node := d.currentTreeNode()
+	if node == nil || node.item != nil {
+		return
+	}
+	if !render.HasChildren(node) {
+		return
+	}
+	d.treeExpanded[node.ID()] = false
+}
+
+// ToggleSelectChildren toggles selection of all items under the current directory.
+// Returns the items that were toggled for updating the context.
+func (d *DetailsList) ToggleSelectChildren() []*item {
+	node := d.currentTreeNode()
+	if node == nil || node.item != nil {
+		return nil
+	}
+	items := collectDescendantItems(node)
+	if len(items) == 0 {
+		return nil
+	}
+
+	// Determine new state: if any are unselected, select all; otherwise unselect all
+	anyUnselected := false
+	for _, it := range items {
+		if !it.selected {
+			anyUnselected = true
+			break
+		}
+	}
+
+	newState := anyUnselected
+	for _, it := range items {
+		it.selected = newState
+	}
+	return items
+}
+
+// GetCurrentDirectoryFiles returns all files under the current directory node.
+// Returns nil if not on a directory or not in tree view.
+func (d *DetailsList) GetCurrentDirectoryFiles() []*item {
+	if !d.treeView {
+		return nil
+	}
+	node := d.currentTreeNode()
+	if node == nil || node.item != nil {
+		return nil
+	}
+	return collectDescendantItems(node)
+}
+
+// SelectCurrentDirectoryFiles marks all files under the current directory as selected.
+// Returns the items that were selected, or nil if not on a directory.
+// This is used to apply "virtual selection" for operations on directories.
+func (d *DetailsList) SelectCurrentDirectoryFiles() []*item {
+	items := d.GetCurrentDirectoryFiles()
+	if items == nil {
+		return nil
+	}
+	for _, it := range items {
+		it.selected = true
+	}
+	return items
 }

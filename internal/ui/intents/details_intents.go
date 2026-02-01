@@ -43,3 +43,11 @@ func (DetailsToggleTree) isIntent() {}
 type DetailsRevisionsChangingFile struct{}
 
 func (DetailsRevisionsChangingFile) isIntent() {}
+
+type DetailsExpandNode struct{}
+
+func (DetailsExpandNode) isIntent() {}
+
+type DetailsCollapseNode struct{}
+
+func (DetailsCollapseNode) isIntent() {}
