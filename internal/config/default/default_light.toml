@@ -11,6 +11,9 @@ error = "red"
 "confirmation selected" = { fg = "bright white", bg = "blue", bold = true }
 "confirmation dimmed" = "white"
 "help title" = { fg = "green", bold = true }
+"diff selected" = { bg = "bright black" }
+"diff directory text" = "bright black"
+"diff directory selected" = { fg = "bright white", bg = "bright black" }
 "revisions details selected" = { bg = "bright black" }
 "revisions matched" = { underline = false, reverse = true }
 "revset title" = "magenta"
