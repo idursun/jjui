@@ -31,7 +31,6 @@ type DetailsList struct {
 	files            []*item
 	cursor           int
 	listRenderer     *render.ListRenderer
-	treeList         *render.TreeList
 	treeRoot         *detailsTreeNode
 	treeFileNodes    map[string]*detailsTreeNode
 	treeView         bool
@@ -39,6 +38,13 @@ type DetailsList struct {
 	unselectedHint   string
 	styles           styles
 	ensureCursorView bool
+
+	// Tree state (caller-owned for stateless tree rendering)
+	treeSelectedID   string
+	treeExpanded     map[string]bool
+	treeScrollOffset int
+	treeEnsureCursor bool
+	treeLastOutput   render.TreeOutput
 }
 
 func NewDetailsList(styles styles) *DetailsList {
@@ -49,6 +55,7 @@ func NewDetailsList(styles styles) *DetailsList {
 		unselectedHint: "",
 		styles:         styles,
 		treeView:       false,
+		treeExpanded:   make(map[string]bool),
 	}
 	d.listRenderer = render.NewListRenderer(FileListScrollMsg{})
 	return d
@@ -74,11 +81,7 @@ func (d *DetailsList) setItems(files []*item) {
 
 func (d *DetailsList) cursorUp() {
 	if d.treeView {
-		if d.treeList != nil {
-			d.treeList.MoveUp()
-			d.treeList.SetEnsureCursorVisible(true)
-			d.syncCursorToTree()
-		}
+		d.treeMovePrev()
 		return
 	}
 	if d.cursor > 0 {
@@ -90,11 +93,7 @@ func (d *DetailsList) cursorUp() {
 
 func (d *DetailsList) cursorDown() {
 	if d.treeView {
-		if d.treeList != nil {
-			d.treeList.MoveDown()
-			d.treeList.SetEnsureCursorVisible(true)
-			d.syncCursorToTree()
-		}
+		d.treeMoveNext()
 		return
 	}
 	if d.cursor < len(d.files)-1 {
@@ -233,9 +232,9 @@ func (d *DetailsList) getStatusStyle(s status) lipgloss.Style {
 
 // Scroll handles mouse wheel scrolling
 func (d *DetailsList) Scroll(delta int) {
-	if d.treeView && d.treeList != nil {
-		d.treeList.SetEnsureCursorVisible(false)
-		d.treeList.SetScrollOffset(d.treeList.GetScrollOffset() + delta)
+	if d.treeView {
+		d.treeEnsureCursor = false
+		d.treeScrollOffset += delta
 		return
 	}
 	d.ensureCursorView = false
@@ -243,8 +242,10 @@ func (d *DetailsList) Scroll(delta int) {
 }
 
 func (d *DetailsList) Len() int {
-	if d.treeView && d.treeList != nil {
-		return len(d.treeList.VisibleItems())
+	if d.treeView {
+		// Compute flattened tree for accurate count (needed for height calculations before rendering)
+		items := render.FlattenTree(d.treeRoot, d.treeExpanded, true)
+		return len(items)
 	}
 	return len(d.files)
 }
@@ -253,14 +254,11 @@ func (d *DetailsList) ToggleTreeView() {
 	selectedFile := d.selectedFileName()
 	d.treeView = !d.treeView
 	if d.treeView {
-		if d.treeList != nil {
-			d.treeList.SetEnsureCursorVisible(true)
-		}
+		d.treeEnsureCursor = true
 		if selectedFile != "" {
 			d.setSelectionByFileName(selectedFile)
-		} else if d.treeList != nil {
-			d.treeList.SelectFirstSelectable()
-			d.syncCursorToTree()
+		} else {
+			d.treeSelectFirst()
 		}
 		return
 	}
@@ -271,10 +269,28 @@ func (d *DetailsList) ToggleTreeView() {
 }
 
 func (d *DetailsList) renderTreeList(dl *render.DisplayContext, viewRect layout.Box) {
-	if d.treeList == nil {
+	if d.treeRoot == nil {
 		return
 	}
-	d.treeList.ViewRect(dl, viewRect)
+	d.treeLastOutput = render.RenderTree(dl, viewRect, render.TreeInput{
+		Root:          d.treeRoot,
+		SelectedID:    d.treeSelectedID,
+		Expanded:      d.treeExpanded,
+		DefaultExpand: true,
+		ScrollOffset:  d.treeScrollOffset,
+		EnsureCursor:  d.treeEnsureCursor,
+		Selectable:    d.isTreeSelectable,
+		RenderNode:    d.renderTreeNode,
+		ClickMessage:  d.treeClickMessage,
+		ScrollMsg:     FileListScrollMsg{},
+	})
+	d.treeScrollOffset = d.treeLastOutput.ScrollOffset
+	d.treeEnsureCursor = false
+}
+
+func (d *DetailsList) isTreeSelectable(node render.TreeNode) bool {
+	detailsNode, ok := node.(*detailsTreeNode)
+	return ok && detailsNode.item != nil
 }
 
 func (d *DetailsList) renderTreeNode(
@@ -282,6 +298,7 @@ func (d *DetailsList) renderTreeNode(
 	node render.TreeNode,
 	depth int,
 	isSelected bool,
+	isExpanded bool,
 	rect cellbuf.Rectangle,
 ) {
 	detailsNode, ok := node.(*detailsTreeNode)
@@ -308,7 +325,7 @@ func (d *DetailsList) renderTreeNode(
 
 	if detailsNode.item == nil {
 		arrow := "▾ "
-		if d.treeList != nil && !d.treeList.IsExpanded(node) {
+		if !isExpanded {
 			arrow = "▸ "
 		}
 		label := indent + arrow + detailsNode.name + "/"
@@ -353,23 +370,8 @@ func (d *DetailsList) buildTree() {
 	d.treeRoot = buildDetailsTree(d.files)
 	d.treeFileNodes = make(map[string]*detailsTreeNode)
 	indexDetailsTreeFiles(d.treeRoot, d.treeFileNodes)
-
-	if d.treeList == nil {
-		d.treeList = render.NewTreeList(render.TreeListConfig{
-			Root:            d.treeRoot,
-			DefaultExpanded: true,
-			ScrollMsg:       FileListScrollMsg{},
-			Selectable: func(node render.TreeNode) bool {
-				detailsNode, ok := node.(*detailsTreeNode)
-				return ok && detailsNode.item != nil
-			},
-		})
-	}
-
-	d.treeList.SetRoot(d.treeRoot)
-	d.treeList.SetRenderNode(d.renderTreeNode)
-	d.treeList.SetClickMessage(d.treeClickMessage)
-	d.treeList.SetEnsureCursorVisible(true)
+	d.treeScrollOffset = 0
+	d.treeEnsureCursor = true
 }
 
 func (d *DetailsList) selectedFileName() string {
@@ -390,11 +392,10 @@ func (d *DetailsList) setSelectionByFileName(fileName string) {
 		d.cursor = idx
 		d.ensureCursorView = true
 	}
-	if d.treeList != nil {
-		if node, ok := d.treeFileNodes[fileName]; ok {
-			d.treeList.SetEnsureCursorVisible(true)
-			d.treeList.SetSelectedByID(node.ID())
-		}
+	if node, ok := d.treeFileNodes[fileName]; ok {
+		d.treeEnsureCursor = true
+		render.ExpandPathToNode(d.treeRoot, node.ID(), d.treeExpanded)
+		d.treeSelectedID = node.ID()
 	}
 }
 
@@ -408,10 +409,14 @@ func (d *DetailsList) findFileIndex(fileName string) int {
 }
 
 func (d *DetailsList) selectedTreeNode() *detailsTreeNode {
-	if d.treeList == nil {
+	if d.treeSelectedID == "" {
 		return nil
 	}
-	node, ok := d.treeList.SelectedNode().(*detailsTreeNode)
+	idx := render.FindVisibleIndexByID(d.treeLastOutput.VisibleItems, d.treeSelectedID)
+	if idx < 0 || idx >= len(d.treeLastOutput.VisibleItems) {
+		return nil
+	}
+	node, ok := d.treeLastOutput.VisibleItems[idx].Node.(*detailsTreeNode)
 	if !ok {
 		return nil
 	}
@@ -419,13 +424,14 @@ func (d *DetailsList) selectedTreeNode() *detailsTreeNode {
 }
 
 func (d *DetailsList) syncTreeToCursor() {
-	if d.treeList == nil || d.cursor < 0 || d.cursor >= len(d.files) {
+	if d.cursor < 0 || d.cursor >= len(d.files) {
 		return
 	}
 	fileName := d.files[d.cursor].fileName
 	if node, ok := d.treeFileNodes[fileName]; ok {
-		d.treeList.SetEnsureCursorVisible(true)
-		d.treeList.SetSelectedByID(node.ID())
+		d.treeEnsureCursor = true
+		render.ExpandPathToNode(d.treeRoot, node.ID(), d.treeExpanded)
+		d.treeSelectedID = node.ID()
 	}
 }
 
@@ -442,4 +448,77 @@ func (d *DetailsList) syncCursorToTree() {
 
 func (d *DetailsList) showHint() bool {
 	return d.selectedHint != "" || d.unselectedHint != ""
+}
+
+// Tree navigation helpers
+func (d *DetailsList) treeMoveNext() {
+	items := d.treeLastOutput.VisibleItems
+	if len(items) == 0 {
+		return
+	}
+	currentIdx := d.treeLastOutput.SelectedIndex
+	if currentIdx < 0 {
+		nextIdx := render.FirstSelectableIndex(items, d.isTreeSelectable)
+		if nextIdx >= 0 {
+			d.treeSelectedID = items[nextIdx].Node.ID()
+			d.treeEnsureCursor = true
+			d.syncCursorToTree()
+		}
+		return
+	}
+	nextIdx := render.NextSelectableIndex(items, currentIdx, d.isTreeSelectable)
+	if nextIdx >= 0 {
+		d.treeSelectedID = items[nextIdx].Node.ID()
+		d.treeEnsureCursor = true
+		d.syncCursorToTree()
+	}
+}
+
+func (d *DetailsList) treeMovePrev() {
+	items := d.treeLastOutput.VisibleItems
+	if len(items) == 0 {
+		return
+	}
+	currentIdx := d.treeLastOutput.SelectedIndex
+	if currentIdx < 0 {
+		prevIdx := render.LastSelectableIndex(items, d.isTreeSelectable)
+		if prevIdx >= 0 {
+			d.treeSelectedID = items[prevIdx].Node.ID()
+			d.treeEnsureCursor = true
+			d.syncCursorToTree()
+		}
+		return
+	}
+	prevIdx := render.PrevSelectableIndex(items, currentIdx, d.isTreeSelectable)
+	if prevIdx >= 0 {
+		d.treeSelectedID = items[prevIdx].Node.ID()
+		d.treeEnsureCursor = true
+		d.syncCursorToTree()
+	}
+}
+
+func (d *DetailsList) treeSelectFirst() {
+	items := render.FlattenTree(d.treeRoot, d.treeExpanded, true)
+	if len(items) == 0 {
+		return
+	}
+	firstIdx := render.FirstSelectableIndex(items, d.isTreeSelectable)
+	if firstIdx >= 0 {
+		d.treeSelectedID = items[firstIdx].Node.ID()
+		d.treeEnsureCursor = true
+		d.syncCursorToTree()
+	}
+}
+
+// ToggleTreeExpand toggles the expand state of the tree node at the given visible index.
+func (d *DetailsList) ToggleTreeExpand(visibleIndex int) {
+	items := d.treeLastOutput.VisibleItems
+	if visibleIndex < 0 || visibleIndex >= len(items) {
+		return
+	}
+	node := items[visibleIndex].Node
+	if !render.HasChildren(node) {
+		return
+	}
+	render.ToggleExpanded(node.ID(), d.treeExpanded, true)
 }

@@ -46,28 +46,27 @@ func (n *diffTreeNode) Children() []render.TreeNode {
 type FileList struct {
 	files     []*DiffFile
 	root      *diffTreeNode
-	tree      *render.TreeList
 	fileNodes map[int]*diffTreeNode
+
+	// Tree state (caller-owned for stateless tree rendering)
+	selectedID   string
+	expanded     map[string]bool
+	scrollOffset int
+	ensureCursor bool
+	lastOutput   render.TreeOutput
 }
 
 // NewFileList creates a new file list from parsed diff files.
 func NewFileList(files []*DiffFile) *FileList {
 	fl := &FileList{
-		files: files,
+		files:        files,
+		expanded:     make(map[string]bool),
+		ensureCursor: true,
 	}
 	fl.root = buildTree(files)
 	fl.fileNodes = make(map[int]*diffTreeNode)
 	fl.indexFiles(fl.root)
-	fl.tree = render.NewTreeList(render.TreeListConfig{
-		Root:            fl.root,
-		DefaultExpanded: true,
-		Selectable: func(node render.TreeNode) bool {
-			return len(node.Children()) == 0
-		},
-	})
-	fl.tree.SetRenderNode(fl.renderNode)
-	fl.tree.SetClickMessage(fl.clickMessage)
-	fl.tree.SelectFirstSelectable()
+	fl.selectFirst()
 	return fl
 }
 
@@ -181,12 +180,32 @@ func (fl *FileList) indexFiles(node *diffTreeNode) {
 	}
 }
 
+func (fl *FileList) isSelectable(node render.TreeNode) bool {
+	return len(node.Children()) == 0
+}
+
+func (fl *FileList) selectFirst() {
+	items := render.FlattenTree(fl.root, fl.expanded, true)
+	if len(items) == 0 {
+		return
+	}
+	firstIdx := render.FirstSelectableIndex(items, fl.isSelectable)
+	if firstIdx >= 0 {
+		fl.selectedID = items[firstIdx].Node.ID()
+		fl.ensureCursor = true
+	}
+}
+
 // SelectedFile returns the currently selected file.
 func (fl *FileList) SelectedFile() *DiffFile {
-	if fl.tree == nil {
+	if fl.selectedID == "" {
 		return nil
 	}
-	node, ok := fl.tree.SelectedNode().(*diffTreeNode)
+	idx := render.FindVisibleIndexByID(fl.lastOutput.VisibleItems, fl.selectedID)
+	if idx < 0 || idx >= len(fl.lastOutput.VisibleItems) {
+		return nil
+	}
+	node, ok := fl.lastOutput.VisibleItems[idx].Node.(*diffTreeNode)
 	if !ok || node == nil {
 		return nil
 	}
@@ -195,10 +214,14 @@ func (fl *FileList) SelectedFile() *DiffFile {
 
 // SelectedIndex returns the file index of the currently selected item, or -1 if none.
 func (fl *FileList) SelectedIndex() int {
-	if fl.tree == nil {
+	if fl.selectedID == "" {
 		return -1
 	}
-	node, ok := fl.tree.SelectedNode().(*diffTreeNode)
+	idx := render.FindVisibleIndexByID(fl.lastOutput.VisibleItems, fl.selectedID)
+	if idx < 0 || idx >= len(fl.lastOutput.VisibleItems) {
+		return -1
+	}
+	node, ok := fl.lastOutput.VisibleItems[idx].Node.(*diffTreeNode)
 	if !ok || node == nil || node.isDir {
 		return -1
 	}
@@ -207,7 +230,7 @@ func (fl *FileList) SelectedIndex() int {
 
 // SetSelectedIndex sets the selection to the visible item matching the given file index.
 func (fl *FileList) SetSelectedIndex(fileIdx int) {
-	if len(fl.files) == 0 || fl.tree == nil {
+	if len(fl.files) == 0 {
 		return
 	}
 	if fileIdx < 0 {
@@ -220,31 +243,87 @@ func (fl *FileList) SetSelectedIndex(fileIdx int) {
 	if !ok {
 		return
 	}
-	fl.tree.SetSelectedByID(node.ID())
+	render.ExpandPathToNode(fl.root, node.ID(), fl.expanded)
+	fl.selectedID = node.ID()
+	fl.ensureCursor = true
 }
 
 // MoveUp moves selection to the previous file node (skipping directories).
 func (fl *FileList) MoveUp() {
-	if fl.tree == nil {
+	items := fl.lastOutput.VisibleItems
+	if len(items) == 0 {
 		return
 	}
-	fl.tree.MoveUp()
+	currentIdx := fl.lastOutput.SelectedIndex
+	if currentIdx < 0 {
+		prevIdx := render.LastSelectableIndex(items, fl.isSelectable)
+		if prevIdx >= 0 {
+			fl.selectedID = items[prevIdx].Node.ID()
+			fl.ensureCursor = true
+		}
+		return
+	}
+	prevIdx := render.PrevSelectableIndex(items, currentIdx, fl.isSelectable)
+	if prevIdx >= 0 {
+		fl.selectedID = items[prevIdx].Node.ID()
+		fl.ensureCursor = true
+	}
 }
 
 // MoveDown moves selection to the next file node (skipping directories).
 func (fl *FileList) MoveDown() {
-	if fl.tree == nil {
+	items := fl.lastOutput.VisibleItems
+	if len(items) == 0 {
 		return
 	}
-	fl.tree.MoveDown()
+	currentIdx := fl.lastOutput.SelectedIndex
+	if currentIdx < 0 {
+		nextIdx := render.FirstSelectableIndex(items, fl.isSelectable)
+		if nextIdx >= 0 {
+			fl.selectedID = items[nextIdx].Node.ID()
+			fl.ensureCursor = true
+		}
+		return
+	}
+	nextIdx := render.NextSelectableIndex(items, currentIdx, fl.isSelectable)
+	if nextIdx >= 0 {
+		fl.selectedID = items[nextIdx].Node.ID()
+		fl.ensureCursor = true
+	}
 }
 
 // ToggleExpand toggles the expanded state of a directory at the given visible index.
 func (fl *FileList) ToggleExpand(visibleIdx int) {
-	if fl.tree == nil {
+	items := fl.lastOutput.VisibleItems
+	if visibleIdx < 0 || visibleIdx >= len(items) {
 		return
 	}
-	fl.tree.ToggleExpand(visibleIdx)
+	node := items[visibleIdx].Node
+	if !render.HasChildren(node) {
+		return
+	}
+
+	// Remember current selection
+	currentSelectedID := fl.selectedID
+
+	render.ToggleExpanded(node.ID(), fl.expanded, true)
+
+	// Re-flatten to check if selection is still visible
+	newItems := render.FlattenTree(fl.root, fl.expanded, true)
+	if currentSelectedID != "" {
+		// Check if the selected node is still visible
+		if idx := render.FindVisibleIndexByID(newItems, currentSelectedID); idx >= 0 {
+			// Selection is still visible, keep it
+			return
+		}
+	}
+
+	// Selection was hidden, find nearest selectable
+	nearestIdx := render.NearestSelectableIndex(newItems, visibleIdx, fl.isSelectable)
+	if nearestIdx >= 0 {
+		fl.selectedID = newItems[nearestIdx].Node.ID()
+		fl.ensureCursor = true
+	}
 }
 
 // FileCount returns the number of files.
@@ -254,10 +333,23 @@ func (fl *FileList) FileCount() int {
 
 // ViewRect renders the file list to the display context.
 func (fl *FileList) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	if fl.tree == nil {
+	if fl.root == nil {
 		return
 	}
-	fl.tree.ViewRect(dl, box)
+	fl.lastOutput = render.RenderTree(dl, box, render.TreeInput{
+		Root:          fl.root,
+		SelectedID:    fl.selectedID,
+		Expanded:      fl.expanded,
+		DefaultExpand: true,
+		ScrollOffset:  fl.scrollOffset,
+		EnsureCursor:  fl.ensureCursor,
+		Selectable:    fl.isSelectable,
+		RenderNode:    fl.renderNode,
+		ClickMessage:  fl.clickMessage,
+		ScrollMsg:     nil,
+	})
+	fl.scrollOffset = fl.lastOutput.ScrollOffset
+	fl.ensureCursor = false
 }
 
 func (fl *FileList) renderNode(
@@ -265,6 +357,7 @@ func (fl *FileList) renderNode(
 	node render.TreeNode,
 	depth int,
 	isSelected bool,
+	isExpanded bool,
 	rect cellbuf.Rectangle,
 ) {
 	diffNode, ok := node.(*diffTreeNode)
@@ -290,7 +383,7 @@ func (fl *FileList) renderNode(
 	indent := strings.Repeat("  ", depth)
 	if diffNode.isDir {
 		arrow := "▾ "
-		if !fl.tree.IsExpanded(node) {
+		if !isExpanded {
 			arrow = "▸ "
 		}
 		label := indent + arrow + diffNode.name + "/"

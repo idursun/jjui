@@ -124,9 +124,7 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 			File:     s.current().fileName,
 		})
 	case TreeToggleMsg:
-		if s.treeList != nil {
-			s.treeList.ToggleExpand(msg.VisibleIndex)
-		}
+		s.ToggleTreeExpand(msg.VisibleIndex)
 		return nil
 	case FileListScrollMsg:
 		if msg.Horizontal {

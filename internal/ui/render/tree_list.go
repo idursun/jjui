@@ -7,385 +7,301 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 )
 
+// TreeNode represents a node in a tree structure.
 type TreeNode interface {
 	ID() string
 	Name() string
 	Children() []TreeNode
 }
 
+// TreeVisibleItem represents a visible node in a flattened tree.
 type TreeVisibleItem struct {
 	Node  TreeNode
 	Depth int
 }
 
-type TreeRenderFunc func(dl *DisplayContext, node TreeNode, depth int, isSelected bool, rect cellbuf.Rectangle)
+// TreeRenderFunc renders a single tree node.
+// isExpanded indicates whether the node is currently expanded (only meaningful for nodes with children).
+type TreeRenderFunc func(dl *DisplayContext, node TreeNode, depth int, isSelected bool, isExpanded bool, rect cellbuf.Rectangle)
 
+// TreeClickFunc returns a message when a tree node is clicked.
 type TreeClickFunc func(node TreeNode, visibleIndex int) tea.Msg
 
-type TreeListConfig struct {
-	Root            TreeNode
-	ScrollMsg       tea.Msg
-	DefaultExpanded bool
-	Expanded        map[string]bool
-	Selectable      func(TreeNode) bool
-	RenderNode      TreeRenderFunc
-	ClickMessage    TreeClickFunc
-	AutoSelect      bool
+// TreeInput holds all the state and configuration needed to render a tree.
+// The caller owns this and passes it to the render function.
+type TreeInput struct {
+	// Tree structure
+	Root TreeNode
+
+	// State (caller-owned)
+	SelectedID    string          // ID of the selected node
+	Expanded      map[string]bool // node ID → expanded state
+	DefaultExpand bool            // default for nodes not in Expanded map
+	ScrollOffset  int
+	EnsureCursor  bool // scroll to make selection visible
+
+	// Callbacks
+	Selectable   func(TreeNode) bool
+	RenderNode   TreeRenderFunc
+	ClickMessage TreeClickFunc
+	ScrollMsg    tea.Msg
 }
 
-type TreeList struct {
-	root            TreeNode
-	visible         []TreeVisibleItem
-	selectedIndex   int
-	listRenderer    *ListRenderer
-	defaultExpanded bool
-	expanded        map[string]bool
-	selectable      func(TreeNode) bool
-	renderNode      TreeRenderFunc
-	clickMessage    TreeClickFunc
-	ensureCursor    bool
+// TreeOutput contains computed information after rendering.
+// Caller uses this to update their state.
+type TreeOutput struct {
+	VisibleItems  []TreeVisibleItem
+	SelectedIndex int // index in VisibleItems, -1 if none
+	ScrollOffset  int // adjusted scroll offset (if EnsureCursor was true)
 }
 
-func NewTreeList(config TreeListConfig) *TreeList {
-	tl := &TreeList{
-		root:            config.Root,
-		selectedIndex:   -1,
-		listRenderer:    NewListRenderer(config.ScrollMsg),
-		defaultExpanded: config.DefaultExpanded,
-		expanded:        config.Expanded,
-		selectable:      config.Selectable,
-		renderNode:      config.RenderNode,
-		clickMessage:    config.ClickMessage,
-		ensureCursor:    true,
-	}
-	tl.flatten()
-	if config.AutoSelect {
-		tl.SelectFirstSelectable()
-	}
-	return tl
-}
-
-func (t *TreeList) SetRoot(root TreeNode) {
-	t.root = root
-	t.flatten()
-}
-
-func (t *TreeList) SetRenderNode(renderNode TreeRenderFunc) {
-	t.renderNode = renderNode
-}
-
-func (t *TreeList) SetClickMessage(clickMessage TreeClickFunc) {
-	t.clickMessage = clickMessage
-}
-
-func (t *TreeList) SetSelectable(selectable func(TreeNode) bool) {
-	t.selectable = selectable
-}
-
-func (t *TreeList) SetEnsureCursorVisible(ensure bool) {
-	t.ensureCursor = ensure
-}
-
-func (t *TreeList) SetScrollOffset(offset int) {
-	t.listRenderer.SetScrollOffset(offset)
-}
-
-func (t *TreeList) GetScrollOffset() int {
-	return t.listRenderer.GetScrollOffset()
-}
-
-func (t *TreeList) VisibleItems() []TreeVisibleItem {
-	return t.visible
-}
-
-func (t *TreeList) SelectedVisibleIndex() int {
-	return t.selectedIndex
-}
-
-func (t *TreeList) SelectedNode() TreeNode {
-	if t.selectedIndex >= 0 && t.selectedIndex < len(t.visible) {
-		return t.visible[t.selectedIndex].Node
-	}
-	return nil
-}
-
-func (t *TreeList) SelectedID() string {
-	node := t.SelectedNode()
-	if node == nil {
-		return ""
-	}
-	return node.ID()
-}
-
-func (t *TreeList) SelectFirstSelectable() {
-	t.selectedIndex = t.firstSelectableIndex()
-}
-
-func (t *TreeList) SetSelectedByID(id string) {
-	if id == "" {
-		return
-	}
-	if t.root == nil {
-		return
-	}
-	t.expandPathToID(t.root, id)
-	t.flatten()
-	if idx := t.findVisibleIndexByID(id); idx >= 0 {
-		if t.isSelectable(t.visible[idx].Node) {
-			t.selectedIndex = idx
-		} else {
-			t.selectedIndex = t.nearestSelectableIndex(idx)
-		}
-	}
-}
-
-func (t *TreeList) MoveUp() {
-	if len(t.visible) == 0 {
-		return
-	}
-	if t.selectedIndex < 0 {
-		t.selectedIndex = t.lastSelectableIndex()
-		return
-	}
-	prev := t.prevSelectableIndex(t.selectedIndex)
-	if prev >= 0 {
-		t.selectedIndex = prev
-	}
-}
-
-func (t *TreeList) MoveDown() {
-	if len(t.visible) == 0 {
-		return
-	}
-	if t.selectedIndex < 0 {
-		t.selectedIndex = t.firstSelectableIndex()
-		return
-	}
-	next := t.nextSelectableIndex(t.selectedIndex)
-	if next >= 0 {
-		t.selectedIndex = next
-	}
-}
-
-func (t *TreeList) ToggleExpand(visibleIndex int) {
-	if visibleIndex < 0 || visibleIndex >= len(t.visible) {
-		return
-	}
-	node := t.visible[visibleIndex].Node
-	if !t.hasChildren(node) {
-		return
+// RenderTree flattens and renders a tree in one call.
+// Returns output that caller uses to update their state.
+func RenderTree(
+	dl *DisplayContext,
+	box layout.Box,
+	input TreeInput,
+) TreeOutput {
+	output := TreeOutput{
+		SelectedIndex: -1,
+		ScrollOffset:  input.ScrollOffset,
 	}
 
-	currentSelectedID := t.SelectedID()
-	t.setExpanded(node, !t.isExpanded(node))
-	t.flatten()
-
-	if currentSelectedID != "" {
-		if idx := t.findVisibleIndexByID(currentSelectedID); idx >= 0 {
-			if t.isSelectable(t.visible[idx].Node) {
-				t.selectedIndex = idx
-				return
-			}
-		}
-	}
-	t.selectedIndex = t.nearestSelectableIndex(visibleIndex)
-}
-
-func (t *TreeList) IsExpanded(node TreeNode) bool {
-	return t.isExpanded(node)
-}
-
-func (t *TreeList) ViewRect(dl *DisplayContext, box layout.Box) {
 	if box.R.Dx() <= 0 || box.R.Dy() <= 0 {
-		return
+		return output
 	}
 
 	emptyStyle := lipgloss.NewStyle()
 	dl.AddFill(cellbuf.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), box.R.Dy()), ' ', emptyStyle, 0)
 
-	if len(t.visible) == 0 || t.renderNode == nil {
-		return
+	// Flatten the tree
+	output.VisibleItems = FlattenTree(input.Root, input.Expanded, input.DefaultExpand)
+
+	if len(output.VisibleItems) == 0 || input.RenderNode == nil {
+		return output
 	}
 
-	clickMsg := t.clickMessage
+	// Find selected index
+	output.SelectedIndex = FindVisibleIndexByID(output.VisibleItems, input.SelectedID)
+
+	clickMsg := input.ClickMessage
 	if clickMsg == nil {
 		clickMsg = func(node TreeNode, visibleIndex int) tea.Msg {
 			return nil
 		}
 	}
 
-	t.listRenderer.Render(
+	// Create a temporary list renderer for scroll management and rendering
+	listRenderer := &ListRenderer{
+		StartLine: input.ScrollOffset,
+		ScrollMsg: input.ScrollMsg,
+	}
+
+	listRenderer.Render(
 		dl,
 		box,
-		len(t.visible),
-		t.selectedIndex,
-		t.ensureCursor,
+		len(output.VisibleItems),
+		output.SelectedIndex,
+		input.EnsureCursor,
 		func(index int) int {
 			return 1
 		},
 		func(dl *DisplayContext, index int, rect cellbuf.Rectangle) {
-			if index < 0 || index >= len(t.visible) {
+			if index < 0 || index >= len(output.VisibleItems) {
 				return
 			}
-			item := t.visible[index]
-			t.renderNode(dl, item.Node, item.Depth, index == t.selectedIndex, rect)
+			item := output.VisibleItems[index]
+			isExpanded := IsNodeExpanded(item.Node, input.Expanded, input.DefaultExpand)
+			input.RenderNode(dl, item.Node, item.Depth, index == output.SelectedIndex, isExpanded, rect)
 		},
 		func(index int) tea.Msg {
-			if index < 0 || index >= len(t.visible) {
+			if index < 0 || index >= len(output.VisibleItems) {
 				return nil
 			}
-			return clickMsg(t.visible[index].Node, index)
+			return clickMsg(output.VisibleItems[index].Node, index)
 		},
 	)
 
-	t.listRenderer.RegisterScroll(dl, box)
+	listRenderer.RegisterScroll(dl, box)
+	output.ScrollOffset = listRenderer.GetScrollOffset()
+
+	return output
 }
 
-func (t *TreeList) flatten() {
-	t.visible = nil
-	if t.root == nil {
-		t.selectedIndex = -1
-		return
+// FlattenTree flattens a tree into a slice of visible items.
+func FlattenTree(root TreeNode, expanded map[string]bool, defaultExpand bool) []TreeVisibleItem {
+	if root == nil {
+		return nil
 	}
-	t.flattenNode(t.root, -1)
-	if t.selectedIndex >= len(t.visible) {
-		t.selectedIndex = t.firstSelectableIndex()
-	}
+	var items []TreeVisibleItem
+	flattenNode(root, -1, expanded, defaultExpand, &items)
+	return items
 }
 
-func (t *TreeList) flattenNode(node TreeNode, depth int) {
+func flattenNode(node TreeNode, depth int, expanded map[string]bool, defaultExpand bool, items *[]TreeVisibleItem) {
 	if depth >= 0 {
-		t.visible = append(t.visible, TreeVisibleItem{Node: node, Depth: depth})
+		*items = append(*items, TreeVisibleItem{Node: node, Depth: depth})
 	}
-	if t.hasChildren(node) && (depth < 0 || t.isExpanded(node)) {
+	if hasChildren(node) && (depth < 0 || IsNodeExpanded(node, expanded, defaultExpand)) {
 		for _, child := range node.Children() {
-			t.flattenNode(child, depth+1)
+			flattenNode(child, depth+1, expanded, defaultExpand, items)
 		}
 	}
 }
 
-func (t *TreeList) isExpanded(node TreeNode) bool {
-	if node == nil || !t.hasChildren(node) {
+// IsNodeExpanded returns whether a node is expanded.
+func IsNodeExpanded(node TreeNode, expanded map[string]bool, defaultExpand bool) bool {
+	if node == nil || !hasChildren(node) {
 		return false
 	}
-	if t.expanded != nil {
-		if expanded, ok := t.expanded[node.ID()]; ok {
-			return expanded
+	if expanded != nil {
+		if exp, ok := expanded[node.ID()]; ok {
+			return exp
 		}
 	}
-	return t.defaultExpanded
+	return defaultExpand
 }
 
-func (t *TreeList) setExpanded(node TreeNode, expanded bool) {
-	if node == nil || !t.hasChildren(node) {
-		return
-	}
-	if t.expanded == nil {
-		t.expanded = make(map[string]bool)
-	}
-	t.expanded[node.ID()] = expanded
+// HasChildren returns whether a node has children.
+func HasChildren(node TreeNode) bool {
+	return hasChildren(node)
 }
 
-func (t *TreeList) expandPathToID(node TreeNode, id string) bool {
-	if node == nil {
-		return false
-	}
-	if node.ID() == id {
-		return true
-	}
-	if !t.hasChildren(node) {
-		return false
-	}
-	for _, child := range node.Children() {
-		if t.expandPathToID(child, id) {
-			t.setExpanded(node, true)
-			return true
-		}
-	}
-	return false
-}
-
-func (t *TreeList) isSelectable(node TreeNode) bool {
-	if node == nil {
-		return false
-	}
-	if t.selectable == nil {
-		return true
-	}
-	return t.selectable(node)
-}
-
-func (t *TreeList) hasChildren(node TreeNode) bool {
+func hasChildren(node TreeNode) bool {
 	if node == nil {
 		return false
 	}
 	return len(node.Children()) > 0
 }
 
-func (t *TreeList) firstSelectableIndex() int {
-	for i, item := range t.visible {
-		if t.isSelectable(item.Node) {
-			return i
-		}
-	}
-	return -1
-}
-
-func (t *TreeList) lastSelectableIndex() int {
-	for i := len(t.visible) - 1; i >= 0; i-- {
-		if t.isSelectable(t.visible[i].Node) {
-			return i
-		}
-	}
-	return -1
-}
-
-func (t *TreeList) nextSelectableIndex(from int) int {
-	for i := from + 1; i < len(t.visible); i++ {
-		if t.isSelectable(t.visible[i].Node) {
-			return i
-		}
-	}
-	return -1
-}
-
-func (t *TreeList) prevSelectableIndex(from int) int {
-	for i := from - 1; i >= 0; i-- {
-		if t.isSelectable(t.visible[i].Node) {
-			return i
-		}
-	}
-	return -1
-}
-
-func (t *TreeList) nearestSelectableIndex(from int) int {
-	if len(t.visible) == 0 {
+// FindVisibleIndexByID finds the index of a node by its ID in the visible items.
+func FindVisibleIndexByID(items []TreeVisibleItem, id string) int {
+	if id == "" {
 		return -1
 	}
-	if from >= len(t.visible) {
-		from = len(t.visible) - 1
-	}
-	if from < 0 {
-		from = 0
-	}
-	for i := from; i < len(t.visible); i++ {
-		if t.isSelectable(t.visible[i].Node) {
-			return i
-		}
-	}
-	for i := from - 1; i >= 0; i-- {
-		if t.isSelectable(t.visible[i].Node) {
-			return i
-		}
-	}
-	return -1
-}
-
-func (t *TreeList) findVisibleIndexByID(id string) int {
-	for i, item := range t.visible {
+	for i, item := range items {
 		if item.Node.ID() == id {
 			return i
 		}
 	}
 	return -1
+}
+
+// NextSelectableIndex finds the next selectable item after the given index.
+func NextSelectableIndex(items []TreeVisibleItem, from int, selectable func(TreeNode) bool) int {
+	for i := from + 1; i < len(items); i++ {
+		if isSelectable(items[i].Node, selectable) {
+			return i
+		}
+	}
+	return -1
+}
+
+// PrevSelectableIndex finds the previous selectable item before the given index.
+func PrevSelectableIndex(items []TreeVisibleItem, from int, selectable func(TreeNode) bool) int {
+	for i := from - 1; i >= 0; i-- {
+		if isSelectable(items[i].Node, selectable) {
+			return i
+		}
+	}
+	return -1
+}
+
+// FirstSelectableIndex finds the first selectable item.
+func FirstSelectableIndex(items []TreeVisibleItem, selectable func(TreeNode) bool) int {
+	for i, item := range items {
+		if isSelectable(item.Node, selectable) {
+			return i
+		}
+	}
+	return -1
+}
+
+// LastSelectableIndex finds the last selectable item.
+func LastSelectableIndex(items []TreeVisibleItem, selectable func(TreeNode) bool) int {
+	for i := len(items) - 1; i >= 0; i-- {
+		if isSelectable(items[i].Node, selectable) {
+			return i
+		}
+	}
+	return -1
+}
+
+// NearestSelectableIndex finds the nearest selectable item to the given index.
+func NearestSelectableIndex(items []TreeVisibleItem, from int, selectable func(TreeNode) bool) int {
+	if len(items) == 0 {
+		return -1
+	}
+	if from >= len(items) {
+		from = len(items) - 1
+	}
+	if from < 0 {
+		from = 0
+	}
+	for i := from; i < len(items); i++ {
+		if isSelectable(items[i].Node, selectable) {
+			return i
+		}
+	}
+	for i := from - 1; i >= 0; i-- {
+		if isSelectable(items[i].Node, selectable) {
+			return i
+		}
+	}
+	return -1
+}
+
+func isSelectable(node TreeNode, selectable func(TreeNode) bool) bool {
+	if node == nil {
+		return false
+	}
+	if selectable == nil {
+		return true
+	}
+	return selectable(node)
+}
+
+// ExpandPathToNode expands all ancestors of targetID in the expanded map.
+// Returns true if the target was found.
+func ExpandPathToNode(root TreeNode, targetID string, expanded map[string]bool) bool {
+	if root == nil || targetID == "" {
+		return false
+	}
+	return expandPath(root, targetID, expanded)
+}
+
+func expandPath(node TreeNode, targetID string, expanded map[string]bool) bool {
+	if node == nil {
+		return false
+	}
+	if node.ID() == targetID {
+		return true
+	}
+	if !hasChildren(node) {
+		return false
+	}
+	for _, child := range node.Children() {
+		if expandPath(child, targetID, expanded) {
+			if expanded == nil {
+				return true
+			}
+			expanded[node.ID()] = true
+			return true
+		}
+	}
+	return false
+}
+
+// ToggleExpanded toggles the expanded state of a node in the expanded map.
+// Returns the new expanded state.
+func ToggleExpanded(nodeID string, expanded map[string]bool, defaultExpand bool) bool {
+	if expanded == nil {
+		return defaultExpand
+	}
+	current, ok := expanded[nodeID]
+	if !ok {
+		current = defaultExpand
+	}
+	expanded[nodeID] = !current
+	return !current
 }
