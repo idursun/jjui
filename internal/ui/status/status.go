@@ -37,18 +37,20 @@ const (
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
-	context    *context.MainContext
-	spinner    spinner.Model
-	input      textinput.Model
-	keyMap     help.KeyMap
-	command    string
-	status     commandStatus
-	running    bool
-	mode       string
-	editStatus editStatus
-	history    map[string][]string
-	fuzzy      fuzzy_search.Model
-	styles     styles
+	context         *context.MainContext
+	spinner         spinner.Model
+	input           textinput.Model
+	keyMap          help.KeyMap
+	command         string
+	status          commandStatus
+	running         bool
+	mode            string
+	editStatus      editStatus
+	history         map[string][]string
+	fuzzy           fuzzy_search.Model
+	styles          styles
+	statusExpanded  bool
+	statusTruncated bool
 }
 
 type styles struct {
@@ -125,6 +127,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case tea.KeyMsg:
 		switch {
+		case key.Matches(msg, km.Cancel) && m.statusExpanded:
+			m.statusExpanded = false
+			return nil
 		case key.Matches(msg, km.Cancel) && m.IsFocused():
 			var cmd tea.Cmd
 			if m.fuzzy != nil {
@@ -222,43 +227,160 @@ func (m *Model) loadEditingSuggestions() {
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	width := box.R.Dx()
-	commandStatusMark := m.styles.text.Render(" ")
-	if m.status == commandRunning {
-		commandStatusMark = m.styles.text.Render(m.spinner.View())
-	} else if m.status == commandFailed {
-		commandStatusMark = m.styles.error.Render("✗ ")
-	} else if m.status == commandCompleted {
-		commandStatusMark = m.styles.success.Render("✓ ")
-	} else {
-		commandStatusMark = m.helpView(m.keyMap)
-		commandStatusMark = lipgloss.PlaceHorizontal(width, 0, commandStatusMark, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
-	}
-	modeWith := max(10, len(m.mode)+2)
-	ret := m.styles.text.Render(strings.ReplaceAll(m.command, "\n", "⏎"))
-	if m.IsFocused() {
-		commandStatusMark = ""
-		editKeys, editHelp := m.editStatus()
-		if editKeys != nil {
-			editHelp = lipgloss.JoinHorizontal(0, m.helpView(editKeys), editHelp)
-		}
-		promptWidth := len(m.input.Prompt) + 2
-		m.input.Width = width - modeWith - promptWidth - lipgloss.Width(editHelp)
-		ret = lipgloss.JoinHorizontal(0, m.input.View(), editHelp)
-	}
-	mode := m.styles.title.Width(modeWith).Render("", m.mode)
-	ret = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), commandStatusMark, ret)
-	dl.AddDraw(box.R, ret, 0)
+	modeWidth := max(10, len(m.mode)+2)
+	mode := m.styles.title.Width(modeWidth).Render(" ", m.mode)
 
-	if m.fuzzy == nil {
+	var statusLine string
+	switch {
+	case m.IsFocused():
+		content := m.renderContent(width, modeWidth)
+		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), content)
+	case m.status != none:
+		statusMark := m.renderStatusMark()
+		content := m.renderContent(width, modeWidth)
+		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), statusMark, content)
+	default:
+		helpBar := m.renderHelpBar(width, modeWidth)
+		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), helpBar)
+	}
+
+	dl.AddDraw(box.R, statusLine, 0)
+	m.renderExpandedStatus(dl, box, width)
+	m.renderFuzzyOverlay(dl, box)
+}
+
+// renderStatusMark returns the command status indicator (spinner/success/error).
+func (m *Model) renderStatusMark() string {
+	switch m.status {
+	case commandRunning:
+		return m.styles.text.Render(m.spinner.View())
+	case commandFailed:
+		return m.styles.error.Render("✗ ")
+	case commandCompleted:
+		return m.styles.success.Render("✓ ")
+	}
+	return ""
+}
+
+// renderHelpBar renders the help keybindings bar when idle.
+func (m *Model) renderHelpBar(width, modeWidth int) string {
+	if m.keyMap == nil || m.statusExpanded {
+		return m.styles.text.Render(" ")
+	}
+
+	availableWidth := max(0, width-modeWidth-2)
+	helpContent, truncated := m.helpView(m.keyMap, availableWidth)
+	m.statusTruncated = truncated
+	return lipgloss.PlaceHorizontal(width, 0, helpContent, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
+}
+
+// renderContent handles input vs command display
+func (m *Model) renderContent(width, modeWidth int) string {
+	if !m.IsFocused() {
+		return m.styles.text.Render(strings.ReplaceAll(m.command, "\n", "⏎"))
+	}
+
+	editKeys, editHelp := m.editStatus()
+	if editKeys != nil {
+		editHelpText, _ := m.helpView(editKeys, 0)
+		editHelp = lipgloss.JoinHorizontal(0, editHelpText, editHelp)
+	}
+
+	promptWidth := len(m.input.Prompt) + 2
+	m.input.Width = width - modeWidth - promptWidth - lipgloss.Width(editHelp)
+	return lipgloss.JoinHorizontal(0, m.input.View(), editHelp)
+}
+
+// renderExpandedStatus orchestrates expanded help overlay
+func (m *Model) renderExpandedStatus(dl *render.DisplayContext, box layout.Box, width int) {
+	if !m.statusExpanded || m.keyMap == nil || m.IsFocused() {
 		return
 	}
 
+	expandedHelp, contentLineCount := m.expandedStatusView(m.keyMap, max(0, width-4))
+	expandedLines := strings.Split(expandedHelp, "\n")
+	startY := box.R.Min.Y - contentLineCount
+
+	m.renderExpandedStatusBorder(dl, box, width, startY)
+	m.renderExpandedStatusContent(dl, box, width, startY, expandedLines)
+}
+
+// renderExpandedStatusBorder draws the top border of expanded status
+func (m *Model) renderExpandedStatusBorder(dl *render.DisplayContext, box layout.Box, width, startY int) {
+	if startY < 0 {
+		return
+	}
+	modeLabel := m.styles.title.Render("  " + m.mode + "  ")
+	borderLine := strings.Repeat("─", max(0, width-lipgloss.Width(modeLabel)))
+	topBorder := modeLabel + m.styles.dimmed.Render(borderLine)
+	borderRect := cellbuf.Rect(box.R.Min.X, startY, width, 1)
+	dl.AddDraw(borderRect, topBorder, render.ZExpandedStatus)
+}
+
+// renderExpandedStatusContent draws the content for the expanded status
+// Each line is a single row, positioned below the border (hence startY + 1)
+//
+// Each line is left-padded with 2 spaces and right-padded to fill the
+// available width, accounting for 4 total characters of horizontal padding
+// (2 left + 2 reserved for borders).
+func (m *Model) renderExpandedStatusContent(dl *render.DisplayContext, box layout.Box, width, startY int, lines []string) {
+	for i, line := range lines {
+		// Position each line below the border, offset by its index
+		y := startY + 1 + i
+
+		// Skip lines that would render above the visible area
+		if y < 0 {
+			continue
+		}
+
+		// calculate right padding
+		// subtract 4 for: 2 chars left padding + 2 chars border space
+		padding := max(0, width-lipgloss.Width(line)-4)
+
+		// padded line: 2-space indent + content + right padding
+		paddedLine := "  " + line + strings.Repeat(" ", padding)
+
+		// render the line with the text style and draw at the overlay z-index
+		contentLine := m.styles.text.Render(paddedLine)
+		contentRect := cellbuf.Rect(box.R.Min.X, y, width, 1)
+		dl.AddDraw(contentRect, contentLine, render.ZExpandedStatus)
+	}
+}
+
+// renderFuzzyOverlay handles fuzzy search overlay
+func (m *Model) renderFuzzyOverlay(dl *render.DisplayContext, box layout.Box) {
+	if m.fuzzy == nil {
+		return
+	}
 	overlayRect := cellbuf.Rect(box.R.Min.X, 0, box.R.Dx(), box.R.Min.Y-1)
 	m.fuzzy.ViewRect(dl, layout.Box{R: overlayRect})
 }
 
 func (m *Model) SetHelp(keyMap help.KeyMap) {
+	if m.keyMap != keyMap {
+		m.statusExpanded = false
+	}
 	m.keyMap = keyMap
+}
+
+// StatusExpanded returns whether the help overlay is currently expanded.
+func (m *Model) StatusExpanded() bool {
+	return m.statusExpanded
+}
+
+// StatusTruncated returns whether the help text is currently truncated.
+func (m *Model) StatusTruncated() bool {
+	return m.statusTruncated
+}
+
+// ToggleStatusExpand toggles the expanded footer help view.
+func (m *Model) ToggleStatusExpand() {
+	if m.IsFocused() {
+		return
+	}
+	if m.statusExpanded || m.statusTruncated {
+		m.statusExpanded = !m.statusExpanded
+	}
 }
 
 func (m *Model) Help() help.KeyMap {
@@ -275,18 +397,119 @@ func (m *Model) Mode() string {
 	return m.mode
 }
 
-func (m *Model) helpView(keyMap help.KeyMap) string {
+func (m *Model) expandedStatusView(keyMap help.KeyMap, maxWidth int) (string, int) {
+	entries, maxEntryWidth := m.collectHelpEntries(keyMap)
+	lines := m.buildHelpGrid(entries, maxEntryWidth, maxWidth)
+	return strings.Join(lines, "\n"), len(lines)
+}
+
+// collectHelpEntries gathers all help entries from the keymap and returns them
+// along with the maximum entry width for column layout calculation.
+func (m *Model) collectHelpEntries(keyMap help.KeyMap) ([]string, int) {
 	shortHelp := keyMap.ShortHelp()
+	expandKey := config.Current.GetKeyMap().ExpandStatus.Help().Key
+	closeHint := m.styles.shortcut.Render(expandKey+"/esc") + m.styles.dimmed.PaddingLeft(1).Render("close help")
+
 	var entries []string
+	maxEntryWidth := 0
+
 	for _, binding := range shortHelp {
 		if !binding.Enabled() {
 			continue
 		}
 		h := binding.Help()
-		entries = append(entries, m.styles.shortcut.Render(h.Key)+m.styles.dimmed.PaddingLeft(1).Render(h.Desc))
+		entry := m.styles.shortcut.Render(h.Key) + m.styles.dimmed.PaddingLeft(1).Render(h.Desc)
+		entries = append(entries, entry)
+		if w := lipgloss.Width(entry); w > maxEntryWidth {
+			maxEntryWidth = w
+		}
 	}
-	help := strings.Join(entries, m.styles.dimmed.Render(" • "))
-	return help
+
+	if w := lipgloss.Width(closeHint); w > maxEntryWidth {
+		maxEntryWidth = w
+	}
+	entries = append(entries, closeHint)
+
+	return entries, maxEntryWidth
+}
+
+// buildHelpGrid arranges entries into a multi-column grid that fits within
+// maxWidth.
+func (m *Model) buildHelpGrid(entries []string, maxEntryWidth, maxWidth int) []string {
+	minColWidth := maxEntryWidth + 2
+	numCols := max(maxWidth/minColWidth, 1)
+	colWidth := maxWidth / numCols
+	numRows := (len(entries) + numCols - 1) / numCols
+
+	var lines []string
+	for row := range numRows {
+		var line strings.Builder
+		for col := range numCols {
+			idx := row*numCols + col
+			if idx < len(entries) {
+				entry := entries[idx]
+				line.WriteString(entry)
+				if col < numCols-1 {
+					padding := max(0, colWidth-lipgloss.Width(entry))
+					line.WriteString(strings.Repeat(" ", padding))
+				}
+			}
+		}
+		lines = append(lines, line.String())
+	}
+
+	return lines
+}
+
+func (m *Model) helpView(keyMap help.KeyMap, maxWidth int) (string, bool) {
+	separator := m.styles.dimmed.Render(" • ")
+	expandKey := config.Current.GetKeyMap().ExpandStatus.Help().Key
+	moreHint := separator + m.styles.shortcut.Render(expandKey) + m.styles.dimmed.PaddingLeft(1).Render("more")
+
+	entries, truncated := m.collectHelpEntriesWithLimit(keyMap, maxWidth, lipgloss.Width(separator), lipgloss.Width(moreHint))
+
+	help := strings.Join(entries, separator)
+	if truncated {
+		help += moreHint
+	}
+	return help, truncated
+}
+
+// collectHelpEntriesWithLimit gathers help entries that fit within maxWidth,
+// accounting for separators and the "more" hint when truncation occurs.
+func (m *Model) collectHelpEntriesWithLimit(keyMap help.KeyMap, maxWidth, separatorWidth, moreHintWidth int) ([]string, bool) {
+	shortHelp := keyMap.ShortHelp()
+	var entries []string
+	currentWidth := 0
+
+	for i, binding := range shortHelp {
+		if !binding.Enabled() {
+			continue
+		}
+
+		h := binding.Help()
+		entry := m.styles.shortcut.Render(h.Key) + m.styles.dimmed.PaddingLeft(1).Render(h.Desc)
+		entryWidth := lipgloss.Width(entry)
+
+		addedWidth := entryWidth
+		if len(entries) > 0 {
+			addedWidth += separatorWidth
+		}
+
+		reservedWidth := 0
+		if i < len(shortHelp)-1 {
+			reservedWidth = moreHintWidth
+		}
+
+		if maxWidth > 0 && currentWidth+addedWidth+reservedWidth > maxWidth {
+			return entries, true
+		}
+
+		entries = append(entries, entry)
+		currentWidth += addedWidth
+	}
+
+	return entries, false
 }
 
 func New(context *context.MainContext) *Model {

@@ -225,6 +225,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.filterInput.Focus()
 			m.filterInput.CursorEnd()
 			return textinput.Blink
+		case key.Matches(msg, m.keymap.ExpandStatus):
+			return func() tea.Msg { return intents.ExpandStatusToggle{} }
 		case key.Matches(msg, m.keymap.Quit):
 			return tea.Quit
 		case key.Matches(msg, m.keymap.Apply):

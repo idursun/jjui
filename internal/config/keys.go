@@ -34,7 +34,8 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Absorb:            key.NewBinding(key.WithKeys(m.Absorb...), key.WithHelp(JoinKeys(m.Absorb), "absorb")),
 		Split:             key.NewBinding(key.WithKeys(m.Split...), key.WithHelp(JoinKeys(m.Split), "split")),
 		SplitParallel:     key.NewBinding(key.WithKeys(m.SplitParallel...), key.WithHelp(JoinKeys(m.SplitParallel), "split (parallel)")),
-		Help:              key.NewBinding(key.WithKeys(m.Help...), key.WithHelp(JoinKeys(m.Help), "help")),
+		Help:              key.NewBinding(key.WithKeys(m.Help...), key.WithHelp(JoinKeys(m.Help), "help page")),
+		ExpandStatus:      key.NewBinding(key.WithKeys(m.ExpandStatus...), key.WithHelp(JoinKeys(m.ExpandStatus), "expand status")),
 		Evolog: evologModeKeys[key.Binding]{
 			Mode:    key.NewBinding(key.WithKeys(m.Evolog.Mode...), key.WithHelp(JoinKeys(m.Evolog.Mode), "evolog")),
 			Diff:    key.NewBinding(key.WithKeys(m.Evolog.Diff...), key.WithHelp(JoinKeys(m.Evolog.Diff), "diff")),
@@ -94,7 +95,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Restore:               key.NewBinding(key.WithKeys(m.Details.Restore...), key.WithHelp(JoinKeys(m.Details.Restore), "restore")),
 			Absorb:                key.NewBinding(key.WithKeys(m.Details.Absorb...), key.WithHelp(JoinKeys(m.Details.Absorb), "absorb")),
 			Diff:                  key.NewBinding(key.WithKeys(m.Details.Diff...), key.WithHelp(JoinKeys(m.Details.Diff), "diff")),
-			ToggleSelect:          key.NewBinding(key.WithKeys(m.Details.ToggleSelect...), key.WithHelp(JoinKeys(m.Details.ToggleSelect), "details toggle select")),
+			ToggleSelect:          key.NewBinding(key.WithKeys(m.Details.ToggleSelect...), key.WithHelp(JoinKeys(m.Details.ToggleSelect), "toggle select")),
 			RevisionsChangingFile: key.NewBinding(key.WithKeys(m.Details.RevisionsChangingFile...), key.WithHelp(JoinKeys(m.Details.RevisionsChangingFile), "show revisions changing file")),
 		},
 		Bookmark: bookmarkModeKeys[key.Binding]{
@@ -187,6 +188,7 @@ type KeyMappings[T any] struct {
 	Diff              T                         `toml:"diff"`
 	Quit              T                         `toml:"quit"`
 	Help              T                         `toml:"help"`
+	ExpandStatus      T                         `toml:"expand_status"`
 	Describe          T                         `toml:"describe"`
 	Edit              T                         `toml:"edit"`
 	ForceEdit         T                         `toml:"force_edit"`

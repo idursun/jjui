@@ -28,6 +28,10 @@ type HelpToggle struct{}
 
 func (HelpToggle) isIntent() {}
 
+type ExpandStatusToggle struct{}
+
+func (ExpandStatusToggle) isIntent() {}
+
 type OpenBookmarks struct{}
 
 func (OpenBookmarks) isIntent() {}

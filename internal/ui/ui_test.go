@@ -6,13 +6,14 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/cellbuf"
+	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revset"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/test"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_Update_RevsetWithEmptyInputKeepsDefaultRevset(t *testing.T) {
@@ -146,4 +147,53 @@ func Test_UpdateStatus_RevsetEditingShowsRevsetHelp(t *testing.T) {
 	model.updateStatus()
 	assert.Equal(t, "revset", model.status.Mode(), "status mode should be 'revset'")
 	assert.Equal(t, model.revsetModel, model.status.Help(), "status help should be set to revset model")
+}
+
+// this test verifies that when `git` is activated and `status` is expanded,
+// pressing `esc` closes expanded `status`
+func Test_GitWithExpandedStatus_EscClosesStatusFirst(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	model.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+
+	// Directly set stacked to git model (simulates pressing 'g')
+	gitModel := git.NewModel(ctx, jj.NewSelectedRevisions())
+	test.SimulateModel(gitModel, gitModel.Init())
+	model.stacked = gitModel
+	assert.NotNil(t, model.stacked, "stacked (git) should be set")
+
+	// Render to trigger status truncation detection
+	_ = model.View()
+
+	// Press '?' to expand status
+	test.SimulateModel(model, test.Type("?"))
+	assert.True(t, model.status.StatusExpanded(), "status should be expanded after pressing '?'")
+
+	// Verify status has higher z-index than git
+	dl := render.NewDisplayContext()
+	box := layout.NewBox(cellbuf.Rect(0, 0, 100, 40))
+	model.stacked.ViewRect(dl, box)
+	gitDraws := dl.DrawList()
+	assert.NotEmpty(t, gitDraws, "git should produce draw operations")
+
+	maxGitZ := 0
+	for _, draw := range gitDraws {
+		if draw.Z > maxGitZ {
+			maxGitZ = draw.Z
+		}
+	}
+	assert.Less(t, maxGitZ, render.ZExpandedStatus,
+		"git z-index (%d) should be less than ZExpandedStatus (%d)", maxGitZ, render.ZExpandedStatus)
+
+	// Press 'esc' to close expanded status
+	test.SimulateModel(model, test.Press(tea.KeyEscape))
+	assert.False(t, model.status.StatusExpanded(), "status should be closed after pressing 'esc'")
+
+	// Stacked (git) should still be open
+	assert.NotNil(t, model.stacked, "stacked (git) should still be open after closing expanded status")
 }

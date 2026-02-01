@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
@@ -70,6 +71,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		switch {
 		case key.Matches(msg, m.keymap.Cancel):
 			return common.Close
+		case key.Matches(msg, m.keymap.ExpandStatus):
+			return func() tea.Msg { return intents.ExpandStatusToggle{} }
 		case key.Matches(msg, m.keymap.Quit):
 			return tea.Quit
 		}

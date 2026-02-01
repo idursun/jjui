@@ -68,7 +68,7 @@ func (h *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, h.keyMap.Help), key.Matches(msg, h.keyMap.Cancel):
+		case key.Matches(msg, h.keyMap.Cancel), key.Matches(msg, h.keyMap.ExpandStatus):
 			return common.Close
 		}
 	}

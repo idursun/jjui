@@ -388,6 +388,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.handleIntent(intents.Cancel{})
 		case key.Matches(msg, m.keymap.Apply):
 			return m.handleIntent(intents.Apply{})
+		case key.Matches(msg, m.keymap.ExpandStatus):
+			return func() tea.Msg { return intents.ExpandStatusToggle{} }
 		case key.Matches(msg, m.keymap.Bookmark.Move) && m.categoryFilter != "move":
 			return m.handleIntent(intents.BookmarksFilter{Kind: intents.BookmarksFilterMove})
 		case key.Matches(msg, m.keymap.Bookmark.Delete) && m.categoryFilter != "delete":

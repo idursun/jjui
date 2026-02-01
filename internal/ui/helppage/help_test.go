@@ -47,14 +47,25 @@ func TestHelpMenuTriggeredFromMainUI(t *testing.T) {
 		t.Fatalf("expected main view to not include help search prompt before toggle")
 	}
 
-	test.SimulateModel(model, test.Type("?"))
+	// Test triggering with 'h'
+	test.SimulateModel(model, test.Type("h"))
 
 	afterView := model.View()
 	if !strings.Contains(afterView, "Search: ") {
-		t.Fatalf("expected help overlay to include search prompt, view: \n%q", afterView)
+		t.Fatalf("expected help overlay to include search prompt after pressing 'h', view: \n%q", afterView)
 	}
-	if !strings.Contains(afterView, "jump to parent/child/working-copy") {
-		t.Fatalf("expected help overlay content to be rendered, view: \n%q", afterView)
+
+	// Close it
+	test.SimulateModel(model, test.Press(tea.KeyEscape))
+
+	// Test triggering with '?'
+	// If status is not truncated, pressing '?' should do nothing
+	test.SimulateModel(model, test.Type("?"))
+	afterView = model.View()
+	// '?' now only expands status bar help, not full help page
+	// so we should NOT see the help page search prompt
+	if strings.Contains(afterView, "Search: ") {
+		t.Fatalf("'?' should not open help page, only expand status bar")
 	}
 }
 
@@ -122,7 +133,7 @@ func TestHelpModelCloseCommands(t *testing.T) {
 		interaction tea.Cmd
 	}{
 		{
-			name:        "help binding",
+			name:        "expand_status binding ?",
 			interaction: test.Type("?"),
 		},
 		{
