@@ -22,7 +22,13 @@ type Model struct {
 func (m *Model) ShortHelp() []key.Binding {
 	vkm := m.view.KeyMap
 	return []key.Binding{
-		vkm.Up, vkm.Down, vkm.HalfPageDown, vkm.HalfPageUp, vkm.PageDown, vkm.PageUp,
+		vkm.Up,
+		vkm.Down,
+		vkm.HalfPageDown,
+		vkm.HalfPageUp,
+		vkm.PageDown,
+		vkm.PageUp,
+		m.keymap.Quit,
 		m.keymap.Cancel}
 }
 
@@ -64,6 +70,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		switch {
 		case key.Matches(msg, m.keymap.Cancel):
 			return common.Close
+		case key.Matches(msg, m.keymap.Quit):
+			return tea.Quit
 		}
 	case ScrollMsg:
 		if msg.Horizontal {

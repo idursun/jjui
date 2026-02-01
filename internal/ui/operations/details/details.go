@@ -312,6 +312,7 @@ func (s *Operation) ShortHelp() []key.Binding {
 	}
 	return []key.Binding{
 		s.keyMap.Cancel,
+		s.keyMap.Quit,
 		s.keyMap.Details.Diff,
 		s.keyMap.Details.ToggleSelect,
 		s.keyMap.Details.Split,

@@ -70,6 +70,7 @@ func (m *Model) ShortHelp() []key.Binding {
 		m.keymap.Down,
 		m.keymap.ScrollUp,
 		m.keymap.ScrollDown,
+		m.keymap.Quit,
 		m.keymap.Cancel,
 		m.keymap.Diff,
 		m.keymap.OpLog.Restore,
@@ -153,6 +154,8 @@ func (m *Model) keyToIntent(msg tea.KeyMsg) tea.Cmd {
 		return m.handleIntent(intents.OpLogRestore{})
 	case key.Matches(msg, m.keymap.OpLog.Revert):
 		return m.handleIntent(intents.OpLogRevert{})
+	case key.Matches(msg, m.keymap.Quit):
+		return tea.Quit
 	}
 	return nil
 }

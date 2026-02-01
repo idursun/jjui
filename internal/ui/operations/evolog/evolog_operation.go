@@ -85,6 +85,8 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, o.keyMap.Cancel):
 		return o.handleIntent(intents.Cancel{})
+	case key.Matches(msg, o.keyMap.Quit):
+		return o.handleIntent(intents.Quit{})
 	case key.Matches(msg, o.keyMap.Up):
 		return o.handleIntent(intents.EvologNavigate{Delta: -1})
 	case key.Matches(msg, o.keyMap.Down):
@@ -117,7 +119,15 @@ func (o *Operation) ShortHelp() []key.Binding {
 	if o.mode == restoreMode {
 		return []key.Binding{o.keyMap.Cancel, o.keyMap.Apply}
 	}
-	return []key.Binding{o.keyMap.Up, o.keyMap.Down, o.keyMap.Cancel, o.keyMap.Evolog.Diff, o.keyMap.Evolog.Restore}
+	return []key.Binding{
+		o.keyMap.Up,
+		o.keyMap.Down,
+		o.keyMap.Cancel,
+		o.keyMap.Quit,
+		o.keyMap.Help,
+		o.keyMap.Evolog.Diff,
+		o.keyMap.Evolog.Restore,
+	}
 }
 
 func (o *Operation) FullHelp() [][]key.Binding {
@@ -155,6 +165,8 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 
 func (o *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 	switch msg := intent.(type) {
+	case intents.Quit:
+		return tea.Quit
 	case intents.Cancel:
 		if o.mode == restoreMode {
 			o.mode = selectMode

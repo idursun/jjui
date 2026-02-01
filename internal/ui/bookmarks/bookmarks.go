@@ -101,6 +101,7 @@ type Model struct {
 func (m *Model) ShortHelp() []key.Binding {
 	return []key.Binding{
 		m.keymap.Cancel,
+		m.keymap.Quit,
 		m.keymap.Apply,
 		m.keymap.Bookmark.Move,
 		m.keymap.Bookmark.Delete,
@@ -381,6 +382,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.filterInput.Focus()
 			m.filterInput.CursorEnd()
 			return textinput.Blink
+		case key.Matches(msg, m.keymap.Quit):
+			return tea.Quit
 		case key.Matches(msg, m.keymap.Cancel):
 			return m.handleIntent(intents.Cancel{})
 		case key.Matches(msg, m.keymap.Apply):
