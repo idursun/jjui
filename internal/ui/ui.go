@@ -212,7 +212,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case common.ShowChooseMsg:
-		model := choose.NewWithTitle(msg.Options, msg.Title)
+		model := choose.NewWithTitle(msg.Options, msg.Title, msg.Filter)
 		m.stacked = model
 		return m.stacked.Init()
 	case choose.SelectedMsg:
@@ -788,6 +788,9 @@ func (m *Model) primaryScope() keybindings.Scope {
 	}
 
 	if m.stacked != nil {
+		if e, ok := m.stacked.(common.Editable); ok && e.IsEditing() {
+			return keybindings.Scope(m.stacked.StackedActionOwner() + ".filter")
+		}
 		return keybindings.Scope(m.stacked.StackedActionOwner())
 	}
 

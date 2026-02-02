@@ -380,6 +380,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		var (
 			options []string
 			title   string
+			filter  bool
 		)
 		if L.GetTop() == 1 {
 			if tbl, ok := L.Get(1).(*lua.LTable); ok {
@@ -393,14 +394,17 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 				if titleVal := tbl.RawGetString("title"); titleVal != lua.LNil {
 					title = titleVal.String()
 				}
+				if filterVal := tbl.RawGetString("filter"); filterVal != lua.LNil {
+					filter = bool(filterVal.(lua.LBool))
+				}
 				if options == nil {
 					options = stringSliceFromTable(tbl)
 				}
-				return yieldStep(L, step{cmd: choose.ShowWithTitle(options, title), matcher: matchChoose})
+				return yieldStep(L, step{cmd: choose.ShowWithTitle(options, title, filter), matcher: matchChoose})
 			}
 		}
 		options = argsFromLua(L)
-		return yieldStep(L, step{cmd: choose.ShowWithTitle(options, ""), matcher: matchChoose})
+		return yieldStep(L, step{cmd: choose.ShowWithTitle(options, "", false), matcher: matchChoose})
 	})
 	inputFn := L.NewFunction(func(L *lua.LState) int {
 		var title, prompt string
