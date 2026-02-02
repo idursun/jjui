@@ -14,11 +14,10 @@ type AutoCompletionInput struct {
 	CompletionProvider CompletionProvider
 	Suggestions        []string
 	SignatureHelp      string
-	previousValue      string
 	currentCompletions []Completion
 
+	disableCompletions     bool
 	tabCompletionActive    bool
-	lastCompletedValue     string
 	currentSuggestionIndex int
 	firstTabPressed        bool
 	Styles                 *AutoCompleteStyles
@@ -54,6 +53,14 @@ func WithStylePrefix(prefix string) Option {
 	}
 }
 
+func WithCompletionsDisabled() Option {
+	return func(m *AutoCompletionInput) {
+		m.disableCompletions = true
+		m.TextInput.ShowSuggestions = false
+		m.TextInput.SetSuggestions(nil)
+	}
+}
+
 func New(provider CompletionProvider, options ...Option) *AutoCompletionInput {
 	ti := textinput.New()
 	ti.Focus()
@@ -84,6 +91,10 @@ func (ac *AutoCompletionInput) Init() tea.Cmd {
 
 func (ac *AutoCompletionInput) SetValue(value string) {
 	ac.TextInput.SetValue(value)
+	if ac.disableCompletions {
+		ac.updateSignatureHelp()
+		return
+	}
 	ac.updateCompletions()
 }
 
@@ -108,24 +119,30 @@ func (ac *AutoCompletionInput) Update(msg tea.Msg) tea.Cmd {
 
 	var cmd tea.Cmd
 
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.Type {
-		case tea.KeyTab:
-			ac.tabCompletionActive = true
-			ac.cycleCompletion(1)
-			return cmd
-		case tea.KeyShiftTab:
-			ac.tabCompletionActive = true
-			ac.cycleCompletion(-1)
-			return cmd
-		default:
-			ac.tabCompletionActive = false
+	if !ac.disableCompletions {
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			switch keyMsg.Type {
+			case tea.KeyTab:
+				ac.tabCompletionActive = true
+				ac.cycleCompletion(1)
+				return cmd
+			case tea.KeyShiftTab:
+				ac.tabCompletionActive = true
+				ac.cycleCompletion(-1)
+				return cmd
+			default:
+				ac.tabCompletionActive = false
+			}
 		}
 	}
 
 	ac.TextInput, cmd = ac.TextInput.Update(msg)
 
 	if ac.TextInput.Value() != prevValue && !ac.tabCompletionActive {
+		if ac.disableCompletions {
+			ac.updateSignatureHelp()
+			return cmd
+		}
 		ac.updateCompletions()
 	}
 
@@ -158,7 +175,6 @@ func (ac *AutoCompletionInput) cycleCompletion(direction int) {
 		newValue = completion
 	}
 
-	ac.previousValue = newValue
 	ac.TextInput.SetValue(newValue)
 	ac.TextInput.CursorEnd()
 	ac.currentSuggestionIndex = newIndex
@@ -166,7 +182,6 @@ func (ac *AutoCompletionInput) cycleCompletion(direction int) {
 
 func (ac *AutoCompletionInput) updateCompletions() {
 	value := ac.TextInput.Value()
-	ac.previousValue = value
 
 	suggestions := ac.CompletionProvider.GetCompletions(value)
 	ac.Suggestions = suggestions
@@ -190,6 +205,11 @@ func (ac *AutoCompletionInput) updateCompletions() {
 	}
 
 	ac.TextInput.SetSuggestions(inputSuggestions)
+}
+
+func (ac *AutoCompletionInput) updateSignatureHelp() {
+	value := ac.TextInput.Value()
+	ac.SignatureHelp = ac.CompletionProvider.GetSignatureHelp(value)
 }
 
 func findMatchedPrefix(input, suggestion string) string {

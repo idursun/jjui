@@ -32,21 +32,50 @@ func RevsetCmd(msg tea.Msg) tea.Cmd {
 	}
 }
 
+const (
+	maxCompletionItems = 10
+	pillWidth          = 6
+)
+
+type completionScrollMsg struct {
+	Delta      int
+	Horizontal bool
+}
+
+func (m completionScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
+	m.Delta = delta
+	m.Horizontal = horizontal
+	return m
+}
+
+type completionClickMsg struct {
+	index int
+}
+
 type Model struct {
-	Editing         bool
-	autoComplete    *autocompletion.AutoCompletionInput
-	History         []string
-	historyIndex    int
-	currentInput    string
-	historyActive   bool
-	MaxHistoryItems int
-	context         *appContext.MainContext
-	styles          styles
+	Editing            bool
+	autoComplete       *autocompletion.AutoCompletionInput
+	completionProvider *CompletionProvider
+	History            []string
+	MaxHistoryItems    int
+	context            *appContext.MainContext
+	styles             styles
+	listRenderer       *render.ListRenderer
+	completionItems    []CompletionItem
+	selectedIndex      int
+	userInput          string // tracks what the user actually typed (separate from preview)
 }
 
 type styles struct {
-	promptStyle lipgloss.Style
-	textStyle   lipgloss.Style
+	title lipgloss.Style
+	text  lipgloss.Style
+
+	// Completion overlay styles
+	completionText       lipgloss.Style
+	completionMatched    lipgloss.Style
+	completionSelected   lipgloss.Style
+	completionDimmed     lipgloss.Style
+	completionBackground lipgloss.Style
 }
 
 func (m *Model) IsFocused() bool {
@@ -55,12 +84,12 @@ func (m *Model) IsFocused() bool {
 
 func (m *Model) ShortHelp() []key.Binding {
 	return []key.Binding{
-		key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "complete")),
-		key.NewBinding(key.WithKeys("ctrl+n"), key.WithHelp("ctrl+n", "next")),
-		key.NewBinding(key.WithKeys("ctrl+p"), key.WithHelp("ctrl+p", "prev")),
+		key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "cycle completions")),
+		key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab", "cycle back")),
+		key.NewBinding(key.WithKeys("up"), key.WithHelp("up", "move selection")),
+		key.NewBinding(key.WithKeys("down"), key.WithHelp("down", "move selection")),
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "accept")),
-		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "quit")),
-		key.NewBinding(key.WithKeys("up/down"), key.WithHelp("↑/↓", "history")),
+		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
 	}
 }
 
@@ -69,26 +98,38 @@ func (m *Model) FullHelp() [][]key.Binding {
 }
 
 func New(context *appContext.MainContext) *Model {
+	palette := common.DefaultPalette
 	styles := styles{
-		promptStyle: common.DefaultPalette.Get("revset title"),
-		textStyle:   common.DefaultPalette.Get("revset text"),
+		title:                palette.Get("revset title"),
+		text:                 palette.Get("revset text"),
+		completionText:       palette.Get("revset completion text"),
+		completionMatched:    palette.Get("revset completion matched"),
+		completionSelected:   palette.Get("revset completion selected"),
+		completionDimmed:     palette.Get("revset completion dimmed"),
+		completionBackground: palette.Get("revset completion"),
 	}
 
 	revsetAliases := context.JJConfig.RevsetAliases
 	completionProvider := NewCompletionProvider(revsetAliases)
-	autoComplete := autocompletion.New(completionProvider, autocompletion.WithStylePrefix("revset"))
+	autoComplete := autocompletion.New(
+		completionProvider,
+		autocompletion.WithStylePrefix("revset"),
+		autocompletion.WithCompletionsDisabled(),
+	)
 
 	autoComplete.SetValue(context.DefaultRevset)
 	autoComplete.Focus()
 
 	return &Model{
-		context:         context,
-		Editing:         false,
-		autoComplete:    autoComplete,
-		History:         []string{},
-		historyIndex:    -1,
-		MaxHistoryItems: 50,
-		styles:          styles,
+		context:            context,
+		Editing:            false,
+		autoComplete:       autoComplete,
+		completionProvider: completionProvider,
+		History:            []string{},
+		MaxHistoryItems:    50,
+		styles:             styles,
+		listRenderer:       render.NewListRenderer(completionScrollMsg{}),
+		selectedIndex:      -1, // no selection initially
 	}
 }
 
@@ -118,14 +159,12 @@ func (m *Model) AddToHistory(input string) {
 		m.History = m.History[:m.MaxHistoryItems]
 	}
 
-	m.historyIndex = -1
-	m.historyActive = false
+	m.selectedIndex = -1
 }
 
 func (m *Model) SetHistory(history []string) {
 	m.History = history
-	m.historyIndex = -1
-	m.historyActive = false
+	m.selectedIndex = -1
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
@@ -136,6 +175,22 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
 		return m.handleIntent(msg)
+	case completionScrollMsg:
+		if msg.Horizontal {
+			return nil
+		}
+		m.listRenderer.StartLine += msg.Delta
+		if m.listRenderer.StartLine < 0 {
+			m.listRenderer.StartLine = 0
+		}
+		return nil
+	case completionClickMsg:
+		if msg.index >= 0 && msg.index < len(m.completionItems) {
+			m.selectedIndex = msg.index
+			item := m.completionItems[msg.index]
+			m.selectCompletionItem(item)
+		}
+		return nil
 	case tea.KeyMsg:
 		if !m.Editing {
 			return nil
@@ -145,36 +200,53 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.handleIntent(intents.Cancel{})
 		case tea.KeyEnter:
 			return m.handleIntent(intents.Apply{Value: m.autoComplete.Value()})
-		case tea.KeyUp:
-			if len(m.History) > 0 {
-				if !m.historyActive {
-					m.currentInput = m.autoComplete.Value()
-					m.historyActive = true
+		case tea.KeyTab:
+			// Fish-style tab completion: cycle through completions
+			if len(m.completionItems) > 0 {
+				m.selectedIndex++
+				if m.selectedIndex >= len(m.completionItems) {
+					m.selectedIndex = 0
 				}
-
-				if m.historyIndex < len(m.History)-1 {
-					m.historyIndex++
-					m.autoComplete.SetValue(m.History[m.historyIndex])
-					m.autoComplete.CursorEnd()
-				}
-			} else {
-				m.autoComplete.SetValue(m.context.CurrentRevset)
+				m.updatePreview()
 			}
-
+			return nil
+		case tea.KeyShiftTab:
+			// Shift+Tab cycles backwards
+			if len(m.completionItems) > 0 {
+				if m.selectedIndex <= 0 {
+					m.selectedIndex = len(m.completionItems) - 1
+				} else {
+					m.selectedIndex--
+				}
+				m.updatePreview()
+			}
+			return nil
+		case tea.KeyUp:
+			if len(m.completionItems) > 0 {
+				if m.selectedIndex < 0 {
+					m.selectedIndex = len(m.completionItems) - 1
+				} else {
+					m.selectedIndex--
+					if m.selectedIndex < 0 {
+						m.selectedIndex = len(m.completionItems) - 1
+					}
+				}
+				m.updatePreview()
+			}
 			return nil
 		case tea.KeyDown:
-			if m.historyActive {
-				if m.historyIndex > 0 {
-					m.historyIndex--
-					m.autoComplete.SetValue(m.History[m.historyIndex])
+			if len(m.completionItems) > 0 {
+				if m.selectedIndex < 0 {
+					m.selectedIndex = 0
 				} else {
-					m.historyIndex = -1
-					m.historyActive = false
-					m.autoComplete.SetValue(m.currentInput)
+					m.selectedIndex++
+					if m.selectedIndex >= len(m.completionItems) {
+						m.selectedIndex = 0
+					}
 				}
-				m.autoComplete.CursorEnd()
-				return nil
+				m.updatePreview()
 			}
+			return nil
 		}
 	case common.UpdateRevSetMsg:
 		if m.Editing {
@@ -184,7 +256,51 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return m.handleIntent(intents.Edit{Clear: msg.Clear})
 	}
 
-	return m.autoComplete.Update(msg)
+	prevValue := m.autoComplete.Value()
+	cmd := m.autoComplete.Update(msg)
+
+	// If the value changed due to user typing (not tab cycling),
+	// update userInput, reset selection, and re-filter completions
+	newValue := m.autoComplete.Value()
+	if newValue != prevValue {
+		m.userInput = newValue
+		m.selectedIndex = -1 // reset to no selection
+		m.updateCompletionItems()
+	}
+
+	return cmd
+}
+
+func (m *Model) selectCompletionItem(item CompletionItem) {
+	newValue := m.applyCompletion(m.userInput, item)
+
+	m.autoComplete.SetValue(newValue)
+	m.autoComplete.CursorEnd()
+	// Commit the completion: update userInput and re-filter
+	m.userInput = newValue
+	m.selectedIndex = -1
+	m.updateCompletionItems()
+}
+
+func (m *Model) updateCompletionItems() {
+	// Use userInput for filtering, not the preview value in the text input
+	m.completionItems = m.completionProvider.GetCompletionItems(m.userInput, m.History)
+	// Reset scroll position when items change
+	m.listRenderer.StartLine = 0
+}
+
+// updatePreview updates the text input to show a preview of the selected item
+// without changing the userInput (what the user actually typed)
+func (m *Model) updatePreview() {
+	if m.selectedIndex < 0 || m.selectedIndex >= len(m.completionItems) {
+		return
+	}
+
+	item := m.completionItems[m.selectedIndex]
+	previewValue := m.applyCompletion(m.userInput, item)
+
+	m.autoComplete.SetValue(previewValue)
+	m.autoComplete.CursorEnd()
 }
 
 func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
@@ -204,11 +320,15 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.Edit:
 		m.Editing = true
 		m.autoComplete.Focus()
+		m.completionProvider.Load(m.context.RunCommandImmediate)
 		if intent.Clear {
 			m.autoComplete.SetValue("")
+			m.userInput = ""
+		} else {
+			m.userInput = m.autoComplete.Value()
 		}
-		m.historyActive = false
-		m.historyIndex = -1
+		m.selectedIndex = -1 // no selection initially
+		m.updateCompletionItems()
 		return m.autoComplete.Init()
 	case intents.Cancel:
 		m.Editing = false
@@ -230,28 +350,130 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	// Render the prompt and text input line
 	var w strings.Builder
-	w.WriteString(m.styles.promptStyle.PaddingRight(1).Render("revset:"))
+	w.WriteString(m.styles.title.PaddingRight(1).Render("revset:"))
 	if m.Editing {
-		w.WriteString(m.autoComplete.View())
+		// Only render the text input part, not the completions from autoComplete.View()
+		w.WriteString(m.autoComplete.TextInput.View())
 	} else {
-		w.WriteString(m.styles.textStyle.Render(m.context.CurrentRevset))
+		w.WriteString(m.styles.text.Render(m.context.CurrentRevset))
 	}
-	content := w.String()
-	parts := strings.SplitN(content, "\n", 2)
-	line := parts[0]
+	line := w.String()
 	dl.AddDraw(box.R, line, render.ZFuzzyInput)
 
-	if !m.Editing || len(parts) < 2 {
+	if !m.Editing {
 		return
 	}
 
-	overlay := parts[1]
-	overlayHeight := 1 + strings.Count(overlay, "\n")
-	if overlayHeight <= 0 {
+	// Check if we have completions to show or signature help
+	items := m.completionItems
+	signatureHelp := m.autoComplete.SignatureHelp
+
+	if len(items) == 0 && signatureHelp == "" {
+		// Show "No suggestions" when there's input but no matches
+		if m.autoComplete.Value() != "" {
+			noSuggestionsRect := cellbuf.Rect(box.R.Min.X, box.R.Max.Y, box.R.Dx(), 1)
+			noSuggestionsText := m.styles.completionDimmed.Render("No suggestions")
+			dl.AddDraw(noSuggestionsRect, noSuggestionsText, render.ZRevsetOverlay)
+		}
 		return
 	}
 
-	overlayRect := cellbuf.Rect(box.R.Min.X, box.R.Max.Y, box.R.Dx(), overlayHeight)
-	dl.AddDraw(overlayRect, overlay, render.ZRevsetOverlay)
+	// If no items but we have signature help, show it
+	if len(items) == 0 && signatureHelp != "" {
+		sigRect := cellbuf.Rect(box.R.Min.X, box.R.Max.Y, box.R.Dx(), 1)
+		sigText := m.styles.completionDimmed.Render(signatureHelp)
+		dl.AddDraw(sigRect, sigText, render.ZRevsetOverlay)
+		return
+	}
+
+	// Render the completion list as a multi-line overlay
+	overlayHeight := min(len(items), maxCompletionItems)
+	overlayWidth := box.R.Dx()
+	outerBox := layout.NewBox(cellbuf.Rect(box.R.Min.X, box.R.Max.Y, overlayWidth, overlayHeight))
+	// Fill the background to prevent underlying content from showing through
+	dl.AddFill(outerBox.R, ' ', m.styles.completionBackground, render.ZRevsetOverlay-1)
+
+	m.listRenderer.Render(
+		dl,
+		outerBox,
+		len(items),
+		m.selectedIndex,
+		true, // ensureCursorVisible
+		func(_ int) int { return 1 },
+		func(dl *render.DisplayContext, index int, rect cellbuf.Rectangle) {
+			if index < 0 || index >= len(items) {
+				return
+			}
+			isSelected := index == m.selectedIndex
+
+			item := items[index]
+			tb := dl.Text(rect.Min.X, rect.Min.Y, render.ZRevsetOverlay)
+			pillStyle := m.styles.completionDimmed.Width(pillWidth).Align(lipgloss.Right)
+			tb.Styled(pillLabel(item.Kind), pillStyle)
+			tb.Styled(" ", m.styles.completionText)
+			tb.Styled(item.MatchedPart, m.styles.completionMatched)
+			tb.Styled(item.RestPart, m.styles.completionText)
+			tb.Styled(" ", m.styles.completionText)
+
+			if item.SignatureHelp != "" && item.Kind != KindHistory {
+				sigDisplay := m.formatSignature(item)
+				tb.Styled(sigDisplay, m.styles.completionDimmed)
+			}
+
+			if isSelected {
+				dl.AddPaint(rect, m.styles.completionSelected, render.ZRevsetOverlay+1)
+			}
+			tb.Done()
+		},
+		func(index int) tea.Msg { return completionClickMsg{index: index} },
+	)
+	m.listRenderer.RegisterScroll(dl, outerBox)
 }
+
+func pillLabel(kind CompletionKind) string {
+	switch kind {
+	case KindFunction:
+		return "func"
+	case KindAlias:
+		return "alias"
+	case KindHistory:
+		return "hist"
+	case KindBookmark:
+		return "bkmrk"
+	case KindTag:
+		return "tag"
+	default:
+		return ""
+	}
+}
+
+func (m *Model) formatSignature(item CompletionItem) string {
+	sig := item.SignatureHelp
+	// The signature format is "name(args): description"
+	// We want to show just the description or "(args): desc" if different from name
+	if colonIdx := strings.Index(sig, "):"); colonIdx != -1 {
+		// Return description part after "): "
+		return strings.TrimSpace(sig[colonIdx+2:])
+	}
+	if colonIdx := strings.Index(sig, ":"); colonIdx != -1 {
+		// Return description part after ": "
+		return strings.TrimSpace(sig[colonIdx+1:])
+	}
+	return sig
+}
+
+func (m *Model) applyCompletion(input string, item CompletionItem) string {
+	if item.Kind == KindHistory {
+		return item.Name
+	}
+
+	lastTokenIndex, _ := m.completionProvider.GetLastToken(input)
+	if lastTokenIndex > 0 {
+		return input[:lastTokenIndex] + item.Name
+	}
+	return item.Name
+}
+
+// getHistoryIndices returns the indices of history items in completionItems

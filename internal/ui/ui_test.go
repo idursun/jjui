@@ -139,6 +139,10 @@ func Test_UpdateStatus_RevsetEditingShowsRevsetHelp(t *testing.T) {
 
 	model := NewUI(ctx)
 
+	// Expect bookmark and tag commands when entering edit mode
+	commandRunner.Expect(jj.BookmarkListAll())
+	commandRunner.Expect(jj.TagList())
+
 	// Activate revset editing
 	model.revsetModel.Update(revset.EditRevSetMsg{})
 	assert.True(t, model.revsetModel.Editing, "revset should be in editing mode")

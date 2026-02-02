@@ -1,8 +1,6 @@
 package target_picker
 
 import (
-	"bufio"
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -11,7 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/jj/source"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
@@ -236,39 +234,15 @@ func (m *Model) renderPill(kind ItemKind) string {
 
 func (m *Model) fetchItems() tea.Cmd {
 	return func() tea.Msg {
-		var items []Item
-		if output, err := m.context.RunCommandImmediate(jj.BookmarkListAll()); err == nil {
-			bookmarks := jj.ParseBookmarkListOutput(string(output))
-			for _, b := range bookmarks {
-				if b.Name == "" {
-					continue
-				}
-				if b.Local != nil {
-					items = append(items, Item{Name: b.Name, Kind: KindBookmark})
-				}
-				for _, remote := range b.Remotes {
-					nameWithRemote := fmt.Sprintf("%s@%s", b.Name, remote.Remote)
-					items = append(items, Item{Name: nameWithRemote, Kind: KindBookmark})
-				}
+		sourceItems := source.FetchAll(m.context.RunCommandImmediate, source.BookmarkSource{}, source.TagSource{})
+		items := make([]Item, len(sourceItems))
+		for i, si := range sourceItems {
+			kind := KindBookmark
+			if si.Kind == source.KindTag {
+				kind = KindTag
 			}
+			items[i] = Item{Name: si.Name, Kind: kind}
 		}
-
-		if output, err := m.context.RunCommandImmediate(jj.TagList()); err == nil {
-			scanner := bufio.NewScanner(strings.NewReader(string(output)))
-			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
-				if line == "" {
-					continue
-				}
-				parts := strings.SplitN(line, "\t", 2)
-				name := strings.TrimSpace(parts[0])
-				if name == "" {
-					continue
-				}
-				items = append(items, Item{Name: name, Kind: KindTag})
-			}
-		}
-
 		return itemsLoadedMsg{items: items}
 	}
 }

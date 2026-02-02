@@ -15,9 +15,12 @@ error = "red"
 "revisions matched" = { underline = false, reverse = true }
 "revset title" = "magenta"
 "revset text" = { fg = "green", bold = true }
-"revset completion text" = "white"
-"revset completion matched" = { fg = "cyan", bold = true }
-"revset completion selected" = { fg = "cyan", bg = "bright black" }
+"revset completion" = { bg = "189" }
+"revset completion text" = "236"
+"revset completion matched" = { fg = "166", bold = true }
+"revset completion selected" = { fg = "white", bg = "25" }
+"revset completion dimmed" = "103"
+"revset completion background" = { bg = "189" }
 "status title" = { fg = "black", bg = "magenta", bold = true }
 "menu title" = { fg = "62", bg = "230", bold = true }
 "menu subtitle" = { fg = "62", bold = true }

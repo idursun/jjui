@@ -10,11 +10,11 @@ const (
 	// ZFuzzyInput is for fuzzy input fields, text inputs, and revset list items
 	ZFuzzyInput = 1
 
-	// ZRevsetOverlay is for revset overlay content
-	ZRevsetOverlay = 2
-
 	// ZPreview is for preview panels and split views
 	ZPreview = 10
+
+	// ZRevsetOverlay is for revset overlay content (above preview)
+	ZRevsetOverlay = 15
 
 	// ZDialogs is for dialogs (undo/redo confirmation, input fields)
 	// that should appear above the preview panel
