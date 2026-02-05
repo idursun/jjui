@@ -14,6 +14,10 @@ type GraphRowLine struct {
 	Flags    RowLineFlags
 }
 
+func (gr *GraphRowLine) GetSegments() []*screen.Segment {
+	return gr.Segments
+}
+
 func NewGraphRowLine(segments []*screen.Segment) GraphRowLine {
 	return GraphRowLine{
 		Segments: segments,
