@@ -7,6 +7,8 @@ func (QuickSearch) isIntent() {}
 
 //jjui:bind scope=revisions action=quick_search_next
 //jjui:bind scope=revisions action=quick_search_prev set=Reverse:true
+//jjui:bind scope=oplog.quick_search action=quick_search_next
+//jjui:bind scope=oplog.quick_search action=quick_search_prev set=Reverse:true
 type QuickSearchCycle struct {
 	Reverse bool
 }

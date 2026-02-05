@@ -76,6 +76,7 @@ const (
 	scopeRevset           keybindings.Scope = "revset"
 	scopeFileSearch       keybindings.Scope = "file_search"
 	scopeQuickSearchInput keybindings.Scope = "revisions.quick_search.input"
+	scopeOplogQuickSearch keybindings.Scope = "oplog.quick_search"
 	scopePassword         keybindings.Scope = "password"
 )
 
@@ -584,11 +585,7 @@ func (m *Model) handleUiRootIntent(intent intents.Intent) (tea.Cmd, bool) {
 		}
 		return nil, true
 	case intents.QuickSearch:
-		if m.oplog != nil {
-			// HACK: prevents quick search from activating in op log view
-			return nil, true
-		}
-		if !m.revisions.InNormalMode() {
+		if m.oplog == nil && !m.revisions.InNormalMode() {
 			return nil, true
 		}
 		return m.status.StartQuickSearch(), true
@@ -703,7 +700,7 @@ func (m *Model) routeIntentByOwner(owner string, intent intents.Intent) (tea.Cmd
 		if m.diff != nil {
 			return m.diff.Update(intent), true
 		}
-	case actions.OwnerOplog:
+	case actions.OwnerOplog, actions.OwnerOplogQuickSearch:
 		if m.oplog != nil {
 			return m.oplog.Update(intent), true
 		}
@@ -833,7 +830,11 @@ func (m *Model) dispatchScopes() []keybindings.Scope {
 	if primary == "" {
 		return nil
 	}
-	scopes := []keybindings.Scope{primary}
+	var scopes []keybindings.Scope
+	if m.oplog != nil && m.oplog.HasQuickSearch() {
+		scopes = append(scopes, scopeOplogQuickSearch)
+	}
+	scopes = append(scopes, primary)
 	for _, scope := range m.alwaysOnScopes() {
 		if scope != "" && scope != primary {
 			scopes = append(scopes, scope)

@@ -21,6 +21,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/render"
 
 	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/operations/describe"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -1012,29 +1013,11 @@ func (m *Model) selectRevision(revision string) int {
 }
 
 func (m *Model) search(startIndex int, backward bool) int {
-	if m.quickSearch == "" {
-		return m.cursor
+	items := make([]screen.Searchable, len(m.rows))
+	for i := range m.rows {
+		items[i] = &m.rows[i]
 	}
-
-	n := len(m.rows)
-	for i := range n {
-		var c int
-		if !backward {
-			c = (startIndex + i) % n
-		} else {
-			// calculate circular index going backwards
-			c = (startIndex - i + n) % n
-		}
-		row := &m.rows[c]
-		for _, line := range row.Lines {
-			for _, segment := range line.Segments {
-				if segment.Text != "" && strings.Contains(strings.ToLower(segment.Text), m.quickSearch) {
-					return c
-				}
-			}
-		}
-	}
-	return m.cursor
+	return common.CircularSearch(items, m.quickSearch, startIndex, m.cursor, backward)
 }
 
 func (m *Model) CurrentOperation() operations.Operation {
