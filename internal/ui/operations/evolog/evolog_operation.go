@@ -124,7 +124,6 @@ func (o *Operation) ShortHelp() []key.Binding {
 		o.keyMap.Down,
 		o.keyMap.Cancel,
 		o.keyMap.Quit,
-		o.keyMap.Help,
 		o.keyMap.Evolog.Diff,
 		o.keyMap.Evolog.Restore,
 	}

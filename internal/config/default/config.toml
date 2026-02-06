@@ -18,7 +18,6 @@ limit = 0
   abandon = ["a"]
   diff = ["d"]
   quit = ["q"]
-  help = ["h"]
   expand_status = ["?"]
   describe = ["D"]
   edit = ["e"]

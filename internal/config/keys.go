@@ -34,7 +34,6 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Absorb:            key.NewBinding(key.WithKeys(m.Absorb...), key.WithHelp(JoinKeys(m.Absorb), "absorb")),
 		Split:             key.NewBinding(key.WithKeys(m.Split...), key.WithHelp(JoinKeys(m.Split), "split")),
 		SplitParallel:     key.NewBinding(key.WithKeys(m.SplitParallel...), key.WithHelp(JoinKeys(m.SplitParallel), "split (parallel)")),
-		Help:              key.NewBinding(key.WithKeys(m.Help...), key.WithHelp(JoinKeys(m.Help), "help page")),
 		ExpandStatus:      key.NewBinding(key.WithKeys(m.ExpandStatus...), key.WithHelp(JoinKeys(m.ExpandStatus), "expand status")),
 		Evolog: evologModeKeys[key.Binding]{
 			Mode:    key.NewBinding(key.WithKeys(m.Evolog.Mode...), key.WithHelp(JoinKeys(m.Evolog.Mode), "evolog")),
@@ -187,7 +186,6 @@ type KeyMappings[T any] struct {
 	Abandon           T                         `toml:"abandon"`
 	Diff              T                         `toml:"diff"`
 	Quit              T                         `toml:"quit"`
-	Help              T                         `toml:"help"`
 	ExpandStatus      T                         `toml:"expand_status"`
 	Describe          T                         `toml:"describe"`
 	Edit              T                         `toml:"edit"`

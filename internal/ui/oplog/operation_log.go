@@ -71,7 +71,6 @@ func (m *Model) ShortHelp() []key.Binding {
 		m.keymap.ScrollUp,
 		m.keymap.ScrollDown,
 		m.keymap.Quit,
-		m.keymap.Help,
 		m.keymap.Cancel,
 		m.keymap.Diff,
 		m.keymap.OpLog.Restore,

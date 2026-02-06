@@ -11,7 +11,6 @@ type (
 	CloseViewMsg struct {
 		Applied bool
 	}
-	ToggleHelpMsg  struct{}
 	AutoRefreshMsg struct{}
 	RefreshMsg     struct {
 		SelectedRevision string
@@ -119,10 +118,6 @@ func RefreshAndKeepSelections() tea.Msg {
 
 func Refresh() tea.Msg {
 	return RefreshMsg{}
-}
-
-func ToggleHelp() tea.Msg {
-	return ToggleHelpMsg{}
 }
 
 func CommandRunning(args []string) tea.Cmd {

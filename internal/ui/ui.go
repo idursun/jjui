@@ -27,7 +27,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/exec_process"
 	"github.com/idursun/jjui/internal/ui/git"
-	"github.com/idursun/jjui/internal/ui/helppage"
+
 	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/leader"
 	"github.com/idursun/jjui/internal/ui/oplog"
@@ -241,8 +241,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.handleIntent(intents.Redo{})
 		case key.Matches(msg, m.keyMap.Bookmark.Mode) && m.revisions.InNormalMode():
 			return m.handleIntent(intents.OpenBookmarks{})
-		case key.Matches(msg, m.keyMap.Help) && m.revisions.InNormalMode():
-			return m.handleIntent(intents.HelpToggle{})
 		case key.Matches(msg, m.keyMap.ExpandStatus):
 			return m.handleIntent(intents.ExpandStatusToggle{})
 		case key.Matches(msg, m.keyMap.Preview.Mode):
@@ -300,14 +298,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return exec_process.ExecLine(m.context, msg)
 	case common.ExecProcessCompletedMsg:
 		cmds = append(cmds, common.Refresh)
-	case common.ToggleHelpMsg:
-		if m.stacked == nil {
-			h := helppage.New(m.context)
-			m.stacked = h
-		} else {
-			m.stacked = nil
-		}
-		return nil
 	case common.ShowDiffMsg:
 		m.diff = diff.New(string(msg))
 		return m.diff.Init()
@@ -617,8 +607,6 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return tea.Quit
 	case intents.Suspend:
 		return tea.Suspend
-	case intents.HelpToggle:
-		return common.ToggleHelp
 	case intents.ExpandStatusToggle:
 		m.status.ToggleStatusExpand()
 		return nil

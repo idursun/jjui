@@ -31,7 +31,6 @@ func (n *Default) ShortHelp() []key.Binding {
 		n.keyMap.Up,
 		n.keyMap.Down,
 		n.keyMap.Quit,
-		n.keyMap.Help,
 		n.keyMap.Refresh,
 		n.keyMap.Preview.Mode,
 		n.keyMap.Revset,
