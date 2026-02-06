@@ -233,7 +233,7 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 			[]string{"Are you sure you want to restore the selected files?"},
 			confirmation.WithStylePrefix("revisions"),
 			confirmation.WithOption("Yes",
-				s.context.RunCommand(jj.Restore(s.revision.GetChangeId(), selectedFiles, false), common.Refresh, confirmation.Close),
+				tea.Batch(s.context.RunCommand(jj.Restore(s.revision.GetChangeId(), selectedFiles, false), common.Refresh), confirmation.Close),
 				key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 			confirmation.WithOption("Interactive",
 				tea.Batch(s.context.RunInteractiveCommand(jj.Restore(s.revision.GetChangeId(), selectedFiles, true), common.Refresh), common.Close),
