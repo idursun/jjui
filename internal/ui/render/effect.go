@@ -123,6 +123,7 @@ type HighlightEffect struct {
 	Rect  cellbuf.Rectangle
 	Style lipgloss.Style
 	Z     int
+	Force bool
 }
 
 func (e HighlightEffect) Apply(buf *cellbuf.Buffer) {
@@ -133,9 +134,10 @@ func (e HighlightEffect) Apply(buf *cellbuf.Buffer) {
 		if cell == nil {
 			return nil
 		}
-		// Apply the background color from the style
-		if cell.Style.Bg == nil {
-			cell.Style.Background(bgColor)
+		if e.Force || cell.Style.Bg == nil {
+			newCell := cell.Clone()
+			newCell.Style.Background(bgColor)
+			return newCell
 		}
 		return cell
 	})

@@ -133,6 +133,11 @@ func (dl *DisplayContext) AddHighlight(rect cellbuf.Rectangle, style lipgloss.St
 	dl.AddEffect(HighlightEffect{Rect: rect, Style: style, Z: z})
 }
 
+// AddPaint adds a HighlightEffect with Force enabled, overriding existing background colors.
+func (dl *DisplayContext) AddPaint(rect cellbuf.Rectangle, style lipgloss.Style, z int) {
+	dl.AddEffect(HighlightEffect{Rect: rect, Style: style, Z: z, Force: true})
+}
+
 // AddInteraction adds an InteractionOp to the display context.
 func (dl *DisplayContext) AddInteraction(rect cellbuf.Rectangle, msg tea.Msg, typ InteractionType, z int) {
 	root := dl.root()
