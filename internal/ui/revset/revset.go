@@ -34,7 +34,7 @@ func RevsetCmd(msg tea.Msg) tea.Cmd {
 
 const (
 	maxCompletionItems = 10
-	pillWidth          = 6
+	pillWidth          = 10
 )
 
 type completionScrollMsg struct {
@@ -435,13 +435,13 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 func pillLabel(kind CompletionKind) string {
 	switch kind {
 	case KindFunction:
-		return "func"
+		return "function"
 	case KindAlias:
 		return "alias"
 	case KindHistory:
-		return "hist"
+		return "history"
 	case KindBookmark:
-		return "bkmrk"
+		return "bookmark"
 	case KindTag:
 		return "tag"
 	default:
