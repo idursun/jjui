@@ -160,6 +160,7 @@ func (r *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 
 func (r *Operation) ShortHelp() []key.Binding {
 	return []key.Binding{
+		r.keyMap.Apply,
 		r.keyMap.Cancel,
 		r.keyMap.Duplicate.After,
 		r.keyMap.Duplicate.Before,

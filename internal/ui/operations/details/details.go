@@ -311,8 +311,11 @@ func (s *Operation) ShortHelp() []key.Binding {
 		return s.confirmation.ShortHelp()
 	}
 	return []key.Binding{
+		s.keyMap.Up,
+		s.keyMap.Down,
 		s.keyMap.Cancel,
 		s.keyMap.Quit,
+		s.keyMap.Refresh,
 		s.keyMap.Details.Diff,
 		s.keyMap.Details.ToggleSelect,
 		s.keyMap.Details.Split,

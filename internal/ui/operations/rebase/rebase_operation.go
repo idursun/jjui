@@ -256,6 +256,7 @@ func (r *Operation) ShortHelp() []key.Binding {
 	return []key.Binding{
 		r.keyMap.Apply,
 		r.keyMap.ForceApply,
+		r.keyMap.Cancel,
 		r.keyMap.Rebase.Revision,
 		r.keyMap.Rebase.Branch,
 		r.keyMap.Rebase.Source,
