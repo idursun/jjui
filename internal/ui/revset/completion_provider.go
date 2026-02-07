@@ -88,13 +88,26 @@ func (p *CompletionProvider) GetCompletionItems(input string, history []string) 
 	var items []CompletionItem
 
 	if input == "" {
-		// When input is empty, show only history for quick access
+		// When input is empty, show history for quick access
 		for _, h := range history {
 			items = append(items, CompletionItem{
 				Name:        h,
 				Kind:        KindHistory,
 				MatchedPart: "",
 				RestPart:    h,
+			})
+		}
+		if len(items) > 0 {
+			return items
+		}
+		// No history: fall through to show all available completions
+		for _, si := range p.items {
+			items = append(items, CompletionItem{
+				Name:          si.Name,
+				SignatureHelp: si.SignatureHelp,
+				Kind:          si.Kind,
+				MatchedPart:   "",
+				RestPart:      si.Name,
 			})
 		}
 		return items
