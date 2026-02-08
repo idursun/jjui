@@ -352,7 +352,7 @@ func (m *Model) renderFuzzyOverlay(dl *render.DisplayContext, box layout.Box) {
 	if m.fuzzy == nil {
 		return
 	}
-	overlayRect := cellbuf.Rect(box.R.Min.X, 0, box.R.Dx(), box.R.Min.Y-1)
+	overlayRect := cellbuf.Rect(box.R.Min.X, 0, box.R.Dx(), box.R.Min.Y)
 	m.fuzzy.ViewRect(dl, layout.Box{R: overlayRect})
 }
 
