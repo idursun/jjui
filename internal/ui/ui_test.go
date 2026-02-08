@@ -7,9 +7,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/git"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revset"
 	"github.com/idursun/jjui/test"
@@ -200,4 +205,57 @@ func Test_GitWithExpandedStatus_EscClosesStatusFirst(t *testing.T) {
 
 	// Stacked (git) should still be open
 	assert.NotNil(t, model.stacked, "stacked (git) should still be open after closing expanded status")
+}
+
+func Test_CustomCommandShouldNotShadowOperationKeys(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+
+	// Register a custom command bound to "s", which conflicts with rebase's "source" key
+	ctx.CustomCommands["my command"] = context.CustomRunCommand{
+		CustomCommandBase: context.CustomCommandBase{
+			Name: "my command",
+			Key:  []string{"s"},
+		},
+		Args: []string{"status"},
+	}
+
+	rows := []parser.Row{
+		{
+			Commit: &jj.Commit{ChangeId: "a", CommitId: "8"},
+			Lines: []*parser.GraphRowLine{
+				{
+					Gutter:   parser.GraphGutter{Segments: []*screen.Segment{{Text: "|"}}},
+					Segments: []*screen.Segment{{Text: "a"}},
+					Flags:    parser.Revision,
+				},
+			},
+		},
+		{
+			Commit: &jj.Commit{ChangeId: "b", CommitId: "9"},
+			Lines: []*parser.GraphRowLine{
+				{
+					Gutter:   parser.GraphGutter{Segments: []*screen.Segment{{Text: "|"}}},
+					Segments: []*screen.Segment{{Text: "b"}},
+					Flags:    parser.Revision,
+				},
+			},
+		},
+	}
+
+	model := NewUI(ctx)
+	model.revisions.SetRows(rows, "a")
+
+	// Enter rebase mode
+	test.SimulateModel(model, model.revisions.Update(intents.StartRebase{}))
+	assert.False(t, model.revisions.InNormalMode(), "should be in rebase mode")
+
+	// Press "s" which should set rebase source to "source" (descendants),
+	// NOT trigger the custom command
+	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+
+	op, ok := model.revisions.CurrentOperation().(*rebase.Operation)
+	assert.True(t, ok, "current operation should be a rebase operation")
+	assert.Equal(t, rebase.SourceDescendants, op.Source,
+		"pressing 's' in rebase mode should set source to descendants, not trigger custom command")
 }

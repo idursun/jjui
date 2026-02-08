@@ -923,6 +923,11 @@ func (m *Model) highlightChanges() tea.Msg {
 	return nil
 }
 
+// SetRows is a test helper that sets rows and selects the given revision.
+func (m *Model) SetRows(rows []parser.Row, selectedRevision string) {
+	m.updateGraphRows(rows, selectedRevision)
+}
+
 func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 	if rows == nil {
 		rows = []parser.Row{}

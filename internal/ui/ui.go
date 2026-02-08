@@ -205,10 +205,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case tea.KeyMsg:
-		// Forward all key presses to the custom sequence handler first.
+		// Forward all key presses to the custom sequence handler first,
+		// but only when not in an operation mode (rebase, squash, etc.)
+		// so that operation-specific keys are not shadowed.
 		wasPartialSequenceMatch := m.sequenceOverlay != nil
-		if cmd := m.handleCustomCommandSequence(msg); cmd != nil || m.sequenceOverlay != nil {
-			return cmd
+		if m.revisions.InNormalMode() {
+			if cmd := m.handleCustomCommandSequence(msg); cmd != nil || m.sequenceOverlay != nil {
+				return cmd
+			}
 		}
 		if wasPartialSequenceMatch {
 			// If we were in a partial sequence but the key didn't match, don't
@@ -281,6 +285,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.keyMap.Suspend):
 			return m.handleIntent(intents.Suspend{})
 		default:
+			if !m.revisions.InNormalMode() {
+				break
+			}
 			for _, command := range customcommands.SortedCustomCommands(m.context) {
 				if !command.IsApplicableTo(m.context.SelectedItem) {
 					continue
