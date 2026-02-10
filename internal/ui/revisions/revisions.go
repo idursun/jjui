@@ -577,7 +577,7 @@ func (m *Model) startSquash(intent intents.StartSquash) tea.Cmd {
 		m.SetCursor(m.cursor + 1)
 	}
 	m.op = squash.NewOperation(m.context, selected, squash.WithFiles(intent.Files))
-	return m.op.Init()
+	return tea.Batch(m.op.Init(), m.updateSelection())
 }
 
 func (m *Model) startRebase(intent intents.StartRebase) tea.Cmd {
