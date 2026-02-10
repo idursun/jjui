@@ -303,6 +303,13 @@ func (s *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 func (s *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 	s.Current = commit
+	if commit == nil {
+		return nil
+	}
+	if s.revision == nil || s.revision.GetChangeId() != commit.GetChangeId() {
+		s.revision = commit
+		return s.load(commit.GetChangeId())
+	}
 	return nil
 }
 
