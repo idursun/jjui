@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
@@ -22,7 +23,7 @@ func TestConfirm(t *testing.T) {
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, test.RenderImmediate(model, 100, 20), "undo")
 
-	test.SimulateModel(model, test.Press(tea.KeyEnter))
+	test.SimulateModel(model, func() tea.Msg { return intents.Apply{} })
 }
 
 func TestCancel(t *testing.T) {
@@ -34,7 +35,7 @@ func TestCancel(t *testing.T) {
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, test.RenderImmediate(model, 100, 20), "undo")
 
-	test.SimulateModel(model, test.Press(tea.KeyEsc))
+	test.SimulateModel(model, func() tea.Msg { return intents.Cancel{} })
 }
 
 func TestUndo_ZIndex_RendersAbovePreview(t *testing.T) {

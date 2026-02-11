@@ -60,15 +60,15 @@ For detailed information, see [Preview](https://github.com/idursun/jjui/wiki/Pre
 
 ![GIF](https://github.com/idursun/jjui/wiki/gifs/jjui_preview.gif)
 
-### Custom Commands
+### Actions And Bindings
 
-You can configure custom commands with lua scripts to set up `jjui` for you special use case.
+`jjui` uses `[[actions]]` and `[[bindings]]` for customization.
 
-See [Custom Command ‐ Lua Scripting](https://github.com/idursun/jjui/wiki/Custom-Command-%E2%80%90-Lua-Scripting) for Lua API documentation and custom command examples.
+- Bind built-in actions to keys or key sequences.
+- Define custom Lua actions in `[[actions]]` and bind them in `[[bindings]]`.
+- Use `open_command_palette` (default key: `x`) to discover and run actions in the current context.
 
-Below is a demo of [Quick Revset Switcher custom command](https://github.com/idursun/jjui/wiki/Custom-Command-%E2%80%90-Lua-Scripting#quick-revset-switcher):
-
-![GIF](https://raw.githubusercontent.com/wiki/idursun/jjui/gifs/jjui_custom_command.gif)
+Legacy `[custom_commands]` and `[leader]` sections are no longer supported, and `[keys]` is deprecated.
 
 Additionally,
 * View the diff of a revision by pressing `d`.

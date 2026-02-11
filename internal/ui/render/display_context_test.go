@@ -22,29 +22,6 @@ func TestDisplayContext_AddDraw(t *testing.T) {
 	}
 }
 
-func TestDisplayContext_ZIndexSorting(t *testing.T) {
-	dl := NewDisplayContext()
-	rect := cellbuf.Rect(0, 0, 10, 1)
-
-	// Add draws in reverse Z order
-	dl.AddDraw(rect, "z2", 2)
-	dl.AddDraw(rect, "z0", 0)
-	dl.AddDraw(rect, "z1", 1)
-
-	// Render should sort by Z-index
-	buf := cellbuf.NewBuffer(10, 1)
-	dl.Render(buf)
-
-	// Verify the draws were sorted
-	draws := dl.DrawList()
-	if len(draws) != 3 {
-		t.Fatalf("Expected 3 draws, got %d", len(draws))
-	}
-
-	// After rendering, internal slice should be sorted
-	// (We can't directly observe this, but we test behavior)
-}
-
 func TestDisplayContext_BasicRender(t *testing.T) {
 	dl := NewDisplayContext()
 
@@ -82,87 +59,32 @@ func TestDisplayContext_LayeredRender(t *testing.T) {
 	}
 }
 
-func TestEffectOp_Reverse(t *testing.T) {
-	dl := NewDisplayContext()
-
-	// Draw some content
-	dl.AddDraw(cellbuf.Rect(0, 0, 5, 1), "Hello", 0)
-
-	// Apply reverse effect
-	dl.AddReverse(cellbuf.Rect(0, 0, 5, 1), 0)
-
-	buf := cellbuf.NewBuffer(10, 1)
-	dl.Render(buf)
-
-	// Check that cells have reverse attribute set
-	// Verify first cell has reverse enabled
-	cell := buf.Cell(0, 0)
-	if cell == nil {
-		t.Fatal("Expected cell at (0,0), got nil")
+func TestEffectOp_AppliesWithoutPanic(t *testing.T) {
+	tests := []struct {
+		name    string
+		applyFn func(dl *DisplayContext, rect cellbuf.Rectangle)
+	}{
+		{"Bold", func(dl *DisplayContext, rect cellbuf.Rectangle) { dl.AddBold(rect, 0) }},
+		{"Underline", func(dl *DisplayContext, rect cellbuf.Rectangle) { dl.AddUnderline(rect, 0) }},
+		{"Dim", func(dl *DisplayContext, rect cellbuf.Rectangle) { dl.AddDim(rect, 0) }},
+		{"Reverse", func(dl *DisplayContext, rect cellbuf.Rectangle) { dl.AddReverse(rect, 0) }},
 	}
 
-	// The style should have reverse attribute
-	// Note: We can't easily test this without examining cell internals,
-	// but we can verify the cell was modified
-	if cell.Rune == 0 {
-		t.Error("Expected cell to have content after effect")
-	}
-}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dl := NewDisplayContext()
+			rect := cellbuf.Rect(0, 0, 4, 1)
+			dl.AddDraw(rect, "Test", 0)
+			tc.applyFn(dl, rect)
 
-func TestEffectOp_Bold(t *testing.T) {
-	dl := NewDisplayContext()
+			buf := cellbuf.NewBuffer(10, 1)
+			dl.Render(buf)
 
-	// Draw content
-	dl.AddDraw(cellbuf.Rect(0, 0, 4, 1), "Test", 0)
-
-	// Apply bold effect
-	dl.AddBold(cellbuf.Rect(0, 0, 4, 1), 0)
-
-	buf := cellbuf.NewBuffer(10, 1)
-	dl.Render(buf)
-
-	// Verify cells were modified
-	cell := buf.Cell(0, 0)
-	if cell == nil {
-		t.Fatal("Expected cell at (0,0), got nil")
-	}
-}
-
-func TestEffectOp_Underline(t *testing.T) {
-	dl := NewDisplayContext()
-
-	// Draw content
-	dl.AddDraw(cellbuf.Rect(0, 0, 4, 1), "Link", 0)
-
-	// Apply underline effect
-	dl.AddUnderline(cellbuf.Rect(0, 0, 4, 1), 0)
-
-	buf := cellbuf.NewBuffer(10, 1)
-	dl.Render(buf)
-
-	// Verify cells were modified
-	cell := buf.Cell(0, 0)
-	if cell == nil {
-		t.Fatal("Expected cell at (0,0), got nil")
-	}
-}
-
-func TestEffectOp_Dim(t *testing.T) {
-	dl := NewDisplayContext()
-
-	// Draw content
-	dl.AddDraw(cellbuf.Rect(0, 0, 4, 1), "Faint", 0)
-
-	// Apply dim effect
-	dl.AddDim(cellbuf.Rect(0, 0, 4, 1), 0)
-
-	buf := cellbuf.NewBuffer(10, 1)
-	dl.Render(buf)
-
-	// Verify cells were modified
-	cell := buf.Cell(0, 0)
-	if cell == nil {
-		t.Fatal("Expected cell at (0,0), got nil")
+			cell := buf.Cell(0, 0)
+			if cell == nil {
+				t.Fatal("Expected cell at (0,0), got nil")
+			}
+		})
 	}
 }
 

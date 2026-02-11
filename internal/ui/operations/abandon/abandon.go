@@ -1,14 +1,14 @@
 package abandon
 
 import (
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -27,7 +27,6 @@ type Operation struct {
 	context           *context.MainContext
 	selectedRevisions jj.SelectedRevisions
 	current           *jj.Commit
-	keyMap            config.KeyMappings[key.Binding]
 	styles            styles
 }
 
@@ -48,28 +47,12 @@ func (a *Operation) Update(msg tea.Msg) tea.Cmd {
 	case intents.Intent:
 		return a.handleIntent(msg)
 	case tea.KeyMsg:
-		return a.HandleKey(msg)
+		return nil
 	}
 	return nil
 }
 
 func (a *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
-
-func (a *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	switch {
-	case key.Matches(msg, a.keyMap.AceJump):
-		return a.handleIntent(intents.StartAceJump{})
-	case key.Matches(msg, a.keyMap.Apply):
-		return a.handleIntent(intents.Apply{})
-	case key.Matches(msg, a.keyMap.ForceApply):
-		return a.handleIntent(intents.Apply{Force: true})
-	case key.Matches(msg, a.keyMap.ToggleSelect):
-		return a.handleIntent(intents.AbandonToggleSelect{})
-	case key.Matches(msg, a.keyMap.Cancel):
-		return a.handleIntent(intents.Cancel{})
-	}
-	return nil
-}
 
 func (a *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 	switch intent.(type) {
@@ -98,18 +81,8 @@ func (a *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 	return nil
 }
 
-func (a *Operation) ShortHelp() []key.Binding {
-	return []key.Binding{
-		a.keyMap.Apply,
-		a.keyMap.ForceApply,
-		a.keyMap.ToggleSelect,
-		a.keyMap.Cancel,
-		a.keyMap.AceJump,
-	}
-}
-
-func (a *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{a.ShortHelp()}
+func (a *Operation) ResolveAction(action keybindings.Action, args map[string]any) (intents.Intent, bool) {
+	return actions.ResolveByScopeStrict(a.Scope(), action, args)
 }
 
 func (a *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
@@ -163,6 +136,10 @@ func (a *Operation) Name() string {
 	return "abandon"
 }
 
+func (a *Operation) Scope() keybindings.Scope {
+	return keybindings.Scope(actions.OwnerAbandon)
+}
+
 func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRevisions) *Operation {
 	styles := styles{
 		sourceMarker: common.DefaultPalette.Get("abandon source_marker"),
@@ -170,7 +147,6 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 	return &Operation{
 		context:           context,
 		selectedRevisions: selectedRevisions,
-		keyMap:            config.Current.GetKeyMap(),
 		styles:            styles,
 	}
 }

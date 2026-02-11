@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,7 +19,7 @@ func TestOperation_Update_RemembersDiscardedDescription(t *testing.T) {
 	operation := NewOperation(ctx, &jj.Commit{ChangeId: "change_id"})
 	test.SimulateModel(operation, operation.Init())
 	test.SimulateModel(operation, test.Type("Some description"))
-	test.SimulateModel(operation, test.Press(tea.KeyEsc))
+	test.SimulateModel(operation, func() tea.Msg { return intents.Cancel{} })
 	assert.Equal(t, "Some description", stashed.description)
 }
 

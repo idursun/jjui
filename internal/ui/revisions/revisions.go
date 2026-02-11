@@ -23,12 +23,11 @@ import (
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/operations/describe"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/graph"
@@ -57,7 +56,6 @@ type Model struct {
 	op                     common.ImmediateModel
 	cursor                 int
 	context                *appContext.MainContext
-	keymap                 config.KeyMappings[key.Binding]
 	output                 string
 	err                    error
 	quickSearch            string
@@ -155,6 +153,13 @@ func (m *Model) IsEditing() bool {
 	return false
 }
 
+func (m *Model) IsOverlay() bool {
+	if o, ok := m.op.(common.Overlay); ok {
+		return o.IsOverlay()
+	}
+	return false
+}
+
 func (m *Model) IsFocused() bool {
 	if f, ok := m.op.(common.Focusable); ok {
 		return f.IsFocused()
@@ -169,18 +174,25 @@ func (m *Model) InNormalMode() bool {
 	return false
 }
 
-func (m *Model) ShortHelp() []key.Binding {
-	if op, ok := m.op.(help.KeyMap); ok {
-		return op.ShortHelp()
-	}
-	return (&operations.Default{}).ShortHelp()
+func (m *Model) HasQuickSearch() bool {
+	return m.quickSearch != ""
 }
 
-func (m *Model) FullHelp() [][]key.Binding {
-	if op, ok := m.op.(help.KeyMap); ok {
-		return op.FullHelp()
+func (m *Model) ScopeChain() []keybindings.Scope {
+	chain := make([]keybindings.Scope, 0, 3)
+	if sp, ok := m.op.(operations.ScopeProvider); ok {
+		opScope := sp.Scope()
+		chain = append(chain, opScope)
+		if opScope != ScopeRevisions && !m.IsEditing() {
+			chain = append(chain, ScopeRevisions)
+		}
+	} else {
+		chain = append(chain, ScopeRevisions)
 	}
-	return [][]key.Binding{m.ShortHelp()}
+	if m.quickSearch != "" {
+		chain = append(chain, ScopeQuickSearch)
+	}
+	return chain
 }
 
 func (m *Model) SelectedRevision() *jj.Commit {
@@ -232,7 +244,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
-		return m.handleIntent(msg)
+		if cmd := m.handleIntent(msg); cmd != nil {
+			return cmd
+		}
+		return m.op.Update(msg)
 	case ItemClickedMsg:
 		// Don't allow changing selection if the operation is editing (e.g. describe)
 		if editable, ok := m.op.(common.Editable); ok && editable.IsEditing() {
@@ -260,6 +275,8 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		}
 		m.op = operations.NewDefault()
 		return m.updateSelection()
+	case common.StartAceJumpMsg:
+		return m.handleIntent(intents.StartAceJump{})
 	case common.QuickSearchMsg:
 		m.quickSearch = strings.ToLower(string(msg))
 		m.SetCursor(m.search(0, false))
@@ -374,85 +391,13 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		return m.op.Update(msg)
 	}
 
-	var cmd tea.Cmd
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.keymap.Up, m.keymap.ScrollUp):
-			return m.handleIntent(intents.Navigate{Delta: -1, IsPage: key.Matches(msg, m.keymap.ScrollUp)})
-		case key.Matches(msg, m.keymap.Down, m.keymap.ScrollDown):
-			return m.handleIntent(intents.Navigate{Delta: 1, IsPage: key.Matches(msg, m.keymap.ScrollDown)})
-		case key.Matches(msg, m.keymap.JumpToParent):
-			return m.handleIntent(intents.Navigate{Target: intents.TargetParent})
-		case key.Matches(msg, m.keymap.JumpToChildren):
-			return m.handleIntent(intents.Navigate{Target: intents.TargetChild})
-		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
-			return m.handleIntent(intents.Navigate{Target: intents.TargetWorkingCopy})
-		case key.Matches(msg, m.keymap.AceJump):
-			return m.handleIntent(intents.StartAceJump{})
-		default:
-			if op, ok := m.op.(common.Focusable); ok && op.IsFocused() {
-				return m.op.Update(msg)
-			}
-
-			switch {
-			case m.quickSearch != "" && (msg.Type == tea.KeyEsc || msg.Type == tea.KeyEnter):
-				return m.handleIntent(intents.RevisionsQuickSearchClear{})
-			case key.Matches(msg, m.keymap.ToggleSelect):
-				return m.handleIntent(intents.RevisionsToggleSelect{})
-			case key.Matches(msg, m.keymap.Cancel):
-				return m.handleIntent(intents.Cancel{})
-			case m.quickSearch != "" &&
-				(key.Matches(msg, m.keymap.QuickSearchNext) ||
-					key.Matches(msg, m.keymap.QuickSearchPrev)):
-				reverse := key.Matches(msg, m.keymap.QuickSearchPrev)
-				return m.handleIntent(intents.QuickSearchCycle{Reverse: reverse})
-			case key.Matches(msg, m.keymap.Details.Mode):
-				return m.handleIntent(intents.OpenDetails{})
-			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
-				return m.handleIntent(intents.StartInlineDescribe{})
-			case key.Matches(msg, m.keymap.New):
-				return m.handleIntent(intents.StartNew{})
-			case key.Matches(msg, m.keymap.Commit):
-				return m.handleIntent(intents.CommitWorkingCopy{})
-			case key.Matches(msg, m.keymap.Edit, m.keymap.ForceEdit):
-				ignoreImmutable := key.Matches(msg, m.keymap.ForceEdit)
-				return m.handleIntent(intents.StartEdit{IgnoreImmutable: ignoreImmutable})
-			case key.Matches(msg, m.keymap.Diffedit):
-				return m.handleIntent(intents.StartDiffEdit{})
-			case key.Matches(msg, m.keymap.Absorb):
-				return m.handleIntent(intents.StartAbsorb{})
-			case key.Matches(msg, m.keymap.Abandon):
-				return m.handleIntent(intents.StartAbandon{})
-			case key.Matches(msg, m.keymap.Bookmark.Set):
-				return m.handleIntent(intents.BookmarksSet{})
-			case key.Matches(msg, m.keymap.Split, m.keymap.SplitParallel):
-				return m.handleIntent(intents.StartSplit{
-					IsParallel: key.Matches(msg, m.keymap.SplitParallel),
-				})
-			case key.Matches(msg, m.keymap.Describe):
-				return m.handleIntent(intents.StartDescribe{})
-			case key.Matches(msg, m.keymap.Evolog.Mode):
-				return m.handleIntent(intents.StartEvolog{})
-			case key.Matches(msg, m.keymap.Diff):
-				return m.handleIntent(intents.ShowDiff{})
-			case key.Matches(msg, m.keymap.Refresh):
-				return m.handleIntent(intents.Refresh{})
-			case key.Matches(msg, m.keymap.Squash.Mode):
-				return m.handleIntent(intents.StartSquash{})
-			case key.Matches(msg, m.keymap.Revert.Mode):
-				return m.handleIntent(intents.StartRevert{})
-			case key.Matches(msg, m.keymap.Rebase.Mode):
-				return m.handleIntent(intents.StartRebase{})
-			case key.Matches(msg, m.keymap.Duplicate.Mode):
-				return m.handleIntent(intents.StartDuplicate{})
-			case key.Matches(msg, m.keymap.SetParents):
-				return m.handleIntent(intents.SetParents{})
-			}
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if op, ok := m.op.(common.Focusable); ok && op.IsFocused() {
+			return m.op.Update(keyMsg)
 		}
 	}
 
-	return cmd
+	return nil
 }
 
 func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
@@ -1105,10 +1050,8 @@ func (m *Model) GetCommitIds() []string {
 }
 
 func New(c *appContext.MainContext) *Model {
-	keymap := config.Current.GetKeyMap()
 	m := Model{
 		context:       c,
-		keymap:        keymap,
 		rows:          nil,
 		offScreenRows: nil,
 		op:            operations.NewDefault(),

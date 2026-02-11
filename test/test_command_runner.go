@@ -133,9 +133,8 @@ func NewTestCommandRunner(t *testing.T) *CommandRunner {
 
 func NewTestContext(commandRunner appContext.CommandRunner) *appContext.MainContext {
 	return &appContext.MainContext{
-		CommandRunner:  commandRunner,
-		JJConfig:       &config.JJConfig{},
-		SelectedItem:   nil,
-		CustomCommands: make(map[string]appContext.CustomCommand),
+		CommandRunner: commandRunner,
+		JJConfig:      &config.JJConfig{},
+		SelectedItem:  nil,
 	}
 }

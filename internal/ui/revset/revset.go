@@ -3,7 +3,6 @@ package revset
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
@@ -82,19 +81,8 @@ func (m *Model) IsFocused() bool {
 	return m.Editing
 }
 
-func (m *Model) ShortHelp() []key.Binding {
-	return []key.Binding{
-		key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "cycle completions")),
-		key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab", "cycle back")),
-		key.NewBinding(key.WithKeys("up"), key.WithHelp("up", "move selection")),
-		key.NewBinding(key.WithKeys("down"), key.WithHelp("down", "move selection")),
-		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "accept")),
-		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
-	}
-}
-
-func (m *Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{m.ShortHelp()}
+func (m *Model) GetValue() string {
+	return m.autoComplete.Value()
 }
 
 func New(context *appContext.MainContext) *Model {
@@ -195,59 +183,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if !m.Editing {
 			return nil
 		}
-		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
-			return m.handleIntent(intents.Cancel{})
-		case tea.KeyEnter:
-			return m.handleIntent(intents.Apply{Value: m.autoComplete.Value()})
-		case tea.KeyTab:
-			// Fish-style tab completion: cycle through completions
-			if len(m.completionItems) > 0 {
-				m.selectedIndex++
-				if m.selectedIndex >= len(m.completionItems) {
-					m.selectedIndex = 0
-				}
-				m.updatePreview()
-			}
-			return nil
-		case tea.KeyShiftTab:
-			// Shift+Tab cycles backwards
-			if len(m.completionItems) > 0 {
-				if m.selectedIndex <= 0 {
-					m.selectedIndex = len(m.completionItems) - 1
-				} else {
-					m.selectedIndex--
-				}
-				m.updatePreview()
-			}
-			return nil
-		case tea.KeyUp:
-			if len(m.completionItems) > 0 {
-				if m.selectedIndex < 0 {
-					m.selectedIndex = len(m.completionItems) - 1
-				} else {
-					m.selectedIndex--
-					if m.selectedIndex < 0 {
-						m.selectedIndex = len(m.completionItems) - 1
-					}
-				}
-				m.updatePreview()
-			}
-			return nil
-		case tea.KeyDown:
-			if len(m.completionItems) > 0 {
-				if m.selectedIndex < 0 {
-					m.selectedIndex = 0
-				} else {
-					m.selectedIndex++
-					if m.selectedIndex >= len(m.completionItems) {
-						m.selectedIndex = 0
-					}
-				}
-				m.updatePreview()
-			}
-			return nil
-		}
+		_ = msg
 	case common.UpdateRevSetMsg:
 		if m.Editing {
 			m.Editing = false
@@ -345,6 +281,52 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 			value = m.context.DefaultRevset
 		}
 		return tea.Batch(common.Close, common.UpdateRevSet(value))
+	case intents.CompletionCycle:
+		if len(m.completionItems) == 0 {
+			return nil
+		}
+		if intent.Reverse {
+			if m.selectedIndex <= 0 {
+				m.selectedIndex = len(m.completionItems) - 1
+			} else {
+				m.selectedIndex--
+			}
+		} else {
+			m.selectedIndex++
+			if m.selectedIndex >= len(m.completionItems) {
+				m.selectedIndex = 0
+			}
+		}
+		m.updatePreview()
+		return nil
+	case intents.CompletionMove:
+		if len(m.completionItems) == 0 {
+			return nil
+		}
+		if intent.Delta < 0 {
+			if m.selectedIndex < 0 {
+				m.selectedIndex = len(m.completionItems) - 1
+			} else {
+				m.selectedIndex--
+				if m.selectedIndex < 0 {
+					m.selectedIndex = len(m.completionItems) - 1
+				}
+			}
+			m.updatePreview()
+			return nil
+		}
+		if intent.Delta > 0 {
+			if m.selectedIndex < 0 {
+				m.selectedIndex = 0
+			} else {
+				m.selectedIndex++
+				if m.selectedIndex >= len(m.completionItems) {
+					m.selectedIndex = 0
+				}
+			}
+			m.updatePreview()
+		}
+		return nil
 	}
 	return nil
 }
@@ -475,5 +457,3 @@ func (m *Model) applyCompletion(input string, item CompletionItem) string {
 	}
 	return item.Name
 }
-
-// getHistoryIndices returns the indices of history items in completionItems
