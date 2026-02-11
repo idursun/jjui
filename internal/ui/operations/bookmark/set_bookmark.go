@@ -9,8 +9,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -20,9 +23,11 @@ var _ operations.Operation = (*SetBookmarkOperation)(nil)
 var _ common.Editable = (*SetBookmarkOperation)(nil)
 
 type SetBookmarkOperation struct {
-	context  *context.MainContext
-	revision string
-	name     textinput.Model
+	context         *context.MainContext
+	revision        string
+	name            textinput.Model
+	suggestions     []string
+	suggestionIndex int
 }
 
 func (s *SetBookmarkOperation) IsEditing() bool {
@@ -31,17 +36,23 @@ func (s *SetBookmarkOperation) IsEditing() bool {
 
 func (s *SetBookmarkOperation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
+	case intents.Intent:
+		switch msg := msg.(type) {
+		case intents.Cancel:
 			return common.Close
-		case "enter":
+		case intents.Apply:
 			return s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), common.Close, common.Refresh)
+		case intents.AutocompleteCycle:
+			s.cycleSuggestion(msg.Reverse)
+			return nil
 		}
+	case tea.KeyMsg:
+		_ = msg
 	}
 	var cmd tea.Cmd
 	s.name, cmd = s.name.Update(msg)
 	s.name.SetValue(strings.ReplaceAll(s.name.Value(), " ", "-"))
+	s.suggestionIndex = -1
 	return cmd
 }
 
@@ -54,6 +65,7 @@ func (s *SetBookmarkOperation) Init() tea.Cmd {
 				suggestions = append(suggestions, b.Name)
 			}
 		}
+		s.suggestions = suggestions
 		s.name.SetSuggestions(suggestions)
 	}
 
@@ -87,7 +99,11 @@ func (s *SetBookmarkOperation) DesiredHeight(_ *jj.Commit, _ operations.RenderPo
 }
 
 func (s *SetBookmarkOperation) Name() string {
-	return "bookmark"
+	return "set bookmark"
+}
+
+func (s *SetBookmarkOperation) Scope() keybindings.Scope {
+	return keybindings.Scope(actions.OwnerSetBookmark)
 }
 
 func NewSetBookmarkOperation(context *context.MainContext, changeId string) *SetBookmarkOperation {
@@ -110,10 +126,55 @@ func NewSetBookmarkOperation(context *context.MainContext, changeId string) *Set
 		name:     t,
 		revision: changeId,
 		context:  context,
+		// -1 means no active completion cycle.
+		suggestionIndex: -1,
 	}
 	return op
 }
 
 func (s *SetBookmarkOperation) viewContent() string {
 	return s.name.View()
+}
+
+func (s *SetBookmarkOperation) cycleSuggestion(reverse bool) {
+	candidates := s.matchingSuggestions(s.name.Value())
+	if len(candidates) == 0 {
+		return
+	}
+	delta := 1
+	if reverse {
+		delta = -1
+	}
+	if s.suggestionIndex < 0 {
+		if reverse {
+			s.suggestionIndex = len(candidates) - 1
+		} else {
+			s.suggestionIndex = 0
+		}
+	} else {
+		s.suggestionIndex = (s.suggestionIndex + delta + len(candidates)) % len(candidates)
+	}
+	s.name.SetValue(candidates[s.suggestionIndex])
+	s.name.CursorEnd()
+}
+
+func (s *SetBookmarkOperation) matchingSuggestions(input string) []string {
+	if len(s.suggestions) == 0 {
+		return nil
+	}
+	needle := strings.TrimSpace(input)
+	if needle == "" {
+		return s.suggestions
+	}
+	matches := make([]string, 0, len(s.suggestions))
+	for _, suggestion := range s.suggestions {
+		if strings.HasPrefix(suggestion, needle) {
+			matches = append(matches, suggestion)
+		}
+	}
+	return matches
+}
+
+func (s *SetBookmarkOperation) ResolveAction(action keybindings.Action, args map[string]any) (intents.Intent, bool) {
+	return actions.ResolveByScopeStrict(s.Scope(), action, args)
 }

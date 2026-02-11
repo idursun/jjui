@@ -34,50 +34,103 @@ const (
 	DuplicateTargetBefore
 )
 
+//jjui:bind scope=revisions.rebase action=set_source set=Source:$enum(source)
 type RebaseSetSource struct {
 	Source RebaseSource
 }
 
 func (RebaseSetSource) isIntent() {}
 
+//jjui:bind scope=revisions.rebase action=set_target set=Target:$enum(target)
 type RebaseSetTarget struct {
 	Target RebaseTarget
 }
 
 func (RebaseSetTarget) isIntent() {}
 
+//jjui:bind scope=revisions.rebase action=skip_emptied
 type RebaseToggleSkipEmptied struct{}
 
 func (RebaseToggleSkipEmptied) isIntent() {}
 
+//jjui:bind scope=revisions.rebase action=target
+type RebaseOpenTargetPicker struct{}
+
+func (RebaseOpenTargetPicker) isIntent() {}
+
+//jjui:bind scope=revisions.revert action=set_target set=Target:$enum(target)
 type RevertSetTarget struct {
 	Target RevertTarget
 }
 
 func (RevertSetTarget) isIntent() {}
 
+//jjui:bind scope=revisions.revert action=target
+type RevertOpenTargetPicker struct{}
+
+func (RevertOpenTargetPicker) isIntent() {}
+
+//jjui:bind scope=revisions.duplicate action=set_target set=Target:$enum(target)
 type DuplicateSetTarget struct {
 	Target DuplicateTarget
 }
 
 func (DuplicateSetTarget) isIntent() {}
 
-type SquashToggleKeepEmptied struct{}
+//jjui:bind scope=revisions.duplicate action=target
+type DuplicateOpenTargetPicker struct{}
 
-func (SquashToggleKeepEmptied) isIntent() {}
+func (DuplicateOpenTargetPicker) isIntent() {}
 
-type SquashToggleUseDestinationMessage struct{}
+type SquashOption int
 
-func (SquashToggleUseDestinationMessage) isIntent() {}
+const (
+	SquashOptionKeepEmptied SquashOption = iota
+	SquashOptionUseDestinationMessage
+	SquashOptionInteractive
+)
 
-type SquashToggleInteractive struct{}
+//jjui:bind scope=revisions.squash action=keep_emptied set=Option:SquashOptionKeepEmptied
+//jjui:bind scope=revisions.squash action=use_destination_msg set=Option:SquashOptionUseDestinationMessage
+//jjui:bind scope=revisions.squash action=interactive set=Option:SquashOptionInteractive
+type SquashToggleOption struct {
+	Option SquashOption
+}
 
-func (SquashToggleInteractive) isIntent() {}
+func (SquashToggleOption) isIntent() {}
 
+//jjui:bind scope=revisions.squash action=target
+type SquashOpenTargetPicker struct{}
+
+func (SquashOpenTargetPicker) isIntent() {}
+
+//jjui:bind scope=revisions.inline_describe action=accept
 type InlineDescribeAccept struct{}
 
 func (InlineDescribeAccept) isIntent() {}
 
+//jjui:bind scope=revisions.inline_describe action=editor
 type InlineDescribeEditor struct{}
 
 func (InlineDescribeEditor) isIntent() {}
+
+//jjui:bind scope=revisions.target_picker action=move_up set=Delta:-1
+//jjui:bind scope=revisions.target_picker action=move_down set=Delta:1
+type TargetPickerNavigate struct {
+	Delta int
+}
+
+func (TargetPickerNavigate) isIntent() {}
+
+//jjui:bind scope=revisions.target_picker action=apply set=Force:$bool(force)
+//jjui:bind scope=revisions.target_picker action=force_apply set=Force:true
+type TargetPickerApply struct {
+	Force bool
+}
+
+func (TargetPickerApply) isIntent() {}
+
+//jjui:bind scope=revisions.target_picker action=cancel
+type TargetPickerCancel struct{}
+
+func (TargetPickerCancel) isIntent() {}

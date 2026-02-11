@@ -143,17 +143,8 @@ func run() int {
 			fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
 			return 1
 		}
-		if registry, err := context.LoadCustomCommands(string(output)); err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading custom commands: %v\n", err)
-			return 1
-		} else {
-			appContext.CustomCommands = registry
-		}
-		if registry, err := context.LoadLeader(string(output)); err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading leader keys: %v\n", err)
-			return 1
-		} else {
-			appContext.Leader = registry
+		for _, warning := range config.DeprecatedConfigWarnings(string(output)) {
+			fmt.Fprintf(os.Stderr, "Warning: %s\n", warning)
 		}
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)

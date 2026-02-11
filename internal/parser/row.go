@@ -117,7 +117,7 @@ func (row *Row) Extend() GraphGutter {
 			case No:
 				extendMask[i] = false
 			case Carry:
-				extendMask[i] = extendMask[i]
+				// Keep previous value.
 			}
 		}
 		lastGutter = &gl.Gutter

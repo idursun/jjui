@@ -13,8 +13,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -40,11 +41,9 @@ type Operation struct {
 	*DetailsList
 	context           *context.MainContext
 	Current           *jj.Commit
-	keymap            config.KeyMappings[key.Binding]
 	targetMarkerStyle lipgloss.Style
 	revision          *jj.Commit
 	confirmation      *confirmation.Model
-	keyMap            config.KeyMappings[key.Binding]
 	styles            styles
 }
 
@@ -138,45 +137,30 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 		if s.confirmation != nil {
 			return s.confirmation.Update(msg)
 		}
-		return s.HandleKey(msg)
+		return nil
 	case intents.Intent:
 		return s.handleIntent(msg)
 	}
 	return nil
 }
 
-func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	switch {
-	case key.Matches(msg, s.keyMap.Up):
-		return s.handleIntent(intents.DetailsNavigate{Delta: -1})
-	case key.Matches(msg, s.keyMap.Down):
-		return s.handleIntent(intents.DetailsNavigate{Delta: 1})
-	case key.Matches(msg, s.keyMap.Cancel), key.Matches(msg, s.keyMap.Details.Close):
-		return s.handleIntent(intents.DetailsClose{})
-	case key.Matches(msg, s.keyMap.Quit): // handle global quit after cancel
-		return s.handleIntent(intents.Quit{})
-	case key.Matches(msg, s.keyMap.Refresh):
-		return s.handleIntent(intents.Refresh{})
-	case key.Matches(msg, s.keyMap.Details.Diff):
-		return s.handleIntent(intents.DetailsDiff{})
-	case key.Matches(msg, s.keyMap.Details.Split, s.keyMap.Details.SplitParallel):
-		return s.handleIntent(intents.DetailsSplit{IsParallel: key.Matches(msg, s.keyMap.Details.SplitParallel)})
-	case key.Matches(msg, s.keyMap.Details.Squash):
-		return s.handleIntent(intents.DetailsSquash{})
-	case key.Matches(msg, s.keyMap.Details.Restore):
-		return s.handleIntent(intents.DetailsRestore{})
-	case key.Matches(msg, s.keyMap.Details.Absorb):
-		return s.handleIntent(intents.DetailsAbsorb{})
-	case key.Matches(msg, s.keyMap.Details.ToggleSelect):
-		return s.handleIntent(intents.DetailsToggleSelect{})
-	case key.Matches(msg, s.keyMap.Details.RevisionsChangingFile):
-		return s.handleIntent(intents.DetailsRevisionsChangingFile{})
-	}
-	return nil
-}
-
 func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 	switch intent := intent.(type) {
+	case intents.Apply:
+		if s.confirmation != nil {
+			return s.confirmation.Update(intent)
+		}
+		return nil
+	case intents.Cancel:
+		if s.confirmation != nil {
+			return s.confirmation.Update(intent)
+		}
+		return nil
+	case intents.DetailsConfirmationNavigate:
+		if s.confirmation != nil && intent.Delta != 0 {
+			return s.confirmation.Update(intents.Navigate{Delta: intent.Delta})
+		}
+		return nil
 	case intents.DetailsNavigate:
 		if intent.Delta < 0 {
 			s.cursorUp()
@@ -288,6 +272,10 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 	return nil
 }
 
+func (s *Operation) ResolveAction(action keybindings.Action, args map[string]any) (intents.Intent, bool) {
+	return actions.ResolveByScopeStrict(s.Scope(), action, args)
+}
+
 func (s *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	content := s.viewContent(box.R.Dx(), box.R.Dy())
 	content = lipgloss.Place(
@@ -311,31 +299,6 @@ func (s *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 		return s.load(commit.GetChangeId())
 	}
 	return nil
-}
-
-func (s *Operation) ShortHelp() []key.Binding {
-	if s.confirmation != nil {
-		return s.confirmation.ShortHelp()
-	}
-	return []key.Binding{
-		s.keyMap.Up,
-		s.keyMap.Down,
-		s.keyMap.Cancel,
-		s.keyMap.Quit,
-		s.keyMap.Refresh,
-		s.keyMap.Details.Diff,
-		s.keyMap.Details.ToggleSelect,
-		s.keyMap.Details.Split,
-		s.keyMap.Details.SplitParallel,
-		s.keyMap.Details.Squash,
-		s.keyMap.Details.Restore,
-		s.keyMap.Details.Absorb,
-		s.keyMap.Details.RevisionsChangingFile,
-	}
-}
-
-func (s *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{s.ShortHelp()}
 }
 
 func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
@@ -404,6 +367,13 @@ func (s *Operation) RenderToDisplayContext(dl *render.DisplayContext, commit *jj
 
 func (s *Operation) Name() string {
 	return "details"
+}
+
+func (s *Operation) Scope() keybindings.Scope {
+	if s.confirmation != nil {
+		return keybindings.Scope(actions.OwnerDetailsConfirmation)
+	}
+	return keybindings.Scope(actions.OwnerDetails)
 }
 
 func (s *Operation) getSelectedFiles(allowVirtualSelection bool) []string {
@@ -498,8 +468,6 @@ func (s *Operation) load(revision string) tea.Cmd {
 }
 
 func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation {
-	keyMap := config.Current.GetKeyMap()
-
 	s := styles{
 		Added:    common.DefaultPalette.Get("revisions details added"),
 		Deleted:  common.DefaultPalette.Get("revisions details deleted"),
@@ -517,9 +485,7 @@ func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation 
 		DetailsList:       l,
 		context:           context,
 		revision:          selected,
-		keyMap:            keyMap,
 		styles:            s,
-		keymap:            config.Current.GetKeyMap(),
 		targetMarkerStyle: common.DefaultPalette.Get("revisions details target_marker"),
 	}
 	return op

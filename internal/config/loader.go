@@ -10,6 +10,11 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+type mergeOverlay struct {
+	Actions  []ActionConfig  `toml:"actions"`
+	Bindings []BindingConfig `toml:"bindings"`
+}
+
 func getConfigFilePath() string {
 	var configDirs []string
 
@@ -59,18 +64,76 @@ func loadDefaultConfig() *Config {
 		os.Exit(1)
 	}
 
+	bindingsData, err := configFS.ReadFile("default/bindings.toml")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Fatal: no embedded default bindings found: %v\n", err)
+		os.Exit(1)
+	}
+	if err := config.Load(string(bindingsData)); err != nil {
+		fmt.Fprintf(os.Stderr, "Fatal: failed to load embedded default bindings: %v\n", err)
+		os.Exit(1)
+	}
+
 	return config
 }
 
 func (c *Config) Load(data string) error {
-	var err error
+	baseActions := append([]ActionConfig(nil), c.Actions...)
+	baseBindings := append([]BindingConfig(nil), c.Bindings...)
 
-	_, err = toml.Decode(data, c)
+	metadata, err := toml.Decode(data, c)
 	if err != nil {
 		return err
 	}
+	if metadata.IsDefined("keys") {
+		return fmt.Errorf("[keys] is no longer supported; migrate to [[bindings]]")
+	}
 
-	return nil
+	// Decode only merge-managed array/table fields into a fresh struct so these
+	// collections are always read from file content, without carrying prior state.
+	// Keep this type explicit and extend it when new merge-managed arrays are added.
+	overlay := &mergeOverlay{}
+	if _, err := toml.Decode(data, overlay); err != nil {
+		return err
+	}
+
+	// If a custom bindings profile is specified, use it as the base instead of built-in defaults
+	if metadata.IsDefined("bindings_profile") && c.BindingsProfile != "" && c.BindingsProfile != ":builtin" {
+		profileBindings, err := loadProfileBindings(c.BindingsProfile)
+		if err != nil {
+			return err
+		}
+		baseBindings = profileBindings
+		if !metadata.IsDefined("bindings") {
+			c.Bindings = profileBindings
+		}
+	}
+
+	if metadata.IsDefined("actions") {
+		c.Actions = mergeActions(baseActions, overlay.Actions)
+	}
+	if metadata.IsDefined("bindings") {
+		c.Bindings = mergeBindings(baseBindings, overlay.Bindings)
+	}
+
+	return c.ValidateBindingsAndActions()
+}
+
+func loadProfileBindings(profile string) ([]BindingConfig, error) {
+	configFilePath := getConfigFilePath()
+	profilePath := profile
+	if !filepath.IsAbs(profilePath) {
+		profilePath = filepath.Join(filepath.Dir(configFilePath), profilePath)
+	}
+	data, err := os.ReadFile(profilePath)
+	if err != nil {
+		return nil, fmt.Errorf("loading bindings profile %q: %w", profile, err)
+	}
+	var overlay mergeOverlay
+	if _, err := toml.Decode(string(data), &overlay); err != nil {
+		return nil, fmt.Errorf("parsing bindings profile %q: %w", profile, err)
+	}
+	return overlay.Bindings, nil
 }
 
 func LoadConfigFile() ([]byte, error) {

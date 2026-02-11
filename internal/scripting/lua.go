@@ -3,10 +3,12 @@ package scripting
 import (
 	stdcontext "context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/ui/actionmeta"
 	"github.com/idursun/jjui/internal/ui/choose"
 	"github.com/idursun/jjui/internal/ui/common"
 	uicontext "github.com/idursun/jjui/internal/ui/context"
@@ -433,6 +435,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	root.RawSetString("split_lines", splitLinesFn)
 	root.RawSetString("choose", chooseFn)
 	root.RawSetString("input", inputFn)
+	registerGeneratedActionAPI(L, root)
 	L.SetGlobal("jjui", root)
 
 	// but also expose at the top level for convenience
@@ -448,6 +451,68 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	L.SetGlobal("split_lines", splitLinesFn)
 	L.SetGlobal("choose", chooseFn)
 	L.SetGlobal("input", inputFn)
+}
+
+func registerGeneratedActionAPI(L *lua.LState, root *lua.LTable) {
+	actions := actionmeta.BuiltInActions()
+	sort.Strings(actions)
+	for _, actionID := range actions {
+		owners := actionmeta.ActionOwners(actionID)
+		for _, owner := range owners {
+			ownerTable := ensureOwnerTable(L, root, owner)
+			token := actionmeta.ActionToken(actionID)
+			if token == "" {
+				continue
+			}
+			// Keep existing utility helpers (e.g. jjui.revisions.refresh) intact.
+			if ownerTable.RawGetString(token) != lua.LNil {
+				continue
+			}
+			ownerTable.RawSetString(token, generatedActionFn(L, actionID))
+			if token == "cancel" && ownerTable.RawGetString("close") == lua.LNil {
+				ownerTable.RawSetString("close", generatedActionFn(L, actionID))
+			}
+		}
+	}
+}
+
+func ensureOwnerTable(L *lua.LState, root *lua.LTable, owner string) *lua.LTable {
+	current := root
+	for _, segment := range strings.Split(owner, ".") {
+		existing := current.RawGetString(segment)
+		if tbl, ok := existing.(*lua.LTable); ok {
+			current = tbl
+			continue
+		}
+		next := L.NewTable()
+		current.RawSetString(segment, next)
+		current = next
+	}
+	return current
+}
+
+func generatedActionFn(L *lua.LState, canonical string) *lua.LFunction {
+	return L.NewFunction(func(L *lua.LState) int {
+		args := optionalLuaMapArg(L, 1)
+		return yieldStep(L, step{cmd: func() tea.Msg {
+			return common.DispatchActionMsg{
+				Action: canonical,
+				Args:   args,
+			}
+		}})
+	})
+}
+
+func optionalLuaMapArg(L *lua.LState, pos int) map[string]any {
+	if L.GetTop() < pos || L.Get(pos) == lua.LNil {
+		return nil
+	}
+	tbl, ok := L.Get(pos).(*lua.LTable)
+	if !ok {
+		L.ArgError(pos, "expected table or nil")
+		return nil
+	}
+	return luaTableToMap(tbl)
 }
 
 func payloadFromTop(L *lua.LState) map[string]any {

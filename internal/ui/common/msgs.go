@@ -62,6 +62,10 @@ type (
 	RunLuaScriptMsg struct {
 		Script string
 	}
+	DispatchActionMsg struct {
+		Action string
+		Args   map[string]any
+	}
 	TogglePasswordMsg struct {
 		Prompt   string
 		Password chan []byte

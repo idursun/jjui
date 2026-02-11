@@ -7,15 +7,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
-)
-
-var (
-	right = key.NewBinding(key.WithKeys("right", "l"))
-	left  = key.NewBinding(key.WithKeys("left", "h"))
 )
 
 type CloseMsg struct{}
@@ -23,6 +18,16 @@ type CloseMsg struct{}
 type SelectOptionMsg struct {
 	Index int
 }
+
+type MoveSelectionMsg struct {
+	Delta int
+}
+
+type ApplySelectionMsg struct {
+	Alt bool
+}
+
+type CancelMsg struct{}
 
 type option struct {
 	label      string
@@ -45,32 +50,6 @@ type Model struct {
 	messages    []string
 	stylePrefix string
 	zIndex      int
-}
-
-func (m *Model) ShortHelp() []key.Binding {
-	var bindings []key.Binding
-	for _, option := range m.options {
-		bindings = append(bindings, option.keyBinding)
-	}
-	bindings = append(bindings,
-		key.NewBinding(
-			key.WithKeys("left", "h"),
-			key.WithHelp("←", "left"),
-		),
-		key.NewBinding(
-			key.WithKeys("right", "l"),
-			key.WithHelp("→", "right"),
-		),
-		key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("↵", "select"),
-		),
-	)
-	return bindings
-}
-
-func (m *Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{m.ShortHelp()}
 }
 
 // Option is a function that configures a Model
@@ -108,7 +87,6 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
-	km := config.Current.GetKeyMap()
 	switch msg := msg.(type) {
 	case SelectOptionMsg:
 		if msg.Index >= 0 && msg.Index < len(m.options) {
@@ -117,34 +95,70 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return selectedOption.cmd
 		}
 		return nil
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, left):
-			if m.selected > 0 {
-				m.selected--
-			}
-		case key.Matches(msg, right):
-			if m.selected < len(m.options)-1 {
-				m.selected++
-			}
-		case key.Matches(msg, km.ForceApply):
-			selectedOption := m.options[m.selected]
+	case MoveSelectionMsg:
+		if len(m.options) == 0 {
+			return nil
+		}
+		next := m.selected + msg.Delta
+		if next < 0 {
+			next = 0
+		}
+		if next >= len(m.options) {
+			next = len(m.options) - 1
+		}
+		m.selected = next
+		return nil
+	case ApplySelectionMsg:
+		if len(m.options) == 0 {
+			return nil
+		}
+		selectedOption := m.options[m.selected]
+		if msg.Alt {
 			return selectedOption.altCmd
-		case key.Matches(msg, km.Apply):
-			selectedOption := m.options[m.selected]
-			return selectedOption.cmd
-		default:
-			for _, option := range m.options {
-				if key.Matches(msg, option.keyBinding) {
-					if msg.Alt {
-						return option.altCmd
-					}
-					return option.cmd
+		}
+		return selectedOption.cmd
+	case CancelMsg:
+		return m.runOptionForKey("esc", false)
+	case intents.Intent:
+		switch msg := msg.(type) {
+		case intents.Apply:
+			return m.Update(ApplySelectionMsg{Alt: msg.Force})
+		case intents.Cancel:
+			return m.Update(CancelMsg{})
+		case intents.Navigate:
+			if msg.Delta < 0 {
+				return m.Update(MoveSelectionMsg{Delta: -1})
+			}
+			if msg.Delta > 0 {
+				return m.Update(MoveSelectionMsg{Delta: 1})
+			}
+		}
+		return nil
+	case tea.KeyMsg:
+		for _, option := range m.options {
+			if key.Matches(msg, option.keyBinding) {
+				if msg.Alt {
+					return option.altCmd
 				}
+				return option.cmd
 			}
 		}
 	}
 	return nil
+}
+
+func (m *Model) runOptionForKey(bindingKey string, alt bool) tea.Cmd {
+	for _, option := range m.options {
+		for _, keyName := range option.keyBinding.Keys() {
+			if keyName == bindingKey {
+				if alt {
+					return option.altCmd
+				}
+				return option.cmd
+			}
+		}
+	}
+	return Close
 }
 
 func (m *Model) View() string {

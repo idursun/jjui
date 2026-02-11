@@ -5,8 +5,10 @@ import (
 	"slices"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
@@ -80,4 +82,24 @@ func TestBookmarks_ZIndex_RendersAboveMainContent(t *testing.T) {
 			i, draw.Z, render.ZMenuBorder)
 		assert.GreaterOrEqual(t, draw.Z, render.ZMenuBorder, msg)
 	}
+}
+
+func Test_FilterIntentPressedTwice_ExecutesShortcut(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(""))
+	commandRunner.Expect(jj.BookmarkListMovable("abc123")).SetOutput([]byte(`
+main;.;false;false;false;86
+`))
+	commandRunner.Expect(jj.BookmarkMove("abc123", "main"))
+	defer commandRunner.Verify()
+
+	commit := &jj.Commit{ChangeId: "abc123", CommitId: "commit123"}
+	op := NewModel(test.NewTestContext(commandRunner), commit, []string{"commit123"})
+	test.SimulateModel(op, op.Init())
+	_ = test.RenderImmediate(op, 100, 40)
+
+	// First press applies the category filter; second press executes its shortcut.
+	test.SimulateModel(op, func() tea.Msg { return intents.BookmarksFilter{Kind: intents.BookmarksFilterMove} })
+	test.SimulateModel(op, func() tea.Msg { return intents.BookmarksFilter{Kind: intents.BookmarksFilterMove} })
 }

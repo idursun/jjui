@@ -5,12 +5,12 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -28,7 +28,6 @@ type Model struct {
 	current  *jj.Commit
 	toRemove map[string]bool
 	toAdd    []string
-	keyMap   config.KeyMappings[key.Binding]
 	styles   styles
 	parents  []string
 }
@@ -46,27 +45,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case intents.Intent:
 		return m.handleIntent(msg)
 	case tea.KeyMsg:
-		return m.HandleKey(msg)
+		return nil
 	}
 	return nil
 }
 
 func (m *Model) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
-
-func (m *Model) ShortHelp() []key.Binding {
-	return []key.Binding{
-		m.keyMap.ToggleSelect,
-		m.keyMap.Apply,
-		m.keyMap.AceJump,
-		m.keyMap.Cancel,
-	}
-}
-
-func (m *Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		m.ShortHelp(),
-	}
-}
 
 type styles struct {
 	sourceMarker lipgloss.Style
@@ -76,20 +60,6 @@ type styles struct {
 
 func (m *Model) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 	m.current = commit
-	return nil
-}
-
-func (m *Model) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	switch {
-	case key.Matches(msg, m.keyMap.AceJump):
-		return m.handleIntent(intents.StartAceJump{})
-	case key.Matches(msg, m.keyMap.ToggleSelect):
-		return m.handleIntent(intents.SetParentsToggleSelect{})
-	case key.Matches(msg, m.keyMap.Apply):
-		return m.handleIntent(intents.Apply{})
-	case key.Matches(msg, m.keyMap.Cancel):
-		return m.handleIntent(intents.Cancel{})
-	}
 	return nil
 }
 
@@ -136,6 +106,10 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	return nil
 }
 
+func (m *Model) ResolveAction(action keybindings.Action, args map[string]any) (intents.Intent, bool) {
+	return actions.ResolveByScopeStrict(m.Scope(), action, args)
+}
+
 func (m *Model) Render(commit *jj.Commit, renderPosition operations.RenderPosition) string {
 	if renderPosition != operations.RenderBeforeChangeId {
 		return ""
@@ -168,6 +142,10 @@ func (m *Model) Name() string {
 	return "set parents"
 }
 
+func (m *Model) Scope() keybindings.Scope {
+	return keybindings.Scope(actions.OwnerSetParents)
+}
+
 func NewModel(ctx *context.MainContext, to *jj.Commit) *Model {
 	styles := styles{
 		sourceMarker: common.DefaultPalette.Get("set_parents source_marker"),
@@ -181,7 +159,6 @@ func NewModel(ctx *context.MainContext, to *jj.Commit) *Model {
 	parents := strings.Fields(string(output))
 	return &Model{
 		context:  ctx,
-		keyMap:   config.Current.GetKeyMap(),
 		parents:  parents,
 		toRemove: make(map[string]bool),
 		toAdd:    []string{},

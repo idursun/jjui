@@ -4,14 +4,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/helpkeys"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 
-	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -21,9 +20,10 @@ import (
 	"github.com/idursun/jjui/internal/ui/fuzzy_files"
 	"github.com/idursun/jjui/internal/ui/fuzzy_input"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
+	"github.com/idursun/jjui/internal/ui/intents"
 )
 
-var accept = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "accept"))
+var expandFallback = helpkeys.Entry{Label: "?", Desc: "expand status"}
 
 type commandStatus int
 
@@ -34,18 +34,28 @@ const (
 	commandFailed
 )
 
+type FocusKind int
+
+const (
+	FocusNone FocusKind = iota
+	FocusInput
+	FocusFileSearch
+	FocusQuickSearch
+)
+
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
 	context         *context.MainContext
 	spinner         spinner.Model
 	input           textinput.Model
-	keyMap          help.KeyMap
+	entries         []helpkeys.Entry
 	command         string
 	status          commandStatus
 	running         bool
 	mode            string
 	editStatus      editStatus
+	focusKind       FocusKind
 	history         map[string][]string
 	fuzzy           fuzzy_search.Model
 	styles          styles
@@ -64,14 +74,18 @@ type styles struct {
 
 // a function that will be used to show
 // dynamic help when editing is focused.
-type editStatus = func() (help.KeyMap, string)
+type editStatus = func() ([]helpkeys.Entry, string)
 
-func emptyEditStatus() (help.KeyMap, string) {
+func emptyEditStatus() ([]helpkeys.Entry, string) {
 	return nil, ""
 }
 
 func (m *Model) IsFocused() bool {
-	return m.editStatus != nil
+	return m.focusKind != FocusNone
+}
+
+func (m *Model) FocusKind() FocusKind {
+	return m.focusKind
 }
 
 const CommandClearDuration = 3 * time.Second
@@ -83,7 +97,6 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
-	km := config.Current.GetKeyMap()
 	switch msg := msg.(type) {
 	case clearMsg:
 		if m.command == string(msg) {
@@ -109,6 +122,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.mode = "rev file"
 		m.input.Prompt = "> "
 		m.loadEditingSuggestions()
+		m.focusKind = FocusFileSearch
 		m.fuzzy, m.editStatus = fuzzy_files.NewModel(msg)
 		return tea.Batch(m.fuzzy.Init(), m.input.Focus())
 	case common.ExecProcessCompletedMsg:
@@ -116,68 +130,73 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.mode = "exec " + msg.Msg.Mode.Mode
 			m.input.Prompt = msg.Msg.Mode.Prompt
 			m.loadEditingSuggestions()
+			m.focusKind = FocusInput
 			m.fuzzy, m.editStatus = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
+			m.input.SetValue(msg.Msg.Line)
+			m.input.CursorEnd()
 
-			// Avoid to change the current behavior when coming back from exec process
-			focusCmd := m.input.Focus()
-			keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(msg.Msg.Line)}
-			updateCmd := m.Update(keyMsg)
-			return tea.Batch(m.fuzzy.Init(), focusCmd, updateCmd)
+			return tea.Batch(m.fuzzy.Init(), m.input.Focus(), fuzzy_search.Search(m.input.Value()))
+		}
+		return nil
+	case intents.Intent:
+		switch msg.(type) {
+		case intents.Cancel:
+			if m.IsFocused() {
+				editMode := m.mode
+				fuzzy := m.fuzzy
+				m.fuzzy = nil
+				m.focusKind = FocusNone
+				m.input.Reset()
+				if fuzzy != nil && strings.HasSuffix(editMode, "file") {
+					return fuzzy.Update(intents.FileSearchCancel{})
+				}
+				return nil
+			}
+		case intents.Apply:
+			if m.IsFocused() {
+				editMode := m.mode
+				input := m.input.Value()
+				prompt := m.input.Prompt
+				fuzzy := m.fuzzy
+				if fuzzy != nil {
+					if selected := fuzzy_search.SelectedMatch(fuzzy); selected != "" {
+						input = strings.Trim(selected, "'")
+						m.input.SetValue(input)
+					}
+				}
+				m.saveEditingSuggestions()
+
+				m.fuzzy = nil
+				m.command = ""
+				m.focusKind = FocusNone
+				m.mode = ""
+				m.input.Reset()
+
+				switch {
+				case strings.HasSuffix(editMode, "file"):
+					if fuzzy != nil {
+						return fuzzy.Update(intents.FileSearchAccept{})
+					}
+					return nil
+				case strings.HasPrefix(editMode, "exec"):
+					return func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }
+				}
+				return func() tea.Msg { return common.QuickSearchMsg(input) }
+			}
+		}
+		if m.IsFocused() && m.fuzzy != nil {
+			return m.fuzzy.Update(msg)
 		}
 		return nil
 	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, km.Cancel) && m.statusExpanded:
-			m.statusExpanded = false
-			return nil
-		case key.Matches(msg, km.Cancel) && m.IsFocused():
+		if m.IsFocused() {
 			var cmd tea.Cmd
-			if m.fuzzy != nil {
-				cmd = m.fuzzy.Update(msg)
+			previous := m.input.Value()
+			m.input, cmd = m.input.Update(msg)
+			if m.fuzzy != nil && m.input.Value() != previous {
+				cmd = tea.Batch(cmd, fuzzy_search.Search(m.input.Value()))
 			}
-
-			m.fuzzy = nil
-			m.editStatus = nil
-			m.input.Reset()
 			return cmd
-		case key.Matches(msg, accept) && m.IsFocused():
-			editMode := m.mode
-			input := m.input.Value()
-			prompt := m.input.Prompt
-			fuzzy := m.fuzzy
-			// If there's a selected match in the fuzzy list, use that instead
-			if fuzzy != nil {
-				if selected := fuzzy_search.SelectedMatch(fuzzy); selected != "" {
-					// SelectedMatch returns the value wrapped in single quotes, remove them
-					input = strings.Trim(selected, "'")
-					m.input.SetValue(input)
-				}
-			}
-			m.saveEditingSuggestions()
-
-			m.fuzzy = nil
-			m.command = ""
-			m.editStatus = nil
-			m.mode = ""
-			m.input.Reset()
-
-			switch {
-			case strings.HasSuffix(editMode, "file"):
-				cmd := fuzzy.Update(msg)
-				return cmd
-			case strings.HasPrefix(editMode, "exec"):
-				return func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }
-			}
-			return func() tea.Msg { return common.QuickSearchMsg(input) }
-		default:
-			if m.IsFocused() {
-				var cmd tea.Cmd
-				m.input, cmd = m.input.Update(msg)
-				if m.fuzzy != nil {
-					cmd = tea.Batch(cmd, fuzzy_search.Search(m.input.Value(), msg))
-				}
-				return cmd
-			}
 		}
 		return nil
 	default:
@@ -196,6 +215,7 @@ func (m *Model) StartExec(mode common.ExecMode) tea.Cmd {
 	m.mode = "exec " + mode.Mode
 	m.input.Prompt = mode.Prompt
 	m.loadEditingSuggestions()
+	m.focusKind = FocusInput
 
 	m.fuzzy, m.editStatus = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
 	return tea.Batch(m.fuzzy.Init(), m.input.Focus())
@@ -203,6 +223,7 @@ func (m *Model) StartExec(mode common.ExecMode) tea.Cmd {
 
 func (m *Model) StartQuickSearch() tea.Cmd {
 	m.editStatus = emptyEditStatus
+	m.focusKind = FocusInput
 	m.mode = "search"
 	m.input.Prompt = "> "
 	m.loadEditingSuggestions()
@@ -264,12 +285,12 @@ func (m *Model) renderStatusMark() string {
 
 // renderHelpBar renders the help keybindings bar when idle.
 func (m *Model) renderHelpBar(width, modeWidth int) string {
-	if m.keyMap == nil || m.statusExpanded {
+	if len(m.entries) == 0 || m.statusExpanded {
 		return m.styles.text.Render(" ")
 	}
 
 	availableWidth := max(0, width-modeWidth-2)
-	helpContent, truncated := m.helpView(m.keyMap, availableWidth)
+	helpContent, truncated := m.helpView(m.entries, availableWidth)
 	m.statusTruncated = truncated
 	return lipgloss.PlaceHorizontal(width, 0, helpContent, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
 }
@@ -280,9 +301,9 @@ func (m *Model) renderContent(width, modeWidth int) string {
 		return m.styles.text.Render(strings.ReplaceAll(m.command, "\n", "⏎"))
 	}
 
-	editKeys, editHelp := m.editStatus()
-	if editKeys != nil {
-		editHelpText, _ := m.helpView(editKeys, 0)
+	editEntries, editHelp := m.editStatus()
+	if len(editEntries) > 0 {
+		editHelpText, _ := m.helpView(editEntries, 0)
 		editHelp = lipgloss.JoinHorizontal(0, editHelpText, editHelp)
 	}
 
@@ -293,11 +314,11 @@ func (m *Model) renderContent(width, modeWidth int) string {
 
 // renderExpandedStatus orchestrates expanded help overlay
 func (m *Model) renderExpandedStatus(dl *render.DisplayContext, box layout.Box, width int) {
-	if !m.statusExpanded || m.keyMap == nil || m.IsFocused() {
+	if !m.statusExpanded || len(m.entries) == 0 || m.IsFocused() {
 		return
 	}
 
-	expandedHelp, contentLineCount := m.expandedStatusView(m.keyMap, max(0, width-4))
+	expandedHelp, contentLineCount := m.expandedStatusView(m.entries, max(0, width-4))
 	expandedLines := strings.Split(expandedHelp, "\n")
 	startY := box.R.Min.Y - contentLineCount
 
@@ -356,11 +377,11 @@ func (m *Model) renderFuzzyOverlay(dl *render.DisplayContext, box layout.Box) {
 	m.fuzzy.ViewRect(dl, layout.Box{R: overlayRect})
 }
 
-func (m *Model) SetHelp(keyMap help.KeyMap) {
-	if m.keyMap != keyMap {
+func (m *Model) SetHelp(entries []helpkeys.Entry) {
+	if len(m.entries) != len(entries) {
 		m.statusExpanded = false
 	}
-	m.keyMap = keyMap
+	m.entries = entries
 }
 
 // StatusExpanded returns whether the help overlay is currently expanded.
@@ -383,8 +404,16 @@ func (m *Model) ToggleStatusExpand() {
 	}
 }
 
-func (m *Model) Help() help.KeyMap {
-	return m.keyMap
+// SetStatusExpanded forces expanded help visibility.
+func (m *Model) SetStatusExpanded(expanded bool) {
+	if m.IsFocused() {
+		return
+	}
+	m.statusExpanded = expanded
+}
+
+func (m *Model) Help() []helpkeys.Entry {
+	return m.entries
 }
 
 func (m *Model) SetMode(mode string) {
@@ -397,30 +426,32 @@ func (m *Model) Mode() string {
 	return m.mode
 }
 
-func (m *Model) expandedStatusView(keyMap help.KeyMap, maxWidth int) (string, int) {
-	entries, maxEntryWidth := m.collectHelpEntries(keyMap)
-	lines := m.buildHelpGrid(entries, maxEntryWidth, maxWidth)
+func (m *Model) InputValue() string {
+	return m.input.Value()
+}
+
+func (m *Model) expandedStatusView(helpEntries []helpkeys.Entry, maxWidth int) (string, int) {
+	rendered, maxEntryWidth := m.collectHelpEntries(helpEntries)
+	lines := m.buildHelpGrid(rendered, maxEntryWidth, maxWidth)
 	return strings.Join(lines, "\n"), len(lines)
 }
 
-// collectHelpEntries gathers all help entries from the keymap and returns them
+// collectHelpEntries gathers all help entries and returns them
 // along with the maximum entry width for column layout calculation.
-func (m *Model) collectHelpEntries(keyMap help.KeyMap) ([]string, int) {
-	shortHelp := keyMap.ShortHelp()
-	expandKey := config.Current.GetKeyMap().ExpandStatus.Help().Key
+func (m *Model) collectHelpEntries(helpEntries []helpkeys.Entry) ([]string, int) {
+	expandKey := m.expandStatusKey(helpEntries)
 	closeHint := m.styles.shortcut.Render(expandKey+"/esc") + m.styles.dimmed.PaddingLeft(1).Render("close help")
 
-	var entries []string
+	var rendered []string
 	maxEntryWidth := 0
 
-	for _, binding := range shortHelp {
-		if !binding.Enabled() {
+	for _, entry := range helpEntries {
+		if entry.Label == "" || entry.Desc == "" {
 			continue
 		}
-		h := binding.Help()
-		entry := m.styles.shortcut.Render(h.Key) + m.styles.dimmed.PaddingLeft(1).Render(h.Desc)
-		entries = append(entries, entry)
-		if w := lipgloss.Width(entry); w > maxEntryWidth {
+		e := m.styles.shortcut.Render(entry.Label) + m.styles.dimmed.PaddingLeft(1).Render(entry.Desc)
+		rendered = append(rendered, e)
+		if w := lipgloss.Width(e); w > maxEntryWidth {
 			maxEntryWidth = w
 		}
 	}
@@ -428,9 +459,9 @@ func (m *Model) collectHelpEntries(keyMap help.KeyMap) ([]string, int) {
 	if w := lipgloss.Width(closeHint); w > maxEntryWidth {
 		maxEntryWidth = w
 	}
-	entries = append(entries, closeHint)
+	rendered = append(rendered, closeHint)
 
-	return entries, maxEntryWidth
+	return rendered, maxEntryWidth
 }
 
 // buildHelpGrid arranges entries into a multi-column grid that fits within
@@ -461,55 +492,62 @@ func (m *Model) buildHelpGrid(entries []string, maxEntryWidth, maxWidth int) []s
 	return lines
 }
 
-func (m *Model) helpView(keyMap help.KeyMap, maxWidth int) (string, bool) {
+func (m *Model) helpView(helpEntries []helpkeys.Entry, maxWidth int) (string, bool) {
 	separator := m.styles.dimmed.Render(" • ")
-	expandKey := config.Current.GetKeyMap().ExpandStatus.Help().Key
+	expandKey := m.expandStatusKey(helpEntries)
 	moreHint := separator + m.styles.shortcut.Render(expandKey) + m.styles.dimmed.PaddingLeft(1).Render("more")
 
-	entries, truncated := m.collectHelpEntriesWithLimit(keyMap, maxWidth, lipgloss.Width(separator), lipgloss.Width(moreHint))
+	rendered, truncated := m.collectHelpEntriesWithLimit(helpEntries, maxWidth, lipgloss.Width(separator), lipgloss.Width(moreHint))
 
-	help := strings.Join(entries, separator)
+	result := strings.Join(rendered, separator)
 	if truncated {
-		help += moreHint
+		result += moreHint
 	}
-	return help, truncated
+	return result, truncated
 }
 
 // collectHelpEntriesWithLimit gathers help entries that fit within maxWidth,
 // accounting for separators and the "more" hint when truncation occurs.
-func (m *Model) collectHelpEntriesWithLimit(keyMap help.KeyMap, maxWidth, separatorWidth, moreHintWidth int) ([]string, bool) {
-	shortHelp := keyMap.ShortHelp()
-	var entries []string
+func (m *Model) collectHelpEntriesWithLimit(helpEntries []helpkeys.Entry, maxWidth, separatorWidth, moreHintWidth int) ([]string, bool) {
+	var rendered []string
 	currentWidth := 0
 
-	for i, binding := range shortHelp {
-		if !binding.Enabled() {
+	for i, entry := range helpEntries {
+		if entry.Label == "" || entry.Desc == "" {
 			continue
 		}
 
-		h := binding.Help()
-		entry := m.styles.shortcut.Render(h.Key) + m.styles.dimmed.PaddingLeft(1).Render(h.Desc)
-		entryWidth := lipgloss.Width(entry)
+		e := m.styles.shortcut.Render(entry.Label) + m.styles.dimmed.PaddingLeft(1).Render(entry.Desc)
+		entryWidth := lipgloss.Width(e)
 
 		addedWidth := entryWidth
-		if len(entries) > 0 {
+		if len(rendered) > 0 {
 			addedWidth += separatorWidth
 		}
 
 		reservedWidth := 0
-		if i < len(shortHelp)-1 {
+		if i < len(helpEntries)-1 {
 			reservedWidth = moreHintWidth
 		}
 
 		if maxWidth > 0 && currentWidth+addedWidth+reservedWidth > maxWidth {
-			return entries, true
+			return rendered, true
 		}
 
-		entries = append(entries, entry)
+		rendered = append(rendered, e)
 		currentWidth += addedWidth
 	}
 
-	return entries, false
+	return rendered, false
+}
+
+func (m *Model) expandStatusKey(helpEntries []helpkeys.Entry) string {
+	for _, entry := range helpEntries {
+		if entry.Desc == "expand status" {
+			return entry.Label
+		}
+	}
+	return expandFallback.Label
 }
 
 func New(context *context.MainContext) *Model {
@@ -536,7 +574,7 @@ func New(context *context.MainContext) *Model {
 		command: "",
 		status:  none,
 		input:   t,
-		keyMap:  nil,
+		entries: nil,
 		styles:  styles,
 	}
 }

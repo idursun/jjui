@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/test"
 )
 
@@ -17,5 +18,5 @@ func TestSetBookmarkModel_Update(t *testing.T) {
 	op := NewSetBookmarkOperation(test.NewTestContext(commandRunner), "revision")
 	test.SimulateModel(op, op.Init())
 	test.SimulateModel(op, test.Type("name"))
-	test.SimulateModel(op, test.Press(tea.KeyEnter))
+	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
 }

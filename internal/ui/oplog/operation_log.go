@@ -3,7 +3,6 @@ package oplog
 import (
 	"bytes"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
@@ -40,7 +39,6 @@ type Model struct {
 	listRenderer     *render.ListRenderer
 	rows             []row
 	cursor           int
-	keymap           config.KeyMappings[key.Binding]
 	textStyle        lipgloss.Style
 	selectedStyle    lipgloss.Style
 	ensureCursorView bool
@@ -62,24 +60,6 @@ func (m *Model) SetCursor(index int) {
 		m.cursor = index
 		m.ensureCursorView = true
 	}
-}
-
-func (m *Model) ShortHelp() []key.Binding {
-	return []key.Binding{
-		m.keymap.Up,
-		m.keymap.Down,
-		m.keymap.ScrollUp,
-		m.keymap.ScrollDown,
-		m.keymap.Quit,
-		m.keymap.Cancel,
-		m.keymap.Diff,
-		m.keymap.OpLog.Restore,
-		m.keymap.OpLog.Revert,
-	}
-}
-
-func (m *Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{m.ShortHelp()}
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -112,8 +92,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return m.Scroll(msg.Delta)
-	case tea.KeyMsg:
-		return m.keyToIntent(msg)
 	}
 	return nil
 }
@@ -130,32 +108,6 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.restore(intent)
 	case intents.OpLogRevert:
 		return m.revert(intent)
-	}
-	return nil
-}
-
-func (m *Model) keyToIntent(msg tea.KeyMsg) tea.Cmd {
-	switch {
-	case key.Matches(msg, m.keymap.Cancel):
-		return m.handleIntent(intents.OpLogClose{})
-	case key.Matches(msg, m.keymap.Up, m.keymap.ScrollUp):
-		return m.handleIntent(intents.OpLogNavigate{
-			Delta:  -1,
-			IsPage: key.Matches(msg, m.keymap.ScrollUp),
-		})
-	case key.Matches(msg, m.keymap.Down, m.keymap.ScrollDown):
-		return m.handleIntent(intents.OpLogNavigate{
-			Delta:  1,
-			IsPage: key.Matches(msg, m.keymap.ScrollDown),
-		})
-	case key.Matches(msg, m.keymap.Diff):
-		return m.handleIntent(intents.OpLogShowDiff{})
-	case key.Matches(msg, m.keymap.OpLog.Restore):
-		return m.handleIntent(intents.OpLogRestore{})
-	case key.Matches(msg, m.keymap.OpLog.Revert):
-		return m.handleIntent(intents.OpLogRevert{})
-	case key.Matches(msg, m.keymap.Quit):
-		return tea.Quit
 	}
 	return nil
 }
@@ -302,10 +254,8 @@ func (m *Model) load() tea.Cmd {
 }
 
 func New(context *context.MainContext) *Model {
-	keyMap := config.Current.GetKeyMap()
 	m := &Model{
 		context:       context,
-		keymap:        keyMap,
 		rows:          nil,
 		cursor:        0,
 		textStyle:     common.DefaultPalette.Get("oplog text"),

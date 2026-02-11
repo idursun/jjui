@@ -22,15 +22,13 @@ type SelectedOperation = common.SelectedOperation
 
 type MainContext struct {
 	CommandRunner
-	SelectedItem   SelectedItem   // Single item where cursor is hover.
-	CheckedItems   []SelectedItem // Items checked ✓ by the user.
-	Location       string
-	CustomCommands map[string]CustomCommand
-	Leader         LeaderMap
-	JJConfig       *config.JJConfig
-	DefaultRevset  string
-	CurrentRevset  string
-	Histories      *config.Histories
+	SelectedItem  SelectedItem   // Single item where cursor is hover.
+	CheckedItems  []SelectedItem // Items checked ✓ by the user.
+	Location      string
+	JJConfig      *config.JJConfig
+	DefaultRevset string
+	CurrentRevset string
+	Histories     *config.Histories
 }
 
 func NewAppContext(location string, aps *askpass.Server) *MainContext {
@@ -82,7 +80,7 @@ func (ctx *MainContext) SetSelectedItem(item SelectedItem) tea.Cmd {
 	return common.SelectionChanged(item)
 }
 
-// CreateReplacements context aware replacements for custom commands and exec input.
+// CreateReplacements creates context-aware replacements for exec input.
 func (ctx *MainContext) CreateReplacements() map[string]string {
 	selectedItem := ctx.SelectedItem
 	replacements := make(map[string]string)

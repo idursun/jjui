@@ -7,20 +7,17 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/sahilm/fuzzy"
 )
-
-const ctrl_r = "ctrl+r"
 
 type model struct {
 	suggestions []string
@@ -49,57 +46,28 @@ func (fzf *model) Update(msg tea.Msg) tea.Cmd {
 	case initMsg:
 		fzf.search("")
 	case fuzzy_search.SearchMsg:
-		if cmd := fzf.handleKey(msg.Pressed); cmd != nil {
-			return cmd
-		}
 		fzf.search(msg.Input)
-	case tea.KeyMsg:
-		return fzf.handleKey(msg)
+	case intents.Intent:
+		return fzf.handleIntent(msg)
 	}
 	return nil
 }
 
-func (fzf *model) handleKey(msg tea.KeyMsg) tea.Cmd {
-	km := config.Current.GetKeyMap()
-	skipSearch := func() tea.Msg { return nil }
-	switch {
-	case ctrl_r == msg.String():
+func (fzf *model) handleIntent(intent intents.Intent) tea.Cmd {
+	switch intent := intent.(type) {
+	case intents.SuggestCycle:
 		switch fzf.suggestMode {
 		case config.SuggestModeOff:
 			fzf.suggestMode = config.SuggestModeFuzzy
-			return nil
 		case config.SuggestModeFuzzy:
 			fzf.suggestMode = config.SuggestModeRegex
-			return nil
 		case config.SuggestModeRegex:
 			fzf.suggestMode = config.SuggestModeOff
 			fzf.cursor = 0
 			fzf.matches = nil
-			return skipSearch
 		}
-	case key.Matches(msg, fzf.input.KeyMap.AcceptSuggestion) && fzf.hasSuggestions():
-		suggestion := fuzzy_search.SelectedMatch(fzf)
-		fzf.input.SetValue(suggestion)
-		fzf.input.CursorEnd()
-		return skipSearch
-	case key.Matches(msg, km.Preview.ScrollUp, fzf.input.KeyMap.PrevSuggestion):
-		fzf.moveCursor(1)
-		return skipSearch
-	case key.Matches(msg, km.Preview.ScrollDown, fzf.input.KeyMap.NextSuggestion):
-		fzf.moveCursor(-1)
-		return skipSearch
-	case key.Matches(msg,
-		// movements do not cause search
-		fzf.input.KeyMap.CharacterForward,
-		fzf.input.KeyMap.CharacterBackward,
-		fzf.input.KeyMap.WordForward,
-		fzf.input.KeyMap.WordBackward,
-		fzf.input.KeyMap.LineStart,
-		fzf.input.KeyMap.LineEnd,
-	):
-		return skipSearch
-	case !fzf.suggestEnabled():
-		return skipSearch
+	case intents.SuggestNavigate:
+		fzf.moveCursor(intent.Delta)
 	}
 	return nil
 }
@@ -222,36 +190,33 @@ func (fzf *model) viewContent() string {
 	return lipgloss.JoinVertical(0, title, view)
 }
 
-func (fzf *model) ShortHelp() []key.Binding {
-	shortHelp := []key.Binding{}
-	bind := func(keys string, help string) key.Binding {
-		return key.NewBinding(key.WithKeys(keys), key.WithHelp(keys, help))
-	}
-
+func (fzf *model) helpEntries() []helpkeys.Entry {
 	upDown := "ctrl+p/ctrl+n"
-
-	moveOnHistory := bind(upDown, "move on history")
-	moveOnSuggestions := bind(upDown, "move on suggest")
 
 	switch fzf.suggestMode {
 	case config.SuggestModeOff:
-		shortHelp = append(shortHelp, bind(ctrl_r, "suggest: off"), moveOnHistory)
+		return []helpkeys.Entry{
+			{Label: "ctrl+r", Desc: "suggest: off"},
+			{Label: upDown, Desc: "move on history"},
+		}
 	case config.SuggestModeFuzzy:
-		shortHelp = append(shortHelp, bind(ctrl_r, "suggest: fuzzy"), moveOnSuggestions)
+		return []helpkeys.Entry{
+			{Label: "ctrl+r", Desc: "suggest: fuzzy"},
+			{Label: upDown, Desc: "move on suggest"},
+		}
 	case config.SuggestModeRegex:
-		shortHelp = append(shortHelp, bind(ctrl_r, "suggest: regex"), moveOnSuggestions)
+		return []helpkeys.Entry{
+			{Label: "ctrl+r", Desc: "suggest: regex"},
+			{Label: upDown, Desc: "move on suggest"},
+		}
 	}
-	return shortHelp
+	return nil
 }
 
-func (fzf *model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{fzf.ShortHelp()}
-}
+type editStatus func() ([]helpkeys.Entry, string)
 
-type editStatus func() (help.KeyMap, string)
-
-func (fzf *model) editStatus() (help.KeyMap, string) {
-	return fzf, ""
+func (fzf *model) editStatus() ([]helpkeys.Entry, string) {
+	return fzf.helpEntries(), ""
 }
 
 func NewModel(input *textinput.Model, suggestions []string) (fuzzy_search.Model, editStatus) {
