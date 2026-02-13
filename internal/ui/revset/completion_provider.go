@@ -73,7 +73,11 @@ func (p *CompletionProvider) GetCompletions(input string) []string {
 	for _, item := range p.items {
 		if item.Kind == KindFunction || item.Kind == KindAlias {
 			if strings.HasPrefix(item.Name, lastToken) {
-				suggestions = append(suggestions, item.Name)
+				name := item.Name
+				if item.Kind == KindFunction && !item.HasParameters {
+					name += "()"
+				}
+				suggestions = append(suggestions, name)
 			}
 		}
 	}
@@ -102,12 +106,16 @@ func (p *CompletionProvider) GetCompletionItems(input string, history []string) 
 		}
 		// No history: fall through to show all available completions
 		for _, si := range p.items {
+			name := si.Name
+			if si.Kind == KindFunction && !si.HasParameters {
+				name += "()"
+			}
 			items = append(items, CompletionItem{
-				Name:          si.Name,
+				Name:          name,
 				SignatureHelp: si.SignatureHelp,
 				Kind:          si.Kind,
 				MatchedPart:   "",
-				RestPart:      si.Name,
+				RestPart:      name,
 			})
 		}
 		return items
@@ -120,12 +128,16 @@ func (p *CompletionProvider) GetCompletionItems(input string, history []string) 
 
 	for _, si := range p.items {
 		if strings.HasPrefix(si.Name, lastToken) {
+			name := si.Name
+			if si.Kind == KindFunction && !si.HasParameters {
+				name += "()"
+			}
 			items = append(items, CompletionItem{
-				Name:          si.Name,
+				Name:          name,
 				SignatureHelp: si.SignatureHelp,
 				Kind:          si.Kind,
 				MatchedPart:   lastToken,
-				RestPart:      strings.TrimPrefix(si.Name, lastToken),
+				RestPart:      strings.TrimPrefix(name, lastToken),
 			})
 		}
 	}

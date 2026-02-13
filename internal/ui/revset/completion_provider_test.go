@@ -58,11 +58,11 @@ func TestGetCompletions(t *testing.T) {
 		expected string
 	}{
 		{"ancestors", "ancestors"},
-		{"ancestors(visible_", "visible_heads"},
+		{"ancestors(visible_", "visible_heads()"},
 		{"author", "author"},
-		{"author(m", "mine"},
-		{"author( m", "mine"},
-		{"present(@) | m", "mine"},
+		{"author(m", "mine()"},
+		{"author( m", "mine()"},
+		{"present(@) | m", "mine()"},
 	}
 	for _, test := range tests {
 		t.Run(test.input, func(t *testing.T) {

@@ -23,6 +23,7 @@ type Item struct {
 	Name          string
 	Kind          Kind
 	SignatureHelp string
+	HasParameters bool
 }
 
 // Runner executes a jj command and returns its output.

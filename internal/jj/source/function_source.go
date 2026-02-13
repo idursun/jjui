@@ -78,7 +78,7 @@ type FunctionSource struct{}
 func (s FunctionSource) Fetch(_ Runner) ([]Item, error) {
 	items := make([]Item, len(baseFunctions))
 	for i, f := range baseFunctions {
-		items[i] = Item{Name: f.Name, Kind: KindFunction, SignatureHelp: f.SignatureHelp}
+		items[i] = Item{Name: f.Name, Kind: KindFunction, SignatureHelp: f.SignatureHelp, HasParameters: f.HasParameters}
 	}
 	return items, nil
 }
