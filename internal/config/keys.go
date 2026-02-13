@@ -138,6 +138,17 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 			Accept: key.NewBinding(key.WithKeys(m.FileSearch.Accept...), key.WithHelp(JoinKeys(m.FileSearch.Accept), "file revset")),
 			Edit:   key.NewBinding(key.WithKeys(m.FileSearch.Edit...), key.WithHelp(JoinKeys(m.FileSearch.Edit), "edit file")),
 		},
+		DiffView: diffModeKeys[key.Binding]{
+			ScrollUp:     key.NewBinding(key.WithKeys(m.DiffView.ScrollUp...), key.WithHelp(JoinKeys(m.DiffView.ScrollUp), "scroll up")),
+			ScrollDown:   key.NewBinding(key.WithKeys(m.DiffView.ScrollDown...), key.WithHelp(JoinKeys(m.DiffView.ScrollDown), "scroll down")),
+			PageUp:       key.NewBinding(key.WithKeys(m.DiffView.PageUp...), key.WithHelp(JoinKeys(m.DiffView.PageUp), "page up")),
+			PageDown:     key.NewBinding(key.WithKeys(m.DiffView.PageDown...), key.WithHelp(JoinKeys(m.DiffView.PageDown), "page down")),
+			HalfPageUp:   key.NewBinding(key.WithKeys(m.DiffView.HalfPageUp...), key.WithHelp(JoinKeys(m.DiffView.HalfPageUp), "half page up")),
+			HalfPageDown: key.NewBinding(key.WithKeys(m.DiffView.HalfPageDown...), key.WithHelp(JoinKeys(m.DiffView.HalfPageDown), "half page down")),
+			Left:         key.NewBinding(key.WithKeys(m.DiffView.Left...), key.WithHelp(JoinKeys(m.DiffView.Left), "scroll left")),
+			Right:        key.NewBinding(key.WithKeys(m.DiffView.Right...), key.WithHelp(JoinKeys(m.DiffView.Right), "scroll right")),
+			Close:        key.NewBinding(key.WithKeys(m.DiffView.Close...), key.WithHelp(JoinKeys(m.DiffView.Close), "close")),
+		},
 	}
 }
 
@@ -219,6 +230,7 @@ type KeyMappings[T any] struct {
 	Git               gitModeKeys[T]            `toml:"git"`
 	OpLog             opLogModeKeys[T]          `toml:"oplog"`
 	FileSearch        fileSearchKeys[T]         `toml:"file_search"`
+	DiffView          diffModeKeys[T]           `toml:"diff_view"`
 }
 
 type bookmarkModeKeys[T any] struct {
@@ -323,4 +335,16 @@ type fileSearchKeys[T any] struct {
 	Down   T `toml:"down"`
 	Accept T `toml:"accept"`
 	Edit   T `toml:"edit"`
+}
+
+type diffModeKeys[T any] struct {
+	ScrollUp     T `toml:"scroll_up"`
+	ScrollDown   T `toml:"scroll_down"`
+	PageUp       T `toml:"page_up"`
+	PageDown     T `toml:"page_down"`
+	HalfPageUp   T `toml:"half_page_up"`
+	HalfPageDown T `toml:"half_page_down"`
+	Left         T `toml:"left"`
+	Right        T `toml:"right"`
+	Close        T `toml:"close"`
 }

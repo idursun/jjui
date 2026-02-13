@@ -21,16 +21,15 @@ type Model struct {
 }
 
 func (m *Model) ShortHelp() []key.Binding {
-	vkm := m.view.KeyMap
 	return []key.Binding{
-		vkm.Up,
-		vkm.Down,
-		vkm.HalfPageDown,
-		vkm.HalfPageUp,
-		vkm.PageDown,
-		vkm.PageUp,
-		m.keymap.Quit,
-		m.keymap.Cancel}
+		m.keymap.DiffView.ScrollUp,
+		m.keymap.DiffView.ScrollDown,
+		m.keymap.DiffView.HalfPageDown,
+		m.keymap.DiffView.HalfPageUp,
+		m.keymap.DiffView.PageDown,
+		m.keymap.DiffView.PageUp,
+		m.keymap.DiffView.Close,
+	}
 }
 
 func (m *Model) FullHelp() [][]key.Binding {
@@ -69,12 +68,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, m.keymap.Cancel):
+		case key.Matches(msg, m.keymap.DiffView.Close):
 			return common.Close
 		case key.Matches(msg, m.keymap.ExpandStatus):
 			return func() tea.Msg { return intents.ExpandStatusToggle{} }
-		case key.Matches(msg, m.keymap.Quit):
-			return tea.Quit
 		}
 	case ScrollMsg:
 		if msg.Horizontal {
@@ -101,8 +98,19 @@ func New(output string) *Model {
 		content = "(empty)"
 	}
 	view.SetContent(content)
+	km := config.Current.GetKeyMap()
+	view.KeyMap = viewport.KeyMap{
+		Up:           km.DiffView.ScrollUp,
+		Down:         km.DiffView.ScrollDown,
+		PageUp:       km.DiffView.PageUp,
+		PageDown:     km.DiffView.PageDown,
+		HalfPageUp:   km.DiffView.HalfPageUp,
+		HalfPageDown: km.DiffView.HalfPageDown,
+		Left:         km.DiffView.Left,
+		Right:        km.DiffView.Right,
+	}
 	return &Model{
 		view:   view,
-		keymap: config.Current.GetKeyMap(),
+		keymap: km,
 	}
 }

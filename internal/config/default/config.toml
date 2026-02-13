@@ -119,6 +119,16 @@ limit = 0
     down = ["down"]
     accept = ["enter"]
     edit = ["alt+e"]
+  [keys.diff_view]
+    scroll_up = ["up", "k"]
+    scroll_down = ["down", "j"]
+    page_up = ["pgup", "b"]
+    page_down = ["pgdown", "f", " "]
+    half_page_up = ["u", "ctrl+u"]
+    half_page_down = ["d", "ctrl+d"]
+    left = ["left", "h"]
+    right = ["right", "l"]
+    close = ["esc", "q"]
 
 
 [ui]
