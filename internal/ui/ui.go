@@ -14,6 +14,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/helpkeys"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/password"
 	"github.com/idursun/jjui/internal/ui/render"
 
@@ -872,14 +873,6 @@ func (m *Model) dispatchScopes() []keybindings.Scope {
 // still reference the old name. Dispatch now uses primary+always-on scopes.
 func (m *Model) activeScopeChain() []keybindings.Scope {
 	return m.dispatchScopes()
-}
-
-func isCancelAction(action keybindings.Action) bool {
-	name := strings.TrimSpace(string(action))
-	if name == "cancel" {
-		return true
-	}
-	return strings.HasSuffix(name, ".cancel")
 }
 
 func (m *Model) isSafeToQuit() bool {
