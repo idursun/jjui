@@ -31,7 +31,7 @@ func TestScroll_AdjustsViewportOffset(t *testing.T) {
 
 func TestUpdate_CancelReturnsClose(t *testing.T) {
 	model := New("content")
-	model.keymap.Cancel = key.NewBinding(key.WithKeys("q"))
+	model.keymap.DiffView.Close = key.NewBinding(key.WithKeys("q"))
 
 	var msgs []tea.Msg
 	test.SimulateModel(model, test.Type("q"), func(msg tea.Msg) {
