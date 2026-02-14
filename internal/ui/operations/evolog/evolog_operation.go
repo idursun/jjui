@@ -5,19 +5,18 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
-
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/context"
 )
 
 type updateEvologMsg struct {
@@ -55,7 +54,6 @@ type Operation struct {
 	mode             mode
 	rows             []parser.Row
 	cursor           int
-	keyMap           config.KeyMappings[key.Binding]
 	target           *jj.Commit
 	styles           styles
 	ensureCursorView bool
@@ -81,26 +79,6 @@ func (o *Operation) Len() int {
 	return len(o.rows)
 }
 
-func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	switch {
-	case key.Matches(msg, o.keyMap.Cancel):
-		return o.handleIntent(intents.Cancel{})
-	case key.Matches(msg, o.keyMap.Quit):
-		return o.handleIntent(intents.Quit{})
-	case key.Matches(msg, o.keyMap.Up):
-		return o.handleIntent(intents.EvologNavigate{Delta: -1})
-	case key.Matches(msg, o.keyMap.Down):
-		return o.handleIntent(intents.EvologNavigate{Delta: 1})
-	case key.Matches(msg, o.keyMap.Evolog.Diff):
-		return o.handleIntent(intents.EvologDiff{})
-	case key.Matches(msg, o.keyMap.Evolog.Restore):
-		return o.handleIntent(intents.EvologRestore{})
-	case key.Matches(msg, o.keyMap.Apply):
-		return o.handleIntent(intents.Apply{})
-	}
-	return nil
-}
-
 type styles struct {
 	dimmedStyle   lipgloss.Style
 	commitIdStyle lipgloss.Style
@@ -113,24 +91,6 @@ type styles struct {
 func (o *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 	o.target = commit
 	return nil
-}
-
-func (o *Operation) ShortHelp() []key.Binding {
-	if o.mode == restoreMode {
-		return []key.Binding{o.keyMap.Cancel, o.keyMap.Apply}
-	}
-	return []key.Binding{
-		o.keyMap.Up,
-		o.keyMap.Down,
-		o.keyMap.Cancel,
-		o.keyMap.Quit,
-		o.keyMap.Evolog.Diff,
-		o.keyMap.Evolog.Restore,
-	}
-}
-
-func (o *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{o.ShortHelp()}
 }
 
 func (o *Operation) Update(msg tea.Msg) tea.Cmd {
@@ -156,8 +116,7 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	case intents.Intent:
 		return o.handleIntent(msg)
 	case tea.KeyMsg:
-		cmd := o.HandleKey(msg)
-		return cmd
+		return nil
 	}
 	return nil
 }
@@ -213,6 +172,10 @@ func (o *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 	return nil
 }
 
+func (o *Operation) ResolveAction(action keybindings.Action, args map[string]any) (intents.Intent, bool) {
+	return actions.ResolveByScopeStrict(o.Scope(), action, args)
+}
+
 func (o *Operation) getSelectedEvolog() *jj.Commit {
 	return o.rows[o.cursor].Commit
 }
@@ -258,6 +221,10 @@ func (o *Operation) Name() string {
 		return "restore"
 	}
 	return "evolog"
+}
+
+func (o *Operation) Scope() keybindings.Scope {
+	return keybindings.Scope(actions.OwnerEvolog)
 }
 
 // DesiredHeight returns the desired height for the operation
@@ -306,7 +273,6 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 	}
 	o := &Operation{
 		context:    context,
-		keyMap:     config.Current.GetKeyMap(),
 		revision:   revision,
 		rows:       nil,
 		cursor:     0,

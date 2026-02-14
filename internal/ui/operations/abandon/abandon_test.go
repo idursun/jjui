@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/test"
 )
 
@@ -20,7 +21,7 @@ func Test_Accept(t *testing.T) {
 	test.SimulateModel(model, model.Init())
 
 	model.SetSelectedRevision(commit)
-	test.SimulateModel(model, test.Press(tea.KeyEnter))
+	test.SimulateModel(model, func() tea.Msg { return intents.Apply{} })
 }
 
 func Test_Cancel(t *testing.T) {
@@ -32,5 +33,5 @@ func Test_Cancel(t *testing.T) {
 
 	model.SetSelectedRevision(commit)
 
-	test.SimulateModel(model, test.Press(tea.KeyEsc))
+	test.SimulateModel(model, func() tea.Msg { return intents.Cancel{} })
 }

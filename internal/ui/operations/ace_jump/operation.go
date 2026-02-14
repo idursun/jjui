@@ -3,16 +3,16 @@ package ace_jump
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -23,13 +23,11 @@ var (
 	_ operations.SegmentRenderer = (*Operation)(nil)
 	_ common.Focusable           = (*Operation)(nil)
 	_ common.Editable            = (*Operation)(nil)
-	_ help.KeyMap                = (*Operation)(nil)
 )
 
 type Operation struct {
 	setCursor   func(int)
 	aceJump     *AceJump
-	keymap      config.KeyMappings[key.Binding]
 	getItemFn   func(index int) parser.Row
 	first, last int
 	parentOp    any // parent operation to return to after completion
@@ -47,10 +45,13 @@ func (o *Operation) Name() string {
 	return "ace jump"
 }
 
+func (o *Operation) Scope() keybindings.Scope {
+	return keybindings.Scope(actions.OwnerAceJump)
+}
+
 func NewOperation(setCursor func(int), getItemFn func(index int) parser.Row, first, last int, parentOp any) *Operation {
 	return &Operation{
 		setCursor: setCursor,
-		keymap:    config.Current.GetKeyMap(),
 		aceJump:   NewAceJump(),
 		first:     first,
 		last:      last,
@@ -88,17 +89,6 @@ func (o *Operation) aceJumpIndex(text string, row parser.Row) int {
 	return idx
 }
 
-func (o *Operation) ShortHelp() []key.Binding {
-	return []key.Binding{
-		o.keymap.Cancel,
-		o.keymap.Apply,
-	}
-}
-
-func (o *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{o.ShortHelp()}
-}
-
 func (o *Operation) Init() tea.Cmd {
 	o.aceJump = o.findAceKeys()
 	return nil
@@ -118,24 +108,27 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 
 func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, o.keymap.Cancel):
+	case intents.Intent:
+		switch msg.(type) {
+		case intents.Cancel:
 			o.aceJump = nil
 			if o.parentOp != nil {
 				return common.RestoreOperation(o.parentOp)
 			}
 			return common.Close
-		case key.Matches(msg, o.keymap.Apply):
+		case intents.Apply:
+			if o.aceJump == nil || o.aceJump.First() == nil {
+				return nil
+			}
 			o.setCursor(o.aceJump.First().RowIdx)
 			o.aceJump = nil
 			if o.parentOp != nil {
 				return common.RestoreOperation(o.parentOp)
 			}
 			return common.Close
-		default:
-			return o.HandleKey(msg)
 		}
+	case tea.KeyMsg:
+		return o.HandleKey(msg)
 	}
 	return nil
 }
@@ -173,4 +166,8 @@ func (o *Operation) findAceKeys() *AceJump {
 		aj.Append(i, c.ChangeId, 0)
 	}
 	return aj
+}
+
+func (o *Operation) ResolveAction(action keybindings.Action, args map[string]any) (intents.Intent, bool) {
+	return actions.ResolveByScopeStrict(o.Scope(), action, args)
 }

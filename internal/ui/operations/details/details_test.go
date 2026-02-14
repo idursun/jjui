@@ -3,9 +3,10 @@ package details
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/confirmation"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/idursun/jjui/test"
@@ -45,9 +46,9 @@ func TestModel_Update_RestoresSelectedFiles(t *testing.T) {
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, test.RenderImmediate(model, 100, 20), "file.txt")
 
-	test.SimulateModel(model, test.Press(tea.KeySpace))
-	test.SimulateModel(model, test.Type("r"))
-	test.SimulateModel(model, test.Press(tea.KeyEnter))
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsRestore{} })
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestModel_Update_RestoresInteractively(t *testing.T) {
@@ -60,7 +61,10 @@ func TestModel_Update_RestoresInteractively(t *testing.T) {
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, test.RenderImmediate(model, 100, 20), "file.txt")
-	test.SimulateModel(model, test.Type("ri"))
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsRestore{} })
+	test.SimulateModel(model, func() tea.Msg {
+		return confirmation.SelectOptionMsg{Index: 1}
+	})
 }
 
 func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
@@ -74,9 +78,9 @@ func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, test.RenderImmediate(model, 100, 20), "file.txt")
 
-	test.SimulateModel(model, test.Press(tea.KeySpace))
-	test.SimulateModel(model, test.Type("s"))
-	test.SimulateModel(model, test.Press(tea.KeyEnter))
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsSplit{} })
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestModel_Update_ParallelSplitsSelectedFiles(t *testing.T) {
@@ -90,11 +94,9 @@ func TestModel_Update_ParallelSplitsSelectedFiles(t *testing.T) {
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, test.RenderImmediate(model, 100, 20), "file.txt")
 
-	test.SimulateModel(model, test.Press(tea.KeySpace))
-	test.SimulateModel(model, func() tea.Msg {
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s"), Alt: true}
-	})
-	test.SimulateModel(model, test.Press(tea.KeyEnter))
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsSplit{IsParallel: true} })
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestModel_Update_HandlesMovedFiles(t *testing.T) {
@@ -108,10 +110,10 @@ func TestModel_Update_HandlesMovedFiles(t *testing.T) {
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, test.RenderImmediate(model, 100, 20), "file.go")
 
-	test.SimulateModel(model, test.Press(tea.KeySpace))
-	test.SimulateModel(model, test.Press(tea.KeySpace))
-	test.SimulateModel(model, test.Type("r"))
-	test.SimulateModel(model, test.Press(tea.KeyEnter))
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsRestore{} })
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestModel_Update_HandlesMovedFilesInDeepDirectories(t *testing.T) {
@@ -125,11 +127,11 @@ func TestModel_Update_HandlesMovedFilesInDeepDirectories(t *testing.T) {
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, test.RenderImmediate(model, 100, 20), "new_file.md")
 
-	test.SimulateModel(model, test.Press(tea.KeySpace))
-	test.SimulateModel(model, test.Press(tea.KeySpace))
-	test.SimulateModel(model, test.Press(tea.KeySpace))
-	test.SimulateModel(model, test.Type("r"))
-	test.SimulateModel(model, test.Press(tea.KeyEnter))
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsRestore{} })
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestModel_Update_HandlesFilenamesWithBraces(t *testing.T) {
@@ -143,10 +145,10 @@ func TestModel_Update_HandlesFilenamesWithBraces(t *testing.T) {
 	test.SimulateModel(model, model.Init())
 	assert.Contains(t, test.RenderImmediate(model, 100, 20), "file{with}braces.txt")
 
-	test.SimulateModel(model, test.Press(tea.KeySpace))
-	test.SimulateModel(model, test.Press(tea.KeySpace))
-	test.SimulateModel(model, test.Type("r"))
-	test.SimulateModel(model, test.Press(tea.KeyEnter))
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsRestore{} })
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestModel_Refresh_IgnoreVirtuallySelectedFiles(t *testing.T) {
@@ -164,40 +166,14 @@ func TestModel_Refresh_IgnoreVirtuallySelectedFiles(t *testing.T) {
 }
 
 func TestModel_Update_Quit(t *testing.T) {
-	tests := []struct {
-		name        string
-		interaction tea.Cmd
-		shouldQuit  bool
-	}{
-		{
-			name:        "pressing q",
-			interaction: test.Type("q"),
-			shouldQuit:  true,
-		},
-		{
-			name:        "pressing esc",
-			interaction: test.Press(tea.KeyEscape),
-			shouldQuit:  false,
-		},
-	}
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			commandRunner := test.NewTestCommandRunner(t)
+	commandRunner := test.NewTestCommandRunner(t)
+	model := NewOperation(test.NewTestContext(commandRunner), Commit)
+	var msgs []tea.Msg
+	test.SimulateModel(model, func() tea.Msg { return intents.Quit{} }, func(msg tea.Msg) {
+		msgs = append(msgs, msg)
+	})
 
-			model := NewOperation(test.NewTestContext(commandRunner), Commit)
-			model.keymap.Quit = key.NewBinding(key.WithKeys("esc", "q"))
-			var msgs []tea.Msg
-			test.SimulateModel(model, testCase.interaction, func(msg tea.Msg) {
-				msgs = append(msgs, msg)
-			})
-
-			if testCase.shouldQuit {
-				assert.Contains(t, msgs, tea.QuitMsg{})
-			} else {
-				assert.NotContains(t, msgs, tea.QuitMsg{})
-			}
-		})
-	}
+	assert.Contains(t, msgs, tea.QuitMsg{})
 }
 
 func TestModel_createListItems(t *testing.T) {

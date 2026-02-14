@@ -1,13 +1,12 @@
 package choose
 
 import (
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
@@ -35,14 +34,12 @@ func (m itemScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 
 var (
 	_ common.ImmediateModel = (*Model)(nil)
-	_ help.KeyMap           = (*Model)(nil)
 )
 
 type Model struct {
 	options             []string
 	selected            int
 	title               string
-	keymap              config.KeyMappings[key.Binding]
 	styles              styles
 	listRenderer        *render.ListRenderer
 	ensureCursorVisible bool
@@ -62,11 +59,9 @@ func New(options []string) *Model {
 }
 
 func NewWithTitle(options []string, title string) *Model {
-	keymap := config.Current.GetKeyMap()
 	return &Model{
 		options: options,
 		title:   title,
-		keymap:  keymap,
 		styles: styles{
 			border:   common.DefaultPalette.GetBorder("choose border", lipgloss.RoundedBorder()),
 			text:     common.DefaultPalette.Get("choose text"),
@@ -81,19 +76,23 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
+func (m *Model) StackedActionOwner() string {
+	return actions.OwnerUiChoose
+}
+
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.keymap.Up):
-			m.move(-1)
-		case key.Matches(msg, m.keymap.Down):
-			m.move(1)
-		case key.Matches(msg, m.keymap.Apply):
+	case intents.Intent:
+		switch intent := msg.(type) {
+		case intents.ChooseNavigate:
+			m.move(intent.Delta)
+		case intents.ChooseApply:
 			return m.selectCurrent()
-		case key.Matches(msg, m.keymap.Cancel):
+		case intents.ChooseCancel:
 			return newCmd(CancelledMsg{})
 		}
+	case tea.KeyMsg:
+		return nil
 	case common.CloseViewMsg:
 		return newCmd(CancelledMsg{})
 	case itemScrollMsg:
@@ -227,19 +226,6 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	)
 	m.listRenderer.RegisterScroll(window, listBox)
 	m.ensureCursorVisible = false
-}
-
-func (m *Model) ShortHelp() []key.Binding {
-	return []key.Binding{
-		m.keymap.Up,
-		m.keymap.Down,
-		m.keymap.Apply,
-		m.keymap.Cancel,
-	}
-}
-
-func (m *Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{m.ShortHelp()}
 }
 
 func newCmd(msg tea.Msg) tea.Cmd {

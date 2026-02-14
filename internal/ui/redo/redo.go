@@ -6,9 +6,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
@@ -19,12 +21,8 @@ type Model struct {
 	confirmation *confirmation.Model
 }
 
-func (m *Model) ShortHelp() []key.Binding {
-	return m.confirmation.ShortHelp()
-}
-
-func (m *Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{m.ShortHelp()}
+func (m *Model) StackedActionOwner() string {
+	return actions.OwnerRedo
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -32,6 +30,12 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
+	switch msg.(type) {
+	case intents.Apply:
+		return m.confirmation.Update(confirmation.SelectOptionMsg{Index: 0})
+	case intents.Cancel:
+		return m.confirmation.Update(confirmation.SelectOptionMsg{Index: 1})
+	}
 	return m.confirmation.Update(msg)
 }
 

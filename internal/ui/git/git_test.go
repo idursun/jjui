@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
@@ -22,7 +23,7 @@ func Test_Push(t *testing.T) {
 	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions())
 	test.SimulateModel(op, op.Init())
 	_ = test.RenderImmediate(op, 100, 40)
-	test.SimulateModel(op, test.Press(tea.KeyEnter))
+	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
 }
 
 func Test_Fetch(t *testing.T) {
@@ -34,9 +35,25 @@ func Test_Fetch(t *testing.T) {
 	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions())
 	test.SimulateModel(op, op.Init())
 	_ = test.RenderImmediate(op, 100, 40)
-	test.SimulateModel(op, test.Type("/fetch"))
-	test.SimulateModel(op, test.Press(tea.KeyEnter))
-	test.SimulateModel(op, test.Press(tea.KeyEnter))
+	test.SimulateModel(op, func() tea.Msg { return intents.GitOpenFilter{} })
+	test.SimulateModel(op, test.Type("fetch"))
+	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
+	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
+}
+
+func Test_FilterIntentPressedTwice_ExecutesShortcut(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
+	commandRunner.Expect(jj.GitFetch("--remote", ""))
+	defer commandRunner.Verify()
+
+	op := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions())
+	test.SimulateModel(op, op.Init())
+	_ = test.RenderImmediate(op, 100, 40)
+
+	// First press applies the category filter; second press executes its shortcut.
+	test.SimulateModel(op, func() tea.Msg { return intents.GitFilter{Kind: intents.GitFilterFetch} })
+	test.SimulateModel(op, func() tea.Msg { return intents.GitFilter{Kind: intents.GitFilterFetch} })
 }
 
 func Test_loadBookmarks(t *testing.T) {
@@ -69,10 +86,10 @@ func Test_PushChange(t *testing.T) {
 	_ = test.RenderImmediate(op, 100, 40)
 
 	// Filter for the exact item and ensure selection is at index 0
-	test.SimulateModel(op, test.Type("/git push --change"))
-	test.SimulateModel(op, test.Press(tea.KeyDown)) // Ensure first item is selected
-	test.SimulateModel(op, test.Press(tea.KeyEnter))
-	test.SimulateModel(op, test.Press(tea.KeyEnter))
+	test.SimulateModel(op, func() tea.Msg { return intents.GitOpenFilter{} })
+	test.SimulateModel(op, test.Type("git push --change"))
+	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
+	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
 }
 
 // TestGit_ZIndex_RendersAboveMainContent verifies that the git overlay renders

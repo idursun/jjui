@@ -3,12 +3,12 @@ package duplicate
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -55,7 +55,6 @@ type Operation struct {
 	Target       Target
 	targetName   string
 	targetPicker *target_picker.Model
-	keyMap       config.KeyMappings[key.Binding]
 	styles       styles
 }
 
@@ -85,12 +84,18 @@ func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 		r.targetPicker = nil
 		return nil
 	case intents.Intent:
+		if r.targetPicker != nil {
+			switch msg.(type) {
+			case intents.TargetPickerNavigate, intents.TargetPickerApply, intents.TargetPickerCancel:
+				return r.targetPicker.Update(msg)
+			}
+		}
 		return r.handleIntent(msg)
 	case tea.KeyMsg:
 		if r.targetPicker != nil {
 			return r.targetPicker.Update(msg)
 		}
-		return r.HandleKey(msg)
+		return nil
 	default:
 		if r.targetPicker != nil {
 			return r.targetPicker.Update(msg)
@@ -105,6 +110,9 @@ func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		return common.StartAceJump()
 	case intents.DuplicateSetTarget:
 		r.Target = duplicateTargetFromIntent(msg.Target)
+	case intents.DuplicateOpenTargetPicker:
+		r.targetPicker = target_picker.NewModel(r.context)
+		return r.targetPicker.Init()
 	case intents.Apply:
 		target := targetToFlags[r.Target]
 		return r.context.RunCommand(jj.Duplicate(r.From, r.targetArg(), target), common.RefreshAndSelect(r.From.Last()), common.Close)
@@ -114,6 +122,10 @@ func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		return nil
 	}
 	return nil
+}
+
+func (r *Operation) ResolveAction(action keybindings.Action, args map[string]any) (intents.Intent, bool) {
+	return actions.ResolveByScopeStrict(r.Scope(), action, args)
 }
 
 func duplicateTargetFromIntent(target intents.DuplicateTarget) Target {
@@ -129,49 +141,9 @@ func duplicateTargetFromIntent(target intents.DuplicateTarget) Target {
 	}
 }
 
-func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	if r.targetPicker != nil {
-		return r.targetPicker.Update(msg)
-	}
-	switch {
-	case key.Matches(msg, r.keyMap.AceJump):
-		return r.handleIntent(intents.StartAceJump{})
-	case key.Matches(msg, r.keyMap.Duplicate.Onto):
-		return r.handleIntent(intents.DuplicateSetTarget{Target: intents.DuplicateTargetDestination})
-	case key.Matches(msg, r.keyMap.Duplicate.After):
-		return r.handleIntent(intents.DuplicateSetTarget{Target: intents.DuplicateTargetAfter})
-	case key.Matches(msg, r.keyMap.Duplicate.Before):
-		return r.handleIntent(intents.DuplicateSetTarget{Target: intents.DuplicateTargetBefore})
-	case key.Matches(msg, r.keyMap.Duplicate.Target):
-		r.targetPicker = target_picker.NewModel(r.context)
-		return r.targetPicker.Init()
-	case key.Matches(msg, r.keyMap.Apply):
-		return r.handleIntent(intents.Apply{})
-	case key.Matches(msg, r.keyMap.Cancel):
-		return r.handleIntent(intents.Cancel{})
-	}
-	return nil
-}
-
 func (r *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 	r.To = commit
 	return nil
-}
-
-func (r *Operation) ShortHelp() []key.Binding {
-	return []key.Binding{
-		r.keyMap.Apply,
-		r.keyMap.Cancel,
-		r.keyMap.Duplicate.After,
-		r.keyMap.Duplicate.Before,
-		r.keyMap.Duplicate.Onto,
-		r.keyMap.Duplicate.Target,
-		r.keyMap.AceJump,
-	}
-}
-
-func (r *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{r.ShortHelp()}
 }
 
 func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
@@ -229,6 +201,13 @@ func (r *Operation) Name() string {
 	return "duplicate"
 }
 
+func (r *Operation) Scope() keybindings.Scope {
+	if r.targetPicker != nil {
+		return keybindings.Scope(actions.OwnerTargetPicker)
+	}
+	return keybindings.Scope(actions.OwnerDuplicate)
+}
+
 func (r *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if r.targetPicker != nil {
 		r.targetPicker.ViewRect(dl, box)
@@ -254,7 +233,6 @@ func NewOperation(context *appContext.MainContext, from jj.SelectedRevisions, ta
 	}
 	return &Operation{
 		context: context,
-		keyMap:  config.Current.GetKeyMap(),
 		From:    from,
 		Target:  target,
 		styles:  styles,

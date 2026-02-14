@@ -29,8 +29,7 @@ type Model interface {
 }
 
 type SearchMsg struct {
-	Input   string
-	Pressed tea.KeyMsg
+	Input string
 }
 
 func NewStyles() Styles {
@@ -42,11 +41,10 @@ func NewStyles() Styles {
 	}
 }
 
-func Search(input string, key tea.KeyMsg) tea.Cmd {
+func Search(input string) tea.Cmd {
 	return func() tea.Msg {
 		return SearchMsg{
-			Input:   input,
-			Pressed: key,
+			Input: input,
 		}
 	}
 }

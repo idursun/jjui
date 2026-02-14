@@ -1,13 +1,12 @@
 package input
 
 import (
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
@@ -20,15 +19,22 @@ type CancelledMsg struct{}
 
 var (
 	_ common.ImmediateModel = (*Model)(nil)
-	_ help.KeyMap           = (*Model)(nil)
+	_ common.Focusable      = (*Model)(nil)
 )
 
 type Model struct {
 	input  textinput.Model
 	title  string
 	prompt string
-	keymap config.KeyMappings[key.Binding]
 	styles styles
+}
+
+func (m *Model) IsFocused() bool {
+	return true
+}
+
+func (m *Model) StackedActionOwner() string {
+	return actions.OwnerInput
 }
 
 type styles struct {
@@ -42,7 +48,6 @@ func New() *Model {
 }
 
 func NewWithTitle(title string, prompt string) *Model {
-	keymap := config.Current.GetKeyMap()
 	styles := styles{
 		border: common.DefaultPalette.GetBorder("input border", lipgloss.RoundedBorder()),
 		text:   common.DefaultPalette.Get("input text"),
@@ -61,7 +66,6 @@ func NewWithTitle(title string, prompt string) *Model {
 		input:  ti,
 		title:  title,
 		prompt: prompt,
-		keymap: keymap,
 		styles: styles,
 	}
 }
@@ -72,17 +76,18 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyEnter:
+	case intents.Intent:
+		switch msg.(type) {
+		case intents.Apply:
 			return m.selectCurrent()
-		case tea.KeyEsc:
+		case intents.Cancel:
 			return newCmd(CancelledMsg{})
-		default:
-			var cmd tea.Cmd
-			m.input, cmd = m.input.Update(msg)
-			return cmd
 		}
+		return nil
+	case tea.KeyMsg:
+		var cmd tea.Cmd
+		m.input, cmd = m.input.Update(msg)
+		return cmd
 	case common.CloseViewMsg:
 		return newCmd(CancelledMsg{})
 	}
@@ -107,17 +112,6 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	box = box.Center(lipgloss.Size(content))
 	window := dl.Window(box.R, render.ZDialogs)
 	window.AddDraw(box.R, content, render.ZDialogs)
-}
-
-func (m *Model) ShortHelp() []key.Binding {
-	return []key.Binding{
-		m.keymap.Apply,
-		m.keymap.Cancel,
-	}
-}
-
-func (m *Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{m.ShortHelp()}
 }
 
 func newCmd(msg tea.Msg) tea.Cmd {

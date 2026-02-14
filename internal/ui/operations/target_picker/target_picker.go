@@ -3,16 +3,15 @@ package target_picker
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj/source"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/sahilm/fuzzy"
@@ -46,7 +45,6 @@ type Model struct {
 	fzfSource           *fuzzy_search.RefinedSource
 	listRenderer        *render.ListRenderer
 	ensureCursorVisible bool
-	keyMap              config.KeyMappings[key.Binding]
 }
 
 type styles struct {
@@ -101,7 +99,6 @@ func NewModel(ctx *context.MainContext) *Model {
 		context: ctx,
 		input:   ti,
 		cursor:  0,
-		keyMap:  config.Current.GetKeyMap(),
 		styles: styles{
 			bookmarkPill: palette.Get("picker bookmark"),
 			tagPill:      palette.Get("picker dimmed"),
@@ -140,26 +137,32 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if m.listRenderer.StartLine < 0 {
 			m.listRenderer.StartLine = 0
 		}
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.keyMap.Cancel):
+	case intents.Intent:
+		switch msg := msg.(type) {
+		case intents.TargetPickerCancel:
 			return TargetPickerCancelCmd()
-		case key.Matches(msg, m.keyMap.ForceApply):
-			return m.accept(true)
-		case key.Matches(msg, m.keyMap.Apply):
-			return m.accept(false)
-		case msg.Type == tea.KeyUp:
-			m.cursorUp()
+		case intents.TargetPickerApply:
+			return m.accept(msg.Force)
+		case intents.TargetPickerNavigate:
+			if msg.Delta < 0 {
+				m.cursorUp()
+			} else if msg.Delta > 0 {
+				m.cursorDown()
+			}
 			return nil
-		case msg.Type == tea.KeyDown:
-			m.cursorDown()
+		case intents.AutocompleteCycle:
+			if msg.Reverse {
+				m.cursorUp()
+			} else {
+				m.cursorDown()
+			}
 			return nil
-		default:
-			var cmd tea.Cmd
-			m.input, cmd = m.input.Update(msg)
-			m.search(m.input.Value())
-			return cmd
 		}
+	case tea.KeyMsg:
+		var cmd tea.Cmd
+		m.input, cmd = m.input.Update(msg)
+		m.search(m.input.Value())
+		return cmd
 	}
 	return nil
 }

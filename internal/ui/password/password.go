@@ -5,6 +5,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
@@ -46,22 +47,23 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case common.TogglePasswordMsg:
 		close(m.passwordCh)
-	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
+	case intents.Intent:
+		switch msg.(type) {
+		case intents.Cancel:
 			return func() tea.Msg {
 				return common.TogglePasswordMsg{}
 			}
-		case tea.KeyEnter:
+		case intents.Apply:
 			m.passwordCh <- []byte(m.textInput.Value())
 			return func() tea.Msg {
 				return common.TogglePasswordMsg{}
 			}
-		default:
-			var cmd tea.Cmd
-			m.textInput, cmd = m.textInput.Update(msg)
-			return cmd
 		}
+		return nil
+	case tea.KeyMsg:
+		var cmd tea.Cmd
+		m.textInput, cmd = m.textInput.Update(msg)
+		return cmd
 	}
 	return nil
 }
