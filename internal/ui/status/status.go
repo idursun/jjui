@@ -54,7 +54,6 @@ type Model struct {
 	status          commandStatus
 	running         bool
 	mode            string
-	editStatus      editStatus
 	focusKind       FocusKind
 	history         map[string][]string
 	fuzzy           fuzzy_search.Model
@@ -70,14 +69,6 @@ type styles struct {
 	title    lipgloss.Style
 	success  lipgloss.Style
 	error    lipgloss.Style
-}
-
-// a function that will be used to show
-// dynamic help when editing is focused.
-type editStatus = func() ([]helpkeys.Entry, string)
-
-func emptyEditStatus() ([]helpkeys.Entry, string) {
-	return nil, ""
 }
 
 func (m *Model) IsFocused() bool {
@@ -123,7 +114,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.input.Prompt = "> "
 		m.loadEditingSuggestions()
 		m.focusKind = FocusFileSearch
-		m.fuzzy, m.editStatus = fuzzy_files.NewModel(msg)
+		m.fuzzy = fuzzy_files.NewModel(msg)
 		return tea.Batch(m.fuzzy.Init(), m.input.Focus())
 	case common.ExecProcessCompletedMsg:
 		if msg.Err != nil {
@@ -131,7 +122,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.input.Prompt = msg.Msg.Mode.Prompt
 			m.loadEditingSuggestions()
 			m.focusKind = FocusInput
-			m.fuzzy, m.editStatus = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
+			m.fuzzy = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
 			m.input.SetValue(msg.Msg.Line)
 			m.input.CursorEnd()
 
@@ -217,13 +208,12 @@ func (m *Model) StartExec(mode common.ExecMode) tea.Cmd {
 	m.loadEditingSuggestions()
 	m.focusKind = FocusInput
 
-	m.fuzzy, m.editStatus = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
+	m.fuzzy = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
 	return tea.Batch(m.fuzzy.Init(), m.input.Focus())
 }
 
 func (m *Model) StartQuickSearch() tea.Cmd {
-	m.editStatus = emptyEditStatus
-	m.focusKind = FocusInput
+	m.focusKind = FocusQuickSearch
 	m.mode = "search"
 	m.input.Prompt = "> "
 	m.loadEditingSuggestions()
@@ -301,10 +291,9 @@ func (m *Model) renderContent(width, modeWidth int) string {
 		return m.styles.text.Render(strings.ReplaceAll(m.command, "\n", "⏎"))
 	}
 
-	editEntries, editHelp := m.editStatus()
-	if len(editEntries) > 0 {
-		editHelpText, _ := m.helpView(editEntries, 0)
-		editHelp = lipgloss.JoinHorizontal(0, editHelpText, editHelp)
+	var editHelp string
+	if len(m.entries) > 0 {
+		editHelp, _ = m.helpView(m.entries, 0)
 	}
 
 	promptWidth := len(m.input.Prompt) + 2
