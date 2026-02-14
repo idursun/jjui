@@ -6,8 +6,6 @@
 
   partitionedAttrs = {
     devShells = "dev";
-    formatter = "dev";
-    checks = "dev";
     apps = "dev";
   };
 
@@ -17,9 +15,7 @@
       { inputs, ... }:
       {
         imports = [
-          inputs.treefmt-nix.flakeModule
           ./shells.nix
-          ./treefmt.nix
           ./utils.nix
         ];
       };

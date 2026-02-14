@@ -184,31 +184,6 @@ Feel free to submit a pull request.
 
 You can compile `jjui` by running `go build ./cmd/jjui` in the root of the repo.
 
-### Code Formatting
-
-This project uses [treefmt](https://github.com/numtide/treefmt) to format code.
-
-**With Nix:**
-
-```shell
-nix fmt
-```
-
-**Without Nix:**
-
-Install `treefmt` and the required formatters, then run:
-
-```shell
-treefmt
-```
-
-Required formatters:
-
-- gofmt
-- taplo
-- yamlfmt
-- nixfmt
-
 ## License
 
 This project is licensed under the [MIT License](./LICENSE).
