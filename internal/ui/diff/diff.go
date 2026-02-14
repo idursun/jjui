@@ -28,6 +28,7 @@ func (m *Model) ShortHelp() []key.Binding {
 		m.keymap.DiffView.HalfPageUp,
 		m.keymap.DiffView.PageDown,
 		m.keymap.DiffView.PageUp,
+		m.keymap.Quit,
 		m.keymap.DiffView.Close,
 	}
 }
@@ -70,6 +71,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		switch {
 		case key.Matches(msg, m.keymap.DiffView.Close):
 			return common.Close
+		case key.Matches(msg, m.keymap.Quit):
+			return tea.Quit
 		case key.Matches(msg, m.keymap.ExpandStatus):
 			return func() tea.Msg { return intents.ExpandStatusToggle{} }
 		}

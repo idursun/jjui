@@ -128,7 +128,7 @@ limit = 0
     half_page_down = ["d", "ctrl+d"]
     left = ["left", "h"]
     right = ["right", "l"]
-    close = ["esc", "q"]
+    close = ["esc"]
 
 
 [ui]
