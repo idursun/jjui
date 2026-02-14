@@ -32,3 +32,7 @@ type OpLogRevert struct {
 }
 
 func (OpLogRevert) isIntent() {}
+
+type OpLogQuickSearchClear struct{}
+
+func (OpLogQuickSearchClear) isIntent() {}

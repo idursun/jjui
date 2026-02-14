@@ -2,6 +2,7 @@ package oplog
 
 import (
 	"bytes"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -9,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -43,7 +45,9 @@ type Model struct {
 	keymap           config.KeyMappings[key.Binding]
 	textStyle        lipgloss.Style
 	selectedStyle    lipgloss.Style
+	matchedStyle     lipgloss.Style
 	ensureCursorView bool
+	quickSearch      string
 }
 
 func (m *Model) Len() int {
@@ -98,6 +102,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
 		return m.handleIntent(msg)
+	case common.QuickSearchMsg:
+		m.quickSearch = strings.ToLower(string(msg))
+		m.SetCursor(m.search(0, false))
+		return m.updateSelection()
 	case updateOpLogMsg:
 		m.rows = msg.Rows
 		return m.updateSelection()
@@ -130,12 +138,29 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.restore(intent)
 	case intents.OpLogRevert:
 		return m.revert(intent)
+	case intents.QuickSearchCycle:
+		offset := 1
+		if intent.Reverse {
+			offset = -1
+		}
+		m.SetCursor(m.search(m.cursor+offset, intent.Reverse))
+		return m.updateSelection()
+	case intents.OpLogQuickSearchClear:
+		m.quickSearch = ""
+		return nil
 	}
 	return nil
 }
 
 func (m *Model) keyToIntent(msg tea.KeyMsg) tea.Cmd {
 	switch {
+	case m.quickSearch != "" && (msg.Type == tea.KeyEsc || msg.Type == tea.KeyEnter):
+		return m.handleIntent(intents.OpLogQuickSearchClear{})
+	case m.quickSearch != "" &&
+		(key.Matches(msg, m.keymap.QuickSearchNext) ||
+			key.Matches(msg, m.keymap.QuickSearchPrev)):
+		reverse := key.Matches(msg, m.keymap.QuickSearchPrev)
+		return m.handleIntent(intents.QuickSearchCycle{Reverse: reverse})
 	case key.Matches(msg, m.keymap.Cancel):
 		return m.handleIntent(intents.OpLogClose{})
 	case key.Matches(msg, m.keymap.Up, m.keymap.ScrollUp):
@@ -196,6 +221,14 @@ func (m *Model) updateSelection() tea.Cmd {
 		return nil
 	}
 	return m.context.SetSelectedItem(context.SelectedOperation{OperationId: m.rows[m.cursor].OperationId})
+}
+
+func (m *Model) search(startIndex int, backward bool) int {
+	items := make([]screen.Searchable, len(m.rows))
+	for i := range m.rows {
+		items[i] = &m.rows[i]
+	}
+	return common.CircularSearch(items, m.quickSearch, startIndex, m.cursor, backward)
 }
 
 func (m *Model) close() tea.Cmd {
@@ -261,7 +294,29 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		for _, line := range row.Lines {
 			var content bytes.Buffer
 			for _, segment := range line.Segments {
-				content.WriteString(segment.Style.Inherit(styleOverride).Render(segment.Text))
+				text := segment.Text
+				style := segment.Style.Inherit(styleOverride)
+
+				if m.quickSearch != "" && text != "" {
+					lowerText := strings.ToLower(text)
+					lowerSearch := m.quickSearch
+					lastEnd := 0
+					for {
+						idx := strings.Index(lowerText[lastEnd:], lowerSearch)
+						if idx == -1 {
+							content.WriteString(style.Render(text[lastEnd:]))
+							break
+						}
+						idx += lastEnd
+						if idx > lastEnd {
+							content.WriteString(style.Render(text[lastEnd:idx]))
+						}
+						content.WriteString(m.matchedStyle.Inherit(styleOverride).Render(text[idx : idx+len(lowerSearch)]))
+						lastEnd = idx + len(lowerSearch)
+					}
+				} else {
+					content.WriteString(style.Render(text))
+				}
 			}
 			lineContent := lipgloss.PlaceHorizontal(itemRect.Dx(), 0, content.String(), lipgloss.WithWhitespaceBackground(styleOverride.GetBackground()))
 			lineRect := cellbuf.Rect(itemRect.Min.X, y, itemRect.Dx(), 1)
@@ -310,6 +365,7 @@ func New(context *context.MainContext) *Model {
 		cursor:        0,
 		textStyle:     common.DefaultPalette.Get("oplog text"),
 		selectedStyle: common.DefaultPalette.Get("oplog selected"),
+		matchedStyle:  common.DefaultPalette.Get("oplog matched"),
 	}
 	m.listRenderer = render.NewListRenderer(OpLogScrollMsg{})
 	return m

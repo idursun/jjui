@@ -276,7 +276,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.handleIntent(intents.ExecJJ{})
 		case key.Matches(msg, m.keyMap.ExecShell) && m.revisions.InNormalMode():
 			return m.handleIntent(intents.ExecShell{})
-		case key.Matches(msg, m.keyMap.QuickSearch) && m.revisions.InNormalMode():
+		case key.Matches(msg, m.keyMap.QuickSearch) && (m.revisions.InNormalMode() || m.oplog != nil):
 			return m.handleIntent(intents.QuickSearch{})
 		case key.Matches(msg, m.keyMap.Suspend):
 			return m.handleIntent(intents.Suspend{})
@@ -679,11 +679,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 		return nil
 	case intents.QuickSearch:
-		if m.oplog != nil {
-			// HACK: prevents quick search from activating in op log view
-			return nil
-		}
-		if !m.revisions.InNormalMode() {
+		if m.oplog == nil && !m.revisions.InNormalMode() {
 			return nil
 		}
 		return m.status.StartQuickSearch()
