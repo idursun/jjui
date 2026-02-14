@@ -25,6 +25,8 @@ type PreviewScrollKind int
 const (
 	PreviewScrollUp PreviewScrollKind = iota
 	PreviewScrollDown
+	PreviewPageUp
+	PreviewPageDown
 	PreviewHalfPageUp
 	PreviewHalfPageDown
 )

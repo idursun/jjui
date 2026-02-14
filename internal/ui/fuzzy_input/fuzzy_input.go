@@ -190,36 +190,7 @@ func (fzf *model) viewContent() string {
 	return lipgloss.JoinVertical(0, title, view)
 }
 
-func (fzf *model) helpEntries() []helpkeys.Entry {
-	upDown := "ctrl+p/ctrl+n"
-
-	switch fzf.suggestMode {
-	case config.SuggestModeOff:
-		return []helpkeys.Entry{
-			{Label: "ctrl+r", Desc: "suggest: off"},
-			{Label: upDown, Desc: "move on history"},
-		}
-	case config.SuggestModeFuzzy:
-		return []helpkeys.Entry{
-			{Label: "ctrl+r", Desc: "suggest: fuzzy"},
-			{Label: upDown, Desc: "move on suggest"},
-		}
-	case config.SuggestModeRegex:
-		return []helpkeys.Entry{
-			{Label: "ctrl+r", Desc: "suggest: regex"},
-			{Label: upDown, Desc: "move on suggest"},
-		}
-	}
-	return nil
-}
-
-type editStatus func() ([]helpkeys.Entry, string)
-
-func (fzf *model) editStatus() ([]helpkeys.Entry, string) {
-	return fzf.helpEntries(), ""
-}
-
-func NewModel(input *textinput.Model, suggestions []string) (fuzzy_search.Model, editStatus) {
+func NewModel(input *textinput.Model, suggestions []string) fuzzy_search.Model {
 	input.ShowSuggestions = false
 	input.SetSuggestions([]string{})
 
@@ -235,5 +206,5 @@ func NewModel(input *textinput.Model, suggestions []string) (fuzzy_search.Model,
 		styles:      fuzzy_search.NewStyles(),
 		suggestMode: suggestMode,
 	}
-	return fzf, fzf.editStatus
+	return fzf
 }

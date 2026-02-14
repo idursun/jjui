@@ -219,30 +219,7 @@ func (fzf *fuzzyFiles) viewContent() string {
 	return lipgloss.JoinVertical(0, title, entries)
 }
 
-func (fzf *fuzzyFiles) helpEntries() []helpkeys.Entry {
-	entries := []helpkeys.Entry{{Label: "e", Desc: "edit file"}}
-	if fzf.revsetPreview {
-		entries = append(entries,
-			helpkeys.Entry{Label: "ctrl+t", Desc: "preview off"},
-			helpkeys.Entry{Label: "k/↑/j/↓", Desc: "move on revset"},
-			helpkeys.Entry{Label: "ctrl+u/pgup/ctrl+d/pgdown", Desc: "scroll preview"},
-		)
-	} else {
-		entries = append(entries,
-			helpkeys.Entry{Label: "ctrl+t", Desc: "preview on"},
-			helpkeys.Entry{Label: "enter", Desc: "file revset"},
-		)
-	}
-	return entries
-}
-
-type editStatus func() ([]helpkeys.Entry, string)
-
-func (fzf *fuzzyFiles) editStatus() ([]helpkeys.Entry, string) {
-	return fzf.helpEntries(), ""
-}
-
-func NewModel(msg common.FileSearchMsg) (fuzzy_search.Model, editStatus) {
+func NewModel(msg common.FileSearchMsg) fuzzy_search.Model {
 	model := &fuzzyFiles{
 		revset:          msg.Revset,
 		wasPreviewShown: msg.PreviewShown,
@@ -251,7 +228,7 @@ func NewModel(msg common.FileSearchMsg) (fuzzy_search.Model, editStatus) {
 		files:           strings.Split(string(msg.RawFileOut), "\n"),
 		styles:          fuzzy_search.NewStyles(),
 	}
-	return model, model.editStatus
+	return model
 }
 
 func fileSearchNavigateDelta(delta int) int {

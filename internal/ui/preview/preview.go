@@ -133,6 +133,16 @@ func (m *Model) HalfPageUp() tea.Cmd {
 	return nil
 }
 
+func (m *Model) PageDown() tea.Cmd {
+	m.view.PageDown()
+	return nil
+}
+
+func (m *Model) PageUp() tea.Cmd {
+	m.view.PageUp()
+	return nil
+}
+
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if k, ok := msg.(previewMsg); ok {
 		msg = k.msg
