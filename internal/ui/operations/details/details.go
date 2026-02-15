@@ -156,9 +156,9 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 			return s.confirmation.Update(intent)
 		}
 		return nil
-	case intents.DetailsConfirmationNavigate:
-		if s.confirmation != nil && intent.Delta != 0 {
-			return s.confirmation.Update(intents.Navigate{Delta: intent.Delta})
+	case intents.OptionSelect:
+		if s.confirmation != nil {
+			return s.confirmation.Update(intent)
 		}
 		return nil
 	case intents.DetailsNavigate:

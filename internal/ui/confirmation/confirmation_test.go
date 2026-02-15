@@ -103,7 +103,7 @@ func TestDispatcherIntentFlow(t *testing.T) {
 		}, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 	)
 
-	_ = model.Update(intents.Navigate{Delta: 1})
+	_ = model.Update(intents.OptionSelect{Delta: 1})
 	cmd := model.Update(intents.Apply{Force: true})
 	if cmd != nil {
 		cmd()

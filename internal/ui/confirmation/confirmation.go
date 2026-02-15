@@ -125,7 +125,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.Update(ApplySelectionMsg{Alt: msg.Force})
 		case intents.Cancel:
 			return m.Update(CancelMsg{})
-		case intents.Navigate:
+		case intents.OptionSelect:
 			if msg.Delta < 0 {
 				return m.Update(MoveSelectionMsg{Delta: -1})
 			}

@@ -678,8 +678,8 @@ func (m *Model) routeIntent(owner string, intent intents.Intent) tea.Cmd {
 	case actions.OwnerUiBookmarks,
 		actions.OwnerUiGit,
 		actions.OwnerUiChoose,
-		actions.OwnerUndo,
-		actions.OwnerRedo,
+		actions.OwnerUiUndo,
+		actions.OwnerUiRedo,
 		actions.OwnerInput:
 		switch intent.(type) {
 		case intents.ExpandStatusToggle:
@@ -736,8 +736,8 @@ func (m *Model) routeCancel(owner string) tea.Cmd {
 	case actions.OwnerUiBookmarks,
 		actions.OwnerUiGit,
 		actions.OwnerUiChoose,
-		actions.OwnerUndo,
-		actions.OwnerRedo,
+		actions.OwnerUiUndo,
+		actions.OwnerUiRedo,
 		actions.OwnerInput:
 		if m.stacked != nil {
 			return m.stacked.Update(cancel)

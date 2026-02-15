@@ -11,7 +11,6 @@ const (
 	OwnerFileSearch          = "file_search"
 	OwnerInput               = "input"
 	OwnerPassword            = "password"
-	OwnerRedo                = "redo"
 	OwnerRevisions           = "revisions"
 	OwnerAbandon             = "revisions.abandon"
 	OwnerAceJump             = "revisions.ace_jump"
@@ -35,7 +34,8 @@ const (
 	OwnerUiDiff              = "ui.diff"
 	OwnerUiGit               = "ui.git"
 	OwnerUiOplog             = "ui.oplog"
-	OwnerUndo                = "undo"
+	OwnerUiRedo              = "ui.redo"
+	OwnerUiUndo              = "ui.undo"
 
 	FileSearchApply                        keybindings.Action = "file_search.apply"
 	FileSearchCancel                       keybindings.Action = "file_search.cancel"
@@ -51,10 +51,6 @@ const (
 	InputCancel                            keybindings.Action = "input.cancel"
 	PasswordApply                          keybindings.Action = "password.apply"
 	PasswordCancel                         keybindings.Action = "password.cancel"
-	RedoApply                              keybindings.Action = "redo.apply"
-	RedoCancel                             keybindings.Action = "redo.cancel"
-	RedoMoveDown                           keybindings.Action = "redo.move_down"
-	RedoMoveUp                             keybindings.Action = "redo.move_up"
 	RevisionsAbandon                       keybindings.Action = "revisions.abandon"
 	RevisionsAbandonAceJump                keybindings.Action = "revisions.abandon.ace_jump"
 	RevisionsAbandonApply                  keybindings.Action = "revisions.abandon.apply"
@@ -74,8 +70,8 @@ const (
 	RevisionsDetailsConfirmationApply      keybindings.Action = "revisions.details.confirmation.apply"
 	RevisionsDetailsConfirmationCancel     keybindings.Action = "revisions.details.confirmation.cancel"
 	RevisionsDetailsConfirmationForceApply keybindings.Action = "revisions.details.confirmation.force_apply"
-	RevisionsDetailsConfirmationMoveDown   keybindings.Action = "revisions.details.confirmation.move_down"
-	RevisionsDetailsConfirmationMoveUp     keybindings.Action = "revisions.details.confirmation.move_up"
+	RevisionsDetailsConfirmationNext       keybindings.Action = "revisions.details.confirmation.next"
+	RevisionsDetailsConfirmationPrev       keybindings.Action = "revisions.details.confirmation.prev"
 	RevisionsDetailsDiff                   keybindings.Action = "revisions.details.diff"
 	RevisionsDetailsMoveDown               keybindings.Action = "revisions.details.move_down"
 	RevisionsDetailsMoveUp                 keybindings.Action = "revisions.details.move_up"
@@ -250,12 +246,16 @@ const (
 	UiQuickSearch                          keybindings.Action = "ui.quick_search"
 	UiQuit                                 keybindings.Action = "ui.quit"
 	UiRedo                                 keybindings.Action = "ui.redo"
+	UiRedoApply                            keybindings.Action = "ui.redo.apply"
+	UiRedoCancel                           keybindings.Action = "ui.redo.cancel"
+	UiRedoNext                             keybindings.Action = "ui.redo.next"
+	UiRedoPrev                             keybindings.Action = "ui.redo.prev"
 	UiSuspend                              keybindings.Action = "ui.suspend"
 	UiUndo                                 keybindings.Action = "ui.undo"
-	UndoApply                              keybindings.Action = "undo.apply"
-	UndoCancel                             keybindings.Action = "undo.cancel"
-	UndoMoveDown                           keybindings.Action = "undo.move_down"
-	UndoMoveUp                             keybindings.Action = "undo.move_up"
+	UiUndoApply                            keybindings.Action = "ui.undo.apply"
+	UiUndoCancel                           keybindings.Action = "ui.undo.cancel"
+	UiUndoNext                             keybindings.Action = "ui.undo.next"
+	UiUndoPrev                             keybindings.Action = "ui.undo.prev"
 )
 
 func IsRevisionsOwner(owner string) bool {
@@ -305,17 +305,6 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.Apply{}, true
 		case keybindings.Action("password.cancel"):
 			return intents.Cancel{}, true
-		}
-	case OwnerRedo:
-		switch action {
-		case keybindings.Action("redo.apply"):
-			return intents.Apply{}, true
-		case keybindings.Action("redo.cancel"):
-			return intents.Cancel{}, true
-		case keybindings.Action("redo.move_down"):
-			return intents.Navigate{Delta: 1}, true
-		case keybindings.Action("redo.move_up"):
-			return intents.Navigate{Delta: -1}, true
 		}
 	case OwnerRevisions:
 		switch action {
@@ -447,10 +436,10 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.Cancel{}, true
 		case keybindings.Action("revisions.details.confirmation.force_apply"):
 			return intents.Apply{Force: true}, true
-		case keybindings.Action("revisions.details.confirmation.move_down"):
-			return intents.DetailsConfirmationNavigate{Delta: 1}, true
-		case keybindings.Action("revisions.details.confirmation.move_up"):
-			return intents.DetailsConfirmationNavigate{Delta: -1}, true
+		case keybindings.Action("revisions.details.confirmation.next"):
+			return intents.OptionSelect{Delta: 1}, true
+		case keybindings.Action("revisions.details.confirmation.prev"):
+			return intents.OptionSelect{Delta: -1}, true
 		}
 	case OwnerDuplicate:
 		switch action {
@@ -780,16 +769,27 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("ui.oplog.revert"):
 			return intents.OpLogRevert{}, true
 		}
-	case OwnerUndo:
+	case OwnerUiRedo:
 		switch action {
-		case keybindings.Action("undo.apply"):
+		case keybindings.Action("ui.redo.apply"):
 			return intents.Apply{}, true
-		case keybindings.Action("undo.cancel"):
+		case keybindings.Action("ui.redo.cancel"):
 			return intents.Cancel{}, true
-		case keybindings.Action("undo.move_down"):
-			return intents.Navigate{Delta: 1}, true
-		case keybindings.Action("undo.move_up"):
-			return intents.Navigate{Delta: -1}, true
+		case keybindings.Action("ui.redo.next"):
+			return intents.OptionSelect{Delta: 1}, true
+		case keybindings.Action("ui.redo.prev"):
+			return intents.OptionSelect{Delta: -1}, true
+		}
+	case OwnerUiUndo:
+		switch action {
+		case keybindings.Action("ui.undo.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("ui.undo.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("ui.undo.next"):
+			return intents.OptionSelect{Delta: 1}, true
+		case keybindings.Action("ui.undo.prev"):
+			return intents.OptionSelect{Delta: -1}, true
 		}
 	}
 	return nil, false

@@ -97,10 +97,6 @@ const (
 //jjui:bind scope=revisions action=jump_to_parent set=Target:TargetParent
 //jjui:bind scope=revisions action=jump_to_children set=Target:TargetChild
 //jjui:bind scope=revisions action=jump_to_working_copy set=Target:TargetWorkingCopy
-//jjui:bind scope=undo action=move_up set=Delta:-1
-//jjui:bind scope=undo action=move_down set=Delta:1
-//jjui:bind scope=redo action=move_up set=Delta:-1
-//jjui:bind scope=redo action=move_down set=Delta:1
 type Navigate struct {
 	Delta       int              // +N down, -N up
 	IsPage      bool             // use page-sized step when true

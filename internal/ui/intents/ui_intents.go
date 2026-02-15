@@ -173,3 +173,76 @@ func (ChooseApply) isIntent() {}
 type ChooseCancel struct{}
 
 func (ChooseCancel) isIntent() {}
+
+//jjui:bind scope=revisions.rebase action=cancel
+//jjui:bind scope=revisions.squash action=cancel
+//jjui:bind scope=revisions.revert action=cancel
+//jjui:bind scope=revisions.duplicate action=cancel
+//jjui:bind scope=revisions.details.confirmation action=cancel
+//jjui:bind scope=revisions.evolog action=cancel
+//jjui:bind scope=revisions.abandon action=cancel
+//jjui:bind scope=revisions.set_parents action=cancel
+//jjui:bind scope=revisions.set_bookmark action=cancel
+//jjui:bind scope=revisions.inline_describe action=cancel
+//jjui:bind scope=revisions.ace_jump action=cancel
+//jjui:bind scope=ui action=cancel
+//jjui:bind scope=ui.bookmarks action=cancel
+//jjui:bind scope=ui.git action=cancel
+//jjui:bind scope=status.input action=cancel
+//jjui:bind scope=file_search action=cancel
+//jjui:bind scope=revisions.quick_search.input action=cancel
+//jjui:bind scope=revset action=cancel
+//jjui:bind scope=password action=cancel
+//jjui:bind scope=input action=cancel
+//jjui:bind scope=ui.undo action=cancel
+//jjui:bind scope=ui.redo action=cancel
+type Cancel struct{}
+
+func (Cancel) isIntent() {}
+
+//jjui:bind scope=revisions.rebase action=apply set=Force:$bool(force)
+//jjui:bind scope=revisions.rebase action=force_apply set=Force:true
+//jjui:bind scope=revisions.squash action=apply set=Force:$bool(force)
+//jjui:bind scope=revisions.squash action=force_apply set=Force:true
+//jjui:bind scope=revisions.revert action=apply set=Force:$bool(force)
+//jjui:bind scope=revisions.revert action=force_apply set=Force:true
+//jjui:bind scope=revisions.duplicate action=apply set=Force:$bool(force)
+//jjui:bind scope=revisions.duplicate action=force_apply set=Force:true
+//jjui:bind scope=revisions.details.confirmation action=apply set=Force:$bool(force)
+//jjui:bind scope=revisions.details.confirmation action=force_apply set=Force:true
+//jjui:bind scope=revisions.evolog action=apply set=Force:$bool(force)
+//jjui:bind scope=revisions.abandon action=apply set=Force:$bool(force)
+//jjui:bind scope=revisions.abandon action=force_apply set=Force:true
+//jjui:bind scope=revisions.set_parents action=apply
+//jjui:bind scope=revisions.set_bookmark action=apply
+//jjui:bind scope=revisions.ace_jump action=apply
+//jjui:bind scope=ui.bookmarks action=apply
+//jjui:bind scope=ui.git action=apply
+//jjui:bind scope=revisions action=apply set=Force:$bool(force)
+//jjui:bind scope=revisions action=force_apply set=Force:true
+//jjui:bind scope=status.input action=apply
+//jjui:bind scope=file_search action=apply
+//jjui:bind scope=revisions.quick_search.input action=apply
+//jjui:bind scope=revset action=apply
+//jjui:bind scope=password action=apply
+//jjui:bind scope=input action=apply
+//jjui:bind scope=ui.undo action=apply
+//jjui:bind scope=ui.redo action=apply
+type Apply struct {
+	Value string
+	Force bool
+}
+
+func (Apply) isIntent() {}
+
+//jjui:bind scope=ui.undo action=prev set=Delta:-1
+//jjui:bind scope=ui.undo action=next set=Delta:1
+//jjui:bind scope=ui.redo action=prev set=Delta:-1
+//jjui:bind scope=ui.redo action=next set=Delta:1
+//jjui:bind scope=revisions.details.confirmation action=prev set=Delta:-1
+//jjui:bind scope=revisions.details.confirmation action=next set=Delta:1
+type OptionSelect struct {
+	Delta int
+}
+
+func (OptionSelect) isIntent() {}

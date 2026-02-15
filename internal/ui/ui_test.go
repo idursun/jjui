@@ -478,10 +478,10 @@ func Test_ActiveScopeChain_UsesStackedOwnerScope(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	model.stacked = &ownerOnlyStackedModel{owner: actions.OwnerUndo}
+	model.stacked = &ownerOnlyStackedModel{owner: actions.OwnerUiUndo}
 	scopes := model.activeScopeChain()
 	require.NotEmpty(t, scopes)
-	assert.Equal(t, keybindings.Scope(actions.OwnerUndo), scopes[0])
+	assert.Equal(t, keybindings.Scope(actions.OwnerUiUndo), scopes[0])
 }
 
 func Test_HandleDispatchedAction_UsesStackedOwnerScope(t *testing.T) {

@@ -8,14 +8,6 @@ type DetailsNavigate struct {
 
 func (DetailsNavigate) isIntent() {}
 
-//jjui:bind scope=revisions.details.confirmation action=move_up set=Delta:-1
-//jjui:bind scope=revisions.details.confirmation action=move_down set=Delta:1
-type DetailsConfirmationNavigate struct {
-	Delta int
-}
-
-func (DetailsConfirmationNavigate) isIntent() {}
-
 //jjui:bind scope=revisions.details action=cancel
 type DetailsClose struct{}
 

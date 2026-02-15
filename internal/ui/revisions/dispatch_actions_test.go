@@ -46,7 +46,7 @@ func TestHandleDispatchedAction_RevisionsModeOpeners(t *testing.T) {
 }
 
 type confirmationTrackingOp struct {
-	lastIntent  intents.DetailsConfirmationNavigate
+	lastIntent  intents.OptionSelect
 	gotNavigate bool
 }
 
@@ -54,10 +54,10 @@ func (o *confirmationTrackingOp) ResolveAction(action keybindings.Action, args m
 	_ = args
 
 	switch action {
-	case actions.RevisionsDetailsConfirmationMoveUp:
-		return intents.DetailsConfirmationNavigate{Delta: -1}, true
-	case actions.RevisionsDetailsConfirmationMoveDown:
-		return intents.DetailsConfirmationNavigate{Delta: 1}, true
+	case actions.RevisionsDetailsConfirmationPrev:
+		return intents.OptionSelect{Delta: -1}, true
+	case actions.RevisionsDetailsConfirmationNext:
+		return intents.OptionSelect{Delta: 1}, true
 	case actions.RevisionsDetailsConfirmationApply:
 		return intents.Apply{}, true
 	case actions.RevisionsDetailsConfirmationCancel:
@@ -68,7 +68,7 @@ func (o *confirmationTrackingOp) ResolveAction(action keybindings.Action, args m
 }
 
 func (o *confirmationTrackingOp) Update(msg tea.Msg) tea.Cmd {
-	intent, ok := msg.(intents.DetailsConfirmationNavigate)
+	intent, ok := msg.(intents.OptionSelect)
 	if ok {
 		o.gotNavigate = true
 		o.lastIntent = intent
@@ -100,7 +100,7 @@ func TestHandleDispatchedAction_DetailsConfirmationMoveDoesNotMoveRevisionsCurso
 	op := &confirmationTrackingOp{}
 	model.op = op
 
-	_, handled := model.HandleDispatchedAction(actions.RevisionsDetailsConfirmationMoveDown, nil)
+	_, handled := model.HandleDispatchedAction(actions.RevisionsDetailsConfirmationNext, nil)
 	assert.True(t, handled, "move_down should be handled in details confirmation scope")
 	assert.True(t, op.gotNavigate, "details confirmation should receive DetailsConfirmationNavigate intent")
 	assert.Equal(t, 1, op.lastIntent.Delta, "move_down should navigate confirmation to the right/down option")
