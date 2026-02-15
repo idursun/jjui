@@ -39,12 +39,13 @@ func getVersion() string {
 }
 
 var (
-	revset     string
-	period     int
-	limit      int
-	version    bool
-	editConfig bool
-	help       bool
+	revset        string
+	period        int
+	limit         int
+	version       bool
+	editConfig    bool
+	migrateConfig bool
+	help          bool
 )
 
 func init() {
@@ -56,6 +57,7 @@ func init() {
 	flag.IntVar(&limit, "n", 0, "Number of revisions to show (alias for --limit)")
 	flag.BoolVar(&version, "version", false, "Show version information")
 	flag.BoolVar(&editConfig, "config", false, "Open configuration file in $EDITOR")
+	flag.BoolVar(&migrateConfig, "migrate", false, "Migrate custom_commands to actions/bindings (use with --config)")
 	flag.BoolVar(&help, "help", false, "Show help information")
 
 	flag.Usage = func() {
@@ -97,6 +99,12 @@ func run() int {
 	case version:
 		fmt.Println(getVersion())
 		return 0
+	case migrateConfig && !editConfig:
+		fmt.Fprintf(os.Stderr, "Error: --migrate must be used with --config\n")
+		flag.Usage()
+		return 1
+	case editConfig && migrateConfig:
+		return config.Migrate()
 	case editConfig:
 		return config.Edit()
 	}
