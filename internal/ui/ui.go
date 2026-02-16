@@ -72,7 +72,7 @@ type triggerAutoRefreshMsg struct{}
 const (
 	scopeUi               keybindings.Scope = "ui"
 	scopePreview          keybindings.Scope = "ui.preview"
-	scopeDiff             keybindings.Scope = "ui.diff"
+	scopeDiff             keybindings.Scope = "diff"
 	scopeRevset           keybindings.Scope = "revset"
 	scopeFileSearch       keybindings.Scope = "file_search"
 	scopeQuickSearchInput keybindings.Scope = "revisions.quick_search.input"
@@ -665,21 +665,21 @@ func (m *Model) routeIntent(owner string, intent intents.Intent) tea.Cmd {
 			return m.revsetModel.Update(intent)
 		}
 		return m.handleIntent(intent)
-	case actions.OwnerUiDiff:
+	case actions.OwnerDiff:
 		if m.diff != nil {
 			return m.diff.Update(intent)
 		}
 		return m.handleIntent(intent)
-	case actions.OwnerUiOplog:
+	case actions.OwnerOplog:
 		if m.oplog != nil {
 			return m.oplog.Update(intent)
 		}
 		return m.handleIntent(intent)
-	case actions.OwnerUiBookmarks,
-		actions.OwnerUiGit,
-		actions.OwnerUiChoose,
-		actions.OwnerUiUndo,
-		actions.OwnerUiRedo,
+	case actions.OwnerBookmarks,
+		actions.OwnerGit,
+		actions.OwnerChoose,
+		actions.OwnerUndo,
+		actions.OwnerRedo,
 		actions.OwnerInput:
 		switch intent.(type) {
 		case intents.ExpandStatusToggle:
@@ -729,15 +729,15 @@ func (m *Model) routeCancel(owner string) tea.Cmd {
 		if m.revsetModel.Editing {
 			return m.revsetModel.Update(cancel)
 		}
-	case actions.OwnerUiOplog:
+	case actions.OwnerOplog:
 		if m.oplog != nil {
 			return m.oplog.Update(cancel)
 		}
-	case actions.OwnerUiBookmarks,
-		actions.OwnerUiGit,
-		actions.OwnerUiChoose,
-		actions.OwnerUiUndo,
-		actions.OwnerUiRedo,
+	case actions.OwnerBookmarks,
+		actions.OwnerGit,
+		actions.OwnerChoose,
+		actions.OwnerUndo,
+		actions.OwnerRedo,
 		actions.OwnerInput:
 		if m.stacked != nil {
 			return m.stacked.Update(cancel)
@@ -829,7 +829,7 @@ func (m *Model) primaryScope() keybindings.Scope {
 	}
 
 	if m.oplog != nil {
-		return actions.OwnerUiOplog
+		return actions.OwnerOplog
 	}
 
 	scopes := m.revisions.ScopeChain()

@@ -8,9 +8,15 @@ import (
 )
 
 const (
+	OwnerBookmarks           = "bookmarks"
+	OwnerChoose              = "choose"
+	OwnerDiff                = "diff"
 	OwnerFileSearch          = "file_search"
+	OwnerGit                 = "git"
 	OwnerInput               = "input"
+	OwnerOplog               = "oplog"
 	OwnerPassword            = "password"
+	OwnerRedo                = "redo"
 	OwnerRevisions           = "revisions"
 	OwnerAbandon             = "revisions.abandon"
 	OwnerAceJump             = "revisions.ace_jump"
@@ -29,14 +35,35 @@ const (
 	OwnerRevset              = "revset"
 	OwnerStatusInput         = "status.input"
 	OwnerUi                  = "ui"
-	OwnerUiBookmarks         = "ui.bookmarks"
-	OwnerUiChoose            = "ui.choose"
-	OwnerUiDiff              = "ui.diff"
-	OwnerUiGit               = "ui.git"
-	OwnerUiOplog             = "ui.oplog"
-	OwnerUiRedo              = "ui.redo"
-	OwnerUiUndo              = "ui.undo"
+	OwnerUndo                = "undo"
 
+	BookmarksApply                         keybindings.Action = "bookmarks.apply"
+	BookmarksBookmarkDelete                keybindings.Action = "bookmarks.bookmark_delete"
+	BookmarksBookmarkForget                keybindings.Action = "bookmarks.bookmark_forget"
+	BookmarksBookmarkMove                  keybindings.Action = "bookmarks.bookmark_move"
+	BookmarksBookmarkTrack                 keybindings.Action = "bookmarks.bookmark_track"
+	BookmarksBookmarkUntrack               keybindings.Action = "bookmarks.bookmark_untrack"
+	BookmarksCancel                        keybindings.Action = "bookmarks.cancel"
+	BookmarksCycleRemotes                  keybindings.Action = "bookmarks.cycle_remotes"
+	BookmarksCycleRemotesBack              keybindings.Action = "bookmarks.cycle_remotes_back"
+	BookmarksFilter                        keybindings.Action = "bookmarks.filter"
+	BookmarksMoveDown                      keybindings.Action = "bookmarks.move_down"
+	BookmarksMoveUp                        keybindings.Action = "bookmarks.move_up"
+	BookmarksPageDown                      keybindings.Action = "bookmarks.page_down"
+	BookmarksPageUp                        keybindings.Action = "bookmarks.page_up"
+	BookmarksQuit                          keybindings.Action = "bookmarks.quit"
+	ChooseApply                            keybindings.Action = "choose.apply"
+	ChooseCancel                           keybindings.Action = "choose.cancel"
+	ChooseMoveDown                         keybindings.Action = "choose.move_down"
+	ChooseMoveUp                           keybindings.Action = "choose.move_up"
+	DiffHalfPageDown                       keybindings.Action = "diff.half_page_down"
+	DiffHalfPageUp                         keybindings.Action = "diff.half_page_up"
+	DiffLeft                               keybindings.Action = "diff.left"
+	DiffPageDown                           keybindings.Action = "diff.page_down"
+	DiffPageUp                             keybindings.Action = "diff.page_up"
+	DiffRight                              keybindings.Action = "diff.right"
+	DiffScrollDown                         keybindings.Action = "diff.scroll_down"
+	DiffScrollUp                           keybindings.Action = "diff.scroll_up"
 	FileSearchApply                        keybindings.Action = "file_search.apply"
 	FileSearchCancel                       keybindings.Action = "file_search.cancel"
 	FileSearchEdit                         keybindings.Action = "file_search.edit"
@@ -47,10 +74,35 @@ const (
 	FileSearchPreviewHalfPageDown          keybindings.Action = "file_search.preview_half_page_down"
 	FileSearchPreviewHalfPageUp            keybindings.Action = "file_search.preview_half_page_up"
 	FileSearchToggle                       keybindings.Action = "file_search.toggle"
+	GitApply                               keybindings.Action = "git.apply"
+	GitCancel                              keybindings.Action = "git.cancel"
+	GitCycleRemotes                        keybindings.Action = "git.cycle_remotes"
+	GitCycleRemotesBack                    keybindings.Action = "git.cycle_remotes_back"
+	GitFetch                               keybindings.Action = "git.fetch"
+	GitFilter                              keybindings.Action = "git.filter"
+	GitMoveDown                            keybindings.Action = "git.move_down"
+	GitMoveUp                              keybindings.Action = "git.move_up"
+	GitPageDown                            keybindings.Action = "git.page_down"
+	GitPageUp                              keybindings.Action = "git.page_up"
+	GitPush                                keybindings.Action = "git.push"
+	GitQuit                                keybindings.Action = "git.quit"
 	InputApply                             keybindings.Action = "input.apply"
 	InputCancel                            keybindings.Action = "input.cancel"
+	OplogClose                             keybindings.Action = "oplog.close"
+	OplogDiff                              keybindings.Action = "oplog.diff"
+	OplogMoveDown                          keybindings.Action = "oplog.move_down"
+	OplogMoveUp                            keybindings.Action = "oplog.move_up"
+	OplogPageDown                          keybindings.Action = "oplog.page_down"
+	OplogPageUp                            keybindings.Action = "oplog.page_up"
+	OplogQuit                              keybindings.Action = "oplog.quit"
+	OplogRestore                           keybindings.Action = "oplog.restore"
+	OplogRevert                            keybindings.Action = "oplog.revert"
 	PasswordApply                          keybindings.Action = "password.apply"
 	PasswordCancel                         keybindings.Action = "password.cancel"
+	RedoApply                              keybindings.Action = "redo.apply"
+	RedoCancel                             keybindings.Action = "redo.cancel"
+	RedoNext                               keybindings.Action = "redo.next"
+	RedoPrev                               keybindings.Action = "redo.prev"
 	RevisionsAbandon                       keybindings.Action = "revisions.abandon"
 	RevisionsAbandonAceJump                keybindings.Action = "revisions.abandon.ace_jump"
 	RevisionsAbandonApply                  keybindings.Action = "revisions.abandon.apply"
@@ -178,63 +230,17 @@ const (
 	StatusInputMoveUp                      keybindings.Action = "status.input.move_up"
 	StatusInputPageDown                    keybindings.Action = "status.input.page_down"
 	StatusInputPageUp                      keybindings.Action = "status.input.page_up"
-	UiBookmarksApply                       keybindings.Action = "ui.bookmarks.apply"
-	UiBookmarksBookmarkDelete              keybindings.Action = "ui.bookmarks.bookmark_delete"
-	UiBookmarksBookmarkForget              keybindings.Action = "ui.bookmarks.bookmark_forget"
-	UiBookmarksBookmarkMove                keybindings.Action = "ui.bookmarks.bookmark_move"
-	UiBookmarksBookmarkTrack               keybindings.Action = "ui.bookmarks.bookmark_track"
-	UiBookmarksBookmarkUntrack             keybindings.Action = "ui.bookmarks.bookmark_untrack"
-	UiBookmarksCancel                      keybindings.Action = "ui.bookmarks.cancel"
-	UiBookmarksCycleRemotes                keybindings.Action = "ui.bookmarks.cycle_remotes"
-	UiBookmarksCycleRemotesBack            keybindings.Action = "ui.bookmarks.cycle_remotes_back"
-	UiBookmarksFilter                      keybindings.Action = "ui.bookmarks.filter"
-	UiBookmarksMoveDown                    keybindings.Action = "ui.bookmarks.move_down"
-	UiBookmarksMoveUp                      keybindings.Action = "ui.bookmarks.move_up"
-	UiBookmarksPageDown                    keybindings.Action = "ui.bookmarks.page_down"
-	UiBookmarksPageUp                      keybindings.Action = "ui.bookmarks.page_up"
-	UiBookmarksQuit                        keybindings.Action = "ui.bookmarks.quit"
 	UiCancel                               keybindings.Action = "ui.cancel"
-	UiChooseApply                          keybindings.Action = "ui.choose.apply"
-	UiChooseCancel                         keybindings.Action = "ui.choose.cancel"
-	UiChooseMoveDown                       keybindings.Action = "ui.choose.move_down"
-	UiChooseMoveUp                         keybindings.Action = "ui.choose.move_up"
-	UiDiffHalfPageDown                     keybindings.Action = "ui.diff.half_page_down"
-	UiDiffHalfPageUp                       keybindings.Action = "ui.diff.half_page_up"
-	UiDiffLeft                             keybindings.Action = "ui.diff.left"
-	UiDiffPageDown                         keybindings.Action = "ui.diff.page_down"
-	UiDiffPageUp                           keybindings.Action = "ui.diff.page_up"
-	UiDiffRight                            keybindings.Action = "ui.diff.right"
-	UiDiffScrollDown                       keybindings.Action = "ui.diff.scroll_down"
-	UiDiffScrollUp                         keybindings.Action = "ui.diff.scroll_up"
 	UiExecJj                               keybindings.Action = "ui.exec_jj"
 	UiExecShell                            keybindings.Action = "ui.exec_shell"
 	UiExpandStatus                         keybindings.Action = "ui.expand_status"
 	UiFileSearchToggle                     keybindings.Action = "ui.file_search_toggle"
-	UiGitApply                             keybindings.Action = "ui.git.apply"
-	UiGitCancel                            keybindings.Action = "ui.git.cancel"
-	UiGitCycleRemotes                      keybindings.Action = "ui.git.cycle_remotes"
-	UiGitCycleRemotesBack                  keybindings.Action = "ui.git.cycle_remotes_back"
-	UiGitFetch                             keybindings.Action = "ui.git.fetch"
-	UiGitFilter                            keybindings.Action = "ui.git.filter"
-	UiGitMoveDown                          keybindings.Action = "ui.git.move_down"
-	UiGitMoveUp                            keybindings.Action = "ui.git.move_up"
-	UiGitPageDown                          keybindings.Action = "ui.git.page_down"
-	UiGitPageUp                            keybindings.Action = "ui.git.page_up"
-	UiGitPush                              keybindings.Action = "ui.git.push"
-	UiGitQuit                              keybindings.Action = "ui.git.quit"
 	UiOpenBookmarks                        keybindings.Action = "ui.open_bookmarks"
 	UiOpenGit                              keybindings.Action = "ui.open_git"
 	UiOpenOplog                            keybindings.Action = "ui.open_oplog"
+	UiOpenRedo                             keybindings.Action = "ui.open_redo"
 	UiOpenRevset                           keybindings.Action = "ui.open_revset"
-	UiOplogClose                           keybindings.Action = "ui.oplog.close"
-	UiOplogDiff                            keybindings.Action = "ui.oplog.diff"
-	UiOplogMoveDown                        keybindings.Action = "ui.oplog.move_down"
-	UiOplogMoveUp                          keybindings.Action = "ui.oplog.move_up"
-	UiOplogPageDown                        keybindings.Action = "ui.oplog.page_down"
-	UiOplogPageUp                          keybindings.Action = "ui.oplog.page_up"
-	UiOplogQuit                            keybindings.Action = "ui.oplog.quit"
-	UiOplogRestore                         keybindings.Action = "ui.oplog.restore"
-	UiOplogRevert                          keybindings.Action = "ui.oplog.revert"
+	UiOpenUndo                             keybindings.Action = "ui.open_undo"
 	UiPreviewExpand                        keybindings.Action = "ui.preview_expand"
 	UiPreviewHalfPageDown                  keybindings.Action = "ui.preview_half_page_down"
 	UiPreviewHalfPageUp                    keybindings.Action = "ui.preview_half_page_up"
@@ -245,17 +251,11 @@ const (
 	UiPreviewToggleBottom                  keybindings.Action = "ui.preview_toggle_bottom"
 	UiQuickSearch                          keybindings.Action = "ui.quick_search"
 	UiQuit                                 keybindings.Action = "ui.quit"
-	UiRedo                                 keybindings.Action = "ui.redo"
-	UiRedoApply                            keybindings.Action = "ui.redo.apply"
-	UiRedoCancel                           keybindings.Action = "ui.redo.cancel"
-	UiRedoNext                             keybindings.Action = "ui.redo.next"
-	UiRedoPrev                             keybindings.Action = "ui.redo.prev"
 	UiSuspend                              keybindings.Action = "ui.suspend"
-	UiUndo                                 keybindings.Action = "ui.undo"
-	UiUndoApply                            keybindings.Action = "ui.undo.apply"
-	UiUndoCancel                           keybindings.Action = "ui.undo.cancel"
-	UiUndoNext                             keybindings.Action = "ui.undo.next"
-	UiUndoPrev                             keybindings.Action = "ui.undo.prev"
+	UndoApply                              keybindings.Action = "undo.apply"
+	UndoCancel                             keybindings.Action = "undo.cancel"
+	UndoNext                               keybindings.Action = "undo.next"
+	UndoPrev                               keybindings.Action = "undo.prev"
 )
 
 func IsRevisionsOwner(owner string) bool {
@@ -269,6 +269,69 @@ func IsRevisionsOwner(owner string) bool {
 
 func ResolveIntent(owner string, action keybindings.Action, args map[string]any) (intents.Intent, bool) {
 	switch owner {
+	case OwnerBookmarks:
+		switch action {
+		case keybindings.Action("bookmarks.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("bookmarks.bookmark_delete"):
+			return intents.BookmarksFilter{Kind: intents.BookmarksFilterDelete}, true
+		case keybindings.Action("bookmarks.bookmark_forget"):
+			return intents.BookmarksFilter{Kind: intents.BookmarksFilterForget}, true
+		case keybindings.Action("bookmarks.bookmark_move"):
+			return intents.BookmarksFilter{Kind: intents.BookmarksFilterMove}, true
+		case keybindings.Action("bookmarks.bookmark_track"):
+			return intents.BookmarksFilter{Kind: intents.BookmarksFilterTrack}, true
+		case keybindings.Action("bookmarks.bookmark_untrack"):
+			return intents.BookmarksFilter{Kind: intents.BookmarksFilterUntrack}, true
+		case keybindings.Action("bookmarks.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("bookmarks.cycle_remotes"):
+			return intents.BookmarksCycleRemotes{Delta: 1}, true
+		case keybindings.Action("bookmarks.cycle_remotes_back"):
+			return intents.BookmarksCycleRemotes{Delta: -1}, true
+		case keybindings.Action("bookmarks.filter"):
+			return intents.BookmarksOpenFilter{}, true
+		case keybindings.Action("bookmarks.move_down"):
+			return intents.BookmarksNavigate{Delta: 1}, true
+		case keybindings.Action("bookmarks.move_up"):
+			return intents.BookmarksNavigate{Delta: -1}, true
+		case keybindings.Action("bookmarks.page_down"):
+			return intents.BookmarksNavigate{Delta: 1, IsPage: true}, true
+		case keybindings.Action("bookmarks.page_up"):
+			return intents.BookmarksNavigate{Delta: -1, IsPage: true}, true
+		case keybindings.Action("bookmarks.quit"):
+			return intents.Quit{}, true
+		}
+	case OwnerChoose:
+		switch action {
+		case keybindings.Action("choose.apply"):
+			return intents.ChooseApply{}, true
+		case keybindings.Action("choose.cancel"):
+			return intents.ChooseCancel{}, true
+		case keybindings.Action("choose.move_down"):
+			return intents.ChooseNavigate{Delta: 1}, true
+		case keybindings.Action("choose.move_up"):
+			return intents.ChooseNavigate{Delta: -1}, true
+		}
+	case OwnerDiff:
+		switch action {
+		case keybindings.Action("diff.half_page_down"):
+			return intents.DiffScroll{Kind: intents.DiffHalfPageDown}, true
+		case keybindings.Action("diff.half_page_up"):
+			return intents.DiffScroll{Kind: intents.DiffHalfPageUp}, true
+		case keybindings.Action("diff.left"):
+			return intents.DiffScrollHorizontal{Kind: intents.DiffScrollLeft}, true
+		case keybindings.Action("diff.page_down"):
+			return intents.DiffScroll{Kind: intents.DiffPageDown}, true
+		case keybindings.Action("diff.page_up"):
+			return intents.DiffScroll{Kind: intents.DiffPageUp}, true
+		case keybindings.Action("diff.right"):
+			return intents.DiffScrollHorizontal{Kind: intents.DiffScrollRight}, true
+		case keybindings.Action("diff.scroll_down"):
+			return intents.DiffScroll{Kind: intents.DiffScrollDown}, true
+		case keybindings.Action("diff.scroll_up"):
+			return intents.DiffScroll{Kind: intents.DiffScrollUp}, true
+		}
 	case OwnerFileSearch:
 		switch action {
 		case keybindings.Action("file_search.apply"):
@@ -292,6 +355,33 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("file_search.toggle"):
 			return intents.FileSearchTogglePreview{}, true
 		}
+	case OwnerGit:
+		switch action {
+		case keybindings.Action("git.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("git.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("git.cycle_remotes"):
+			return intents.GitCycleRemotes{Delta: 1}, true
+		case keybindings.Action("git.cycle_remotes_back"):
+			return intents.GitCycleRemotes{Delta: -1}, true
+		case keybindings.Action("git.fetch"):
+			return intents.GitFilter{Kind: intents.GitFilterFetch}, true
+		case keybindings.Action("git.filter"):
+			return intents.GitOpenFilter{}, true
+		case keybindings.Action("git.move_down"):
+			return intents.GitNavigate{Delta: 1}, true
+		case keybindings.Action("git.move_up"):
+			return intents.GitNavigate{Delta: -1}, true
+		case keybindings.Action("git.page_down"):
+			return intents.GitNavigate{Delta: 1, IsPage: true}, true
+		case keybindings.Action("git.page_up"):
+			return intents.GitNavigate{Delta: -1, IsPage: true}, true
+		case keybindings.Action("git.push"):
+			return intents.GitFilter{Kind: intents.GitFilterPush}, true
+		case keybindings.Action("git.quit"):
+			return intents.Quit{}, true
+		}
 	case OwnerInput:
 		switch action {
 		case keybindings.Action("input.apply"):
@@ -299,12 +389,44 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("input.cancel"):
 			return intents.Cancel{}, true
 		}
+	case OwnerOplog:
+		switch action {
+		case keybindings.Action("oplog.close"):
+			return intents.OpLogClose{}, true
+		case keybindings.Action("oplog.diff"):
+			return intents.OpLogShowDiff{}, true
+		case keybindings.Action("oplog.move_down"):
+			return intents.OpLogNavigate{Delta: 1}, true
+		case keybindings.Action("oplog.move_up"):
+			return intents.OpLogNavigate{Delta: -1}, true
+		case keybindings.Action("oplog.page_down"):
+			return intents.OpLogNavigate{Delta: 1, IsPage: true}, true
+		case keybindings.Action("oplog.page_up"):
+			return intents.OpLogNavigate{Delta: -1, IsPage: true}, true
+		case keybindings.Action("oplog.quit"):
+			return intents.Quit{}, true
+		case keybindings.Action("oplog.restore"):
+			return intents.OpLogRestore{}, true
+		case keybindings.Action("oplog.revert"):
+			return intents.OpLogRevert{}, true
+		}
 	case OwnerPassword:
 		switch action {
 		case keybindings.Action("password.apply"):
 			return intents.Apply{}, true
 		case keybindings.Action("password.cancel"):
 			return intents.Cancel{}, true
+		}
+	case OwnerRedo:
+		switch action {
+		case keybindings.Action("redo.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("redo.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("redo.next"):
+			return intents.OptionSelect{Delta: 1}, true
+		case keybindings.Action("redo.prev"):
+			return intents.OptionSelect{Delta: -1}, true
 		}
 	case OwnerRevisions:
 		switch action {
@@ -629,8 +751,12 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.OpenGit{}, true
 		case keybindings.Action("ui.open_oplog"):
 			return intents.OpLogOpen{}, true
+		case keybindings.Action("ui.open_redo"):
+			return intents.Redo{}, true
 		case keybindings.Action("ui.open_revset"):
 			return intents.OpenRevset{}, true
+		case keybindings.Action("ui.open_undo"):
+			return intents.Undo{}, true
 		case keybindings.Action("ui.preview_expand"):
 			return intents.PreviewExpand{}, true
 		case keybindings.Action("ui.preview_half_page_down"):
@@ -651,144 +777,18 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.QuickSearch{}, true
 		case keybindings.Action("ui.quit"):
 			return intents.Quit{}, true
-		case keybindings.Action("ui.redo"):
-			return intents.Redo{}, true
 		case keybindings.Action("ui.suspend"):
 			return intents.Suspend{}, true
-		case keybindings.Action("ui.undo"):
-			return intents.Undo{}, true
 		}
-	case OwnerUiBookmarks:
+	case OwnerUndo:
 		switch action {
-		case keybindings.Action("ui.bookmarks.apply"):
+		case keybindings.Action("undo.apply"):
 			return intents.Apply{}, true
-		case keybindings.Action("ui.bookmarks.bookmark_delete"):
-			return intents.BookmarksFilter{Kind: intents.BookmarksFilterDelete}, true
-		case keybindings.Action("ui.bookmarks.bookmark_forget"):
-			return intents.BookmarksFilter{Kind: intents.BookmarksFilterForget}, true
-		case keybindings.Action("ui.bookmarks.bookmark_move"):
-			return intents.BookmarksFilter{Kind: intents.BookmarksFilterMove}, true
-		case keybindings.Action("ui.bookmarks.bookmark_track"):
-			return intents.BookmarksFilter{Kind: intents.BookmarksFilterTrack}, true
-		case keybindings.Action("ui.bookmarks.bookmark_untrack"):
-			return intents.BookmarksFilter{Kind: intents.BookmarksFilterUntrack}, true
-		case keybindings.Action("ui.bookmarks.cancel"):
+		case keybindings.Action("undo.cancel"):
 			return intents.Cancel{}, true
-		case keybindings.Action("ui.bookmarks.cycle_remotes"):
-			return intents.BookmarksCycleRemotes{Delta: 1}, true
-		case keybindings.Action("ui.bookmarks.cycle_remotes_back"):
-			return intents.BookmarksCycleRemotes{Delta: -1}, true
-		case keybindings.Action("ui.bookmarks.filter"):
-			return intents.BookmarksOpenFilter{}, true
-		case keybindings.Action("ui.bookmarks.move_down"):
-			return intents.BookmarksNavigate{Delta: 1}, true
-		case keybindings.Action("ui.bookmarks.move_up"):
-			return intents.BookmarksNavigate{Delta: -1}, true
-		case keybindings.Action("ui.bookmarks.page_down"):
-			return intents.BookmarksNavigate{Delta: 1, IsPage: true}, true
-		case keybindings.Action("ui.bookmarks.page_up"):
-			return intents.BookmarksNavigate{Delta: -1, IsPage: true}, true
-		case keybindings.Action("ui.bookmarks.quit"):
-			return intents.Quit{}, true
-		}
-	case OwnerUiChoose:
-		switch action {
-		case keybindings.Action("ui.choose.apply"):
-			return intents.ChooseApply{}, true
-		case keybindings.Action("ui.choose.cancel"):
-			return intents.ChooseCancel{}, true
-		case keybindings.Action("ui.choose.move_down"):
-			return intents.ChooseNavigate{Delta: 1}, true
-		case keybindings.Action("ui.choose.move_up"):
-			return intents.ChooseNavigate{Delta: -1}, true
-		}
-	case OwnerUiDiff:
-		switch action {
-		case keybindings.Action("ui.diff.half_page_down"):
-			return intents.DiffScroll{Kind: intents.DiffHalfPageDown}, true
-		case keybindings.Action("ui.diff.half_page_up"):
-			return intents.DiffScroll{Kind: intents.DiffHalfPageUp}, true
-		case keybindings.Action("ui.diff.left"):
-			return intents.DiffScrollHorizontal{Kind: intents.DiffScrollLeft}, true
-		case keybindings.Action("ui.diff.page_down"):
-			return intents.DiffScroll{Kind: intents.DiffPageDown}, true
-		case keybindings.Action("ui.diff.page_up"):
-			return intents.DiffScroll{Kind: intents.DiffPageUp}, true
-		case keybindings.Action("ui.diff.right"):
-			return intents.DiffScrollHorizontal{Kind: intents.DiffScrollRight}, true
-		case keybindings.Action("ui.diff.scroll_down"):
-			return intents.DiffScroll{Kind: intents.DiffScrollDown}, true
-		case keybindings.Action("ui.diff.scroll_up"):
-			return intents.DiffScroll{Kind: intents.DiffScrollUp}, true
-		}
-	case OwnerUiGit:
-		switch action {
-		case keybindings.Action("ui.git.apply"):
-			return intents.Apply{}, true
-		case keybindings.Action("ui.git.cancel"):
-			return intents.Cancel{}, true
-		case keybindings.Action("ui.git.cycle_remotes"):
-			return intents.GitCycleRemotes{Delta: 1}, true
-		case keybindings.Action("ui.git.cycle_remotes_back"):
-			return intents.GitCycleRemotes{Delta: -1}, true
-		case keybindings.Action("ui.git.fetch"):
-			return intents.GitFilter{Kind: intents.GitFilterFetch}, true
-		case keybindings.Action("ui.git.filter"):
-			return intents.GitOpenFilter{}, true
-		case keybindings.Action("ui.git.move_down"):
-			return intents.GitNavigate{Delta: 1}, true
-		case keybindings.Action("ui.git.move_up"):
-			return intents.GitNavigate{Delta: -1}, true
-		case keybindings.Action("ui.git.page_down"):
-			return intents.GitNavigate{Delta: 1, IsPage: true}, true
-		case keybindings.Action("ui.git.page_up"):
-			return intents.GitNavigate{Delta: -1, IsPage: true}, true
-		case keybindings.Action("ui.git.push"):
-			return intents.GitFilter{Kind: intents.GitFilterPush}, true
-		case keybindings.Action("ui.git.quit"):
-			return intents.Quit{}, true
-		}
-	case OwnerUiOplog:
-		switch action {
-		case keybindings.Action("ui.oplog.close"):
-			return intents.OpLogClose{}, true
-		case keybindings.Action("ui.oplog.diff"):
-			return intents.OpLogShowDiff{}, true
-		case keybindings.Action("ui.oplog.move_down"):
-			return intents.OpLogNavigate{Delta: 1}, true
-		case keybindings.Action("ui.oplog.move_up"):
-			return intents.OpLogNavigate{Delta: -1}, true
-		case keybindings.Action("ui.oplog.page_down"):
-			return intents.OpLogNavigate{Delta: 1, IsPage: true}, true
-		case keybindings.Action("ui.oplog.page_up"):
-			return intents.OpLogNavigate{Delta: -1, IsPage: true}, true
-		case keybindings.Action("ui.oplog.quit"):
-			return intents.Quit{}, true
-		case keybindings.Action("ui.oplog.restore"):
-			return intents.OpLogRestore{}, true
-		case keybindings.Action("ui.oplog.revert"):
-			return intents.OpLogRevert{}, true
-		}
-	case OwnerUiRedo:
-		switch action {
-		case keybindings.Action("ui.redo.apply"):
-			return intents.Apply{}, true
-		case keybindings.Action("ui.redo.cancel"):
-			return intents.Cancel{}, true
-		case keybindings.Action("ui.redo.next"):
+		case keybindings.Action("undo.next"):
 			return intents.OptionSelect{Delta: 1}, true
-		case keybindings.Action("ui.redo.prev"):
-			return intents.OptionSelect{Delta: -1}, true
-		}
-	case OwnerUiUndo:
-		switch action {
-		case keybindings.Action("ui.undo.apply"):
-			return intents.Apply{}, true
-		case keybindings.Action("ui.undo.cancel"):
-			return intents.Cancel{}, true
-		case keybindings.Action("ui.undo.next"):
-			return intents.OptionSelect{Delta: 1}, true
-		case keybindings.Action("ui.undo.prev"):
+		case keybindings.Action("undo.prev"):
 			return intents.OptionSelect{Delta: -1}, true
 		}
 	}

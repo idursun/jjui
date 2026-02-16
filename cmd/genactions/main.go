@@ -1112,10 +1112,7 @@ func revisionsOwnerList(owners []string) []string {
 
 func isRevisionsOwner(owner string) bool {
 	switch owner {
-	case "file_search", "input", "password", "redo", "revset", "status.input", "undo":
-		return false
-	}
-	if owner == "ui" || strings.HasPrefix(owner, "ui.") {
+	case "bookmarks", "choose", "diff", "file_search", "git", "input", "oplog", "password", "redo", "revset", "status.input", "ui", "ui.preview", "undo":
 		return false
 	}
 	return true

@@ -141,5 +141,5 @@ func TestIsRevisionsOwner(t *testing.T) {
 	assert.True(t, IsRevisionsOwner("revisions.rebase"))
 	assert.True(t, IsRevisionsOwner("revisions.details"))
 	assert.False(t, IsRevisionsOwner("ui"))
-	assert.False(t, IsRevisionsOwner("ui.bookmarks"))
+	assert.False(t, IsRevisionsOwner("bookmarks"))
 }

@@ -77,7 +77,7 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) StackedActionOwner() string {
-	return actions.OwnerUiChoose
+	return actions.OwnerChoose
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {

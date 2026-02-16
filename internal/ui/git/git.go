@@ -121,7 +121,7 @@ func (m *Model) IsFocused() bool {
 }
 
 func (m *Model) StackedActionOwner() string {
-	return actions.OwnerUiGit
+	return actions.OwnerGit
 }
 
 func (m *Model) Init() tea.Cmd {

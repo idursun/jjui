@@ -37,7 +37,7 @@ func TestIsRevisionsOwner(t *testing.T) {
 	require.True(t, IsRevisionsOwner(OwnerDetailsConfirmation))
 
 	require.False(t, IsRevisionsOwner(OwnerUi))
-	require.False(t, IsRevisionsOwner(OwnerUiGit))
+	require.False(t, IsRevisionsOwner(OwnerGit))
 	require.False(t, IsRevisionsOwner(OwnerRevset))
 	require.False(t, IsRevisionsOwner(OwnerStatusInput))
 }

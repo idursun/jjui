@@ -11,12 +11,12 @@ const (
 	DiffHalfPageDown
 )
 
-//jjui:bind scope=ui.diff action=scroll_up set=Kind:DiffScrollUp
-//jjui:bind scope=ui.diff action=scroll_down set=Kind:DiffScrollDown
-//jjui:bind scope=ui.diff action=page_up set=Kind:DiffPageUp
-//jjui:bind scope=ui.diff action=page_down set=Kind:DiffPageDown
-//jjui:bind scope=ui.diff action=half_page_up set=Kind:DiffHalfPageUp
-//jjui:bind scope=ui.diff action=half_page_down set=Kind:DiffHalfPageDown
+//jjui:bind scope=diff action=scroll_up set=Kind:DiffScrollUp
+//jjui:bind scope=diff action=scroll_down set=Kind:DiffScrollDown
+//jjui:bind scope=diff action=page_up set=Kind:DiffPageUp
+//jjui:bind scope=diff action=page_down set=Kind:DiffPageDown
+//jjui:bind scope=diff action=half_page_up set=Kind:DiffHalfPageUp
+//jjui:bind scope=diff action=half_page_down set=Kind:DiffHalfPageDown
 type DiffScroll struct {
 	Kind DiffScrollKind
 }
@@ -30,8 +30,8 @@ const (
 	DiffScrollRight
 )
 
-//jjui:bind scope=ui.diff action=left set=Kind:DiffScrollLeft
-//jjui:bind scope=ui.diff action=right set=Kind:DiffScrollRight
+//jjui:bind scope=diff action=left set=Kind:DiffScrollLeft
+//jjui:bind scope=diff action=right set=Kind:DiffScrollRight
 type DiffScrollHorizontal struct {
 	Kind DiffScrollHorizontalKind
 }

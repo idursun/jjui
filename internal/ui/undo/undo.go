@@ -22,7 +22,7 @@ type Model struct {
 }
 
 func (m *Model) StackedActionOwner() string {
-	return actions.OwnerUiUndo
+	return actions.OwnerUndo
 }
 
 func (m *Model) Init() tea.Cmd {

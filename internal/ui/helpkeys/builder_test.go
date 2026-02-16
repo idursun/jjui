@@ -11,10 +11,10 @@ import (
 
 func TestBuildFromBindings_RespectsScopeOrderAndActionTokenDedupe(t *testing.T) {
 	bindings := []config.BindingConfig{
-		{Action: "ui.git.move_down", Scope: "ui", Key: config.StringList{"j"}},
+		{Action: "git.move_down", Scope: "ui", Key: config.StringList{"j"}},
 		{Action: "revisions.move_down", Scope: "revisions", Key: config.StringList{"J"}},
 		{Action: "revisions.apply", Scope: "revisions", Key: config.StringList{"enter"}},
-		{Action: "ui.git.apply", Scope: "ui", Key: config.StringList{"a"}},
+		{Action: "git.apply", Scope: "ui", Key: config.StringList{"a"}},
 	}
 	scopes := []keybindings.Scope{"revisions", "ui"}
 

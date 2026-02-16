@@ -96,7 +96,7 @@ func (m *Model) IsFocused() bool {
 }
 
 func (m *Model) StackedActionOwner() string {
-	return actions.OwnerUiBookmarks
+	return actions.OwnerBookmarks
 }
 
 type commandType int

@@ -171,13 +171,13 @@ func Test_GitWithExpandedStatus_EscClosesStackedFirst(t *testing.T) {
 	config.Current.Bindings = []config.BindingConfig{
 		{Action: "ui.expand_status", Scope: "ui", Key: config.StringList{"?"}},
 		{Action: "ui.cancel", Scope: "ui", Key: config.StringList{"esc"}},
-		{Action: "ui.git.move_up", Scope: "git", Key: config.StringList{"k"}},
-		{Action: "ui.git.move_down", Scope: "git", Key: config.StringList{"j"}},
-		{Action: "ui.git.apply", Scope: "git", Key: config.StringList{"enter"}},
-		{Action: "ui.git.push", Scope: "git", Key: config.StringList{"p"}},
-		{Action: "ui.git.fetch", Scope: "git", Key: config.StringList{"f"}},
-		{Action: "ui.git.filter", Scope: "git", Key: config.StringList{"/"}},
-		{Action: "ui.git.cycle_remotes", Scope: "git", Key: config.StringList{"tab"}},
+		{Action: "git.move_up", Scope: "git", Key: config.StringList{"k"}},
+		{Action: "git.move_down", Scope: "git", Key: config.StringList{"j"}},
+		{Action: "git.apply", Scope: "git", Key: config.StringList{"enter"}},
+		{Action: "git.push", Scope: "git", Key: config.StringList{"p"}},
+		{Action: "git.fetch", Scope: "git", Key: config.StringList{"f"}},
+		{Action: "git.filter", Scope: "git", Key: config.StringList{"/"}},
+		{Action: "git.cycle_remotes", Scope: "git", Key: config.StringList{"tab"}},
 	}
 
 	commandRunner := test.NewTestCommandRunner(t)
@@ -391,9 +391,9 @@ func Test_Update_GitUnmatchedShortcutFallback(t *testing.T) {
 		config.Current.Bindings = origBindings
 	}()
 	config.Current.Bindings = []config.BindingConfig{
-		{Action: "ui.git.filter", Scope: "git", Key: config.StringList{"/"}},
-		{Action: "ui.git.apply", Scope: "git.filter", Key: config.StringList{"enter"}},
-		{Action: "ui.git.apply", Scope: "git", Key: config.StringList{"enter"}},
+		{Action: "git.filter", Scope: "git", Key: config.StringList{"/"}},
+		{Action: "git.apply", Scope: "git.filter", Key: config.StringList{"enter"}},
+		{Action: "git.apply", Scope: "git", Key: config.StringList{"enter"}},
 		{Action: "ui.cancel", Scope: "ui", Key: config.StringList{"esc"}},
 	}
 
@@ -421,8 +421,8 @@ func Test_Update_GitFilterEditingEnterDoesNotTriggerApply(t *testing.T) {
 		config.Current.Bindings = origBindings
 	}()
 	config.Current.Bindings = []config.BindingConfig{
-		{Action: "ui.git.filter", Scope: "git", Key: config.StringList{"/"}},
-		{Action: "ui.git.apply", Scope: "git", Key: config.StringList{"enter"}},
+		{Action: "git.filter", Scope: "git", Key: config.StringList{"/"}},
+		{Action: "git.apply", Scope: "git", Key: config.StringList{"enter"}},
 		{Action: "ui.cancel", Scope: "ui", Key: config.StringList{"esc"}},
 	}
 
@@ -449,7 +449,7 @@ func Test_Update_GitFilterEditingEnterDoesNotTriggerApply(t *testing.T) {
 	assert.Nil(t, cmd, "enter in filter-edit mode should not dispatch apply")
 
 	// Apply should now route through normal git scope after leaving filter-edit mode.
-	_, handled := model.handleDispatchedAction(actions.UiGitApply, nil)
+	_, handled := model.handleDispatchedAction(actions.GitApply, nil)
 	assert.True(t, handled, "apply should dispatch after filter-edit mode")
 }
 
@@ -478,10 +478,10 @@ func Test_ActiveScopeChain_UsesStackedOwnerScope(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	model.stacked = &ownerOnlyStackedModel{owner: actions.OwnerUiUndo}
+	model.stacked = &ownerOnlyStackedModel{owner: actions.OwnerUndo}
 	scopes := model.activeScopeChain()
 	require.NotEmpty(t, scopes)
-	assert.Equal(t, keybindings.Scope(actions.OwnerUiUndo), scopes[0])
+	assert.Equal(t, keybindings.Scope(actions.OwnerUndo), scopes[0])
 }
 
 func Test_HandleDispatchedAction_UsesStackedOwnerScope(t *testing.T) {
@@ -489,10 +489,10 @@ func Test_HandleDispatchedAction_UsesStackedOwnerScope(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	stacked := &ownerOnlyStackedModel{owner: actions.OwnerUiChoose}
+	stacked := &ownerOnlyStackedModel{owner: actions.OwnerChoose}
 	model.stacked = stacked
 
-	cmd, handled := model.handleDispatchedAction(actions.UiChooseMoveDown, nil)
+	cmd, handled := model.handleDispatchedAction(actions.ChooseMoveDown, nil)
 	assert.True(t, handled)
 	assert.Nil(t, cmd)
 
