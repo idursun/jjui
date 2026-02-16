@@ -53,6 +53,14 @@ func getConfigFilePath() string {
 	return ""
 }
 
+func GetConfigDir() string {
+	configFile := getConfigFilePath()
+	if configFile == "" {
+		return ""
+	}
+	return filepath.Dir(configFile)
+}
+
 func loadDefaultConfig() *Config {
 	data, err := configFS.ReadFile("default/config.toml")
 	if err != nil {
@@ -139,11 +147,11 @@ func loadProfileBindings(profile string) ([]BindingConfig, error) {
 }
 
 func LoadLuaConfigFile() (string, error) {
-	configFile := getConfigFilePath()
-	if configFile == "" {
+	configDir := GetConfigDir()
+	if configDir == "" {
 		return "", nil
 	}
-	luaFile := filepath.Join(filepath.Dir(configFile), "config.lua")
+	luaFile := filepath.Join(configDir, "config.lua")
 	data, err := os.ReadFile(luaFile)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {

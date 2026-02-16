@@ -2,6 +2,7 @@ package scripting
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/idursun/jjui/internal/config"
@@ -21,6 +22,10 @@ func InitVM(ctx *uicontext.MainContext) error {
 	CloseVM(ctx)
 
 	L := lua.NewState()
+	if err := prependConfigModulePaths(L, config.GetConfigDir()); err != nil {
+		L.Close()
+		return err
+	}
 	registerAPI(L, ctx)
 	ensureActionRegistry(L)
 	L.SetGlobal(actionCounterName, lua.LNumber(0))
@@ -249,4 +254,62 @@ func stringListFromValue(v lua.LValue, field string) ([]string, error) {
 	default:
 		return nil, fmt.Errorf("%s must be a string or array of strings", field)
 	}
+}
+
+func prependConfigModulePaths(L *lua.LState, configDir string) error {
+	configDir = strings.TrimSpace(configDir)
+	if configDir == "" {
+		return nil
+	}
+
+	pkg, ok := L.GetGlobal("package").(*lua.LTable)
+	if !ok {
+		return fmt.Errorf("lua vm: package table unavailable")
+	}
+
+	pathVal := pkg.RawGetString("path")
+	pathStr, ok := pathVal.(lua.LString)
+	if !ok {
+		return fmt.Errorf("lua vm: package.path is not a string")
+	}
+
+	existing := splitPackagePath(pathStr.String())
+	seen := make(map[string]struct{}, len(existing))
+	for _, entry := range existing {
+		seen[entry] = struct{}{}
+	}
+
+	entries := []string{
+		filepath.ToSlash(filepath.Join(configDir, "?.lua")),
+		filepath.ToSlash(filepath.Join(configDir, "?", "init.lua")),
+	}
+
+	merged := make([]string, 0, len(entries)+len(existing))
+	for _, entry := range entries {
+		if _, exists := seen[entry]; exists {
+			continue
+		}
+		merged = append(merged, entry)
+		seen[entry] = struct{}{}
+	}
+	merged = append(merged, existing...)
+
+	pkg.RawSetString("path", lua.LString(strings.Join(merged, ";")))
+	return nil
+}
+
+func splitPackagePath(path string) []string {
+	if path == "" {
+		return nil
+	}
+	parts := strings.Split(path, ";")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		result = append(result, part)
+	}
+	return result
 }

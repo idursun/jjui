@@ -1,6 +1,8 @@
 package scripting
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -117,4 +119,55 @@ end
 	_, _, err := RunSetup(ctx, source)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "opts.scope is required")
+}
+
+func TestRunSetupCanRequirePluginFromConfigDir(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("JJUI_CONFIG_DIR", configDir)
+
+	pluginsDir := filepath.Join(configDir, "plugins")
+	require.NoError(t, os.MkdirAll(pluginsDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(pluginsDir, "my_plugin.lua"), []byte(`
+local M = {}
+
+function M.setup(config)
+  config.action("plugin-action", function()
+    marker = "plugin-ok"
+  end, {
+    desc = "Plugin action",
+    key = "P",
+    scope = "revisions",
+  })
+end
+
+return M
+`), 0o644))
+
+	ctx := &uicontext.MainContext{}
+	require.NoError(t, InitVM(ctx))
+	t.Cleanup(func() {
+		CloseVM(ctx)
+	})
+
+	source := `
+local plugin = require("plugins.my_plugin")
+
+function setup(config)
+  plugin.setup(config)
+end
+`
+
+	actions, bindings, err := RunSetup(ctx, source)
+	require.NoError(t, err)
+	require.Len(t, actions, 1)
+	require.Len(t, bindings, 1)
+	assert.Equal(t, "plugin-action", actions[0].Name)
+	assert.Equal(t, "revisions", bindings[0].Scope)
+	assert.Equal(t, []string{"P"}, []string(bindings[0].Key))
+
+	runner, _, err := RunScript(ctx, actions[0].Lua)
+	require.NoError(t, err)
+	require.NotNil(t, runner)
+	assert.True(t, runner.Done())
+	assert.Equal(t, "plugin-ok", ctx.ScriptVM.GetGlobal("marker").String())
 }
