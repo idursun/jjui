@@ -1,7 +1,11 @@
 package render
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/cellbuf"
 )
 
@@ -127,8 +131,7 @@ type HighlightEffect struct {
 }
 
 func (e HighlightEffect) Apply(buf *cellbuf.Buffer) {
-	// Extract background color from lipgloss.Style
-	bgColor := e.Style.GetBackground()
+	bgColor := toAnsiColor(e.Style.GetBackground())
 
 	iterateCells(buf, e.Rect, func(cell *cellbuf.Cell) *cellbuf.Cell {
 		if cell == nil {
@@ -165,13 +168,45 @@ func (e FillEffect) Apply(buf *cellbuf.Buffer) {
 func (e FillEffect) GetZ() int                  { return e.Z }
 func (e FillEffect) GetRect() cellbuf.Rectangle { return e.Rect }
 
+// toAnsiColor converts lipgloss.TerminalColor to the correct ansi.Color concrete type
+// so that palette colors emit palette escape codes instead of 24-bit RGB.
+func toAnsiColor(c lipgloss.TerminalColor) ansi.Color {
+	switch c := c.(type) {
+	case lipgloss.Color:
+		s := string(c)
+		if strings.HasPrefix(s, "#") {
+			return c
+		}
+		if v, err := strconv.Atoi(s); err == nil {
+			if v >= 0 && v <= 15 {
+				return ansi.BasicColor(v)
+			}
+			if v >= 16 && v <= 255 {
+				return ansi.IndexedColor(v)
+			}
+		}
+		return c
+	case lipgloss.ANSIColor:
+		v := uint(c)
+		if v <= 15 {
+			return ansi.BasicColor(v)
+		}
+		if v <= 255 {
+			return ansi.IndexedColor(v)
+		}
+		return c
+	default:
+		return c
+	}
+}
+
 func lipglossToStyle(ls lipgloss.Style) cellbuf.Style {
 	var cs cellbuf.Style
 	if _, isNoColor := ls.GetForeground().(lipgloss.NoColor); !isNoColor {
-		cs.Fg = ls.GetForeground()
+		cs.Fg = toAnsiColor(ls.GetForeground())
 	}
 	if _, isNoColor := ls.GetBackground().(lipgloss.NoColor); !isNoColor {
-		cs.Bg = ls.GetBackground()
+		cs.Bg = toAnsiColor(ls.GetBackground())
 	}
 	if ls.GetBold() {
 		cs.Bold(true)
