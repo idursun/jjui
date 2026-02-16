@@ -225,6 +225,8 @@ bindings = [
   { key    = ["down", "j"],           action = "ui.git.move_down",                                    scope  = "ui.git" },
   { key    = "pgup",                  action = "ui.git.page_up",                                      scope  = "ui.git" },
   { key    = "pgdown",                action = "ui.git.page_down",                                    scope  = "ui.git" },
+  { key    = "p",                     action = "ui.preview_toggle",                                   scope  = "ui.oplog" },
+  { key    = "P",                     action = "ui.preview_toggle_bottom",                            scope  = "ui.oplog" },
   { key    = ["up", "k"],             action = "ui.oplog.move_up",                                    scope  = "ui.oplog" },
   { key    = ["down", "j"],           action = "ui.oplog.move_down",                                  scope  = "ui.oplog" },
   { key    = "pgup",                  action = "ui.oplog.page_up",                                    scope  = "ui.oplog" },
