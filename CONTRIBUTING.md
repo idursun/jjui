@@ -8,8 +8,8 @@ We welcome contributions from the community and appreciate your help in making t
 
 ### Prerequisites
 
-- Go 1.23 or later
-- [Jujutsu version control system](https://github.com/jj-vcs/jj) v0.26 or later
+- Go 1.24.2 or later
+- [Jujutsu version control system](https://github.com/jj-vcs/jj) v0.36 or later
 
 ### Setting up the Development Environment
 
@@ -58,11 +58,21 @@ This process helps ensure that:
 
 - Follow standard Go conventions and formatting
 - Use `go fmt` to format your code
-- Ensure compatibility with the minimum supported `jj` version (v0.26+)
+- Ensure compatibility with the minimum supported `jj` version (v0.36+)
+
+### Code Generation
+
+If you add or modify intent types with `//jjui:bind` annotations in `internal/ui/intents/`, you must regenerate the action catalog:
+
+```shell
+go run ./cmd/genactions
+```
+
+This produces `catalog_gen.go` and `builtins_gen.go`. A staleness test will fail if generated code is out of sync with annotations.
 
 ### Testing
 
-- Test your changes with different scenarios and configurations. 
+- Test your changes with different scenarios and configurations.
 - If adding new features, consider adding appropriate test cases (although I know it is a pain at the moment)
 
 ## Development Tips

@@ -24,6 +24,9 @@ go test -run TestName ./path/to/package
 # Run tests with verbose output
 go test -v ./...
 
+# Regenerate action catalog after changing intent annotations
+go run ./cmd/genactions
+
 # Enable debug logging (writes to debug.log)
 DEBUG=1 ./jjui
 ```
@@ -33,16 +36,19 @@ DEBUG=1 ./jjui
 ### Core Structure
 
 - **Entry point**: `cmd/jjui/main.go` - Handles CLI flags, configuration loading, and initializes the Bubble Tea program
-- **Main UI model**: `internal/ui/ui.go` - Root model that orchestrates all UI components and handles global key bindings
+- **Main UI model**: `internal/ui/ui.go` - Root model that orchestrates all UI components and delegates input to the dispatch pipeline
 
 ### Key Packages
 
 **`internal/ui/`** - UI components following the Bubble Tea Model-View-Update pattern:
 - `revisions/` - Main revision list view with operations (rebase, squash, abandon, etc.)
 - `operations/` - Individual operations that can be performed on revisions (each operation is a separate model)
-- `context/` - Application context (`MainContext`) shared across components, holds selected items, command runner, and custom commands
+- `context/` - Application context (`MainContext`) shared across components, holds selected items and command runner
 - `common/` - Shared types, messages, and interfaces used across UI components
-- `intents/` - Intent types that represent user actions (Navigate, StartRebase, etc.)
+- `intents/` - Intent types that represent user actions (Navigate, StartRebase, etc.), annotated with `//jjui:bind` for code generation
+- `dispatch/` - Dispatch pipeline: `Dispatcher` resolves key presses against scoped bindings, `Resolver` maps actions to intents
+- `actions/` - Generated action-to-intent catalog (`catalog_gen.go`)
+- `actionmeta/` - Generated action metadata for validation and command palette (`builtins_gen.go`)
 - `render/` - Immediate-mode rendering primitives (DisplayContext, TextBuilder, interactions)
 
 ### Immediate View System (DisplayContext)
@@ -64,23 +70,29 @@ Most UI models render via the immediate view system instead of returning strings
 - `row.go` - Parsed row structures with commit info and graph segments
 
 **`internal/config/`** - Configuration management:
-- `config.go` - Main config struct with UI, keybindings, and revset settings
-- `keys.go` - Key binding definitions and mapping
-- `loader.go` - TOML configuration file loading
+- `config.go` - Main config struct with UI, actions, bindings, and revset settings
+- `loader.go` - TOML configuration file loading and overlay merging for actions/bindings
+- `default/bindings.toml` - Declarative default key bindings (scoped, supports single-key and multi-key sequences)
+
+**`cmd/genactions/`** - Code generator that scans `//jjui:bind` annotations on intent types and produces `catalog_gen.go` and `builtins_gen.go`
+
+### Input Dispatch Pipeline
+
+All keyboard input flows through a single pipeline:
+
+**KeyMsg → Dispatcher → Binding → Action → Intent → Model.Update**
+
+- The `Dispatcher` resolves key presses against scoped bindings, supporting both single-key and multi-key sequence bindings (replacing leader keys).
+- Scopes form a chain from innermost to outermost; the dispatcher walks the chain to find the first matching binding.
+- The `Resolver` maps actions to intents via the generated catalog, checking operation overrides, built-in actions, and Lua actions in order.
+- Models only respond to intents — they never handle `tea.KeyMsg` directly.
 
 ### Component Communication
 
 Components communicate through Bubble Tea messages (`tea.Msg`). Key message types:
 - `common.RefreshMsg` - Triggers revision list refresh
 - `common.SelectionChanged` - Notifies when selected revision changes
-- `intents.Intent` - User actions that get handled by the revisions model
-
-### Custom Commands (will be deprecated)
-
-Users can define custom commands in their config that get bound to keys. Custom command types:
-- `CustomRunCommand` - Executes shell commands
-- `CustomRevsetCommand` - Changes the current revset
-- `CustomLuaCommand` - Runs Lua scripts
+- `intents.Intent` - User actions that get handled by models
 
 ### Test Utilities
 
@@ -100,18 +112,13 @@ Users can define custom commands in their config that get bound to keys. Custom 
 - Go 1.24.2+
 - jj v0.36+ (Jujutsu VCS)
 
-## Ongoing Refactoring
+## Adding New Actions
 
-### Intent-Based Input Handling
+When adding new functionality, follow these steps:
 
-There is an ongoing effort to decouple input handling from model logic via the intent system (`internal/ui/intents/`). The goal is for intents to be the single mechanism for triggering model actions:
+1. Create an intent type in `internal/ui/intents/` with a `//jjui:bind` annotation declaring the scope, action, and field mappings.
+2. Run `go run ./cmd/genactions` to regenerate the catalog and metadata.
+3. Handle the intent in the appropriate model's `Update` method.
+4. Add a default binding in `internal/config/default/bindings.toml` if needed.
 
-- Key bindings → Intent → Model handles intent
-- Mouse actions → Intent → Model handles intent
-- Lua scripts → Intent → Model handles intent
-
-When adding new functionality, prefer creating an intent type and handling it in `handleIntent()` rather than directly coupling key handlers to model mutations.
-
-### Future: Unified Action/Binding Configuration
-
-The current system has separate concepts for leader keys and custom commands. The planned direction is to consolidate these into a single unified `action` and `binding` configuration system. When working on leader or custom command code, be aware this area is subject to significant redesign.
+A staleness test (`cmd/genactions/main_test.go:TestGeneratedCatalogIsUpToDate`) ensures generated code stays in sync with annotations.
