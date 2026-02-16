@@ -71,7 +71,6 @@ func (m itemScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 
 type menuStyles struct {
 	title    lipgloss.Style
-	subtitle lipgloss.Style
 	shortcut lipgloss.Style
 	dimmed   lipgloss.Style
 	selected lipgloss.Style
@@ -119,7 +118,6 @@ type Model struct {
 	cancelFilterKey     key.Binding
 	acceptFilterKey     key.Binding
 	title               string
-	subtitle            string
 }
 
 func (m *Model) ShortHelp() []key.Binding {
@@ -156,7 +154,7 @@ func (m *Model) cycleRemotes(step int) tea.Cmd {
 		m.selectedRemoteIdx = len(m.remoteNames) - 1
 	}
 
-	// Remotes are rendered via TextBuilder in ViewRect, no need to update subtitle
+	// Remotes are rendered via TextBuilder in ViewRect
 	m.items = m.createMenuItems()
 	m.applyFilters(false)
 	return nil
@@ -305,9 +303,6 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	menuWidth := max(contentWidth+2, 0)
 	menuHeight := max(contentHeight+2, 0)
 	frame := box.Center(menuWidth, menuHeight)
-	if len(m.visibleItems()) == 0 {
-		dl.AddFill(frame.R.Inset(1), ' ', lipgloss.NewStyle(), render.ZMenuContent)
-	}
 	if frame.R.Dx() <= 0 || frame.R.Dy() <= 0 {
 		return
 	}
@@ -317,12 +312,16 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if contentBox.R.Dx() <= 0 || contentBox.R.Dy() <= 0 {
 		return
 	}
+	window.AddFill(contentBox.R, ' ', m.menuStyles.text, render.ZMenuContent)
 
 	borderBase := lipgloss.NewStyle().Width(contentBox.R.Dx()).Height(contentBox.R.Dy()).Render("")
 	window.AddDraw(frame.R, m.menuStyles.border.Render(borderBase), render.ZMenuBorder)
 
 	titleBox, contentBox := contentBox.CutTop(1)
-	window.AddDraw(titleBox.R, m.menuStyles.title.Render(m.title), render.ZMenuContent)
+	dl.
+		Text(titleBox.R.Min.X, titleBox.R.Min.Y, render.ZMenuContent).
+		Styled(m.title, m.menuStyles.title).
+		Done()
 
 	_, contentBox = contentBox.CutTop(1)
 	remoteBox, contentBox := contentBox.CutTop(1)
@@ -351,7 +350,7 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
 
 	// Render above menu content
 	tb := windowedDl.Text(lineBox.R.Min.X, lineBox.R.Min.Y, render.ZMenuContent+1).
-		Space(1).
+		Styled(" ", m.menuStyles.text).
 		Styled("Remotes: ", m.remoteStyles.promptStyle)
 
 	if len(m.remoteNames) == 0 {
@@ -364,7 +363,7 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
 		if idx == m.selectedRemoteIdx {
 			style = m.remoteStyles.selectedStyle
 		}
-		tb.Clickable(remoteName, style, SelectRemoteMsg{Index: idx}).Space(1)
+		tb.Clickable(remoteName, style, SelectRemoteMsg{Index: idx}).Styled(" ", m.menuStyles.text)
 	}
 
 	tb.Done()
@@ -424,7 +423,6 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions) *Model {
 		cancelFilterKey:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
 		acceptFilterKey:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "apply filter")),
 		title:             "Git Operations",
-		subtitle:          " ",
 	}
 
 	items := m.createMenuItems()
@@ -446,7 +444,6 @@ func createMenuStyles(prefix string) menuStyles {
 	}
 	return menuStyles{
 		title:    common.DefaultPalette.Get(prefix+"menu title").Padding(0, 1, 0, 1),
-		subtitle: common.DefaultPalette.Get(prefix+"menu subtitle").Padding(1, 0, 0, 1),
 		selected: common.DefaultPalette.Get(prefix + "menu selected"),
 		matched:  common.DefaultPalette.Get(prefix + "menu matched"),
 		dimmed:   common.DefaultPalette.Get(prefix + "menu dimmed"),
@@ -645,7 +642,8 @@ func renderItem(dl *render.DisplayContext, rect cellbuf.Rectangle, width int, st
 	descLine := descStyle.Render(desc)
 	descLine = lipgloss.PlaceHorizontal(width+2, 0, descLine, lipgloss.WithWhitespaceBackground(titleStyle.GetBackground()))
 
-	content := lipgloss.JoinVertical(lipgloss.Left, titleLine, descLine)
+	spacerLine := styles.text.Width(width + 2).Render("")
+	content := lipgloss.JoinVertical(lipgloss.Left, titleLine, descLine, spacerLine)
 	if content == "" {
 		return
 	}

@@ -66,7 +66,6 @@ func (m itemScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 
 type styles struct {
 	title    lipgloss.Style
-	subtitle lipgloss.Style
 	shortcut lipgloss.Style
 	dimmed   lipgloss.Style
 	selected lipgloss.Style
@@ -234,12 +233,16 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if contentBox.R.Dx() <= 0 || contentBox.R.Dy() <= 0 {
 		return
 	}
+	window.AddFill(contentBox.R, ' ', m.styles.text, render.ZMenuContent)
 
 	borderBase := lipgloss.NewStyle().Width(contentBox.R.Dx()).Height(contentBox.R.Dy()).Render("")
 	window.AddDraw(frame.R, m.styles.border.Render(borderBase), render.ZMenuBorder)
 
 	titleBox, contentBox := contentBox.CutTop(1)
-	window.AddDraw(titleBox.R, m.styles.title.Render("Custom Commands"), render.ZMenuContent)
+	dl.
+		Text(titleBox.R.Min.X, titleBox.R.Min.Y, render.ZMenuContent).
+		Styled("Custom Commands", m.styles.title).
+		Done()
 
 	_, contentBox = contentBox.CutTop(1)
 	filterBox, contentBox := contentBox.CutTop(1)
@@ -302,7 +305,6 @@ func createStyles(prefix string) styles {
 	}
 	return styles{
 		title:    common.DefaultPalette.Get(prefix+"menu title").Padding(0, 1, 0, 1),
-		subtitle: common.DefaultPalette.Get(prefix+"menu subtitle").Padding(1, 0, 0, 1),
 		selected: common.DefaultPalette.Get(prefix + "menu selected"),
 		matched:  common.DefaultPalette.Get(prefix + "menu matched"),
 		dimmed:   common.DefaultPalette.Get(prefix + "menu dimmed"),
@@ -496,7 +498,8 @@ func renderItem(dl *render.DisplayContext, rect cellbuf.Rectangle, width int, st
 	descLine := descStyle.Render(desc)
 	descLine = lipgloss.PlaceHorizontal(width+2, 0, descLine, lipgloss.WithWhitespaceBackground(titleStyle.GetBackground()))
 
-	content := lipgloss.JoinVertical(lipgloss.Left, titleLine, descLine)
+	spacerLine := styles.text.Width(width + 2).Render("")
+	content := lipgloss.JoinVertical(lipgloss.Left, titleLine, descLine, spacerLine)
 	if content == "" {
 		return
 	}
