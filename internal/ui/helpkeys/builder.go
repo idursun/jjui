@@ -49,11 +49,14 @@ func BuildFromBindings(
 				continue
 			}
 
-			seenActions[dedupeKey] = struct{}{}
 			entries = append(entries, Entry{
 				Label: label,
 				Desc:  BindingDescription(action, configuredActions[action]),
 			})
+		}
+		for _, b := range scopeBindings {
+			dedupeKey := actionLeaf(keybindings.Action(strings.TrimSpace(b.Action)))
+			seenActions[dedupeKey] = struct{}{}
 		}
 	}
 
