@@ -18,7 +18,7 @@ func TestBuildFromBindings_RespectsScopeOrderAndActionTokenDedupe(t *testing.T) 
 	}
 	scopes := []keybindings.Scope{"revisions", "ui"}
 
-	entries := BuildFromBindings(scopes, bindings, nil)
+	entries := BuildFromBindings(scopes, bindings)
 	assert.Equal(t, []Entry{
 		{Label: "J", Desc: "move down"},
 		{Label: "enter", Desc: "apply"},
@@ -27,15 +27,12 @@ func TestBuildFromBindings_RespectsScopeOrderAndActionTokenDedupe(t *testing.T) 
 
 func TestBuildFromBindings_UsesConfiguredDescription(t *testing.T) {
 	bindings := []config.BindingConfig{
-		{Action: "revisions.apply", Scope: "revisions", Key: config.StringList{"enter"}},
+		{Action: "revisions.apply", Desc: "run operation", Scope: "revisions", Key: config.StringList{"enter"}},
 		{Action: "ui.cancel", Scope: "revisions", Key: config.StringList{"esc"}},
-	}
-	configured := map[keybindings.Action]config.ActionConfig{
-		"revisions.apply": {Desc: "run operation"},
 	}
 	scopes := []keybindings.Scope{"revisions"}
 
-	entries := BuildFromBindings(scopes, bindings, configured)
+	entries := BuildFromBindings(scopes, bindings)
 	assert.Equal(t, []Entry{
 		{Label: "enter", Desc: "run operation"},
 		{Label: "esc", Desc: "cancel"},
@@ -46,7 +43,7 @@ func TestBuildFromContinuations_SortsAndAnnotatesNonLeaf(t *testing.T) {
 	entries := BuildFromContinuations([]dispatch.Continuation{
 		{Key: "g", Action: "ui.open_git", IsLeaf: false},
 		{Key: "b", Action: "ui.open_bookmarks", IsLeaf: true},
-	}, nil)
+	})
 
 	assert.Equal(t, []Entry{
 		{Label: "b", Desc: "open bookmarks"},

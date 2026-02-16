@@ -137,12 +137,12 @@ func RunSetup(ctx *uicontext.MainContext, source string) ([]config.ActionConfig,
 		registry.RawSetString(id, fn)
 		actions = append(actions, config.ActionConfig{
 			Name: name,
-			Desc: desc,
 			Lua:  fmt.Sprintf(`%s[%q]()`, actionRegistryName, id),
 		})
 		if hasKey || hasSeq {
 			binding := config.BindingConfig{
 				Action: name,
+				Desc:   desc,
 				Scope:  scope,
 			}
 			if len(key) > 0 {
@@ -159,6 +159,7 @@ func RunSetup(ctx *uicontext.MainContext, source string) ([]config.ActionConfig,
 		tbl := L.CheckTable(1)
 		binding := config.BindingConfig{
 			Action: stringFieldFromTable(tbl, "action"),
+			Desc:   stringFieldFromTable(tbl, "desc"),
 			Scope:  stringFieldFromTable(tbl, "scope"),
 		}
 		if key := stringListFieldFromTable(tbl, "key"); len(key) > 0 {

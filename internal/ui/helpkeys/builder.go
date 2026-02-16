@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/ui/actionmeta"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/dispatch"
 )
@@ -21,7 +20,6 @@ type Entry struct {
 func BuildFromBindings(
 	scopes []keybindings.Scope,
 	bindings []config.BindingConfig,
-	configuredActions map[keybindings.Action]config.ActionConfig,
 ) []Entry {
 	bindingsByScope := make(map[keybindings.Scope][]config.BindingConfig)
 	for _, binding := range bindings {
@@ -51,7 +49,7 @@ func BuildFromBindings(
 
 			entries = append(entries, Entry{
 				Label: label,
-				Desc:  BindingDescription(action, configuredActions[action]),
+				Desc:  bindingDesc(b),
 			})
 		}
 		for _, b := range scopeBindings {
@@ -64,16 +62,13 @@ func BuildFromBindings(
 }
 
 // BuildFromContinuations returns sequence continuation entries, sorted for stable display.
-func BuildFromContinuations(
-	continuations []dispatch.Continuation,
-	configuredActions map[keybindings.Action]config.ActionConfig,
-) []Entry {
+func BuildFromContinuations(continuations []dispatch.Continuation) []Entry {
 	if len(continuations) == 0 {
 		return nil
 	}
 	entries := make([]Entry, 0, len(continuations))
 	for _, continuation := range continuations {
-		desc := BindingDescription(continuation.Action, configuredActions[continuation.Action])
+		desc := continuationDesc(continuation)
 		if !continuation.IsLeaf {
 			desc += " ..."
 		}
@@ -126,11 +121,28 @@ func NormalizeDisplayKey(key string) string {
 	return key
 }
 
-func BindingDescription(action keybindings.Action, cfg config.ActionConfig) string {
-	if desc := strings.TrimSpace(cfg.Desc); desc != "" {
+func bindingDesc(b config.BindingConfig) string {
+	if desc := strings.TrimSpace(b.Desc); desc != "" {
 		return desc
 	}
-	return actionmeta.ActionDescription(string(action))
+	return descFromAction(string(keybindings.Action(strings.TrimSpace(b.Action))))
+}
+
+func continuationDesc(c dispatch.Continuation) string {
+	if desc := strings.TrimSpace(c.Desc); desc != "" {
+		return desc
+	}
+	return descFromAction(string(c.Action))
+}
+
+// descFromAction derives a human-readable description from the action token
+// (last segment after '.'), replacing underscores with spaces.
+func descFromAction(action string) string {
+	token := actionToken(action)
+	if token == "" {
+		return ""
+	}
+	return strings.ReplaceAll(token, "_", " ")
 }
 
 func actionLeaf(action keybindings.Action) keybindings.Action {
@@ -138,8 +150,13 @@ func actionLeaf(action keybindings.Action) keybindings.Action {
 	if name == "" {
 		return action
 	}
-	if token := actionmeta.ActionToken(name); token != "" {
-		return keybindings.Action(token)
+	return keybindings.Action(actionToken(name))
+}
+
+// actionToken extracts the last segment after '.' from a canonical action ID.
+func actionToken(action string) string {
+	if idx := strings.LastIndexByte(action, '.'); idx >= 0 && idx < len(action)-1 {
+		return action[idx+1:]
 	}
-	return keybindings.Action(name)
+	return action
 }

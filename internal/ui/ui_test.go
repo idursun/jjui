@@ -571,7 +571,7 @@ func Test_Update_RevsetScopedConfiguredActionDispatchesWhileEditing(t *testing.T
 		{Action: "revset_main_apply", Scope: "revset", Key: config.StringList{"ctrl+t"}},
 	}
 	config.Current.Actions = []config.ActionConfig{
-		{Name: "revset_main_apply", Desc: "Set revset to main", Lua: `revset.set("main")`},
+		{Name: "revset_main_apply", Lua: `revset.set("main")`},
 	}
 
 	commandRunner := test.NewTestCommandRunner(t)
@@ -722,7 +722,7 @@ func Test_UpdateStatus_RevsetEditingUsesDispatcherHelpWhenAvailable(t *testing.T
 		{Action: "revset_main_apply", Scope: "revset", Key: config.StringList{"ctrl+t"}},
 	}
 	config.Current.Actions = []config.ActionConfig{
-		{Name: "revset_main_apply", Desc: "Set revset to main", Lua: `revset.set("main")`},
+		{Name: "revset_main_apply", Lua: `revset.set("main")`},
 	}
 
 	commandRunner := test.NewTestCommandRunner(t)
@@ -749,10 +749,10 @@ func Test_UpdateStatus_CustomLuaActionUsesConfiguredDescription(t *testing.T) {
 		config.Current.Actions = origActions
 	}()
 	config.Current.Bindings = []config.BindingConfig{
-		{Action: "my_quit", Scope: "revisions", Key: config.StringList{"x"}},
+		{Action: "my_quit", Desc: "My quit", Scope: "revisions", Key: config.StringList{"x"}},
 	}
 	config.Current.Actions = []config.ActionConfig{
-		{Name: "my_quit", Desc: "My quit", Lua: `print("quit")`},
+		{Name: "my_quit", Lua: `print("quit")`},
 	}
 
 	commandRunner := test.NewTestCommandRunner(t)

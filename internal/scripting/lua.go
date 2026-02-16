@@ -457,7 +457,7 @@ func registerGeneratedActionAPI(L *lua.LState, root *lua.LTable) {
 		owners := actionmeta.ActionOwners(actionID)
 		for _, owner := range owners {
 			ownerTable := ensureOwnerTable(L, root, owner)
-			token := actionmeta.ActionToken(actionID)
+			token := actionTokenFromCanonical(actionID)
 			if token == "" {
 				continue
 			}
@@ -727,4 +727,11 @@ func matchInput(msg tea.Msg) (bool, []lua.LValue) {
 	default:
 		return false, nil
 	}
+}
+
+func actionTokenFromCanonical(actionID string) string {
+	if idx := strings.LastIndexByte(actionID, '.'); idx >= 0 && idx < len(actionID)-1 {
+		return actionID[idx+1:]
+	}
+	return actionID
 }

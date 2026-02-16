@@ -34,13 +34,13 @@ func (l *StringList) UnmarshalTOML(value any) error {
 
 type ActionConfig struct {
 	Name string         `toml:"name"`
-	Desc string         `toml:"desc"`
 	Lua  string         `toml:"lua"`
 	Args map[string]any `toml:"args"`
 }
 
 type BindingConfig struct {
 	Action string         `toml:"action"`
+	Desc   string         `toml:"desc"`
 	Key    StringList     `toml:"key"`
 	Seq    StringList     `toml:"seq"`
 	Scope  string         `toml:"scope"`
@@ -94,6 +94,7 @@ func BindingsToRuntime(bindings []BindingConfig) []keybindings.Binding {
 		}
 		out = append(out, keybindings.Binding{
 			Action: action,
+			Desc:   strings.TrimSpace(binding.Desc),
 			Scope:  scope,
 			Key:    append([]string(nil), binding.Key...),
 			Seq:    append([]string(nil), binding.Seq...),

@@ -57,11 +57,10 @@ func TestValidateRules_RejectsDuplicateFullActionID(t *testing.T) {
 	require.Contains(t, err.Error(), "duplicate full action id")
 }
 
-func TestValidateActionMetadata_RejectsMissingOwnersOrFallback(t *testing.T) {
-	err := validateActionMetadata([]string{"apply", ""}, map[string][]string{"apply": []string{"ui"}})
+func TestValidateActionMetadata_RejectsMissingOwners(t *testing.T) {
+	err := validateActionMetadata([]string{"apply", ""}, map[string][]string{"apply": {"ui"}})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "has no owners")
-	require.Contains(t, err.Error(), "empty description fallback")
 }
 
 func TestGeneratedCatalogIsUpToDate(t *testing.T) {

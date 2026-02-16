@@ -7,6 +7,7 @@ import (
 // Binding maps a key (or key sequence) to an action in a scope.
 type Binding struct {
 	Action Action
+	Desc   string
 	Scope  Scope
 	Key    []string
 	Seq    []string

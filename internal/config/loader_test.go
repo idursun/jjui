@@ -55,7 +55,7 @@ selected = { fg = "yellow", bg = "blue" }
 func TestLoad_MergesActionsByName(t *testing.T) {
 	cfg := &Config{
 		Actions: []ActionConfig{
-			{Name: "open_details_alias", Lua: `print("default")`, Desc: "default"},
+			{Name: "open_details_alias", Lua: `print("default")`},
 			{Name: "my_action", Lua: "return 1"},
 		},
 	}
@@ -63,7 +63,6 @@ func TestLoad_MergesActionsByName(t *testing.T) {
 	content := `
 [[actions]]
 name = "open_details_alias"
-desc = "overridden"
 lua = "print('override')"
 
 [[actions]]
@@ -73,7 +72,6 @@ lua = "return 2"
 
 	require.NoError(t, cfg.Load(content))
 	require.Len(t, cfg.Actions, 3)
-	assert.Equal(t, "overridden", cfg.Actions[0].Desc)
 	assert.Equal(t, "print('override')", cfg.Actions[0].Lua)
 	assert.Equal(t, "my_action", cfg.Actions[1].Name)
 	assert.Equal(t, "new_action", cfg.Actions[2].Name)

@@ -10,6 +10,7 @@ import (
 // Continuation describes possible next keys while in sequence mode.
 type Continuation struct {
 	Key    string
+	Desc   string
 	Action bindings.Action
 	IsLeaf bool
 }
@@ -162,6 +163,7 @@ func (d *Dispatcher) pendingContinuations() []Continuation {
 
 		continuations = append(continuations, Continuation{
 			Key:    next,
+			Desc:   c.binding.Desc,
 			Action: c.binding.Action,
 			IsLeaf: idx == len(c.binding.Seq)-1,
 		})

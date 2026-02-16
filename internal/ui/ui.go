@@ -971,11 +971,11 @@ func (m *Model) bindingStatusHelp() []helpkeys.Entry {
 	if primary == "" {
 		return nil
 	}
-	return helpkeys.BuildFromBindings([]keybindings.Scope{primary}, config.Current.Bindings, m.configuredActions)
+	return helpkeys.BuildFromBindings([]keybindings.Scope{primary}, config.Current.Bindings)
 }
 
 func (m *Model) setSequenceStatusHelp(continuations []dispatch.Continuation) {
-	entries := helpkeys.BuildFromContinuations(continuations, m.configuredActions)
+	entries := helpkeys.BuildFromContinuations(continuations)
 	if len(entries) == 0 {
 		return
 	}

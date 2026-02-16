@@ -32,7 +32,6 @@ func TestActionMetadataFor(t *testing.T) {
 	meta, ok := ActionMetadataFor("revisions.squash.apply")
 	require.True(t, ok)
 	require.Equal(t, "revisions.squash.apply", meta.Action)
-	require.Equal(t, "apply", meta.Description)
 	require.Contains(t, meta.Args, "force")
 	require.NotEmpty(t, meta.Owners)
 

@@ -255,7 +255,6 @@ func generateActionMetaSource(actionIDs []string, actionArgSchemas map[string]ma
 
 	b.WriteString("type ActionMetadata struct {\n")
 	b.WriteString("\tAction string\n")
-	b.WriteString("\tDescription string\n")
 	b.WriteString("\tOwners []string\n")
 	b.WriteString("\tArgs map[string]string\n")
 	b.WriteString("}\n\n")
@@ -281,12 +280,6 @@ func generateActionMetaSource(actionIDs []string, actionArgSchemas map[string]ma
 			b.WriteString(fmt.Sprintf("%q", owner))
 		}
 		b.WriteString("},\n")
-	}
-	b.WriteString("}\n\n")
-
-	b.WriteString("var builtInActionTokens = map[string]string{\n")
-	for _, action := range actionIDs {
-		b.WriteString(fmt.Sprintf("\t%q: %q,\n", action, actionTokenFromCanonical(action)))
 	}
 	b.WriteString("}\n\n")
 
@@ -335,19 +328,6 @@ func generateActionMetaSource(actionIDs []string, actionArgSchemas map[string]ma
 	}
 	b.WriteString("}\n\n")
 
-	b.WriteString("func ActionDescription(action string) string {\n")
-	b.WriteString("\taction = strings.TrimSpace(action)\n")
-	b.WriteString("\tif action == \"\" {\n\t\treturn \"\"\n\t}\n")
-	b.WriteString("\ttoken, ok := builtInActionTokens[action]\n")
-	b.WriteString("\tif !ok || token == \"\" {\n\t\treturn \"\"\n\t}\n")
-	b.WriteString("\treturn strings.ReplaceAll(token, \"_\", \" \")\n")
-	b.WriteString("}\n\n")
-
-	b.WriteString("func ActionToken(action string) string {\n")
-	b.WriteString("\taction = strings.TrimSpace(action)\n")
-	b.WriteString("\treturn builtInActionTokens[action]\n")
-	b.WriteString("}\n\n")
-
 	b.WriteString("func ActionOwners(action string) []string {\n")
 	b.WriteString("\taction = strings.TrimSpace(action)\n")
 	b.WriteString("\towners, ok := builtInActionOwners[action]\n")
@@ -362,7 +342,6 @@ func generateActionMetaSource(actionIDs []string, actionArgSchemas map[string]ma
 	b.WriteString("\t}\n")
 	b.WriteString("\tmeta := ActionMetadata{\n")
 	b.WriteString("\t\tAction: action,\n")
-	b.WriteString("\t\tDescription: ActionDescription(action),\n")
 	b.WriteString("\t\tOwners: ActionOwners(action),\n")
 	b.WriteString("\t}\n")
 	b.WriteString("\tif schema, ok := builtInActionArgSchemas[action]; ok {\n")
@@ -842,31 +821,17 @@ func canonicalActionID(owner, action string) string {
 	return owner + "." + action
 }
 
-func actionTokenFromCanonical(actionID string) string {
-	if idx := strings.LastIndexByte(actionID, '.'); idx >= 0 && idx < len(actionID)-1 {
-		return actionID[idx+1:]
-	}
-	return actionID
-}
-
 func validateActionMetadata(actionIDs []string, actionOwners map[string][]string) error {
 	var errs []string
 	for _, action := range actionIDs {
 		if len(actionOwners[action]) == 0 {
 			errs = append(errs, fmt.Sprintf("action %q has no owners", action))
 		}
-		if descriptionFallback(action) == "" {
-			errs = append(errs, fmt.Sprintf("action %q has empty description fallback", action))
-		}
 	}
 	if len(errs) > 0 {
 		return errors.New(strings.Join(errs, "; "))
 	}
 	return nil
-}
-
-func descriptionFallback(action string) string {
-	return strings.TrimSpace(strings.ReplaceAll(action, "_", " "))
 }
 
 func validateSetValueType(fieldType, value string, enums map[string][]enumValueMeta) error {

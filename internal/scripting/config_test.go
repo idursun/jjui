@@ -34,10 +34,11 @@ end
 function setup(config)
   config.action("my-action", function()
     helper()
-  end, { desc = "My custom action" })
+  end)
 
   config.bind({
     action = "my-action",
+    desc = "My custom action",
     key = "x",
     scope = "revisions",
   })
@@ -50,7 +51,7 @@ end
 	require.Len(t, bindings, 1)
 
 	assert.Equal(t, "my-action", actions[0].Name)
-	assert.Equal(t, "My custom action", actions[0].Desc)
+	assert.Equal(t, "My custom action", bindings[0].Desc)
 	assert.True(t, strings.HasPrefix(actions[0].Lua, `__jjui_actions["action_`))
 	assert.True(t, strings.HasSuffix(actions[0].Lua, `"]()`))
 
@@ -90,7 +91,7 @@ end
 	require.Len(t, bindings, 1)
 
 	assert.Equal(t, "inline-action", actions[0].Name)
-	assert.Equal(t, "Inline binding action", actions[0].Desc)
+	assert.Equal(t, "Inline binding action", bindings[0].Desc)
 	assert.Equal(t, "inline-action", bindings[0].Action)
 	assert.Equal(t, "revisions", bindings[0].Scope)
 	assert.Equal(t, []string{"z"}, []string(bindings[0].Key))
