@@ -18,6 +18,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/context"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -157,6 +158,35 @@ func run() int {
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		return 1
+	}
+
+	if err := scripting.InitVM(appContext); err != nil {
+		fmt.Fprintf(os.Stderr, "Error initializing Lua VM: %v\n", err)
+		return 1
+	}
+	defer scripting.CloseVM(appContext)
+
+	if luaSource, err := config.LoadLuaConfigFile(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading config.lua: %v\n", err)
+		return 1
+	} else if luaSource != "" {
+		actions, bindings, err := scripting.RunSetup(appContext, luaSource)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error in config.lua: %v\n", err)
+			return 1
+		}
+		if len(actions) > 0 {
+			config.Current.Actions = config.MergeActions(config.Current.Actions, actions)
+		}
+		if len(bindings) > 0 {
+			config.Current.Bindings = config.MergeBindings(config.Current.Bindings, bindings)
+		}
+		if len(actions) > 0 || len(bindings) > 0 {
+			if err := config.Current.ValidateBindingsAndActions(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error in config.lua actions/bindings: %v\n", err)
+				return 1
+			}
+		}
 	}
 
 	var theme map[string]config.Color

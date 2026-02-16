@@ -181,6 +181,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.revsetModel.AddToHistory(m.context.CurrentRevset)
 		return common.Refresh
 	case common.RunLuaScriptMsg:
+		if m.scriptRunner != nil && !m.scriptRunner.Done() {
+			err := fmt.Errorf("lua script is already running")
+			return intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err})
+		}
 		runner, cmd, err := scripting.RunScript(m.context, msg.Script)
 		if err != nil {
 			return func() tea.Msg {

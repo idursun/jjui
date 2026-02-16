@@ -9,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
+	lua "github.com/yuin/gopher-lua"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -29,6 +30,7 @@ type MainContext struct {
 	DefaultRevset string
 	CurrentRevset string
 	Histories     *config.Histories
+	ScriptVM      *lua.LState
 }
 
 func NewAppContext(location string, aps *askpass.Server) *MainContext {

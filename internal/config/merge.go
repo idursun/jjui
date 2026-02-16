@@ -14,7 +14,7 @@ const (
 	bindingInputInvalid
 )
 
-func mergeActions(base []ActionConfig, overlay []ActionConfig) []ActionConfig {
+func MergeActions(base []ActionConfig, overlay []ActionConfig) []ActionConfig {
 	if len(base) == 0 {
 		return append([]ActionConfig(nil), overlay...)
 	}
@@ -52,7 +52,7 @@ func mergeActions(base []ActionConfig, overlay []ActionConfig) []ActionConfig {
 	return merged
 }
 
-func mergeBindings(base []BindingConfig, overlay []BindingConfig) []BindingConfig {
+func MergeBindings(base []BindingConfig, overlay []BindingConfig) []BindingConfig {
 	merged := append([]BindingConfig(nil), base...)
 	for _, userBinding := range overlay {
 		merged = removeShadowedBindings(merged, userBinding)

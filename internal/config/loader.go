@@ -1,7 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -110,10 +112,10 @@ func (c *Config) Load(data string) error {
 	}
 
 	if metadata.IsDefined("actions") {
-		c.Actions = mergeActions(baseActions, overlay.Actions)
+		c.Actions = MergeActions(baseActions, overlay.Actions)
 	}
 	if metadata.IsDefined("bindings") {
-		c.Bindings = mergeBindings(baseBindings, overlay.Bindings)
+		c.Bindings = MergeBindings(baseBindings, overlay.Bindings)
 	}
 
 	return c.ValidateBindingsAndActions()
@@ -134,6 +136,22 @@ func loadProfileBindings(profile string) ([]BindingConfig, error) {
 		return nil, fmt.Errorf("parsing bindings profile %q: %w", profile, err)
 	}
 	return overlay.Bindings, nil
+}
+
+func LoadLuaConfigFile() (string, error) {
+	configFile := getConfigFilePath()
+	if configFile == "" {
+		return "", nil
+	}
+	luaFile := filepath.Join(filepath.Dir(configFile), "config.lua")
+	data, err := os.ReadFile(luaFile)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", nil
+		}
+		return "", err
+	}
+	return string(data), nil
 }
 
 func LoadConfigFile() ([]byte, error) {

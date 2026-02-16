@@ -24,8 +24,7 @@ func runScriptAndGetGlobals(t *testing.T, ctx *uicontext.MainContext, script str
 	L := lua.NewState()
 	defer L.Close()
 
-	r := &Runner{ctx: ctx, main: L}
-	registerAPI(L, r)
+	registerAPI(L, ctx)
 
 	fn, err := L.LoadString(script)
 	assert.NoError(t, err)

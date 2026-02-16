@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -603,6 +604,8 @@ func Test_Update_LuaActionDispatchesBuiltInAction(t *testing.T) {
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
+	require.NoError(t, scripting.InitVM(ctx))
+	defer scripting.CloseVM(ctx)
 	model := NewUI(ctx)
 
 	cmd := model.Update(common.RunLuaScriptMsg{Script: `jjui.ui.open_revset()`})
@@ -617,6 +620,8 @@ func Test_Update_LuaActionRejectsInvalidBuiltInArgs(t *testing.T) {
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
+	require.NoError(t, scripting.InitVM(ctx))
+	defer scripting.CloseVM(ctx)
 	model := NewUI(ctx)
 
 	cmd := model.Update(common.RunLuaScriptMsg{Script: `jjui.revert.set_target({ target = "bad" })`})
