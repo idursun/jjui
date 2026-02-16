@@ -2,6 +2,7 @@ package scripting
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/idursun/jjui/internal/config"
 	uicontext "github.com/idursun/jjui/internal/ui/context"
@@ -57,6 +58,11 @@ func RunSetup(ctx *uicontext.MainContext, source string) ([]config.ActionConfig,
 		fn := L.CheckFunction(2)
 
 		desc := ""
+		scope := ""
+		var key []string
+		var seq []string
+		hasKey := false
+		hasSeq := false
 		if L.GetTop() >= 3 {
 			optsVal := L.Get(3)
 			if optsVal != lua.LNil {
@@ -73,7 +79,49 @@ func RunSetup(ctx *uicontext.MainContext, source string) ([]config.ActionConfig,
 					}
 					desc = descStr.String()
 				}
+				if scopeVal := optsTbl.RawGetString("scope"); scopeVal != lua.LNil {
+					scopeStr, ok := scopeVal.(lua.LString)
+					if !ok {
+						L.RaiseError("config.action: opts.scope must be a string")
+						return 0
+					}
+					scope = scopeStr.String()
+				}
+				if keyVal := optsTbl.RawGetString("key"); keyVal != lua.LNil {
+					parsed, err := stringListFromValue(keyVal, "opts.key")
+					if err != nil {
+						L.RaiseError("config.action: %s", err.Error())
+						return 0
+					}
+					key = parsed
+					hasKey = true
+				}
+				if seqVal := optsTbl.RawGetString("seq"); seqVal != lua.LNil {
+					parsed, err := stringListFromValue(seqVal, "opts.seq")
+					if err != nil {
+						L.RaiseError("config.action: %s", err.Error())
+						return 0
+					}
+					seq = parsed
+					hasSeq = true
+				}
 			}
+		}
+		if hasKey && hasSeq {
+			L.RaiseError("config.action: opts.key and opts.seq are mutually exclusive")
+			return 0
+		}
+		if hasKey && len(key) == 0 {
+			L.RaiseError("config.action: opts.key must not be empty")
+			return 0
+		}
+		if hasSeq && len(seq) == 0 {
+			L.RaiseError("config.action: opts.seq must not be empty")
+			return 0
+		}
+		if (hasKey || hasSeq) && strings.TrimSpace(scope) == "" {
+			L.RaiseError("config.action: opts.scope is required when opts.key or opts.seq is set")
+			return 0
 		}
 
 		counter := int(lua.LVAsNumber(L.GetGlobal(actionCounterName)))
@@ -87,6 +135,19 @@ func RunSetup(ctx *uicontext.MainContext, source string) ([]config.ActionConfig,
 			Desc: desc,
 			Lua:  fmt.Sprintf(`%s[%q]()`, actionRegistryName, id),
 		})
+		if hasKey || hasSeq {
+			binding := config.BindingConfig{
+				Action: name,
+				Scope:  scope,
+			}
+			if len(key) > 0 {
+				binding.Key = config.StringList(key)
+			}
+			if len(seq) > 0 {
+				binding.Seq = config.StringList(seq)
+			}
+			bindings = append(bindings, binding)
+		}
 		return 0
 	}))
 	configTable.RawSetString("bind", L.NewFunction(func(L *lua.LState) int {
@@ -160,5 +221,32 @@ func stringListFieldFromTable(tbl *lua.LTable, key string) []string {
 		return stringSliceFromTable(vv)
 	default:
 		return nil
+	}
+}
+
+func stringListFromValue(v lua.LValue, field string) ([]string, error) {
+	switch vv := v.(type) {
+	case lua.LString:
+		return []string{vv.String()}, nil
+	case *lua.LTable:
+		var out []string
+		var badType string
+		vv.ForEach(func(_, value lua.LValue) {
+			if badType != "" {
+				return
+			}
+			s, ok := value.(lua.LString)
+			if !ok {
+				badType = value.Type().String()
+				return
+			}
+			out = append(out, s.String())
+		})
+		if badType != "" {
+			return nil, fmt.Errorf("%s must be a string or array of strings (got array element %s)", field, badType)
+		}
+		return out, nil
+	default:
+		return nil, fmt.Errorf("%s must be a string or array of strings", field)
 	}
 }

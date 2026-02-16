@@ -62,3 +62,59 @@ end
 	assert.True(t, runner.Done())
 	assert.Equal(t, "ok", ctx.ScriptVM.GetGlobal("marker").String())
 }
+
+func TestRunSetupActionWithInlineBindingOpts(t *testing.T) {
+	ctx := &uicontext.MainContext{}
+	require.NoError(t, InitVM(ctx))
+	t.Cleanup(func() {
+		CloseVM(ctx)
+	})
+
+	source := `
+function setup(config)
+  config.action("inline-action", function()
+    marker = "inline"
+  end, {
+    desc = "Inline binding action",
+    key = "z",
+    scope = "revisions",
+  })
+end
+`
+
+	actions, bindings, err := RunSetup(ctx, source)
+	require.NoError(t, err)
+	require.Len(t, actions, 1)
+	require.Len(t, bindings, 1)
+
+	assert.Equal(t, "inline-action", actions[0].Name)
+	assert.Equal(t, "Inline binding action", actions[0].Desc)
+	assert.Equal(t, "inline-action", bindings[0].Action)
+	assert.Equal(t, "revisions", bindings[0].Scope)
+	assert.Equal(t, []string{"z"}, []string(bindings[0].Key))
+	assert.Empty(t, bindings[0].Seq)
+
+	runner, _, err := RunScript(ctx, actions[0].Lua)
+	require.NoError(t, err)
+	require.NotNil(t, runner)
+	assert.True(t, runner.Done())
+	assert.Equal(t, "inline", ctx.ScriptVM.GetGlobal("marker").String())
+}
+
+func TestRunSetupActionInlineBindingRequiresScope(t *testing.T) {
+	ctx := &uicontext.MainContext{}
+	require.NoError(t, InitVM(ctx))
+	t.Cleanup(func() {
+		CloseVM(ctx)
+	})
+
+	source := `
+function setup(config)
+  config.action("broken", function() end, { key = "z" })
+end
+`
+
+	_, _, err := RunSetup(ctx, source)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "opts.scope is required")
+}
