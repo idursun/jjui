@@ -823,7 +823,7 @@ func Test_Update_TargetPickerEscCancelsEditing(t *testing.T) {
 		config.Current.Bindings = origBindings
 	}()
 	config.Current.Bindings = []config.BindingConfig{
-		{Action: "revisions.rebase.target", Scope: "revisions.rebase", Key: config.StringList{"t"}},
+		{Action: "revisions.rebase.target_picker", Scope: "revisions.rebase", Key: config.StringList{"t"}},
 		{Action: "revisions.target_picker.cancel", Scope: "revisions.target_picker", Key: config.StringList{"esc"}},
 	}
 

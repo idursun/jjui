@@ -53,7 +53,7 @@ type RebaseToggleSkipEmptied struct{}
 
 func (RebaseToggleSkipEmptied) isIntent() {}
 
-//jjui:bind scope=revisions.rebase action=target
+//jjui:bind scope=revisions.rebase action=target_picker
 type RebaseOpenTargetPicker struct{}
 
 func (RebaseOpenTargetPicker) isIntent() {}
@@ -65,7 +65,7 @@ type RevertSetTarget struct {
 
 func (RevertSetTarget) isIntent() {}
 
-//jjui:bind scope=revisions.revert action=target
+//jjui:bind scope=revisions.revert action=target_picker
 type RevertOpenTargetPicker struct{}
 
 func (RevertOpenTargetPicker) isIntent() {}
@@ -77,7 +77,7 @@ type DuplicateSetTarget struct {
 
 func (DuplicateSetTarget) isIntent() {}
 
-//jjui:bind scope=revisions.duplicate action=target
+//jjui:bind scope=revisions.duplicate action=target_picker
 type DuplicateOpenTargetPicker struct{}
 
 func (DuplicateOpenTargetPicker) isIntent() {}
@@ -99,7 +99,7 @@ type SquashToggleOption struct {
 
 func (SquashToggleOption) isIntent() {}
 
-//jjui:bind scope=revisions.squash action=target
+//jjui:bind scope=revisions.squash action=target_picker
 type SquashOpenTargetPicker struct{}
 
 func (SquashOpenTargetPicker) isIntent() {}

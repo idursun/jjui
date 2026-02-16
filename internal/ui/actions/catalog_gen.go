@@ -142,7 +142,7 @@ const (
 	RevisionsDuplicateCancel               keybindings.Action = "revisions.duplicate.cancel"
 	RevisionsDuplicateForceApply           keybindings.Action = "revisions.duplicate.force_apply"
 	RevisionsDuplicateSetTarget            keybindings.Action = "revisions.duplicate.set_target"
-	RevisionsDuplicateTarget               keybindings.Action = "revisions.duplicate.target"
+	RevisionsDuplicateTargetPicker         keybindings.Action = "revisions.duplicate.target_picker"
 	RevisionsEdit                          keybindings.Action = "revisions.edit"
 	RevisionsEvologApply                   keybindings.Action = "revisions.evolog.apply"
 	RevisionsEvologCancel                  keybindings.Action = "revisions.evolog.cancel"
@@ -183,13 +183,13 @@ const (
 	RevisionsRebaseSetSource               keybindings.Action = "revisions.rebase.set_source"
 	RevisionsRebaseSetTarget               keybindings.Action = "revisions.rebase.set_target"
 	RevisionsRebaseSkipEmptied             keybindings.Action = "revisions.rebase.skip_emptied"
-	RevisionsRebaseTarget                  keybindings.Action = "revisions.rebase.target"
+	RevisionsRebaseTargetPicker            keybindings.Action = "revisions.rebase.target_picker"
 	RevisionsRefresh                       keybindings.Action = "revisions.refresh"
 	RevisionsRevertApply                   keybindings.Action = "revisions.revert.apply"
 	RevisionsRevertCancel                  keybindings.Action = "revisions.revert.cancel"
 	RevisionsRevertForceApply              keybindings.Action = "revisions.revert.force_apply"
 	RevisionsRevertSetTarget               keybindings.Action = "revisions.revert.set_target"
-	RevisionsRevertTarget                  keybindings.Action = "revisions.revert.target"
+	RevisionsRevertTargetPicker            keybindings.Action = "revisions.revert.target_picker"
 	RevisionsSetBookmarkApply              keybindings.Action = "revisions.set_bookmark.apply"
 	RevisionsSetBookmarkAutocomplete       keybindings.Action = "revisions.set_bookmark.autocomplete"
 	RevisionsSetBookmarkAutocompleteBack   keybindings.Action = "revisions.set_bookmark.autocomplete_back"
@@ -207,7 +207,7 @@ const (
 	RevisionsSquashForceApply              keybindings.Action = "revisions.squash.force_apply"
 	RevisionsSquashInteractive             keybindings.Action = "revisions.squash.interactive"
 	RevisionsSquashKeepEmptied             keybindings.Action = "revisions.squash.keep_emptied"
-	RevisionsSquashTarget                  keybindings.Action = "revisions.squash.target"
+	RevisionsSquashTargetPicker            keybindings.Action = "revisions.squash.target_picker"
 	RevisionsSquashUseDestinationMsg       keybindings.Action = "revisions.squash.use_destination_msg"
 	RevisionsTargetPickerApply             keybindings.Action = "revisions.target_picker.apply"
 	RevisionsTargetPickerAutocomplete      keybindings.Action = "revisions.target_picker.autocomplete"
@@ -575,7 +575,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.Apply{Force: true}, true
 		case keybindings.Action("revisions.duplicate.set_target"):
 			return intents.DuplicateSetTarget{Target: enumArgDuplicateTarget(args, "target")}, true
-		case keybindings.Action("revisions.duplicate.target"):
+		case keybindings.Action("revisions.duplicate.target_picker"):
 			return intents.DuplicateOpenTargetPicker{}, true
 		}
 	case OwnerEvolog:
@@ -627,7 +627,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.RebaseSetTarget{Target: enumArgRebaseTarget(args, "target")}, true
 		case keybindings.Action("revisions.rebase.skip_emptied"):
 			return intents.RebaseToggleSkipEmptied{}, true
-		case keybindings.Action("revisions.rebase.target"):
+		case keybindings.Action("revisions.rebase.target_picker"):
 			return intents.RebaseOpenTargetPicker{}, true
 		}
 	case OwnerRevert:
@@ -640,7 +640,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.Apply{Force: true}, true
 		case keybindings.Action("revisions.revert.set_target"):
 			return intents.RevertSetTarget{Target: enumArgRevertTarget(args, "target")}, true
-		case keybindings.Action("revisions.revert.target"):
+		case keybindings.Action("revisions.revert.target_picker"):
 			return intents.RevertOpenTargetPicker{}, true
 		}
 	case OwnerSetBookmark:
@@ -679,7 +679,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.SquashToggleOption{Option: intents.SquashOptionInteractive}, true
 		case keybindings.Action("revisions.squash.keep_emptied"):
 			return intents.SquashToggleOption{Option: intents.SquashOptionKeepEmptied}, true
-		case keybindings.Action("revisions.squash.target"):
+		case keybindings.Action("revisions.squash.target_picker"):
 			return intents.SquashOpenTargetPicker{}, true
 		case keybindings.Action("revisions.squash.use_destination_msg"):
 			return intents.SquashToggleOption{Option: intents.SquashOptionUseDestinationMessage}, true
