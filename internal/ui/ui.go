@@ -90,8 +90,9 @@ func (m *Model) handleFocusInputMessage(msg tea.Msg) (tea.Cmd, bool) {
 			return nil, true
 		}
 		if m.stacked != nil {
+			cmd := m.stacked.Update(msg)
 			m.stacked = nil
-			return nil, true
+			return cmd, true
 		}
 		if m.oplog != nil {
 			m.oplog = nil
@@ -486,7 +487,7 @@ func (m *Model) handleUiRootIntent(intent intents.Intent) (tea.Cmd, bool) {
 		case m.state == common.Error:
 			m.state = common.Ready
 		case m.stacked != nil:
-			m.stacked = nil
+			return common.Close, true
 		case m.flash.Any():
 			m.flash.DeleteOldest()
 		case m.status.StatusExpanded():
@@ -705,62 +706,64 @@ func (m *Model) routeIntent(owner string, intent intents.Intent) tea.Cmd {
 func (m *Model) routeCancel(owner string) tea.Cmd {
 	cancel := intents.Cancel{}
 
-	// 1. Stacked views close first.
-	if m.stacked != nil {
-		return m.handleIntent(cancel)
+	// 1. Route to the explicit owner first.
+	if cmd, handled := m.routeCancelByOwner(owner, cancel); handled {
+		return cmd
 	}
-	// 2. Diff/oplog views close.
-	if m.diff != nil || m.oplog != nil {
+
+	// 2. Close stacked/diff/oplog views.
+	if m.stacked != nil || m.diff != nil || m.oplog != nil {
 		return common.Close
 	}
+
 	// 3. Route to revisions if it has active state to cancel.
 	if m.shouldRouteCancelToRevisions() {
 		if cmd, handled := m.revisions.HandleDispatchedAction("revisions.cancel", nil); handled {
 			return cmd
 		}
 	}
-	// 4. Route by owner — lets owner-specific cancel (revset, password, etc.) reach the right model.
+
+	// 4. Clear error/flash/expanded status.
+	if m.state == common.Error || m.flash.Any() || m.status.StatusExpanded() {
+		return m.handleIntent(cancel)
+	}
+	return nil
+}
+
+func (m *Model) routeCancelByOwner(owner string, cancel intents.Cancel) (tea.Cmd, bool) {
 	switch owner {
 	case actions.OwnerPassword:
 		if m.password != nil {
-			return m.password.Update(cancel)
+			return m.password.Update(cancel), true
 		}
 	case actions.OwnerStatusInput, actions.OwnerFileSearch, actions.OwnerQuickSearchInput:
 		if m.status.IsFocused() {
-			return m.status.Update(cancel)
+			return m.status.Update(cancel), true
 		}
 	case actions.OwnerRevset:
 		if m.revsetModel.Editing {
-			return m.revsetModel.Update(cancel)
+			return m.revsetModel.Update(cancel), true
 		}
 	case actions.OwnerOplog:
 		if m.oplog != nil {
-			return m.oplog.Update(cancel)
-		}
-	case actions.OwnerBookmarks,
-		actions.OwnerGit,
-		actions.OwnerChoose,
-		actions.OwnerUndo,
-		actions.OwnerRedo,
-		actions.OwnerInput:
-		if m.stacked != nil {
-			return m.stacked.Update(cancel)
+			return m.oplog.Update(cancel), true
 		}
 	default:
 		if dispatch.IsRevisionsOwner(owner) {
 			// Route through HandleDispatchedAction so the active operation
 			// receives cancel before the revisions model resets it.
 			if cmd, handled := m.revisions.HandleDispatchedAction(keybindings.Action(owner+".cancel"), nil); handled {
-				return cmd
+				return cmd, true
 			}
-			return m.revisions.Update(cancel)
+			return m.revisions.Update(cancel), true
 		}
 	}
-	// 5. Clear error/flash/expanded status.
-	if m.state == common.Error || m.flash.Any() || m.status.StatusExpanded() {
-		return m.handleIntent(cancel)
+
+	if m.stacked != nil && owner == m.stacked.StackedActionOwner() {
+		return m.stacked.Update(cancel), true
 	}
-	return nil
+
+	return nil, false
 }
 
 func (m *Model) shouldRouteCancelToRevisions() bool {

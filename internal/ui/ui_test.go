@@ -615,6 +615,68 @@ func Test_Update_LuaActionDispatchesBuiltInAction(t *testing.T) {
 	assert.True(t, model.revsetModel.Editing, "lua-dispatched ui.open_revset should enter revset editing")
 }
 
+func Test_Update_LuaInputEscCancelsAndFinishesScript(t *testing.T) {
+	origBindings := config.Current.Bindings
+	defer func() {
+		config.Current.Bindings = origBindings
+	}()
+	config.Current.Bindings = []config.BindingConfig{
+		{Action: "input.cancel", Scope: "input", Key: config.StringList{"esc"}},
+	}
+
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	require.NoError(t, scripting.InitVM(ctx))
+	defer scripting.CloseVM(ctx)
+	model := NewUI(ctx)
+
+	cmd := model.Update(common.RunLuaScriptMsg{Script: `local name = input("name")`})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+	require.NotNil(t, model.scriptRunner, "script should wait for input")
+	require.NotNil(t, model.stacked, "input view should be stacked")
+
+	cmd = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	require.NotNil(t, cmd, "esc in input scope should forward cancel to input model")
+	test.SimulateModel(model, cmd)
+
+	assert.Nil(t, model.stacked, "input should close after esc")
+	assert.Nil(t, model.scriptRunner, "script should finish after input cancel")
+}
+
+func Test_Update_LuaChooseEscViaUiCancelFinishesScript(t *testing.T) {
+	origBindings := config.Current.Bindings
+	defer func() {
+		config.Current.Bindings = origBindings
+	}()
+	config.Current.Bindings = []config.BindingConfig{
+		{Action: "ui.cancel", Scope: "ui", Key: config.StringList{"esc"}},
+	}
+
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	require.NoError(t, scripting.InitVM(ctx))
+	defer scripting.CloseVM(ctx)
+	model := NewUI(ctx)
+
+	cmd := model.Update(common.RunLuaScriptMsg{Script: `local choice = choose({"a", "b"})`})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+	require.NotNil(t, model.scriptRunner, "script should wait for choose")
+	require.NotNil(t, model.stacked, "choose view should be stacked")
+
+	cmd = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	require.NotNil(t, cmd, "esc should dispatch ui.cancel when choose.cancel is not configured")
+	test.SimulateModel(model, cmd)
+
+	assert.Nil(t, model.stacked, "choose should close after esc")
+	assert.Nil(t, model.scriptRunner, "script should finish after choose cancel")
+}
+
 func Test_Update_LuaActionRejectsInvalidBuiltInArgs(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
