@@ -24,8 +24,7 @@ func runScriptAndGetGlobals(t *testing.T, ctx *uicontext.MainContext, script str
 	L := lua.NewState()
 	defer L.Close()
 
-	r := &Runner{ctx: ctx, main: L}
-	registerAPI(L, r)
+	registerAPI(L, ctx)
 
 	fn, err := L.LoadString(script)
 	assert.NoError(t, err)
@@ -260,4 +259,18 @@ func TestContext_AccessViaJjuiNamespace(t *testing.T) {
 
 	assert.Equal(t, "ns_change", vals[0].String())
 	assert.Equal(t, "ns_commit", vals[1].String())
+}
+
+func TestGeneratedActions_AccessViaJjuiNamespace(t *testing.T) {
+	ctx := &uicontext.MainContext{}
+
+	vals := runScriptAndGetGlobals(t, ctx, `
+		result_details = type(jjui.revisions.details.cancel)
+		result_nested = type(jjui.revisions.details.confirmation.apply)
+		result_legacy = type(jjui.action)
+	`, "result_details", "result_nested", "result_legacy")
+
+	assert.Equal(t, "function", vals[0].String())
+	assert.Equal(t, "function", vals[1].String())
+	assert.Equal(t, "nil", vals[2].String())
 }

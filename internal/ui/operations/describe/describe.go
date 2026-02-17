@@ -2,13 +2,13 @@ package describe
 
 import (
 	"github.com/charmbracelet/bubbles/cursor"
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -31,7 +31,6 @@ type stashedDescription struct {
 
 type Operation struct {
 	context      *context.MainContext
-	keyMap       config.KeyMappings[key.Binding]
 	input        textarea.Model
 	revision     *jj.Commit
 	originalDesc string
@@ -39,18 +38,6 @@ type Operation struct {
 
 func (o *Operation) IsEditing() bool {
 	return true
-}
-
-func (o *Operation) ShortHelp() []key.Binding {
-	return []key.Binding{
-		o.keyMap.Cancel,
-		o.keyMap.InlineDescribe.Editor,
-		o.keyMap.InlineDescribe.Accept,
-	}
-}
-
-func (o *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{o.ShortHelp()}
 }
 
 func (o *Operation) IsFocused() bool {
@@ -92,7 +79,11 @@ func (o *Operation) DesiredHeight(_ *jj.Commit, pos operations.RenderPosition) i
 }
 
 func (o *Operation) Name() string {
-	return "desc"
+	return "inline_describe"
+}
+
+func (o *Operation) Scope() keybindings.Scope {
+	return keybindings.Scope(actions.OwnerInlineDescribe)
 }
 
 func (o *Operation) Update(msg tea.Msg) tea.Cmd {
@@ -104,14 +95,6 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 		o.input, cmd = o.input.Update(msg)
 		return cmd
 	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, o.keyMap.Cancel):
-			return o.handleIntent(intents.Cancel{})
-		case key.Matches(msg, o.keyMap.InlineDescribe.Editor):
-			return o.handleIntent(intents.InlineDescribeEditor{})
-		case key.Matches(msg, o.keyMap.InlineDescribe.Accept):
-			return o.handleIntent(intents.InlineDescribeAccept{})
-		}
 	case intents.Intent:
 		return o.handleIntent(msg)
 	}
@@ -194,7 +177,6 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 
 	return &Operation{
 		context:      context,
-		keyMap:       config.Current.GetKeyMap(),
 		input:        input,
 		originalDesc: originalDesc,
 		revision:     revision,
@@ -214,4 +196,8 @@ func (o *Operation) viewContent(width int) string {
 	o.input.SetWidth(width)
 	o.input.SetHeight(height)
 	return o.input.View()
+}
+
+func (o *Operation) ResolveAction(action keybindings.Action, args map[string]any) (intents.Intent, bool) {
+	return actions.ResolveByScopeStrict(o.Scope(), action, args)
 }

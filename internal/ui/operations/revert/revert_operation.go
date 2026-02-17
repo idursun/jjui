@@ -4,12 +4,12 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -58,7 +58,6 @@ type Operation struct {
 	Target         Target
 	targetName     string
 	targetPicker   *target_picker.Model
-	keyMap         config.KeyMappings[key.Binding]
 	highlightedIds []string
 	styles         styles
 }
@@ -89,12 +88,18 @@ func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 		r.targetPicker = nil
 		return nil
 	case intents.Intent:
+		if r.targetPicker != nil {
+			switch msg.(type) {
+			case intents.TargetPickerNavigate, intents.TargetPickerApply, intents.TargetPickerCancel:
+				return r.targetPicker.Update(msg)
+			}
+		}
 		return r.handleIntent(msg)
 	case tea.KeyMsg:
 		if r.targetPicker != nil {
 			return r.targetPicker.Update(msg)
 		}
-		return r.HandleKey(msg)
+		return nil
 	default:
 		if r.targetPicker != nil {
 			return r.targetPicker.Update(msg)
@@ -110,6 +115,9 @@ func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		if r.Target == TargetInsert {
 			r.InsertStart = r.To
 		}
+	case intents.RevertOpenTargetPicker:
+		r.targetPicker = target_picker.NewModel(r.context)
+		return r.targetPicker.Init()
 	case intents.Apply:
 		if r.Target == TargetInsert {
 			insertAfter := r.InsertStart.GetChangeId()
@@ -127,6 +135,10 @@ func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 	return nil
 }
 
+func (r *Operation) ResolveAction(action keybindings.Action, args map[string]any) (intents.Intent, bool) {
+	return actions.ResolveByScopeStrict(r.Scope(), action, args)
+}
+
 func revertTargetFromIntent(target intents.RevertTarget) Target {
 	switch target {
 	case intents.RevertTargetDestination:
@@ -142,51 +154,11 @@ func revertTargetFromIntent(target intents.RevertTarget) Target {
 	}
 }
 
-func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	if r.targetPicker != nil {
-		return r.targetPicker.Update(msg)
-	}
-	switch {
-	case key.Matches(msg, r.keyMap.Revert.Onto):
-		return r.handleIntent(intents.RevertSetTarget{Target: intents.RevertTargetDestination})
-	case key.Matches(msg, r.keyMap.Revert.After):
-		return r.handleIntent(intents.RevertSetTarget{Target: intents.RevertTargetAfter})
-	case key.Matches(msg, r.keyMap.Revert.Before):
-		return r.handleIntent(intents.RevertSetTarget{Target: intents.RevertTargetBefore})
-	case key.Matches(msg, r.keyMap.Revert.Insert):
-		return r.handleIntent(intents.RevertSetTarget{Target: intents.RevertTargetInsert})
-	case key.Matches(msg, r.keyMap.Revert.Target):
-		r.targetPicker = target_picker.NewModel(r.context)
-		return r.targetPicker.Init()
-	case key.Matches(msg, r.keyMap.Apply):
-		return r.handleIntent(intents.Apply{})
-	case key.Matches(msg, r.keyMap.Cancel):
-		return r.handleIntent(intents.Cancel{})
-	}
-	return nil
-}
-
 func (r *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 	r.highlightedIds = nil
 	r.To = commit
 	r.highlightedIds = r.From.GetIds()
 	return nil
-}
-
-func (r *Operation) ShortHelp() []key.Binding {
-	return []key.Binding{
-		r.keyMap.Apply,
-		r.keyMap.Cancel,
-		r.keyMap.Revert.Before,
-		r.keyMap.Revert.After,
-		r.keyMap.Revert.Onto,
-		r.keyMap.Revert.Insert,
-		r.keyMap.Revert.Target,
-	}
-}
-
-func (r *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{r.ShortHelp()}
 }
 
 func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
@@ -278,6 +250,13 @@ func (r *Operation) Name() string {
 	return "revert"
 }
 
+func (r *Operation) Scope() keybindings.Scope {
+	if r.targetPicker != nil {
+		return actions.OwnerTargetPicker
+	}
+	return actions.OwnerRevert
+}
+
 func (r *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if r.targetPicker != nil {
 		r.targetPicker.ViewRect(dl, box)
@@ -304,7 +283,6 @@ func NewOperation(context *context.MainContext, from jj.SelectedRevisions, targe
 	}
 	return &Operation{
 		context: context,
-		keyMap:  config.Current.GetKeyMap(),
 		From:    from,
 		Target:  target,
 		styles:  styles,

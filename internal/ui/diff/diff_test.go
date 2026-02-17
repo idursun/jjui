@@ -3,9 +3,7 @@ package diff
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -29,14 +27,22 @@ func TestScroll_AdjustsViewportOffset(t *testing.T) {
 	assert.Equal(t, 1, model.view.YOffset)
 }
 
-func TestUpdate_CancelReturnsClose(t *testing.T) {
-	model := New("content")
-	model.keymap.DiffView.Close = key.NewBinding(key.WithKeys("q"))
+func TestUpdate_ScrollMsgStillScrolls(t *testing.T) {
+	model := New("1\n2\n3\n4\n5\n")
+	cmd := model.Update(ScrollMsg{Delta: 1})
+	assert.Nil(t, cmd)
+	assert.Equal(t, 1, model.view.YOffset)
+}
 
-	var msgs []tea.Msg
-	test.SimulateModel(model, test.Type("q"), func(msg tea.Msg) {
-		msgs = append(msgs, msg)
-	})
+func TestUpdate_DiffScrollIntent(t *testing.T) {
+	model := New("1\n2\n3\n4\n5\n")
+	model.view.Height = 3
 
-	assert.Contains(t, msgs, common.CloseViewMsg{})
+	cmd := model.Update(intents.DiffScroll{Kind: intents.DiffScrollDown})
+	assert.Nil(t, cmd)
+	assert.Equal(t, 1, model.view.YOffset)
+
+	cmd = model.Update(intents.DiffScroll{Kind: intents.DiffScrollUp})
+	assert.Nil(t, cmd)
+	assert.Equal(t, 0, model.view.YOffset)
 }

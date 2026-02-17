@@ -6,6 +6,9 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
@@ -97,4 +100,37 @@ func TestModel_OperationIntents(t *testing.T) {
 			assert.Contains(t, rendered, tc.expected)
 		})
 	}
+}
+
+func TestModel_ForwardsOperationIntentToFocusedOperation(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll())
+	commandRunner.Expect(jj.TagList())
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := New(ctx)
+	model.updateGraphRows(rows, "a")
+
+	test.SimulateModel(model, model.Update(intents.StartRebase{}))
+	assert.False(t, model.InNormalMode())
+	assert.False(t, model.IsEditing())
+
+	test.SimulateModel(model, model.Update(intents.RebaseOpenTargetPicker{}))
+	assert.True(t, model.IsEditing(), "rebase target picker should open via dispatched operation intent")
+}
+
+func TestModel_StartAceJumpMsg_OpensAceJumpOperation(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+	model.updateGraphRows(rows, "a")
+
+	test.SimulateModel(model, model.Update(intents.StartAbandon{}))
+	assert.Equal(t, "abandon", model.CurrentOperation().Name())
+
+	test.SimulateModel(model, model.Update(common.StartAceJumpMsg{}))
+	scopes := model.ScopeChain()
+	assert.NotEmpty(t, scopes)
+	assert.Equal(t, keybindings.Scope(actions.OwnerAceJump), scopes[0])
+	assert.Len(t, scopes, 1)
 }

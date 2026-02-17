@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -76,7 +76,6 @@ type Operation struct {
 	Target         Target
 	targetName     string
 	targetPicker   *target_picker.Model
-	keyMap         config.KeyMappings[key.Binding]
 	highlightedIds []string
 	styles         styles
 	SkipEmptied    bool
@@ -117,12 +116,18 @@ func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 		r.highlightedIds = msg.ids
 		return nil
 	case intents.Intent:
+		if r.targetPicker != nil {
+			switch msg.(type) {
+			case intents.TargetPickerNavigate, intents.TargetPickerApply, intents.TargetPickerCancel:
+				return r.targetPicker.Update(msg)
+			}
+		}
 		return r.handleIntent(msg)
 	case tea.KeyMsg:
 		if r.targetPicker != nil {
 			return r.targetPicker.Update(msg)
 		}
-		return r.HandleKey(msg)
+		return nil
 	default:
 		if r.targetPicker != nil {
 			return r.targetPicker.Update(msg)
@@ -142,6 +147,9 @@ func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		if r.Target == TargetInsert {
 			r.InsertStart = r.To
 		}
+	case intents.RebaseOpenTargetPicker:
+		r.targetPicker = target_picker.NewModel(r.context)
+		return r.targetPicker.Init()
 	case intents.RebaseToggleSkipEmptied:
 		r.SkipEmptied = !r.SkipEmptied
 	case intents.Apply:
@@ -160,6 +168,10 @@ func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		return nil
 	}
 	return nil
+}
+
+func (r *Operation) ResolveAction(action keybindings.Action, args map[string]any) (intents.Intent, bool) {
+	return actions.ResolveByScopeStrict(r.Scope(), action, args)
 }
 
 func rebaseSourceFromIntent(source intents.RebaseSource) Source {
@@ -190,40 +202,6 @@ func rebaseTargetFromIntent(target intents.RebaseTarget) Target {
 	}
 }
 
-func (r *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	if r.targetPicker != nil {
-		return r.targetPicker.Update(msg)
-	}
-	switch {
-	case key.Matches(msg, r.keyMap.AceJump):
-		return r.handleIntent(intents.StartAceJump{})
-	case key.Matches(msg, r.keyMap.Rebase.Revision):
-		return r.handleIntent(intents.RebaseSetSource{Source: intents.RebaseSourceRevision})
-	case key.Matches(msg, r.keyMap.Rebase.Branch):
-		return r.handleIntent(intents.RebaseSetSource{Source: intents.RebaseSourceBranch})
-	case key.Matches(msg, r.keyMap.Rebase.Source):
-		return r.handleIntent(intents.RebaseSetSource{Source: intents.RebaseSourceDescendants})
-	case key.Matches(msg, r.keyMap.Rebase.Target):
-		r.targetPicker = target_picker.NewModel(r.context)
-		return r.targetPicker.Init()
-	case key.Matches(msg, r.keyMap.Rebase.Onto):
-		return r.handleIntent(intents.RebaseSetTarget{Target: intents.RebaseTargetDestination})
-	case key.Matches(msg, r.keyMap.Rebase.After):
-		return r.handleIntent(intents.RebaseSetTarget{Target: intents.RebaseTargetAfter})
-	case key.Matches(msg, r.keyMap.Rebase.Before):
-		return r.handleIntent(intents.RebaseSetTarget{Target: intents.RebaseTargetBefore})
-	case key.Matches(msg, r.keyMap.Rebase.Insert):
-		return r.handleIntent(intents.RebaseSetTarget{Target: intents.RebaseTargetInsert})
-	case key.Matches(msg, r.keyMap.Rebase.SkipEmptied):
-		return r.handleIntent(intents.RebaseToggleSkipEmptied{})
-	case key.Matches(msg, r.keyMap.Apply, r.keyMap.ForceApply):
-		return r.handleIntent(intents.Apply{Force: key.Matches(msg, r.keyMap.ForceApply)})
-	case key.Matches(msg, r.keyMap.Cancel):
-		return r.handleIntent(intents.Cancel{})
-	}
-	return nil
-}
-
 func (r *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 	r.To = commit
 	identifier := fmt.Sprintf("rebase-highlight-%p", r)
@@ -250,28 +228,6 @@ func (r *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 		}
 		return updateHighlightedIdsMsg{ids: ids}
 	})
-}
-
-func (r *Operation) ShortHelp() []key.Binding {
-	return []key.Binding{
-		r.keyMap.Apply,
-		r.keyMap.ForceApply,
-		r.keyMap.Cancel,
-		r.keyMap.Rebase.Revision,
-		r.keyMap.Rebase.Branch,
-		r.keyMap.Rebase.Source,
-		r.keyMap.Rebase.Before,
-		r.keyMap.Rebase.After,
-		r.keyMap.Rebase.Onto,
-		r.keyMap.Rebase.Insert,
-		r.keyMap.Rebase.Target,
-		r.keyMap.Rebase.SkipEmptied,
-		r.keyMap.AceJump,
-	}
-}
-
-func (r *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{r.ShortHelp()}
 }
 
 func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
@@ -375,6 +331,13 @@ func (r *Operation) Name() string {
 	return "rebase"
 }
 
+func (r *Operation) Scope() keybindings.Scope {
+	if r.targetPicker != nil {
+		return keybindings.Scope(actions.OwnerTargetPicker)
+	}
+	return keybindings.Scope(actions.OwnerRebase)
+}
+
 func (r *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if r.targetPicker != nil {
 		r.targetPicker.ViewRect(dl, box)
@@ -401,7 +364,6 @@ func NewOperation(context *context.MainContext, from jj.SelectedRevisions, sourc
 	}
 	return &Operation{
 		context: context,
-		keyMap:  config.Current.GetKeyMap(),
 		From:    from,
 		Source:  source,
 		Target:  target,

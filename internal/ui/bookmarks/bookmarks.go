@@ -6,13 +6,12 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -70,11 +69,11 @@ const (
 )
 
 var _ common.ImmediateModel = (*Model)(nil)
+var _ common.Focusable = (*Model)(nil)
 
 type Model struct {
 	context             *context.MainContext
 	current             *jj.Commit
-	keymap              config.KeyMappings[key.Binding]
 	distanceMap         map[string]int
 	remoteNames         []string
 	selectedRemoteIdx   int
@@ -86,35 +85,18 @@ type Model struct {
 	filterState         filterState
 	filterText          string
 	categoryFilter      string
-	showShortcuts       bool
 	ensureCursorVisible bool
 	menuStyles          menuStyles
 	remoteStyles        remoteStyles
-	filterKey           key.Binding
-	cancelFilterKey     key.Binding
-	acceptFilterKey     key.Binding
 	title               string
 }
 
-func (m *Model) ShortHelp() []key.Binding {
-	return []key.Binding{
-		m.keymap.Cancel,
-		m.keymap.Quit,
-		m.keymap.Apply,
-		m.keymap.Bookmark.Move,
-		m.keymap.Bookmark.Delete,
-		m.keymap.Bookmark.Forget,
-		m.keymap.Bookmark.Track,
-		m.keymap.Bookmark.Untrack,
-		m.filterKey,
-		key.NewBinding(
-			key.WithKeys("tab/shift+tab"),
-			key.WithHelp("tab/shift+tab", "cycle remotes")),
-	}
+func (m *Model) IsFocused() bool {
+	return m.filterState == filterEditing
 }
 
-func (m *Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{m.ShortHelp()}
+func (m *Model) StackedActionOwner() string {
+	return actions.OwnerBookmarks
 }
 
 type commandType int
@@ -136,10 +118,6 @@ type item struct {
 	key      string
 }
 
-func (i item) ShortCut() string {
-	return i.key
-}
-
 func (i item) FilterValue() string {
 	return i.name
 }
@@ -151,6 +129,10 @@ func (i item) Title() string {
 func (i item) Description() string {
 	desc := strings.Join(i.args, " ")
 	return desc
+}
+
+func (i item) ShortCut() string {
+	return i.key
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -345,23 +327,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return m.handleIntent(msg)
 	case tea.KeyMsg:
 		if m.filterState == filterEditing {
-			switch {
-			case key.Matches(msg, m.cancelFilterKey):
-				m.resetTextFilter()
-				return nil
-			case key.Matches(msg, m.acceptFilterKey):
-				m.filterText = strings.TrimSpace(m.filterInput.Value())
-				if m.filterText == "" {
-					m.filterState = filterOff
-					m.filterInput.SetValue("")
-					m.filterInput.Blur()
-				} else {
-					m.filterState = filterApplied
-					m.filterInput.Blur()
-				}
-				m.applyFilters(true)
-				return nil
-			}
 			updated, cmd := m.filterInput.Update(msg)
 			filterChanged := m.filterInput.Value() != updated.Value()
 			m.filterInput = updated
@@ -370,48 +335,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 			return cmd
 		}
-		switch {
-		case msg.Type == tea.KeyTab:
-			return m.handleIntent(intents.BookmarksCycleRemotes{Delta: 1})
-		case msg.Type == tea.KeyShiftTab:
-			return m.handleIntent(intents.BookmarksCycleRemotes{Delta: -1})
-		case key.Matches(msg, m.filterKey):
-			m.filterState = filterEditing
-			m.filterInput.Focus()
-			m.filterInput.CursorEnd()
-			return textinput.Blink
-		case key.Matches(msg, m.keymap.Quit):
-			return tea.Quit
-		case key.Matches(msg, m.keymap.Cancel):
-			return m.handleIntent(intents.Cancel{})
-		case key.Matches(msg, m.keymap.Apply):
-			return m.handleIntent(intents.Apply{})
-		case key.Matches(msg, m.keymap.ExpandStatus):
-			return func() tea.Msg { return intents.ExpandStatusToggle{} }
-		case key.Matches(msg, m.keymap.Bookmark.Move) && m.categoryFilter != "move":
-			return m.handleIntent(intents.BookmarksFilter{Kind: intents.BookmarksFilterMove})
-		case key.Matches(msg, m.keymap.Bookmark.Delete) && m.categoryFilter != "delete":
-			return m.handleIntent(intents.BookmarksFilter{Kind: intents.BookmarksFilterDelete})
-		case key.Matches(msg, m.keymap.Bookmark.Forget) && m.categoryFilter != "forget":
-			return m.handleIntent(intents.BookmarksFilter{Kind: intents.BookmarksFilterForget})
-		case key.Matches(msg, m.keymap.Bookmark.Track) && m.categoryFilter != "track":
-			return m.handleIntent(intents.BookmarksFilter{Kind: intents.BookmarksFilterTrack})
-		case key.Matches(msg, m.keymap.Bookmark.Untrack) && m.categoryFilter != "untrack":
-			return m.handleIntent(intents.BookmarksFilter{Kind: intents.BookmarksFilterUntrack})
-		case key.Matches(msg, m.keymap.Up):
-			m.moveCursor(-1)
-		case key.Matches(msg, m.keymap.Down):
-			m.moveCursor(1)
-		case key.Matches(msg, m.keymap.ScrollUp):
-			m.ensureCursorVisible = false
-			m.listRenderer.StartLine -= m.itemHeight()
-		case key.Matches(msg, m.keymap.ScrollDown):
-			m.ensureCursorVisible = false
-			m.listRenderer.StartLine += m.itemHeight()
-		default:
-			if cmd := m.handleIntent(intents.BookmarksApplyShortcut{Key: msg.String()}); cmd != nil {
-				return cmd
-			}
+		if cmd := m.handleIntent(intents.BookmarksApplyShortcut{Key: msg.String()}); cmd != nil {
+			return cmd
 		}
 	case updateItemsMsg:
 		m.allItems = append(m.allItems, msg.items...)
@@ -424,6 +349,19 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	switch msg := intent.(type) {
 	case intents.Apply:
+		if m.filterState == filterEditing {
+			m.filterText = strings.TrimSpace(m.filterInput.Value())
+			if m.filterText == "" {
+				m.filterState = filterOff
+				m.filterInput.SetValue("")
+				m.filterInput.Blur()
+			} else {
+				m.filterState = filterApplied
+				m.filterInput.Blur()
+			}
+			m.applyFilters(true)
+			return nil
+		}
 		selected, ok := m.selectedItem()
 		if !ok {
 			return nil
@@ -431,11 +369,38 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.context.RunCommand(selected.args, common.Refresh, common.Close)
 	case intents.BookmarksFilter:
 		filter := string(msg.Kind)
-		if filter != "" && m.categoryFilter != filter {
-			return m.filtered(filter)
+		if filter == "" {
+			return nil
 		}
+		if m.categoryFilter == filter {
+			return m.executeDefaultForFilter(msg.Kind)
+		}
+		return m.filtered(filter)
 	case intents.BookmarksCycleRemotes:
 		return m.cycleRemotes(msg.Delta)
+	case intents.BookmarksOpenFilter:
+		m.filterState = filterEditing
+		m.filterInput.Focus()
+		m.filterInput.CursorEnd()
+		return textinput.Blink
+	case intents.BookmarksNavigate:
+		if msg.IsPage {
+			m.ensureCursorVisible = false
+			m.listRenderer.StartLine += msg.Delta * m.itemHeight()
+			return nil
+		}
+		m.moveCursor(msg.Delta)
+		return nil
+	case intents.Cancel:
+		if m.filterState == filterEditing {
+			m.resetTextFilter()
+			return nil
+		}
+		if m.hasActiveFilter() {
+			m.resetAllFilters()
+			return nil
+		}
+		return common.Close
 	case intents.BookmarksApplyShortcut:
 		if m.categoryFilter == "" {
 			return nil
@@ -446,12 +411,18 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 			}
 		}
 		return nil
-	case intents.Cancel:
-		if m.hasActiveFilter() {
-			m.resetAllFilters()
-			return nil
+	}
+	return nil
+}
+
+func (m *Model) executeDefaultForFilter(kind intents.BookmarksFilterKind) tea.Cmd {
+	if selected, ok := m.selectedItem(); ok {
+		return m.context.RunCommand(jj.Args(selected.args...), common.Refresh, common.Close)
+	}
+	for _, listItem := range m.visibleItems() {
+		if strings.HasPrefix(listItem.FilterValue(), string(kind)) {
+			return m.context.RunCommand(jj.Args(listItem.args...), common.Refresh, common.Close)
 		}
-		return common.Close
 	}
 	return nil
 }
@@ -560,7 +531,6 @@ func loadRemoteNames(c context.CommandRunner) []string {
 }
 
 func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string) *Model {
-	keymap := config.Current.GetKeyMap()
 	remotes := loadRemoteNames(c)
 	// Add "local" as the first option to view local bookmark operations
 	remotes = append([]string{"local"}, remotes...)
@@ -574,7 +544,6 @@ func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string) *M
 
 	m := &Model{
 		context:           c,
-		keymap:            keymap,
 		current:           current,
 		distanceMap:       calcDistanceMap(current.CommitId, commitIds),
 		remoteNames:       remotes,
@@ -582,9 +551,6 @@ func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string) *M
 		remoteStyles:      remoteStyles,
 		menuStyles:        createMenuStyles("bookmarks"),
 		listRenderer:      render.NewListRenderer(itemScrollMsg{}),
-		filterKey:         key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
-		cancelFilterKey:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
-		acceptFilterKey:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "apply filter")),
 		title:             "Bookmark Operations",
 		allItems:          make([]item, 0),
 	}
@@ -701,7 +667,6 @@ func (m *Model) applyFilters(resetCursor bool) {
 		m.cursor = 0
 	}
 	m.listRenderer.StartLine = 0
-	m.showShortcuts = m.categoryFilter != ""
 }
 
 func (m *Model) categoryFilterMatch(item item, filter string) bool {
@@ -808,7 +773,7 @@ func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
 			if index < 0 || index >= itemCount {
 				return
 			}
-			renderItem(dl, rect, listWidth, m.menuStyles, m.showShortcuts, m.cursor, index, items[index])
+			renderItem(dl, rect, listWidth, m.menuStyles, m.categoryFilter != "", m.cursor, index, items[index])
 		},
 		func(index int) tea.Msg { return itemClickMsg{Index: index} },
 	)
@@ -818,28 +783,21 @@ func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
 
 func renderItem(dl *render.DisplayContext, rect cellbuf.Rectangle, width int, styles menuStyles, showShortcuts bool, cursor int, index int, item item) {
 	var (
-		title    string
-		desc     string
-		shortcut string
+		title string
+		desc  string
 	)
 	title = item.Title()
 	desc = item.Description()
-	shortcut = item.ShortCut()
+	shortcut := ""
+	if showShortcuts {
+		shortcut = item.ShortCut()
+	}
 	if width <= 0 {
 		return
 	}
 
-	if !showShortcuts {
-		shortcut = ""
-	}
-
-	titleWidth := width
-	if shortcut != "" {
-		titleWidth -= lipgloss.Width(shortcut) + 1
-	}
-
-	if titleWidth > 0 && len(title) > titleWidth {
-		title = title[:titleWidth-1] + "…"
+	if width > 0 && len(title) > width {
+		title = title[:width-1] + "…"
 	}
 
 	if len(desc) > width {

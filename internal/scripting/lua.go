@@ -3,10 +3,12 @@ package scripting
 import (
 	stdcontext "context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/idursun/jjui/internal/ui/actionmeta"
 	"github.com/idursun/jjui/internal/ui/choose"
 	"github.com/idursun/jjui/internal/ui/common"
 	uicontext "github.com/idursun/jjui/internal/ui/context"
@@ -36,14 +38,15 @@ type Runner struct {
 }
 
 func RunScript(ctx *uicontext.MainContext, src string) (*Runner, tea.Cmd, error) {
-	L := lua.NewState()
-	r := &Runner{ctx: ctx, main: L}
+	L, err := vmFromContext(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	registerAPI(L, r)
+	r := &Runner{ctx: ctx, main: L}
 
 	fn, err := L.LoadString(src)
 	if err != nil {
-		L.Close()
 		return nil, nil, fmt.Errorf("lua: %w", err)
 	}
 	r.fn = fn
@@ -57,13 +60,9 @@ func RunScript(ctx *uicontext.MainContext, src string) (*Runner, tea.Cmd, error)
 }
 
 func (r *Runner) close() {
-	if r.main != nil {
-		if r.cancel != nil {
-			r.cancel()
-			r.cancel = nil
-		}
-		r.main.Close()
-		r.main = nil
+	if r.cancel != nil {
+		r.cancel()
+		r.cancel = nil
 	}
 }
 
@@ -139,10 +138,10 @@ func (r *Runner) Done() bool {
 	return r.done && r.await == nil
 }
 
-func registerAPI(L *lua.LState, runner *Runner) {
+func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	revisionsTable := L.NewTable()
 	revisionsTable.RawSetString("current", L.NewFunction(func(L *lua.LState) int {
-		if rev, ok := runner.ctx.SelectedItem.(uicontext.SelectedRevision); ok {
+		if rev, ok := ctx.SelectedItem.(uicontext.SelectedRevision); ok {
 			L.Push(lua.LString(rev.ChangeId))
 			return 1
 		}
@@ -150,7 +149,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	}))
 	revisionsTable.RawSetString("checked", L.NewFunction(func(L *lua.LState) int {
 		tbl := L.NewTable()
-		for _, item := range runner.ctx.CheckedItems {
+		for _, item := range ctx.CheckedItems {
 			if rev, ok := item.(uicontext.SelectedRevision); ok {
 				tbl.Append(lua.LString(rev.ChangeId))
 			}
@@ -219,17 +218,17 @@ func registerAPI(L *lua.LState, runner *Runner) {
 		return yieldStep(L, step{cmd: revset.RevsetCmd(intents.Reset{})})
 	}))
 	revsetTable.RawSetString("current", L.NewFunction(func(L *lua.LState) int {
-		L.Push(lua.LString(runner.ctx.CurrentRevset))
+		L.Push(lua.LString(ctx.CurrentRevset))
 		return 1
 	}))
 	revsetTable.RawSetString("default", L.NewFunction(func(L *lua.LState) int {
-		L.Push(lua.LString(runner.ctx.DefaultRevset))
+		L.Push(lua.LString(ctx.DefaultRevset))
 		return 1
 	}))
 
 	contextTable := L.NewTable()
 	contextTable.RawSetString("change_id", L.NewFunction(func(L *lua.LState) int {
-		switch item := runner.ctx.SelectedItem.(type) {
+		switch item := ctx.SelectedItem.(type) {
 		case uicontext.SelectedRevision:
 			L.Push(lua.LString(item.ChangeId))
 			return 1
@@ -240,7 +239,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 		return 0
 	}))
 	contextTable.RawSetString("commit_id", L.NewFunction(func(L *lua.LState) int {
-		switch item := runner.ctx.SelectedItem.(type) {
+		switch item := ctx.SelectedItem.(type) {
 		case uicontext.SelectedRevision:
 			L.Push(lua.LString(item.CommitId))
 			return 1
@@ -254,14 +253,14 @@ func registerAPI(L *lua.LState, runner *Runner) {
 		return 0
 	}))
 	contextTable.RawSetString("file", L.NewFunction(func(L *lua.LState) int {
-		if item, ok := runner.ctx.SelectedItem.(uicontext.SelectedFile); ok {
+		if item, ok := ctx.SelectedItem.(uicontext.SelectedFile); ok {
 			L.Push(lua.LString(item.File))
 			return 1
 		}
 		return 0
 	}))
 	contextTable.RawSetString("operation_id", L.NewFunction(func(L *lua.LState) int {
-		if item, ok := runner.ctx.SelectedItem.(uicontext.SelectedOperation); ok {
+		if item, ok := ctx.SelectedItem.(uicontext.SelectedOperation); ok {
 			L.Push(lua.LString(item.OperationId))
 			return 1
 		}
@@ -269,7 +268,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	}))
 	contextTable.RawSetString("checked_files", L.NewFunction(func(L *lua.LState) int {
 		tbl := L.NewTable()
-		for _, item := range runner.ctx.CheckedItems {
+		for _, item := range ctx.CheckedItems {
 			if f, ok := item.(uicontext.SelectedFile); ok {
 				tbl.Append(lua.LString(f.File))
 			}
@@ -279,7 +278,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	}))
 	contextTable.RawSetString("checked_change_ids", L.NewFunction(func(L *lua.LState) int {
 		tbl := L.NewTable()
-		for _, item := range runner.ctx.CheckedItems {
+		for _, item := range ctx.CheckedItems {
 			switch i := item.(type) {
 			case uicontext.SelectedRevision:
 				tbl.Append(lua.LString(i.ChangeId))
@@ -292,7 +291,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	}))
 	contextTable.RawSetString("checked_commit_ids", L.NewFunction(func(L *lua.LState) int {
 		tbl := L.NewTable()
-		for _, item := range runner.ctx.CheckedItems {
+		for _, item := range ctx.CheckedItems {
 			switch i := item.(type) {
 			case uicontext.SelectedRevision:
 				tbl.Append(lua.LString(i.CommitId))
@@ -308,15 +307,15 @@ func registerAPI(L *lua.LState, runner *Runner) {
 
 	jjAsyncFn := L.NewFunction(func(L *lua.LState) int {
 		args := argsFromLua(L)
-		return yieldStep(L, step{cmd: runner.ctx.RunCommand(args)})
+		return yieldStep(L, step{cmd: ctx.RunCommand(args)})
 	})
 	jjInteractiveFn := L.NewFunction(func(L *lua.LState) int {
 		args := argsFromLua(L)
-		return yieldStep(L, step{cmd: runner.ctx.RunInteractiveCommand(args, nil)})
+		return yieldStep(L, step{cmd: ctx.RunInteractiveCommand(args, nil)})
 	})
 	jjFn := L.NewFunction(func(L *lua.LState) int {
 		args := argsFromLua(L)
-		out, err := runner.ctx.RunCommandImmediate(args)
+		out, err := ctx.RunCommandImmediate(args)
 		if err != nil {
 			L.Push(lua.LNil)
 			L.Push(lua.LString(err.Error()))
@@ -358,7 +357,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 			Line: command,
 			Mode: common.ExecShell,
 		}
-		return yieldStep(L, step{cmd: exec_process.ExecLine(runner.ctx, msg)})
+		return yieldStep(L, step{cmd: exec_process.ExecLine(ctx, msg)})
 	})
 	splitLinesFn := L.NewFunction(func(L *lua.LState) int {
 		text := L.CheckString(1)
@@ -433,6 +432,7 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	root.RawSetString("split_lines", splitLinesFn)
 	root.RawSetString("choose", chooseFn)
 	root.RawSetString("input", inputFn)
+	registerGeneratedActionAPI(L, root)
 	L.SetGlobal("jjui", root)
 
 	// but also expose at the top level for convenience
@@ -448,6 +448,68 @@ func registerAPI(L *lua.LState, runner *Runner) {
 	L.SetGlobal("split_lines", splitLinesFn)
 	L.SetGlobal("choose", chooseFn)
 	L.SetGlobal("input", inputFn)
+}
+
+func registerGeneratedActionAPI(L *lua.LState, root *lua.LTable) {
+	actions := actionmeta.BuiltInActions()
+	sort.Strings(actions)
+	for _, actionID := range actions {
+		owners := actionmeta.ActionOwners(actionID)
+		for _, owner := range owners {
+			ownerTable := ensureOwnerTable(L, root, owner)
+			token := actionTokenFromCanonical(actionID)
+			if token == "" {
+				continue
+			}
+			// Keep existing utility helpers (e.g. jjui.revisions.refresh) intact.
+			if ownerTable.RawGetString(token) != lua.LNil {
+				continue
+			}
+			ownerTable.RawSetString(token, generatedActionFn(L, actionID))
+			if token == "cancel" && ownerTable.RawGetString("close") == lua.LNil {
+				ownerTable.RawSetString("close", generatedActionFn(L, actionID))
+			}
+		}
+	}
+}
+
+func ensureOwnerTable(L *lua.LState, root *lua.LTable, owner string) *lua.LTable {
+	current := root
+	for _, segment := range strings.Split(owner, ".") {
+		existing := current.RawGetString(segment)
+		if tbl, ok := existing.(*lua.LTable); ok {
+			current = tbl
+			continue
+		}
+		next := L.NewTable()
+		current.RawSetString(segment, next)
+		current = next
+	}
+	return current
+}
+
+func generatedActionFn(L *lua.LState, canonical string) *lua.LFunction {
+	return L.NewFunction(func(L *lua.LState) int {
+		args := optionalLuaMapArg(L, 1)
+		return yieldStep(L, step{cmd: func() tea.Msg {
+			return common.DispatchActionMsg{
+				Action: canonical,
+				Args:   args,
+			}
+		}})
+	})
+}
+
+func optionalLuaMapArg(L *lua.LState, pos int) map[string]any {
+	if L.GetTop() < pos || L.Get(pos) == lua.LNil {
+		return nil
+	}
+	tbl, ok := L.Get(pos).(*lua.LTable)
+	if !ok {
+		L.ArgError(pos, "expected table or nil")
+		return nil
+	}
+	return luaTableToMap(tbl)
 }
 
 func payloadFromTop(L *lua.LState) map[string]any {
@@ -665,4 +727,11 @@ func matchInput(msg tea.Msg) (bool, []lua.LValue) {
 	default:
 		return false, nil
 	}
+}
+
+func actionTokenFromCanonical(actionID string) string {
+	if idx := strings.LastIndexByte(actionID, '.'); idx >= 0 && idx < len(actionID)-1 {
+		return actionID[idx+1:]
+	}
+	return actionID
 }

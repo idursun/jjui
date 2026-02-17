@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/stretchr/testify/assert"
@@ -78,30 +79,42 @@ func TestConfirmationWithOption(t *testing.T) {
 	assert.Equal(t, "Yes", model.options[0].label)
 	assert.Equal(t, "No", model.options[1].label)
 
-	cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	cmd := model.Update(intents.Apply{})
 	if cmd != nil {
 		cmd()
 	}
 	assert.True(t, cmdCalled)
 }
 
-func TestLegacyAddOption(t *testing.T) {
-	var cmdCalled bool
-	testCmd := func() tea.Msg {
-		cmdCalled = true
-		return nil
-	}
+func TestDispatcherIntentFlow(t *testing.T) {
+	var selected string
+	model := New(
+		[]string{"Test message"},
+		WithOption("Yes", func() tea.Msg {
+			selected = "yes"
+			return nil
+		}, key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+		WithAltOption("No", func() tea.Msg {
+			selected = "no"
+			return nil
+		}, func() tea.Msg {
+			selected = "no-alt"
+			return nil
+		}, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+	)
 
-	model := New([]string{"Test message"}, WithOption("Yes", testCmd, key.NewBinding(key.WithKeys("y"))))
-
-	assert.Equal(t, 1, len(model.options))
-	assert.Equal(t, "Yes", model.options[0].label)
-
-	cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	_ = model.Update(intents.OptionSelect{Delta: 1})
+	cmd := model.Update(intents.Apply{Force: true})
 	if cmd != nil {
 		cmd()
 	}
-	assert.True(t, cmdCalled)
+	assert.Equal(t, "no-alt", selected)
+
+	cmd = model.Update(intents.Cancel{})
+	if cmd != nil {
+		cmd()
+	}
+	assert.Equal(t, "no", selected)
 }
 
 func TestViewRect_DefaultRendersAtZBase(t *testing.T) {

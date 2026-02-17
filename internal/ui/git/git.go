@@ -2,15 +2,15 @@ package git
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -32,14 +32,10 @@ type SelectRemoteMsg struct {
 
 type item struct {
 	category itemCategory
-	key      string
 	name     string
 	desc     string
 	command  []string
-}
-
-func (i item) ShortCut() string {
-	return i.key
+	key      string
 }
 
 func (i item) FilterValue() string {
@@ -52,6 +48,10 @@ func (i item) Title() string {
 
 func (i item) Description() string {
 	return i.desc
+}
+
+func (i item) ShortCut() string {
+	return i.key
 }
 
 type itemClickMsg struct {
@@ -95,10 +95,10 @@ const (
 )
 
 var _ common.ImmediateModel = (*Model)(nil)
+var _ common.Focusable = (*Model)(nil)
 
 type Model struct {
 	context             *context.MainContext
-	keymap              config.KeyMappings[key.Binding]
 	items               []item
 	filteredItems       []item
 	cursor              int
@@ -107,35 +107,21 @@ type Model struct {
 	filterState         filterState
 	filterText          string
 	categoryFilter      string
-	showShortcuts       bool
 	ensureCursorVisible bool
 	revisions           jj.SelectedRevisions
 	remoteNames         []string
 	selectedRemoteIdx   int
 	menuStyles          menuStyles
 	remoteStyles        remoteStyles
-	filterKey           key.Binding
-	cancelFilterKey     key.Binding
-	acceptFilterKey     key.Binding
 	title               string
 }
 
-func (m *Model) ShortHelp() []key.Binding {
-	return []key.Binding{
-		m.keymap.Cancel,
-		m.keymap.Quit,
-		m.keymap.Apply,
-		m.keymap.Git.Push,
-		m.keymap.Git.Fetch,
-		m.filterKey,
-		key.NewBinding(
-			key.WithKeys("tab/shift+tab"),
-			key.WithHelp("tab/shift+tab", "cycle remotes")),
-	}
+func (m *Model) IsFocused() bool {
+	return m.filterState == filterEditing
 }
 
-func (m *Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{m.ShortHelp()}
+func (m *Model) StackedActionOwner() string {
+	return actions.OwnerGit
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -188,23 +174,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return m.handleIntent(msg)
 	case tea.KeyMsg:
 		if m.filterState == filterEditing {
-			switch {
-			case key.Matches(msg, m.cancelFilterKey):
-				m.resetTextFilter()
-				return nil
-			case key.Matches(msg, m.acceptFilterKey):
-				m.filterText = strings.TrimSpace(m.filterInput.Value())
-				if m.filterText == "" {
-					m.filterState = filterOff
-					m.filterInput.SetValue("")
-					m.filterInput.Blur()
-				} else {
-					m.filterState = filterApplied
-					m.filterInput.Blur()
-				}
-				m.applyFilters(true)
-				return nil
-			}
 			updated, cmd := m.filterInput.Update(msg)
 			filterChanged := m.filterInput.Value() != updated.Value()
 			m.filterInput = updated
@@ -213,42 +182,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 			return cmd
 		}
-		switch {
-		case msg.Type == tea.KeyTab:
-			return m.handleIntent(intents.GitCycleRemotes{Delta: 1})
-		case msg.Type == tea.KeyShiftTab:
-			return m.handleIntent(intents.GitCycleRemotes{Delta: -1})
-		case key.Matches(msg, m.filterKey):
-			m.filterState = filterEditing
-			m.filterInput.Focus()
-			m.filterInput.CursorEnd()
-			return textinput.Blink
-		case key.Matches(msg, m.keymap.ExpandStatus):
-			return func() tea.Msg { return intents.ExpandStatusToggle{} }
-		case key.Matches(msg, m.keymap.Quit):
-			return tea.Quit
-		case key.Matches(msg, m.keymap.Apply):
-			return m.handleIntent(intents.Apply{})
-		case key.Matches(msg, m.keymap.Cancel):
-			return m.handleIntent(intents.Cancel{})
-		case key.Matches(msg, m.keymap.Git.Push) && m.categoryFilter != string(itemCategoryPush):
-			return m.handleIntent(intents.GitFilter{Kind: intents.GitFilterPush})
-		case key.Matches(msg, m.keymap.Git.Fetch) && m.categoryFilter != string(itemCategoryFetch):
-			return m.handleIntent(intents.GitFilter{Kind: intents.GitFilterFetch})
-		case key.Matches(msg, m.keymap.Up):
-			m.moveCursor(-1)
-		case key.Matches(msg, m.keymap.Down):
-			m.moveCursor(1)
-		case key.Matches(msg, m.keymap.ScrollUp):
-			m.ensureCursorVisible = false
-			m.listRenderer.StartLine -= m.itemHeight()
-		case key.Matches(msg, m.keymap.ScrollDown):
-			m.ensureCursorVisible = false
-			m.listRenderer.StartLine += m.itemHeight()
-		default:
-			if cmd := m.handleIntent(intents.GitApplyShortcut{Key: msg.String()}); cmd != nil {
-				return cmd
-			}
+		if cmd := m.handleIntent(intents.GitApplyShortcut{Key: msg.String()}); cmd != nil {
+			return cmd
 		}
 	}
 	return nil
@@ -257,6 +192,19 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	switch msg := intent.(type) {
 	case intents.Apply:
+		if m.filterState == filterEditing {
+			m.filterText = strings.TrimSpace(m.filterInput.Value())
+			if m.filterText == "" {
+				m.filterState = filterOff
+				m.filterInput.SetValue("")
+				m.filterInput.Blur()
+			} else {
+				m.filterState = filterApplied
+				m.filterInput.Blur()
+			}
+			m.applyFilters(true)
+			return nil
+		}
 		selected, ok := m.selectedItem()
 		if !ok {
 			return nil
@@ -264,12 +212,39 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.context.RunCommand(jj.Args(selected.command...), common.Refresh, common.Close)
 	case intents.GitFilter:
 		filter := string(msg.Kind)
-		if filter != "" && m.categoryFilter != filter {
-			m.categoryFilter = filter
-			m.applyFilters(true)
+		if filter == "" {
+			return nil
 		}
+		if m.categoryFilter == filter {
+			return m.executeDefaultForFilter(msg.Kind)
+		}
+		m.categoryFilter = filter
+		m.applyFilters(true)
 	case intents.GitCycleRemotes:
 		return m.cycleRemotes(msg.Delta)
+	case intents.GitOpenFilter:
+		m.filterState = filterEditing
+		m.filterInput.Focus()
+		m.filterInput.CursorEnd()
+		return textinput.Blink
+	case intents.GitNavigate:
+		if msg.IsPage {
+			m.ensureCursorVisible = false
+			m.listRenderer.StartLine += msg.Delta * m.itemHeight()
+			return nil
+		}
+		m.moveCursor(msg.Delta)
+		return nil
+	case intents.Cancel:
+		if m.filterState == filterEditing {
+			m.resetTextFilter()
+			return nil
+		}
+		if m.hasActiveFilter() {
+			m.resetAllFilters()
+			return nil
+		}
+		return common.Close
 	case intents.GitApplyShortcut:
 		if m.categoryFilter == "" {
 			return nil
@@ -280,12 +255,38 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 			}
 		}
 		return nil
-	case intents.Cancel:
-		if m.hasActiveFilter() {
-			m.resetAllFilters()
-			return nil
+	}
+	return nil
+}
+
+func (m *Model) executeDefaultForFilter(kind intents.GitFilterKind) tea.Cmd {
+	selectedRemote := ""
+	if len(m.remoteNames) > 0 && m.selectedRemoteIdx >= 0 && m.selectedRemoteIdx < len(m.remoteNames) {
+		selectedRemote = m.remoteNames[m.selectedRemoteIdx]
+	}
+
+	defaultCommandByKind := map[intents.GitFilterKind][]string{
+		intents.GitFilterPush:  jj.GitPush("--remote", selectedRemote),
+		intents.GitFilterFetch: jj.GitFetch("--remote", selectedRemote),
+	}
+
+	defaultCommand, ok := defaultCommandByKind[kind]
+	if ok {
+		for _, listItem := range m.visibleItems() {
+			if slices.Equal(listItem.command, defaultCommand) {
+				return m.context.RunCommand(jj.Args(listItem.command...), common.Refresh, common.Close)
+			}
 		}
-		return common.Close
+	}
+
+	if selected, ok := m.selectedItem(); ok {
+		return m.context.RunCommand(jj.Args(selected.command...), common.Refresh, common.Close)
+	}
+
+	for _, listItem := range m.visibleItems() {
+		if string(listItem.category) == string(kind) {
+			return m.context.RunCommand(jj.Args(listItem.command...), common.Refresh, common.Close)
+		}
 	}
 	return nil
 }
@@ -401,7 +402,6 @@ func loadRemoteNames(c context.CommandRunner) []string {
 
 func NewModel(c *context.MainContext, revisions jj.SelectedRevisions) *Model {
 	remotes := loadRemoteNames(c)
-	keymap := config.Current.GetKeyMap()
 
 	remoteStyles := remoteStyles{
 		promptStyle:   common.DefaultPalette.Get("title"),
@@ -412,16 +412,12 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions) *Model {
 
 	m := &Model{
 		context:           c,
-		keymap:            keymap,
 		revisions:         revisions,
 		remoteNames:       remotes,
 		selectedRemoteIdx: 0,
 		menuStyles:        createMenuStyles("git"),
 		remoteStyles:      remoteStyles,
 		listRenderer:      render.NewListRenderer(itemScrollMsg{}),
-		filterKey:         key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
-		cancelFilterKey:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
-		acceptFilterKey:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "apply filter")),
 		title:             "Git Operations",
 	}
 
@@ -539,7 +535,6 @@ func (m *Model) applyFilters(resetCursor bool) {
 		m.cursor = 0
 	}
 	m.listRenderer.StartLine = 0
-	m.showShortcuts = m.categoryFilter != ""
 }
 
 func (m *Model) renderFilterView(dl *render.DisplayContext, box layout.Box) {
@@ -582,7 +577,7 @@ func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
 			if index < 0 || index >= itemCount {
 				return
 			}
-			renderItem(dl, rect, listWidth, m.menuStyles, m.showShortcuts, m.cursor, index, items[index])
+			renderItem(dl, rect, listWidth, m.menuStyles, m.categoryFilter != "", m.cursor, index, items[index])
 		},
 		func(index int) tea.Msg { return itemClickMsg{Index: index} },
 	)
@@ -592,28 +587,21 @@ func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
 
 func renderItem(dl *render.DisplayContext, rect cellbuf.Rectangle, width int, styles menuStyles, showShortcuts bool, cursor int, index int, item item) {
 	var (
-		title    string
-		desc     string
-		shortcut string
+		title string
+		desc  string
 	)
 	title = item.Title()
 	desc = item.Description()
-	shortcut = item.ShortCut()
+	shortcut := ""
+	if showShortcuts {
+		shortcut = item.ShortCut()
+	}
 	if width <= 0 {
 		return
 	}
 
-	if !showShortcuts {
-		shortcut = ""
-	}
-
-	titleWidth := width
-	if shortcut != "" {
-		titleWidth -= lipgloss.Width(shortcut) + 1
-	}
-
-	if titleWidth > 0 && len(title) > titleWidth {
-		title = title[:titleWidth-1] + "…"
+	if width > 0 && len(title) > width {
+		title = title[:width-1] + "…"
 	}
 
 	if len(desc) > width {
@@ -702,11 +690,11 @@ func (m *Model) createMenuItems() []item {
 		flags = append(flags, revisions.AsPrefixedArgs("--change")...)
 		items = append(items,
 			item{
-				key:      "c",
 				category: itemCategoryPush,
 				name:     fmt.Sprintf("git push %s", strings.Join(revisions.AsPrefixedArgs("--change"), " ")),
 				desc:     fmt.Sprintf("Push selected changes (%s)", strings.Join(revisions.GetIds(), " ")),
 				command:  jj.GitPush(flags...),
+				key:      "c",
 			})
 	}
 
@@ -717,7 +705,6 @@ func (m *Model) createMenuItems() []item {
 			desc:     fmt.Sprintf("Push the current change (%s)", commit.GetChangeId()),
 			command:  jj.GitPush("--change", commit.GetChangeId(), "--remote", selectedRemote),
 		}
-
 		if !hasMultipleRevisions {
 			item.key = "c"
 		}
@@ -743,7 +730,8 @@ func (m *Model) createMenuItems() []item {
 			name:     fmt.Sprintf("git fetch --remote %s", selectedRemote),
 			desc:     "Fetch from remote",
 			command:  jj.GitFetch("--remote", selectedRemote),
-			category: itemCategoryFetch, key: "f",
+			category: itemCategoryFetch,
+			key:      "f",
 		},
 		item{
 			name:     fmt.Sprintf("git fetch --tracked --remote %s", selectedRemote),

@@ -4,13 +4,12 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
-
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -34,7 +33,6 @@ type Operation struct {
 	current               *jj.Commit
 	targetName            string
 	targetPicker          *target_picker.Model
-	keyMap                config.KeyMappings[key.Binding]
 	keepEmptied           bool
 	useDestinationMessage bool
 	interactive           bool
@@ -73,12 +71,18 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 		s.targetPicker = nil
 		return nil
 	case intents.Intent:
+		if s.targetPicker != nil {
+			switch msg.(type) {
+			case intents.TargetPickerNavigate, intents.TargetPickerApply, intents.TargetPickerCancel:
+				return s.targetPicker.Update(msg)
+			}
+		}
 		return s.handleIntent(msg)
 	case tea.KeyMsg:
 		if s.targetPicker != nil {
 			return s.targetPicker.Update(msg)
 		}
-		return s.HandleKey(msg)
+		return nil
 	default:
 		if s.targetPicker != nil {
 			return s.targetPicker.Update(msg)
@@ -98,48 +102,34 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 			return tea.Batch(common.Close, s.context.RunInteractiveCommand(args, continuation))
 		}
 		return tea.Batch(common.Close, s.context.RunCommand(args, continuation))
+	case intents.SquashOpenTargetPicker:
+		s.targetPicker = target_picker.NewModel(s.context)
+		return s.targetPicker.Init()
 	case intents.Cancel:
 		return common.Close
-	case intents.SquashToggleKeepEmptied:
-		s.keepEmptied = !s.keepEmptied
-	case intents.SquashToggleUseDestinationMessage:
-		s.useDestinationMessage = !s.useDestinationMessage
-	case intents.SquashToggleInteractive:
-		s.interactive = !s.interactive
+	case intents.SquashToggleOption:
+		switch intent.Option {
+		case intents.SquashOptionKeepEmptied:
+			s.keepEmptied = !s.keepEmptied
+		case intents.SquashOptionUseDestinationMessage:
+			s.useDestinationMessage = !s.useDestinationMessage
+		case intents.SquashOptionInteractive:
+			s.interactive = !s.interactive
+		}
 	default:
 		return nil
 	}
 	return nil
 }
 
+func (s *Operation) ResolveAction(action keybindings.Action, args map[string]any) (intents.Intent, bool) {
+	return actions.ResolveByScopeStrict(s.Scope(), action, args)
+}
+
 func (s *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if s.targetPicker != nil {
 		s.targetPicker.ViewRect(dl, box)
 	}
-}
-
-func (s *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
-	if s.targetPicker != nil {
-		return s.targetPicker.Update(msg)
-	}
-	switch {
-	case key.Matches(msg, s.keyMap.AceJump):
-		return s.handleIntent(intents.StartAceJump{})
-	case key.Matches(msg, s.keyMap.Squash.Target):
-		s.targetPicker = target_picker.NewModel(s.context)
-		return s.targetPicker.Init()
-	case key.Matches(msg, s.keyMap.Apply, s.keyMap.ForceApply):
-		return s.handleIntent(intents.Apply{Force: key.Matches(msg, s.keyMap.ForceApply)})
-	case key.Matches(msg, s.keyMap.Cancel):
-		return s.handleIntent(intents.Cancel{})
-	case key.Matches(msg, s.keyMap.Squash.KeepEmptied):
-		return s.handleIntent(intents.SquashToggleKeepEmptied{})
-	case key.Matches(msg, s.keyMap.Squash.UseDestinationMessage):
-		return s.handleIntent(intents.SquashToggleUseDestinationMessage{})
-	case key.Matches(msg, s.keyMap.Squash.Interactive):
-		return s.handleIntent(intents.SquashToggleInteractive{})
-	}
-	return nil
 }
 
 func (s *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
@@ -186,21 +176,11 @@ func (s *Operation) Name() string {
 	return "squash"
 }
 
-func (s *Operation) ShortHelp() []key.Binding {
-	return []key.Binding{
-		s.keyMap.Apply,
-		s.keyMap.ForceApply,
-		s.keyMap.Squash.Target,
-		s.keyMap.Cancel,
-		s.keyMap.Squash.KeepEmptied,
-		s.keyMap.Squash.UseDestinationMessage,
-		s.keyMap.Squash.Interactive,
-		s.keyMap.AceJump,
+func (s *Operation) Scope() keybindings.Scope {
+	if s.targetPicker != nil {
+		return keybindings.Scope(actions.OwnerTargetPicker)
 	}
-}
-
-func (s *Operation) FullHelp() [][]key.Binding {
-	return [][]key.Binding{s.ShortHelp()}
+	return keybindings.Scope(actions.OwnerSquash)
 }
 
 func (s *Operation) targetArg() string {
@@ -229,7 +209,6 @@ func NewOperation(context *context.MainContext, from jj.SelectedRevisions, opts 
 	}
 	o := &Operation{
 		context: context,
-		keyMap:  config.Current.GetKeyMap(),
 		from:    from,
 		styles:  styles,
 	}

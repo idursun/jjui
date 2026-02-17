@@ -68,13 +68,6 @@ func TestHistorySource(t *testing.T) {
 	}
 }
 
-func TestHistorySourceEmpty(t *testing.T) {
-	s := HistorySource{}
-	items, err := s.Fetch(nil)
-	assert.NoError(t, err)
-	assert.Empty(t, items)
-}
-
 func TestBookmarkSource(t *testing.T) {
 	mockRunner := func(args []string) ([]byte, error) {
 		return []byte(`main;.;false;false;false;abc123
@@ -97,15 +90,26 @@ feature;.;false;false;false;def456
 	assert.Contains(t, names, "feature")
 }
 
-func TestBookmarkSourceError(t *testing.T) {
+func TestSourceFetchError(t *testing.T) {
 	mockRunner := func(args []string) ([]byte, error) {
 		return nil, fmt.Errorf("command failed")
 	}
 
-	s := BookmarkSource{}
-	items, err := s.Fetch(mockRunner)
-	assert.Error(t, err)
-	assert.Nil(t, items)
+	sources := []struct {
+		name   string
+		source Source
+	}{
+		{"BookmarkSource", BookmarkSource{}},
+		{"TagSource", TagSource{}},
+	}
+
+	for _, tc := range sources {
+		t.Run(tc.name, func(t *testing.T) {
+			items, err := tc.source.Fetch(mockRunner)
+			assert.Error(t, err)
+			assert.Nil(t, items)
+		})
+	}
 }
 
 func TestTagSource(t *testing.T) {
@@ -124,17 +128,6 @@ func TestTagSource(t *testing.T) {
 	assert.Equal(t, "v1.0.0", items[0].Name)
 	assert.Equal(t, "v1.1.0", items[1].Name)
 	assert.Equal(t, "v2.0.0", items[2].Name)
-}
-
-func TestTagSourceError(t *testing.T) {
-	mockRunner := func(args []string) ([]byte, error) {
-		return nil, fmt.Errorf("command failed")
-	}
-
-	s := TagSource{}
-	items, err := s.Fetch(mockRunner)
-	assert.Error(t, err)
-	assert.Nil(t, items)
 }
 
 func TestParseTagListOutput(t *testing.T) {

@@ -18,6 +18,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/context"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -39,12 +40,13 @@ func getVersion() string {
 }
 
 var (
-	revset     string
-	period     int
-	limit      int
-	version    bool
-	editConfig bool
-	help       bool
+	revset        string
+	period        int
+	limit         int
+	version       bool
+	editConfig    bool
+	migrateConfig bool
+	help          bool
 )
 
 func init() {
@@ -56,6 +58,7 @@ func init() {
 	flag.IntVar(&limit, "n", 0, "Number of revisions to show (alias for --limit)")
 	flag.BoolVar(&version, "version", false, "Show version information")
 	flag.BoolVar(&editConfig, "config", false, "Open configuration file in $EDITOR")
+	flag.BoolVar(&migrateConfig, "migrate", false, "Migrate custom_commands to actions/bindings (use with --config)")
 	flag.BoolVar(&help, "help", false, "Show help information")
 
 	flag.Usage = func() {
@@ -97,6 +100,12 @@ func run() int {
 	case version:
 		fmt.Println(getVersion())
 		return 0
+	case migrateConfig && !editConfig:
+		fmt.Fprintf(os.Stderr, "Error: --migrate must be used with --config\n")
+		flag.Usage()
+		return 1
+	case editConfig && migrateConfig:
+		return config.Migrate()
 	case editConfig:
 		return config.Edit()
 	}
@@ -143,21 +152,41 @@ func run() int {
 			fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
 			return 1
 		}
-		if registry, err := context.LoadCustomCommands(string(output)); err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading custom commands: %v\n", err)
-			return 1
-		} else {
-			appContext.CustomCommands = registry
-		}
-		if registry, err := context.LoadLeader(string(output)); err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading leader keys: %v\n", err)
-			return 1
-		} else {
-			appContext.Leader = registry
+		for _, warning := range config.DeprecatedConfigWarnings(string(output)) {
+			fmt.Fprintf(os.Stderr, "Warning: %s\n", warning)
 		}
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		return 1
+	}
+
+	if err := scripting.InitVM(appContext); err != nil {
+		fmt.Fprintf(os.Stderr, "Error initializing Lua VM: %v\n", err)
+		return 1
+	}
+	defer scripting.CloseVM(appContext)
+
+	if luaSource, err := config.LoadLuaConfigFile(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading config.lua: %v\n", err)
+		return 1
+	} else if luaSource != "" {
+		actions, bindings, err := scripting.RunSetup(appContext, luaSource)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error in config.lua: %v\n", err)
+			return 1
+		}
+		if len(actions) > 0 {
+			config.Current.Actions = config.MergeActions(config.Current.Actions, actions)
+		}
+		if len(bindings) > 0 {
+			config.Current.Bindings = config.MergeBindings(config.Current.Bindings, bindings)
+		}
+		if len(actions) > 0 || len(bindings) > 0 {
+			if err := config.Current.ValidateBindingsAndActions(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error in config.lua actions/bindings: %v\n", err)
+				return 1
+			}
+		}
 	}
 
 	var theme map[string]config.Color
