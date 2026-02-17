@@ -257,7 +257,6 @@ func (m *Model) loadAll() tea.Msg {
 					priority: deleteCommand,
 					dist:     distance,
 					args:     jj.BookmarkDelete(b.Name),
-					key:      "d",
 				})
 			}
 
@@ -266,7 +265,6 @@ func (m *Model) loadAll() tea.Msg {
 				priority: forgetCommand,
 				dist:     distance,
 				args:     jj.BookmarkForget(b.Name),
-				key:      "f",
 			})
 
 			// Track local bookmarks as they have no remotes
@@ -276,7 +274,6 @@ func (m *Model) loadAll() tea.Msg {
 					priority: trackCommand,
 					dist:     distance,
 					args:     jj.BookmarkTrack(b.Name, ""),
-					key:      "t",
 				})
 			}
 
@@ -288,7 +285,6 @@ func (m *Model) loadAll() tea.Msg {
 						priority: untrackCommand,
 						dist:     distance,
 						args:     jj.BookmarkUntrack(b.Name, remote.Remote),
-						key:      "u",
 					})
 				} else {
 					items = append(items, item{
@@ -296,7 +292,6 @@ func (m *Model) loadAll() tea.Msg {
 						priority: trackCommand,
 						dist:     distance,
 						args:     jj.BookmarkTrack(b.Name, remote.Remote),
-						key:      "t",
 					})
 				}
 			}
