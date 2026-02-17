@@ -95,9 +95,6 @@ func (c *Config) Load(data string) error {
 	if err != nil {
 		return err
 	}
-	if metadata.IsDefined("keys") {
-		return fmt.Errorf("[keys] is no longer supported; migrate to [[bindings]]")
-	}
 
 	// Decode only merge-managed array/table fields into a fresh struct so these
 	// collections are always read from file content, without carrying prior state.

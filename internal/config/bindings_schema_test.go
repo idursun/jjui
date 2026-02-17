@@ -121,18 +121,6 @@ lua = "print('x')"
 	assert.Equal(t, "print('x')", cfg.Actions[0].Lua)
 }
 
-func TestLoad_RejectsLegacyKeysSection(t *testing.T) {
-	content := `
-[keys]
-up = ["up", "k"]
-`
-
-	cfg := &Config{}
-	err := cfg.Load(content)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "[keys] is no longer supported")
-}
-
 func TestLoad_CanonicalBuiltInEnumArgsValidation(t *testing.T) {
 	valid := `
 [[bindings]]

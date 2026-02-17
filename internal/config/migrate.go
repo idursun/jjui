@@ -29,7 +29,7 @@ func migrateWith(stdout, stderr io.Writer) int {
 	sourceFile := configFile
 	if _, err := os.Stat(backupFile); err == nil {
 		sourceFile = backupFile
-		fmt.Fprintln(stdout, "Old file found. Migrating from old file.")
+		fmt.Fprintf(stdout, "Migrating from '%s' to new format.\n", backupFile)
 	}
 
 	data, err := os.ReadFile(sourceFile)
