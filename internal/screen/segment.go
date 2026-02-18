@@ -12,6 +12,16 @@ type Segment struct {
 	Lane  uint64
 }
 
+// SearchableLine represents a line that contains searchable segments.
+type SearchableLine interface {
+	GetSegments() []*Segment
+}
+
+// Searchable represents a row that can be searched.
+type Searchable interface {
+	GetSearchableLines() []SearchableLine
+}
+
 func (s Segment) String() string {
 	return s.Style.Render(s.Text)
 }

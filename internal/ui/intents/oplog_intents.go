@@ -41,3 +41,8 @@ type OpLogRevert struct {
 }
 
 func (OpLogRevert) isIntent() {}
+
+//jjui:bind scope=oplog.quick_search action=quick_search_clear
+type OpLogQuickSearchClear struct{}
+
+func (OpLogQuickSearchClear) isIntent() {}

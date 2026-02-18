@@ -15,6 +15,7 @@ const (
 	OwnerGit                 = "git"
 	OwnerInput               = "input"
 	OwnerOplog               = "oplog"
+	OwnerOplogQuickSearch    = "oplog.quick_search"
 	OwnerPassword            = "password"
 	OwnerRedo                = "redo"
 	OwnerRevisions           = "revisions"
@@ -94,6 +95,9 @@ const (
 	OplogMoveUp                            keybindings.Action = "oplog.move_up"
 	OplogPageDown                          keybindings.Action = "oplog.page_down"
 	OplogPageUp                            keybindings.Action = "oplog.page_up"
+	OplogQuickSearchQuickSearchClear       keybindings.Action = "oplog.quick_search.quick_search_clear"
+	OplogQuickSearchQuickSearchNext        keybindings.Action = "oplog.quick_search.quick_search_next"
+	OplogQuickSearchQuickSearchPrev        keybindings.Action = "oplog.quick_search.quick_search_prev"
 	OplogQuit                              keybindings.Action = "oplog.quit"
 	OplogRestore                           keybindings.Action = "oplog.restore"
 	OplogRevert                            keybindings.Action = "oplog.revert"
@@ -260,7 +264,7 @@ const (
 
 func IsRevisionsOwner(owner string) bool {
 	switch owner {
-	case OwnerRevisions, OwnerAbandon, OwnerAceJump, OwnerDetails, OwnerDetailsConfirmation, OwnerDuplicate, OwnerEvolog, OwnerInlineDescribe, OwnerQuickSearchInput, OwnerRebase, OwnerRevert, OwnerSetBookmark, OwnerSetParents, OwnerSquash, OwnerTargetPicker:
+	case OwnerOplogQuickSearch, OwnerRevisions, OwnerAbandon, OwnerAceJump, OwnerDetails, OwnerDetailsConfirmation, OwnerDuplicate, OwnerEvolog, OwnerInlineDescribe, OwnerQuickSearchInput, OwnerRebase, OwnerRevert, OwnerSetBookmark, OwnerSetParents, OwnerSquash, OwnerTargetPicker:
 		return true
 	default:
 		return false
@@ -409,6 +413,15 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.OpLogRestore{}, true
 		case keybindings.Action("oplog.revert"):
 			return intents.OpLogRevert{}, true
+		}
+	case OwnerOplogQuickSearch:
+		switch action {
+		case keybindings.Action("oplog.quick_search.quick_search_clear"):
+			return intents.OpLogQuickSearchClear{}, true
+		case keybindings.Action("oplog.quick_search.quick_search_next"):
+			return intents.QuickSearchCycle{}, true
+		case keybindings.Action("oplog.quick_search.quick_search_prev"):
+			return intents.QuickSearchCycle{Reverse: true}, true
 		}
 	case OwnerPassword:
 		switch action {

@@ -23,6 +23,14 @@ type Row struct {
 	Previous   *Row
 }
 
+func (row *Row) GetSearchableLines() []screen.SearchableLine {
+	lines := make([]screen.SearchableLine, len(row.Lines))
+	for i, line := range row.Lines {
+		lines[i] = line
+	}
+	return lines
+}
+
 func NewGraphRow() Row {
 	return Row{
 		Commit: &jj.Commit{},
