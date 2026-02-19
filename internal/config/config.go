@@ -119,18 +119,13 @@ func (t *ThemeConfig) UnmarshalTOML(data any) error {
 	return nil
 }
 
-type TracerConfig struct {
-	Enabled bool `toml:"enabled"`
-}
-
 type UIConfig struct {
 	Theme  ThemeConfig      `toml:"theme"`
 	Colors map[string]Color `toml:"colors"`
 	// TODO(ilyagr): It might make sense to rename this to `auto_refresh_period` to match `--period` option
 	// once we have a mechanism to deprecate the old name softly.
-	AutoRefreshInterval        int          `toml:"auto_refresh_interval"`
-	FlashMessageDisplaySeconds int          `toml:"flash_message_display_seconds"`
-	Tracer                     TracerConfig `toml:"tracer"`
+	AutoRefreshInterval        int `toml:"auto_refresh_interval"`
+	FlashMessageDisplaySeconds int `toml:"flash_message_display_seconds"`
 }
 
 func GetExpiringFlashMessageTimeout(c *Config) time.Duration {
