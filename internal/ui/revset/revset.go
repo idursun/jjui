@@ -333,16 +333,15 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	// Render the prompt and text input line
-	var w strings.Builder
-	w.WriteString(m.styles.title.PaddingRight(1).Render("revset:"))
+	tb := dl.Text(box.R.Min.X, box.R.Min.Y, render.ZFuzzyInput)
+	tb.Styled("revset: ", m.styles.title)
 	if m.Editing {
 		// Only render the text input part, not the completions from autoComplete.View()
-		w.WriteString(m.autoComplete.TextInput.View())
+		tb.Write(m.autoComplete.TextInput.View())
 	} else {
-		w.WriteString(m.styles.text.Render(m.context.CurrentRevset))
+		tb.Styled(m.context.CurrentRevset, m.styles.text)
 	}
-	line := w.String()
-	dl.AddDraw(box.R, line, render.ZFuzzyInput)
+	tb.Done()
 
 	if !m.Editing {
 		return
