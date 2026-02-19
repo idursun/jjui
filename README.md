@@ -7,9 +7,8 @@
 If you are new `jjui`, have a look at [previously on jjui](https://github.com/idursun/jjui/discussions/443).
 
 > [!NOTE]
-> Trunk version is at v0.10 which is not released and contains breaking changes. See #533 for details.
-> If you want to migrate your configuration to the new version, try running `jjui --config --migrate` (best effort)
-> This should copy your existing configuration as `config.old.toml` and migrate it to a new `config.toml` file.
+> Trunk version is at **v0.10** which is not released and contains breaking changes.
+> See the [migration guide](https://github.com/idursun/jjui/wiki/Migrating-to-v0.10) for what changed and how to update your configuration.
 
 ## Features
 
