@@ -112,6 +112,7 @@ const (
 	RevisionsAbandonApply                  keybindings.Action = "revisions.abandon.apply"
 	RevisionsAbandonCancel                 keybindings.Action = "revisions.abandon.cancel"
 	RevisionsAbandonForceApply             keybindings.Action = "revisions.abandon.force_apply"
+	RevisionsAbandonJumpToWorkingCopy      keybindings.Action = "revisions.abandon.jump_to_working_copy"
 	RevisionsAbandonToggleSelect           keybindings.Action = "revisions.abandon.toggle_select"
 	RevisionsAbsorb                        keybindings.Action = "revisions.absorb"
 	RevisionsAceJump                       keybindings.Action = "revisions.ace_jump"
@@ -145,6 +146,7 @@ const (
 	RevisionsDuplicateApply                keybindings.Action = "revisions.duplicate.apply"
 	RevisionsDuplicateCancel               keybindings.Action = "revisions.duplicate.cancel"
 	RevisionsDuplicateForceApply           keybindings.Action = "revisions.duplicate.force_apply"
+	RevisionsDuplicateJumpToWorkingCopy    keybindings.Action = "revisions.duplicate.jump_to_working_copy"
 	RevisionsDuplicateSetTarget            keybindings.Action = "revisions.duplicate.set_target"
 	RevisionsDuplicateTargetPicker         keybindings.Action = "revisions.duplicate.target_picker"
 	RevisionsEdit                          keybindings.Action = "revisions.edit"
@@ -184,6 +186,7 @@ const (
 	RevisionsRebaseApply                   keybindings.Action = "revisions.rebase.apply"
 	RevisionsRebaseCancel                  keybindings.Action = "revisions.rebase.cancel"
 	RevisionsRebaseForceApply              keybindings.Action = "revisions.rebase.force_apply"
+	RevisionsRebaseJumpToWorkingCopy       keybindings.Action = "revisions.rebase.jump_to_working_copy"
 	RevisionsRebaseSetSource               keybindings.Action = "revisions.rebase.set_source"
 	RevisionsRebaseSetTarget               keybindings.Action = "revisions.rebase.set_target"
 	RevisionsRebaseSkipEmptied             keybindings.Action = "revisions.rebase.skip_emptied"
@@ -202,6 +205,7 @@ const (
 	RevisionsSetParentsAceJump             keybindings.Action = "revisions.set_parents.ace_jump"
 	RevisionsSetParentsApply               keybindings.Action = "revisions.set_parents.apply"
 	RevisionsSetParentsCancel              keybindings.Action = "revisions.set_parents.cancel"
+	RevisionsSetParentsJumpToWorkingCopy   keybindings.Action = "revisions.set_parents.jump_to_working_copy"
 	RevisionsSetParentsToggleSelect        keybindings.Action = "revisions.set_parents.toggle_select"
 	RevisionsSplit                         keybindings.Action = "revisions.split"
 	RevisionsSplitParallel                 keybindings.Action = "revisions.split_parallel"
@@ -210,6 +214,7 @@ const (
 	RevisionsSquashCancel                  keybindings.Action = "revisions.squash.cancel"
 	RevisionsSquashForceApply              keybindings.Action = "revisions.squash.force_apply"
 	RevisionsSquashInteractive             keybindings.Action = "revisions.squash.interactive"
+	RevisionsSquashJumpToWorkingCopy       keybindings.Action = "revisions.squash.jump_to_working_copy"
 	RevisionsSquashKeepEmptied             keybindings.Action = "revisions.squash.keep_emptied"
 	RevisionsSquashTargetPicker            keybindings.Action = "revisions.squash.target_picker"
 	RevisionsSquashUseDestinationMsg       keybindings.Action = "revisions.squash.use_destination_msg"
@@ -524,6 +529,8 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.Cancel{}, true
 		case keybindings.Action("revisions.abandon.force_apply"):
 			return intents.Apply{Force: true}, true
+		case keybindings.Action("revisions.abandon.jump_to_working_copy"):
+			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
 		case keybindings.Action("revisions.abandon.toggle_select"):
 			return intents.AbandonToggleSelect{}, true
 		}
@@ -586,6 +593,8 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.Cancel{}, true
 		case keybindings.Action("revisions.duplicate.force_apply"):
 			return intents.Apply{Force: true}, true
+		case keybindings.Action("revisions.duplicate.jump_to_working_copy"):
+			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
 		case keybindings.Action("revisions.duplicate.set_target"):
 			return intents.DuplicateSetTarget{Target: enumArgDuplicateTarget(args, "target")}, true
 		case keybindings.Action("revisions.duplicate.target_picker"):
@@ -634,6 +643,8 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.Cancel{}, true
 		case keybindings.Action("revisions.rebase.force_apply"):
 			return intents.Apply{Force: true}, true
+		case keybindings.Action("revisions.rebase.jump_to_working_copy"):
+			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
 		case keybindings.Action("revisions.rebase.set_source"):
 			return intents.RebaseSetSource{Source: enumArgRebaseSource(args, "source")}, true
 		case keybindings.Action("revisions.rebase.set_target"):
@@ -675,6 +686,8 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.Apply{}, true
 		case keybindings.Action("revisions.set_parents.cancel"):
 			return intents.Cancel{}, true
+		case keybindings.Action("revisions.set_parents.jump_to_working_copy"):
+			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
 		case keybindings.Action("revisions.set_parents.toggle_select"):
 			return intents.SetParentsToggleSelect{}, true
 		}
@@ -690,6 +703,8 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.Apply{Force: true}, true
 		case keybindings.Action("revisions.squash.interactive"):
 			return intents.SquashToggleOption{Option: intents.SquashOptionInteractive}, true
+		case keybindings.Action("revisions.squash.jump_to_working_copy"):
+			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
 		case keybindings.Action("revisions.squash.keep_emptied"):
 			return intents.SquashToggleOption{Option: intents.SquashOptionKeepEmptied}, true
 		case keybindings.Action("revisions.squash.target_picker"):

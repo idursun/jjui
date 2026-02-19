@@ -97,6 +97,11 @@ const (
 //jjui:bind scope=revisions action=jump_to_parent set=Target:TargetParent
 //jjui:bind scope=revisions action=jump_to_children set=Target:TargetChild
 //jjui:bind scope=revisions action=jump_to_working_copy set=Target:TargetWorkingCopy
+//jjui:bind scope=revisions.rebase action=jump_to_working_copy set=Target:TargetWorkingCopy
+//jjui:bind scope=revisions.squash action=jump_to_working_copy set=Target:TargetWorkingCopy
+//jjui:bind scope=revisions.duplicate action=jump_to_working_copy set=Target:TargetWorkingCopy
+//jjui:bind scope=revisions.abandon action=jump_to_working_copy set=Target:TargetWorkingCopy
+//jjui:bind scope=revisions.set_parents action=jump_to_working_copy set=Target:TargetWorkingCopy
 type Navigate struct {
 	Delta       int              // +N down, -N up
 	IsPage      bool             // use page-sized step when true
