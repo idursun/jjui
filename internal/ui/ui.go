@@ -508,9 +508,6 @@ func (m *Model) handleUiRootIntent(intent intents.Intent) (tea.Cmd, bool) {
 		}
 		return m.status.StartExec(common.ExecShell), true
 	case intents.Quit:
-		if !m.isSafeToQuit() {
-			return nil, true
-		}
 		return tea.Quit, true
 	case intents.Suspend:
 		return tea.Suspend, true
@@ -847,19 +844,6 @@ func (m *Model) dispatchScopes() []keybindings.Scope {
 // still reference the old name. Dispatch now uses primary+always-on scopes.
 func (m *Model) activeScopeChain() []keybindings.Scope {
 	return m.dispatchScopes()
-}
-
-func (m *Model) isSafeToQuit() bool {
-	if m.stacked != nil {
-		return false
-	}
-	if m.oplog != nil {
-		return false
-	}
-	if m.revisions.InNormalMode() {
-		return true
-	}
-	return false
 }
 
 var _ tea.Model = (*wrapper)(nil)
