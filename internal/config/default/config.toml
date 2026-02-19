@@ -22,7 +22,7 @@ binding_profile = ":builtin"
 
 [preview]
   revision_command = ["show", "--color", "always", "-r", "$change_id"]
-  evolog_command = ["show", "--color", "always", "-r", "$commit_id"]
+  evolog_command = ["evolog", "--color", "always", "-r", "$commit_id", "-p", "-n", "1"]
   oplog_command = ["op", "show", "$operation_id", "--color", "always"]
   file_command = ["diff", "--color", "always", "-r", "$change_id", "$file"]
   position = "auto"
