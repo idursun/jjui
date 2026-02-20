@@ -26,7 +26,6 @@
   - [Squash](Squash.md)
   - [Evolog](Evolog.md)
   - [Inline Describe](Inline-Describe.md)
-  - [Bookmark](Bookmark.md)
 
 - [Customization]()
   - [Configuration](Configuration.md)
