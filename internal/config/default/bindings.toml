@@ -142,6 +142,7 @@ bindings = [
     { key = "alt+enter", action = "revisions.abandon.apply", scope = "revisions.abandon", desc = "force apply", args = { force = true } },
     { key = "space", action = "revisions.abandon.toggle_select", scope = "revisions.abandon", desc = "select" },
     { key = "esc", action = "revisions.abandon.cancel", scope = "revisions.abandon", desc = "cancel" },
+    { key = "s", action = "revisions.abandon.select_descendants", scope = "revisions.abandon", desc = "select descendants" },
     { key = "f", action = "revisions.abandon.ace_jump", scope = "revisions.abandon", desc = "ace jump" },
     { key = ["up", "k"], action = "revisions.move_up", scope = "revisions.abandon", desc = "up" },
     { key = ["down", "j"], action = "revisions.move_down", scope = "revisions.abandon", desc = "down" },

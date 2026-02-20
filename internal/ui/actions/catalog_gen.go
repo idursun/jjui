@@ -113,6 +113,7 @@ const (
 	RevisionsAbandonCancel                 keybindings.Action = "revisions.abandon.cancel"
 	RevisionsAbandonForceApply             keybindings.Action = "revisions.abandon.force_apply"
 	RevisionsAbandonJumpToWorkingCopy      keybindings.Action = "revisions.abandon.jump_to_working_copy"
+	RevisionsAbandonSelectDescendants      keybindings.Action = "revisions.abandon.select_descendants"
 	RevisionsAbandonToggleSelect           keybindings.Action = "revisions.abandon.toggle_select"
 	RevisionsAbsorb                        keybindings.Action = "revisions.absorb"
 	RevisionsAceJump                       keybindings.Action = "revisions.ace_jump"
@@ -531,6 +532,8 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.Apply{Force: true}, true
 		case keybindings.Action("revisions.abandon.jump_to_working_copy"):
 			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
+		case keybindings.Action("revisions.abandon.select_descendants"):
+			return intents.AbandonSelectDescendants{}, true
 		case keybindings.Action("revisions.abandon.toggle_select"):
 			return intents.AbandonToggleSelect{}, true
 		}
