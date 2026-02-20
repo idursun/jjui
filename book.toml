@@ -6,7 +6,7 @@ title = "jjui"
 
 [output.html]
 git-repository-url = "https://github.com/idursun/jjui"
-edit-url-template = "./wiki_edit/{path}"
+edit-url-template = "./edit/docs/{path}"
 additional-js = ["./theme/md_links.js"]
 additional-css = ["./theme/catppuccin.css"]
 default-theme = "latte"
