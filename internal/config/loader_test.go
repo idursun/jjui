@@ -7,6 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func boolPtr(v bool) *bool {
+	return &v
+}
+
 func TestLoadTheme(t *testing.T) {
 	themeData := []byte(`
 title = { fg = "blue", bold = true }
@@ -18,7 +22,7 @@ error = "red"
 	require.NoError(t, err)
 
 	expected := map[string]Color{
-		"title":    {Fg: "blue", Bold: true},
+		"title":    {Fg: "blue", Bold: boolPtr(true)},
 		"selected": {Fg: "white", Bg: "blue"},
 		"error":    {Fg: "red"},
 	}
@@ -28,7 +32,7 @@ error = "red"
 
 func TestLoadThemeWithBase(t *testing.T) {
 	baseTheme := map[string]Color{
-		"title":    {Fg: "green", Bold: true},
+		"title":    {Fg: "green", Bold: boolPtr(true)},
 		"selected": {Fg: "cyan", Bg: "black"},
 		"error":    {Fg: "red"},
 		"border":   {Fg: "white"},
@@ -43,7 +47,7 @@ selected = { fg = "yellow", bg = "blue" }
 	require.NoError(t, err)
 
 	expected := map[string]Color{
-		"title":    {Fg: "magenta", Bold: true},
+		"title":    {Fg: "magenta", Bold: boolPtr(true)},
 		"selected": {Fg: "yellow", Bg: "blue"},
 		"error":    {Fg: "red"},
 		"border":   {Fg: "white"},

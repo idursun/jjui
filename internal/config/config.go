@@ -33,26 +33,11 @@ type Config struct {
 type Color struct {
 	Fg            string `toml:"fg"`
 	Bg            string `toml:"bg"`
-	Bold          bool   `toml:"bold"`
-	Italic        bool   `toml:"italic"`
-	Underline     bool   `toml:"underline"`
-	Strikethrough bool   `toml:"strikethrough"`
-	Reverse       bool   `toml:"reverse"`
-	flags         ColorAttribute
-}
-
-type ColorAttribute uint8
-
-const (
-	ColorAttributeBold ColorAttribute = 1 << iota
-	ColorAttributeItalic
-	ColorAttributeUnderline
-	ColorAttributeStrikethrough
-	ColorAttributeReverse
-)
-
-func (c *Color) IsSet(flags ColorAttribute) bool {
-	return c.flags&flags == flags
+	Bold          *bool  `toml:"bold"`
+	Italic        *bool  `toml:"italic"`
+	Underline     *bool  `toml:"underline"`
+	Strikethrough *bool  `toml:"strikethrough"`
+	Reverse       *bool  `toml:"reverse"`
 }
 
 func (c *Color) UnmarshalTOML(text any) error {
@@ -67,24 +52,24 @@ func (c *Color) UnmarshalTOML(text any) error {
 			c.Bg = p.(string)
 		}
 		if p, ok := v["bold"]; ok {
-			c.Bold = p.(bool)
-			c.flags |= ColorAttributeBold
+			b := p.(bool)
+			c.Bold = &b
 		}
 		if p, ok := v["italic"]; ok {
-			c.Italic = p.(bool)
-			c.flags |= ColorAttributeItalic
+			b := p.(bool)
+			c.Italic = &b
 		}
 		if p, ok := v["underline"]; ok {
-			c.Underline = p.(bool)
-			c.flags |= ColorAttributeUnderline
+			b := p.(bool)
+			c.Underline = &b
 		}
 		if p, ok := v["strikethrough"]; ok {
-			c.Strikethrough = p.(bool)
-			c.flags |= ColorAttributeStrikethrough
+			b := p.(bool)
+			c.Strikethrough = &b
 		}
 		if p, ok := v["reverse"]; ok {
-			c.Reverse = p.(bool)
-			c.flags |= ColorAttributeReverse
+			b := p.(bool)
+			c.Reverse = &b
 		}
 	}
 	return nil

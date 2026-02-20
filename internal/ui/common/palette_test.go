@@ -8,6 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func boolPtr(v bool) *bool {
+	return &v
+}
+
 const (
 	Black  = "0"
 	Red    = "1"
@@ -146,7 +150,7 @@ func TestPalette_Update(t *testing.T) {
 		{
 			name: "update with multiple attributes",
 			styleMap: map[string]config.Color{
-				"heading": {Fg: Blue, Bold: true, Italic: true},
+				"heading": {Fg: Blue, Bold: boolPtr(true), Italic: boolPtr(true)},
 			},
 			selector: "heading",
 			want:     lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true).Italic(true),
@@ -246,4 +250,26 @@ func TestParseColor(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestPaletteUpdate_InheritsWhenAttributeOmitted(t *testing.T) {
+	p := NewPalette()
+	p.Update(map[string]config.Color{
+		"matched":           {Underline: boolPtr(true)},
+		"revisions matched": {Fg: Cyan},
+	})
+
+	got := p.Get("revisions matched")
+	assert.True(t, got.GetUnderline())
+}
+
+func TestPaletteUpdate_ExplicitFalseOverridesInheritedAttribute(t *testing.T) {
+	p := NewPalette()
+	p.Update(map[string]config.Color{
+		"matched":           {Underline: boolPtr(true)},
+		"revisions matched": {Underline: boolPtr(false)},
+	})
+
+	got := p.Get("revisions matched")
+	assert.False(t, got.GetUnderline())
 }

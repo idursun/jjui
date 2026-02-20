@@ -68,9 +68,27 @@ complex = { fg = "blue", bg = "white", bold = true }
 
 	assert.Equal(t, "red", config.UI.Colors["simple"].Fg)
 	assert.Equal(t, "", config.UI.Colors["simple"].Bg)
-	assert.False(t, config.UI.Colors["simple"].Bold)
+	assert.Nil(t, config.UI.Colors["simple"].Bold)
 
 	assert.Equal(t, "blue", config.UI.Colors["complex"].Fg)
 	assert.Equal(t, "white", config.UI.Colors["complex"].Bg)
-	assert.True(t, config.UI.Colors["complex"].Bold)
+	if assert.NotNil(t, config.UI.Colors["complex"].Bold) {
+		assert.True(t, *config.UI.Colors["complex"].Bold)
+	}
+}
+
+func TestLoad_Colors_ExplicitFalsePreserved(t *testing.T) {
+	content := `
+[ui.colors]
+unset = { fg = "red" }
+explicit_false = { fg = "blue", underline = false }
+`
+	config := &Config{}
+	err := config.Load(content)
+	assert.NoError(t, err)
+
+	assert.Nil(t, config.UI.Colors["unset"].Underline)
+	if assert.NotNil(t, config.UI.Colors["explicit_false"].Underline) {
+		assert.False(t, *config.UI.Colors["explicit_false"].Underline)
+	}
 }
