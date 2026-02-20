@@ -2,6 +2,8 @@
 
 [Home](Home.md)
 
+- [Migrating to v0.10](Migrating-to-v0.10.md)
+
 - [Core Features]()
   - [Revisions](Revisions.md)
   - [Preview](Preview.md)
