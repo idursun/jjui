@@ -43,7 +43,7 @@ func CloseVM(ctx *uicontext.MainContext) {
 	}
 }
 
-func RunSetup(ctx *uicontext.MainContext, source string) ([]config.ActionConfig, []config.BindingConfig, error) {
+func RunSetup(ctx *uicontext.MainContext, current *config.Config, source string) ([]config.ActionConfig, []config.BindingConfig, error) {
 	if source == "" {
 		return nil, nil, nil
 	}
@@ -57,7 +57,7 @@ func RunSetup(ctx *uicontext.MainContext, source string) ([]config.ActionConfig,
 	var bindings []config.BindingConfig
 	registry := ensureActionRegistry(L)
 
-	configTable := L.NewTable()
+	configTable := toLuaTable(L, current)
 	configTable.RawSetString("action", L.NewFunction(func(L *lua.LState) int {
 		name := L.CheckString(1)
 		fn := L.CheckFunction(2)

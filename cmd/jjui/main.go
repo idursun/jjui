@@ -170,7 +170,7 @@ func run() int {
 		fmt.Fprintf(os.Stderr, "Error loading config.lua: %v\n", err)
 		return 1
 	} else if luaSource != "" {
-		actions, bindings, err := scripting.RunSetup(appContext, luaSource)
+		actions, bindings, err := scripting.RunSetup(appContext, config.Current, luaSource)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error in config.lua: %v\n", err)
 			return 1
