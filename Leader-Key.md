@@ -1,3 +1,6 @@
+> [!WARNING]
+> This feature is deprecated and will be removed in the next version. Instead, you can use custom commands with `key_sequence` argument, and lua script.
+
 > Leader key is inspired by vim's Leader, and emacs' hydra/which-key/transient.
 
 Leader is a prefix key that allows navigating a tree of keymaps where leafs are actions to be performed in the UI as if the user typed them directly.

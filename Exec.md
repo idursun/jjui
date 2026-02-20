@@ -33,6 +33,8 @@ Pressing `$` opens the line-editor for entering shell commands. These are run vi
 - The main UI does not show a status spinner or error notification for these commands.
 - If a program terminates quickly (less than 5 seconds), it is assumed to be non-interactive (e.g., `: version` or `$ ls -la`). In these cases, jjui will ask for confirmation before closing the terminal and returning to the main UI.
 
+If a `jj` or shell command fails, the failed command is restored into the input line so you can easily edit and retry it without retyping.
+
 ## Log Batching in Revisions
 
 Log batching is now enabled by default in jjui. Instead of loading all revisions at startup, jjui will load the first 50 revisions and fetch additional chunks as you scroll past the 50th revision. This greatly improves startup times for large repositories, while having minimal impact on small ones.

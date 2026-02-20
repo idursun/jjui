@@ -7,6 +7,7 @@ To activate squash, press `S` in the Revisions view. The cursor will automatical
 
 Options:
 - Press `e` to toggle the `--keep-emptied` argument, which keeps any emptied commits after the squash.
+- Press `d` to toggle the `--use-destination-message` argument, which uses the destination commit's message for the resulting squash.
 - Press `i` to toggle the `--interactive` argument, enabling interactive mode for fine-tuning the squash process.
 
 Workflow:

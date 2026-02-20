@@ -2,15 +2,19 @@
 
 `jjui` is a terminal user interface for working with [Jujutsu version control system](https://github.com/jj-vcs/jj). I have built it according to my own needs and will keep adding new features as I need them. I am open to feature requests and contributions.
 
+
+### Migrating from v0.9
+* [Migrating to v0.10](./Migrating-to-v0.10): Actions, bindings, config.lua, and what replaced custom commands and leader keys
+
 ## Features
 
 ### Core Features
 * [Revisions](./Revisions): Main view for exploring and managing revisions
-* [Preview](./Preview): View diffs and details of commits and files
+* [Preview](./Preview): View diffs and details of commits and files (with mouse-aware scrolling and auto placement)
 * [Details](./Details): Explore files in a commit, with diff, split, and restore capabilities
 * [Oplog](./Oplog): View the operation log of your repository
 * [Command Execution](./Command-Execution): Execute shell and jj commands directly from `jjui`
-* [Custom Commands](./Custom-Commands): Define your own commands with custom keybindings
+* [Custom Commands](./Custom-Commands): Define your own commands with custom keybindings, key sequences, and Lua scripting
 * [Fuzzy File Finder](./Fuzzy-File-Finder): Fuzzy find on all files and explore changes on them.
 * [Ace Jump](./Ace-Jump): Quickly move between revisions using fast key strokes.
 * [Exec](./Exec): Run interactive jj and shell commands

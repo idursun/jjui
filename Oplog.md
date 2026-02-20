@@ -7,6 +7,8 @@ You can use the preview window (opened by pressing `p`) to display the contents 
 
 Pressing `r` will restore the working directory to the state of that operation, essentially executing `jj op restore <operationid>`. You can always undo this operation by pressing `u`.
 
+Pressing `R` will revert the selected operation, running `jj op revert <operationid>`.
+
 Pressing `d` will show the operation changes in full diff view.
 
 ![GIF](https://github.com/idursun/jjui/wiki/gifs/jjui_oplog.gif)

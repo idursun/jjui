@@ -1,7 +1,7 @@
 # Preview
-You can open the preview window by pressing `p`. 
+You can open the preview window by pressing `p`.
 
-Preview window displays output of the `jj show` (or `jj op show`) command of the selected revision/file/operation. 
+Preview window displays output of the `jj show` (or `jj op show`) command of the selected revision/file/operation.
 
 You can specify commands to display the content of different item types in the preview window using the configuration options under the `preview` table in your [configuration file](../Configuration).
 
@@ -13,7 +13,9 @@ oplog_command = ["op", "show", "$operation_id", "--color", "always"]
 file_command = ["diff", "--color", "always", "-r", "$change_id", "$file"]
 ```
 
-While the preview window is showing, you can press; `ctrl+n` to scroll one line down, `ctrl+p` to scroll one line up, `ctrl+d` to scroll half page down, `ctrl+u` to scroll half page up. 
+While the preview window is showing, you can press; `ctrl+n` to scroll one line down, `ctrl+p` to scroll one line up, `ctrl+d` to scroll half page down, `ctrl+u` to scroll half page up.
+
+When mouse support is available in your terminal, you can also scroll the preview vertically and horizontally with the mouse wheel, and drag the preview border to resize it.
 
 ![GIF](https://github.com/idursun/jjui/wiki/gifs/jjui_preview.gif)
 
@@ -24,6 +26,7 @@ By default preview window has the following configuration:
 ```toml
 [keys.preview]
   mode = ["p"]
+  toggle_bottom = ["P"]
   scroll_up = ["ctrl+p"]
   scroll_down = ["ctrl+n"]
   half_page_down = ["ctrl+d"]
@@ -31,6 +34,7 @@ By default preview window has the following configuration:
   expand = ["ctrl+h"]
   shrink = ["ctrl+l"]
 [preview]
+  position = "auto" # auto, bottom, or right
   show_at_start = false
   width_percentage = 50.0
   width_increment_percentage = 5.0
@@ -41,9 +45,16 @@ By default preview window has the following configuration:
 
 ## Preview Window Position
 
-Pressing `P` will move the preview window to the bottom of the screen, and pressing it again will move it back to the side. You can configure `jjui` to show the preview window at the bottom by default by setting:
+Pressing `P` will move the preview window to the bottom of the screen, and pressing it again will move it back to the side.
+
+You can control where the preview appears by default with the `position` field:
 
 ```toml
 [preview]
-show_at_bottom = true
+position = "auto"   # one of: "auto", "bottom", "right"
+show_at_start = true
 ```
+
+- `auto` (default): choose bottom in tall terminals, right in wide ones.
+- `bottom`: always show the preview at the bottom.
+- `right`: always show the preview on the right-hand side.
