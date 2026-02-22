@@ -273,7 +273,7 @@ func (m *Model) loadAll() tea.Msg {
 					name:     fmt.Sprintf("track '%s'", b.Name),
 					priority: trackCommand,
 					dist:     distance,
-					args:     jj.BookmarkTrack(b.Name, ""),
+					args:     jj.BookmarkTrack(b.Name, m.defaultTrackRemote()),
 				})
 			}
 
@@ -528,6 +528,20 @@ func loadRemoteNames(c context.CommandRunner) []string {
 	bytes, _ := c.RunCommandImmediate(jj.GitRemoteList())
 	remotes := jj.ParseRemoteListOutput(string(bytes))
 	return remotes
+}
+
+func (m *Model) defaultTrackRemote() string {
+	for _, remote := range m.remoteNames {
+		if remote == "origin" {
+			return remote
+		}
+	}
+	for _, remote := range m.remoteNames {
+		if remote != "local" {
+			return remote
+		}
+	}
+	return "origin"
 }
 
 func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string) *Model {
