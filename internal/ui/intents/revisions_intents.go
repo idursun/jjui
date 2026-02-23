@@ -161,6 +161,11 @@ type AbandonToggleSelect struct{}
 
 func (AbandonToggleSelect) isIntent() {}
 
+//jjui:bind scope=revisions.abandon action=select_descendants
+type AbandonSelectDescendants struct{}
+
+func (AbandonSelectDescendants) isIntent() {}
+
 //jjui:bind scope=revisions action=open_duplicate
 type StartDuplicate struct {
 	Selected jj.SelectedRevisions
