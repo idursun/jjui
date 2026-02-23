@@ -37,6 +37,19 @@ export default defineConfig({
 						{ label: 'Flash Messages', slug: 'features/flash-messages' },
 						{ label: 'Bookmarks', slug: 'features/bookmarks' },
 						{ label: 'Git', slug: 'features/git' },
+						{
+							label: 'Experimental Features',
+							items: [
+								{ label: 'Lua Custom Commands', slug: 'features/custom-commands-lua' },
+								{ label: 'Tracing', slug: 'customization/tracing' },
+							],
+						},
+						{
+							label: 'Deprecated Features',
+							items: [
+								{ label: 'Leader Key', slug: 'customization/leader-key' },
+							],
+						},
 					],
 				},
 				{
@@ -63,19 +76,6 @@ export default defineConfig({
 						{ label: 'Configuration', slug: 'customization/configuration' },
 						{ label: 'Command Line Options', slug: 'customization/command-line-options' },
 						{ label: 'Themes', slug: 'customization/themes' },
-					],
-				},
-				{
-					label: 'Experimental Features',
-					items: [
-						{ label: 'Lua Custom Commands', slug: 'features/custom-commands-lua' },
-						{ label: 'Tracing', slug: 'customization/tracing' },
-					],
-				},
-				{
-					label: 'Deprecated Features',
-					items: [
-						{ label: 'Leader Key', slug: 'customization/leader-key' },
 					],
 				},
 				{
