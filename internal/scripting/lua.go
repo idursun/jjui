@@ -381,6 +381,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 			options []string
 			title   string
 			filter  bool
+			ordered bool
 		)
 		if L.GetTop() == 1 {
 			if tbl, ok := L.Get(1).(*lua.LTable); ok {
@@ -397,10 +398,13 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 				if filterVal := tbl.RawGetString("filter"); filterVal != lua.LNil {
 					filter = bool(filterVal.(lua.LBool))
 				}
+				if orderedVal := tbl.RawGetString("ordered"); orderedVal != lua.LNil {
+					ordered = bool(orderedVal.(lua.LBool))
+				}
 				if options == nil {
 					options = stringSliceFromTable(tbl)
 				}
-				return yieldStep(L, step{cmd: choose.ShowWithTitle(options, title, filter), matcher: matchChoose})
+				return yieldStep(L, step{cmd: choose.ShowOrdered(options, title, filter, ordered), matcher: matchChoose})
 			}
 		}
 		options = argsFromLua(L)

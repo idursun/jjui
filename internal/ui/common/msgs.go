@@ -44,6 +44,7 @@ type (
 		Options []string
 		Title   string
 		Filter  bool
+		Ordered bool
 	}
 	ShowInputMsg struct {
 		Title  string

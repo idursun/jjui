@@ -212,7 +212,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case common.ShowChooseMsg:
-		model := choose.NewWithTitle(msg.Options, msg.Title, msg.Filter)
+		model := choose.NewWithOptions(msg.Options, msg.Title, msg.Filter, msg.Ordered)
 		m.stacked = model
 		return m.stacked.Init()
 	case choose.SelectedMsg:

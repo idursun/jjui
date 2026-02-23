@@ -1,6 +1,7 @@
 package choose
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -35,9 +36,7 @@ func (m itemScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 	return m
 }
 
-var (
-	_ common.ImmediateModel = (*Model)(nil)
-)
+var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
 	options             []string
@@ -49,6 +48,7 @@ type Model struct {
 	ensureCursorVisible bool
 	filterable          bool
 	filtering           bool
+	ordered             bool
 	input               textinput.Model
 }
 
@@ -67,6 +67,10 @@ func New(options []string) *Model {
 }
 
 func NewWithTitle(options []string, title string, filterable bool) *Model {
+	return NewWithOptions(options, title, filterable, false)
+}
+
+func NewWithOptions(options []string, title string, filterable bool, ordered bool) *Model {
 	ti := textinput.New()
 	ti.Prompt = "/"
 	ti.Placeholder = "filter..."
@@ -86,6 +90,7 @@ func NewWithTitle(options []string, title string, filterable bool) *Model {
 		},
 		listRenderer: render.NewListRenderer(itemScrollMsg{}),
 		filterable:   filterable,
+		ordered:      ordered,
 		input:        ti,
 	}
 }
@@ -126,6 +131,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.input, cmd = m.input.Update(msg)
 			m.filterOptions()
 			return cmd
+		}
+		if m.ordered {
+			if r := msg.String(); len(r) == 1 && r[0] >= '1' && r[0] <= '9' {
+				idx := int(r[0] - '1')
+				if idx < len(m.filteredOptions) {
+					m.selected = idx
+					return m.selectCurrent()
+				}
+			}
 		}
 		if m.filterable && msg.String() == "/" {
 			m.filtering = true
@@ -222,8 +236,12 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	itemWidth := 0
+	orderPrefix := 0
+	if m.ordered {
+		orderPrefix = 3 // "N. " prefix
+	}
 	for _, opt := range m.options {
-		itemWidth = max(itemWidth, lipgloss.Width(opt)+2)
+		itemWidth = max(itemWidth, lipgloss.Width(opt)+2+orderPrefix)
 	}
 	if m.title != "" {
 		itemWidth = max(itemWidth, lipgloss.Width(m.title))
@@ -299,7 +317,11 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			if index == m.selected {
 				style = m.styles.selected
 			}
-			line := style.Padding(0, 1).Width(rect.Dx()).Render(m.filteredOptions[index])
+			label := m.filteredOptions[index]
+			if m.ordered && index < 9 {
+				label = fmt.Sprintf("%d. %s", index+1, label)
+			}
+			line := style.Padding(0, 1).Width(rect.Dx()).Render(label)
 			dl.AddDraw(rect, line, render.ZMenuContent)
 		},
 		func(index int) tea.Msg { return itemClickMsg{Index: index} },
@@ -315,6 +337,12 @@ func newCmd(msg tea.Msg) tea.Cmd {
 func ShowWithTitle(options []string, title string, filter bool) tea.Cmd {
 	return func() tea.Msg {
 		return common.ShowChooseMsg{Options: options, Title: title, Filter: filter}
+	}
+}
+
+func ShowOrdered(options []string, title string, filter bool, ordered bool) tea.Cmd {
+	return func() tea.Msg {
+		return common.ShowChooseMsg{Options: options, Title: title, Filter: filter, Ordered: ordered}
 	}
 }
 
