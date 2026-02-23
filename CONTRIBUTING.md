@@ -85,9 +85,20 @@ This produces `catalog_gen.go` and `builtins_gen.go`. A staleness test will fail
 - Operations (rebase, squash, split, etc.) are implemented as operations the `internal/ui/operations/` directory
 - Set `DEBUG=1` environment variable for printing debug messages to `debug.log` file
 
+## Contributing Documentation
+
+If you contribute a feature or if you find something that can be documented better, feel free to send a PR against the [`docs`](https://github.com/idursun/jjui/tree/docs) branch. 
+
+The site is built with [starlight](https://starlight.astro.build/), you can run the local server with:
+
+```shell
+pnpm install
+pnpm run dev
+```
+
 ## Getting Help
 
-- Check the [wiki](https://github.com/idursun/jjui/wiki) for detailed documentation
+- Check the [documentation website](https://idursun.github.io/jjui) for detailed documentation
 - Look at existing issues for similar problems or questions
 - Feel free to ask questions in new issues
 
