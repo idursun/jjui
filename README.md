@@ -8,26 +8,26 @@ If you are new `jjui`, have a look at [previously on jjui](https://github.com/id
 
 > [!NOTE]
 > Trunk version is at **v0.10** which is not released and contains breaking changes.
-> See the [migration guide](https://idursun.github.io/jjui/Migrating-to-v0.10.html) for what changed and how to update your configuration.
+> See the [migration guide](https://idursun.github.io/jjui/migrating/v0_10/) for what changed and how to update your configuration.
 
 ## Features
 
 ### Change revset with auto-complete
 You can change revset while enjoying auto-complete and signature help while typing.
 
-![GIF](https://raw.github.com/idursun/jjui/docs/gifs/jjui_revset.gif)
+![GIF](https://raw.github.com/idursun/jjui/docs/public/gifs/jjui_revset.gif)
 
 ### Rebase
 You can rebase a revision or a branch onto another revision in the revision tree.
 
-![GIF](https://raw.github.com/idursun/jjui/docs/gifs/jjui_rebase.gif)
+![GIF](https://raw.github.com/idursun/jjui/docs/public/gifs/jjui_rebase.gif)
 
-See [Rebase](https://idursun.github.io/jjui/Rebase.html) for detailed information.
+See [Rebase](https://idursun.github.io/jjui/operations/rebase/) for detailed information.
 
 ### Squash
 You can squash revisions into one revision, by pressing `S`. The following revision will be automatically selected. However, you can change the selection using `j` and `k`.
 
-![GIF](https://raw.github.com/idursun/jjui/docs/gifs/jjui_squash.gif)
+![GIF](https://raw.github.com/idursun/jjui/docs/public/gifs/jjui_squash.gif)
 
 ### Show revision details
 
@@ -38,20 +38,20 @@ In this mode, you can:
 - Split selected files using `s`
 - View diffs of the highlighted by pressing `d`
 
-![GIF](https://raw.github.com/idursun/jjui/docs/gifs/jjui_details.gif)
+![GIF](https://raw.github.com/idursun/jjui/docs/public/gifs/jjui_details.gif)
 
-For detailed information, see [Details](https://idursun.github.io/jjui/Details.html) wiki page.
+For detailed information, see [Details](https://idursun.github.io/jjui/features/details/) wiki page.
 
 ### Bookmarks
 You can move bookmarks to the revision you selected.
 
-![GIF](https://raw.github.com/idursun/jjui/docs/gifs/jjui_bookmarks.gif)
+![GIF](https://raw.github.com/idursun/jjui/docs/public/gifs/jjui_bookmarks.gif)
 
 
 ### Op Log
-You can switch to op log view by pressing `o`. Pressing `r` restores the selected operation. For more information, see [Op log](https://idursun.github.io/jjui/Oplog.html) wiki page.
+You can switch to op log view by pressing `o`. Pressing `r` restores the selected operation. For more information, see [Op log](https://idursun.github.io/jjui/features/oplog/) wiki page.
 
-![GIF](https://raw.github.com/idursun/jjui/docs/gifs/jjui_oplog.gif)
+![GIF](https://raw.github.com/idursun/jjui/docs/public/gifs/jjui_oplog.gif)
 
 ### Preview
 You can open the preview window by pressing `p`. If the selected item is a revision, then the output of `jj show` command is displayed. Similarly, `jj diff` output is displayed for selected files,  and `jj op show` output is displayed for selected operations.
@@ -60,9 +60,9 @@ While the preview window is showing, you can press; `ctrl+n` to scroll one line 
 
 Additionally, you can press `d` to show the contents of preview in diff view.
 
-For detailed information, see [Preview](https://idursun.github.io/jjui/Preview.html) wiki page.
+For detailed information, see [Preview](https://idursun.github.io/jjui/features/preview/) wiki page.
 
-![GIF](https://raw.github.com/idursun/jjui/docs/gifs/jjui_preview.gif)
+![GIF](https://raw.github.com/idursun/jjui/docs/public/gifs/jjui_preview.gif)
 
 ### Actions And Bindings
 
@@ -90,7 +90,7 @@ Additionally,
 
 ## Configuration
 
-See [configuration](https://idursun.github.io/jjui/Configuration.html) section in the wiki.
+See [configuration](https://idursun.github.io/jjui/customization/configuration/) section in the wiki.
 
 ## Installation
 
