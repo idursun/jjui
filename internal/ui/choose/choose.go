@@ -1,6 +1,10 @@
 package choose
 
 import (
+	"fmt"
+	"strings"
+
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
@@ -32,17 +36,20 @@ func (m itemScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 	return m
 }
 
-var (
-	_ common.ImmediateModel = (*Model)(nil)
-)
+var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
 	options             []string
+	filteredOptions     []string
 	selected            int
 	title               string
 	styles              styles
 	listRenderer        *render.ListRenderer
 	ensureCursorVisible bool
+	filterable          bool
+	filtering           bool
+	ordered             bool
+	input               textinput.Model
 }
 
 type styles struct {
@@ -50,25 +57,41 @@ type styles struct {
 	text     lipgloss.Style
 	title    lipgloss.Style
 	selected lipgloss.Style
+	input    lipgloss.Style
 }
 
 const maxVisibleItems = 20
 
 func New(options []string) *Model {
-	return NewWithTitle(options, "")
+	return NewWithTitle(options, "", false)
 }
 
-func NewWithTitle(options []string, title string) *Model {
+func NewWithTitle(options []string, title string, filterable bool) *Model {
+	return NewWithOptions(options, title, filterable, false)
+}
+
+func NewWithOptions(options []string, title string, filterable bool, ordered bool) *Model {
+	ti := textinput.New()
+	ti.Prompt = "/"
+	ti.Placeholder = "filter..."
+	ti.CharLimit = 100
+	ti.Width = 20
+
 	return &Model{
-		options: options,
-		title:   title,
+		options:         options,
+		filteredOptions: options,
+		title:           title,
 		styles: styles{
 			border:   common.DefaultPalette.GetBorder("choose border", lipgloss.RoundedBorder()),
 			text:     common.DefaultPalette.Get("choose text"),
 			title:    common.DefaultPalette.Get("choose title"),
 			selected: common.DefaultPalette.Get("choose selected"),
+			input:    common.DefaultPalette.Get("choose input"),
 		},
 		listRenderer: render.NewListRenderer(itemScrollMsg{}),
+		filterable:   filterable,
+		ordered:      ordered,
+		input:        ti,
 	}
 }
 
@@ -80,7 +103,12 @@ func (m *Model) StackedActionOwner() string {
 	return actions.OwnerChoose
 }
 
+func (m *Model) IsEditing() bool {
+	return m.filtering
+}
+
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case intents.Intent:
 		switch intent := msg.(type) {
@@ -89,9 +117,35 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case intents.ChooseApply:
 			return m.selectCurrent()
 		case intents.ChooseCancel:
+			if m.filtering {
+				m.filtering = false
+				m.input.Reset()
+				m.filteredOptions = m.options
+				m.selected = 0
+				return nil
+			}
 			return newCmd(CancelledMsg{})
 		}
 	case tea.KeyMsg:
+		if m.filtering {
+			m.input, cmd = m.input.Update(msg)
+			m.filterOptions()
+			return cmd
+		}
+		if m.ordered {
+			if r := msg.String(); len(r) == 1 && r[0] >= '1' && r[0] <= '9' {
+				idx := int(r[0] - '1')
+				if idx < len(m.filteredOptions) {
+					m.selected = idx
+					return m.selectCurrent()
+				}
+			}
+		}
+		if m.filterable && msg.String() == "/" {
+			m.filtering = true
+			m.input.Focus()
+			return textinput.Blink
+		}
 		return nil
 	case common.CloseViewMsg:
 		return newCmd(CancelledMsg{})
@@ -107,7 +161,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.listRenderer.StartLine = 0
 		}
 	case itemClickMsg:
-		if msg.Index < 0 || msg.Index >= len(m.options) {
+		if msg.Index < 0 || msg.Index >= len(m.filteredOptions) {
 			return nil
 		}
 		m.selected = msg.Index
@@ -116,12 +170,30 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
+func (m *Model) filterOptions() {
+	term := strings.ToLower(m.input.Value())
+	if term == "" {
+		m.filteredOptions = m.options
+	} else {
+		filtered := []string{}
+		for _, opt := range m.options {
+			if strings.Contains(strings.ToLower(opt), term) {
+				filtered = append(filtered, opt)
+			}
+		}
+		m.filteredOptions = filtered
+	}
+	if m.selected >= len(m.filteredOptions) {
+		m.selected = 0
+	}
+}
+
 func (m *Model) move(delta int) {
-	if len(m.options) == 0 {
+	if len(m.filteredOptions) == 0 {
 		return
 	}
 	next := m.selected + delta
-	n := len(m.options)
+	n := len(m.filteredOptions)
 	if next < 0 {
 		next = 0
 	}
@@ -136,10 +208,10 @@ func (m *Model) move(delta int) {
 }
 
 func (m *Model) selectCurrent() tea.Cmd {
-	if len(m.options) == 0 {
+	if len(m.filteredOptions) == 0 {
 		return newCmd(CancelledMsg{})
 	}
-	value := m.options[m.selected]
+	value := m.filteredOptions[m.selected]
 	return newCmd(SelectedMsg{Value: value})
 }
 
@@ -158,21 +230,41 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if m.title != "" {
 		titleHeight = 1
 	}
+	inputHeight := 0
+	if m.filtering {
+		inputHeight = 1
+	}
 
 	itemWidth := 0
+	orderPrefix := 0
+	if m.ordered {
+		orderPrefix = 3 // "N. " prefix
+	}
 	for _, opt := range m.options {
-		itemWidth = max(itemWidth, lipgloss.Width(opt)+2)
+		itemWidth = max(itemWidth, lipgloss.Width(opt)+2+orderPrefix)
 	}
 	if m.title != "" {
 		itemWidth = max(itemWidth, lipgloss.Width(m.title))
 	}
+	if m.filtering {
+		itemWidth = max(itemWidth, 25)
+	}
+
 	contentWidth := min(itemWidth, maxContentWidth)
-	listHeightLimit := maxContentHeight - titleHeight
+	listHeightLimit := maxContentHeight - titleHeight - inputHeight
 	if listHeightLimit < 0 {
 		listHeightLimit = 0
 	}
+	// Use total options for height calculation to prevent resizing during filtering
 	listHeight := min(min(len(m.options), listHeightLimit), maxVisibleItems)
-	contentHeight := titleHeight + listHeight
+	if listHeight == 0 && len(m.options) > 0 {
+		listHeight = 1 // Ensure at least one line if there are options
+	}
+	if len(m.options) == 0 {
+		listHeight = 0
+	}
+
+	contentHeight := titleHeight + inputHeight + listHeight
 	if contentWidth <= 0 || contentHeight <= 0 {
 		return
 	}
@@ -198,11 +290,17 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		window.AddDraw(titleBox.R, m.styles.title.Render(m.title), render.ZMenuContent)
 	}
 
+	if inputHeight > 0 {
+		var inputBox layout.Box
+		inputBox, listBox = listBox.CutTop(1)
+		window.AddDraw(inputBox.R, m.styles.input.Render(m.input.View()), render.ZMenuContent)
+	}
+
 	if listBox.R.Dx() <= 0 || listBox.R.Dy() <= 0 {
 		return
 	}
 
-	itemCount := len(m.options)
+	itemCount := len(m.filteredOptions)
 	m.listRenderer.StartLine = render.ClampStartLine(m.listRenderer.StartLine, listBox.R.Dy(), itemCount)
 	m.listRenderer.Render(
 		window,
@@ -219,7 +317,11 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			if index == m.selected {
 				style = m.styles.selected
 			}
-			line := style.Padding(0, 1).Width(rect.Dx()).Render(m.options[index])
+			label := m.filteredOptions[index]
+			if m.ordered && index < 9 {
+				label = fmt.Sprintf("%d. %s", index+1, label)
+			}
+			line := style.Padding(0, 1).Width(rect.Dx()).Render(label)
 			dl.AddDraw(rect, line, render.ZMenuContent)
 		},
 		func(index int) tea.Msg { return itemClickMsg{Index: index} },
@@ -232,12 +334,18 @@ func newCmd(msg tea.Msg) tea.Cmd {
 	return func() tea.Msg { return msg }
 }
 
-func ShowWithTitle(options []string, title string) tea.Cmd {
+func ShowWithTitle(options []string, title string, filter bool) tea.Cmd {
 	return func() tea.Msg {
-		return common.ShowChooseMsg{Options: options, Title: title}
+		return common.ShowChooseMsg{Options: options, Title: title, Filter: filter}
+	}
+}
+
+func ShowOrdered(options []string, title string, filter bool, ordered bool) tea.Cmd {
+	return func() tea.Msg {
+		return common.ShowChooseMsg{Options: options, Title: title, Filter: filter, Ordered: ordered}
 	}
 }
 
 func Show(options []string) tea.Cmd {
-	return ShowWithTitle(options, "")
+	return ShowWithTitle(options, "", false)
 }
