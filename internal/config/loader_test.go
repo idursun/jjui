@@ -56,6 +56,15 @@ selected = { fg = "yellow", bg = "blue" }
 	assert.EqualExportedValues(t, expected, theme)
 }
 
+func findLastActionByName(actions []ActionConfig, name string) (ActionConfig, bool) {
+	for i := len(actions) - 1; i >= 0; i-- {
+		if actions[i].Name == name {
+			return actions[i], true
+		}
+	}
+	return ActionConfig{}, false
+}
+
 func TestLoad_MergesActionsByName(t *testing.T) {
 	cfg := &Config{
 		Actions: []ActionConfig{
@@ -75,10 +84,12 @@ lua = "return 2"
 `
 
 	require.NoError(t, cfg.Load(content))
-	require.Len(t, cfg.Actions, 3)
-	assert.Equal(t, "print('override')", cfg.Actions[0].Lua)
-	assert.Equal(t, "my_action", cfg.Actions[1].Name)
-	assert.Equal(t, "new_action", cfg.Actions[2].Name)
+	require.Len(t, cfg.Actions, 4)
+	action, ok := findLastActionByName(cfg.Actions, "open_details_alias")
+	require.True(t, ok)
+	assert.Equal(t, "print('override')", action.Lua)
+	_, ok = findLastActionByName(cfg.Actions, "new_action")
+	assert.True(t, ok)
 }
 
 func TestLoad_MergesBindingsByShadowRules(t *testing.T) {
@@ -109,16 +120,18 @@ key = "esc"
 
 	require.NoError(t, cfg.Load(content))
 
+	// original bindings remain in the slice (shadowing happens at runtime)
 	assert.Contains(t, cfg.Bindings, BindingConfig{
 		Scope:  "revisions",
 		Action: "revisions.move_up",
-		Key:    StringList{"up"},
+		Key:    StringList{"k", "up"},
 	})
-	assert.NotContains(t, cfg.Bindings, BindingConfig{
+	assert.Contains(t, cfg.Bindings, BindingConfig{
 		Scope:  "revisions",
 		Action: "ui.open_git",
 		Seq:    StringList{"g", "g"},
 	})
+	// overlay bindings are appended
 	assert.Contains(t, cfg.Bindings, BindingConfig{
 		Scope:  "revisions",
 		Action: "revisions.jump_to_parent",

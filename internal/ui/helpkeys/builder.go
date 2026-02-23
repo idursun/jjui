@@ -32,7 +32,9 @@ func BuildFromBindings(
 
 	for _, scope := range scopes {
 		scopeBindings := bindingsByScope[scope]
-		for _, b := range scopeBindings {
+		scopeEntries := make([]Entry, 0, len(scopeBindings))
+		for i := len(scopeBindings) - 1; i >= 0; i-- {
+			b := scopeBindings[i]
 			action := keybindings.Action(strings.TrimSpace(b.Action))
 			if action == "" {
 				continue
@@ -47,14 +49,14 @@ func BuildFromBindings(
 				continue
 			}
 
-			entries = append(entries, Entry{
+			scopeEntries = append(scopeEntries, Entry{
 				Label: label,
 				Desc:  bindingDesc(b),
 			})
-		}
-		for _, b := range scopeBindings {
-			dedupeKey := actionLeaf(keybindings.Action(strings.TrimSpace(b.Action)))
 			seenActions[dedupeKey] = struct{}{}
+		}
+		for i := len(scopeEntries) - 1; i >= 0; i-- {
+			entries = append(entries, scopeEntries[i])
 		}
 	}
 

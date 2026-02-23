@@ -117,10 +117,10 @@ func (c *Config) Load(data string) error {
 	}
 
 	if metadata.IsDefined("actions") {
-		c.Actions = MergeActions(baseActions, overlay.Actions)
+		c.Actions = append(baseActions, overlay.Actions...)
 	}
 	if metadata.IsDefined("bindings") {
-		c.Bindings = MergeBindings(baseBindings, overlay.Bindings)
+		c.Bindings = append(baseBindings, overlay.Bindings...)
 	}
 
 	return c.ValidateBindingsAndActions()

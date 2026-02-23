@@ -269,13 +269,12 @@ end
 	err := RunSetup(ctx, &cfg, source)
 	require.NoError(t, err)
 
-	_, oldExists := findBinding(cfg.Bindings, "revisions.open_diff", "revisions")
-	assert.False(t, oldExists)
 	_, actionExists := findActionByName(cfg.Actions, "show-diff-in-diffnav")
 	assert.True(t, actionExists)
 	binding, ok := findBinding(cfg.Bindings, "show-diff-in-diffnav", "revisions")
 	require.True(t, ok)
 	assert.Equal(t, []string{"d"}, []string(binding.Key))
+
 }
 
 func TestRunSetupActionLastDefinitionWins(t *testing.T) {
@@ -317,9 +316,9 @@ func setupVM(t *testing.T) *uicontext.MainContext {
 }
 
 func findActionByName(actions []config.ActionConfig, name string) (config.ActionConfig, bool) {
-	for _, action := range actions {
-		if action.Name == name {
-			return action, true
+	for i := len(actions) - 1; i >= 0; i-- {
+		if actions[i].Name == name {
+			return actions[i], true
 		}
 	}
 	return config.ActionConfig{}, false
