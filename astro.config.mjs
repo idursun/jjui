@@ -6,6 +6,8 @@ import catppuccin from "@catppuccin/starlight";
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://idursun.github.io',
+	base: '/jjui',
 	integrations: [
 		starlight({
 			title: 'jjui',
