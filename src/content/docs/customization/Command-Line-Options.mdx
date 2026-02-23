@@ -1,0 +1,52 @@
+---
+title: Command Line Options
+description: jjui program command line options
+---
+
+
+`jjui` provides several command line options to customize its behavior. These options can be passed when starting the application.
+
+## Usage
+
+```
+jjui [flags] [location]
+```
+
+Where `[location]` is an optional path to a jj repository. If not provided, the current directory is used.
+
+## Available Flags
+
+| Flag | Alias | Description | Default |
+|------|-------|-------------|---------|
+| `--revset=<revset>` | `-r` | Set default revset | Empty (uses jj config) |
+| `--period=<seconds>` | `-p` | Override auto-refresh interval in seconds | From config (set to 0 to disable) |
+| `--limit=<n>` | `-n` | Number of revisions to show | 0 (no limit) |
+| `--version` | | Show version information | |
+| `--config` | | Open configuration file in $EDITOR | |
+| `--help` | | Show help information | |
+
+## Examples
+
+```
+# Open jjui in the current directory
+jjui
+
+# Open jjui in a specific directory
+jjui /path/to/repo
+
+# Show only 10 revisions
+jjui --limit 10
+
+# Use a custom revset
+jjui --revset "remote() & trunk()"
+
+# Disable auto-refresh
+jjui --period 0
+
+# Open with a 5-second refresh interval
+jjui --period 5
+```
+
+## Configuration
+
+`jjui` uses a configuration file for additional settings. You can edit this file using `jjui --config`.

@@ -1,0 +1,44 @@
+---
+title: Lua Custom Commands (experimental)
+description: Lua Custom Commands (experimental)
+---
+
+
+In addition to `args` or `revset`, custom commands can execute embedded Lua scripts using the `lua` field.
+
+```toml
+[custom_commands.append_to_revset]
+    key = ["+"]
+    lua = '''
+    local change_id = revisions.current()
+    if not change_id then return end
+
+    local current = revset.current()
+    local bumped = false
+    local updated = current:gsub("ancestors%(" .. change_id .. "%s*,%s*(%d+)%)", function(n)
+        bumped = true
+        return "ancestors(" .. change_id .. ", " .. (tonumber(n) + 1) .. ")"
+    end, 1)
+
+    if not bumped then
+        updated = current .. " | ancestors(" .. change_id .. ", 2)"
+    end
+
+    revset.set(updated)
+    '''
+```
+
+Lua scripts run inside jjui and can access a small API:
+
+- `revisions.current()` → current change ID (or `nil`).
+- `revisions.checked()` → list of checked change IDs.
+- `revisions.refresh{ keep_selections?, selected_revision? }` → refresh revisions.
+- `revisions.navigate{ by?, page?, target?, to?, fallback?, ensureView?, allowStream? }` → move the revision cursor.
+- `revisions.start_squash{ files? }`, `revisions.start_rebase{ source?, target? }`, `revisions.open_details()`, `revisions.start_inline_describe()`.
+- `revset.set(value)`, `revset.reset()`, `revset.current()`, `revset.default()`.
+- `jj{...}` → run a `jj` command and get `(output, err)`.
+- `jj_async{...}` → run a `jj` command asynchronously.
+- `flash(message)` → show a transient flash message.
+- `copy_to_clipboard(text)` → copy text to the system clipboard.
+
+This feature is experimental and the API may change between releases.

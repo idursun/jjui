@@ -1,0 +1,19 @@
+---
+title: Op Log
+description: Op Log
+---
+
+
+You can switch to op log view by pressing `o`. 
+
+Op log view is limited to show last 200 operations by default. This can be changed by setting the `oplog.limit` configuration.
+
+You can use the preview window (opened by pressing `p`) to display the contents of the selected operation.
+
+Pressing `r` will restore the working directory to the state of that operation, essentially executing `jj op restore <operationid>`. You can always undo this operation by pressing `u`.
+
+Pressing `R` will revert the selected operation, running `jj op revert <operationid>`.
+
+Pressing `d` will show the operation changes in full diff view.
+
+![GIF](/gifs/jjui_oplog.gif)

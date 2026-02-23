@@ -1,0 +1,95 @@
+---
+title: Installing jjui
+description: Install jjui in different platforms
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+
+<Aside type="note" title="Imporant">
+Minimum supported `jj` version is **v0.36**+.
+</Aside>
+
+## Windows
+
+Use [WinGet](https://learn.microsoft.com/windows/package-manager/winget/):
+
+```shell
+winget install IbrahimDursun.jjui
+```
+
+Use [Scoop](https://scoop.sh/):
+
+```shell
+scoop bucket add extras
+scoop install jjui
+```
+
+
+## Homebrew
+
+The latest release of `jjui` is available on Homebrew core:
+
+```shell
+brew install jjui
+```
+
+## Archlinux (maintained by [@TeddyHuang-00](https://github.com/TeddyHuang-00))
+
+The built `jjui` binary from latest release is available on the AUR:
+
+```shell
+paru -S jjui-bin
+# OR
+yay -S jjui-bin
+```
+
+## Nix
+
+Available in nixpkgs (maintained by [@Adda0](https://github.com/Adda0)):
+```shell
+nix run nixpkgs#jjui
+```
+
+This repo also provides a flake (maintained by [@vic](https://github.com/vic) and [@doprz](https://github.com/doprz)) with [flake-compat](https://github.com/NixOS/flake-compat) and an overlay:
+```shell
+nix run github:idursun/jjui
+```
+
+For development:
+```shell
+nix develop github:idursun/jjui
+```
+
+## From go install
+
+To install the latest released (or pre-released) version:
+
+```shell
+go install github.com/idursun/jjui/cmd/jjui@latest
+```
+
+To install the latest commit from `main`:
+
+```shell
+go install github.com/idursun/jjui/cmd/jjui@HEAD
+```
+To install the latest commit from `main` bypassing the local cache:
+
+```shell
+GOPROXY=direct go install github.com/idursun/jjui/cmd/jjui@HEAD
+```
+
+## From source
+
+You can build `jjui` from source.
+
+```shell
+git clone https://github.com/idursun/jjui.git
+cd jjui
+go install ./...
+```
+
+
+## From pre-built binaries
+You can download pre-built binaries from the [releases](https://github.com/idursun/jjui/releases) page.

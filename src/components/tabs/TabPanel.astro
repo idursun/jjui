@@ -1,0 +1,44 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+
+export interface Props {
+	id: string;
+	initial?: boolean;
+}
+const { id, initial } = Astro.props;
+const attributes: HTMLAttributes<'div'> = initial ? { 'data-initial': 'true' } : {};
+---
+
+<div {id} {...attributes}>
+	<slot />
+</div>
+
+<style>
+	/*
+	These styles avoid layout shift on page load.
+	We don’t want to hide all tabs forever in case JS never loads,
+	so instead we hide them initially with an animation that jumps
+	from hidden to visible after 10s. Usually JS will run before
+	10s at which point we’ll rely on the `hidden` attribute and
+	toggle off the animation using `role='tabpanel'`. Both these
+	attributes are injected by the JS.
+	*/
+
+	div {
+		animation: tab-panel-appear 10s steps(2, jump-none) 1;
+	}
+
+	div[data-initial],
+	div[role='tabpanel'] {
+		animation: none;
+	}
+
+	@keyframes tab-panel-appear {
+		from {
+			/* `content-visibility` is set as well as `display` to work around a Firefox
+			   bug where animations containing only `display: none` don’t play. */
+			display: none;
+			content-visibility: hidden;
+		}
+	}
+</style>

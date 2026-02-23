@@ -1,0 +1,63 @@
+---
+title: Rebase
+description: Rebase
+---
+
+
+
+You can rebase a revision, branch or source onto/before/after another revision in the revision tree.
+
+![GIF](https://github.com/idursun/jjui/wiki/gifs/jjui_rebase.gif)
+
+Pressing `r` enter the rebase mode and by default source is set to `source` and target is set to `onto`.
+
+During rebase, there are source and target options that you can set to choose what type of rebase you want. Source defines which revisions you want to be rebased and target defines where and how you want to be rebased.
+
+## Source
+### revision
+Can be set by pressing `r`. Only the selected revision will be moved to the target.
+
+### branch
+Can be set by pressing `B`. All revisions in the branch of the selected revision will be moved to the target.
+
+### source
+Can be set by pressing `s`. Selected revision and its descendants will be moved to the target.
+
+## Target
+### onto
+Can be set by pressing `d`. Source revisions will be branched off the target revision.
+
+<img width="992" alt="image" src="https://github.com/user-attachments/assets/10e2ec86-ec5f-4b1b-9f31-9b0228a1568a" />
+when applied:
+<img width="992" alt="image" src="https://github.com/user-attachments/assets/6f73021f-3278-4c30-a5ee-0ef213636f08" />
+
+### after
+Can be set by pressing `a`. Source revision(s) will be placed after the target revision.
+<img width="992" alt="image" src="https://github.com/user-attachments/assets/33c8a103-3bb1-4cfe-a8e4-76249152eb74" />
+when applied:
+<img width="992" alt="image" src="https://github.com/user-attachments/assets/abf8256f-596b-4ee3-ba8d-88dd8961941d" />
+
+
+### before
+Can be set by pressing `b`. Source revision(s) will be placed before the target revision.
+
+<img width="992" alt="image" src="https://github.com/user-attachments/assets/4930112f-ba2f-472a-a884-13889103e18f" />
+
+when applied:
+
+<img width="992" alt="image" src="https://github.com/user-attachments/assets/5210e35b-0797-4432-b1bb-0594142ba104" />
+
+### insert
+The revision that's selected by pressing `i` is set to be the `--insert-after` argument and the one that you have selected by pressing `enter` is going to be the `--insert-before` argument. Effectively running the following command:
+
+```shell
+jj rebase -r <the revision when r was pressed> --insert-after <the revision when i was pressed> --insert-before <revision when enter was pressed>
+```
+
+before:
+
+<img width="826" alt="image" src="https://github.com/user-attachments/assets/b0237af4-e0c4-4ebc-9176-21de04ee57f6" />
+
+after:
+
+<img width="826" alt="image" src="https://github.com/user-attachments/assets/3e3ea9c2-8291-48ae-8912-01be18408156" />

@@ -1,0 +1,27 @@
+---
+title: Squash Operation
+description: Squash Operation
+---
+
+The squash operation allows you to combine multiple revisions into a single commit, streamlining your repository history. This feature is accessible from the Revisions view and provides interactive options for advanced control.
+
+To activate squash, press `S` in the Revisions view. The cursor will automatically move to the parent of the selected revisions, making it easy to choose the target for the squash.
+
+Options:
+- Press `e` to toggle the `--keep-emptied` argument, which keeps any emptied commits after the squash.
+- Press `d` to toggle the `--use-destination-message` argument, which uses the destination commit's message for the resulting squash.
+- Press `i` to toggle the `--interactive` argument, enabling interactive mode for fine-tuning the squash process.
+
+Workflow:
+1. Select the revisions you want to squash.
+2. Press `S` to activate squash mode.
+3. The cursor moves to the parent revision.
+4. Use `e` and `i` to set your desired options.
+5. Confirm to execute the squash operation.
+
+Example:
+- To squash two commits interactively and keep emptied:
+  - Select the commits
+  - Press `S`
+  - Press `e` and `i` to enable both options
+  - Confirm to squash
