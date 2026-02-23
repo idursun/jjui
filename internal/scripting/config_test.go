@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/idursun/jjui/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -19,14 +20,19 @@ func TestRunScriptRequiresInitializedVM(t *testing.T) {
 	assert.Contains(t, err.Error(), "not initialized")
 }
 
-func TestRunSetupActionRegistersActionAndBinding(t *testing.T) {
-	ctx := &uicontext.MainContext{}
-	require.NoError(t, InitVM(ctx))
-	t.Cleanup(func() {
-		CloseVM(ctx)
-	})
-
-	source := `
+func TestRunSetupRegistersAndRunsAction(t *testing.T) {
+	tests := []struct {
+		name         string
+		source       string
+		actionName   string
+		bindingScope string
+		bindingDesc  string
+		bindingKey   []string
+		marker       string
+	}{
+		{
+			name: "action with config.bind",
+			source: `
 function helper()
   marker = "ok"
 end
@@ -43,37 +49,16 @@ function setup(config)
     scope = "revisions",
   })
 end
-`
-
-	actions, bindings, err := RunSetup(ctx, source)
-	require.NoError(t, err)
-	require.Len(t, actions, 1)
-	require.Len(t, bindings, 1)
-
-	assert.Equal(t, "my-action", actions[0].Name)
-	assert.Equal(t, "My custom action", bindings[0].Desc)
-	assert.True(t, strings.HasPrefix(actions[0].Lua, `__jjui_actions["action_`))
-	assert.True(t, strings.HasSuffix(actions[0].Lua, `"]()`))
-
-	assert.Equal(t, "my-action", bindings[0].Action)
-	assert.Equal(t, "revisions", bindings[0].Scope)
-	assert.Equal(t, []string{"x"}, []string(bindings[0].Key))
-
-	runner, _, err := RunScript(ctx, actions[0].Lua)
-	require.NoError(t, err)
-	require.NotNil(t, runner)
-	assert.True(t, runner.Done())
-	assert.Equal(t, "ok", ctx.ScriptVM.GetGlobal("marker").String())
-}
-
-func TestRunSetupActionWithInlineBindingOpts(t *testing.T) {
-	ctx := &uicontext.MainContext{}
-	require.NoError(t, InitVM(ctx))
-	t.Cleanup(func() {
-		CloseVM(ctx)
-	})
-
-	source := `
+`,
+			actionName:   "my-action",
+			bindingScope: "revisions",
+			bindingDesc:  "My custom action",
+			bindingKey:   []string{"x"},
+			marker:       "ok",
+		},
+		{
+			name: "action with inline binding opts",
+			source: `
 function setup(config)
   config.action("inline-action", function()
     marker = "inline"
@@ -83,33 +68,45 @@ function setup(config)
     scope = "revisions",
   })
 end
-`
+`,
+			actionName:   "inline-action",
+			bindingScope: "revisions",
+			bindingDesc:  "Inline binding action",
+			bindingKey:   []string{"z"},
+			marker:       "inline",
+		},
+	}
 
-	actions, bindings, err := RunSetup(ctx, source)
-	require.NoError(t, err)
-	require.Len(t, actions, 1)
-	require.Len(t, bindings, 1)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := setupVM(t)
+			cfg := *config.Current
 
-	assert.Equal(t, "inline-action", actions[0].Name)
-	assert.Equal(t, "Inline binding action", bindings[0].Desc)
-	assert.Equal(t, "inline-action", bindings[0].Action)
-	assert.Equal(t, "revisions", bindings[0].Scope)
-	assert.Equal(t, []string{"z"}, []string(bindings[0].Key))
-	assert.Empty(t, bindings[0].Seq)
+			err := RunSetup(ctx, &cfg, tt.source)
+			require.NoError(t, err)
 
-	runner, _, err := RunScript(ctx, actions[0].Lua)
-	require.NoError(t, err)
-	require.NotNil(t, runner)
-	assert.True(t, runner.Done())
-	assert.Equal(t, "inline", ctx.ScriptVM.GetGlobal("marker").String())
+			action, ok := findActionByName(cfg.Actions, tt.actionName)
+			require.True(t, ok)
+			assert.True(t, strings.HasPrefix(action.Lua, `__jjui_actions["action_`))
+			assert.True(t, strings.HasSuffix(action.Lua, `"]()`))
+
+			binding, ok := findBinding(cfg.Bindings, tt.actionName, tt.bindingScope)
+			require.True(t, ok)
+			assert.Equal(t, tt.bindingDesc, binding.Desc)
+			assert.Equal(t, tt.bindingKey, []string(binding.Key))
+
+			runner, _, err := RunScript(ctx, action.Lua)
+			require.NoError(t, err)
+			require.NotNil(t, runner)
+			assert.True(t, runner.Done())
+			assert.Equal(t, tt.marker, ctx.ScriptVM.GetGlobal("marker").String())
+		})
+	}
 }
 
 func TestRunSetupActionInlineBindingRequiresScope(t *testing.T) {
-	ctx := &uicontext.MainContext{}
-	require.NoError(t, InitVM(ctx))
-	t.Cleanup(func() {
-		CloseVM(ctx)
-	})
+	ctx := setupVM(t)
+	cfg := *config.Current
 
 	source := `
 function setup(config)
@@ -117,7 +114,7 @@ function setup(config)
 end
 `
 
-	_, _, err := RunSetup(ctx, source)
+	err := RunSetup(ctx, &cfg, source)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "opts.scope is required")
 }
@@ -125,6 +122,7 @@ end
 func TestRunSetupCanRequirePluginFromConfigDir(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("JJUI_CONFIG_DIR", configDir)
+	cfg := *config.Current
 
 	pluginsDir := filepath.Join(configDir, "plugins")
 	require.NoError(t, os.MkdirAll(pluginsDir, 0o755))
@@ -144,11 +142,7 @@ end
 return M
 `), 0o644))
 
-	ctx := &uicontext.MainContext{}
-	require.NoError(t, InitVM(ctx))
-	t.Cleanup(func() {
-		CloseVM(ctx)
-	})
+	ctx := setupVM(t)
 
 	source := `
 local plugin = require("plugins.my_plugin")
@@ -158,17 +152,184 @@ function setup(config)
 end
 `
 
-	actions, bindings, err := RunSetup(ctx, source)
+	err := RunSetup(ctx, &cfg, source)
 	require.NoError(t, err)
-	require.Len(t, actions, 1)
-	require.Len(t, bindings, 1)
-	assert.Equal(t, "plugin-action", actions[0].Name)
-	assert.Equal(t, "revisions", bindings[0].Scope)
-	assert.Equal(t, []string{"P"}, []string(bindings[0].Key))
 
-	runner, _, err := RunScript(ctx, actions[0].Lua)
+	action, ok := findActionByName(cfg.Actions, "plugin-action")
+	require.True(t, ok)
+	binding, ok := findBinding(cfg.Bindings, "plugin-action", "revisions")
+	require.True(t, ok)
+	assert.Equal(t, []string{"P"}, []string(binding.Key))
+
+	runner, _, err := RunScript(ctx, action.Lua)
 	require.NoError(t, err)
 	require.NotNil(t, runner)
 	assert.True(t, runner.Done())
 	assert.Equal(t, "plugin-ok", ctx.ScriptVM.GetGlobal("marker").String())
+}
+
+func TestRunSetupUpdatesConfigAndPreservesExplicitFalse(t *testing.T) {
+	ctx := setupVM(t)
+	cfg := *config.Current
+
+	source := `
+function setup(config)
+  config.limit = 5
+  config.ui.colors.selected = { bg = "0", underline = false }
+end
+`
+
+	err := RunSetup(ctx, &cfg, source)
+	require.NoError(t, err)
+
+	assert.Equal(t, 5, cfg.Limit)
+	selected, ok := cfg.UI.Colors["selected"]
+	require.True(t, ok)
+	assert.Equal(t, "0", selected.Bg)
+	if assert.NotNil(t, selected.Underline) {
+		assert.False(t, *selected.Underline)
+	}
+}
+
+func TestRunSetupAppliesActionsAndBindingsAssignments(t *testing.T) {
+	ctx := setupVM(t)
+	cfg := *config.Current
+
+	source := `
+function setup(config)
+  config.actions = { { name = "replaced", lua = "flash('ok')" } }
+  config.bindings = { { action = "replaced", scope = "revisions", key = {"x"} } }
+  config.limit = 7
+end
+`
+
+	err := RunSetup(ctx, &cfg, source)
+	require.NoError(t, err)
+
+	assert.Equal(t, 7, cfg.Limit)
+	require.Len(t, cfg.Actions, 1)
+	assert.Equal(t, "replaced", cfg.Actions[0].Name)
+	require.Len(t, cfg.Bindings, 1)
+	assert.Equal(t, "replaced", cfg.Bindings[0].Action)
+	assert.Equal(t, []string{"x"}, []string(cfg.Bindings[0].Key))
+}
+
+func TestRunSetupReportsConfigTypeErrors(t *testing.T) {
+	ctx := setupVM(t)
+	cfg := *config.Current
+
+	source := `
+function setup(config)
+  config.limit = "oops"
+end
+`
+
+	err := RunSetup(ctx, &cfg, source)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "config.limit: expected integer, got string")
+}
+
+func TestRunSetupValidatesResultingBindings(t *testing.T) {
+	ctx := setupVM(t)
+	cfg := *config.Current
+
+	source := `
+function setup(config)
+  config.bindings = {
+    {
+      action = "ui.quit",
+      scope = "ui",
+      key = {"q"},
+      seq = {"g", "q"},
+    },
+  }
+end
+`
+
+	err := RunSetup(ctx, &cfg, source)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must set exactly one of key or seq")
+}
+
+func TestRunSetupBindShadowsDefaultBindingForSameKey(t *testing.T) {
+	ctx := setupVM(t)
+	cfg := config.Config{
+		Bindings: []config.BindingConfig{
+			{Scope: "revisions", Action: "revisions.diff", Key: config.StringList{"d"}},
+		},
+	}
+
+	source := `
+function setup(config)
+  config.action("show-diff-in-diffnav", function() end)
+  config.bind({ action = "show-diff-in-diffnav", scope = "revisions", key = "d" })
+end
+`
+
+	err := RunSetup(ctx, &cfg, source)
+	require.NoError(t, err)
+
+	_, oldExists := findBinding(cfg.Bindings, "revisions.open_diff", "revisions")
+	assert.False(t, oldExists)
+	_, actionExists := findActionByName(cfg.Actions, "show-diff-in-diffnav")
+	assert.True(t, actionExists)
+	binding, ok := findBinding(cfg.Bindings, "show-diff-in-diffnav", "revisions")
+	require.True(t, ok)
+	assert.Equal(t, []string{"d"}, []string(binding.Key))
+}
+
+func TestRunSetupActionLastDefinitionWins(t *testing.T) {
+	ctx := setupVM(t)
+	cfg := *config.Current
+
+	source := `
+function setup(config)
+  config.action("duplicate-action", function()
+    marker = "first"
+  end)
+
+  config.action("duplicate-action", function()
+    marker = "second"
+  end)
+end
+`
+
+	err := RunSetup(ctx, &cfg, source)
+	require.NoError(t, err)
+
+	action, ok := findActionByName(cfg.Actions, "duplicate-action")
+	require.True(t, ok)
+	runner, _, err := RunScript(ctx, action.Lua)
+	require.NoError(t, err)
+	require.NotNil(t, runner)
+	assert.True(t, runner.Done())
+	assert.Equal(t, "second", ctx.ScriptVM.GetGlobal("marker").String())
+}
+
+func setupVM(t *testing.T) *uicontext.MainContext {
+	t.Helper()
+	ctx := &uicontext.MainContext{}
+	require.NoError(t, InitVM(ctx))
+	t.Cleanup(func() {
+		CloseVM(ctx)
+	})
+	return ctx
+}
+
+func findActionByName(actions []config.ActionConfig, name string) (config.ActionConfig, bool) {
+	for _, action := range actions {
+		if action.Name == name {
+			return action, true
+		}
+	}
+	return config.ActionConfig{}, false
+}
+
+func findBinding(bindings []config.BindingConfig, action, scope string) (config.BindingConfig, bool) {
+	for _, binding := range bindings {
+		if binding.Action == action && binding.Scope == scope {
+			return binding, true
+		}
+	}
+	return config.BindingConfig{}, false
 }

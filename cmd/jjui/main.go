@@ -170,22 +170,9 @@ func run() int {
 		fmt.Fprintf(os.Stderr, "Error loading config.lua: %v\n", err)
 		return 1
 	} else if luaSource != "" {
-		actions, bindings, err := scripting.RunSetup(appContext, config.Current, luaSource)
-		if err != nil {
+		if err := scripting.RunSetup(appContext, config.Current, luaSource); err != nil {
 			fmt.Fprintf(os.Stderr, "Error in config.lua: %v\n", err)
 			return 1
-		}
-		if len(actions) > 0 {
-			config.Current.Actions = config.MergeActions(config.Current.Actions, actions)
-		}
-		if len(bindings) > 0 {
-			config.Current.Bindings = config.MergeBindings(config.Current.Bindings, bindings)
-		}
-		if len(actions) > 0 || len(bindings) > 0 {
-			if err := config.Current.ValidateBindingsAndActions(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error in config.lua actions/bindings: %v\n", err)
-				return 1
-			}
 		}
 	}
 

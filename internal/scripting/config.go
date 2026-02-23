@@ -43,18 +43,16 @@ func CloseVM(ctx *uicontext.MainContext) {
 	}
 }
 
-func RunSetup(ctx *uicontext.MainContext, current *config.Config, source string) ([]config.ActionConfig, []config.BindingConfig, error) {
+func RunSetup(ctx *uicontext.MainContext, current *config.Config, source string) error {
 	if source == "" {
-		return nil, nil, nil
+		return nil
 	}
 
 	L, err := vmFromContext(ctx)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
-	var actions []config.ActionConfig
-	var bindings []config.BindingConfig
 	registry := ensureActionRegistry(L)
 
 	configTable := toLuaTable(L, current)
@@ -135,10 +133,11 @@ func RunSetup(ctx *uicontext.MainContext, current *config.Config, source string)
 
 		id := fmt.Sprintf("action_%d", counter)
 		registry.RawSetString(id, fn)
-		actions = append(actions, config.ActionConfig{
+		actionsTable := configTable.RawGetString("actions").(*lua.LTable)
+		actionsTable.Append(toLuaTable(L, config.ActionConfig{
 			Name: name,
 			Lua:  fmt.Sprintf(`%s[%q]()`, actionRegistryName, id),
-		})
+		}))
 		if hasKey || hasSeq {
 			binding := config.BindingConfig{
 				Action: name,
@@ -146,12 +145,13 @@ func RunSetup(ctx *uicontext.MainContext, current *config.Config, source string)
 				Scope:  scope,
 			}
 			if len(key) > 0 {
-				binding.Key = config.StringList(key)
+				binding.Key = key
 			}
 			if len(seq) > 0 {
-				binding.Seq = config.StringList(seq)
+				binding.Seq = seq
 			}
-			bindings = append(bindings, binding)
+			bindingsTable := configTable.RawGetString("bindings").(*lua.LTable)
+			bindingsTable.Append(toLuaTable(L, binding))
 		}
 		return 0
 	}))
@@ -163,32 +163,41 @@ func RunSetup(ctx *uicontext.MainContext, current *config.Config, source string)
 			Scope:  stringFieldFromTable(tbl, "scope"),
 		}
 		if key := stringListFieldFromTable(tbl, "key"); len(key) > 0 {
-			binding.Key = config.StringList(key)
+			binding.Key = key
 		}
 		if seq := stringListFieldFromTable(tbl, "seq"); len(seq) > 0 {
-			binding.Seq = config.StringList(seq)
+			binding.Seq = seq
 		}
-		bindings = append(bindings, binding)
+		bindingsTable := configTable.RawGetString("bindings").(*lua.LTable)
+		bindingsTable.Append(toLuaTable(L, binding))
 		return 0
 	}))
 
 	if err := L.DoString(source); err != nil {
-		return nil, nil, fmt.Errorf("config.lua: %w", err)
+		return fmt.Errorf("config.lua: %w", err)
 	}
 
 	setupFn := L.GetGlobal("setup")
 	if setupFn == lua.LNil {
-		return nil, nil, nil
+		return nil
 	}
 	fn, ok := setupFn.(*lua.LFunction)
 	if !ok {
-		return nil, nil, fmt.Errorf("config.lua: setup is not a function")
+		return fmt.Errorf("config.lua: setup is not a function")
 	}
 	if err := L.CallByParam(lua.P{Fn: fn, NRet: 0, Protect: true}, configTable); err != nil {
-		return nil, nil, fmt.Errorf("config.lua: setup(): %w", err)
+		return fmt.Errorf("config.lua: setup(): %w", err)
 	}
 
-	return actions, bindings, nil
+	// convert lua table back to config object
+	if err = fromLuaTable(configTable, current); err != nil {
+		return fmt.Errorf("config.lua: setup(): %w", err)
+	}
+	if err = current.ValidateBindingsAndActions(); err != nil {
+		return fmt.Errorf("config.lua: setup(): %w", err)
+	}
+
+	return nil
 }
 
 func vmFromContext(ctx *uicontext.MainContext) (*lua.LState, error) {
