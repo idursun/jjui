@@ -502,13 +502,19 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 
 	// Render segments
 	beforeCommitID := ""
-	if ir.op != nil {
+	if ir.op != nil && line.Flags&parser.Revision == parser.Revision {
 		beforeCommitID = ir.op.Render(ir.row.Commit, operations.RenderBeforeCommitId)
 	}
 
+	// A flag to track whether beforeCommitID was successfully inserted
+	// it prevents double-rendering of input (bookmark)
+	// and enables the fallback: when user's custom jj `template-aliases` has
+	// no CommitID, it inserts to the end of the line
+	beforeCommitIDRendered := false
 	for _, segment := range line.Segments {
-		if beforeCommitID != "" && segment.Text == ir.row.Commit.CommitId {
+		if beforeCommitID != "" && !beforeCommitIDRendered && strings.HasPrefix(segment.Text, ir.row.Commit.CommitId) {
 			tb.Write(beforeCommitID)
+			beforeCommitIDRendered = true
 		}
 
 		style := ir.getSegmentStyleForLine(*segment, lineIsHighlightable)
@@ -520,6 +526,10 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 			}
 		}
 		ir.renderSegmentForLine(tb, segment, lineIsHighlightable)
+	}
+	if beforeCommitID != "" && !beforeCommitIDRendered {
+		// Add a space before blinking cursor for aesthetics
+		tb.Write(" " + beforeCommitID)
 	}
 
 	// Add affected marker
