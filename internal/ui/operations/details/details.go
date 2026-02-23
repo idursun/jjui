@@ -39,12 +39,11 @@ var (
 
 type Operation struct {
 	*DetailsList
-	context           *context.MainContext
-	Current           *jj.Commit
-	targetMarkerStyle lipgloss.Style
-	revision          *jj.Commit
-	confirmation      *confirmation.Model
-	styles            styles
+	context      *context.MainContext
+	Current      *jj.Commit
+	revision     *jj.Commit
+	confirmation *confirmation.Model
+	styles       styles
 }
 
 func (s *Operation) IsOverlay() bool {
@@ -482,11 +481,10 @@ func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation 
 
 	l := NewDetailsList(s)
 	op := &Operation{
-		DetailsList:       l,
-		context:           context,
-		revision:          selected,
-		styles:            s,
-		targetMarkerStyle: common.DefaultPalette.Get("revisions details target_marker"),
+		DetailsList: l,
+		context:     context,
+		revision:    selected,
+		styles:      s,
 	}
 	return op
 }

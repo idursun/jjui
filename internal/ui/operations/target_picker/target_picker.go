@@ -49,7 +49,6 @@ type Model struct {
 
 type styles struct {
 	bookmarkPill lipgloss.Style
-	tagPill      lipgloss.Style
 	selected     lipgloss.Style
 	dimmed       lipgloss.Style
 	matchStyle   lipgloss.Style
@@ -101,7 +100,6 @@ func NewModel(ctx *context.MainContext) *Model {
 		cursor:  0,
 		styles: styles{
 			bookmarkPill: palette.Get("picker bookmark"),
-			tagPill:      palette.Get("picker dimmed"),
 			selected:     palette.Get("picker selected"),
 			dimmed:       dimmed,
 			matchStyle:   palette.Get("picker matched"),

@@ -21,7 +21,6 @@ error = "red"
 "revset completion matched" = { fg = "166", bold = true }
 "revset completion selected" = { fg = "white", bg = "25" }
 "revset completion dimmed" = "103"
-"revset completion background" = { bg = "189" }
 "status title" = { fg = "black", bg = "magenta", bold = true }
 "menu title" = { fg = "62", bg = "230", bold = true }
 "menu subtitle" = { fg = "62", bold = true }
