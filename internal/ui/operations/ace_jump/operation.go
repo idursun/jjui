@@ -160,7 +160,7 @@ func (o *Operation) findAceKeys() *AceJump {
 			continue
 		}
 		aj.Append(i, c.CommitId, 0)
-		if c.Hidden || c.IsConflicting() || c.IsRoot() {
+		if c.Hidden || c.IsRoot() {
 			continue
 		}
 		aj.Append(i, c.ChangeId, 0)

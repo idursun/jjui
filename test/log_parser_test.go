@@ -73,12 +73,9 @@ func TestParser_Parse_ConflictedLongIds(t *testing.T) {
 	file, _ := os.Open("testdata/conflicted-change-id.log")
 	rows := parser.ParseRows(file)
 	assert.Len(t, rows, 3)
-	assert.Equal(t, "p??", rows[0].Commit.ChangeId)
-	assert.Equal(t, true, rows[0].Commit.IsConflicting())
-	assert.Equal(t, "qusvoztl??", rows[1].Commit.ChangeId)
-	assert.Equal(t, true, rows[1].Commit.IsConflicting())
-	assert.Equal(t, "tyoqvzlm??", rows[2].Commit.ChangeId)
-	assert.Equal(t, true, rows[2].Commit.IsConflicting())
+	assert.Equal(t, "p/0", rows[0].Commit.ChangeId)
+	assert.Equal(t, "q/0", rows[1].Commit.ChangeId)
+	assert.Equal(t, "t/0", rows[2].Commit.ChangeId)
 }
 
 func TestParser_Parse_Disconnected(t *testing.T) {
@@ -157,24 +154,20 @@ func TestParser_DivergentChangeID(t *testing.T) {
 	file, _ := os.Open("testdata/divergent-change-id.log")
 	rows := parser.ParseRows(file)
 	assert.Len(t, rows, 2)
-	assert.Equal(t, "omvxtumm??", rows[0].Commit.ChangeId)
+	assert.Equal(t, "omv/0", rows[0].Commit.ChangeId)
 	assert.Equal(t, "f99", rows[0].Commit.CommitId)
-	assert.Equal(t, true, rows[0].Commit.IsConflicting())
-	assert.Equal(t, "omvxtumm??", rows[1].Commit.ChangeId)
+	assert.Equal(t, "omv/1", rows[1].Commit.ChangeId)
 	assert.Equal(t, "43bd", rows[1].Commit.CommitId)
-	assert.Equal(t, true, rows[1].Commit.IsConflicting())
 }
 
 func TestParser_DivergentChangeIDShort(t *testing.T) {
 	file, _ := os.Open("testdata/divergent-short-change-id.log")
 	rows := parser.ParseRows(file)
 	assert.Len(t, rows, 2)
-	assert.Equal(t, "omv??", rows[0].Commit.ChangeId)
+	assert.Equal(t, "omv/0", rows[0].Commit.ChangeId)
 	assert.Equal(t, "f99", rows[0].Commit.CommitId)
-	assert.Equal(t, true, rows[0].Commit.IsConflicting())
-	assert.Equal(t, "omv??", rows[1].Commit.ChangeId)
+	assert.Equal(t, "omv/1", rows[1].Commit.ChangeId)
 	assert.Equal(t, "43bd", rows[1].Commit.CommitId)
-	assert.Equal(t, true, rows[1].Commit.IsConflicting())
 }
 
 func TestParser_ChangeIDCommitIDSameColor(t *testing.T) {
@@ -183,13 +176,10 @@ func TestParser_ChangeIDCommitIDSameColor(t *testing.T) {
 	assert.Len(t, rows, 3)
 	assert.Equal(t, "vvr", rows[0].Commit.ChangeId)
 	assert.Equal(t, "ae", rows[0].Commit.CommitId)
-	assert.Equal(t, false, rows[0].Commit.IsConflicting())
 	assert.Equal(t, "l", rows[1].Commit.ChangeId)
 	assert.Equal(t, "6e", rows[1].Commit.CommitId)
-	assert.Equal(t, false, rows[1].Commit.IsConflicting())
 	assert.Equal(t, "xv", rows[2].Commit.ChangeId)
 	assert.Equal(t, "fa", rows[2].Commit.CommitId)
-	assert.Equal(t, false, rows[2].Commit.IsConflicting())
 }
 
 func TestParser_Evolog(t *testing.T) {
@@ -198,5 +188,4 @@ func TestParser_Evolog(t *testing.T) {
 	assert.Len(t, rows, 2)
 	assert.Equal(t, "l", rows[0].Commit.ChangeId)
 	assert.Equal(t, "98", rows[0].Commit.CommitId)
-	assert.Equal(t, false, rows[0].Commit.IsConflicting())
 }
