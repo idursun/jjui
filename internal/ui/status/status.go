@@ -2,7 +2,6 @@ package status
 
 import (
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/x/cellbuf"
@@ -11,7 +10,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 
-	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -24,15 +22,6 @@ import (
 )
 
 var expandFallback = helpkeys.Entry{Label: "?", Desc: "expand status"}
-
-type commandStatus int
-
-const (
-	none commandStatus = iota
-	commandRunning
-	commandCompleted
-	commandFailed
-)
 
 type FocusKind int
 
@@ -47,12 +36,8 @@ var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
 	context         *context.MainContext
-	spinner         spinner.Model
 	input           textinput.Model
 	entries         []helpkeys.Entry
-	command         string
-	status          commandStatus
-	running         bool
 	mode            string
 	focusKind       FocusKind
 	history         map[string][]string
@@ -67,8 +52,6 @@ type styles struct {
 	dimmed   lipgloss.Style
 	text     lipgloss.Style
 	title    lipgloss.Style
-	success  lipgloss.Style
-	error    lipgloss.Style
 }
 
 func (m *Model) IsFocused() bool {
@@ -79,36 +62,12 @@ func (m *Model) FocusKind() FocusKind {
 	return m.focusKind
 }
 
-const CommandClearDuration = 3 * time.Second
-
-type clearMsg string
-
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case clearMsg:
-		if m.command == string(msg) {
-			m.command = ""
-			m.status = none
-		}
-		return nil
-	case common.CommandRunningMsg:
-		m.command = string(msg)
-		m.status = commandRunning
-		return m.spinner.Tick
-	case common.CommandCompletedMsg:
-		if msg.Err != nil {
-			m.status = commandFailed
-		} else {
-			m.status = commandCompleted
-		}
-		commandToBeCleared := m.command
-		return tea.Tick(CommandClearDuration, func(time.Time) tea.Msg {
-			return clearMsg(commandToBeCleared)
-		})
 	case common.FileSearchMsg:
 		m.mode = "rev file"
 		m.input.Prompt = "> "
@@ -158,7 +117,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				m.saveEditingSuggestions()
 
 				m.fuzzy = nil
-				m.command = ""
 				m.focusKind = FocusNone
 				m.mode = ""
 				m.input.Reset()
@@ -191,14 +149,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	default:
-		var cmd tea.Cmd
-		if m.status == commandRunning {
-			m.spinner, cmd = m.spinner.Update(msg)
-		}
 		if m.fuzzy != nil {
-			cmd = m.fuzzy.Update(msg)
+			return m.fuzzy.Update(msg)
 		}
-		return cmd
+		return nil
 	}
 }
 
@@ -242,15 +196,10 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	mode := m.styles.title.Width(modeWidth).Render(" ", m.mode)
 
 	var statusLine string
-	switch {
-	case m.IsFocused():
+	if m.IsFocused() {
 		content := m.renderContent(width, modeWidth)
 		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), content)
-	case m.status != none:
-		statusMark := m.renderStatusMark()
-		content := m.renderContent(width, modeWidth)
-		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), statusMark, content)
-	default:
+	} else {
 		helpBar := m.renderHelpBar(width, modeWidth)
 		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), helpBar)
 	}
@@ -258,19 +207,6 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	dl.AddDraw(box.R, statusLine, 0)
 	m.renderExpandedStatus(dl, box, width)
 	m.renderFuzzyOverlay(dl, box)
-}
-
-// renderStatusMark returns the command status indicator (spinner/success/error).
-func (m *Model) renderStatusMark() string {
-	switch m.status {
-	case commandRunning:
-		return m.styles.text.Render(m.spinner.View())
-	case commandFailed:
-		return m.styles.error.Render("✗ ")
-	case commandCompleted:
-		return m.styles.success.Render("✓ ")
-	}
-	return ""
 }
 
 // renderHelpBar renders the help keybindings bar when idle.
@@ -285,12 +221,8 @@ func (m *Model) renderHelpBar(width, modeWidth int) string {
 	return lipgloss.PlaceHorizontal(width, 0, helpContent, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
 }
 
-// renderContent handles input vs command display
+// renderContent handles input display when focused
 func (m *Model) renderContent(width, modeWidth int) string {
-	if !m.IsFocused() {
-		return m.styles.text.Render(strings.ReplaceAll(m.command, "\n", "⏎"))
-	}
-
 	var editHelp string
 	if len(m.entries) > 0 {
 		editHelp, _ = m.helpView(m.entries, 0)
@@ -554,11 +486,7 @@ func New(context *context.MainContext) *Model {
 		dimmed:   common.DefaultPalette.Get("status dimmed"),
 		text:     common.DefaultPalette.Get("status text"),
 		title:    common.DefaultPalette.Get("status title"),
-		success:  common.DefaultPalette.Get("status success"),
-		error:    common.DefaultPalette.Get("status error"),
 	}
-	s := spinner.New()
-	s.Spinner = spinner.Dot
 
 	t := textinput.New()
 	t.Width = 50
@@ -568,9 +496,6 @@ func New(context *context.MainContext) *Model {
 
 	return &Model{
 		context: context,
-		spinner: s,
-		command: "",
-		status:  none,
 		input:   t,
 		entries: nil,
 		styles:  styles,

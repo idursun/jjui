@@ -280,4 +280,10 @@ bindings = [
     { key = ["right", "l"], action = "diff.right", scope = "diff", desc = "right" },
     { key = "q", action = "ui.quit", scope = "diff", desc = "quit" },
     { key = "esc", action = "ui.cancel", scope = "diff", desc = "cancel" },
+    { key = "W", action = "ui.open_command_history", scope = "ui", desc = "command history" },
+    { key = ["up", "k"], action = "command_history.move_up", scope = "command_history", desc = "up" },
+    { key = ["down", "j"], action = "command_history.move_down", scope = "command_history", desc = "down" },
+    { key = "W", action = "command_history.close", scope = "command_history", desc = "close" },
+    { key = "d", action = "command_history.delete_selected", scope = "command_history", desc = "delete" },
+    { key = "esc", action = "command_history.close", scope = "command_history", desc = "close" },
 ]

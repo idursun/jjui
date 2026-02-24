@@ -13,6 +13,7 @@ import (
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/git"
+	"github.com/idursun/jjui/internal/ui/helpkeys"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
@@ -162,6 +163,61 @@ func Test_UpdateStatus_RevsetEditingShowsRevsetHelp(t *testing.T) {
 	assert.NotNil(t, model.status.Help(), "status help should be available in revset mode")
 }
 
+func Test_UpdateStatus_FlashVisibleShowsHistoryModeAndHelp(t *testing.T) {
+	origBindings := config.Current.Bindings
+	defer func() {
+		config.Current.Bindings = origBindings
+	}()
+	config.Current.Bindings = []config.BindingConfig{
+		{Action: "ui.show_command_history", Scope: "ui", Key: config.StringList{"W"}},
+		{Action: "revisions.move_down", Scope: "revisions", Key: config.StringList{"j"}},
+		{Action: "command_history.move_down", Scope: "command_history", Key: config.StringList{"j"}},
+		{Action: "command_history.delete_selected", Scope: "command_history", Key: config.StringList{"d"}},
+	}
+
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	model.Update(intents.CommandHistoryToggle{})
+	model.updateStatus()
+
+	assert.Equal(t, "history", model.status.Mode())
+	entries := model.status.Help()
+	require.Len(t, entries, 2)
+	assert.Equal(t, "j", entries[0].Label)
+	assert.Equal(t, "move down", entries[0].Desc)
+	assert.Equal(t, "d", entries[1].Label)
+	assert.Equal(t, "delete selected", entries[1].Desc)
+}
+
+func Test_PrimaryScope_UsesFlashScopeWhenVisible(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	model.Update(intents.CommandHistoryToggle{})
+
+	assert.Equal(t, scopeCommandHistory, model.primaryScope())
+}
+
+func Test_HandleDispatchedAction_UsesFlashScopeWhenVisible(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	model.Update(intents.CommandHistoryToggle{})
+	assert.True(t, model.commandHistoryOpen())
+
+	cmd, handled := model.handleDispatchedAction(actions.CommandHistoryClose, nil)
+	assert.True(t, handled)
+	require.NotNil(t, cmd)
+	closeMsg, ok := cmd().(common.CloseViewMsg)
+	require.True(t, ok)
+	model.Update(closeMsg)
+	assert.False(t, model.commandHistoryOpen())
+}
+
 // this test verifies that when `git` is activated and `status` is expanded,
 // pressing `esc` closes expanded `status`
 func Test_GitWithExpandedStatus_EscClosesStackedFirst(t *testing.T) {
@@ -279,6 +335,24 @@ func Test_UpdateStatus_UsesBindingDeclarationOrderForRevisions(t *testing.T) {
 	assert.Equal(t, "j", entries[0].Label)
 	assert.Equal(t, "k", entries[1].Label)
 	assert.Equal(t, "r", entries[2].Label)
+}
+
+func Test_UpdateStatus_IncludesAlwaysOnUiBindings(t *testing.T) {
+	origBindings := config.Current.Bindings
+	defer func() {
+		config.Current.Bindings = origBindings
+	}()
+	config.Current.Bindings = []config.BindingConfig{
+		{Action: "revisions.move_down", Scope: "revisions", Key: config.StringList{"j"}},
+		{Action: "ui.show_command_history", Scope: "ui", Key: config.StringList{"W"}, Desc: "command history"},
+	}
+
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	model.updateStatus()
+	assert.Contains(t, model.status.Help(), helpkeys.Entry{Label: "W", Desc: "command history"})
 }
 
 func Test_Update_SequencePrefixBeatsSingleKeyBinding(t *testing.T) {

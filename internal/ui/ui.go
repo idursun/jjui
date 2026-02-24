@@ -18,6 +18,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/password"
 	"github.com/idursun/jjui/internal/ui/render"
 
+	"github.com/idursun/jjui/internal/ui/commandhistory"
 	"github.com/idursun/jjui/internal/ui/flash"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -78,6 +79,7 @@ const (
 	scopeQuickSearchInput keybindings.Scope = "revisions.quick_search.input"
 	scopeOplogQuickSearch keybindings.Scope = "oplog.quick_search"
 	scopePassword         keybindings.Scope = "password"
+	scopeCommandHistory   keybindings.Scope = "command_history"
 )
 
 func (m *Model) Init() tea.Cmd {
@@ -327,6 +329,8 @@ func (m *Model) updateStatus() {
 
 func (m *Model) statusMode() string {
 	switch {
+	case m.commandHistoryOpen():
+		return "history"
 	case m.diff != nil:
 		return "diff"
 	case m.oplog != nil:
@@ -375,7 +379,9 @@ func (m *Model) View() string {
 		m.stacked.ViewRect(m.displayContext, box)
 	}
 
-	m.flash.ViewRect(m.displayContext, box)
+	if !m.commandHistoryOpen() {
+		m.flash.ViewRect(m.displayContext, box)
+	}
 
 	if m.password != nil {
 		m.password.ViewRect(m.displayContext, box)
@@ -594,6 +600,13 @@ func (m *Model) handleUiRootIntent(intent intents.Intent) (tea.Cmd, bool) {
 		}
 		out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
 		return common.FileSearch(m.context.CurrentRevset, m.previewModel.Visible(), rev, out), true
+	case intents.CommandHistoryToggle:
+		if m.commandHistoryOpen() {
+			m.stacked = nil
+			return nil, true
+		}
+		m.stacked = commandhistory.New(m.context, m.flash)
+		return m.stacked.Init(), true
 	default:
 		return nil, false
 	}
@@ -701,7 +714,8 @@ func (m *Model) routeIntentByOwner(owner string, intent intents.Intent) (tea.Cmd
 		if m.oplog != nil {
 			return m.oplog.Update(intent), true
 		}
-	case actions.OwnerBookmarks,
+	case actions.OwnerCommandHistory,
+		actions.OwnerBookmarks,
 		actions.OwnerGit,
 		actions.OwnerChoose,
 		actions.OwnerUndo,
@@ -743,6 +757,10 @@ func (m *Model) shouldRouteCancelToRevisions() bool {
 }
 
 func (m *Model) handleUnmatched(msg tea.KeyMsg) tea.Cmd {
+	if m.commandHistoryOpen() {
+		return nil
+	}
+
 	if m.status.IsFocused() {
 		return m.status.Update(msg)
 	}
@@ -826,6 +844,9 @@ func (m *Model) alwaysOnScopes() []keybindings.Scope {
 }
 
 func (m *Model) dispatchScopes() []keybindings.Scope {
+	if m.commandHistoryOpen() {
+		return []keybindings.Scope{scopeCommandHistory}
+	}
 	primary := m.primaryScope()
 	if primary == "" {
 		return nil
@@ -847,6 +868,10 @@ func (m *Model) dispatchScopes() []keybindings.Scope {
 // still reference the old name. Dispatch now uses primary+always-on scopes.
 func (m *Model) activeScopeChain() []keybindings.Scope {
 	return m.dispatchScopes()
+}
+
+func (m *Model) commandHistoryOpen() bool {
+	return m.stacked != nil && m.stacked.StackedActionOwner() == actions.OwnerCommandHistory
 }
 
 var _ tea.Model = (*wrapper)(nil)
@@ -924,11 +949,11 @@ func (m *Model) initConfiguredActions() {
 }
 
 func (m *Model) bindingStatusHelp() []helpkeys.Entry {
-	primary := m.primaryScope()
-	if primary == "" {
+	scopes := m.dispatchScopes()
+	if len(scopes) == 0 {
 		return nil
 	}
-	return helpkeys.BuildFromBindings([]keybindings.Scope{primary}, config.Current.Bindings)
+	return helpkeys.BuildFromBindings(scopes, config.Current.Bindings)
 }
 
 func (m *Model) setSequenceStatusHelp(continuations []dispatch.Continuation) {
