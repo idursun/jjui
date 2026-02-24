@@ -191,6 +191,29 @@ end
 	}
 }
 
+func TestRunSetupExposesRuntimeTerminalAndRepoFields(t *testing.T) {
+	ctx := setupVM(t)
+	ctx.Location = "/tmp/jjui-test-repo"
+	cfg := *config.Current
+
+	source := `
+function setup(config)
+  marker_repo = config.repo
+  marker_dark_mode_type = type(config.terminal.dark_mode)
+  marker_bg_type = type(config.terminal.bg)
+  marker_fg_type = type(config.terminal.fg)
+end
+`
+
+	err := RunSetup(ctx, &cfg, source)
+	require.NoError(t, err)
+
+	assert.Equal(t, "/tmp/jjui-test-repo", ctx.ScriptVM.GetGlobal("marker_repo").String())
+	assert.Equal(t, "boolean", ctx.ScriptVM.GetGlobal("marker_dark_mode_type").String())
+	assert.Equal(t, "string", ctx.ScriptVM.GetGlobal("marker_bg_type").String())
+	assert.Equal(t, "string", ctx.ScriptVM.GetGlobal("marker_fg_type").String())
+}
+
 func TestRunSetupAppliesActionsAndBindingsAssignments(t *testing.T) {
 	ctx := setupVM(t)
 	cfg := *config.Current

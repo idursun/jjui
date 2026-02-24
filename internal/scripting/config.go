@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/idursun/jjui/internal/config"
 	uicontext "github.com/idursun/jjui/internal/ui/context"
 	lua "github.com/yuin/gopher-lua"
@@ -56,6 +57,20 @@ func RunSetup(ctx *uicontext.MainContext, current *config.Config, source string)
 	registry := ensureActionRegistry(L)
 
 	configTable := toLuaTable(L, current)
+	configTable.RawSetString("repo", lua.LString(ctx.Location))
+
+	terminalTable := L.NewTable()
+	terminalTable.RawSetString("dark_mode", lua.LBool(lipgloss.HasDarkBackground()))
+	bg := ""
+	fg := ""
+	if output := lipgloss.DefaultRenderer().Output(); output != nil {
+		bg = fmt.Sprint(output.BackgroundColor())
+		fg = fmt.Sprint(output.ForegroundColor())
+	}
+	terminalTable.RawSetString("bg", lua.LString(bg))
+	terminalTable.RawSetString("fg", lua.LString(fg))
+	configTable.RawSetString("terminal", terminalTable)
+
 	configTable.RawSetString("action", L.NewFunction(func(L *lua.LState) int {
 		name := L.CheckString(1)
 		fn := L.CheckFunction(2)
