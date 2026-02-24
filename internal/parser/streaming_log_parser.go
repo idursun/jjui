@@ -2,7 +2,6 @@ package parser
 
 import (
 	"io"
-	"strings"
 	"unicode/utf8"
 
 	"github.com/idursun/jjui/internal/screen"
@@ -29,7 +28,7 @@ func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batc
 		rawSegments := screen.ParseFromReader(reader)
 		for segmentedLine := range screen.BreakNewLinesIter(rawSegments) {
 			rowLine := NewGraphRowLine(segmentedLine)
-			changeIDIdx, changeID, commitID, isDivergent := rowLine.ParseRowPrefixes()
+			changeIDIdx, changeID, commitID, _ := rowLine.ParseRowPrefixes()
 			if changeIDIdx != -1 && changeIDIdx != len(rowLine.Segments)-1 {
 				rowLine.Flags = Revision | Highlightable
 				previousRow := row
@@ -52,18 +51,6 @@ func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batc
 				}
 				row.Commit.ChangeId = changeID
 				row.Commit.CommitId = commitID
-
-				if isDivergent {
-					fullChangeID := ""
-					for nextIdx := changeIDIdx; nextIdx < len(rowLine.Segments); nextIdx++ {
-						nextSegment := strings.TrimSpace(rowLine.Segments[nextIdx].Text)
-						fullChangeID += nextSegment
-						if nextSegment == "" || strings.HasPrefix(nextSegment, "/") || strings.HasSuffix(nextSegment, "??") {
-							break
-						}
-					}
-					row.Commit.ChangeId = fullChangeID
-				}
 			}
 			row.AddLine(&rowLine)
 		}

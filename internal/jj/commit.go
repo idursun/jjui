@@ -1,7 +1,5 @@
 package jj
 
-import "strings"
-
 const (
 	RootChangeId = "zzzzzzzz"
 )
@@ -17,12 +15,8 @@ func (c Commit) IsRoot() bool {
 	return c.ChangeId == RootChangeId
 }
 
-func (c Commit) IsConflicting() bool {
-	return strings.HasSuffix(c.ChangeId, "??")
-}
-
 func (c Commit) GetChangeId() string {
-	if c.Hidden || c.IsConflicting() {
+	if c.Hidden {
 		return c.CommitId
 	}
 	return c.ChangeId

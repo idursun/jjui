@@ -53,7 +53,7 @@ func Log(revset string, limit int, jjTemplate string) CommandArgs {
 		template = jjTemplate
 	}
 	prefix := fmt.Sprintf(
-		"stringify('%s' ++ separate('%s', change_id.shortest(), commit_id.shortest(), divergent))",
+		"stringify('%s' ++ separate('%s', change_id.shortest() ++ if(divergent, \"/\" ++ change_offset), commit_id.shortest(), divergent))",
 		JJUIPrefix, JJUIPrefix)
 	template = fmt.Sprintf("%s ++ ' ' ++ %s", prefix, template)
 	args = append(args, "-T", template)
