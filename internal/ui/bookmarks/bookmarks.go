@@ -70,6 +70,7 @@ const (
 
 var _ common.ImmediateModel = (*Model)(nil)
 var _ common.Focusable = (*Model)(nil)
+var _ common.Editable = (*Model)(nil)
 
 type Model struct {
 	context             *context.MainContext
@@ -92,6 +93,10 @@ type Model struct {
 }
 
 func (m *Model) IsFocused() bool {
+	return m.filterState == filterEditing
+}
+
+func (m *Model) IsEditing() bool {
 	return m.filterState == filterEditing
 }
 
