@@ -126,14 +126,10 @@ func (o *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.Quit:
 		return tea.Quit
 	case intents.Cancel:
-		if o.mode == restoreMode {
-			o.mode = selectMode
-			return nil
-		}
 		return common.Close
 	case intents.EvologNavigate:
-		if o.mode != selectMode {
-			return nil
+		if o.mode == restoreMode {
+			return intents.Invoke(intents.Navigate{Delta: msg.Delta})
 		}
 		if msg.Delta < 0 && o.cursor > 0 {
 			o.cursor--
