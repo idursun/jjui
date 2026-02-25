@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
 )
 
@@ -156,6 +157,24 @@ func TestIterateCells_BoundsChecking(t *testing.T) {
 	cell := buf.Cell(4, 0) // Inside buffer
 	if cell == nil {
 		t.Error("Expected cell at (4,0) to exist")
+	}
+}
+
+func TestDisplayContext_HighlightPreservesWideCharacters(t *testing.T) {
+	dl := NewDisplayContext()
+
+	text := "A🙂B"
+	rect := cellbuf.Rect(0, 0, 4, 1)
+
+	dl.AddDraw(rect, text, 0)
+	dl.AddHighlight(rect, lipgloss.NewStyle().Background(lipgloss.Color("4")), 1)
+
+	buf := cellbuf.NewBuffer(4, 1)
+	dl.Render(buf)
+
+	out := cellbuf.Render(buf)
+	if !strings.Contains(out, "🙂") {
+		t.Fatalf("expected highlighted output to preserve emoji, got: %q", out)
 	}
 }
 

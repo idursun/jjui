@@ -237,11 +237,30 @@ func iterateCells(buf *cellbuf.Buffer, rect cellbuf.Rectangle, transform func(*c
 	rect = rect.Intersect(bounds)
 
 	for y := rect.Min.Y; y < rect.Max.Y; y++ {
-		for x := rect.Min.X; x < rect.Max.X; x++ {
+		for x := rect.Min.X; x < rect.Max.X; {
 			cell := buf.Cell(x, y)
+			if cell == nil {
+				x++
+				continue
+			}
+
+			// Skip width-0 placeholder cells that belong to wide graphemes.
+			// Writing to these positions causes cellbuf to blank the leading cell,
+			// which corrupts emoji/CJK rendering when applying effects.
+			if cell.Width == 0 {
+				x++
+				continue
+			}
+
 			newCell := transform(cell)
 			if newCell != nil {
 				buf.SetCell(x, y, newCell)
+			}
+
+			if cell.Width > 1 {
+				x += cell.Width
+			} else {
+				x++
 			}
 		}
 	}
