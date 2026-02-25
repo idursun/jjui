@@ -61,16 +61,11 @@ func (c *Config) ValidateBindingsAndActions() error {
 }
 
 func validateActions(actions []ActionConfig) error {
-	seen := map[string]struct{}{}
 	for i, action := range actions {
 		name := strings.TrimSpace(action.Name)
 		if name == "" {
 			return fmt.Errorf("actions[%d]: name is required", i)
 		}
-		if _, ok := seen[name]; ok {
-			return fmt.Errorf("actions[%d]: duplicate action name %q", i, name)
-		}
-		seen[name] = struct{}{}
 
 		if len(action.Args) > 0 {
 			return fmt.Errorf("actions[%d]: actions.args is not supported; pass args in binding or lua", i)

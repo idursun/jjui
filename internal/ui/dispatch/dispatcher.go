@@ -79,7 +79,9 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []bindings.Scope) ResolveRes
 	}
 
 	for _, scope := range scopes {
-		for _, binding := range d.bindings[scope] {
+		scopeBindings := d.bindings[scope]
+		for i := len(scopeBindings) - 1; i >= 0; i-- {
+			binding := scopeBindings[i]
 			if len(binding.Key) == 0 {
 				continue
 			}
@@ -117,14 +119,28 @@ func (d *Dispatcher) resolveSequenceKey(key string) ResolveResult {
 	d.buffered = nextBuffer
 	d.candidates = filtered
 
+	// Inner scope wins; within the same scope, last-added binding wins.
+	var matchScope bindings.Scope
+	var matchAction bindings.Action
+	var matchArgs map[string]any
+	found := false
 	for _, c := range filtered {
-		if len(c.binding.Seq) == len(d.buffered) {
-			action := c.binding.Action
-			args := bindings.CloneArgs(c.binding.Args)
-			scope := c.scope
-			d.ResetSequence()
-			return ResolveResult{Action: action, Scope: scope, Args: args, Consumed: true}
+		if len(c.binding.Seq) != len(d.buffered) {
+			continue
 		}
+		if !found {
+			found = true
+			matchScope = c.scope
+			matchAction = c.binding.Action
+			matchArgs = bindings.CloneArgs(c.binding.Args)
+		} else if c.scope == matchScope {
+			matchAction = c.binding.Action
+			matchArgs = bindings.CloneArgs(c.binding.Args)
+		}
+	}
+	if found {
+		d.ResetSequence()
+		return ResolveResult{Action: matchAction, Scope: matchScope, Args: matchArgs, Consumed: true}
 	}
 
 	return ResolveResult{

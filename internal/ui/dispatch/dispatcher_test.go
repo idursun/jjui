@@ -181,7 +181,7 @@ func TestDispatcher_SequencePrefixCollisionAcrossScopes_InnerScopeWins(t *testin
 	require.Equal(t, bindings.Action("revisions_git_push"), second.Action)
 }
 
-func TestDispatcher_DuplicateKeySameScope_FirstBindingWins(t *testing.T) {
+func TestDispatcher_DuplicateKeySameScope_LastBindingWins(t *testing.T) {
 	d, err := NewDispatcher([]bindings.Binding{
 		{Action: "first_action", Scope: "revisions", Key: []string{"x"}},
 		{Action: "second_action", Scope: "revisions", Key: []string{"x"}},
@@ -191,7 +191,7 @@ func TestDispatcher_DuplicateKeySameScope_FirstBindingWins(t *testing.T) {
 	result := d.Resolve(runeKey('x'), []bindings.Scope{"revisions"})
 	require.True(t, result.Consumed)
 	require.False(t, result.Pending)
-	require.Equal(t, bindings.Action("first_action"), result.Action)
+	require.Equal(t, bindings.Action("second_action"), result.Action)
 }
 
 func runeKey(r rune) tea.KeyMsg {
