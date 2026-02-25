@@ -680,9 +680,9 @@ func (m *Model) createMenuItems() []item {
 			key:      "p",
 		},
 		item{
-			name:     fmt.Sprintf("git push --all --remote %s", selectedRemote),
+			name:     fmt.Sprintf("git push --all --deleted --remote %s", selectedRemote),
 			desc:     "Push all bookmarks (including new and deleted bookmarks)",
-			command:  jj.GitPush("--all", "--remote", selectedRemote),
+			command:  jj.GitPush("--all", "--deleted", "--remote", selectedRemote),
 			category: itemCategoryPush,
 			key:      "a",
 		},
@@ -726,7 +726,7 @@ func (m *Model) createMenuItems() []item {
 		},
 		item{
 			name:     fmt.Sprintf("git push --tracked --remote %s", selectedRemote),
-			desc:     "Push all tracked bookmarks (including deleted bookmarks)",
+			desc:     "Push all tracked bookmarks",
 			command:  jj.GitPush("--tracked", "--remote", selectedRemote),
 			category: itemCategoryPush,
 			key:      "t",
