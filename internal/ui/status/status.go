@@ -405,9 +405,18 @@ func (m *Model) Help() []helpkeys.Entry {
 	return m.entries
 }
 
+var modeDisplayNames = map[string]string{
+	"normal":          "revisions",
+	"inline_describe": "describe",
+}
+
 func (m *Model) SetMode(mode string) {
 	if !m.IsFocused() {
-		m.mode = mode
+		if display, ok := modeDisplayNames[mode]; ok {
+			m.mode = display
+		} else {
+			m.mode = mode
+		}
 	}
 }
 
