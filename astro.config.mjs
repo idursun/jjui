@@ -26,7 +26,6 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'jjui',
-// NOTE: icons for top-level are at ./src/components/Sidebar.astro#getIcon
 			sidebar: [
 				{
 					label: 'Jujutsu UI',
