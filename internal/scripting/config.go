@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	uicontext "github.com/idursun/jjui/internal/ui/context"
 	lua "github.com/yuin/gopher-lua"

@@ -3,7 +3,7 @@ package fuzzy_input
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/textinput"
+	"charm.land/bubbles/v2/textinput"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/stretchr/testify/assert"

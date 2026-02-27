@@ -3,8 +3,8 @@ package test
 import (
 	"reflect"
 
-	"github.com/charmbracelet/bubbles/cursor"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/cursor"
+	tea "charm.land/bubbletea/v2"
 )
 
 func SimulateModel[T interface {

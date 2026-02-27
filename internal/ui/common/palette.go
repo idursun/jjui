@@ -6,7 +6,7 @@ import (
 
 	"github.com/idursun/jjui/internal/config"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 var DefaultPalette = NewPalette()

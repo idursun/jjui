@@ -11,7 +11,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	lua "github.com/yuin/gopher-lua"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // SelectedItem type aliases to break circular dependencies
