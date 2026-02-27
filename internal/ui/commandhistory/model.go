@@ -101,6 +101,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	y := area.Max.Y - 1
 	maxWidth := area.Dx() - 4
 
+	rest, _ := box.CutBottom(1)
+	dl.AddDim(rest.R, render.ZOverlay)
+
 	for _, item := range m.window() {
 		content := m.renderEntry(item.entry, maxWidth, item.selected)
 		w, h := lipgloss.Size(content)
