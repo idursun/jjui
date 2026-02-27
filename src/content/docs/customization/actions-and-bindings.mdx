@@ -1,0 +1,83 @@
+---
+title: Actions and Bindings
+description: Customize jjui using actions and key bindings
+---
+
+jjui customization is based on `[[actions]]` and `[[bindings]]`.
+
+Legacy `[custom_commands]` and `[leader]` sections are no longer supported.
+
+## Define a custom action
+
+Use `[[actions]]` to define Lua-powered actions:
+
+```toml
+[[actions]]
+name = "copy-change-id"
+lua = '''
+local id = context.change_id()
+if id then
+  copy_to_clipboard(id)
+  flash("Copied: " .. id)
+end
+'''
+```
+
+## Bind actions to keys
+
+Use `[[bindings]]` to bind built-in or custom actions.
+
+```toml
+[[bindings]]
+action = "copy-change-id"
+key = "Y"
+scope = "revisions"
+desc = "copy change id"
+```
+
+You can also bind built-in actions:
+
+```toml
+[[bindings]]
+action = "ui.open_revset"
+key = "L"
+scope = "revisions"
+desc = "revset"
+```
+
+## Binding fields
+
+- `action` (required): action name.
+- `scope` (required): where the binding is active.
+- `key` or `seq` (required): set exactly one.
+- `desc` (optional): label shown in help/status UI.
+- `args` (optional): action arguments for built-ins.
+
+`key` supports a single key or alternatives:
+
+```toml
+key = "r"
+key = ["up", "k"]
+```
+
+`seq` defines ordered key sequences:
+
+```toml
+[[bindings]]
+action = "ui.open_revset"
+seq = ["g", "r"]
+scope = "revisions"
+desc = "open revset"
+```
+
+## Default bindings reference
+
+All built-in default bindings are defined in:
+
+`internal/config/default/bindings.toml`
+
+Use that file as the source of truth for action names, scopes, and default keys.
+
+## Migration notes
+
+If you still have old config sections, see [Migrating to v0.10](/jjui/migrating/v0_10).

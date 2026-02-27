@@ -1,0 +1,36 @@
+---
+title: Duplicate Operation
+description: Duplicate selected revisions interactively
+---
+
+Duplicate copies one or more selected revisions and places the copies at a target.
+
+Press `y` in the Revisions view to enter duplicate mode.
+
+## Workflow
+
+1. Select source revision(s) (`space` for multi-select).
+2. Press `y` to start duplicate mode.
+3. Choose target placement:
+   - `o`: onto (destination)
+   - `a`: after
+   - `b`: before
+   - `t`: open target picker
+4. Press `enter` to apply (`alt+enter` to force apply).
+
+## Target picker
+
+The target picker uses the shared `revisions.target_picker` bindings:
+
+- `up`/`down`: move
+- `tab` / `shift+tab`: autocomplete
+- `enter`: apply
+- `alt+enter`: force apply
+- `esc`: cancel
+
+## Other duplicate-mode keys
+
+- `esc`: cancel duplicate mode
+- `f`: ace jump
+- `@`: jump to working copy
+- `j`/`k`, `pgup`/`pgdown`: navigation

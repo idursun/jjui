@@ -1,0 +1,24 @@
+---
+title: Revset
+description: Edit and apply the active revset expression
+---
+
+Revset controls which revisions are shown in the Revisions view.
+
+Press `shift+l` from Revisions to open revset input.
+
+## Revset input keys
+
+- `enter`: apply
+- `esc` or `ctrl+c`: cancel
+- `tab`: autocomplete
+- `shift+tab`: autocomplete back
+- `up` / `down`: navigate history/completions
+
+## Behavior
+
+- The top bar always shows the current revset.
+- If jjui is started with `--revset/-r`, that value becomes the session default.
+- Submitting an empty revset resets to the session default.
+
+See [Revisions](/jjui/revisions) for where revset fits in daily navigation.

@@ -1,0 +1,47 @@
+---
+title: Preview
+description: Preview
+---
+
+You can open the preview window by pressing `p`.
+
+The preview window displays output of the configured command for the selected revision, file, or operation.
+
+Configure preview commands under `[preview]` in your config.
+
+Default commands:
+
+```toml
+[preview]
+revision_command = ["show", "--color", "always", "-r", "$change_id"]
+oplog_command = ["op", "show", "$operation_id", "--color", "always"]
+file_command = ["diff", "--color", "always", "-r", "$change_id", "$file"]
+```
+
+While the preview window is open:
+
+- `ctrl+n`: scroll one line down
+- `ctrl+p`: scroll one line up
+- `ctrl+d`: scroll half page down
+- `ctrl+u`: scroll half page up
+- `ctrl+h`: expand preview width
+- `ctrl+l`: shrink preview width
+- `shift+p`: move preview to bottom (toggle)
+
+When mouse support is available, you can scroll preview and drag the preview border to resize.
+
+![GIF](/jjui/gifs/jjui_preview.gif)
+
+## Preview Position
+
+Use the `position` field to control where preview appears:
+
+```toml
+[preview]
+position = "auto"   # auto | bottom | right
+show_at_start = true
+```
+
+- `auto` (default): choose bottom in tall terminals, right in wide terminals
+- `bottom`: always bottom
+- `right`: always right

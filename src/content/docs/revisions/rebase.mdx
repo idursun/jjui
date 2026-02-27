@@ -1,0 +1,51 @@
+---
+title: Rebase
+description: Rebase revisions interactively
+---
+
+Rebase lets you move selected revisions relative to a target revision.
+
+![GIF](/jjui/gifs/jjui_rebase.gif)
+
+Press `r` in the Revisions view to open rebase mode.
+
+By default:
+
+- source = `revision`
+- target = `destination` (onto)
+
+## Source modes
+
+- `r`: `revision` (only selected revision)
+- `shift+b`: `branch` (selected revision's branch)
+- `s`: `descendants` (selected revision and descendants)
+
+## Target modes
+
+- `o`: `onto` (destination)
+- `a`: `after`
+- `b`: `before`
+- `i`: `insert`
+- `t`: open target picker
+
+## Target picker
+
+Press `t` to open a target picker with autocomplete.
+
+- `up`/`down`: move selection
+- `tab` / `shift+tab`: autocomplete
+- `enter`: apply
+- `alt+enter`: force apply
+- `esc`: cancel
+
+## Apply and cancel
+
+- `enter`: apply rebase
+- `alt+enter`: force apply
+- `esc`: cancel
+
+Other useful keys in rebase mode:
+
+- `f`: ace jump
+- `@`: jump to working copy
+- `j`/`k`, `pgup`/`pgdown`: navigation

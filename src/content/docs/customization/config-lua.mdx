@@ -1,0 +1,62 @@
+---
+title: config.lua
+description: Programmatic startup customization with setup(config)
+---
+
+Use `config.lua` when you want to modify jjui configuration programmatically at startup.
+
+## File location
+
+- `~/.config/jjui/config.lua`
+- `$JJUI_CONFIG_DIR/config.lua`
+
+At startup, jjui loads this file and calls `setup(config)` if present.
+
+## setup(config)
+
+```lua
+function setup(config)
+  config.action("copy-change-id", function()
+    local id = context.change_id()
+    if id then
+      copy_to_clipboard(id)
+      flash("Copied: " .. id)
+    end
+  end, {
+    key = "Y",
+    scope = "revisions",
+    desc = "copy change id",
+  })
+
+  config.bind({
+    action = "ui.open_revset",
+    seq = {"g", "r"},
+    scope = "revisions",
+    desc = "open revset",
+  })
+end
+```
+
+## Helpers available in setup
+
+- `config.action(name, fn, opts?)`
+- `config.bind({ action, scope, key?/seq?, desc? })`
+
+`config.action` rules:
+
+- `opts.key` and `opts.seq` are mutually exclusive.
+- If `opts.key` or `opts.seq` is set, `opts.scope` is required.
+
+## Environment values
+
+Inside `setup(config)`, jjui also provides:
+
+- `config.repo`: repository path
+- `config.terminal.dark_mode`: terminal dark mode detection
+- `config.terminal.bg` and `config.terminal.fg`: terminal color placeholders
+
+## Modules
+
+`require(...)` resolves modules from your config directory as well (`?.lua` and `?/init.lua`).
+
+For Lua API reference (context/revisions/revset helpers), see [Lua Scripting](/jjui/customization/lua-scripting).

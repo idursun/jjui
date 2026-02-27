@@ -1,0 +1,35 @@
+---
+title: Op Log
+description: Browse and act on repository operation history
+---
+
+Press `o` in Revisions to open Op Log.
+
+By default, Op Log shows the latest 200 operations. Configure this with `oplog.limit`.
+
+## Core actions
+
+- `r`: restore selected operation (`jj op restore <operation_id>`)
+- `shift+r`: revert selected operation (`jj op revert <operation_id>`)
+- `d`: open full diff for selected operation
+
+## Navigation and view
+
+- `j`/`k` or arrows: move
+- `pgup`/`pgdown`: page navigation
+- `p`: toggle preview
+- `shift+p`: move preview to bottom
+
+## Quick search
+
+- `/`: start search
+- `'`: next match
+- `"`: previous match
+- `esc`: clear search
+
+## Exit
+
+- `esc`: close Op Log and return
+- `q`: quit jjui
+
+![GIF](/jjui/gifs/jjui_oplog.gif)

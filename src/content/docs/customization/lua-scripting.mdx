@@ -1,0 +1,75 @@
+---
+title: Lua Scripting
+description: Lua API for workflows and automation
+---
+
+jjui exposes a Lua API for custom workflows and UI automation.
+
+For startup configuration wiring (`setup(config)`, `config.action`, `config.bind`), see [config.lua](/jjui/customization/config-lua).
+
+## Quick start
+
+Define a Lua action in `config.toml` and bind it:
+
+```toml
+[[actions]]
+name = "hello-lua"
+lua = '''
+flash("Hello from Lua")
+'''
+
+[[bindings]]
+action = "hello-lua"
+key = "ctrl+h"
+scope = "revisions"
+desc = "hello"
+```
+
+## Core APIs
+
+### Context API
+
+- `context.change_id()`
+- `context.commit_id()`
+- `context.file()`
+- `context.operation_id()`
+- `context.checked_files()`
+- `context.checked_change_ids()`
+- `context.checked_commit_ids()`
+
+### Revisions API
+
+- `revisions.current()`
+- `revisions.checked()`
+- `revisions.open_details()`
+- `revisions.refresh({ keep_selections?, selected_revision? })`
+- `revisions.navigate({ by?, page?, target?, to?, fallback?, ensureView?, allowStream? })`
+- `revisions.start_squash({ files? })`
+- `revisions.start_rebase({ source?, target? })`
+  - `source`: `"revision" | "branch" | "descendants"`
+  - `target`: `"destination" | "after" | "before" | "insert"`
+- `revisions.start_inline_describe()`
+
+### Revset API
+
+- `revset.current()`
+- `revset.default()`
+- `revset.set(expression)`
+- `revset.reset()`
+
+### Command execution
+
+- `jj(...args)` returns `(output, err)`
+- `jj_async(...args)`
+- `jj_interactive(...args)`
+
+### UI and utilities
+
+- `flash(message)`
+- `choose(options)`
+- `input({ title?, prompt? })`
+- `copy_to_clipboard(text)`
+- `split_lines(text, keep_empty?)`
+- `exec_shell(command)`
+
+Most functions are also available under the `jjui` namespace (for example, `jjui.input(...)`).

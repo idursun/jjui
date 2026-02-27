@@ -1,0 +1,40 @@
+---
+title: Command Execution
+description: Run jj and shell commands from jjui
+---
+
+jjui can execute both `jj` commands and shell commands directly from the UI.
+
+## Entry keys
+
+- `:`: execute a `jj` command
+- `$`: execute a shell command
+
+Both inputs are entered in the status bar line editor.
+
+## Placeholders
+
+Commands can use context-aware placeholders:
+
+- `$file`: currently selected file
+- `$change_id`: selected revision change ID
+- `$commit_id`: selected revision commit ID
+- `$operation_id`: selected operation ID
+- `$revset`: current revset expression
+- `$checked_commit_ids`: selected revision commit IDs (as a revset expression)
+- `$checked_files`: selected file paths
+
+## Behavior
+
+- Commands run interactively in your terminal.
+- If a command fails, jjui restores it in the input so you can edit and retry.
+- History is stored under `$XDG_CACHE_HOME/jjui/history/` in `exec_jj` and `exec_sh` files.
+
+You can browse and delete saved entries from [Command History](/jjui/command-history) (`shift+w`).
+
+## Example
+
+```bash
+: restore -i
+$ vim $checked_files
+```

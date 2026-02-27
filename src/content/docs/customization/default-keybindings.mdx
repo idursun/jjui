@@ -1,0 +1,42 @@
+---
+title: Default Keybindings
+description: Reference for the built-in default bindings
+---
+
+Source of truth: `internal/config/default/bindings.toml` in the jjui repository.
+
+- Local path: `internal/config/default/bindings.toml`
+- GitHub: [internal/config/default/bindings.toml](https://github.com/idursun/jjui/blob/main/internal/config/default/bindings.toml)
+
+If this page and code ever disagree, the TOML file is authoritative.
+
+## Revisions (common keys)
+
+- Movement: `j`/`k`, arrows, `pgup`/`pgdown`, `@`, `shift+j`, `shift+k`
+- Selection: `space`
+- Operations: `r`, `shift+s`, `a`, `shift+a`, `y`, `shift+r`, `shift+m`, `v`
+- Edit/actions: `enter`, `shift+d`, `n`, `s`, `alt+s`, `e`, `alt+e`, `shift+e`, `c`, `shift+b`
+- Views/tools: `l`, `b`, `g`, `o`, `u`, `shift+u`, `shift+w`, `shift+l`, `ctrl+t`, `f`
+- Preview/search/exec: `p`, `shift+p`, `/`, `'`, `"`, `:`, `$`
+
+## Mode-specific highlights
+
+- Rebase mode: source `r`/`shift+b`/`s`, target `o`/`a`/`b`/`i`, picker `t`, apply `enter`/`alt+enter`
+- Squash mode: options `e`/`d`/`i`, picker `t`, apply `enter`/`alt+enter`
+- Revert mode: target `o`/`a`/`b`/`i`, picker `t`, apply `enter`/`alt+enter`
+- Duplicate mode: target `o`/`a`/`b`, picker `t`, apply `enter`/`alt+enter`
+- Shared target picker: `up`/`down`, `tab`/`shift+tab`, `enter`, `alt+enter`, `esc`
+
+## Other scopes
+
+- Undo/Redo: `h`/`l`, `enter`, `esc`
+- Command history: `j`/`k`, `d`, `shift+w`/`esc`
+- Op log: `j`/`k`, `pgup`/`pgdown`, `d`, `r`, `shift+r`, `p`, `shift+p`, `/`, `'`, `"`, `esc`
+- Revset input: `enter`, `esc`, `tab`, `shift+tab`, `up`, `down`
+
+## Verify quickly
+
+```bash
+# from the jjui repository
+sed -n '1,320p' internal/config/default/bindings.toml
+```

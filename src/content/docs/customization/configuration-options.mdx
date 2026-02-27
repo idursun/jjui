@@ -1,0 +1,83 @@
+---
+title: Configuration Options
+description: Configure jjui runtime behavior with config.toml
+---
+
+jjui reads configuration from:
+
+- Linux and macOS: `~/.config/jjui/config.toml`
+- Windows: `%AppData%/jjui/config.toml`
+- Custom location: `$JJUI_CONFIG_DIR/config.toml`
+
+You can open config in your editor with:
+
+```bash
+jjui --config
+```
+
+## Related customization pages
+
+- [Actions and Bindings](/jjui/customization/actions-and-bindings)
+- [Lua Scripting](/jjui/customization/lua-scripting)
+- [config.lua](/jjui/customization/config-lua)
+- [Default Keybindings](/jjui/customization/default-keybindings)
+
+## Default bindings profile
+
+Built-in default bindings are in:
+
+- `internal/config/default/bindings.toml`
+
+You can replace built-ins using `bindings_profile`:
+
+```toml
+bindings_profile = "vim_bindings.toml"
+```
+
+Then your local `[[bindings]]` entries are applied on top of that profile. Use `:builtin` to explicitly use embedded defaults.
+
+## Revisions settings
+
+Override default log template or revset:
+
+```toml
+[revisions]
+template = "builtin_log_compact"
+revset = ""
+```
+
+## Colors and themes
+
+Customize styles with `[ui.colors]` and themes:
+
+```toml
+[ui.colors]
+"selected" = { bg = "#303446" }
+```
+
+See [Themes](/jjui/customization/themes) for full style keys.
+
+## SSH settings
+
+Configure SSH helper behavior:
+
+```toml
+[ssh]
+hijack_askpass = false
+```
+
+## Exec suggestions
+
+Suggestions for `:` and `$` prompts are configured with:
+
+```toml
+[suggest.exec]
+mode = "fuzzy" # off | regex | fuzzy
+```
+
+## Embedded defaults
+
+Reference files in the jjui repository:
+
+- `internal/config/default/config.toml`
+- `internal/config/default/bindings.toml`

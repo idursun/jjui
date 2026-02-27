@@ -17,71 +17,120 @@ export default defineConfig({
 				{
 					label: 'Jujutsu UI',
 					items: [
-						{ label: 'Overview', slug: 'overview', },
-						{ label: 'Showcase', slug: 'showcase', },
-						{ label: 'Install', slug: 'install', },
+						{ label: 'Overview', slug: 'overview' },
+						{ label: 'Showcase', slug: 'showcase' },
+						{ label: 'Install', slug: 'install' },
 					],
 				},
 				{
-					label: 'Core Features',
+					label: 'Revisions',
 					items: [
-						{ label: 'Revisions', slug: 'features/revisions' },
-						{ label: 'Preview', slug: 'features/preview' },
-						{ label: 'Details', slug: 'features/details' },
-						{ label: 'Oplog', slug: 'features/oplog' },
-						{ label: 'Command Execution', slug: 'features/command-execution' },
-						{ label: 'Custom Commands', slug: 'features/custom-commands' },
-						{ label: 'Lua Scripting', slug: 'features/lua-scripting' },
-						{ label: 'Fuzzy File Finder', slug: 'features/fuzzy-file-finder' },
-						{ label: 'Ace Jump', slug: 'features/ace-jump' },
-						{ label: 'Exec', slug: 'features/exec' },
-						{ label: 'Flash Messages', slug: 'features/flash-messages' },
-						{ label: 'Bookmarks', slug: 'features/bookmarks' },
-						{ label: 'Git', slug: 'features/git' },
-						{
-							label: 'Experimental Features',
-							items: [
-								{ label: 'Lua Custom Commands', slug: 'features/custom-commands-lua' },
-							],
-						},
-						{
-							label: 'Deprecated Features',
-							items: [
-								{ label: 'Leader Key', slug: 'customization/leader-key' },
-							],
-						},
+						{ label: 'Overview', slug: 'revisions' },
+						{ label: 'Rebase', slug: 'revisions/rebase' },
+						{ label: 'Absorb', slug: 'revisions/absorb' },
+						{ label: 'Abandon', slug: 'revisions/abandon' },
+						{ label: 'Duplicate', slug: 'revisions/duplicate' },
+						{ label: 'Squash', slug: 'revisions/squash' },
+						{ label: 'Revert', slug: 'revisions/revert' },
+						{ label: 'Set Parents', slug: 'revisions/set-parents' },
+						{ label: 'Evolog', slug: 'revisions/evolog' },
+						{ label: 'Inline Describe', slug: 'revisions/inline-describe' },
 					],
 				},
 				{
-					label: 'Revision Operations',
+					label: 'Git',
 					items: [
-						{ label: 'Rebase', slug: 'operations/rebase' },
-						{ label: 'Absorb', slug: 'operations/absorb' },
-						{ label: 'Abandon', slug: 'operations/abandon' },
-						{ label: 'Duplicate', slug: 'operations/duplicate' },
-						{ label: 'Squash', slug: 'operations/squash' },
-						{ label: 'Evolog', slug: 'operations/evolog' },
-						{ label: 'Inline Describe', slug: 'operations/inline-describe' },
+						{ label: 'Git', slug: 'git' },
+					],
+				},
+				{
+					label: 'Bookmarks',
+					items: [
+						{ label: 'Bookmarks', slug: 'bookmarks' },
+					],
+				},
+				{
+					label: 'Undo and Redo',
+					items: [
+						{ label: 'Undo and Redo', slug: 'undo-redo' },
+					],
+				},
+				{
+					label: 'Revset',
+					items: [
+						{ label: 'Revset', slug: 'revset' },
+					],
+				},
+				{
+					label: 'Oplog',
+					items: [
+						{ label: 'Oplog', slug: 'oplog' },
+					],
+				},
+				{
+					label: 'Command Execution',
+					items: [
+						{ label: 'Command Execution', slug: 'command-execution' },
+					],
+				},
+				{
+					label: 'Command History',
+					items: [
+						{ label: 'Command History', slug: 'command-history' },
+					],
+				},
+				{
+					label: 'Preview',
+					items: [
+						{ label: 'Preview', slug: 'preview' },
+					],
+				},
+				{
+					label: 'Details',
+					items: [
+						{ label: 'Details', slug: 'details' },
+					],
+				},
+				{
+					label: 'Fuzzy File Finder',
+					items: [
+						{ label: 'Fuzzy File Finder', slug: 'fuzzy-file-finder' },
+					],
+				},
+				{
+					label: 'Ace Jump',
+					items: [
+						{ label: 'Ace Jump', slug: 'ace-jump' },
+					],
+				},
+				{
+					label: 'Flash Messages',
+					items: [
+						{ label: 'Flash Messages', slug: 'flash-messages' },
 					],
 				},
 				{
 					label: 'How-to Guides',
 					items: [
-						{ label: 'Jujutsu Workflows', slug: 'how-do-i', },
+						{ label: 'Jujutsu Workflows', slug: 'how-do-i' },
 					],
 				},
 				{
 					label: 'Customization',
 					items: [
-						{ label: 'Configuration', slug: 'customization/configuration' },
-						{ label: 'Command Line Options', slug: 'customization/command-line-options' },
+						{ label: 'Actions and Bindings', slug: 'customization/actions-and-bindings' },
+						{ label: 'Lua Scripting', slug: 'customization/lua-scripting' },
+						{ label: 'config.lua', slug: 'customization/config-lua' },
 						{ label: 'Themes', slug: 'customization/themes' },
+						{ label: 'Configuration Options', slug: 'customization/configuration-options' },
+						{ label: 'Command Line Options', slug: 'customization/command-line-options' },
+						{ label: 'Default Keybindings', slug: 'customization/default-keybindings' },
 					],
 				},
 				{
 					label: 'Migration Guides',
 					items: [
-						{ label: 'Migrating to v0.10', slug: 'migrating/v0_10', },
+						{ label: 'Migrating to v0.10', slug: 'migrating/v0_10' },
 					],
 				},
 			],
@@ -102,7 +151,7 @@ export default defineConfig({
 				baseUrl: 'https://github.com/idursun/jjui/edit/docs/',
 			},
 			customCss: [
-				'./src/styles/custom.css'
+				'./src/styles/custom.css',
 			],
 		}),
 	],

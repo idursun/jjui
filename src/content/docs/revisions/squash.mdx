@@ -1,0 +1,33 @@
+---
+title: Squash Operation
+description: Squash Operation
+---
+
+The squash operation combines multiple revisions into a single revision.
+
+To activate squash, press `shift+s` in the Revisions view. The cursor moves to the parent of the selected revisions so you can pick a target.
+
+## Options
+
+- `e`: toggle `--keep-emptied`
+- `d`: toggle `--use-destination-message`
+- `i`: toggle `--interactive`
+- `t`: open target picker
+
+## Workflow
+
+1. Select revisions to squash.
+2. Press `shift+s` to activate squash mode.
+3. Choose target revision directly, or press `t` to open target picker.
+4. Toggle options (`e`, `d`, `i`) as needed.
+5. Press `enter` to apply (`alt+enter` to force apply).
+
+## Target picker
+
+The target picker uses the shared `revisions.target_picker` bindings:
+
+- `up`/`down`: move
+- `tab` / `shift+tab`: autocomplete
+- `enter`: apply
+- `alt+enter`: force apply
+- `esc`: cancel

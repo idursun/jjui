@@ -1,0 +1,67 @@
+---
+title: Revisions
+description: Main view for browsing history and running operations
+---
+
+Revisions is the default view in `jjui`.
+
+## Core navigation
+
+- `j`/`k` or arrows: move
+- `pgup`/`pgdown`: page navigation
+- `@`: jump to working copy
+- `shift+j`: jump to parent
+- `shift+k`: jump to children
+- `space`: toggle revision selection
+
+## Main actions
+
+- `l` or `right`: open [Details](/jjui/details)
+- `d`: open full diff
+- `enter`: [Inline Describe](/jjui/revisions/inline-describe)
+- `shift+d`: describe in editor
+- `n`: create new change
+- `s`: split
+- `alt+s`: split parallel
+- `e`: edit
+- `alt+e`: force edit
+- `shift+e`: diff edit
+- `c`: commit
+- `shift+b`: set bookmark
+
+## Revision operations
+
+- `r`: [Rebase](/jjui/revisions/rebase)
+- `shift+s`: [Squash](/jjui/revisions/squash)
+- `shift+a`: [Absorb](/jjui/revisions/absorb)
+- `a`: [Abandon](/jjui/revisions/abandon)
+- `y`: [Duplicate](/jjui/revisions/duplicate)
+- `shift+r`: [Revert](/jjui/revisions/revert)
+- `shift+m`: [Set Parents](/jjui/revisions/set-parents)
+- `v`: [Evolog](/jjui/revisions/evolog)
+
+## Other views and tools
+
+- `shift+l`: edit [Revset](/jjui/revset) with autocomplete
+- `b`: [Bookmarks](/jjui/bookmarks)
+- `g`: [Git](/jjui/git)
+- `o`: [Oplog](/jjui/oplog)
+- `u`: [Undo](/jjui/undo-redo)
+- `shift+u`: [Redo](/jjui/undo-redo)
+- `shift+w`: [Command History](/jjui/command-history)
+- `ctrl+t`: [Fuzzy File Finder](/jjui/fuzzy-file-finder)
+- `f`: [Ace Jump](/jjui/ace-jump)
+
+## Search, preview, and exec
+
+- `/`: start quick search
+- `'`: next match
+- `"`: previous match
+- `esc`: clear quick search
+- `p`: toggle [Preview](/jjui/preview)
+- `shift+p`: move preview to bottom
+- `:`: execute `jj` command
+- `$`: execute shell command
+- `ctrl+r`: refresh revisions
+
+For full defaults across all scopes, see [Default Keybindings](/jjui/customization/default-keybindings).
