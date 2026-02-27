@@ -7,7 +7,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
@@ -75,7 +74,7 @@ func (s *SetBookmarkOperation) Init() tea.Cmd {
 func (s *SetBookmarkOperation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	content := s.viewContent()
 	w, h := lipgloss.Size(content)
-	rect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, w, h)
+	rect := layout.Rect(box.R.Min.X, box.R.Min.Y, w, h)
 	dl.AddDraw(rect, content, 0)
 }
 
@@ -90,7 +89,7 @@ func (s *SetBookmarkOperation) Render(commit *jj.Commit, pos operations.RenderPo
 	return s.viewContent() + s.name.Styles().Focused.Text.Render(" ")
 }
 
-func (s *SetBookmarkOperation) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+func (s *SetBookmarkOperation) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ layout.Rectangle, _ layout.Position) int {
 	return 0
 }
 

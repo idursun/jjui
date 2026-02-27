@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/helpkeys"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -255,7 +254,7 @@ func (m *Model) renderExpandedStatusBorder(dl *render.DisplayContext, box layout
 	modeLabel := m.styles.title.Render("  " + m.mode + "  ")
 	borderLine := strings.Repeat("─", max(0, width-lipgloss.Width(modeLabel)))
 	topBorder := modeLabel + m.styles.dimmed.Render(borderLine)
-	borderRect := cellbuf.Rect(box.R.Min.X, startY, width, 1)
+	borderRect := layout.Rect(box.R.Min.X, startY, width, 1)
 	dl.AddDraw(borderRect, topBorder, render.ZExpandedStatus)
 }
 
@@ -284,7 +283,7 @@ func (m *Model) renderExpandedStatusContent(dl *render.DisplayContext, box layou
 
 		// render the line with the text style and draw at the overlay z-index
 		contentLine := m.styles.text.Render(paddedLine)
-		contentRect := cellbuf.Rect(box.R.Min.X, y, width, 1)
+		contentRect := layout.Rect(box.R.Min.X, y, width, 1)
 		dl.AddDraw(contentRect, contentLine, render.ZExpandedStatus)
 	}
 }
@@ -294,7 +293,7 @@ func (m *Model) renderFuzzyOverlay(dl *render.DisplayContext, box layout.Box) {
 	if m.fuzzy == nil {
 		return
 	}
-	overlayRect := cellbuf.Rect(box.R.Min.X, 0, box.R.Dx(), box.R.Min.Y)
+	overlayRect := layout.Rect(box.R.Min.X, 0, box.R.Dx(), box.R.Min.Y)
 	m.fuzzy.ViewRect(dl, layout.Box{R: overlayRect})
 }
 

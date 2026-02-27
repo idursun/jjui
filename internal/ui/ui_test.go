@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/scripting"
@@ -83,7 +82,7 @@ func Test_Update_PreviewScrollKeysWorkWhenVisible(t *testing.T) {
 			model.previewModel.SetContent(content.String())
 
 			// Force internal view port to have a size
-			model.previewModel.ViewRect(render.NewDisplayContext(), layout.NewBox(cellbuf.Rect(0, 0, 100, 50)))
+			model.previewModel.ViewRect(render.NewDisplayContext(), layout.NewBox(layout.Rect(0, 0, 100, 50)))
 
 			initialYOffset := model.previewModel.YOffset()
 
@@ -262,7 +261,7 @@ func Test_GitWithExpandedStatus_EscClosesStackedFirst(t *testing.T) {
 
 	// Verify status has higher z-index than git
 	dl := render.NewDisplayContext()
-	box := layout.NewBox(cellbuf.Rect(0, 0, 100, 40))
+	box := layout.NewBox(layout.Rect(0, 0, 100, 40))
 	model.stacked.ViewRect(dl, box)
 	gitDraws := dl.DrawList()
 	assert.NotEmpty(t, gitDraws, "git should produce draw operations")

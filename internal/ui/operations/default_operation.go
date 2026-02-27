@@ -2,7 +2,6 @@ package operations
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
@@ -29,7 +28,7 @@ func (n *Default) Render(*jj.Commit, RenderPosition) string {
 	return ""
 }
 
-func (n *Default) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+func (n *Default) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ RenderPosition, _ layout.Rectangle, _ layout.Position) int {
 	return 0
 }
 

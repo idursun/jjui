@@ -9,7 +9,6 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -791,7 +790,7 @@ func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
 		m.cursor,
 		m.ensureCursorVisible,
 		func(_ int) int { return itemHeight },
-		func(dl *render.DisplayContext, index int, rect cellbuf.Rectangle) {
+		func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
 			if index < 0 || index >= itemCount {
 				return
 			}
@@ -803,7 +802,7 @@ func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
 	m.ensureCursorVisible = false
 }
 
-func renderItem(dl *render.DisplayContext, rect cellbuf.Rectangle, width int, styles menuStyles, showShortcuts bool, cursor int, index int, item item) {
+func renderItem(dl *render.DisplayContext, rect layout.Rectangle, width int, styles menuStyles, showShortcuts bool, cursor int, index int, item item) {
 	var (
 		title string
 		desc  string

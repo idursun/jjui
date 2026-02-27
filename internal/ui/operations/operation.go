@@ -3,12 +3,12 @@ package operations
 import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
@@ -26,7 +26,7 @@ const (
 type Operation interface {
 	common.ImmediateModel
 	Render(commit *jj.Commit, renderPosition RenderPosition) string
-	RenderToDisplayContext(dl *render.DisplayContext, commit *jj.Commit, pos RenderPosition, rect cellbuf.Rectangle, screenOffset cellbuf.Position) int
+	RenderToDisplayContext(dl *render.DisplayContext, commit *jj.Commit, pos RenderPosition, rect layout.Rectangle, screenOffset layout.Position) int
 	DesiredHeight(commit *jj.Commit, pos RenderPosition) int
 	Name() string
 }

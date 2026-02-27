@@ -7,7 +7,6 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -32,7 +31,7 @@ type flashMessage struct {
 type FlashMessageView struct {
 	// Content might contain ANSI colour codes
 	Content string
-	Rect    cellbuf.Rectangle
+	Rect    layout.Rectangle
 }
 
 type Model struct {
@@ -135,20 +134,20 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.renderPendingCommands(dl, area, y)
 }
 
-func (m *Model) renderMessages(dl *render.DisplayContext, area cellbuf.Rectangle, messages []flashMessage, y int) int {
+func (m *Model) renderMessages(dl *render.DisplayContext, area layout.Rectangle, messages []flashMessage, y int) int {
 	maxWidth := area.Dx() - 4
 	for _, message := range messages {
 		content := m.renderMessageContent(message, maxWidth)
 		w, h := lipgloss.Size(content)
 		y -= h
 
-		rect := cellbuf.Rect(area.Max.X-w, y, w, h)
+		rect := layout.Rect(area.Max.X-w, y, w, h)
 		dl.AddDraw(rect, content, render.ZOverlay)
 	}
 	return y
 }
 
-func (m *Model) renderPendingCommands(dl *render.DisplayContext, area cellbuf.Rectangle, y int) int {
+func (m *Model) renderPendingCommands(dl *render.DisplayContext, area layout.Rectangle, y int) int {
 	maxWidth := area.Dx() - 4
 	for _, cmd := range m.pendingCommands {
 		content := m.renderCommandLine(cmd, nil, true)
@@ -165,7 +164,7 @@ func (m *Model) renderPendingCommands(dl *render.DisplayContext, area cellbuf.Re
 			Render(content)
 		w, h = lipgloss.Size(content)
 		y -= h
-		rect := cellbuf.Rect(area.Max.X-w, y, w, h)
+		rect := layout.Rect(area.Max.X-w, y, w, h)
 		dl.AddDraw(rect, content, render.ZOverlay)
 	}
 	return y

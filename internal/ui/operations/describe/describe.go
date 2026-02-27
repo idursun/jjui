@@ -5,7 +5,6 @@ import (
 	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
@@ -51,7 +50,7 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	return o.viewContent(80)
 }
 
-func (o *Operation) RenderToDisplayContext(dl *render.DisplayContext, commit *jj.Commit, pos operations.RenderPosition, rect cellbuf.Rectangle, screenOffset cellbuf.Position) int {
+func (o *Operation) RenderToDisplayContext(dl *render.DisplayContext, commit *jj.Commit, pos operations.RenderPosition, rect layout.Rectangle, screenOffset layout.Position) int {
 	if pos != operations.RenderOverDescription {
 		return 0
 	}
@@ -62,7 +61,7 @@ func (o *Operation) RenderToDisplayContext(dl *render.DisplayContext, commit *jj
 	o.input.SetHeight(height)
 	content := o.input.View()
 
-	drawRect := cellbuf.Rect(rect.Min.X, rect.Min.Y, width, height)
+	drawRect := layout.Rect(rect.Min.X, rect.Min.Y, width, height)
 	dl.AddDraw(drawRect, content, 0)
 	return height
 }
@@ -149,7 +148,7 @@ func (o *Operation) Init() tea.Cmd {
 func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	content := o.viewContent(box.R.Dx())
 	w, h := lipgloss.Size(content)
-	rect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, w, h)
+	rect := layout.Rect(box.R.Min.X, box.R.Min.Y, w, h)
 	dl.AddDraw(rect, content, 0)
 }
 

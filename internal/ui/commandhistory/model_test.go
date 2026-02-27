@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/flash"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -86,7 +85,7 @@ func TestCommandHistory_ViewOnlyShowsSelectedOutput(t *testing.T) {
 	history.Update(intents.CommandHistoryNavigate{Delta: 1}) // select older
 
 	dl := render.NewDisplayContext()
-	history.ViewRect(dl, layout.NewBox(cellbuf.Rect(0, 0, 60, 12)))
+	history.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 60, 12)))
 
 	var out strings.Builder
 	for _, view := range dl.DrawList() {

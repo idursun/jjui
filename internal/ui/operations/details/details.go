@@ -12,7 +12,6 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
@@ -325,7 +324,7 @@ func (s *Operation) DesiredHeight(commit *jj.Commit, pos operations.RenderPositi
 }
 
 // RenderToDisplayContext renders the file list directly to the DisplayContext
-func (s *Operation) RenderToDisplayContext(dl *render.DisplayContext, commit *jj.Commit, pos operations.RenderPosition, rect cellbuf.Rectangle, screenOffset cellbuf.Position) int {
+func (s *Operation) RenderToDisplayContext(dl *render.DisplayContext, commit *jj.Commit, pos operations.RenderPosition, rect layout.Rectangle, screenOffset layout.Position) int {
 	isSelected := s.Current != nil && s.Current.GetChangeId() == commit.GetChangeId()
 	if !isSelected || pos != operations.RenderPositionAfter {
 		return 0
@@ -334,7 +333,7 @@ func (s *Operation) RenderToDisplayContext(dl *render.DisplayContext, commit *jj
 	if s.Len() == 0 {
 		// Render "No changes" message
 		content := s.styles.Dimmed.Render("No changes")
-		dl.AddDraw(cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), 1), content, 0)
+		dl.AddDraw(layout.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), 1), content, 0)
 		return 1
 	}
 
@@ -353,11 +352,11 @@ func (s *Operation) RenderToDisplayContext(dl *render.DisplayContext, commit *jj
 
 	// Render the file list to DisplayContext
 	// viewRect is already absolute, so don't reapply the parent screen offset.
-	viewRect := layout.Box{R: cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)}
+	viewRect := layout.Box{R: layout.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)}
 	s.RenderFileList(dl, viewRect)
 
 	if s.confirmation != nil && confirmationHeight > 0 && height < rect.Dy() {
-		confirmRect := cellbuf.Rect(rect.Min.X, rect.Min.Y+height, rect.Dx(), confirmationHeight)
+		confirmRect := layout.Rect(rect.Min.X, rect.Min.Y+height, rect.Dx(), confirmationHeight)
 		s.confirmation.ViewRect(dl, layout.Box{R: confirmRect})
 	}
 
@@ -507,7 +506,7 @@ func (s *Operation) viewContent(width, maxHeight int) string {
 		height = 0
 	}
 	dl := render.NewDisplayContext()
-	viewRect := layout.Box{R: cellbuf.Rect(0, 0, width, height)}
+	viewRect := layout.Box{R: layout.Rect(0, 0, width, height)}
 	if height > 0 {
 		s.RenderFileList(dl, viewRect)
 	}

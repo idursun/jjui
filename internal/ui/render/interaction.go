@@ -4,7 +4,7 @@ import (
 	"sort"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/cellbuf"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 // InteractionType defines what kinds of input an interactive region responds to.
@@ -20,10 +20,10 @@ const (
 
 // InteractionOp represents an interactive region that responds to input.
 type InteractionOp struct {
-	Rect cellbuf.Rectangle // The interactive area (absolute coordinates)
-	Msg  tea.Msg           // Message to send
-	Type InteractionType   // What kind of interaction this supports
-	Z    int               // Z-index for overlapping regions (higher = priority)
+	Rect layout.Rectangle // The interactive area (absolute coordinates)
+	Msg  tea.Msg          // Message to send
+	Type InteractionType  // What kind of interaction this supports
+	Z    int              // Z-index for overlapping regions (higher = priority)
 }
 
 // ScrollDeltaCarrier is an interface for messages that carry scroll delta information.

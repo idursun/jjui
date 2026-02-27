@@ -6,7 +6,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/actions"
@@ -241,7 +240,7 @@ func (o *Operation) DesiredHeight(commit *jj.Commit, pos operations.RenderPositi
 }
 
 // RenderToDisplayContext renders the evolog list directly to the DisplayContext
-func (o *Operation) RenderToDisplayContext(dl *render.DisplayContext, commit *jj.Commit, pos operations.RenderPosition, rect cellbuf.Rectangle, _ cellbuf.Position) int {
+func (o *Operation) RenderToDisplayContext(dl *render.DisplayContext, commit *jj.Commit, pos operations.RenderPosition, rect layout.Rectangle, _ layout.Position) int {
 	isSelected := commit.GetChangeId() == o.revision.GetChangeId()
 	if !isSelected || pos != operations.RenderPositionAfter || o.mode != selectMode {
 		return 0
@@ -280,12 +279,12 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 
 func (o *Operation) renderListToDisplayContext(
 	dl *render.DisplayContext,
-	rect cellbuf.Rectangle,
+	rect layout.Rectangle,
 	ensureCursorVisible bool,
 ) int {
 	if len(o.rows) == 0 {
 		content := "loading"
-		dl.AddDraw(cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), 1), content, 0)
+		dl.AddDraw(layout.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), 1), content, 0)
 		return 1
 	}
 
@@ -299,7 +298,7 @@ func (o *Operation) renderListToDisplayContext(
 		return len(o.rows[index].Lines)
 	}
 
-	renderItem := func(dl *render.DisplayContext, index int, itemRect cellbuf.Rectangle) {
+	renderItem := func(dl *render.DisplayContext, index int, itemRect layout.Rectangle) {
 		row := o.rows[index]
 		isItemSelected := index == o.cursor
 		styleOverride := o.styles.textStyle
@@ -332,7 +331,7 @@ func (o *Operation) renderListToDisplayContext(
 		return EvologClickedMsg{Index: index}
 	}
 
-	viewRect := layout.Box{R: cellbuf.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)}
+	viewRect := layout.Box{R: layout.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)}
 	o.dlRenderer.Render(
 		dl,
 		viewRect,

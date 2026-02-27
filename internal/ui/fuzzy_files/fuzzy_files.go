@@ -8,7 +8,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -197,7 +196,7 @@ func (fzf *fuzzyFiles) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 	_, h := lipgloss.Size(content)
-	rect := cellbuf.Rect(box.R.Min.X, box.R.Max.Y-h, box.R.Dx(), h)
+	rect := layout.Rect(box.R.Min.X, box.R.Max.Y-h, box.R.Dx(), h)
 	dl.AddDraw(rect, content, render.ZFuzzyInput)
 }
 

@@ -5,7 +5,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -108,7 +107,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		content := m.renderEntry(item.entry, maxWidth, item.selected)
 		w, h := lipgloss.Size(content)
 		y -= h
-		rect := cellbuf.Rect(area.Max.X-w, y, w, h)
+		rect := layout.Rect(area.Max.X-w, y, w, h)
 		dl.AddDraw(rect, content, render.ZOverlay)
 		dl.AddInteraction(rect, selectHistoryItemMsg{index: item.index}, render.InteractionClick, render.ZOverlay)
 	}

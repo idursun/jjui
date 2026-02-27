@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -103,7 +102,7 @@ func TestGit_ZIndex_RendersAboveMainContent(t *testing.T) {
 	test.SimulateModel(op, op.Init())
 
 	dl := render.NewDisplayContext()
-	box := layout.Box{R: cellbuf.Rect(0, 0, 100, 40)}
+	box := layout.Box{R: layout.Rect(0, 0, 100, 40)}
 	op.ViewRect(dl, box)
 
 	draws := dl.DrawList()

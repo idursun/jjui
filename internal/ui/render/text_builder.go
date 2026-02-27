@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/cellbuf"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 type TextBuilder struct {
@@ -79,7 +79,7 @@ func (tb *TextBuilder) Measure() (int, int) {
 func (tb *TextBuilder) Done() {
 	segs, _, _ := tb.layout()
 	for _, seg := range segs {
-		segRect := cellbuf.Rect(tb.x+seg.x, tb.y+seg.y, seg.width, 1)
+		segRect := layout.Rect(tb.x+seg.x, tb.y+seg.y, seg.width, 1)
 		tb.dl.AddDraw(segRect, seg.rendered, tb.z)
 		if seg.onClick != nil {
 			tb.dl.AddInteraction(segRect, seg.onClick, InteractionClick, tb.z)

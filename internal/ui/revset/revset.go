@@ -5,7 +5,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
@@ -354,7 +353,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if len(items) == 0 && signatureHelp == "" {
 		// Show "No suggestions" when there's input but no matches
 		if m.autoComplete.Value() != "" {
-			noSuggestionsRect := cellbuf.Rect(box.R.Min.X, box.R.Max.Y, box.R.Dx(), 1)
+			noSuggestionsRect := layout.Rect(box.R.Min.X, box.R.Max.Y, box.R.Dx(), 1)
 			noSuggestionsText := m.styles.completionDimmed.Render("No suggestions")
 			dl.AddDraw(noSuggestionsRect, noSuggestionsText, render.ZRevsetOverlay)
 		}
@@ -363,7 +362,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	// If no items but we have signature help, show it
 	if len(items) == 0 && signatureHelp != "" {
-		sigRect := cellbuf.Rect(box.R.Min.X, box.R.Max.Y, box.R.Dx(), 1)
+		sigRect := layout.Rect(box.R.Min.X, box.R.Max.Y, box.R.Dx(), 1)
 		sigText := m.styles.completionDimmed.Render(signatureHelp)
 		dl.AddDraw(sigRect, sigText, render.ZRevsetOverlay)
 		return
@@ -372,7 +371,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	// Render the completion list as a multi-line overlay
 	overlayHeight := min(len(items), maxCompletionItems)
 	overlayWidth := box.R.Dx()
-	outerBox := layout.NewBox(cellbuf.Rect(box.R.Min.X, box.R.Max.Y, overlayWidth, overlayHeight))
+	outerBox := layout.NewBox(layout.Rect(box.R.Min.X, box.R.Max.Y, overlayWidth, overlayHeight))
 	// Fill the background to prevent underlying content from showing through
 	dl.AddFill(outerBox.R, ' ', m.styles.completionBackground, render.ZRevsetOverlay-1)
 
@@ -383,7 +382,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.selectedIndex,
 		true, // ensureCursorVisible
 		func(_ int) int { return 1 },
-		func(dl *render.DisplayContext, index int, rect cellbuf.Rectangle) {
+		func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
 			if index < 0 || index >= len(items) {
 				return
 			}

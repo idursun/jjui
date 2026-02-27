@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/cellbuf"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 type testClickMsg struct {
@@ -114,7 +114,7 @@ func TestTextBuilder_WindowedInteractions(t *testing.T) {
 	dl := NewDisplayContext()
 
 	// Create a window and add clickable text
-	windowRect := cellbuf.Rect(10, 5, 20, 1)
+	windowRect := layout.Rect(10, 5, 20, 1)
 	windowedDl := dl.Window(windowRect, 10)
 
 	windowedDl.Text(10, 5, 0).
@@ -150,13 +150,13 @@ func TestTextBuilder_WindowPriority(t *testing.T) {
 	dl := NewDisplayContext()
 
 	// Create lower-priority window (z=5)
-	lowerWindow := dl.Window(cellbuf.Rect(0, 0, 50, 10), 5)
+	lowerWindow := dl.Window(layout.Rect(0, 0, 50, 10), 5)
 	lowerWindow.Text(10, 5, 0).
 		Clickable("Lower", lipgloss.Style{}, testClickMsg{ID: 100}).
 		Done()
 
 	// Create higher-priority window (z=10) overlapping the same area
-	higherWindow := dl.Window(cellbuf.Rect(10, 5, 10, 1), 10)
+	higherWindow := dl.Window(layout.Rect(10, 5, 10, 1), 10)
 	higherWindow.Text(10, 5, 0).
 		Clickable("Higher", lipgloss.Style{}, testClickMsg{ID: 200}).
 		Done()

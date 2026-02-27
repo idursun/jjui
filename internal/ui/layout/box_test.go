@@ -2,12 +2,10 @@ package layout
 
 import (
 	"testing"
-
-	"github.com/charmbracelet/x/cellbuf"
 )
 
 func TestNewBox(t *testing.T) {
-	r := cellbuf.Rect(0, 0, 100, 50)
+	r := Rect(0, 0, 100, 50)
 	b := NewBox(r)
 	if b.R != r {
 		t.Errorf("NewBox() = %v, want %v", b.R, r)
@@ -96,9 +94,9 @@ func TestFillSpec(t *testing.T) {
 }
 
 func TestBoxInset(t *testing.T) {
-	b := NewBox(cellbuf.Rect(10, 10, 50, 30))
+	b := NewBox(Rect(10, 10, 50, 30))
 	inset := b.Inset(2)
-	want := cellbuf.Rect(12, 12, 46, 26)
+	want := Rect(12, 12, 46, 26)
 
 	if inset.R != want {
 		t.Errorf("Box.Inset(2) = %v, want %v", inset.R, want)
@@ -106,29 +104,29 @@ func TestBoxInset(t *testing.T) {
 }
 
 func TestBoxV_SingleFixed(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 100))
+	b := NewBox(Rect(0, 0, 100, 100))
 	boxes := b.V(Fixed(20))
 
 	if len(boxes) != 1 {
 		t.Fatalf("V() returned %d boxes, want 1", len(boxes))
 	}
 
-	want := cellbuf.Rect(0, 0, 100, 20)
+	want := Rect(0, 0, 100, 20)
 	if boxes[0].R != want {
 		t.Errorf("V(Fixed(20)) = %v, want %v", boxes[0].R, want)
 	}
 }
 
 func TestBoxV_TwoFixed(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 100))
+	b := NewBox(Rect(0, 0, 100, 100))
 	boxes := b.V(Fixed(20), Fixed(30))
 
 	if len(boxes) != 2 {
 		t.Fatalf("V() returned %d boxes, want 2", len(boxes))
 	}
 
-	want1 := cellbuf.Rect(0, 0, 100, 20)
-	want2 := cellbuf.Rect(0, 20, 100, 30)
+	want1 := Rect(0, 0, 100, 20)
+	want2 := Rect(0, 20, 100, 30)
 
 	if boxes[0].R != want1 {
 		t.Errorf("boxes[0] = %v, want %v", boxes[0].R, want1)
@@ -139,7 +137,7 @@ func TestBoxV_TwoFixed(t *testing.T) {
 }
 
 func TestBoxV_FixedAndFill(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 100))
+	b := NewBox(Rect(0, 0, 100, 100))
 	boxes := b.V(Fixed(10), Fill(1), Fixed(10))
 
 	if len(boxes) != 3 {
@@ -158,7 +156,7 @@ func TestBoxV_FixedAndFill(t *testing.T) {
 }
 
 func TestBoxV_MultipleFillWeights(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 100))
+	b := NewBox(Rect(0, 0, 100, 100))
 	boxes := b.V(Fixed(10), Fill(1), Fill(2))
 
 	if len(boxes) != 3 {
@@ -177,7 +175,7 @@ func TestBoxV_MultipleFillWeights(t *testing.T) {
 }
 
 func TestBoxV_Percentage(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 100))
+	b := NewBox(Rect(0, 0, 100, 100))
 	boxes := b.V(Percent(20), Percent(30))
 
 	if len(boxes) != 2 {
@@ -193,7 +191,7 @@ func TestBoxV_Percentage(t *testing.T) {
 }
 
 func TestBoxV_MixedSpecs(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 80, 24))
+	b := NewBox(Rect(0, 0, 80, 24))
 	boxes := b.V(Fixed(1), Fill(1), Fixed(2))
 
 	if len(boxes) != 3 {
@@ -222,15 +220,15 @@ func TestBoxV_MixedSpecs(t *testing.T) {
 }
 
 func TestBoxH_TwoFixed(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 50))
+	b := NewBox(Rect(0, 0, 100, 50))
 	boxes := b.H(Fixed(20), Fixed(30))
 
 	if len(boxes) != 2 {
 		t.Fatalf("H() returned %d boxes, want 2", len(boxes))
 	}
 
-	want1 := cellbuf.Rect(0, 0, 20, 50)
-	want2 := cellbuf.Rect(20, 0, 30, 50)
+	want1 := Rect(0, 0, 20, 50)
+	want2 := Rect(20, 0, 30, 50)
 
 	if boxes[0].R != want1 {
 		t.Errorf("boxes[0] = %v, want %v", boxes[0].R, want1)
@@ -241,7 +239,7 @@ func TestBoxH_TwoFixed(t *testing.T) {
 }
 
 func TestBoxH_SidebarMainSidebar(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 50))
+	b := NewBox(Rect(0, 0, 100, 50))
 	boxes := b.H(Fixed(20), Fill(1), Fixed(15))
 
 	if len(boxes) != 3 {
@@ -260,11 +258,11 @@ func TestBoxH_SidebarMainSidebar(t *testing.T) {
 }
 
 func TestBoxCutTop(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 100)) // (0,0)-(100,100)
+	b := NewBox(Rect(0, 0, 100, 100)) // (0,0)-(100,100)
 	top, rest := b.CutTop(20)
 
-	wantTop := cellbuf.Rect(0, 0, 100, 20)
-	wantRest := cellbuf.Rect(0, 20, 100, 80)
+	wantTop := Rect(0, 0, 100, 20)
+	wantRest := Rect(0, 20, 100, 80)
 
 	if top.R != wantTop {
 		t.Errorf("top = %v, want %v", top.R, wantTop)
@@ -275,11 +273,11 @@ func TestBoxCutTop(t *testing.T) {
 }
 
 func TestBoxCutBottom(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 100)) // (0,0)-(100,100)
+	b := NewBox(Rect(0, 0, 100, 100)) // (0,0)-(100,100)
 	rest, bottom := b.CutBottom(20)
 
-	wantRest := cellbuf.Rect(0, 0, 100, 80)
-	wantBottom := cellbuf.Rect(0, 80, 100, 20)
+	wantRest := Rect(0, 0, 100, 80)
+	wantBottom := Rect(0, 80, 100, 20)
 
 	if rest.R != wantRest {
 		t.Errorf("rest = %v, want %v", rest.R, wantRest)
@@ -290,11 +288,11 @@ func TestBoxCutBottom(t *testing.T) {
 }
 
 func TestBoxCutLeft(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 50)) // (0,0)-(100,50)
+	b := NewBox(Rect(0, 0, 100, 50)) // (0,0)-(100,50)
 	left, rest := b.CutLeft(25)
 
-	wantLeft := cellbuf.Rect(0, 0, 25, 50)
-	wantRest := cellbuf.Rect(25, 0, 75, 50)
+	wantLeft := Rect(0, 0, 25, 50)
+	wantRest := Rect(25, 0, 75, 50)
 
 	if left.R != wantLeft {
 		t.Errorf("left = %v, want %v", left.R, wantLeft)
@@ -305,11 +303,11 @@ func TestBoxCutLeft(t *testing.T) {
 }
 
 func TestBoxCutRight(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 50)) // (0,0)-(100,50)
+	b := NewBox(Rect(0, 0, 100, 50)) // (0,0)-(100,50)
 	rest, right := b.CutRight(25)
 
-	wantRest := cellbuf.Rect(0, 0, 75, 50)
-	wantRight := cellbuf.Rect(75, 0, 25, 50)
+	wantRest := Rect(0, 0, 75, 50)
+	wantRight := Rect(75, 0, 25, 50)
 
 	if rest.R != wantRest {
 		t.Errorf("rest = %v, want %v", rest.R, wantRest)
@@ -324,42 +322,42 @@ func TestBoxCenter(t *testing.T) {
 		name string
 		box  Box
 		w, h int
-		want cellbuf.Rectangle
+		want Rectangle
 	}{
 		{
 			name: "centered in 100x100",
-			box:  NewBox(cellbuf.Rect(0, 0, 100, 100)),
+			box:  NewBox(Rect(0, 0, 100, 100)),
 			w:    60,
 			h:    40,
-			want: cellbuf.Rect(20, 30, 60, 40),
+			want: Rect(20, 30, 60, 40),
 		},
 		{
 			name: "centered in offset box",
-			box:  NewBox(cellbuf.Rect(10, 10, 100, 100)),
+			box:  NewBox(Rect(10, 10, 100, 100)),
 			w:    60,
 			h:    40,
-			want: cellbuf.Rect(30, 40, 60, 40),
+			want: Rect(30, 40, 60, 40),
 		},
 		{
 			name: "overflow width",
-			box:  NewBox(cellbuf.Rect(0, 0, 50, 50)),
+			box:  NewBox(Rect(0, 0, 50, 50)),
 			w:    100,
 			h:    20,
-			want: cellbuf.Rect(0, 15, 50, 20),
+			want: Rect(0, 15, 50, 20),
 		},
 		{
 			name: "overflow height",
-			box:  NewBox(cellbuf.Rect(0, 0, 50, 50)),
+			box:  NewBox(Rect(0, 0, 50, 50)),
 			w:    20,
 			h:    100,
-			want: cellbuf.Rect(15, 0, 20, 50),
+			want: Rect(15, 0, 20, 50),
 		},
 		{
 			name: "zero size",
-			box:  NewBox(cellbuf.Rect(0, 0, 100, 100)),
+			box:  NewBox(Rect(0, 0, 100, 100)),
 			w:    0,
 			h:    0,
-			want: cellbuf.Rect(50, 50, 0, 0),
+			want: Rect(50, 50, 0, 0),
 		},
 	}
 
@@ -374,7 +372,7 @@ func TestBoxCenter(t *testing.T) {
 }
 
 func TestBoxV_EmptySpecs(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 100))
+	b := NewBox(Rect(0, 0, 100, 100))
 	boxes := b.V()
 
 	if len(boxes) != 1 {
@@ -387,7 +385,7 @@ func TestBoxV_EmptySpecs(t *testing.T) {
 }
 
 func TestBoxV_ZeroHeight(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 0))
+	b := NewBox(Rect(0, 0, 100, 0))
 	boxes := b.V(Fixed(10), Fill(1))
 
 	if len(boxes) != 2 {
@@ -402,7 +400,7 @@ func TestBoxV_ZeroHeight(t *testing.T) {
 }
 
 func TestBoxH_ZeroWidth(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 0, 100))
+	b := NewBox(Rect(0, 0, 0, 100))
 	boxes := b.H(Fixed(10), Fill(1))
 
 	if len(boxes) != 2 {
@@ -417,7 +415,7 @@ func TestBoxH_ZeroWidth(t *testing.T) {
 }
 
 func TestBoxV_Overflow(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 100))
+	b := NewBox(Rect(0, 0, 100, 100))
 	boxes := b.V(Fixed(60), Fixed(70))
 
 	if len(boxes) != 2 {
@@ -433,7 +431,7 @@ func TestBoxV_Overflow(t *testing.T) {
 }
 
 func TestBoxV_RoundingRemainder(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 100))
+	b := NewBox(Rect(0, 0, 100, 100))
 	boxes := b.V(Fill(1), Fill(1), Fill(1))
 
 	if len(boxes) != 3 {
@@ -457,7 +455,7 @@ func TestBoxV_RoundingRemainder(t *testing.T) {
 }
 
 func TestBoxChaining(t *testing.T) {
-	b := NewBox(cellbuf.Rect(0, 0, 100, 100))
+	b := NewBox(Rect(0, 0, 100, 100))
 
 	boxes := b.Inset(5).V(Fixed(10), Fill(1), Fixed(10))
 	middle := boxes[1]

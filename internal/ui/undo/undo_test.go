@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -46,7 +45,7 @@ func TestUndo_ZIndex_RendersAbovePreview(t *testing.T) {
 	test.SimulateModel(model, model.Init())
 
 	dl := render.NewDisplayContext()
-	box := layout.Box{R: cellbuf.Rect(0, 0, 100, 40)}
+	box := layout.Box{R: layout.Rect(0, 0, 100, 40)}
 	model.ViewRect(dl, box)
 
 	draws := dl.DrawList()

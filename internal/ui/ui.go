@@ -2,10 +2,10 @@ package ui
 
 import (
 	"fmt"
+	uv "github.com/charmbracelet/ultraviolet"
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/actionmeta"
 	"github.com/idursun/jjui/internal/ui/actions"
@@ -354,8 +354,8 @@ func (m *Model) View() string {
 
 	m.updateStatus()
 
-	box := layout.NewBox(cellbuf.Rect(0, 0, m.width, m.height))
-	screenBuf := cellbuf.NewBuffer(m.width, m.height)
+	box := layout.NewBox(layout.Rect(0, 0, m.width, m.height))
+	screenBuf := uv.NewScreenBuffer(m.width, m.height)
 
 	if m.diff != nil {
 		m.renderDiffLayout(box)
@@ -384,7 +384,7 @@ func (m *Model) View() string {
 	}
 
 	m.displayContext.Render(screenBuf)
-	finalView := cellbuf.Render(screenBuf)
+	finalView := screenBuf.Render()
 	return strings.ReplaceAll(finalView, "\r", "")
 }
 

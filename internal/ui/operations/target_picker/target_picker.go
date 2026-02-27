@@ -6,7 +6,6 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/jj/source"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -196,7 +195,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.cursor,
 		m.ensureCursorVisible,
 		func(_ int) int { return 1 },
-		func(dl *render.DisplayContext, index int, rect cellbuf.Rectangle) {
+		func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
 			if index < 0 || index >= len(m.matches) {
 				return
 			}
@@ -205,7 +204,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			y := rect.Min.Y
 
 			pillText := m.renderPill(item.Kind)
-			pillRect := cellbuf.Rect(rect.Min.X, y, pillWidth, 1)
+			pillRect := layout.Rect(rect.Min.X, y, pillWidth, 1)
 			window.AddDraw(pillRect, pillText, render.ZMenuContent)
 
 			isSelected := index == m.cursor
@@ -218,7 +217,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			}
 			nameContent := fuzzy_search.HighlightMatched(item.Name, match, lineStyle, matchStyle)
 			nameX := rect.Min.X + pillWidth + 1
-			nameRect := cellbuf.Rect(nameX, y, rect.Dx()-pillWidth-1, 1)
+			nameRect := layout.Rect(nameX, y, rect.Dx()-pillWidth-1, 1)
 			window.AddDraw(nameRect, nameContent, render.ZMenuContent)
 		},
 		func(index int) tea.Msg { return itemClickedMsg{index: index} },

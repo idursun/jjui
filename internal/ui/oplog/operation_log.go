@@ -6,7 +6,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/screen"
@@ -231,7 +230,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return len(m.rows[index].Lines)
 	}
 
-	renderItem := func(dl *render.DisplayContext, index int, itemRect cellbuf.Rectangle) {
+	renderItem := func(dl *render.DisplayContext, index int, itemRect layout.Rectangle) {
 		row := m.rows[index]
 		isSelected := index == m.cursor
 		styleOverride := m.textStyle
