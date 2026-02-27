@@ -1,8 +1,7 @@
 package render
 
 import (
-	"strconv"
-	"strings"
+	"image/color"
 
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
@@ -169,35 +168,19 @@ func (e FillEffect) Apply(buf *cellbuf.Buffer) {
 func (e FillEffect) GetZ() int                  { return e.Z }
 func (e FillEffect) GetRect() cellbuf.Rectangle { return e.Rect }
 
-// toAnsiColor converts lipgloss.TerminalColor to the correct ansi.Color concrete type
+// toAnsiColor converts a color.Color to the correct ansi.Color concrete type
 // so that palette colors emit palette escape codes instead of 24-bit RGB.
-func toAnsiColor(c lipgloss.TerminalColor) ansi.Color {
+func toAnsiColor(c color.Color) ansi.Color {
 	switch c := c.(type) {
-	case lipgloss.Color:
-		s := string(c)
-		if strings.HasPrefix(s, "#") {
-			return c
-		}
-		if v, err := strconv.Atoi(s); err == nil {
-			if v >= 0 && v <= 15 {
-				return ansi.BasicColor(v)
-			}
-			if v >= 16 && v <= 255 {
-				return ansi.IndexedColor(v)
-			}
-		}
+	case ansi.BasicColor:
 		return c
-	case lipgloss.ANSIColor:
-		v := uint(c)
-		if v <= 15 {
-			return ansi.BasicColor(v)
-		}
-		if v <= 255 {
-			return ansi.IndexedColor(v)
-		}
+	case ansi.IndexedColor: // = lipgloss.ANSIColor
 		return c
 	default:
-		return c
+		if ac, ok := c.(ansi.Color); ok {
+			return ac
+		}
+		return nil
 	}
 }
 

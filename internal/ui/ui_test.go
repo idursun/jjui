@@ -43,27 +43,27 @@ func Test_Update_RevsetWithEmptyInputKeepsDefaultRevset(t *testing.T) {
 func Test_Update_PreviewScrollKeysWorkWhenVisible(t *testing.T) {
 	tests := []struct {
 		name           string
-		key            tea.KeyMsg
+		key            tea.KeyPressMsg
 		expectedScroll int // positive = down, negative = up
 	}{
 		{
 			name:           "ctrl+d scrolls half page down",
-			key:            tea.KeyMsg{Type: tea.KeyCtrlD},
+			key:            tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl},
 			expectedScroll: 1,
 		},
 		{
 			name:           "ctrl+u scrolls half page up",
-			key:            tea.KeyMsg{Type: tea.KeyCtrlU},
+			key:            tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl},
 			expectedScroll: -1,
 		},
 		{
 			name:           "ctrl+n scrolls down",
-			key:            tea.KeyMsg{Type: tea.KeyCtrlN},
+			key:            tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl},
 			expectedScroll: 1,
 		},
 		{
 			name:           "ctrl+p scrolls up",
-			key:            tea.KeyMsg{Type: tea.KeyCtrlP},
+			key:            tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl},
 			expectedScroll: -1,
 		},
 	}
@@ -108,17 +108,17 @@ func Test_Update_PreviewScrollKeysWorkWhenVisible(t *testing.T) {
 func Test_Update_PreviewResizeKeysWorkWhenVisible(t *testing.T) {
 	tests := []struct {
 		name           string
-		key            tea.KeyMsg
+		key            tea.KeyPressMsg
 		expectedResize int // positive = expand, negative = shrink
 	}{
 		{
 			name:           "ctrl+l shrinks preview",
-			key:            tea.KeyMsg{Type: tea.KeyCtrlL},
+			key:            tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl},
 			expectedResize: -1,
 		},
 		{
 			name:           "ctrl+h expands preview",
-			key:            tea.KeyMsg{Type: tea.KeyCtrlH},
+			key:            tea.KeyPressMsg{Code: 'h', Mod: tea.ModCtrl},
 			expectedResize: 1,
 		},
 	}
@@ -304,11 +304,11 @@ func Test_Update_GlobalBindingsFromConfigOverrideLegacyGlobalKeys(t *testing.T) 
 	model := NewUI(ctx)
 
 	model.state = common.Error
-	model.Update(tea.KeyMsg{Type: tea.KeyCtrlX})
+	model.Update(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
 	assert.Equal(t, common.Ready, model.state, "ctrl+x should use configured global cancel binding")
 
 	model.state = common.Error
-	model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	assert.Equal(t, common.Error, model.state, "esc should not act as global cancel when global bindings are configured")
 }
 
@@ -374,11 +374,11 @@ func Test_Update_SequencePrefixBeatsSingleKeyBinding(t *testing.T) {
 	model := NewUI(ctx)
 
 	// First key only starts pending sequence, should not trigger open_git.
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+	model.Update(tea.KeyPressMsg{Text: "g", Code: 'g'})
 	assert.Nil(t, model.stacked)
 
 	// Completing sequence should trigger ui.open_revset.
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+	model.Update(tea.KeyPressMsg{Text: "r", Code: 'r'})
 	assert.True(t, model.revsetModel.Editing)
 }
 
@@ -398,7 +398,7 @@ func Test_Update_PendingSequenceAutoExpandsStatusWithContinuations(t *testing.T)
 	model.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 	_ = model.View()
 
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+	model.Update(tea.KeyPressMsg{Text: "g", Code: 'g'})
 	assert.True(t, model.status.StatusExpanded(), "pending sequence should auto-expand status")
 
 	model.updateStatus()
@@ -423,10 +423,10 @@ func Test_Update_PendingSequenceMismatchClearsAutoExpandedStatus(t *testing.T) {
 	model.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 	_ = model.View()
 
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+	model.Update(tea.KeyPressMsg{Text: "g", Code: 'g'})
 	assert.True(t, model.status.StatusExpanded())
 
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")})
+	model.Update(tea.KeyPressMsg{Text: "x", Code: 'x'})
 	assert.False(t, model.status.StatusExpanded(), "mismatched sequence should clear auto-expanded status")
 }
 
@@ -448,10 +448,10 @@ func Test_Update_RevsetEditingInterceptsQuitKey(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("L")})
+	model.Update(tea.KeyPressMsg{Text: "L", Code: 'L'})
 	assert.True(t, model.revsetModel.Editing)
 
-	cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	cmd := model.Update(tea.KeyPressMsg{Text: "q", Code: 'q'})
 	assert.True(t, model.revsetModel.Editing, "q should be treated as text input while editing revset")
 	if cmd != nil {
 		msg := cmd()
@@ -486,7 +486,7 @@ func Test_Update_GitUnmatchedShortcutFallback(t *testing.T) {
 	assert.NotNil(t, model.stacked)
 
 	// 'p' is unmatched in dispatcher for this test and should be forwarded to git shortcut handling.
-	cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
+	cmd := model.Update(tea.KeyPressMsg{Text: "p", Code: 'p'})
 	assert.NotNil(t, cmd, "unmatched git shortcut should be forwarded to git model fallback")
 }
 
@@ -512,15 +512,15 @@ func Test_Update_GitFilterEditingEnterDoesNotTriggerApply(t *testing.T) {
 	model.stacked = gitModel
 
 	// Start filter editing.
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	model.Update(tea.KeyPressMsg{Text: "/", Code: '/'})
 
 	// Enter while editing applies filter only and must not execute actionApply.
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("e")})
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("t")})
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("c")})
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
-	cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model.Update(tea.KeyPressMsg{Text: "f", Code: 'f'})
+	model.Update(tea.KeyPressMsg{Text: "e", Code: 'e'})
+	model.Update(tea.KeyPressMsg{Text: "t", Code: 't'})
+	model.Update(tea.KeyPressMsg{Text: "c", Code: 'c'})
+	model.Update(tea.KeyPressMsg{Text: "h", Code: 'h'})
+	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	assert.Nil(t, cmd, "enter in filter-edit mode should not dispatch apply")
 
 	// Apply should now route through normal git scope after leaving filter-edit mode.
@@ -656,10 +656,10 @@ func Test_Update_RevsetScopedConfiguredActionDispatchesWhileEditing(t *testing.T
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("L")})
+	model.Update(tea.KeyPressMsg{Text: "L", Code: 'L'})
 	assert.True(t, model.revsetModel.Editing)
 
-	cmd := model.Update(tea.KeyMsg{Type: tea.KeyCtrlT})
+	cmd := model.Update(tea.KeyPressMsg{Code: 't', Mod: tea.ModCtrl})
 	assert.NotNil(t, cmd, "ctrl+t should dispatch revset-scoped custom action")
 	if cmd != nil {
 		msg := cmd()
@@ -712,7 +712,7 @@ func Test_Update_LuaInputEscCancelsAndFinishesScript(t *testing.T) {
 	require.NotNil(t, model.scriptRunner, "script should wait for input")
 	require.NotNil(t, model.stacked, "input view should be stacked")
 
-	cmd = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	cmd = model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	require.NotNil(t, cmd, "esc in input scope should forward cancel to input model")
 	test.SimulateModel(model, cmd)
 
@@ -743,7 +743,7 @@ func Test_Update_LuaChooseEscViaUiCancelFinishesScript(t *testing.T) {
 	require.NotNil(t, model.scriptRunner, "script should wait for choose")
 	require.NotNil(t, model.stacked, "choose view should be stacked")
 
-	cmd = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	cmd = model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	require.NotNil(t, cmd, "esc should dispatch ui.cancel when choose.cancel is not configured")
 	test.SimulateModel(model, cmd)
 
@@ -796,14 +796,14 @@ func Test_Update_ExecHistoryUpDownNavigationInStatusInputScope(t *testing.T) {
 
 	model := NewUI(ctx)
 
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("$")})
+	model.Update(tea.KeyPressMsg{Text: "$", Code: '$'})
 	assert.True(t, model.status.IsFocused(), "exec shell should focus status input")
 
-	model.Update(tea.KeyMsg{Type: tea.KeyUp})
+	model.Update(tea.KeyPressMsg{Code: tea.KeyUp})
 	firstNav := model.status.InputValue()
 	assert.NotEmpty(t, firstNav, "up should navigate to a history command")
 
-	model.Update(tea.KeyMsg{Type: tea.KeyDown})
+	model.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	secondNav := model.status.InputValue()
 	assert.NotEmpty(t, secondNav, "down should navigate to a history command")
 	assert.NotEqual(t, firstNav, secondNav, "down should move to a different history entry")
@@ -830,20 +830,20 @@ func Test_Update_RevsetEnterAppliesAndEscCancelsViaDispatcher(t *testing.T) {
 	model := NewUI(ctx)
 
 	// Enter should apply current text in revset editing.
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("L")})
+	model.Update(tea.KeyPressMsg{Text: "L", Code: 'L'})
 	assert.True(t, model.revsetModel.Editing)
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("m")})
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("i")})
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
-	cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model.Update(tea.KeyPressMsg{Text: "m", Code: 'm'})
+	model.Update(tea.KeyPressMsg{Text: "a", Code: 'a'})
+	model.Update(tea.KeyPressMsg{Text: "i", Code: 'i'})
+	model.Update(tea.KeyPressMsg{Text: "n", Code: 'n'})
+	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	assert.NotNil(t, cmd)
 	assert.False(t, model.revsetModel.Editing)
 
 	// Esc should cancel revset editing mode.
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("L")})
+	model.Update(tea.KeyPressMsg{Text: "L", Code: 'L'})
 	assert.True(t, model.revsetModel.Editing)
-	model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	assert.False(t, model.revsetModel.Editing)
 }
 
@@ -941,7 +941,7 @@ func Test_Update_InlineDescribeDispatcherKeysWorkWhileEditing(t *testing.T) {
 	require.NotNil(t, cmd)
 
 	// esc should dispatch cancel intent for inline describe.
-	cmd = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	cmd = model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	assert.NotNil(t, cmd)
 	if cmd != nil {
 		_, ok := cmd().(common.CloseViewMsg)
@@ -949,7 +949,7 @@ func Test_Update_InlineDescribeDispatcherKeysWorkWhileEditing(t *testing.T) {
 	}
 
 	// Verify alt+enter dispatches inline_describe_accept while editing.
-	cmd = model.Update(tea.KeyMsg{Type: tea.KeyEnter, Alt: true})
+	cmd = model.Update(tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModAlt})
 	assert.NotNil(t, cmd, "alt+enter should trigger inline_describe_accept via dispatcher")
 }
 
@@ -1059,7 +1059,7 @@ func Test_Update_QuickSearchEscClearsQuickSearchText(t *testing.T) {
 	model.Update(common.QuickSearchMsg("second"))
 	assert.True(t, model.revisions.HasQuickSearch(), "quick search should be active after setting search text")
 
-	model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	assert.False(t, model.revisions.HasQuickSearch(), "esc in quick_search scope should clear quick search text")
 }
 
@@ -1079,6 +1079,6 @@ func Test_Update_FileSearchTypingUpdatesStatusInput(t *testing.T) {
 	})
 	assert.True(t, model.status.IsFocused(), "file search should focus status input")
 
-	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")})
+	model.Update(tea.KeyPressMsg{Text: "x", Code: 'x'})
 	assert.Equal(t, "x", model.status.InputValue(), "typed key should update file-search input")
 }

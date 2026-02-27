@@ -29,7 +29,10 @@ func New(msg common.TogglePasswordMsg) *Model {
 	ti := textinput.New()
 	ti.Prompt = msg.Prompt
 	ti.EchoMode = textinput.EchoPassword
-	ti.PromptStyle = common.DefaultPalette.Get("password title")
+	ps := ti.Styles()
+	ps.Focused.Prompt = common.DefaultPalette.Get("password title")
+	ps.Blurred.Prompt = common.DefaultPalette.Get("password title")
+	ti.SetStyles(ps)
 	ti.Focus()
 
 	return &Model{

@@ -170,8 +170,10 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 	input.CharLimit = 0
 	input.Prompt = ""
 	input.ShowLineNumbers = false
-	input.FocusedStyle.Base = selectedStyle.Underline(false).Strikethrough(false).Reverse(false).Blink(false)
-	input.FocusedStyle.CursorLine = input.FocusedStyle.Base
+	ds := input.Styles()
+	ds.Focused.Base = selectedStyle.Underline(false).Strikethrough(false).Reverse(false).Blink(false)
+	ds.Focused.CursorLine = ds.Focused.Base
+	input.SetStyles(ds)
 	input.SetValue(desc)
 	input.Focus()
 

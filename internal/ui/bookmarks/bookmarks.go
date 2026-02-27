@@ -482,7 +482,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	_, contentBox = contentBox.CutTop(1)
 	filterBox, contentBox := contentBox.CutTop(1)
 	if m.filterState == filterEditing {
-		m.filterInput.Width = max(contentBox.R.Dx()-2, 0)
+		m.filterInput.SetWidth(max(contentBox.R.Dx()-2, 0))
 		window.AddDraw(filterBox.R, m.filterInput.View(), render.ZMenuContent)
 	} else {
 		m.renderFilterView(window, filterBox)
@@ -576,9 +576,12 @@ func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string) *M
 
 	m.filterInput = textinput.New()
 	m.filterInput.Prompt = "Filter: "
-	m.filterInput.PromptStyle = m.menuStyles.matched.PaddingLeft(1)
-	m.filterInput.TextStyle = m.menuStyles.text
-	m.filterInput.Cursor.Style = m.menuStyles.text
+	fis := m.filterInput.Styles()
+	fis.Focused.Prompt = m.menuStyles.matched.PaddingLeft(1)
+	fis.Focused.Text = m.menuStyles.text
+	fis.Blurred.Prompt = m.menuStyles.matched.PaddingLeft(1)
+	fis.Blurred.Text = m.menuStyles.text
+	m.filterInput.SetStyles(fis)
 	m.applyFilters(true)
 
 	return m
@@ -839,11 +842,11 @@ func renderItem(dl *render.DisplayContext, rect cellbuf.Rectangle, width int, st
 	} else {
 		titleLine = titleStyle.PaddingLeft(1).Render(title)
 	}
-	titleLine = lipgloss.PlaceHorizontal(width+2, 0, titleLine, lipgloss.WithWhitespaceBackground(titleStyle.GetBackground()))
+	titleLine = lipgloss.PlaceHorizontal(width+2, 0, titleLine, lipgloss.WithWhitespaceStyle(titleStyle))
 
 	descStyle = descStyle.PaddingLeft(1).PaddingRight(1).Width(width + 2)
 	descLine := descStyle.Render(desc)
-	descLine = lipgloss.PlaceHorizontal(width+2, 0, descLine, lipgloss.WithWhitespaceBackground(titleStyle.GetBackground()))
+	descLine = lipgloss.PlaceHorizontal(width+2, 0, descLine, lipgloss.WithWhitespaceStyle(titleStyle))
 
 	spacerLine := styles.text.Width(width + 2).Render("")
 	content := lipgloss.JoinVertical(lipgloss.Left, titleLine, descLine, spacerLine)

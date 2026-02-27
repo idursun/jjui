@@ -10,8 +10,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func keyMsg(s string) tea.KeyMsg {
-	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
+func keyMsg(s string) tea.KeyPressMsg {
+	runes := []rune(s)
+	code := rune(0)
+	if len(runes) > 0 {
+		code = runes[0]
+	}
+	return tea.KeyPressMsg{Text: s, Code: code}
 }
 
 func makeResolver(bindings []keybindings.Binding, configured map[keybindings.Action]config.ActionConfig) *Resolver {

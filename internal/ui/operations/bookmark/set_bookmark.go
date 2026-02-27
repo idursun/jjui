@@ -87,7 +87,7 @@ func (s *SetBookmarkOperation) Render(commit *jj.Commit, pos operations.RenderPo
 	if pos != operations.RenderBeforeCommitId || commit.GetChangeId() != s.revision {
 		return ""
 	}
-	return s.viewContent() + s.name.TextStyle.Render(" ")
+	return s.viewContent() + s.name.Styles().Focused.Text.Render(" ")
 }
 
 func (s *SetBookmarkOperation) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
@@ -110,15 +110,19 @@ func NewSetBookmarkOperation(context *context.MainContext, changeId string) *Set
 	dimmedStyle := common.DefaultPalette.Get("revisions dimmed").Inline(true)
 	textStyle := common.DefaultPalette.Get("revisions text").Inline(true)
 	t := textinput.New()
-	t.Width = 0
 	t.ShowSuggestions = true
 	t.CharLimit = 120
 	t.Prompt = ""
-	t.TextStyle = textStyle
-	t.PromptStyle = t.TextStyle
-	t.Cursor.TextStyle = t.TextStyle
-	t.CompletionStyle = dimmedStyle
-	t.PlaceholderStyle = t.CompletionStyle
+	s := textinput.DefaultDarkStyles()
+	s.Focused.Text = textStyle
+	s.Focused.Prompt = textStyle
+	s.Focused.Suggestion = dimmedStyle
+	s.Focused.Placeholder = dimmedStyle
+	s.Blurred.Text = textStyle
+	s.Blurred.Prompt = textStyle
+	s.Blurred.Suggestion = dimmedStyle
+	s.Blurred.Placeholder = dimmedStyle
+	t.SetStyles(s)
 	t.SetValue("")
 	t.Focus()
 

@@ -80,8 +80,12 @@ func New(provider CompletionProvider, options ...Option) *AutoCompletionInput {
 		// applies default style
 		WithStylePrefix("")(m)
 	}
-	m.TextInput.TextStyle = m.Styles.Text
-	m.TextInput.PlaceholderStyle = m.Styles.Dimmed
+	s := m.TextInput.Styles()
+	s.Focused.Text = m.Styles.Text
+	s.Focused.Placeholder = m.Styles.Dimmed
+	s.Blurred.Text = m.Styles.Text
+	s.Blurred.Placeholder = m.Styles.Dimmed
+	m.TextInput.SetStyles(s)
 	return m
 }
 
@@ -120,13 +124,13 @@ func (ac *AutoCompletionInput) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 
 	if !ac.disableCompletions {
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			switch keyMsg.Type {
-			case tea.KeyTab:
+		if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+			switch keyMsg.String() {
+			case "tab":
 				ac.tabCompletionActive = true
 				ac.cycleCompletion(1)
 				return cmd
-			case tea.KeyShiftTab:
+			case "shift+tab":
 				ac.tabCompletionActive = true
 				ac.cycleCompletion(-1)
 				return cmd

@@ -125,12 +125,7 @@ func TestTextBuilder_WindowedInteractions(t *testing.T) {
 		Done()
 
 	// Simulate mouse click on "Click1" (should be at x=17 after "Label: " which is 7 chars)
-	mouseMsg := tea.MouseMsg{
-		X:      17,
-		Y:      5,
-		Button: tea.MouseButtonLeft,
-		Action: tea.MouseActionPress,
-	}
+	mouseMsg := tea.MouseClickMsg{X: 17, Y: 5, Button: tea.MouseLeft}
 
 	result, handled := dl.ProcessMouseEvent(mouseMsg)
 	if !handled {
@@ -167,12 +162,7 @@ func TestTextBuilder_WindowPriority(t *testing.T) {
 		Done()
 
 	// Click at position that's inside both windows
-	mouseMsg := tea.MouseMsg{
-		X:      10,
-		Y:      5,
-		Button: tea.MouseButtonLeft,
-		Action: tea.MouseActionPress,
-	}
+	mouseMsg := tea.MouseClickMsg{X: 10, Y: 5, Button: tea.MouseLeft}
 
 	result, handled := dl.ProcessMouseEvent(mouseMsg)
 	if !handled {

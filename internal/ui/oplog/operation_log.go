@@ -267,8 +267,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 					content.WriteString(style.Render(text))
 				}
 			}
-			lineContent := lipgloss.PlaceHorizontal(itemRect.Dx(), 0, content.String(), lipgloss.WithWhitespaceBackground(styleOverride.GetBackground()))
-			lineRect := cellbuf.Rect(itemRect.Min.X, y, itemRect.Dx(), 1)
+			lineContent := lipgloss.PlaceHorizontal(itemRect.Dx(), 0, content.String(), lipgloss.WithWhitespaceStyle(styleOverride))
+			lineRect := layout.Rect(itemRect.Min.X, y, itemRect.Dx(), 1)
 			dl.AddDraw(lineRect, lineContent, 0)
 			y++
 		}

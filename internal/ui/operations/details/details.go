@@ -283,7 +283,7 @@ func (s *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		lipgloss.Left,
 		lipgloss.Top,
 		content,
-		lipgloss.WithWhitespaceBackground(s.styles.Text.GetBackground()),
+		lipgloss.WithWhitespaceStyle(s.styles.Text),
 	)
 	dl.AddDraw(box.R, content, 0)
 }

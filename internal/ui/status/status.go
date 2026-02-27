@@ -218,7 +218,7 @@ func (m *Model) renderHelpBar(width, modeWidth int) string {
 	availableWidth := max(0, width-modeWidth-2)
 	helpContent, truncated := m.helpView(m.entries, availableWidth)
 	m.statusTruncated = truncated
-	return lipgloss.PlaceHorizontal(width, 0, helpContent, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
+	return lipgloss.PlaceHorizontal(width, 0, helpContent, lipgloss.WithWhitespaceStyle(m.styles.text))
 }
 
 // renderContent handles input display when focused
@@ -229,7 +229,7 @@ func (m *Model) renderContent(width, modeWidth int) string {
 	}
 
 	promptWidth := len(m.input.Prompt) + 2
-	m.input.Width = width - modeWidth - promptWidth - lipgloss.Width(editHelp)
+	m.input.SetWidth(width - modeWidth - promptWidth - lipgloss.Width(editHelp))
 	return lipgloss.JoinHorizontal(0, m.input.View(), editHelp)
 }
 
@@ -489,10 +489,15 @@ func New(context *context.MainContext) *Model {
 	}
 
 	t := textinput.New()
-	t.Width = 50
-	t.TextStyle = styles.text
-	t.CompletionStyle = styles.dimmed
-	t.PlaceholderStyle = styles.dimmed
+	t.SetWidth(50)
+	ts := t.Styles()
+	ts.Focused.Text = styles.text
+	ts.Focused.Suggestion = styles.dimmed
+	ts.Focused.Placeholder = styles.dimmed
+	ts.Blurred.Text = styles.text
+	ts.Blurred.Suggestion = styles.dimmed
+	ts.Blurred.Placeholder = styles.dimmed
+	t.SetStyles(ts)
 
 	return &Model{
 		context: context,

@@ -75,7 +75,7 @@ func NewWithOptions(options []string, title string, filterable bool, ordered boo
 	ti.Prompt = "/"
 	ti.Placeholder = "filter..."
 	ti.CharLimit = 100
-	ti.Width = 20
+	ti.SetWidth(20)
 
 	return &Model{
 		options:         options,

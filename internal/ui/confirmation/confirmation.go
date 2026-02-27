@@ -134,10 +134,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 		}
 		return nil
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		for _, option := range m.options {
 			if key.Matches(msg, option.keyBinding) {
-				if msg.Alt {
+				if msg.Mod&tea.ModAlt != 0 {
 					return option.altCmd
 				}
 				return option.cmd
@@ -178,7 +178,7 @@ func (m *Model) View() string {
 	}
 	content := w.String()
 	width, height := lipgloss.Size(content)
-	content = lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content, lipgloss.WithWhitespaceBackground(m.Styles.Text.GetBackground()))
+	content = lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content, lipgloss.WithWhitespaceStyle(lipgloss.NewStyle().Background(m.Styles.Text.GetBackground())))
 	return m.Styles.Border.Render(content)
 }
 

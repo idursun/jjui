@@ -101,7 +101,7 @@ func (m *Model) AtBottom() bool {
 }
 
 func (m *Model) YOffset() int {
-	return m.view.YOffset
+	return m.view.YOffset()
 }
 
 func (m *Model) Scroll(delta int) tea.Cmd {
@@ -175,8 +175,8 @@ func (m *Model) SetContent(content string) {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	m.view.Width = box.R.Dx()
-	m.view.Height = box.R.Dy()
+	m.view.SetWidth(box.R.Dx())
+	m.view.SetHeight(box.R.Dy())
 	dl.AddDraw(box.R, m.view.View(), render.ZPreview)
 
 	scrollRect := cellbuf.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), box.R.Dy())
@@ -195,7 +195,7 @@ func (m *Model) refreshPreview() tea.Cmd {
 func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
 	return common.Debounce(debounceId, debounceDuration, func() tea.Msg {
 		var args []string
-		previewWidth := strconv.Itoa(m.view.Width)
+		previewWidth := strconv.Itoa(m.view.Width())
 		switch sel := item.(type) {
 		case common.SelectedFile:
 			args = jj.TemplatedArgs(config.Current.Preview.FileCommand, map[string]string{

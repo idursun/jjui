@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/muesli/termenv"
 )
 
 type part int
@@ -34,7 +33,6 @@ func (l *LogBuilder) String() string {
 }
 
 func (l *LogBuilder) Write(line string) {
-	lipgloss.SetColorProfile(termenv.ANSI)
 	scanner := bufio.NewScanner(strings.NewReader(line))
 	scanner.Split(bufio.ScanWords)
 	for scanner.Scan() {

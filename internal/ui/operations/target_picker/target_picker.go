@@ -89,8 +89,12 @@ func NewModel(ctx *context.MainContext) *Model {
 	dimmed := palette.Get("picker dimmed")
 	ti := textinput.New()
 	ti.Prompt = "> "
-	ti.PromptStyle = dimmed
-	ti.TextStyle = text
+	tis := ti.Styles()
+	tis.Focused.Prompt = dimmed
+	tis.Focused.Text = text
+	tis.Blurred.Prompt = dimmed
+	tis.Blurred.Text = text
+	ti.SetStyles(tis)
 	ti.CharLimit = 0
 	ti.Focus()
 
@@ -174,13 +178,14 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	maxH := min(maxHeight, box.R.Dy())
 	centeredBox := box.Center(maxW, maxH)
 
-	borderContent := m.styles.border.Width(centeredBox.R.Dx() - 2).Height(centeredBox.R.Dy() - 2).Render("")
-	window := dl.Window(centeredBox.R, render.ZMenuBorder)
-	window.AddDraw(centeredBox.R, borderContent, render.ZMenuBorder)
+	frame := centeredBox
+	window := dl.Window(frame.R, render.ZMenuBorder)
+	borderContent := m.styles.border.Width(frame.R.Dx()).Height(frame.R.Dy()).Render("")
+	window.AddDraw(frame.R, borderContent, render.ZMenuBorder)
 	centeredBox = centeredBox.Inset(1)
 
 	inputBox, listBox := centeredBox.CutTop(1)
-	m.input.Width = inputBox.R.Dx()
+	m.input.SetWidth(inputBox.R.Dx())
 
 	window.AddDraw(inputBox.R, m.input.View(), render.ZMenuContent)
 
