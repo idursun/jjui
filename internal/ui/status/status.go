@@ -186,13 +186,13 @@ func (m *Model) loadEditingSuggestions() {
 	h := m.context.Histories.GetHistory(config.HistoryKey(m.mode), true)
 	history := h.Entries()
 	m.input.ShowSuggestions = true
-	m.input.SetSuggestions([]string(history))
+	m.input.SetSuggestions(history)
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	width := box.R.Dx()
 	modeWidth := max(10, len(m.mode)+2)
-	mode := m.styles.title.Width(modeWidth).Render(" ", m.mode)
+	mode := m.styles.title.Width(modeWidth).Render(m.mode)
 
 	var statusLine string
 	if m.IsFocused() {
@@ -484,7 +484,7 @@ func New(context *context.MainContext) *Model {
 		shortcut: common.DefaultPalette.Get("status shortcut"),
 		dimmed:   common.DefaultPalette.Get("status dimmed"),
 		text:     common.DefaultPalette.Get("status text"),
-		title:    common.DefaultPalette.Get("status title"),
+		title:    common.DefaultPalette.Get("status title").PaddingLeft(1).PaddingRight(1),
 	}
 
 	t := textinput.New()

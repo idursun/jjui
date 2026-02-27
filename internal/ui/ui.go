@@ -327,6 +327,8 @@ func (m *Model) statusMode() string {
 	switch {
 	case m.commandHistoryOpen():
 		return "history"
+	case m.stacked != nil:
+		return m.stacked.StackedActionOwner()
 	case m.diff != nil:
 		return "diff"
 	case m.oplog != nil:
