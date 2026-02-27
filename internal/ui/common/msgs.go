@@ -1,8 +1,6 @@
 package common
 
 import (
-	"strings"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
 )
@@ -26,8 +24,12 @@ type (
 		Bookmarks []string
 		Revision  string
 	}
-	CommandRunningMsg   string
+	CommandRunningMsg struct {
+		ID      int
+		Command string
+	}
 	CommandCompletedMsg struct {
+		ID     int
 		Output string
 		Err    error
 	}
@@ -124,13 +126,6 @@ func RefreshAndKeepSelections() tea.Msg {
 
 func Refresh() tea.Msg {
 	return RefreshMsg{}
-}
-
-func CommandRunning(args []string) tea.Cmd {
-	return func() tea.Msg {
-		command := "jj " + strings.Join(args, " ")
-		return CommandRunningMsg(command)
-	}
 }
 
 func UpdateRevSet(revset string) tea.Cmd {

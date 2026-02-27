@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/askpass"
@@ -27,9 +28,12 @@ type CommandRunner interface {
 }
 
 type MainCommandRunner struct {
-	Location string
-	Askpass  *askpass.Server
+	Location  string
+	Askpass   *askpass.Server
+	idCounter atomic.Int64
 }
+
+func (a *MainCommandRunner) nextID() int { return int(a.idCounter.Add(1)) }
 
 func (a *MainCommandRunner) RunCommandImmediate(args []string) ([]byte, error) {
 	c := exec.Command("jj", args...)
@@ -68,6 +72,8 @@ func (a *MainCommandRunner) RunCommandStreaming(ctx context.Context, args []stri
 }
 
 func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, continuations []tea.Cmd) tea.Cmd {
+	id := a.nextID()
+	command := "jj " + strings.Join(args, " ")
 	commands := make([]tea.Cmd, 0)
 	commands = append(commands,
 		func() tea.Msg {
@@ -84,6 +90,7 @@ func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, co
 				stdin, err := c.StdinPipe()
 				if err != nil {
 					return common.CommandCompletedMsg{
+						ID:  id,
 						Err: err,
 					}
 				}
@@ -97,6 +104,7 @@ func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, co
 			c.Stderr = &output
 			if err := c.Start(); err != nil {
 				return common.CommandCompletedMsg{
+					ID:  id,
 					Err: err,
 				}
 			}
@@ -114,13 +122,16 @@ func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, co
 				}
 			}
 			return common.CommandCompletedMsg{
+				ID:     id,
 				Output: output.String(),
 				Err:    err,
 			}
 		})
 	commands = append(commands, continuations...)
 	return tea.Batch(
-		common.CommandRunning(args),
+		func() tea.Msg {
+			return common.CommandRunningMsg{ID: id, Command: command}
+		},
 		tea.Sequence(commands...),
 	)
 }
@@ -134,18 +145,22 @@ func (a *MainCommandRunner) RunCommand(args []string, continuations ...tea.Cmd) 
 }
 
 func (a *MainCommandRunner) RunInteractiveCommand(args []string, continuation tea.Cmd) tea.Cmd {
+	id := a.nextID()
+	command := "jj " + strings.Join(args, " ")
 	c := exec.Command("jj", args...)
 	errBuffer := &bytes.Buffer{}
 	c.Stderr = errBuffer
 	c.Dir = a.Location
 	return tea.Batch(
-		common.CommandRunning(args),
+		func() tea.Msg {
+			return common.CommandRunningMsg{ID: id, Command: command}
+		},
 		tea.ExecProcess(c, func(err error) tea.Msg {
 			if err != nil {
-				return common.CommandCompletedMsg{Err: errors.New(errBuffer.String())}
+				return common.CommandCompletedMsg{ID: id, Err: errors.New(errBuffer.String())}
 			}
 			return tea.Batch(continuation, func() tea.Msg {
-				return common.CommandCompletedMsg{Err: nil}
+				return common.CommandCompletedMsg{ID: id, Err: nil}
 			})()
 		}),
 	)

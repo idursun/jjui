@@ -10,6 +10,7 @@ import (
 const (
 	OwnerBookmarks           = "bookmarks"
 	OwnerChoose              = "choose"
+	OwnerCommandHistory      = "command_history"
 	OwnerDiff                = "diff"
 	OwnerFileSearch          = "file_search"
 	OwnerGit                 = "git"
@@ -57,6 +58,10 @@ const (
 	ChooseCancel                           keybindings.Action = "choose.cancel"
 	ChooseMoveDown                         keybindings.Action = "choose.move_down"
 	ChooseMoveUp                           keybindings.Action = "choose.move_up"
+	CommandHistoryClose                    keybindings.Action = "command_history.close"
+	CommandHistoryDeleteSelected           keybindings.Action = "command_history.delete_selected"
+	CommandHistoryMoveDown                 keybindings.Action = "command_history.move_down"
+	CommandHistoryMoveUp                   keybindings.Action = "command_history.move_up"
 	DiffHalfPageDown                       keybindings.Action = "diff.half_page_down"
 	DiffHalfPageUp                         keybindings.Action = "diff.half_page_up"
 	DiffLeft                               keybindings.Action = "diff.left"
@@ -246,6 +251,7 @@ const (
 	UiExpandStatus                         keybindings.Action = "ui.expand_status"
 	UiFileSearchToggle                     keybindings.Action = "ui.file_search_toggle"
 	UiOpenBookmarks                        keybindings.Action = "ui.open_bookmarks"
+	UiOpenCommandHistory                   keybindings.Action = "ui.open_command_history"
 	UiOpenGit                              keybindings.Action = "ui.open_git"
 	UiOpenOplog                            keybindings.Action = "ui.open_oplog"
 	UiOpenRedo                             keybindings.Action = "ui.open_redo"
@@ -270,7 +276,7 @@ const (
 
 func IsRevisionsOwner(owner string) bool {
 	switch owner {
-	case OwnerOplogQuickSearch, OwnerRevisions, OwnerAbandon, OwnerAceJump, OwnerDetails, OwnerDetailsConfirmation, OwnerDuplicate, OwnerEvolog, OwnerInlineDescribe, OwnerQuickSearchInput, OwnerRebase, OwnerRevert, OwnerSetBookmark, OwnerSetParents, OwnerSquash, OwnerTargetPicker:
+	case OwnerCommandHistory, OwnerOplogQuickSearch, OwnerRevisions, OwnerAbandon, OwnerAceJump, OwnerDetails, OwnerDetailsConfirmation, OwnerDuplicate, OwnerEvolog, OwnerInlineDescribe, OwnerQuickSearchInput, OwnerRebase, OwnerRevert, OwnerSetBookmark, OwnerSetParents, OwnerSquash, OwnerTargetPicker:
 		return true
 	default:
 		return false
@@ -322,6 +328,17 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.ChooseNavigate{Delta: 1}, true
 		case keybindings.Action("choose.move_up"):
 			return intents.ChooseNavigate{Delta: -1}, true
+		}
+	case OwnerCommandHistory:
+		switch action {
+		case keybindings.Action("command_history.close"):
+			return intents.CommandHistoryClose{}, true
+		case keybindings.Action("command_history.delete_selected"):
+			return intents.CommandHistoryDeleteSelected{}, true
+		case keybindings.Action("command_history.move_down"):
+			return intents.CommandHistoryNavigate{Delta: 1}, true
+		case keybindings.Action("command_history.move_up"):
+			return intents.CommandHistoryNavigate{Delta: -1}, true
 		}
 	case OwnerDiff:
 		switch action {
@@ -778,6 +795,8 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.FileSearchToggle{}, true
 		case keybindings.Action("ui.open_bookmarks"):
 			return intents.OpenBookmarks{}, true
+		case keybindings.Action("ui.open_command_history"):
+			return intents.CommandHistoryToggle{}, true
 		case keybindings.Action("ui.open_git"):
 			return intents.OpenGit{}, true
 		case keybindings.Action("ui.open_oplog"):
