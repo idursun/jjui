@@ -1,9 +1,8 @@
 package details
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/cellbuf"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
@@ -95,7 +94,7 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 	}
 
 	// Render function - renders each visible item
-	renderItem := func(dl *render.DisplayContext, index int, rect cellbuf.Rectangle) {
+	renderItem := func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
 		item := d.files[index]
 		isSelected := index == d.cursor
 

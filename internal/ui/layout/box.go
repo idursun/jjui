@@ -1,15 +1,27 @@
 package layout
 
-import "github.com/charmbracelet/x/cellbuf"
+import "image"
 
-// Box wraps a cellbuf.Rectangle to provide a fluent API for layout calculations.
+// Rectangle is an alias for image.Rectangle (same underlying type as uv.Rectangle, cellbuf.Rectangle).
+type Rectangle = image.Rectangle
+
+// Position is an alias for image.Point (same underlying type as uv.Position, cellbuf.Position).
+type Position = image.Point
+
+// Rect returns a Rectangle with the given origin and size.
+func Rect(x, y, w, h int) Rectangle { return image.Rect(x, y, x+w, y+h) }
+
+// Pos returns a Position with the given coordinates.
+func Pos(x, y int) Position { return image.Point{X: x, Y: y} }
+
+// Box wraps a Rectangle to provide a fluent API for layout calculations.
 // It enables declarative layout syntax instead of manual rectangle arithmetic.
 type Box struct {
-	R cellbuf.Rectangle
+	R Rectangle
 }
 
 // NewBox creates a new Box wrapping the given rectangle.
-func NewBox(r cellbuf.Rectangle) Box {
+func NewBox(r Rectangle) Box {
 	return Box{R: r}
 }
 
@@ -96,7 +108,7 @@ func (b Box) V(specs ...Spec) []Box {
 		// Return zero-height boxes
 		result := make([]Box, len(specs))
 		for i := range result {
-			result[i] = Box{R: cellbuf.Rectangle{Min: b.R.Min, Max: b.R.Min}}
+			result[i] = Box{R: Rectangle{Min: b.R.Min, Max: b.R.Min}}
 		}
 		return result
 	}
@@ -155,18 +167,18 @@ func (b Box) V(specs ...Spec) []Box {
 	for i, size := range sizes {
 		if y >= b.R.Max.Y {
 			// No space left, return zero-size boxes
-			result[i] = Box{R: cellbuf.Rectangle{
-				Min: cellbuf.Pos(b.R.Min.X, b.R.Max.Y),
-				Max: cellbuf.Pos(b.R.Max.X, b.R.Max.Y),
+			result[i] = Box{R: Rectangle{
+				Min: Pos(b.R.Min.X, b.R.Max.Y),
+				Max: Pos(b.R.Max.X, b.R.Max.Y),
 			}}
 		} else {
 			nextY := y + size
 			if nextY > b.R.Max.Y {
 				nextY = b.R.Max.Y
 			}
-			result[i] = Box{R: cellbuf.Rectangle{
-				Min: cellbuf.Pos(b.R.Min.X, y),
-				Max: cellbuf.Pos(b.R.Max.X, nextY),
+			result[i] = Box{R: Rectangle{
+				Min: Pos(b.R.Min.X, y),
+				Max: Pos(b.R.Max.X, nextY),
 			}}
 			y = nextY
 		}
@@ -187,7 +199,7 @@ func (b Box) H(specs ...Spec) []Box {
 		// Return zero-width boxes
 		result := make([]Box, len(specs))
 		for i := range result {
-			result[i] = Box{R: cellbuf.Rectangle{Min: b.R.Min, Max: b.R.Min}}
+			result[i] = Box{R: Rectangle{Min: b.R.Min, Max: b.R.Min}}
 		}
 		return result
 	}
@@ -246,18 +258,18 @@ func (b Box) H(specs ...Spec) []Box {
 	for i, size := range sizes {
 		if x >= b.R.Max.X {
 			// No space left, return zero-size boxes
-			result[i] = Box{R: cellbuf.Rectangle{
-				Min: cellbuf.Pos(b.R.Max.X, b.R.Min.Y),
-				Max: cellbuf.Pos(b.R.Max.X, b.R.Max.Y),
+			result[i] = Box{R: Rectangle{
+				Min: Pos(b.R.Max.X, b.R.Min.Y),
+				Max: Pos(b.R.Max.X, b.R.Max.Y),
 			}}
 		} else {
 			nextX := x + size
 			if nextX > b.R.Max.X {
 				nextX = b.R.Max.X
 			}
-			result[i] = Box{R: cellbuf.Rectangle{
-				Min: cellbuf.Pos(x, b.R.Min.Y),
-				Max: cellbuf.Pos(nextX, b.R.Max.Y),
+			result[i] = Box{R: Rectangle{
+				Min: Pos(x, b.R.Min.Y),
+				Max: Pos(nextX, b.R.Max.Y),
 			}}
 			x = nextX
 		}
@@ -269,19 +281,19 @@ func (b Box) H(specs ...Spec) []Box {
 // CutTop cuts h cells from the top, returning the top box and the rest.
 func (b Box) CutTop(h int) (top, rest Box) {
 	if h <= 0 {
-		return Box{R: cellbuf.Rectangle{Min: b.R.Min, Max: cellbuf.Pos(b.R.Max.X, b.R.Min.Y)}}, b
+		return Box{R: Rectangle{Min: b.R.Min, Max: Pos(b.R.Max.X, b.R.Min.Y)}}, b
 	}
 	if h >= b.R.Dy() {
-		return b, Box{R: cellbuf.Rectangle{Min: cellbuf.Pos(b.R.Min.X, b.R.Max.Y), Max: b.R.Max}}
+		return b, Box{R: Rectangle{Min: Pos(b.R.Min.X, b.R.Max.Y), Max: b.R.Max}}
 	}
 
 	splitY := b.R.Min.Y + h
-	top = Box{R: cellbuf.Rectangle{
+	top = Box{R: Rectangle{
 		Min: b.R.Min,
-		Max: cellbuf.Pos(b.R.Max.X, splitY),
+		Max: Pos(b.R.Max.X, splitY),
 	}}
-	rest = Box{R: cellbuf.Rectangle{
-		Min: cellbuf.Pos(b.R.Min.X, splitY),
+	rest = Box{R: Rectangle{
+		Min: Pos(b.R.Min.X, splitY),
 		Max: b.R.Max,
 	}}
 	return
@@ -290,19 +302,19 @@ func (b Box) CutTop(h int) (top, rest Box) {
 // CutBottom cuts h cells from the bottom, returning the rest and the bottom box.
 func (b Box) CutBottom(h int) (rest, bottom Box) {
 	if h <= 0 {
-		return b, Box{R: cellbuf.Rectangle{Min: cellbuf.Pos(b.R.Min.X, b.R.Max.Y), Max: b.R.Max}}
+		return b, Box{R: Rectangle{Min: Pos(b.R.Min.X, b.R.Max.Y), Max: b.R.Max}}
 	}
 	if h >= b.R.Dy() {
-		return Box{R: cellbuf.Rectangle{Min: b.R.Min, Max: cellbuf.Pos(b.R.Max.X, b.R.Min.Y)}}, b
+		return Box{R: Rectangle{Min: b.R.Min, Max: Pos(b.R.Max.X, b.R.Min.Y)}}, b
 	}
 
 	splitY := b.R.Max.Y - h
-	rest = Box{R: cellbuf.Rectangle{
+	rest = Box{R: Rectangle{
 		Min: b.R.Min,
-		Max: cellbuf.Pos(b.R.Max.X, splitY),
+		Max: Pos(b.R.Max.X, splitY),
 	}}
-	bottom = Box{R: cellbuf.Rectangle{
-		Min: cellbuf.Pos(b.R.Min.X, splitY),
+	bottom = Box{R: Rectangle{
+		Min: Pos(b.R.Min.X, splitY),
 		Max: b.R.Max,
 	}}
 	return
@@ -311,19 +323,19 @@ func (b Box) CutBottom(h int) (rest, bottom Box) {
 // CutLeft cuts w cells from the left, returning the left box and the rest.
 func (b Box) CutLeft(w int) (left, rest Box) {
 	if w <= 0 {
-		return Box{R: cellbuf.Rectangle{Min: b.R.Min, Max: cellbuf.Pos(b.R.Min.X, b.R.Max.Y)}}, b
+		return Box{R: Rectangle{Min: b.R.Min, Max: Pos(b.R.Min.X, b.R.Max.Y)}}, b
 	}
 	if w >= b.R.Dx() {
-		return b, Box{R: cellbuf.Rectangle{Min: cellbuf.Pos(b.R.Max.X, b.R.Min.Y), Max: b.R.Max}}
+		return b, Box{R: Rectangle{Min: Pos(b.R.Max.X, b.R.Min.Y), Max: b.R.Max}}
 	}
 
 	splitX := b.R.Min.X + w
-	left = Box{R: cellbuf.Rectangle{
+	left = Box{R: Rectangle{
 		Min: b.R.Min,
-		Max: cellbuf.Pos(splitX, b.R.Max.Y),
+		Max: Pos(splitX, b.R.Max.Y),
 	}}
-	rest = Box{R: cellbuf.Rectangle{
-		Min: cellbuf.Pos(splitX, b.R.Min.Y),
+	rest = Box{R: Rectangle{
+		Min: Pos(splitX, b.R.Min.Y),
 		Max: b.R.Max,
 	}}
 	return
@@ -332,19 +344,19 @@ func (b Box) CutLeft(w int) (left, rest Box) {
 // CutRight cuts w cells from the right, returning the rest and the right box.
 func (b Box) CutRight(w int) (rest, right Box) {
 	if w <= 0 {
-		return b, Box{R: cellbuf.Rectangle{Min: cellbuf.Pos(b.R.Max.X, b.R.Min.Y), Max: b.R.Max}}
+		return b, Box{R: Rectangle{Min: Pos(b.R.Max.X, b.R.Min.Y), Max: b.R.Max}}
 	}
 	if w >= b.R.Dx() {
-		return Box{R: cellbuf.Rectangle{Min: b.R.Min, Max: cellbuf.Pos(b.R.Min.X, b.R.Max.Y)}}, b
+		return Box{R: Rectangle{Min: b.R.Min, Max: Pos(b.R.Min.X, b.R.Max.Y)}}, b
 	}
 
 	splitX := b.R.Max.X - w
-	rest = Box{R: cellbuf.Rectangle{
+	rest = Box{R: Rectangle{
 		Min: b.R.Min,
-		Max: cellbuf.Pos(splitX, b.R.Max.Y),
+		Max: Pos(splitX, b.R.Max.Y),
 	}}
-	right = Box{R: cellbuf.Rectangle{
-		Min: cellbuf.Pos(splitX, b.R.Min.Y),
+	right = Box{R: Rectangle{
+		Min: Pos(splitX, b.R.Min.Y),
 		Max: b.R.Max,
 	}}
 	return
@@ -374,8 +386,8 @@ func (b Box) Center(w, h int) Box {
 	offsetX := (availWidth - w) / 2
 	offsetY := (availHeight - h) / 2
 
-	return Box{R: cellbuf.Rectangle{
-		Min: cellbuf.Pos(b.R.Min.X+offsetX, b.R.Min.Y+offsetY),
-		Max: cellbuf.Pos(b.R.Min.X+offsetX+w, b.R.Min.Y+offsetY+h),
+	return Box{R: Rectangle{
+		Min: Pos(b.R.Min.X+offsetX, b.R.Min.Y+offsetY),
+		Max: Pos(b.R.Min.X+offsetX+w, b.R.Min.Y+offsetY+h),
 	}}
 }

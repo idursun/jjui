@@ -3,15 +3,14 @@ package status
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/x/cellbuf"
+	"charm.land/bubbles/v2/textinput"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/helpkeys"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/exec_process"
@@ -218,7 +217,7 @@ func (m *Model) renderHelpBar(width, modeWidth int) string {
 	availableWidth := max(0, width-modeWidth-2)
 	helpContent, truncated := m.helpView(m.entries, availableWidth)
 	m.statusTruncated = truncated
-	return lipgloss.PlaceHorizontal(width, 0, helpContent, lipgloss.WithWhitespaceBackground(m.styles.text.GetBackground()))
+	return lipgloss.PlaceHorizontal(width, 0, helpContent, lipgloss.WithWhitespaceStyle(m.styles.text))
 }
 
 // renderContent handles input display when focused
@@ -229,7 +228,7 @@ func (m *Model) renderContent(width, modeWidth int) string {
 	}
 
 	promptWidth := len(m.input.Prompt) + 2
-	m.input.Width = width - modeWidth - promptWidth - lipgloss.Width(editHelp)
+	m.input.SetWidth(width - modeWidth - promptWidth - lipgloss.Width(editHelp))
 	return lipgloss.JoinHorizontal(0, m.input.View(), editHelp)
 }
 
@@ -255,7 +254,7 @@ func (m *Model) renderExpandedStatusBorder(dl *render.DisplayContext, box layout
 	modeLabel := m.styles.title.Render("  " + m.mode + "  ")
 	borderLine := strings.Repeat("─", max(0, width-lipgloss.Width(modeLabel)))
 	topBorder := modeLabel + m.styles.dimmed.Render(borderLine)
-	borderRect := cellbuf.Rect(box.R.Min.X, startY, width, 1)
+	borderRect := layout.Rect(box.R.Min.X, startY, width, 1)
 	dl.AddDraw(borderRect, topBorder, render.ZExpandedStatus)
 }
 
@@ -284,7 +283,7 @@ func (m *Model) renderExpandedStatusContent(dl *render.DisplayContext, box layou
 
 		// render the line with the text style and draw at the overlay z-index
 		contentLine := m.styles.text.Render(paddedLine)
-		contentRect := cellbuf.Rect(box.R.Min.X, y, width, 1)
+		contentRect := layout.Rect(box.R.Min.X, y, width, 1)
 		dl.AddDraw(contentRect, contentLine, render.ZExpandedStatus)
 	}
 }
@@ -294,7 +293,7 @@ func (m *Model) renderFuzzyOverlay(dl *render.DisplayContext, box layout.Box) {
 	if m.fuzzy == nil {
 		return
 	}
-	overlayRect := cellbuf.Rect(box.R.Min.X, 0, box.R.Dx(), box.R.Min.Y)
+	overlayRect := layout.Rect(box.R.Min.X, 0, box.R.Dx(), box.R.Min.Y)
 	m.fuzzy.ViewRect(dl, layout.Box{R: overlayRect})
 }
 
@@ -489,10 +488,15 @@ func New(context *context.MainContext) *Model {
 	}
 
 	t := textinput.New()
-	t.Width = 50
-	t.TextStyle = styles.text
-	t.CompletionStyle = styles.dimmed
-	t.PlaceholderStyle = styles.dimmed
+	t.SetWidth(50)
+	ts := t.Styles()
+	ts.Focused.Text = styles.text
+	ts.Focused.Suggestion = styles.dimmed
+	ts.Focused.Placeholder = styles.dimmed
+	ts.Blurred.Text = styles.text
+	ts.Blurred.Suggestion = styles.dimmed
+	ts.Blurred.Placeholder = styles.dimmed
+	t.SetStyles(ts)
 
 	return &Model{
 		context: context,

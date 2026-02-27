@@ -1,9 +1,10 @@
 package common
 
 import (
+	"image/color"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/stretchr/testify/assert"
 )
@@ -205,7 +206,7 @@ func TestParseColor(t *testing.T) {
 	tests := []struct {
 		name  string
 		color string
-		want  lipgloss.Color
+		want  color.Color
 	}{
 		{
 			name:  "hex color",

@@ -3,10 +3,9 @@ package confirmation
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/cellbuf"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -134,10 +133,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 		}
 		return nil
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		for _, option := range m.options {
 			if key.Matches(msg, option.keyBinding) {
-				if msg.Alt {
+				if msg.Mod&tea.ModAlt != 0 {
 					return option.altCmd
 				}
 				return option.cmd
@@ -178,7 +177,7 @@ func (m *Model) View() string {
 	}
 	content := w.String()
 	width, height := lipgloss.Size(content)
-	content = lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content, lipgloss.WithWhitespaceBackground(m.Styles.Text.GetBackground()))
+	content = lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content, lipgloss.WithWhitespaceStyle(lipgloss.NewStyle().Background(m.Styles.Text.GetBackground())))
 	return m.Styles.Border.Render(content)
 }
 
@@ -206,7 +205,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	sx := box.R.Min.X
 	sy := box.R.Min.Y
 
-	frame := cellbuf.Rect(sx, sy, bw, bh)
+	frame := layout.Rect(sx, sy, bw, bh)
 	window := dl.Window(frame, z)
 	window.AddDraw(frame, bordered, z)
 
@@ -217,7 +216,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	bt := m.Styles.Border.GetBorderTopSize()
 	bb := m.Styles.Border.GetBorderBottomSize()
 
-	contentRect := cellbuf.Rect(
+	contentRect := layout.Rect(
 		frame.Min.X+ml+bl+pl,
 		frame.Min.Y+mt+bt+pt,
 		max(frame.Dx()-ml-mr-bl-br-pl-pr, 0),

@@ -3,8 +3,8 @@ package diff
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -19,7 +19,7 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) SetHeight(h int) {
-	m.view.Height = h
+	m.view.SetHeight(h)
 }
 
 func (m *Model) Scroll(delta int) tea.Cmd {
@@ -51,13 +51,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case intents.DiffScrollDown:
 			m.view.ScrollDown(1)
 		case intents.DiffPageUp:
-			m.view.ScrollUp(m.view.Height)
+			m.view.ScrollUp(m.view.Height())
 		case intents.DiffPageDown:
-			m.view.ScrollDown(m.view.Height)
+			m.view.ScrollDown(m.view.Height())
 		case intents.DiffHalfPageUp:
-			m.view.ScrollUp(m.view.Height / 2)
+			m.view.ScrollUp(m.view.Height() / 2)
 		case intents.DiffHalfPageDown:
-			m.view.ScrollDown(m.view.Height / 2)
+			m.view.ScrollDown(m.view.Height() / 2)
 		}
 		return nil
 	case intents.DiffScrollHorizontal:
@@ -78,14 +78,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	m.view.Height = box.R.Dy()
-	m.view.Width = box.R.Dx()
+	m.view.SetHeight(box.R.Dy())
+	m.view.SetWidth(box.R.Dx())
 	dl.AddDraw(box.R, m.view.View(), 0)
 	dl.AddInteraction(box.R, ScrollMsg{}, render.InteractionScroll, 0)
 }
 
 func New(output string) *Model {
-	view := viewport.New(0, 0)
+	view := viewport.New()
 	content := strings.ReplaceAll(output, "\r", "")
 	if content == "" {
 		content = "(empty)"

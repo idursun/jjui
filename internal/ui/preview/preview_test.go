@@ -1,9 +1,9 @@
 package preview
 
 import (
+	"github.com/idursun/jjui/internal/ui/layout"
 	"testing"
 
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -21,7 +21,7 @@ func TestModel_Init(t *testing.T) {
 func TestModel_View(t *testing.T) {
 	tests := []struct {
 		name     string
-		scrollBy cellbuf.Position
+		scrollBy layout.Position
 		atBottom bool
 		width    int
 		height   int
@@ -30,7 +30,7 @@ func TestModel_View(t *testing.T) {
 	}{
 		{
 			name:     "clips",
-			scrollBy: cellbuf.Position{},
+			scrollBy: layout.Position{},
 			width:    5,
 			height:   2,
 			content: test.Stripped(`
@@ -45,7 +45,7 @@ func TestModel_View(t *testing.T) {
 		},
 		{
 			name:     "clips when at bottom",
-			scrollBy: cellbuf.Position{},
+			scrollBy: layout.Position{},
 			atBottom: true,
 			width:    5,
 			height:   3,
@@ -62,7 +62,7 @@ func TestModel_View(t *testing.T) {
 		},
 		{
 			name:     "Scroll by down and right",
-			scrollBy: cellbuf.Position{X: 1, Y: 1},
+			scrollBy: layout.Position{X: 1, Y: 1},
 			width:    5,
 			height:   2,
 			content: test.Stripped(`
@@ -77,7 +77,7 @@ func TestModel_View(t *testing.T) {
 		},
 		{
 			name:     "Scroll down when at bottom",
-			scrollBy: cellbuf.Position{X: 0, Y: 1},
+			scrollBy: layout.Position{X: 0, Y: 1},
 			atBottom: true,
 			width:    5,
 			height:   3,
@@ -93,7 +93,7 @@ func TestModel_View(t *testing.T) {
 		},
 		{
 			name:     "Scroll 2 right when at bottom",
-			scrollBy: cellbuf.Position{X: 2, Y: 0},
+			scrollBy: layout.Position{X: 2, Y: 0},
 			atBottom: true,
 			width:    5,
 			height:   3,

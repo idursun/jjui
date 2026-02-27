@@ -14,7 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/askpass"
 	"github.com/idursun/jjui/internal/ui/common"
 )

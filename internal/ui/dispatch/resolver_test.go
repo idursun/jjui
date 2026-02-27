@@ -3,15 +3,20 @@ package dispatch
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/config"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/stretchr/testify/assert"
 )
 
-func keyMsg(s string) tea.KeyMsg {
-	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
+func keyMsg(s string) tea.KeyPressMsg {
+	runes := []rune(s)
+	code := rune(0)
+	if len(runes) > 0 {
+		code = runes[0]
+	}
+	return tea.KeyPressMsg{Text: s, Code: code}
 }
 
 func makeResolver(bindings []keybindings.Binding, configured map[keybindings.Action]config.ActionConfig) *Resolver {

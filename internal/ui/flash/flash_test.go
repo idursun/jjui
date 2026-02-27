@@ -4,7 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -68,7 +67,7 @@ func TestView_StacksFromBottomRight(t *testing.T) {
 	m.add("de", nil)
 
 	dl := render.NewDisplayContext()
-	m.ViewRect(dl, layout.NewBox(cellbuf.Rect(0, 0, 30, 12)))
+	m.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 30, 12)))
 	views := dl.DrawList()
 
 	if assert.Len(t, views, 2) {

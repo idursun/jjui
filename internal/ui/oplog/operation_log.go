@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/cellbuf"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/screen"
@@ -231,7 +230,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return len(m.rows[index].Lines)
 	}
 
-	renderItem := func(dl *render.DisplayContext, index int, itemRect cellbuf.Rectangle) {
+	renderItem := func(dl *render.DisplayContext, index int, itemRect layout.Rectangle) {
 		row := m.rows[index]
 		isSelected := index == m.cursor
 		styleOverride := m.textStyle
@@ -267,8 +266,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 					content.WriteString(style.Render(text))
 				}
 			}
-			lineContent := lipgloss.PlaceHorizontal(itemRect.Dx(), 0, content.String(), lipgloss.WithWhitespaceBackground(styleOverride.GetBackground()))
-			lineRect := cellbuf.Rect(itemRect.Min.X, y, itemRect.Dx(), 1)
+			lineContent := lipgloss.PlaceHorizontal(itemRect.Dx(), 0, content.String(), lipgloss.WithWhitespaceStyle(styleOverride))
+			lineRect := layout.Rect(itemRect.Min.X, y, itemRect.Dx(), 1)
 			dl.AddDraw(lineRect, lineContent, 0)
 			y++
 		}

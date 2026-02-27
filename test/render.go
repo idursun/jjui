@@ -1,7 +1,7 @@
 package test
 
 import (
-	"github.com/charmbracelet/x/cellbuf"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
@@ -11,9 +11,9 @@ func RenderImmediate(model interface {
 	ViewRect(dl *render.DisplayContext, box layout.Box)
 }, width, height int) string {
 	dl := render.NewDisplayContext()
-	box := layout.NewBox(cellbuf.Rect(0, 0, width, height))
+	box := layout.NewBox(layout.Rect(0, 0, width, height))
 	model.ViewRect(dl, box)
-	screen := cellbuf.NewBuffer(width, height)
-	dl.Render(screen)
-	return cellbuf.Render(screen)
+	buf := uv.NewScreenBuffer(width, height)
+	dl.Render(buf)
+	return buf.Render()
 }

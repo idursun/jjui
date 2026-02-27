@@ -21,28 +21,28 @@ func TestScroll_AdjustsViewportOffset(t *testing.T) {
 	model := New(content)
 
 	model.Scroll(2)
-	assert.Equal(t, 2, model.view.YOffset)
+	assert.Equal(t, 2, model.view.YOffset())
 
 	model.Scroll(-1)
-	assert.Equal(t, 1, model.view.YOffset)
+	assert.Equal(t, 1, model.view.YOffset())
 }
 
 func TestUpdate_ScrollMsgStillScrolls(t *testing.T) {
 	model := New("1\n2\n3\n4\n5\n")
 	cmd := model.Update(ScrollMsg{Delta: 1})
 	assert.Nil(t, cmd)
-	assert.Equal(t, 1, model.view.YOffset)
+	assert.Equal(t, 1, model.view.YOffset())
 }
 
 func TestUpdate_DiffScrollIntent(t *testing.T) {
 	model := New("1\n2\n3\n4\n5\n")
-	model.view.Height = 3
+	model.view.SetHeight(3)
 
 	cmd := model.Update(intents.DiffScroll{Kind: intents.DiffScrollDown})
 	assert.Nil(t, cmd)
-	assert.Equal(t, 1, model.view.YOffset)
+	assert.Equal(t, 1, model.view.YOffset())
 
 	cmd = model.Update(intents.DiffScroll{Kind: intents.DiffScrollUp})
 	assert.Nil(t, cmd)
-	assert.Equal(t, 0, model.view.YOffset)
+	assert.Equal(t, 0, model.view.YOffset())
 }

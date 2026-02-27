@@ -3,7 +3,7 @@ package dispatch
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/stretchr/testify/require"
 )
@@ -78,7 +78,7 @@ func TestDispatcher_CancelSequenceWithEsc(t *testing.T) {
 	first := d.Resolve(runeKey('g'), []bindings.Scope{"revisions"})
 	require.True(t, first.Pending)
 
-	cancel := d.Resolve(tea.KeyMsg{Type: tea.KeyEsc}, []bindings.Scope{"revisions"})
+	cancel := d.Resolve(tea.KeyPressMsg{Code: tea.KeyEsc}, []bindings.Scope{"revisions"})
 	require.True(t, cancel.Consumed)
 	require.False(t, cancel.Pending)
 	require.Empty(t, cancel.Action)
@@ -118,7 +118,7 @@ func TestDispatcher_ResolvesBindingArgs(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	result := d.Resolve(tea.KeyMsg{Type: tea.KeyEnter}, []bindings.Scope{"revisions.squash"})
+	result := d.Resolve(tea.KeyPressMsg{Code: tea.KeyEnter}, []bindings.Scope{"revisions.squash"})
 	require.True(t, result.Consumed)
 	require.False(t, result.Pending)
 	require.Equal(t, bindings.Action("apply"), result.Action)
@@ -194,6 +194,6 @@ func TestDispatcher_DuplicateKeySameScope_LastBindingWins(t *testing.T) {
 	require.Equal(t, bindings.Action("second_action"), result.Action)
 }
 
-func runeKey(r rune) tea.KeyMsg {
-	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}}
+func runeKey(r rune) tea.KeyPressMsg {
+	return tea.KeyPressMsg{Text: string(r), Code: r}
 }

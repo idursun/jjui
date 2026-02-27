@@ -3,8 +3,7 @@ package revisions
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/cellbuf"
+	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
@@ -84,7 +83,7 @@ func (o *confirmationTrackingOp) Name() string                                  
 func (o *confirmationTrackingOp) Render(_ *jj.Commit, _ operations.RenderPosition) string {
 	return ""
 }
-func (o *confirmationTrackingOp) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+func (o *confirmationTrackingOp) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ layout.Rectangle, _ layout.Position) int {
 	return 0
 }
 func (o *confirmationTrackingOp) DesiredHeight(_ *jj.Commit, _ operations.RenderPosition) int {
@@ -135,7 +134,7 @@ func (o *applyTrackingOp) Name() string                                    { ret
 func (o *applyTrackingOp) Render(_ *jj.Commit, _ operations.RenderPosition) string {
 	return ""
 }
-func (o *applyTrackingOp) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
+func (o *applyTrackingOp) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ layout.Rectangle, _ layout.Position) int {
 	return 0
 }
 func (o *applyTrackingOp) DesiredHeight(_ *jj.Commit, _ operations.RenderPosition) int {

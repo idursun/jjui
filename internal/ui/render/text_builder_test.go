@@ -3,9 +3,9 @@ package render
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/cellbuf"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 type testClickMsg struct {
@@ -114,7 +114,7 @@ func TestTextBuilder_WindowedInteractions(t *testing.T) {
 	dl := NewDisplayContext()
 
 	// Create a window and add clickable text
-	windowRect := cellbuf.Rect(10, 5, 20, 1)
+	windowRect := layout.Rect(10, 5, 20, 1)
 	windowedDl := dl.Window(windowRect, 10)
 
 	windowedDl.Text(10, 5, 0).
@@ -125,12 +125,7 @@ func TestTextBuilder_WindowedInteractions(t *testing.T) {
 		Done()
 
 	// Simulate mouse click on "Click1" (should be at x=17 after "Label: " which is 7 chars)
-	mouseMsg := tea.MouseMsg{
-		X:      17,
-		Y:      5,
-		Button: tea.MouseButtonLeft,
-		Action: tea.MouseActionPress,
-	}
+	mouseMsg := tea.MouseClickMsg{X: 17, Y: 5, Button: tea.MouseLeft}
 
 	result, handled := dl.ProcessMouseEvent(mouseMsg)
 	if !handled {
@@ -155,24 +150,19 @@ func TestTextBuilder_WindowPriority(t *testing.T) {
 	dl := NewDisplayContext()
 
 	// Create lower-priority window (z=5)
-	lowerWindow := dl.Window(cellbuf.Rect(0, 0, 50, 10), 5)
+	lowerWindow := dl.Window(layout.Rect(0, 0, 50, 10), 5)
 	lowerWindow.Text(10, 5, 0).
 		Clickable("Lower", lipgloss.Style{}, testClickMsg{ID: 100}).
 		Done()
 
 	// Create higher-priority window (z=10) overlapping the same area
-	higherWindow := dl.Window(cellbuf.Rect(10, 5, 10, 1), 10)
+	higherWindow := dl.Window(layout.Rect(10, 5, 10, 1), 10)
 	higherWindow.Text(10, 5, 0).
 		Clickable("Higher", lipgloss.Style{}, testClickMsg{ID: 200}).
 		Done()
 
 	// Click at position that's inside both windows
-	mouseMsg := tea.MouseMsg{
-		X:      10,
-		Y:      5,
-		Button: tea.MouseButtonLeft,
-		Action: tea.MouseActionPress,
-	}
+	mouseMsg := tea.MouseClickMsg{X: 10, Y: 5, Button: tea.MouseLeft}
 
 	result, handled := dl.ProcessMouseEvent(mouseMsg)
 	if !handled {

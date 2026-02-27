@@ -3,8 +3,7 @@ package revisions
 import (
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/cellbuf"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -125,10 +124,10 @@ func (r *DisplayContextRenderer) Render(
 	}
 
 	// Screen offset for interactions (absolute screen position)
-	screenOffset := cellbuf.Pos(viewRect.R.Min.X, viewRect.R.Min.Y)
+	screenOffset := layout.Pos(viewRect.R.Min.X, viewRect.R.Min.Y)
 
 	// Render function - renders each visible item
-	renderItem := func(dl *render.DisplayContext, index int, rect cellbuf.Rectangle) {
+	renderItem := func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
 		item := items[index]
 		isSelected := index == cursor
 
@@ -168,7 +167,7 @@ func (r *DisplayContextRenderer) Render(
 func (r *DisplayContextRenderer) addHighlights(
 	dl *render.DisplayContext,
 	item parser.Row,
-	rect cellbuf.Rectangle,
+	rect layout.Rectangle,
 	operation operations.Operation,
 ) {
 	y := rect.Min.Y
@@ -193,7 +192,7 @@ func (r *DisplayContextRenderer) addHighlights(
 		descriptionLine := highlightable && line.Flags&parser.Revision == 0
 
 		if highlightable {
-			dl.AddHighlight(cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1), r.selectedStyle, 1)
+			dl.AddHighlight(layout.Rect(rect.Min.X, y, rect.Dx(), 1), r.selectedStyle, 1)
 		}
 
 		// When overlay exists, render it once for the first description line, skip
@@ -201,7 +200,7 @@ func (r *DisplayContextRenderer) addHighlights(
 		if descriptionLine && overlayHeight > 0 && !overlayRendered {
 			height := overlayHeight
 			// create a rectangle covering the overlay lines
-			rect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), height)
+			rect := layout.Rect(rect.Min.X, y, rect.Dx(), height)
 			dl.AddHighlight(rect, r.selectedStyle, 1)
 			overlayRendered = true
 			continue
@@ -270,11 +269,11 @@ func (r *DisplayContextRenderer) calculateItemHeight(
 func (r *DisplayContextRenderer) renderItemToDisplayContext(
 	dl *render.DisplayContext,
 	item parser.Row,
-	rect cellbuf.Rectangle,
+	rect layout.Rectangle,
 	isSelected bool,
 	operation operations.Operation,
 	quickSearch string,
-	screenOffset cellbuf.Position,
+	screenOffset layout.Position,
 ) {
 	y := rect.Min.Y
 
@@ -308,7 +307,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 					break
 				}
 
-				lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
+				lineRect := layout.Rect(rect.Min.X, y, rect.Dx(), 1)
 				r.renderOperationLine(dl, lineRect, extended, line)
 				y++
 			}
@@ -340,7 +339,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		}
 
 		// Create content rect offset by gutter width
-		contentRect := cellbuf.Rect(rect.Min.X+gutterWidth, y, rect.Dx()-gutterWidth, rect.Max.Y-y)
+		contentRect := layout.Rect(rect.Min.X+gutterWidth, y, rect.Dx()-gutterWidth, rect.Max.Y-y)
 
 		// Screen offset for interactions - contentRect already includes the gutter offset
 		// and y position, so just pass the parent's screenOffset through
@@ -353,7 +352,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 			// Render gutters for each line
 			for i := 0; i < height; i++ {
 				gutterContent := r.renderGutter(extended)
-				gutterRect := cellbuf.Rect(rect.Min.X, y+i, gutterWidth, 1)
+				gutterRect := layout.Rect(rect.Min.X, y+i, gutterWidth, 1)
 				dl.AddDraw(gutterRect, gutterContent, 0)
 			}
 			y += height
@@ -372,7 +371,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 				break
 			}
 
-			lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
+			lineRect := layout.Rect(rect.Min.X, y, rect.Dx(), 1)
 			r.renderOperationLine(dl, lineRect, extended, line)
 			y++
 		}
@@ -407,7 +406,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 			}
 
 			// Create content rect with proper width (minus gutter)
-			contentRect := cellbuf.Rect(rect.Min.X+gutterWidth, y, rect.Dx()-gutterWidth, rect.Max.Y-y)
+			contentRect := layout.Rect(rect.Min.X+gutterWidth, y, rect.Dx()-gutterWidth, rect.Max.Y-y)
 
 			// Try RenderToDisplayContext first
 			height := operation.RenderToDisplayContext(dl, item.Commit, operations.RenderOverDescription, contentRect, screenOffset)
@@ -420,7 +419,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 						gutter = extended
 					}
 					gutterContent := r.renderGutter(gutter)
-					gutterRect := cellbuf.Rect(rect.Min.X, y+j, gutterWidth, 1)
+					gutterRect := layout.Rect(rect.Min.X, y+j, gutterWidth, 1)
 					dl.AddDraw(gutterRect, gutterContent, 0)
 				}
 				y += height
@@ -440,7 +439,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 			break
 		}
 
-		lineRect := cellbuf.Rect(rect.Min.X, y, rect.Dx(), 1)
+		lineRect := layout.Rect(rect.Min.X, y, rect.Dx(), 1)
 		dl.AddFill(lineRect, ' ', lipgloss.NewStyle(), 0)
 		tb := dl.Text(lineRect.Min.X, lineRect.Min.Y, 0)
 		ir.renderLine(tb, line)
@@ -458,14 +457,14 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		}
 
 		// Try RenderToDisplayContext first
-		contentRect := cellbuf.Rect(rect.Min.X+gutterWidth, y, rect.Dx()-gutterWidth, rect.Max.Y-y)
+		contentRect := layout.Rect(rect.Min.X+gutterWidth, y, rect.Dx()-gutterWidth, rect.Max.Y-y)
 		height := operation.RenderToDisplayContext(dl, item.Commit, operations.RenderOverDescription, contentRect, screenOffset)
 
 		if height > 0 {
 			// Render gutters for each line
 			for j := 0; j < height; j++ {
 				gutterContent := r.renderGutter(extended)
-				gutterRect := cellbuf.Rect(rect.Min.X, y+j, gutterWidth, 1)
+				gutterRect := layout.Rect(rect.Min.X, y+j, gutterWidth, 1)
 				dl.AddDraw(gutterRect, gutterContent, 0)
 			}
 			y += height
@@ -541,7 +540,7 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 // renderOperationLine renders an operation line with gutter
 func (r *DisplayContextRenderer) renderOperationLine(
 	dl *render.DisplayContext,
-	rect cellbuf.Rectangle,
+	rect layout.Rectangle,
 	gutter parser.GraphGutter,
 	line string,
 ) {
@@ -561,7 +560,7 @@ func (r *DisplayContextRenderer) renderOperationLine(
 // renderOverlayLines renders description overlay lines with appropriate gutters
 func (r *DisplayContextRenderer) renderOverlayLines(
 	dl *render.DisplayContext,
-	rect cellbuf.Rectangle,
+	rect layout.Rectangle,
 	y *int,
 	firstGutter, // gutter for the first line
 	extendedGutter parser.GraphGutter, // gutter for subsequent lines
@@ -572,7 +571,7 @@ func (r *DisplayContextRenderer) renderOverlayLines(
 		if *y >= rect.Max.Y {
 			break
 		}
-		lineRect := cellbuf.Rect(rect.Min.X, *y, rect.Dx(), 1)
+		lineRect := layout.Rect(rect.Min.X, *y, rect.Dx(), 1)
 		gutter := firstGutter
 		if i > 0 {
 			gutter = extendedGutter

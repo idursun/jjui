@@ -1,9 +1,9 @@
 package password
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -29,7 +29,10 @@ func New(msg common.TogglePasswordMsg) *Model {
 	ti := textinput.New()
 	ti.Prompt = msg.Prompt
 	ti.EchoMode = textinput.EchoPassword
-	ti.PromptStyle = common.DefaultPalette.Get("password title")
+	ps := ti.Styles()
+	ps.Focused.Prompt = common.DefaultPalette.Get("password title")
+	ps.Blurred.Prompt = common.DefaultPalette.Get("password title")
+	ti.SetStyles(ps)
 	ti.Focus()
 
 	return &Model{

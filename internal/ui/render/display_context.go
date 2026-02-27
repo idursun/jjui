@@ -3,9 +3,10 @@ package render
 import (
 	"sort"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/cellbuf"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 // DisplayContext holds all rendering operations for a frame.
@@ -33,7 +34,7 @@ func NewDisplayContext() *DisplayContext {
 }
 
 // Window creates a scoped display context that routes interactions to a window.
-func (dl *DisplayContext) Window(rect cellbuf.Rectangle, z int) *DisplayContext {
+func (dl *DisplayContext) Window(rect layout.Rectangle, z int) *DisplayContext {
 	root := dl.root()
 	root.windowCounter++
 	id := root.windowCounter
@@ -67,7 +68,7 @@ func (dl *DisplayContext) currentWindowID() int {
 }
 
 // AddDraw adds a Draw to the display context.
-func (dl *DisplayContext) AddDraw(rect cellbuf.Rectangle, content string, z int) {
+func (dl *DisplayContext) AddDraw(rect layout.Rectangle, content string, z int) {
 	root := dl.root()
 	root.draws = append(root.draws, drawOp{
 		Draw: Draw{
@@ -80,7 +81,7 @@ func (dl *DisplayContext) AddDraw(rect cellbuf.Rectangle, content string, z int)
 }
 
 // AddFill fills a rectangle with the provided rune and style.
-func (dl *DisplayContext) AddFill(rect cellbuf.Rectangle, ch rune, style lipgloss.Style, z int) {
+func (dl *DisplayContext) AddFill(rect layout.Rectangle, ch rune, style lipgloss.Style, z int) {
 	if rect.Dx() <= 0 || rect.Dy() <= 0 {
 		return
 	}
@@ -104,42 +105,42 @@ func (dl *DisplayContext) AddEffect(effect Effect) {
 }
 
 // AddReverse adds a ReverseEffect (reverses foreground/background colors).
-func (dl *DisplayContext) AddReverse(rect cellbuf.Rectangle, z int) {
+func (dl *DisplayContext) AddReverse(rect layout.Rectangle, z int) {
 	dl.AddEffect(ReverseEffect{Rect: rect, Z: z})
 }
 
 // AddDim adds a DimEffect (dims the content).
-func (dl *DisplayContext) AddDim(rect cellbuf.Rectangle, z int) {
+func (dl *DisplayContext) AddDim(rect layout.Rectangle, z int) {
 	dl.AddEffect(DimEffect{Rect: rect, Z: z})
 }
 
 // AddUnderline adds an UnderlineEffect.
-func (dl *DisplayContext) AddUnderline(rect cellbuf.Rectangle, z int) {
+func (dl *DisplayContext) AddUnderline(rect layout.Rectangle, z int) {
 	dl.AddEffect(UnderlineEffect{Rect: rect, Z: z})
 }
 
 // AddBold adds a BoldEffect.
-func (dl *DisplayContext) AddBold(rect cellbuf.Rectangle, z int) {
+func (dl *DisplayContext) AddBold(rect layout.Rectangle, z int) {
 	dl.AddEffect(BoldEffect{Rect: rect, Z: z})
 }
 
 // AddStrike adds a StrikeEffect (strikethrough).
-func (dl *DisplayContext) AddStrike(rect cellbuf.Rectangle, z int) {
+func (dl *DisplayContext) AddStrike(rect layout.Rectangle, z int) {
 	dl.AddEffect(StrikeEffect{Rect: rect, Z: z})
 }
 
 // AddHighlight adds a HighlightEffect.
-func (dl *DisplayContext) AddHighlight(rect cellbuf.Rectangle, style lipgloss.Style, z int) {
+func (dl *DisplayContext) AddHighlight(rect layout.Rectangle, style lipgloss.Style, z int) {
 	dl.AddEffect(HighlightEffect{Rect: rect, Style: style, Z: z})
 }
 
 // AddPaint adds a HighlightEffect with Force enabled, overriding existing background colors.
-func (dl *DisplayContext) AddPaint(rect cellbuf.Rectangle, style lipgloss.Style, z int) {
+func (dl *DisplayContext) AddPaint(rect layout.Rectangle, style lipgloss.Style, z int) {
 	dl.AddEffect(HighlightEffect{Rect: rect, Style: style, Z: z, Force: true})
 }
 
 // AddInteraction adds an InteractionOp to the display context.
-func (dl *DisplayContext) AddInteraction(rect cellbuf.Rectangle, msg tea.Msg, typ InteractionType, z int) {
+func (dl *DisplayContext) AddInteraction(rect layout.Rectangle, msg tea.Msg, typ InteractionType, z int) {
 	root := dl.root()
 	root.interactions = append(root.interactions, interactionOp{
 		InteractionOp: InteractionOp{
@@ -165,11 +166,11 @@ func (dl *DisplayContext) Clear() {
 	root.windowCounter = 0
 }
 
-// Render executes all operations in the display context to the given cellbuf.
+// Render executes all operations in the display context to the given screen.
 // Order of execution:
 // 1. Draw sorted by Z-index (low to high)
 // 2. Effects sorted by Z-index (low to high)
-func (dl *DisplayContext) Render(buf *cellbuf.Buffer) {
+func (dl *DisplayContext) Render(buf uv.Screen) {
 	root := dl.root()
 	if root != dl {
 		root.Render(buf)
@@ -206,7 +207,7 @@ func (dl *DisplayContext) Render(buf *cellbuf.Buffer) {
 
 	for _, op := range ops {
 		if op.isDraw {
-			cellbuf.SetContentRect(buf, op.draw.Content, op.draw.Rect)
+			uv.NewStyledString(op.draw.Content).Draw(buf, op.draw.Rect)
 			continue
 		}
 		op.effect.Apply(buf)
@@ -216,9 +217,9 @@ func (dl *DisplayContext) Render(buf *cellbuf.Buffer) {
 // RenderToString is a convenience method that renders to a new buffer
 // and returns the final string output.
 func (dl *DisplayContext) RenderToString(width, height int) string {
-	buf := cellbuf.NewBuffer(width, height)
+	buf := uv.NewScreenBuffer(width, height)
 	dl.Render(buf)
-	return cellbuf.Render(buf)
+	return buf.Render()
 }
 
 // DrawList returns a copy of all Draw calls (useful for debugging/inspection)
@@ -340,7 +341,7 @@ type renderOp struct {
 
 type windowOp struct {
 	ID    int
-	Rect  cellbuf.Rectangle
+	Rect  layout.Rectangle
 	Z     int
 	Order int
 }

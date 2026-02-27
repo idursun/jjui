@@ -1,12 +1,13 @@
 package common
 
 import (
+	"image/color"
 	"strconv"
 	"strings"
 
 	"github.com/idursun/jjui/internal/config"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 var DefaultPalette = NewPalette()
@@ -146,58 +147,58 @@ func createStyleFrom(color config.Color) lipgloss.Style {
 	return style
 }
 
-func parseColor(color string) lipgloss.Color {
+func parseColor(c string) color.Color {
 	// if it's a hex color, return it directly
-	if len(color) == 7 && color[0] == '#' {
-		return lipgloss.Color(color)
+	if len(c) == 7 && c[0] == '#' {
+		return lipgloss.Color(c)
 	}
 	// if it's an ANSI256 color, return it directly
-	if v, err := strconv.Atoi(color); err == nil {
+	if v, err := strconv.Atoi(c); err == nil {
 		if v >= 0 && v <= 255 {
-			return lipgloss.Color(color)
+			return lipgloss.Color(c)
 		}
 	}
 	// otherwise, try to parse it as a named color
-	switch color {
+	switch c {
 	case "black":
-		return "0"
+		return lipgloss.Color("0")
 	case "red":
-		return "1"
+		return lipgloss.Color("1")
 	case "green":
-		return "2"
+		return lipgloss.Color("2")
 	case "yellow":
-		return "3"
+		return lipgloss.Color("3")
 	case "blue":
-		return "4"
+		return lipgloss.Color("4")
 	case "magenta":
-		return "5"
+		return lipgloss.Color("5")
 	case "cyan":
-		return "6"
+		return lipgloss.Color("6")
 	case "white":
-		return "7"
+		return lipgloss.Color("7")
 	case "bright black":
-		return "8"
+		return lipgloss.Color("8")
 	case "bright red":
-		return "9"
+		return lipgloss.Color("9")
 	case "bright green":
-		return "10"
+		return lipgloss.Color("10")
 	case "bright yellow":
-		return "11"
+		return lipgloss.Color("11")
 	case "bright blue":
-		return "12"
+		return lipgloss.Color("12")
 	case "bright magenta":
-		return "13"
+		return lipgloss.Color("13")
 	case "bright cyan":
-		return "14"
+		return lipgloss.Color("14")
 	case "bright white":
-		return "15"
+		return lipgloss.Color("15")
 	default:
-		if strings.HasPrefix(color, "ansi-color-") {
-			code := strings.TrimPrefix(color, "ansi-color-")
+		if strings.HasPrefix(c, "ansi-color-") {
+			code := strings.TrimPrefix(c, "ansi-color-")
 			if v, err := strconv.Atoi(code); err == nil && v >= 0 && v <= 255 {
 				return lipgloss.Color(code)
 			}
 		}
-		return ""
+		return lipgloss.NoColor{}
 	}
 }

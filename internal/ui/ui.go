@@ -2,10 +2,10 @@ package ui
 
 import (
 	"fmt"
+	uv "github.com/charmbracelet/ultraviolet"
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/x/cellbuf"
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/actionmeta"
 	"github.com/idursun/jjui/internal/ui/actions"
@@ -21,7 +21,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/commandhistory"
 	"github.com/idursun/jjui/internal/ui/flash"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/bookmarks"
@@ -83,7 +83,7 @@ const (
 )
 
 func (m *Model) Init() tea.Cmd {
-	return tea.Batch(tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.scheduleAutoRefresh())
+	return tea.Batch(m.revisions.Init(), m.scheduleAutoRefresh())
 }
 
 func (m *Model) closeTopLayer(msg common.CloseViewMsg) (tea.Cmd, bool) {
@@ -114,25 +114,21 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.FocusMsg:
-		return tea.Batch(common.RefreshAndKeepSelections, tea.EnableMouseCellMotion)
-	case tea.MouseMsg:
+		return common.RefreshAndKeepSelections
+	case tea.MouseReleaseMsg:
 		if m.splitActive {
-			switch msg.Action {
-			case tea.MouseActionRelease:
-				m.splitActive = false
-			case tea.MouseActionMotion:
-				if m.activeSplit != nil {
-					m.activeSplit.DragTo(msg.X, msg.Y)
-				}
-				return nil
-			}
+			m.splitActive = false
 		}
-
-		// Process interactions from DisplayContext first
+	case tea.MouseMotionMsg:
+		if m.splitActive && m.activeSplit != nil {
+			mouse := msg.Mouse()
+			m.activeSplit.DragTo(mouse.X, mouse.Y)
+			return nil
+		}
+	case tea.MouseClickMsg, tea.MouseWheelMsg:
 		if m.displayContext != nil {
-			if interactionMsg, handled := m.displayContext.ProcessMouseEvent(msg); handled {
+			if interactionMsg, handled := m.displayContext.ProcessMouseEvent(msg.(tea.MouseMsg)); handled {
 				if interactionMsg != nil {
-					// Send the interaction message back through Update
 					return func() tea.Msg { return interactionMsg }
 				}
 				return nil
@@ -358,8 +354,8 @@ func (m *Model) View() string {
 
 	m.updateStatus()
 
-	box := layout.NewBox(cellbuf.Rect(0, 0, m.width, m.height))
-	screenBuf := cellbuf.NewBuffer(m.width, m.height)
+	box := layout.NewBox(layout.Rect(0, 0, m.width, m.height))
+	screenBuf := uv.NewScreenBuffer(m.width, m.height)
 
 	if m.diff != nil {
 		m.renderDiffLayout(box)
@@ -388,7 +384,7 @@ func (m *Model) View() string {
 	}
 
 	m.displayContext.Render(screenBuf)
-	finalView := cellbuf.Render(screenBuf)
+	finalView := screenBuf.Render()
 	return strings.ReplaceAll(finalView, "\r", "")
 }
 
@@ -907,12 +903,17 @@ func (w *wrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return w, cmd
 }
 
-func (w *wrapper) View() string {
+func (w *wrapper) View() tea.View {
 	if w.render {
 		w.cachedFrame = w.ui.View()
 		w.render = false
 	}
-	return w.cachedFrame
+	v := tea.NewView(w.cachedFrame)
+	v.WindowTitle = fmt.Sprintf("jjui - %s", w.ui.context.Location)
+	v.AltScreen = true
+	v.ReportFocus = true
+	v.MouseMode = tea.MouseModeCellMotion
+	return v
 }
 
 func NewUI(c *context.MainContext) *Model {

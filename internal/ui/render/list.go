@@ -1,8 +1,7 @@
 package render
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/cellbuf"
+	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/ui/layout"
 )
 
@@ -27,14 +26,14 @@ type measureResult struct {
 // span is the visible slice of an item mapped onto the screen.
 type span struct {
 	Index      int
-	Rect       cellbuf.Rectangle
+	Rect       layout.Rectangle
 	LineOffset int
 	LineCount  int
 	ItemStart  int
 	ItemEnd    int
 }
 
-type RenderItemFunc func(dl *DisplayContext, index int, rect cellbuf.Rectangle)
+type RenderItemFunc func(dl *DisplayContext, index int, rect layout.Rectangle)
 
 type measureItemFunc func(index int) int
 
@@ -234,7 +233,7 @@ func layoutAll(
 			visible := overlapEnd - overlapStart
 			if visible > 0 {
 				y := viewport.ViewRect.R.Min.Y + (overlapStart - viewStart)
-				rect := cellbuf.Rect(
+				rect := layout.Rect(
 					viewport.ViewRect.R.Min.X,
 					y,
 					viewport.ViewRect.R.Dx(),

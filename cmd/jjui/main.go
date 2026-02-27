@@ -13,7 +13,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/askpass"
 	"github.com/idursun/jjui/internal/ui/common"
 
@@ -21,7 +21,7 @@ import (
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/context"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/ui"
 )
 
@@ -179,7 +179,7 @@ func run() int {
 	var theme map[string]config.Color
 
 	var defaultThemeName string
-	if lipgloss.HasDarkBackground() {
+	if lipgloss.HasDarkBackground(os.Stdin, os.Stdout) {
 		defaultThemeName = "default_dark"
 	} else {
 		defaultThemeName = "default_light"
@@ -192,7 +192,7 @@ func run() int {
 	}
 
 	var userThemeName string
-	if lipgloss.HasDarkBackground() {
+	if lipgloss.HasDarkBackground(os.Stdin, os.Stdout) {
 		userThemeName = config.Current.UI.Theme.Dark
 	} else {
 		userThemeName = config.Current.UI.Theme.Light
@@ -222,7 +222,7 @@ func run() int {
 	}
 	appContext.CurrentRevset = appContext.DefaultRevset
 
-	p := tea.NewProgram(ui.New(appContext), tea.WithAltScreen(), tea.WithReportFocus(), tea.WithMouseCellMotion())
+	p := tea.NewProgram(ui.New(appContext))
 	if config.Current.Ssh.HijackAskpass {
 		if err := askpassServer.StartListening(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: ssh.hijack_askpass: %v\n", err)

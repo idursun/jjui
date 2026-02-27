@@ -3,8 +3,8 @@ package test
 import (
 	"reflect"
 
-	"github.com/charmbracelet/bubbles/cursor"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/cursor"
+	tea "charm.land/bubbletea/v2"
 )
 
 func SimulateModel[T interface {
@@ -18,10 +18,7 @@ func SimulateModel[T interface {
 func Type(runes string) tea.Cmd {
 	press := func(r rune) tea.Cmd {
 		return func() tea.Msg {
-			return tea.KeyMsg{
-				Type:  tea.KeyRunes,
-				Runes: []rune{r},
-			}
+			return tea.KeyPressMsg{Text: string(r), Code: r}
 		}
 	}
 	var cmds []tea.Cmd
@@ -31,11 +28,9 @@ func Type(runes string) tea.Cmd {
 	return tea.Sequence(cmds...)
 }
 
-func Press(key tea.KeyType) tea.Cmd {
+func Press(key rune) tea.Cmd {
 	return func() tea.Msg {
-		return tea.KeyMsg{
-			Type: key,
-		}
+		return tea.KeyPressMsg{Code: key}
 	}
 }
 func drainCmds(first tea.Cmd, apply func(tea.Msg) tea.Cmd, observers ...func(tea.Msg)) {

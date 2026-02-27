@@ -1,207 +1,196 @@
 package render
 
 import (
-	"strconv"
-	"strings"
+	"image/color"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/charmbracelet/x/cellbuf"
+	"github.com/idursun/jjui/internal/ui/layout"
 )
 
 // Effect is the interface that all effect operations must implement.
 // Effects are post-processing operations that modify already-rendered content.
 type Effect interface {
 	// Apply applies the effect to the buffer
-	Apply(buf *cellbuf.Buffer)
+	Apply(buf uv.Screen)
 	// GetZ returns the Z-index for layering (higher Z renders later)
 	GetZ() int
 	// GetRect returns the rectangle this effect applies to
-	GetRect() cellbuf.Rectangle
+	GetRect() layout.Rectangle
 }
 
 // ReverseEffect reverses foreground and background colors.
 type ReverseEffect struct {
-	Rect cellbuf.Rectangle
+	Rect layout.Rectangle
 	Z    int
 }
 
-func (e ReverseEffect) Apply(buf *cellbuf.Buffer) {
-	iterateCells(buf, e.Rect, func(cell *cellbuf.Cell) *cellbuf.Cell {
+func (e ReverseEffect) Apply(buf uv.Screen) {
+	iterateCells(buf, e.Rect, func(cell *uv.Cell) *uv.Cell {
 		if cell == nil {
 			return nil
 		}
 		newCell := cell.Clone()
-		newCell.Style.Reverse(true)
+		newCell.Style.Attrs |= uv.AttrReverse
 		return newCell
 	})
 }
 
-func (e ReverseEffect) GetZ() int                  { return e.Z }
-func (e ReverseEffect) GetRect() cellbuf.Rectangle { return e.Rect }
+func (e ReverseEffect) GetZ() int                 { return e.Z }
+func (e ReverseEffect) GetRect() layout.Rectangle { return e.Rect }
 
 // DimEffect dims the content by setting the Faint attribute.
 type DimEffect struct {
-	Rect cellbuf.Rectangle
+	Rect layout.Rectangle
 	Z    int
 }
 
-func (e DimEffect) Apply(buf *cellbuf.Buffer) {
-	iterateCells(buf, e.Rect, func(cell *cellbuf.Cell) *cellbuf.Cell {
+func (e DimEffect) Apply(buf uv.Screen) {
+	iterateCells(buf, e.Rect, func(cell *uv.Cell) *uv.Cell {
 		if cell == nil {
 			return nil
 		}
 		newCell := cell.Clone()
-		newCell.Style.Faint(true)
+		newCell.Style.Attrs |= uv.AttrFaint
 		return newCell
 	})
 }
 
-func (e DimEffect) GetZ() int                  { return e.Z }
-func (e DimEffect) GetRect() cellbuf.Rectangle { return e.Rect }
+func (e DimEffect) GetZ() int                 { return e.Z }
+func (e DimEffect) GetRect() layout.Rectangle { return e.Rect }
 
 // UnderlineEffect adds underline to content.
 type UnderlineEffect struct {
-	Rect cellbuf.Rectangle
+	Rect layout.Rectangle
 	Z    int
 }
 
-func (e UnderlineEffect) Apply(buf *cellbuf.Buffer) {
-	iterateCells(buf, e.Rect, func(cell *cellbuf.Cell) *cellbuf.Cell {
+func (e UnderlineEffect) Apply(buf uv.Screen) {
+	iterateCells(buf, e.Rect, func(cell *uv.Cell) *uv.Cell {
 		if cell == nil {
 			return nil
 		}
 		newCell := cell.Clone()
-		newCell.Style.Underline(true)
+		newCell.Style.Underline = uv.UnderlineSingle
 		return newCell
 	})
 }
 
-func (e UnderlineEffect) GetZ() int                  { return e.Z }
-func (e UnderlineEffect) GetRect() cellbuf.Rectangle { return e.Rect }
+func (e UnderlineEffect) GetZ() int                 { return e.Z }
+func (e UnderlineEffect) GetRect() layout.Rectangle { return e.Rect }
 
 // BoldEffect makes content bold.
 type BoldEffect struct {
-	Rect cellbuf.Rectangle
+	Rect layout.Rectangle
 	Z    int
 }
 
-func (e BoldEffect) Apply(buf *cellbuf.Buffer) {
-	iterateCells(buf, e.Rect, func(cell *cellbuf.Cell) *cellbuf.Cell {
+func (e BoldEffect) Apply(buf uv.Screen) {
+	iterateCells(buf, e.Rect, func(cell *uv.Cell) *uv.Cell {
 		if cell == nil {
 			return nil
 		}
 		newCell := cell.Clone()
-		newCell.Style.Bold(true)
+		newCell.Style.Attrs |= uv.AttrBold
 		return newCell
 	})
 }
 
-func (e BoldEffect) GetZ() int                  { return e.Z }
-func (e BoldEffect) GetRect() cellbuf.Rectangle { return e.Rect }
+func (e BoldEffect) GetZ() int                 { return e.Z }
+func (e BoldEffect) GetRect() layout.Rectangle { return e.Rect }
 
 // StrikeEffect adds strikethrough to content.
 type StrikeEffect struct {
-	Rect cellbuf.Rectangle
+	Rect layout.Rectangle
 	Z    int
 }
 
-func (e StrikeEffect) Apply(buf *cellbuf.Buffer) {
-	iterateCells(buf, e.Rect, func(cell *cellbuf.Cell) *cellbuf.Cell {
+func (e StrikeEffect) Apply(buf uv.Screen) {
+	iterateCells(buf, e.Rect, func(cell *uv.Cell) *uv.Cell {
 		if cell == nil {
 			return nil
 		}
-		if cell.Rune != 0 && cell.Rune != ' ' {
-			cell.Style.Strikethrough(true)
+		if cell.Content != "" && cell.Content != " " {
+			cell.Style.Attrs |= uv.AttrStrikethrough
 		}
 		return cell
 	})
 }
 
-func (e StrikeEffect) GetZ() int                  { return e.Z }
-func (e StrikeEffect) GetRect() cellbuf.Rectangle { return e.Rect }
+func (e StrikeEffect) GetZ() int                 { return e.Z }
+func (e StrikeEffect) GetRect() layout.Rectangle { return e.Rect }
 
 // HighlightEffect applies a highlight style by changing the background color.
 // Extracts the background color from the lipgloss.Style and applies it to cells.
 type HighlightEffect struct {
-	Rect  cellbuf.Rectangle
+	Rect  layout.Rectangle
 	Style lipgloss.Style
 	Z     int
 	Force bool
 }
 
-func (e HighlightEffect) Apply(buf *cellbuf.Buffer) {
+func (e HighlightEffect) Apply(buf uv.Screen) {
 	bgColor := toAnsiColor(e.Style.GetBackground())
 
-	iterateCells(buf, e.Rect, func(cell *cellbuf.Cell) *cellbuf.Cell {
+	iterateCells(buf, e.Rect, func(cell *uv.Cell) *uv.Cell {
 		if cell == nil {
 			return nil
 		}
 		if e.Force || cell.Style.Bg == nil {
 			newCell := cell.Clone()
-			newCell.Style.Background(bgColor)
+			newCell.Style.Bg = bgColor
 			return newCell
 		}
 		return cell
 	})
 }
 
-func (e HighlightEffect) GetZ() int                  { return e.Z }
-func (e HighlightEffect) GetRect() cellbuf.Rectangle { return e.Rect }
+func (e HighlightEffect) GetZ() int                 { return e.Z }
+func (e HighlightEffect) GetRect() layout.Rectangle { return e.Rect }
 
 type FillEffect struct {
-	Rect  cellbuf.Rectangle
+	Rect  layout.Rectangle
 	Char  rune
-	Style cellbuf.Style
+	Style uv.Style
 	Z     int
 }
 
-func (e FillEffect) Apply(buf *cellbuf.Buffer) {
-	cell := &cellbuf.Cell{
-		Rune:  e.Char,
-		Width: 1,
-		Style: e.Style,
+func (e FillEffect) Apply(buf uv.Screen) {
+	cell := &uv.Cell{
+		Content: string(e.Char),
+		Width:   1,
+		Style:   e.Style,
 	}
-	buf.FillRect(cell, e.Rect)
+	bounds := buf.Bounds().Intersect(e.Rect)
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			buf.SetCell(x, y, cell)
+		}
+	}
 }
 
-func (e FillEffect) GetZ() int                  { return e.Z }
-func (e FillEffect) GetRect() cellbuf.Rectangle { return e.Rect }
+func (e FillEffect) GetZ() int                 { return e.Z }
+func (e FillEffect) GetRect() layout.Rectangle { return e.Rect }
 
-// toAnsiColor converts lipgloss.TerminalColor to the correct ansi.Color concrete type
+// toAnsiColor converts a color.Color to the correct ansi.Color concrete type
 // so that palette colors emit palette escape codes instead of 24-bit RGB.
-func toAnsiColor(c lipgloss.TerminalColor) ansi.Color {
+func toAnsiColor(c color.Color) ansi.Color {
 	switch c := c.(type) {
-	case lipgloss.Color:
-		s := string(c)
-		if strings.HasPrefix(s, "#") {
-			return c
-		}
-		if v, err := strconv.Atoi(s); err == nil {
-			if v >= 0 && v <= 15 {
-				return ansi.BasicColor(v)
-			}
-			if v >= 16 && v <= 255 {
-				return ansi.IndexedColor(v)
-			}
-		}
+	case ansi.BasicColor:
 		return c
-	case lipgloss.ANSIColor:
-		v := uint(c)
-		if v <= 15 {
-			return ansi.BasicColor(v)
-		}
-		if v <= 255 {
-			return ansi.IndexedColor(v)
-		}
+	case ansi.IndexedColor: // = lipgloss.ANSIColor
 		return c
 	default:
-		return c
+		if ac, ok := c.(ansi.Color); ok {
+			return ac
+		}
+		return nil
 	}
 }
 
-func lipglossToStyle(ls lipgloss.Style) cellbuf.Style {
-	var cs cellbuf.Style
+func lipglossToStyle(ls lipgloss.Style) uv.Style {
+	var cs uv.Style
 	if _, isNoColor := ls.GetForeground().(lipgloss.NoColor); !isNoColor {
 		cs.Fg = toAnsiColor(ls.GetForeground())
 	}
@@ -209,43 +198,43 @@ func lipglossToStyle(ls lipgloss.Style) cellbuf.Style {
 		cs.Bg = toAnsiColor(ls.GetBackground())
 	}
 	if ls.GetBold() {
-		cs.Bold(true)
+		cs.Attrs |= uv.AttrBold
 	}
 	if ls.GetFaint() {
-		cs.Faint(true)
+		cs.Attrs |= uv.AttrFaint
 	}
 	if ls.GetItalic() {
-		cs.Italic(true)
+		cs.Attrs |= uv.AttrItalic
 	}
 	if ls.GetUnderline() {
-		cs.Underline(true)
+		cs.Underline = uv.UnderlineSingle
 	}
 	if ls.GetStrikethrough() {
-		cs.Strikethrough(true)
+		cs.Attrs |= uv.AttrStrikethrough
 	}
 	if ls.GetReverse() {
-		cs.Reverse(true)
+		cs.Attrs |= uv.AttrReverse
 	}
 	return cs
 }
 
 // iterateCells iterates over all cells in a rectangle, applies a transformation,
 // and writes the modified cells back to the buffer.
-func iterateCells(buf *cellbuf.Buffer, rect cellbuf.Rectangle, transform func(*cellbuf.Cell) *cellbuf.Cell) {
+func iterateCells(buf uv.Screen, rect layout.Rectangle, transform func(*uv.Cell) *uv.Cell) {
 	bounds := buf.Bounds()
 	// Clamp rect to buffer bounds
 	rect = rect.Intersect(bounds)
 
 	for y := rect.Min.Y; y < rect.Max.Y; y++ {
 		for x := rect.Min.X; x < rect.Max.X; {
-			cell := buf.Cell(x, y)
+			cell := buf.CellAt(x, y)
 			if cell == nil {
 				x++
 				continue
 			}
 
 			// Skip width-0 placeholder cells that belong to wide graphemes.
-			// Writing to these positions causes cellbuf to blank the leading cell,
+			// Writing to these positions causes the buffer to blank the leading cell,
 			// which corrupts emoji/CJK rendering when applying effects.
 			if cell.Width == 0 {
 				x++

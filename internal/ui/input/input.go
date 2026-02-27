@@ -1,9 +1,9 @@
 package input
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -54,10 +54,13 @@ func NewWithTitle(title string, prompt string) *Model {
 		title:  common.DefaultPalette.Get("input title"),
 	}
 	ti := textinput.New()
-	ti.Width = 40
+	ti.SetWidth(40)
 	ti.Focus()
 	ti.Prompt = prompt
-	ti.PromptStyle = styles.text
+	is := ti.Styles()
+	is.Focused.Prompt = styles.text
+	is.Blurred.Prompt = styles.text
+	ti.SetStyles(is)
 	if ti.Prompt == "" {
 		ti.Prompt = "> "
 	}
@@ -104,7 +107,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if m.title != "" {
 		rows = append(rows, m.styles.title.Render(m.title))
 	}
-	m.input.Width = min(box.R.Dx()-2, 40)
+	m.input.SetWidth(min(box.R.Dx()-2, 40))
 	rows = append(rows, m.input.View())
 
 	content := lipgloss.JoinVertical(0, rows...)

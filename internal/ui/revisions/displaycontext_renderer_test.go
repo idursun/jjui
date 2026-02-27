@@ -1,12 +1,12 @@
 package revisions
 
 import (
+	uv "github.com/charmbracelet/ultraviolet"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/cellbuf"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -49,12 +49,12 @@ func TestDisplayContextRenderer_DetailsRendersBeforeElidedMarker(t *testing.T) {
 
 	width, height := 100, 15
 	dl := render.NewDisplayContext()
-	viewRect := layout.NewBox(cellbuf.Rect(0, 0, width, height))
+	viewRect := layout.NewBox(layout.Rect(0, 0, width, height))
 	r.Render(dl, []parser.Row{targetRow}, 0, viewRect, op, "", true)
 
-	screen := cellbuf.NewBuffer(width, height)
+	screen := uv.NewScreenBuffer(width, height)
 	dl.Render(screen)
-	out := cellbuf.Render(screen)
+	out := screen.Render()
 
 	// Regression: details list should appear *before* the elided marker line,
 	// keeping the marker visually "between" commits rather than above the
@@ -99,12 +99,12 @@ func TestDisplayContextRenderer_SingleRowDescriptionOverlay(t *testing.T) {
 
 	width, height := 70, 10
 	dl := render.NewDisplayContext()
-	viewRect := layout.NewBox(cellbuf.Rect(0, 0, width, height))
+	viewRect := layout.NewBox(layout.Rect(0, 0, width, height))
 	r.Render(dl, []parser.Row{targetRow}, 0, viewRect, op, "", true)
 
-	buf := cellbuf.NewBuffer(width, height)
+	buf := uv.NewScreenBuffer(width, height)
 	dl.Render(buf)
-	out := cellbuf.Render(buf)
+	out := buf.Render()
 
 	// The overlay content should appear in the rendered output.
 	assert.Contains(t, out, overlayContent,

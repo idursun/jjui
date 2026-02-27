@@ -3,10 +3,9 @@ package confirmation
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/cellbuf"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -121,7 +120,7 @@ func TestViewRect_DefaultRendersAtZBase(t *testing.T) {
 	model := New([]string{"Test message"})
 
 	dl := render.NewDisplayContext()
-	box := layout.Box{R: cellbuf.Rect(0, 0, 50, 20)}
+	box := layout.Box{R: layout.Rect(0, 0, 50, 20)}
 	model.ViewRect(dl, box)
 
 	draws := dl.DrawList()
@@ -137,7 +136,7 @@ func TestWithZIndex_RendersAtSpecifiedZIndex(t *testing.T) {
 	model := New([]string{"Test message"}, WithZIndex(render.ZDialogs))
 
 	dl := render.NewDisplayContext()
-	box := layout.Box{R: cellbuf.Rect(0, 0, 50, 20)}
+	box := layout.Box{R: layout.Rect(0, 0, 50, 20)}
 	model.ViewRect(dl, box)
 
 	draws := dl.DrawList()

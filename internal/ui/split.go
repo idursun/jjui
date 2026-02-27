@@ -3,8 +3,7 @@ package ui
 import (
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/cellbuf"
+	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -132,7 +131,7 @@ func (s *split) renderBoth(dl *render.DisplayContext, box layout.Box) {
 			return
 		}
 		if thickness > 0 {
-			sepRect := cellbuf.Rect(box.R.Min.X, boxes[0].R.Max.Y, box.R.Dx(), thickness)
+			sepRect := layout.Rect(box.R.Min.X, boxes[0].R.Max.Y, box.R.Dx(), thickness)
 			secondaryBox := boxes[1]
 			secondaryBox.R.Min.Y += thickness
 			secondaryBox.R.Max.Y += thickness
@@ -166,7 +165,7 @@ func (s *split) renderBoth(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 	if thickness > 0 {
-		sepRect := cellbuf.Rect(boxes[0].R.Max.X, box.R.Min.Y, thickness, box.R.Dy())
+		sepRect := layout.Rect(boxes[0].R.Max.X, box.R.Min.Y, thickness, box.R.Dy())
 		secondaryBox := boxes[1]
 		secondaryBox.R.Min.X += thickness
 		secondaryBox.R.Max.X += thickness
@@ -212,17 +211,17 @@ func isVisible(m common.ImmediateModel) bool {
 	return true
 }
 
-func separatorContent(sepRect cellbuf.Rectangle, vertical bool) (cellbuf.Rectangle, string) {
+func separatorContent(sepRect layout.Rectangle, vertical bool) (layout.Rectangle, string) {
 	if sepRect.Dx() <= 0 || sepRect.Dy() <= 0 {
-		return cellbuf.Rectangle{}, ""
+		return layout.Rectangle{}, ""
 	}
 	if vertical {
 		centerY := sepRect.Min.Y + sepRect.Dy()/2
-		drawRect := cellbuf.Rect(sepRect.Min.X, centerY, sepRect.Dx(), 1)
+		drawRect := layout.Rect(sepRect.Min.X, centerY, sepRect.Dx(), 1)
 		return drawRect, strings.Repeat("─", drawRect.Dx())
 	}
 	centerX := sepRect.Min.X + sepRect.Dx()/2
-	drawRect := cellbuf.Rect(centerX, sepRect.Min.Y, 1, sepRect.Dy())
+	drawRect := layout.Rect(centerX, sepRect.Min.Y, 1, sepRect.Dy())
 	if drawRect.Dy() == 1 {
 		return drawRect, "│"
 	}

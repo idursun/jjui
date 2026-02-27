@@ -1,9 +1,7 @@
 package dispatch
 
 import (
-	"strings"
-
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/ui/bindings"
 )
 
@@ -34,7 +32,7 @@ type candidate struct {
 type Dispatcher struct {
 	bindings map[bindings.Scope][]bindings.Binding
 
-	buffered   []string
+	buffered   []tea.Key
 	candidates []candidate
 }
 
@@ -58,10 +56,10 @@ func (d *Dispatcher) ResetSequence() {
 // Resolve applies dispatch rules for a key in the provided scope chain.
 // Scopes must be ordered from innermost to outermost.
 func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []bindings.Scope) ResolveResult {
-	key := msg.String()
-	if key == "" {
+	if msg.String() == "" {
 		return ResolveResult{}
 	}
+	key := msg.Key()
 
 	if len(d.candidates) > 0 {
 		return d.resolveSequenceKey(key)
@@ -69,7 +67,7 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []bindings.Scope) ResolveRes
 
 	seqCandidates := d.initialSequenceCandidates(key, scopes)
 	if len(seqCandidates) > 0 {
-		d.buffered = []string{key}
+		d.buffered = []tea.Key{key}
 		d.candidates = seqCandidates
 		return ResolveResult{
 			Pending:       true,
@@ -86,7 +84,7 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []bindings.Scope) ResolveRes
 				continue
 			}
 			for _, candidateKey := range binding.Key {
-				if keysEqual(candidateKey, key) {
+				if keyMatches(candidateKey, key) {
 					return ResolveResult{Action: binding.Action, Scope: scope, Args: bindings.CloneArgs(binding.Args), Consumed: true}
 				}
 			}
@@ -96,13 +94,13 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []bindings.Scope) ResolveRes
 	return ResolveResult{}
 }
 
-func (d *Dispatcher) resolveSequenceKey(key string) ResolveResult {
-	if key == "esc" {
+func (d *Dispatcher) resolveSequenceKey(key tea.Key) ResolveResult {
+	if keyMatches("esc", key) {
 		d.ResetSequence()
 		return ResolveResult{Consumed: true}
 	}
 
-	nextBuffer := append(append([]string(nil), d.buffered...), key)
+	nextBuffer := append(append([]tea.Key(nil), d.buffered...), key)
 	filtered := make([]candidate, 0, len(d.candidates))
 	for _, c := range d.candidates {
 		if isPrefix(c.binding.Seq, nextBuffer) {
@@ -150,11 +148,11 @@ func (d *Dispatcher) resolveSequenceKey(key string) ResolveResult {
 	}
 }
 
-func (d *Dispatcher) initialSequenceCandidates(key string, scopes []bindings.Scope) []candidate {
+func (d *Dispatcher) initialSequenceCandidates(key tea.Key, scopes []bindings.Scope) []candidate {
 	var candidates []candidate
 	for _, scope := range scopes {
 		for _, binding := range d.bindings[scope] {
-			if len(binding.Seq) > 0 && keysEqual(binding.Seq[0], key) {
+			if len(binding.Seq) > 0 && keyMatches(binding.Seq[0], key) {
 				candidates = append(candidates, candidate{scope: scope, binding: binding})
 			}
 		}
@@ -187,25 +185,18 @@ func (d *Dispatcher) pendingContinuations() []Continuation {
 	return continuations
 }
 
-func isPrefix(full []string, prefix []string) bool {
+func isPrefix(full []string, prefix []tea.Key) bool {
 	if len(prefix) > len(full) {
 		return false
 	}
 	for i := range prefix {
-		if !keysEqual(full[i], prefix[i]) {
+		if !keyMatches(full[i], prefix[i]) {
 			return false
 		}
 	}
 	return true
 }
 
-func normalizeKeyName(key string) string {
-	if strings.EqualFold(key, "space") {
-		return " "
-	}
-	return key
-}
-
-func keysEqual(a string, b string) bool {
-	return normalizeKeyName(a) == normalizeKeyName(b)
+func keyMatches(candidate string, key tea.Key) bool {
+	return candidate == key.String() || candidate == key.Keystroke()
 }

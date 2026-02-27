@@ -5,10 +5,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/cellbuf"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -336,7 +335,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	_, contentBox = contentBox.CutTop(1)
 	filterBox, contentBox := contentBox.CutTop(1)
 	if m.filterState == filterEditing {
-		m.filterInput.Width = max(contentBox.R.Dx()-2, 0)
+		m.filterInput.SetWidth(max(contentBox.R.Dx()-2, 0))
 		window.AddDraw(filterBox.R, m.filterInput.View(), render.ZMenuContent)
 	} else {
 		m.renderFilterView(window, filterBox)
@@ -431,9 +430,12 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions) *Model {
 	m.filteredItems = items
 	m.filterInput = textinput.New()
 	m.filterInput.Prompt = "Filter: "
-	m.filterInput.PromptStyle = m.menuStyles.matched.PaddingLeft(1)
-	m.filterInput.TextStyle = m.menuStyles.text
-	m.filterInput.Cursor.Style = m.menuStyles.text
+	gfis := m.filterInput.Styles()
+	gfis.Focused.Prompt = m.menuStyles.matched.PaddingLeft(1)
+	gfis.Focused.Text = m.menuStyles.text
+	gfis.Blurred.Prompt = m.menuStyles.matched.PaddingLeft(1)
+	gfis.Blurred.Text = m.menuStyles.text
+	m.filterInput.SetStyles(gfis)
 	m.applyFilters(true)
 
 	return m
@@ -578,7 +580,7 @@ func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
 		m.cursor,
 		m.ensureCursorVisible,
 		func(_ int) int { return itemHeight },
-		func(dl *render.DisplayContext, index int, rect cellbuf.Rectangle) {
+		func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
 			if index < 0 || index >= itemCount {
 				return
 			}
@@ -590,7 +592,7 @@ func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
 	m.ensureCursorVisible = false
 }
 
-func renderItem(dl *render.DisplayContext, rect cellbuf.Rectangle, width int, styles menuStyles, showShortcuts bool, cursor int, index int, item item) {
+func renderItem(dl *render.DisplayContext, rect layout.Rectangle, width int, styles menuStyles, showShortcuts bool, cursor int, index int, item item) {
 	var (
 		title string
 		desc  string
@@ -629,11 +631,11 @@ func renderItem(dl *render.DisplayContext, rect cellbuf.Rectangle, width int, st
 	} else {
 		titleLine = titleStyle.PaddingLeft(1).Render(title)
 	}
-	titleLine = lipgloss.PlaceHorizontal(width+2, 0, titleLine, lipgloss.WithWhitespaceBackground(titleStyle.GetBackground()))
+	titleLine = lipgloss.PlaceHorizontal(width+2, 0, titleLine, lipgloss.WithWhitespaceStyle(titleStyle))
 
 	descStyle = descStyle.PaddingLeft(1).PaddingRight(1).Width(width + 2)
 	descLine := descStyle.Render(desc)
-	descLine = lipgloss.PlaceHorizontal(width+2, 0, descLine, lipgloss.WithWhitespaceBackground(titleStyle.GetBackground()))
+	descLine = lipgloss.PlaceHorizontal(width+2, 0, descLine, lipgloss.WithWhitespaceStyle(titleStyle))
 
 	spacerLine := styles.text.Width(width + 2).Render("")
 	content := lipgloss.JoinVertical(lipgloss.Left, titleLine, descLine, spacerLine)

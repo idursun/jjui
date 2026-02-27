@@ -3,10 +3,9 @@ package target_picker
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/cellbuf"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj/source"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -89,8 +88,12 @@ func NewModel(ctx *context.MainContext) *Model {
 	dimmed := palette.Get("picker dimmed")
 	ti := textinput.New()
 	ti.Prompt = "> "
-	ti.PromptStyle = dimmed
-	ti.TextStyle = text
+	tis := ti.Styles()
+	tis.Focused.Prompt = dimmed
+	tis.Focused.Text = text
+	tis.Blurred.Prompt = dimmed
+	tis.Blurred.Text = text
+	ti.SetStyles(tis)
 	ti.CharLimit = 0
 	ti.Focus()
 
@@ -174,13 +177,14 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	maxH := min(maxHeight, box.R.Dy())
 	centeredBox := box.Center(maxW, maxH)
 
-	borderContent := m.styles.border.Width(centeredBox.R.Dx() - 2).Height(centeredBox.R.Dy() - 2).Render("")
-	window := dl.Window(centeredBox.R, render.ZMenuBorder)
-	window.AddDraw(centeredBox.R, borderContent, render.ZMenuBorder)
+	frame := centeredBox
+	window := dl.Window(frame.R, render.ZMenuBorder)
+	borderContent := m.styles.border.Width(frame.R.Dx()).Height(frame.R.Dy()).Render("")
+	window.AddDraw(frame.R, borderContent, render.ZMenuBorder)
 	centeredBox = centeredBox.Inset(1)
 
 	inputBox, listBox := centeredBox.CutTop(1)
-	m.input.Width = inputBox.R.Dx()
+	m.input.SetWidth(inputBox.R.Dx())
 
 	window.AddDraw(inputBox.R, m.input.View(), render.ZMenuContent)
 
@@ -191,7 +195,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.cursor,
 		m.ensureCursorVisible,
 		func(_ int) int { return 1 },
-		func(dl *render.DisplayContext, index int, rect cellbuf.Rectangle) {
+		func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
 			if index < 0 || index >= len(m.matches) {
 				return
 			}
@@ -200,7 +204,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			y := rect.Min.Y
 
 			pillText := m.renderPill(item.Kind)
-			pillRect := cellbuf.Rect(rect.Min.X, y, pillWidth, 1)
+			pillRect := layout.Rect(rect.Min.X, y, pillWidth, 1)
 			window.AddDraw(pillRect, pillText, render.ZMenuContent)
 
 			isSelected := index == m.cursor
@@ -213,7 +217,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			}
 			nameContent := fuzzy_search.HighlightMatched(item.Name, match, lineStyle, matchStyle)
 			nameX := rect.Min.X + pillWidth + 1
-			nameRect := cellbuf.Rect(nameX, y, rect.Dx()-pillWidth-1, 1)
+			nameRect := layout.Rect(nameX, y, rect.Dx()-pillWidth-1, 1)
 			window.AddDraw(nameRect, nameContent, render.ZMenuContent)
 		},
 		func(index int) tea.Msg { return itemClickedMsg{index: index} },
