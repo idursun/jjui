@@ -64,16 +64,6 @@ For detailed information, see [Preview](https://idursun.github.io/jjui/features/
 
 ![GIF](https://raw.github.com/idursun/jjui/docs/public/gifs/jjui_preview.gif)
 
-### Actions And Bindings
-
-`jjui` uses `[[actions]]` and `[[bindings]]` for customization.
-
-- Bind built-in actions to keys or key sequences.
-- Define custom Lua actions in `[[actions]]` and bind them in `[[bindings]]`.
-- Use `open_command_palette` (default key: `x`) to discover and run actions in the current context.
-
-Legacy `[custom_commands]` and `[leader]` sections are no longer supported, and `[keys]` is deprecated.
-
 Additionally,
 * View the diff of a revision by pressing `d`.
 * Edit the description of a revision by pressing `D`
