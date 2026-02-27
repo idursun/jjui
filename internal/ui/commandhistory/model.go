@@ -176,9 +176,12 @@ func (m *Model) deleteSelected() {
 }
 
 func (m *Model) renderEntry(entry flash.CommandHistoryEntry, maxWidth int, selected bool) string {
-	style := m.successStyle
-	if entry.Err != nil {
-		style = m.errorStyle
+	style := lipgloss.NewStyle()
+	if selected {
+		style = m.successStyle
+		if entry.Err != nil {
+			style = m.errorStyle
+		}
 	}
 
 	parts := []string{m.renderCommandLine(entry.Command, entry.Err)}
@@ -195,12 +198,8 @@ func (m *Model) renderEntry(entry flash.CommandHistoryEntry, maxWidth int, selec
 		content = lipgloss.NewStyle().Width(maxWidth).Render(content)
 	}
 
-	border := lipgloss.NormalBorder()
-	if selected {
-		border = lipgloss.DoubleBorder()
-	}
 	return lipgloss.NewStyle().
-		Border(border).
+		Border(lipgloss.NormalBorder()).
 		PaddingLeft(1).
 		PaddingRight(1).
 		BorderForeground(style.GetForeground()).
