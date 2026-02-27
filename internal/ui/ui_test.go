@@ -586,7 +586,7 @@ func Test_HandleDispatchedAction_RevisionsScopedActionInRebaseMode(t *testing.T)
 		ctx,
 		jj.NewSelectedRevisions(&jj.Commit{ChangeId: "abc123", CommitId: "def456"}),
 		rebase.SourceRevision,
-		rebase.TargetDestination,
+		intents.ModeTargetDestination,
 	)
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	assert.False(t, model.revisions.InNormalMode(), "model should be in rebase mode")
@@ -621,7 +621,7 @@ func Test_HandleDelegatedIntent_EditIgnoredOutsideNormalMode(t *testing.T) {
 		ctx,
 		jj.NewSelectedRevisions(&jj.Commit{ChangeId: "abc123", CommitId: "def456"}),
 		rebase.SourceRevision,
-		rebase.TargetDestination,
+		intents.ModeTargetDestination,
 	)
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	assert.False(t, model.revisions.InNormalMode())
@@ -973,7 +973,7 @@ func Test_Update_TargetPickerEscCancelsEditing(t *testing.T) {
 		ctx,
 		jj.NewSelectedRevisions(&jj.Commit{ChangeId: "abc123", CommitId: "def456"}),
 		rebase.SourceRevision,
-		rebase.TargetDestination,
+		intents.ModeTargetDestination,
 	)
 	model.Update(common.RestoreOperationMsg{Operation: op})
 

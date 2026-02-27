@@ -18,20 +18,11 @@ import (
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
-type Target int
-
-const (
-	TargetDestination Target = iota
-	TargetAfter
-	TargetBefore
-	TargetInsert
-)
-
 var (
-	targetToFlags = map[Target]string{
-		TargetAfter:       "--insert-after",
-		TargetBefore:      "--insert-before",
-		TargetDestination: "--onto",
+	targetToFlags = map[intents.ModeTarget]string{
+		intents.ModeTargetAfter:       "--insert-after",
+		intents.ModeTargetBefore:      "--insert-before",
+		intents.ModeTargetDestination: "--onto",
 	}
 )
 
@@ -54,7 +45,7 @@ type Operation struct {
 	From           jj.SelectedRevisions
 	InsertStart    *jj.Commit
 	To             *jj.Commit
-	Target         Target
+	Target         intents.ModeTarget
 	targetName     string
 	targetPicker   *target_picker.Model
 	highlightedIds []string
@@ -109,16 +100,18 @@ func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 
 func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 	switch msg := intent.(type) {
+	case intents.StartAceJump:
+		return common.StartAceJump()
 	case intents.RevertSetTarget:
-		r.Target = revertTargetFromIntent(msg.Target)
-		if r.Target == TargetInsert {
+		r.Target = msg.Target
+		if r.Target == intents.ModeTargetInsert {
 			r.InsertStart = r.To
 		}
 	case intents.RevertOpenTargetPicker:
 		r.targetPicker = target_picker.NewModel(r.context)
 		return r.targetPicker.Init()
 	case intents.Apply:
-		if r.Target == TargetInsert {
+		if r.Target == intents.ModeTargetInsert {
 			insertAfter := r.InsertStart.GetChangeId()
 			insertBefore := r.targetArg()
 			return r.context.RunCommand(jj.RevertInsert(r.From, insertAfter, insertBefore), common.RefreshAndSelect(r.From.Last()), common.Close)
@@ -138,21 +131,6 @@ func (r *Operation) ResolveAction(action keybindings.Action, args map[string]any
 	return actions.ResolveByScopeStrict(r.Scope(), action, args)
 }
 
-func revertTargetFromIntent(target intents.RevertTarget) Target {
-	switch target {
-	case intents.RevertTargetDestination:
-		return TargetDestination
-	case intents.RevertTargetAfter:
-		return TargetAfter
-	case intents.RevertTargetBefore:
-		return TargetBefore
-	case intents.RevertTargetInsert:
-		return TargetInsert
-	default:
-		return TargetDestination
-	}
-}
-
 func (r *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 	r.highlightedIds = nil
 	r.To = commit
@@ -166,16 +144,16 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		if slices.Contains(r.highlightedIds, changeId) {
 			return r.styles.sourceMarker.Render("<< revert >>")
 		}
-		if r.Target == TargetInsert && r.InsertStart.GetChangeId() == commit.GetChangeId() {
+		if r.Target == intents.ModeTargetInsert && r.InsertStart.GetChangeId() == commit.GetChangeId() {
 			return r.styles.sourceMarker.Render("<< after this >>")
 		}
-		if r.Target == TargetInsert && r.To.GetChangeId() == commit.GetChangeId() {
+		if r.Target == intents.ModeTargetInsert && r.To.GetChangeId() == commit.GetChangeId() {
 			return r.styles.sourceMarker.Render("<< before this >>")
 		}
 		return ""
 	}
 	expectedPos := operations.RenderPositionBefore
-	if r.Target == TargetBefore || r.Target == TargetInsert {
+	if r.Target == intents.ModeTargetBefore || r.Target == intents.ModeTargetInsert {
 		expectedPos = operations.RenderPositionAfter
 	}
 
@@ -197,20 +175,20 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		source = "revision "
 	}
 	var ret string
-	if r.Target == TargetDestination {
+	if r.Target == intents.ModeTargetDestination {
 		ret = "onto"
 	}
-	if r.Target == TargetAfter {
+	if r.Target == intents.ModeTargetAfter {
 		ret = "after"
 	}
-	if r.Target == TargetBefore {
+	if r.Target == intents.ModeTargetBefore {
 		ret = "before"
 	}
-	if r.Target == TargetInsert {
+	if r.Target == intents.ModeTargetInsert {
 		ret = "insert"
 	}
 
-	if r.Target == TargetInsert {
+	if r.Target == intents.ModeTargetInsert {
 		return lipgloss.JoinHorizontal(
 			lipgloss.Left,
 			r.styles.targetMarker.Render("<< insert >>"),
@@ -272,7 +250,7 @@ func (r *Operation) targetArg() string {
 	return ""
 }
 
-func NewOperation(context *context.MainContext, from jj.SelectedRevisions, target Target) *Operation {
+func NewOperation(context *context.MainContext, from jj.SelectedRevisions, target intents.ModeTarget) *Operation {
 	styles := styles{
 		changeId:     common.DefaultPalette.Get("revert change_id"),
 		shortcut:     common.DefaultPalette.Get("revert shortcut"),

@@ -28,25 +28,16 @@ const (
 	SourceDescendants
 )
 
-type Target int
-
-const (
-	TargetDestination Target = iota
-	TargetAfter
-	TargetBefore
-	TargetInsert
-)
-
 var (
 	sourceToFlags = map[Source]string{
 		SourceBranch:      "--branch",
 		SourceRevision:    "--revisions",
 		SourceDescendants: "--source",
 	}
-	targetToFlags = map[Target]string{
-		TargetAfter:       "--insert-after",
-		TargetBefore:      "--insert-before",
-		TargetDestination: "--onto",
+	targetToFlags = map[intents.ModeTarget]string{
+		intents.ModeTargetAfter:       "--insert-after",
+		intents.ModeTargetBefore:      "--insert-before",
+		intents.ModeTargetDestination: "--onto",
 	}
 )
 
@@ -72,7 +63,7 @@ type Operation struct {
 	InsertStart    *jj.Commit
 	To             *jj.Commit
 	Source         Source
-	Target         Target
+	Target         intents.ModeTarget
 	targetName     string
 	targetPicker   *target_picker.Model
 	highlightedIds []string
@@ -142,8 +133,8 @@ func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.RebaseSetSource:
 		r.Source = rebaseSourceFromIntent(msg.Source)
 	case intents.RebaseSetTarget:
-		r.Target = rebaseTargetFromIntent(msg.Target)
-		if r.Target == TargetInsert {
+		r.Target = msg.Target
+		if r.Target == intents.ModeTargetInsert {
 			r.InsertStart = r.To
 		}
 	case intents.RebaseOpenTargetPicker:
@@ -153,7 +144,7 @@ func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		r.SkipEmptied = !r.SkipEmptied
 	case intents.Apply:
 		skipEmptied := r.SkipEmptied
-		if r.Target == TargetInsert {
+		if r.Target == intents.ModeTargetInsert {
 			insertAfter := r.InsertStart.GetChangeId()
 			insertBefore := r.targetArg()
 			return r.context.RunCommand(jj.RebaseInsert(r.From, insertAfter, insertBefore, skipEmptied, msg.Force), common.RefreshAndSelect(r.From.Last()), common.Close)
@@ -183,21 +174,6 @@ func rebaseSourceFromIntent(source intents.RebaseSource) Source {
 		return SourceDescendants
 	default:
 		return SourceRevision
-	}
-}
-
-func rebaseTargetFromIntent(target intents.RebaseTarget) Target {
-	switch target {
-	case intents.RebaseTargetDestination:
-		return TargetDestination
-	case intents.RebaseTargetAfter:
-		return TargetAfter
-	case intents.RebaseTargetBefore:
-		return TargetBefore
-	case intents.RebaseTargetInsert:
-		return TargetInsert
-	default:
-		return TargetDestination
 	}
 }
 
@@ -236,10 +212,10 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		if slices.Contains(r.highlightedIds, changeId) {
 			marker = "<< move >>"
 		}
-		if r.Target == TargetInsert && r.InsertStart.GetChangeId() == commit.GetChangeId() {
+		if r.Target == intents.ModeTargetInsert && r.InsertStart.GetChangeId() == commit.GetChangeId() {
 			marker = "<< after this >>"
 		}
-		if r.Target == TargetInsert && r.To.GetChangeId() == commit.GetChangeId() {
+		if r.Target == intents.ModeTargetInsert && r.To.GetChangeId() == commit.GetChangeId() {
 			marker = "<< before this >>"
 		}
 		if r.SkipEmptied && marker != "" {
@@ -248,7 +224,7 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		return r.styles.sourceMarker.Render(marker)
 	}
 	expectedPos := operations.RenderPositionBefore
-	if r.Target == TargetBefore || r.Target == TargetInsert {
+	if r.Target == intents.ModeTargetBefore || r.Target == intents.ModeTargetInsert {
 		expectedPos = operations.RenderPositionAfter
 	}
 
@@ -278,20 +254,20 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		source = "revision "
 	}
 	var ret string
-	if r.Target == TargetDestination {
+	if r.Target == intents.ModeTargetDestination {
 		ret = "onto"
 	}
-	if r.Target == TargetAfter {
+	if r.Target == intents.ModeTargetAfter {
 		ret = "after"
 	}
-	if r.Target == TargetBefore {
+	if r.Target == intents.ModeTargetBefore {
 		ret = "before"
 	}
-	if r.Target == TargetInsert {
+	if r.Target == intents.ModeTargetInsert {
 		ret = "insert"
 	}
 
-	if r.Target == TargetInsert {
+	if r.Target == intents.ModeTargetInsert {
 		return lipgloss.JoinHorizontal(
 			lipgloss.Left,
 			r.styles.targetMarker.Render("<< insert >>"),
@@ -353,7 +329,7 @@ func (r *Operation) targetArg() string {
 	return ""
 }
 
-func NewOperation(context *context.MainContext, from jj.SelectedRevisions, source Source, target Target) *Operation {
+func NewOperation(context *context.MainContext, from jj.SelectedRevisions, source Source, target intents.ModeTarget) *Operation {
 	styles := styles{
 		changeId:     common.DefaultPalette.Get("rebase change_id"),
 		shortcut:     common.DefaultPalette.Get("rebase shortcut"),

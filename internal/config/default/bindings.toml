@@ -104,6 +104,7 @@ bindings = [
     { key = "a", action = "revisions.duplicate.set_target", scope = "revisions.duplicate", desc = "target: after", args = { target = "after" } },
     { key = "b", action = "revisions.duplicate.set_target", scope = "revisions.duplicate", desc = "target: before", args = { target = "before" } },
     { key = "o", action = "revisions.duplicate.set_target", scope = "revisions.duplicate", desc = "target: onto", args = { target = "onto" } },
+    { key = "i", action = "revisions.duplicate.set_target", scope = "revisions.duplicate", desc = "target: insert", args = { target = "insert" } },
     { key = "t", action = "revisions.duplicate.target_picker", scope = "revisions.duplicate", desc = "set target" },
     { key = "f", action = "revisions.duplicate.ace_jump", scope = "revisions.duplicate", desc = "ace jump" },
     { key = "alt+enter", action = "revisions.duplicate.apply", scope = "revisions.duplicate", desc = "force apply", args = { force = true } },

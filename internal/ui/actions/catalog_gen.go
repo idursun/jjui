@@ -616,7 +616,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.duplicate.jump_to_working_copy"):
 			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
 		case keybindings.Action("revisions.duplicate.set_target"):
-			return intents.DuplicateSetTarget{Target: enumArgDuplicateTarget(args, "target")}, true
+			return intents.DuplicateSetTarget{Target: enumArgModeTarget(args, "target")}, true
 		case keybindings.Action("revisions.duplicate.target_picker"):
 			return intents.DuplicateOpenTargetPicker{}, true
 		}
@@ -668,7 +668,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.rebase.set_source"):
 			return intents.RebaseSetSource{Source: enumArgRebaseSource(args, "source")}, true
 		case keybindings.Action("revisions.rebase.set_target"):
-			return intents.RebaseSetTarget{Target: enumArgRebaseTarget(args, "target")}, true
+			return intents.RebaseSetTarget{Target: enumArgModeTarget(args, "target")}, true
 		case keybindings.Action("revisions.rebase.skip_emptied"):
 			return intents.RebaseToggleSkipEmptied{}, true
 		case keybindings.Action("revisions.rebase.target_picker"):
@@ -683,7 +683,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.revert.force_apply"):
 			return intents.Apply{Force: true}, true
 		case keybindings.Action("revisions.revert.set_target"):
-			return intents.RevertSetTarget{Target: enumArgRevertTarget(args, "target")}, true
+			return intents.RevertSetTarget{Target: enumArgModeTarget(args, "target")}, true
 		case keybindings.Action("revisions.revert.target_picker"):
 			return intents.RevertOpenTargetPicker{}, true
 		}
@@ -845,8 +845,8 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 	return nil, false
 }
 
-func enumArgDuplicateTarget(args map[string]any, name string) intents.DuplicateTarget {
-	var zero intents.DuplicateTarget
+func enumArgModeTarget(args map[string]any, name string) intents.ModeTarget {
+	var zero intents.ModeTarget
 	if args == nil {
 		return zero
 	}
@@ -860,11 +860,13 @@ func enumArgDuplicateTarget(args map[string]any, name string) intents.DuplicateT
 	}
 	switch s {
 	case "onto":
-		return intents.DuplicateTargetDestination
+		return intents.ModeTargetDestination
 	case "after":
-		return intents.DuplicateTargetAfter
+		return intents.ModeTargetAfter
 	case "before":
-		return intents.DuplicateTargetBefore
+		return intents.ModeTargetBefore
+	case "insert":
+		return intents.ModeTargetInsert
 	default:
 		return zero
 	}
@@ -890,60 +892,6 @@ func enumArgRebaseSource(args map[string]any, name string) intents.RebaseSource 
 		return intents.RebaseSourceBranch
 	case "source":
 		return intents.RebaseSourceDescendants
-	default:
-		return zero
-	}
-}
-
-func enumArgRebaseTarget(args map[string]any, name string) intents.RebaseTarget {
-	var zero intents.RebaseTarget
-	if args == nil {
-		return zero
-	}
-	v, ok := args[name]
-	if !ok {
-		return zero
-	}
-	s, ok := v.(string)
-	if !ok {
-		return zero
-	}
-	switch s {
-	case "onto":
-		return intents.RebaseTargetDestination
-	case "after":
-		return intents.RebaseTargetAfter
-	case "before":
-		return intents.RebaseTargetBefore
-	case "insert":
-		return intents.RebaseTargetInsert
-	default:
-		return zero
-	}
-}
-
-func enumArgRevertTarget(args map[string]any, name string) intents.RevertTarget {
-	var zero intents.RevertTarget
-	if args == nil {
-		return zero
-	}
-	v, ok := args[name]
-	if !ok {
-		return zero
-	}
-	s, ok := v.(string)
-	if !ok {
-		return zero
-	}
-	switch s {
-	case "onto":
-		return intents.RevertTargetDestination
-	case "after":
-		return intents.RevertTargetAfter
-	case "before":
-		return intents.RevertTargetBefore
-	case "insert":
-		return intents.RevertTargetInsert
 	default:
 		return zero
 	}

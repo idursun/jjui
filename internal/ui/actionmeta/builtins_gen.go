@@ -498,7 +498,7 @@ var builtInActionArgSchemas = map[string]map[string]string{
 		"force": "bool",
 	},
 	"revisions.duplicate.set_target": {
-		"target": "enum:onto|after|before",
+		"target": "enum:onto|after|before|insert",
 	},
 	"revisions.evolog.apply": {
 		"force": "bool",

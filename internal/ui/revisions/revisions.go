@@ -536,8 +536,7 @@ func (m *Model) startRebase(intent intents.StartRebase) tea.Cmd {
 	}
 
 	source := rebaseSourceFromIntent(intent.Source)
-	target := rebaseTargetFromIntent(intent.Target)
-	m.op = rebase.NewOperation(m.context, selected, source, target)
+	m.op = rebase.NewOperation(m.context, selected, source, intent.Target)
 	return m.op.Init()
 }
 
@@ -550,8 +549,7 @@ func (m *Model) startRevert(intent intents.StartRevert) tea.Cmd {
 		return nil
 	}
 
-	target := revertTargetFromIntent(intent.Target)
-	m.op = revert.NewOperation(m.context, selected, target)
+	m.op = revert.NewOperation(m.context, selected, intent.Target)
 	return m.op.Init()
 }
 
@@ -566,32 +564,6 @@ func rebaseSourceFromIntent(source intents.RebaseSource) rebase.Source {
 	}
 }
 
-func rebaseTargetFromIntent(target intents.RebaseTarget) rebase.Target {
-	switch target {
-	case intents.RebaseTargetAfter:
-		return rebase.TargetAfter
-	case intents.RebaseTargetBefore:
-		return rebase.TargetBefore
-	case intents.RebaseTargetInsert:
-		return rebase.TargetInsert
-	default:
-		return rebase.TargetDestination
-	}
-}
-
-func revertTargetFromIntent(target intents.RevertTarget) revert.Target {
-	switch target {
-	case intents.RevertTargetAfter:
-		return revert.TargetAfter
-	case intents.RevertTargetBefore:
-		return revert.TargetBefore
-	case intents.RevertTargetInsert:
-		return revert.TargetInsert
-	default:
-		return revert.TargetDestination
-	}
-}
-
 func (m *Model) startDuplicate(intent intents.StartDuplicate) tea.Cmd {
 	selected := intent.Selected
 	if len(selected.Revisions) == 0 {
@@ -601,7 +573,7 @@ func (m *Model) startDuplicate(intent intents.StartDuplicate) tea.Cmd {
 		return nil
 	}
 
-	m.op = duplicate.NewOperation(m.context, selected, duplicate.TargetDestination)
+	m.op = duplicate.NewOperation(m.context, selected, intents.ModeTargetDestination)
 	return m.op.Init()
 }
 

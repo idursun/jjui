@@ -19,7 +19,7 @@ func (StartSquash) isIntent() {}
 type StartRebase struct {
 	Selected jj.SelectedRevisions
 	Source   RebaseSource
-	Target   RebaseTarget
+	Target   ModeTarget
 }
 
 func (StartRebase) isIntent() {}
@@ -27,7 +27,7 @@ func (StartRebase) isIntent() {}
 //jjui:bind scope=revisions action=open_revert
 type StartRevert struct {
 	Selected jj.SelectedRevisions
-	Target   RevertTarget
+	Target   ModeTarget
 }
 
 func (StartRevert) isIntent() {}

@@ -338,6 +338,14 @@ func Duplicate(from SelectedRevisions, to string, target string) CommandArgs {
 	return args
 }
 
+func DuplicateInsert(from SelectedRevisions, insertAfter string, insertBefore string) CommandArgs {
+	args := []string{"duplicate"}
+	args = append(args, from.AsPrefixedArgs("-r")...)
+	args = append(args, "--insert-before", insertBefore)
+	args = append(args, "--insert-after", insertAfter)
+	return args
+}
+
 func Evolog(revision string) CommandArgs {
 	prefix := fmt.Sprintf(
 		"stringify('%s' ++ separate('%s', commit.change_id().shortest(), commit.commit_id().shortest(), commit.divergent()))",

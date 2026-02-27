@@ -198,7 +198,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		payload := payloadFromTop(L)
 		intent := intents.StartRebase{
 			Source: parseRebaseSource(stringVal(payload, "source")),
-			Target: parseRebaseTarget(stringVal(payload, "target")),
+			Target: parseModeTarget(stringVal(payload, "target")),
 		}
 		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intent)})
 	}))
@@ -695,16 +695,16 @@ func parseRebaseSource(val string) intents.RebaseSource {
 	}
 }
 
-func parseRebaseTarget(val string) intents.RebaseTarget {
+func parseModeTarget(val string) intents.ModeTarget {
 	switch strings.ToLower(val) {
 	case "after":
-		return intents.RebaseTargetAfter
+		return intents.ModeTargetAfter
 	case "before":
-		return intents.RebaseTargetBefore
+		return intents.ModeTargetBefore
 	case "insert":
-		return intents.RebaseTargetInsert
+		return intents.ModeTargetInsert
 	default:
-		return intents.RebaseTargetDestination
+		return intents.ModeTargetDestination
 	}
 }
 

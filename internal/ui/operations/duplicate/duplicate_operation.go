@@ -17,19 +17,11 @@ import (
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
-type Target int
-
-const (
-	TargetDestination Target = iota
-	TargetAfter
-	TargetBefore
-)
-
 var (
-	targetToFlags = map[Target]string{
-		TargetAfter:       "--insert-after",
-		TargetBefore:      "--insert-before",
-		TargetDestination: "--onto",
+	targetToFlags = map[intents.ModeTarget]string{
+		intents.ModeTargetAfter:       "--insert-after",
+		intents.ModeTargetBefore:      "--insert-before",
+		intents.ModeTargetDestination: "--onto",
 	}
 )
 
@@ -51,7 +43,7 @@ type Operation struct {
 	From         jj.SelectedRevisions
 	InsertStart  *jj.Commit
 	To           *jj.Commit
-	Target       Target
+	Target       intents.ModeTarget
 	targetName   string
 	targetPicker *target_picker.Model
 	styles       styles
@@ -108,11 +100,19 @@ func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.StartAceJump:
 		return common.StartAceJump()
 	case intents.DuplicateSetTarget:
-		r.Target = duplicateTargetFromIntent(msg.Target)
+		r.Target = msg.Target
+		if r.Target == intents.ModeTargetInsert {
+			r.InsertStart = r.To
+		}
 	case intents.DuplicateOpenTargetPicker:
 		r.targetPicker = target_picker.NewModel(r.context)
 		return r.targetPicker.Init()
 	case intents.Apply:
+		if r.Target == intents.ModeTargetInsert {
+			insertAfter := r.InsertStart.GetChangeId()
+			insertBefore := r.targetArg()
+			return r.context.RunCommand(jj.DuplicateInsert(r.From, insertAfter, insertBefore), common.RefreshAndSelect(r.From.Last()), common.Close)
+		}
 		target := targetToFlags[r.Target]
 		return r.context.RunCommand(jj.Duplicate(r.From, r.targetArg(), target), common.RefreshAndSelect(r.From.Last()), common.Close)
 	case intents.Cancel:
@@ -127,19 +127,6 @@ func (r *Operation) ResolveAction(action keybindings.Action, args map[string]any
 	return actions.ResolveByScopeStrict(r.Scope(), action, args)
 }
 
-func duplicateTargetFromIntent(target intents.DuplicateTarget) Target {
-	switch target {
-	case intents.DuplicateTargetDestination:
-		return TargetDestination
-	case intents.DuplicateTargetAfter:
-		return TargetAfter
-	case intents.DuplicateTargetBefore:
-		return TargetBefore
-	default:
-		return TargetDestination
-	}
-}
-
 func (r *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 	r.To = commit
 	return nil
@@ -147,14 +134,20 @@ func (r *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 
 func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
 	if pos == operations.RenderBeforeChangeId {
+		changeId := commit.GetChangeId()
 		if r.From.Contains(commit) {
 			return r.styles.sourceMarker.Render("<< duplicate >>")
 		}
-
+		if r.Target == intents.ModeTargetInsert && r.InsertStart != nil && r.InsertStart.GetChangeId() == changeId {
+			return r.styles.sourceMarker.Render("<< after this >>")
+		}
+		if r.Target == intents.ModeTargetInsert && r.To != nil && r.To.GetChangeId() == changeId {
+			return r.styles.sourceMarker.Render("<< before this >>")
+		}
 		return ""
 	}
 	expectedPos := operations.RenderPositionBefore
-	if r.Target == TargetBefore {
+	if r.Target == intents.ModeTargetBefore || r.Target == intents.ModeTargetInsert {
 		expectedPos = operations.RenderPositionAfter
 	}
 
@@ -168,14 +161,31 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	}
 
 	var ret string
-	if r.Target == TargetDestination {
+	if r.Target == intents.ModeTargetDestination {
 		ret = "onto"
 	}
-	if r.Target == TargetAfter {
+	if r.Target == intents.ModeTargetAfter {
 		ret = "after"
 	}
-	if r.Target == TargetBefore {
+	if r.Target == intents.ModeTargetBefore {
 		ret = "before"
+	}
+	if r.Target == intents.ModeTargetInsert {
+		ret = "insert"
+	}
+
+	if r.Target == intents.ModeTargetInsert {
+		return lipgloss.JoinHorizontal(
+			lipgloss.Left,
+			r.styles.targetMarker.Render("<< insert >>"),
+			" ",
+			r.styles.dimmed.Render("duplicate "),
+			r.styles.changeId.Render(strings.Join(r.From.GetIds(), " ")),
+			r.styles.dimmed.Render(" between "),
+			r.styles.changeId.Render(r.InsertStart.GetChangeId()),
+			r.styles.dimmed.Render(" and "),
+			r.styles.changeId.Render(r.To.GetChangeId()),
+		)
 	}
 
 	return lipgloss.JoinHorizontal(
@@ -223,7 +233,7 @@ func (r *Operation) targetArg() string {
 	return ""
 }
 
-func NewOperation(context *appContext.MainContext, from jj.SelectedRevisions, target Target) *Operation {
+func NewOperation(context *appContext.MainContext, from jj.SelectedRevisions, target intents.ModeTarget) *Operation {
 	styles := styles{
 		changeId:     common.DefaultPalette.Get("duplicate change_id"),
 		dimmed:       common.DefaultPalette.Get("duplicate dimmed"),

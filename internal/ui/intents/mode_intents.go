@@ -8,30 +8,13 @@ const (
 	RebaseSourceDescendants
 )
 
-type RebaseTarget int
+type ModeTarget int
 
 const (
-	RebaseTargetDestination RebaseTarget = iota
-	RebaseTargetAfter
-	RebaseTargetBefore
-	RebaseTargetInsert
-)
-
-type RevertTarget int
-
-const (
-	RevertTargetDestination RevertTarget = iota
-	RevertTargetAfter
-	RevertTargetBefore
-	RevertTargetInsert
-)
-
-type DuplicateTarget int
-
-const (
-	DuplicateTargetDestination DuplicateTarget = iota
-	DuplicateTargetAfter
-	DuplicateTargetBefore
+	ModeTargetDestination ModeTarget = iota
+	ModeTargetAfter
+	ModeTargetBefore
+	ModeTargetInsert
 )
 
 //jjui:bind scope=revisions.rebase action=set_source set=Source:$enum(source)
@@ -43,7 +26,7 @@ func (RebaseSetSource) isIntent() {}
 
 //jjui:bind scope=revisions.rebase action=set_target set=Target:$enum(target)
 type RebaseSetTarget struct {
-	Target RebaseTarget
+	Target ModeTarget
 }
 
 func (RebaseSetTarget) isIntent() {}
@@ -60,7 +43,7 @@ func (RebaseOpenTargetPicker) isIntent() {}
 
 //jjui:bind scope=revisions.revert action=set_target set=Target:$enum(target)
 type RevertSetTarget struct {
-	Target RevertTarget
+	Target ModeTarget
 }
 
 func (RevertSetTarget) isIntent() {}
@@ -72,7 +55,7 @@ func (RevertOpenTargetPicker) isIntent() {}
 
 //jjui:bind scope=revisions.duplicate action=set_target set=Target:$enum(target)
 type DuplicateSetTarget struct {
-	Target DuplicateTarget
+	Target ModeTarget
 }
 
 func (DuplicateSetTarget) isIntent() {}
