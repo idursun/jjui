@@ -13,13 +13,9 @@ This guide covers what changed and how to update your configuration.
 
 ## TL;DR
 
-**If you have `[custom_commands]` or `[keys]` in your config, run:**
+**If you have `[keys]`**, replace each entry with a `[[bindings]]` block — see [Replacing `[keys]`](#replacing-keys-key-rebinding) below.
 
-```sh
-jjui --config --migrate
-```
-
-This converts them automatically. Then you're done.
+**If you have `[custom_commands]`**, convert each entry to `[[actions]]` + `[[bindings]]` — see [Replacing `[custom_commands]`](#replacing-custom_commands) below.
 
 **If you have `[leader]` sequences**, rewrite them as `seq` bindings:
 
@@ -56,27 +52,6 @@ Read on for the full reference.
 | `[keys]` key overrides | `[[bindings]]` with matching `scope` |
 
 **Startup warnings:** If your config still contains `[custom_commands]` or `[leader]`, jjui prints a warning to stderr but continues. `[keys]` is silently ignored. None of them crash the app, but they have no effect.
-
----
-
-## Automated Migration
-
-Run the migration command to convert `[custom_commands]` and `[keys]` automatically:
-
-```sh
-jjui --config --migrate
-```
-
-What it does:
-
-1. Creates `config.old.toml` as a backup (only on first run).
-2. Converts each `[custom_commands]` entry to an `[[actions]]` + `[[bindings]]` block.
-3. Converts `[keys]` entries to matching `[[bindings]]` blocks.
-4. Removes the legacy sections from `config.toml`.
-
-**Limitations of migration:**
-- `[leader]` entries are removed but **not** converted — rewrite them as `seq` bindings manually (see below).
-- Commands with `show = "diff"` are skipped with a warning — the output-in-diff-viewer feature is not supported in the new system.
 
 ---
 
