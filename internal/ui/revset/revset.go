@@ -407,7 +407,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			}
 			tb.Done()
 		},
-		func(index int) tea.Msg { return completionClickMsg{index: index} },
+		func(index int, _ tea.Mouse) tea.Msg { return completionClickMsg{index: index} },
 	)
 	m.listRenderer.RegisterScroll(dl, outerBox)
 }

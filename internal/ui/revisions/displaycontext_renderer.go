@@ -3,6 +3,7 @@ package revisions
 import (
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
@@ -140,8 +141,7 @@ func (r *DisplayContextRenderer) Render(
 		}
 	}
 
-	// Click message factory
-	clickMsg := func(index int) render.ClickMessage {
+	clickMsg := func(index int, _ tea.Mouse) render.ClickMessage {
 		return ItemClickedMsg{Index: index}
 	}
 

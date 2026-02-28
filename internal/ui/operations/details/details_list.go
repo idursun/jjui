@@ -119,7 +119,7 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 	}
 
 	// Click message factory
-	clickMsg := func(index int) render.ClickMessage {
+	clickMsg := func(index int, _ tea.Mouse) render.ClickMessage {
 		return FileClickedMsg{Index: index}
 	}
 

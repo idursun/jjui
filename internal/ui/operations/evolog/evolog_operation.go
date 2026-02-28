@@ -327,7 +327,7 @@ func (o *Operation) renderListToDisplayContext(
 		}
 	}
 
-	clickMsg := func(index int) render.ClickMessage {
+	clickMsg := func(index int, _ tea.Mouse) render.ClickMessage {
 		return EvologClickedMsg{Index: index}
 	}
 
