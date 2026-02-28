@@ -141,8 +141,13 @@ func (r *DisplayContextRenderer) Render(
 		}
 	}
 
-	clickMsg := func(index int, _ tea.Mouse) render.ClickMessage {
-		return ItemClickedMsg{Index: index}
+	// Click message factory
+	clickMsg := func(index int, mouse tea.Mouse) render.ClickMessage {
+		return ItemClickedMsg{
+			Index: index,
+			Ctrl:  mouse.Mod&tea.ModCtrl != 0,
+			Alt:   mouse.Mod&tea.ModAlt != 0,
+		}
 	}
 
 	// Use the generic list renderer
