@@ -9,6 +9,8 @@ import (
 
 type FileClickedMsg struct {
 	Index int
+	Ctrl  bool
+	Alt   bool
 }
 
 type FileListScrollMsg struct {
@@ -118,12 +120,14 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 		}
 	}
 
-	// Click message factory
-	clickMsg := func(index int, _ tea.Mouse) render.ClickMessage {
-		return FileClickedMsg{Index: index}
+	clickMsg := func(index int, mouse tea.Mouse) render.ClickMessage {
+		return FileClickedMsg{
+			Index: index,
+			Ctrl:  mouse.Mod&tea.ModCtrl != 0,
+			Alt:   mouse.Mod&tea.ModAlt != 0,
+		}
 	}
 
-	// Use the generic list renderer
 	d.listRenderer.Render(
 		dl,
 		viewRect,
@@ -188,6 +192,16 @@ func (d *DetailsList) getStatusStyle(s status) lipgloss.Style {
 func (d *DetailsList) Scroll(delta int) {
 	d.ensureCursorView = false
 	d.listRenderer.SetScrollOffset(d.listRenderer.GetScrollOffset() + delta)
+}
+
+func (d *DetailsList) rangeSelect(from, to int) {
+	lo := min(from, to)
+	hi := max(from, to)
+	for i := lo; i <= hi; i++ {
+		if i >= 0 && i < len(d.files) {
+			d.files[i].selected = !d.files[i].selected
+		}
+	}
 }
 
 func (d *DetailsList) Len() int {

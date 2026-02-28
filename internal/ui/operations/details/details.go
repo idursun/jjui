@@ -119,7 +119,30 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case FileClickedMsg:
-		s.setCursor(msg.Index)
+		switch {
+		case msg.Alt:
+			prevCursor := s.cursor
+			s.setCursor(msg.Index)
+			s.rangeSelect(prevCursor, msg.Index)
+			s.syncCheckedItems()
+		case msg.Ctrl:
+			s.setCursor(msg.Index)
+			if current := s.current(); current != nil {
+				current.selected = !current.selected
+				checkedFile := context.SelectedFile{
+					ChangeId: s.revision.GetChangeId(),
+					CommitId: s.revision.CommitId,
+					File:     current.fileName,
+				}
+				if current.selected {
+					s.context.AddCheckedItem(checkedFile)
+				} else {
+					s.context.RemoveCheckedItem(checkedFile)
+				}
+			}
+		default:
+			s.setCursor(msg.Index)
+		}
 		return s.context.SetSelectedItem(context.SelectedFile{
 			ChangeId: s.revision.GetChangeId(),
 			CommitId: s.revision.CommitId,
@@ -372,6 +395,19 @@ func (s *Operation) Scope() keybindings.Scope {
 		return keybindings.Scope(actions.OwnerDetailsConfirmation)
 	}
 	return keybindings.Scope(actions.OwnerDetails)
+}
+
+func (s *Operation) syncCheckedItems() {
+	s.context.ClearCheckedItems(reflect.TypeFor[context.SelectedFile]())
+	for _, f := range s.files {
+		if f.selected {
+			s.context.AddCheckedItem(context.SelectedFile{
+				ChangeId: s.revision.GetChangeId(),
+				CommitId: s.revision.CommitId,
+				File:     f.fileName,
+			})
+		}
+	}
 }
 
 func (s *Operation) getSelectedFiles(allowVirtualSelection bool) []string {
