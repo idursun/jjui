@@ -83,6 +83,8 @@ func RevisionsCmd(msg tea.Msg) tea.Cmd {
 
 type ItemClickedMsg struct {
 	Index int
+	Ctrl  bool
+	Alt   bool
 }
 
 type ViewportScrollMsg struct {
@@ -258,7 +260,18 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		if overlay, ok := m.op.(common.Overlay); ok && overlay.IsOverlay() {
 			return nil
 		}
-		m.SetCursor(msg.Index)
+		switch {
+		case msg.Alt:
+			m.rangeSelect(msg.Index)
+		case msg.Ctrl:
+			m.SetCursor(msg.Index)
+			if commit := m.rows[msg.Index].Commit; commit != nil {
+				item := appContext.SelectedRevision{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId}
+				m.context.ToggleCheckedItem(item)
+			}
+		default:
+			m.SetCursor(msg.Index)
+		}
 		return m.updateSelection()
 	case ViewportScrollMsg:
 		if msg.Horizontal {
@@ -1018,6 +1031,20 @@ func New(c *appContext.MainContext) *Model {
 	}
 	m.displayContextRenderer = NewDisplayContextRenderer(m.textStyle, m.dimmedStyle, m.selectedStyle, m.matchedStyle)
 	return &m
+}
+
+func (m *Model) rangeSelect(to int) {
+	lo := min(m.cursor, to)
+	hi := max(m.cursor, to)
+	for i := lo; i <= hi; i++ {
+		if i >= 0 && i < len(m.rows) {
+			if commit := m.rows[i].Commit; commit != nil {
+				item := appContext.SelectedRevision{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId}
+				m.context.ToggleCheckedItem(item)
+			}
+		}
+	}
+	m.SetCursor(to)
 }
 
 func (m *Model) jumpToParent(revisions jj.SelectedRevisions) {

@@ -39,7 +39,7 @@ type measureItemFunc func(index int) int
 
 type ClickMessage = tea.Msg
 
-type ClickMessageFunc func(index int) ClickMessage
+type ClickMessageFunc func(index int, mouse tea.Mouse) ClickMessage
 
 type ListRenderer struct {
 	StartLine     int
@@ -116,12 +116,10 @@ func (r *ListRenderer) Render(
 			continue
 		}
 		render(dl, span.Index, span.Rect)
-		dl.AddInteraction(
-			span.Rect,
-			clickMsg(span.Index),
-			InteractionClick,
-			r.Z,
-		)
+		idx := span.Index
+		dl.AddInteractionFn(span.Rect, func(mouseMsg tea.MouseMsg) tea.Msg {
+			return clickMsg(idx, mouseMsg.Mouse())
+		}, InteractionClick, r.Z)
 	}
 
 }

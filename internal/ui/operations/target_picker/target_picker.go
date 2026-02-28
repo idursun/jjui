@@ -222,7 +222,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			nameRect := layout.Rect(nameX, y, rect.Dx()-pillWidth-1, 1)
 			dl.AddDraw(nameRect, nameContent, render.ZMenuContent)
 		},
-		func(index int) tea.Msg { return itemClickedMsg{index: index} },
+		func(index int, _ tea.Mouse) tea.Msg { return itemClickedMsg{index: index} },
 	)
 	m.listRenderer.RegisterScroll(dl, listBox)
 	m.ensureCursorVisible = false

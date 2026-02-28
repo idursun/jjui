@@ -273,7 +273,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		}
 	}
 
-	clickMsg := func(index int) render.ClickMessage {
+	clickMsg := func(index int, _ tea.Mouse) render.ClickMessage {
 		return OpLogClickedMsg{Index: index}
 	}
 

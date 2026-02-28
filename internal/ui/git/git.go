@@ -584,7 +584,7 @@ func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
 			}
 			renderItem(dl, rect, listWidth, m.menuStyles, m.categoryFilter != "", m.cursor, index, items[index])
 		},
-		func(index int) tea.Msg { return itemClickMsg{Index: index} },
+		func(index int, _ tea.Mouse) tea.Msg { return itemClickMsg{Index: index} },
 	)
 	m.listRenderer.RegisterScroll(dl, listBox)
 	m.ensureCursorVisible = false

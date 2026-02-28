@@ -121,6 +121,19 @@ func (dl *DisplayContext) AddInteraction(rect layout.Rectangle, msg tea.Msg, typ
 	})
 }
 
+// AddInteractionFn adds an interaction whose message is computed from the mouse event.
+func (dl *DisplayContext) AddInteractionFn(rect layout.Rectangle, fn func(tea.MouseMsg) tea.Msg, typ InteractionType, z int) {
+	dl.interactions = append(dl.interactions, interactionOp{
+		InteractionOp: InteractionOp{
+			Rect:  rect,
+			MsgFn: fn,
+			Type:  typ,
+			Z:     z,
+		},
+		order: dl.nextOrder(),
+	})
+}
+
 // Clear removes all operations from the display context.
 // Useful for reusing a DisplayContext across frames.
 func (dl *DisplayContext) Clear() {

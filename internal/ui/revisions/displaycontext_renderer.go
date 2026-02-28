@@ -3,6 +3,7 @@ package revisions
 import (
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
@@ -141,8 +142,12 @@ func (r *DisplayContextRenderer) Render(
 	}
 
 	// Click message factory
-	clickMsg := func(index int) render.ClickMessage {
-		return ItemClickedMsg{Index: index}
+	clickMsg := func(index int, mouse tea.Mouse) render.ClickMessage {
+		return ItemClickedMsg{
+			Index: index,
+			Ctrl:  mouse.Mod&tea.ModCtrl != 0,
+			Alt:   mouse.Mod&tea.ModAlt != 0,
+		}
 	}
 
 	// Use the generic list renderer

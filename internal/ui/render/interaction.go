@@ -18,10 +18,11 @@ const (
 
 // InteractionOp represents an interactive region that responds to input.
 type InteractionOp struct {
-	Rect layout.Rectangle // The interactive area (absolute coordinates)
-	Msg  tea.Msg          // Message to send
-	Type InteractionType  // What kind of interaction this supports
-	Z    int              // Z-index for overlapping regions (higher = priority)
+	Rect  layout.Rectangle           // The interactive area (absolute coordinates)
+	Msg   tea.Msg                    // Message to send (static)
+	MsgFn func(tea.MouseMsg) tea.Msg // Optional message factory.
+	Type  InteractionType            // What kind of interaction this supports
+	Z     int                        // Z-index for overlapping regions (higher = priority)
 }
 
 // ScrollDeltaCarrier is an interface for messages that carry scroll delta information.
@@ -50,6 +51,9 @@ func processMouseEvent(interactions []interactionOp, msg tea.MouseMsg, match int
 				}
 				if mouse.X >= interaction.Rect.Min.X && mouse.X < interaction.Rect.Max.X &&
 					mouse.Y >= interaction.Rect.Min.Y && mouse.Y < interaction.Rect.Max.Y {
+					if interaction.MsgFn != nil {
+						return interaction.MsgFn(msg), true
+					}
 					if carrier, ok := interaction.Msg.(DragStartCarrier); ok {
 						return carrier.SetDragStart(mouse.X, mouse.Y), true
 					}
@@ -64,6 +68,9 @@ func processMouseEvent(interactions []interactionOp, msg tea.MouseMsg, match int
 				}
 				if mouse.X >= interaction.Rect.Min.X && mouse.X < interaction.Rect.Max.X &&
 					mouse.Y >= interaction.Rect.Min.Y && mouse.Y < interaction.Rect.Max.Y {
+					if interaction.MsgFn != nil {
+						return interaction.MsgFn(msg), true
+					}
 					return interaction.Msg, true
 				}
 			}
