@@ -57,9 +57,9 @@ func TestGetCompletions(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"ancestors", "ancestors"},
+		{"ancestors", "ancestors("},
 		{"ancestors(visible_", "visible_heads()"},
-		{"author", "author"},
+		{"author", "author("},
 		{"author(m", "mine()"},
 		{"author( m", "mine()"},
 		{"present(@) | m", "mine()"},
