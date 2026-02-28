@@ -113,8 +113,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	content := lipgloss.JoinVertical(0, rows...)
 	content = m.styles.border.Padding(0, 1).Render(content)
 	box = box.Center(lipgloss.Size(content))
-	window := dl.Window(box.R, render.ZDialogs)
-	window.AddDraw(box.R, content, render.ZDialogs)
+	dl.AddBackdrop(box.R, render.ZDialogs)
+	dl.AddDraw(box.R, content, render.ZDialogs)
 }
 
 func newCmd(msg tea.Msg) tea.Cmd {

@@ -1,8 +1,6 @@
 package render
 
 import (
-	"sort"
-
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/ui/layout"
 )
@@ -110,64 +108,4 @@ func processMouseEvent(interactions []interactionOp, msg tea.MouseMsg, match int
 	}
 
 	return nil, false
-}
-
-// ProcessMouseEventWithWindows routes a mouse event through window scopes.
-func ProcessMouseEventWithWindows(interactions []interactionOp, windows []windowOp, msg tea.MouseMsg) (tea.Msg, bool) {
-	m := msg.Mouse()
-	windowID, windowHit := topWindowAt(windows, m.X, m.Y)
-	switch msg.(type) {
-	case tea.MouseClickMsg, tea.MouseWheelMsg:
-	default:
-		return nil, windowHit
-	}
-
-	sorted := make([]interactionOp, len(interactions))
-	copy(sorted, interactions)
-	sort.SliceStable(sorted, func(i, j int) bool {
-		if sorted[i].Z != sorted[j].Z {
-			return sorted[i].Z > sorted[j].Z
-		}
-		return sorted[i].order < sorted[j].order
-	})
-
-	msgResult, handled := processMouseEvent(sorted, msg, func(interaction interactionOp) bool {
-		return windowMatch(interaction.windowID, windowID, windowHit, len(windows) > 0)
-	})
-	if handled {
-		return msgResult, true
-	}
-	return nil, windowHit
-}
-
-func topWindowAt(windows []windowOp, x, y int) (int, bool) {
-	if len(windows) == 0 {
-		return 0, false
-	}
-	sorted := make([]windowOp, len(windows))
-	copy(sorted, windows)
-	sort.SliceStable(sorted, func(i, j int) bool {
-		if sorted[i].Z != sorted[j].Z {
-			return sorted[i].Z > sorted[j].Z
-		}
-		return sorted[i].Order > sorted[j].Order
-	})
-	for _, win := range sorted {
-		if x >= win.Rect.Min.X && x < win.Rect.Max.X &&
-			y >= win.Rect.Min.Y && y < win.Rect.Max.Y {
-			return win.ID, true
-		}
-	}
-	return 0, false
-}
-
-func windowMatch(interactionWindowID, windowID int, windowHit bool, windowsExist bool) bool {
-	if windowsExist && !windowHit {
-		// Windows are open but click was outside them - block all root interactions
-		return false
-	}
-	if windowHit {
-		return interactionWindowID == windowID
-	}
-	return interactionWindowID == 0
 }

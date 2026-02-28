@@ -97,7 +97,7 @@ func NewModel(ctx *context.MainContext) *Model {
 	ti.CharLimit = 0
 	ti.Focus()
 
-	return &Model{
+	m := &Model{
 		context: ctx,
 		input:   ti,
 		cursor:  0,
@@ -111,6 +111,8 @@ func NewModel(ctx *context.MainContext) *Model {
 		listRenderer:        render.NewListRenderer(itemScrollMsg{}),
 		ensureCursorVisible: true,
 	}
+	m.listRenderer.Z = render.ZMenuContent
+	return m
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -178,18 +180,18 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	centeredBox := box.Center(maxW, maxH)
 
 	frame := centeredBox
-	window := dl.Window(frame.R, render.ZMenuBorder)
+	dl.AddBackdrop(box.R, render.ZMenuBorder-1)
 	borderContent := m.styles.border.Width(frame.R.Dx()).Height(frame.R.Dy()).Render("")
-	window.AddDraw(frame.R, borderContent, render.ZMenuBorder)
+	dl.AddDraw(frame.R, borderContent, render.ZMenuBorder)
 	centeredBox = centeredBox.Inset(1)
 
 	inputBox, listBox := centeredBox.CutTop(1)
 	m.input.SetWidth(inputBox.R.Dx())
 
-	window.AddDraw(inputBox.R, m.input.View(), render.ZMenuContent)
+	dl.AddDraw(inputBox.R, m.input.View(), render.ZMenuContent)
 
 	m.listRenderer.Render(
-		window,
+		dl,
 		listBox,
 		len(m.matches),
 		m.cursor,
@@ -205,24 +207,24 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 			pillText := m.renderPill(item.Kind)
 			pillRect := layout.Rect(rect.Min.X, y, pillWidth, 1)
-			window.AddDraw(pillRect, pillText, render.ZMenuContent)
+			dl.AddDraw(pillRect, pillText, render.ZMenuContent)
 
 			isSelected := index == m.cursor
 			lineStyle := m.styles.bookmarkPill
 			matchStyle := m.styles.matchStyle
 			if isSelected {
-				window.AddHighlight(rect, m.styles.selected, render.ZMenuContent+1)
+				dl.AddHighlight(rect, m.styles.selected, render.ZMenuContent+1)
 			} else {
 				matchStyle = matchStyle.Inherit(lineStyle)
 			}
 			nameContent := fuzzy_search.HighlightMatched(item.Name, match, lineStyle, matchStyle)
 			nameX := rect.Min.X + pillWidth + 1
 			nameRect := layout.Rect(nameX, y, rect.Dx()-pillWidth-1, 1)
-			window.AddDraw(nameRect, nameContent, render.ZMenuContent)
+			dl.AddDraw(nameRect, nameContent, render.ZMenuContent)
 		},
 		func(index int) tea.Msg { return itemClickedMsg{index: index} },
 	)
-	m.listRenderer.RegisterScroll(window, listBox)
+	m.listRenderer.RegisterScroll(dl, listBox)
 	m.ensureCursorVisible = false
 }
 

@@ -44,6 +44,7 @@ type ClickMessageFunc func(index int) ClickMessage
 type ListRenderer struct {
 	StartLine     int
 	ScrollMsg     tea.Msg
+	Z             int // Interaction z-index; default is 0.
 	FirstRowIndex int
 	LastRowIndex  int
 }
@@ -119,7 +120,7 @@ func (r *ListRenderer) Render(
 			span.Rect,
 			clickMsg(span.Index),
 			InteractionClick,
-			0,
+			r.Z,
 		)
 	}
 
@@ -186,7 +187,7 @@ func (r *ListRenderer) RegisterScroll(dl *DisplayContext, viewRect layout.Box) {
 		viewRect.R,
 		r.ScrollMsg,
 		InteractionScroll,
-		0,
+		r.Z,
 	)
 }
 

@@ -110,73 +110,36 @@ func TestTextBuilder_MultipleSegments(t *testing.T) {
 	}
 }
 
-func TestTextBuilder_WindowedInteractions(t *testing.T) {
+func TestTextBuilder_BackdropSwallowsClick(t *testing.T) {
 	dl := NewDisplayContext()
 
-	// Create a window and add clickable text
-	windowRect := layout.Rect(10, 5, 20, 1)
-	windowedDl := dl.Window(windowRect, 10)
+	backdropRect := layout.Rect(0, 0, 50, 10)
+	dl.AddBackdrop(backdropRect, 10)
 
-	windowedDl.Text(10, 5, 0).
-		Write("Label: ").
-		Clickable("Click1", lipgloss.Style{}, testClickMsg{ID: 1}).
-		Write(" ").
-		Clickable("Click2", lipgloss.Style{}, testClickMsg{ID: 2}).
+	dl.Text(5, 5, 20).
+		Clickable("Click", lipgloss.Style{}, testClickMsg{ID: 1}).
 		Done()
 
-	// Simulate mouse click on "Click1" (should be at x=17 after "Label: " which is 7 chars)
-	mouseMsg := tea.MouseClickMsg{X: 17, Y: 5, Button: tea.MouseLeft}
-
-	result, handled := dl.ProcessMouseEvent(mouseMsg)
+	hitMsg := tea.MouseClickMsg{X: 5, Y: 5, Button: tea.MouseLeft}
+	result, handled := dl.ProcessMouseEvent(hitMsg)
 	if !handled {
 		t.Fatal("expected mouse event to be handled")
 	}
-
-	if result == nil {
-		t.Fatal("expected result message, got nil")
-	}
-
 	msg, ok := result.(testClickMsg)
 	if !ok {
 		t.Fatalf("expected testClickMsg, got %T", result)
 	}
-
 	if msg.ID != 1 {
 		t.Errorf("expected ID 1, got %d", msg.ID)
 	}
-}
 
-func TestTextBuilder_WindowPriority(t *testing.T) {
-	dl := NewDisplayContext()
-
-	// Create lower-priority window (z=5)
-	lowerWindow := dl.Window(layout.Rect(0, 0, 50, 10), 5)
-	lowerWindow.Text(10, 5, 0).
-		Clickable("Lower", lipgloss.Style{}, testClickMsg{ID: 100}).
-		Done()
-
-	// Create higher-priority window (z=10) overlapping the same area
-	higherWindow := dl.Window(layout.Rect(10, 5, 10, 1), 10)
-	higherWindow.Text(10, 5, 0).
-		Clickable("Higher", lipgloss.Style{}, testClickMsg{ID: 200}).
-		Done()
-
-	// Click at position that's inside both windows
-	mouseMsg := tea.MouseClickMsg{X: 10, Y: 5, Button: tea.MouseLeft}
-
-	result, handled := dl.ProcessMouseEvent(mouseMsg)
-	if !handled {
-		t.Fatal("expected mouse event to be handled")
+	missMsg := tea.MouseClickMsg{X: 40, Y: 5, Button: tea.MouseLeft}
+	result2, handled2 := dl.ProcessMouseEvent(missMsg)
+	if !handled2 {
+		t.Fatal("expected backdrop to swallow the click (handled=true)")
 	}
-
-	msg, ok := result.(testClickMsg)
-	if !ok {
-		t.Fatalf("expected testClickMsg, got %T", result)
-	}
-
-	// Should get the higher-priority window's message
-	if msg.ID != 200 {
-		t.Errorf("expected ID 200 (higher priority), got %d", msg.ID)
+	if result2 != nil {
+		t.Errorf("expected nil message from backdrop, got %v", result2)
 	}
 }
 

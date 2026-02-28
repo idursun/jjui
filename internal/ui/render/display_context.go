@@ -13,14 +13,10 @@ import (
 // Operations are accumulated during the layout/render pass,
 // then executed in order by batch and Z-index.
 type DisplayContext struct {
-	draws         []drawOp
-	effects       []effectOp
-	interactions  []interactionOp
-	orderCounter  int
-	windows       []windowOp
-	windowCounter int
-	parent        *DisplayContext
-	windowID      int
+	draws        []drawOp
+	effects      []effectOp
+	interactions []interactionOp
+	orderCounter int
 }
 
 // NewDisplayContext creates a new empty display context.
@@ -29,48 +25,22 @@ func NewDisplayContext() *DisplayContext {
 		draws:        make([]drawOp, 0, 16),
 		effects:      make([]effectOp, 0, 8),
 		interactions: make([]interactionOp, 0, 8),
-		windows:      make([]windowOp, 0, 4),
 	}
-}
-
-// Window creates a scoped display context that routes interactions to a window.
-func (dl *DisplayContext) Window(rect layout.Rectangle, z int) *DisplayContext {
-	root := dl.root()
-	root.windowCounter++
-	id := root.windowCounter
-	root.windows = append(root.windows, windowOp{
-		ID:    id,
-		Rect:  rect,
-		Z:     z,
-		Order: root.nextOrder(),
-	})
-	return &DisplayContext{parent: root, windowID: id}
-}
-
-func (dl *DisplayContext) root() *DisplayContext {
-	if dl.parent == nil {
-		return dl
-	}
-	return dl.parent
 }
 
 func (dl *DisplayContext) nextOrder() int {
-	root := dl.root()
-	root.orderCounter++
-	return root.orderCounter
+	dl.orderCounter++
+	return dl.orderCounter
 }
 
-func (dl *DisplayContext) currentWindowID() int {
-	if dl.parent == nil {
-		return 0
-	}
-	return dl.windowID
+// AddBackdrop swallows click/scroll input in a region.
+func (dl *DisplayContext) AddBackdrop(rect layout.Rectangle, z int) {
+	dl.AddInteraction(rect, nil, InteractionClick|InteractionScroll, z)
 }
 
 // AddDraw adds a Draw to the display context.
 func (dl *DisplayContext) AddDraw(rect layout.Rectangle, content string, z int) {
-	root := dl.root()
-	root.draws = append(root.draws, drawOp{
+	dl.draws = append(dl.draws, drawOp{
 		Draw: Draw{
 			Rect:    rect,
 			Content: content,
@@ -96,8 +66,7 @@ func (dl *DisplayContext) AddFill(rect layout.Rectangle, ch rune, style lipgloss
 // AddEffect adds a custom Effect to the display context.
 // This is the generic method that accepts any Effect implementation.
 func (dl *DisplayContext) AddEffect(effect Effect) {
-	root := dl.root()
-	root.effects = append(root.effects, effectOp{
+	dl.effects = append(dl.effects, effectOp{
 		effect: effect,
 		order:  dl.nextOrder(),
 		z:      effect.GetZ(),
@@ -141,29 +110,24 @@ func (dl *DisplayContext) AddPaint(rect layout.Rectangle, style lipgloss.Style, 
 
 // AddInteraction adds an InteractionOp to the display context.
 func (dl *DisplayContext) AddInteraction(rect layout.Rectangle, msg tea.Msg, typ InteractionType, z int) {
-	root := dl.root()
-	root.interactions = append(root.interactions, interactionOp{
+	dl.interactions = append(dl.interactions, interactionOp{
 		InteractionOp: InteractionOp{
 			Rect: rect,
 			Msg:  msg,
 			Type: typ,
 			Z:    z,
 		},
-		windowID: dl.currentWindowID(),
-		order:    dl.nextOrder(),
+		order: dl.nextOrder(),
 	})
 }
 
 // Clear removes all operations from the display context.
 // Useful for reusing a DisplayContext across frames.
 func (dl *DisplayContext) Clear() {
-	root := dl.root()
-	root.draws = root.draws[:0]
-	root.effects = root.effects[:0]
-	root.interactions = root.interactions[:0]
-	root.windows = root.windows[:0]
-	root.orderCounter = 0
-	root.windowCounter = 0
+	dl.draws = dl.draws[:0]
+	dl.effects = dl.effects[:0]
+	dl.interactions = dl.interactions[:0]
+	dl.orderCounter = 0
 }
 
 // Render executes all operations in the display context to the given screen.
@@ -171,18 +135,12 @@ func (dl *DisplayContext) Clear() {
 // 1. Draw sorted by Z-index (low to high)
 // 2. Effects sorted by Z-index (low to high)
 func (dl *DisplayContext) Render(buf uv.Screen) {
-	root := dl.root()
-	if root != dl {
-		root.Render(buf)
+	if len(dl.draws) == 0 && len(dl.effects) == 0 {
 		return
 	}
 
-	if len(root.draws) == 0 && len(root.effects) == 0 {
-		return
-	}
-
-	ops := make([]renderOp, 0, len(root.draws)+len(root.effects))
-	for _, op := range root.draws {
+	ops := make([]renderOp, 0, len(dl.draws)+len(dl.effects))
+	for _, op := range dl.draws {
 		ops = append(ops, renderOp{
 			z:      op.Z,
 			order:  op.order,
@@ -190,7 +148,7 @@ func (dl *DisplayContext) Render(buf uv.Screen) {
 			isDraw: true,
 		})
 	}
-	for _, op := range root.effects {
+	for _, op := range dl.effects {
 		ops = append(ops, renderOp{
 			z:      op.z,
 			order:  op.order,
@@ -224,9 +182,8 @@ func (dl *DisplayContext) RenderToString(width, height int) string {
 
 // DrawList returns a copy of all Draw calls (useful for debugging/inspection)
 func (dl *DisplayContext) DrawList() []Draw {
-	root := dl.root()
-	result := make([]Draw, len(root.draws))
-	for i, op := range root.draws {
+	result := make([]Draw, len(dl.draws))
+	for i, op := range dl.draws {
 		result[i] = op.Draw
 	}
 	return result
@@ -234,9 +191,8 @@ func (dl *DisplayContext) DrawList() []Draw {
 
 // EffectsList returns a copy of all Effects (useful for debugging/inspection)
 func (dl *DisplayContext) EffectsList() []Effect {
-	root := dl.root()
-	result := make([]Effect, len(root.effects))
-	for i, op := range root.effects {
+	result := make([]Effect, len(dl.effects))
+	for i, op := range dl.effects {
 		result[i] = op.effect
 	}
 	return result
@@ -244,9 +200,8 @@ func (dl *DisplayContext) EffectsList() []Effect {
 
 // InteractionsList returns all interactions sorted by Z-index (highest first for priority).
 func (dl *DisplayContext) InteractionsList() []InteractionOp {
-	root := dl.root()
-	sorted := make([]interactionOp, len(root.interactions))
-	copy(sorted, root.interactions)
+	sorted := make([]interactionOp, len(dl.interactions))
+	copy(sorted, dl.interactions)
 	sort.SliceStable(sorted, func(i, j int) bool {
 		if sorted[i].Z != sorted[j].Z {
 			return sorted[i].Z > sorted[j].Z
@@ -262,56 +217,32 @@ func (dl *DisplayContext) InteractionsList() []InteractionOp {
 
 // Merge adds all operations from another DisplayContext into this one.
 func (dl *DisplayContext) Merge(other *DisplayContext) {
-	root := dl.root()
-	source := other.root()
-
-	windowMap := make(map[int]int, len(source.windows))
-	for _, win := range source.windows {
-		root.windowCounter++
-		newID := root.windowCounter
-		windowMap[win.ID] = newID
-		root.windows = append(root.windows, windowOp{
-			ID:    newID,
-			Rect:  win.Rect,
-			Z:     win.Z,
-			Order: root.nextOrder(),
-		})
-	}
-
-	for _, op := range source.draws {
-		root.draws = append(root.draws, drawOp{
+	for _, op := range other.draws {
+		dl.draws = append(dl.draws, drawOp{
 			Draw:  op.Draw,
-			order: root.nextOrder(),
+			order: dl.nextOrder(),
 		})
 	}
 
-	for _, op := range source.effects {
-		root.effects = append(root.effects, effectOp{
+	for _, op := range other.effects {
+		dl.effects = append(dl.effects, effectOp{
 			effect: op.effect,
-			order:  root.nextOrder(),
+			order:  dl.nextOrder(),
 			z:      op.z,
 		})
 	}
 
-	for _, op := range source.interactions {
-		windowID := op.windowID
-		if windowID != 0 {
-			if remapped, ok := windowMap[windowID]; ok {
-				windowID = remapped
-			}
-		}
-		root.interactions = append(root.interactions, interactionOp{
+	for _, op := range other.interactions {
+		dl.interactions = append(dl.interactions, interactionOp{
 			InteractionOp: op.InteractionOp,
-			windowID:      windowID,
-			order:         root.nextOrder(),
+			order:         dl.nextOrder(),
 		})
 	}
 }
 
 // Len returns the total number of operations in the display context
 func (dl *DisplayContext) Len() int {
-	root := dl.root()
-	return len(root.draws) + len(root.effects) + len(root.interactions)
+	return len(dl.draws) + len(dl.effects) + len(dl.interactions)
 }
 
 type drawOp struct {
@@ -327,8 +258,7 @@ type effectOp struct {
 
 type interactionOp struct {
 	InteractionOp
-	windowID int
-	order    int
+	order int
 }
 
 type renderOp struct {
@@ -339,15 +269,22 @@ type renderOp struct {
 	isDraw bool
 }
 
-type windowOp struct {
-	ID    int
-	Rect  layout.Rectangle
-	Z     int
-	Order int
-}
-
-// ProcessMouseEvent routes a mouse event through the window stack.
+// ProcessMouseEvent routes a mouse event through the registered interactions.
 func (dl *DisplayContext) ProcessMouseEvent(msg tea.MouseMsg) (tea.Msg, bool) {
-	root := dl.root()
-	return ProcessMouseEventWithWindows(root.interactions, root.windows, msg)
+	switch msg.(type) {
+	case tea.MouseClickMsg, tea.MouseWheelMsg:
+	default:
+		return nil, false
+	}
+
+	sorted := make([]interactionOp, len(dl.interactions))
+	copy(sorted, dl.interactions)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		if sorted[i].Z != sorted[j].Z {
+			return sorted[i].Z > sorted[j].Z
+		}
+		return sorted[i].order < sorted[j].order
+	})
+
+	return processMouseEvent(sorted, msg, func(interactionOp) bool { return true })
 }

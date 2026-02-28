@@ -206,8 +206,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	sy := box.R.Min.Y
 
 	frame := layout.Rect(sx, sy, bw, bh)
-	window := dl.Window(frame, z)
-	window.AddDraw(frame, bordered, z)
+	dl.AddBackdrop(box.R, z-1)
+	dl.AddDraw(frame, bordered, z)
 
 	mt, mr, mb, ml := m.Styles.Border.GetMargin()
 	pt, pr, pb, pl := m.Styles.Border.GetPadding()
@@ -227,9 +227,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	background := lipgloss.NewStyle().Background(m.Styles.Text.GetBackground())
-	window.AddFill(contentRect, ' ', background, z+1)
+	dl.AddFill(contentRect, ' ', background, z+1)
 
-	tb := window.Text(contentRect.Min.X, contentRect.Min.Y, z+2)
+	tb := dl.Text(contentRect.Min.X, contentRect.Min.Y, z+2)
 	m.buildContent(tb)
 	tb.Done()
 }

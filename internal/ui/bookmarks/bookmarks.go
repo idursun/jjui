@@ -458,15 +458,15 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
-	window := dl.Window(frame.R, 10)
+	dl.AddBackdrop(box.R, render.ZMenuBorder-1)
 	contentBox := frame.Inset(1)
 	if contentBox.R.Dx() <= 0 || contentBox.R.Dy() <= 0 {
 		return
 	}
-	window.AddFill(contentBox.R, ' ', m.menuStyles.text, render.ZMenuContent)
+	dl.AddFill(contentBox.R, ' ', m.menuStyles.text, render.ZMenuContent)
 
 	borderBase := lipgloss.NewStyle().Width(contentBox.R.Dx()).Height(contentBox.R.Dy()).Render("")
-	window.AddDraw(frame.R, m.menuStyles.border.Render(borderBase), render.ZMenuBorder)
+	dl.AddDraw(frame.R, m.menuStyles.border.Render(borderBase), render.ZMenuBorder)
 
 	titleBox, contentBox := contentBox.CutTop(1)
 	dl.
@@ -476,32 +476,29 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	_, contentBox = contentBox.CutTop(1)
 	remoteBox, contentBox := contentBox.CutTop(1)
-	m.renderRemotes(window, remoteBox)
+	m.renderRemotes(dl, remoteBox)
 
 	_, contentBox = contentBox.CutTop(1)
 	filterBox, contentBox := contentBox.CutTop(1)
 	if m.filterState == filterEditing {
 		m.filterInput.SetWidth(max(contentBox.R.Dx()-2, 0))
-		window.AddDraw(filterBox.R, m.filterInput.View(), render.ZMenuContent)
+		dl.AddDraw(filterBox.R, m.filterInput.View(), render.ZMenuContent)
 	} else {
-		m.renderFilterView(window, filterBox)
+		m.renderFilterView(dl, filterBox)
 	}
 
 	_, listBox := contentBox.CutTop(1)
-	m.renderList(window, listBox)
+	m.renderList(dl, listBox)
 }
 
 func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
-	// Create a window for remotes with higher z-index than menu
-	// so that clicks are routed to this window instead of the menu
 	if lineBox.R.Dx() <= 0 || lineBox.R.Dy() <= 0 {
 		return
 	}
 	dl.AddFill(lineBox.R, ' ', m.menuStyles.text, render.ZMenuContent)
-	windowedDl := dl.Window(lineBox.R, render.ZMenuContent)
 
 	// Render above menu content
-	tb := windowedDl.Text(lineBox.R.Min.X, lineBox.R.Min.Y, render.ZMenuContent+1).
+	tb := dl.Text(lineBox.R.Min.X, lineBox.R.Min.Y, render.ZMenuContent+1).
 		Styled(" ", m.menuStyles.text).
 		Styled("Remotes: ", m.remoteStyles.promptStyle)
 
@@ -572,6 +569,7 @@ func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string) *M
 		title:             "Bookmark Operations",
 		allItems:          make([]item, 0),
 	}
+	m.listRenderer.Z = render.ZMenuContent
 
 	m.filterInput = textinput.New()
 	m.filterInput.Prompt = "Filter: "

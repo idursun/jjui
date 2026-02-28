@@ -76,7 +76,7 @@ func NewWithOptions(options []string, title string, filterable bool, ordered boo
 	ti.CharLimit = 100
 	ti.SetWidth(20)
 
-	return &Model{
+	m := &Model{
 		options:         options,
 		filteredOptions: options,
 		title:           title,
@@ -92,6 +92,8 @@ func NewWithOptions(options []string, title string, filterable bool, ordered boo
 		ordered:      ordered,
 		input:        ti,
 	}
+	m.listRenderer.Z = render.ZMenuContent
+	return m
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -273,26 +275,26 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
-	window := dl.Window(frame.R, render.ZMenuContent)
+	dl.AddBackdrop(box.R, render.ZMenuBorder-1)
 	contentBox := frame.Inset(1)
 	if contentBox.R.Dx() <= 0 || contentBox.R.Dy() <= 0 {
 		return
 	}
 
 	borderBase := lipgloss.NewStyle().Width(contentBox.R.Dx()).Height(contentBox.R.Dy()).Render("")
-	window.AddDraw(frame.R, m.styles.border.Render(borderBase), render.ZMenuBorder)
+	dl.AddDraw(frame.R, m.styles.border.Render(borderBase), render.ZMenuBorder)
 
 	listBox := contentBox
 	if titleHeight > 0 {
 		var titleBox layout.Box
 		titleBox, listBox = contentBox.CutTop(1)
-		window.AddDraw(titleBox.R, m.styles.title.Render(m.title), render.ZMenuContent)
+		dl.AddDraw(titleBox.R, m.styles.title.Render(m.title), render.ZMenuContent)
 	}
 
 	if inputHeight > 0 {
 		var inputBox layout.Box
 		inputBox, listBox = listBox.CutTop(1)
-		window.AddDraw(inputBox.R, m.styles.input.Render(m.input.View()), render.ZMenuContent)
+		dl.AddDraw(inputBox.R, m.styles.input.Render(m.input.View()), render.ZMenuContent)
 	}
 
 	if listBox.R.Dx() <= 0 || listBox.R.Dy() <= 0 {
@@ -302,7 +304,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	itemCount := len(m.filteredOptions)
 	m.listRenderer.StartLine = render.ClampStartLine(m.listRenderer.StartLine, listBox.R.Dy(), itemCount)
 	m.listRenderer.Render(
-		window,
+		dl,
 		listBox,
 		itemCount,
 		m.selected,
@@ -325,7 +327,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		},
 		func(index int) tea.Msg { return itemClickMsg{Index: index} },
 	)
-	m.listRenderer.RegisterScroll(window, listBox)
+	m.listRenderer.RegisterScroll(dl, listBox)
 	m.ensureCursorVisible = false
 }
 
