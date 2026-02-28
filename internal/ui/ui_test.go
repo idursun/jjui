@@ -143,6 +143,53 @@ func Test_Update_PreviewResizeKeysWorkWhenVisible(t *testing.T) {
 	}
 }
 
+func Test_DispatchScopes_StatusExpandedTakesPrecedenceOverPreviewForCollidingKeys(t *testing.T) {
+	origBindings := config.Current.Bindings
+	defer func() {
+		config.Current.Bindings = origBindings
+	}()
+	config.Current.Bindings = []config.BindingConfig{
+		{Action: "ui.status_scroll_up", Scope: "ui.status_expanded", Key: config.StringList{"ctrl+p"}},
+		{Action: "ui.status_scroll_down", Scope: "ui.status_expanded", Key: config.StringList{"ctrl+n"}},
+		{Action: "ui.preview_scroll_up", Scope: "ui.preview", Key: config.StringList{"ctrl+p"}},
+		{Action: "ui.preview_scroll_down", Scope: "ui.preview", Key: config.StringList{"ctrl+n"}},
+	}
+
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.previewModel.SetVisible(true)
+	model.status.SetStatusExpanded(true)
+
+	scopes := model.dispatchScopes()
+	require.Contains(t, scopes, scopeStatusExpanded)
+	require.Contains(t, scopes, scopePreview)
+
+	statusIdx := -1
+	previewIdx := -1
+	for i, scope := range scopes {
+		if scope == scopeStatusExpanded && statusIdx == -1 {
+			statusIdx = i
+		}
+		if scope == scopePreview && previewIdx == -1 {
+			previewIdx = i
+		}
+	}
+	require.NotEqual(t, -1, statusIdx)
+	require.NotEqual(t, -1, previewIdx)
+	assert.Less(t, statusIdx, previewIdx, "status-expanded scope should be resolved before preview scope")
+
+	up := model.resolver.ResolveKey(tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl}, scopes, model.intentOverride())
+	upIntent, ok := up.Intent.(intents.StatusScroll)
+	require.True(t, ok, "ctrl+p should resolve to status scroll intent when status is expanded")
+	assert.Equal(t, intents.StatusScrollUp, upIntent.Kind)
+
+	down := model.resolver.ResolveKey(tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl}, scopes, model.intentOverride())
+	downIntent, ok := down.Intent.(intents.StatusScroll)
+	require.True(t, ok, "ctrl+n should resolve to status scroll intent when status is expanded")
+	assert.Equal(t, intents.StatusScrollDown, downIntent.Kind)
+}
+
 func Test_UpdateStatus_RevsetEditingShowsRevsetHelp(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll())

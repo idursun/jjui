@@ -73,6 +73,7 @@ type triggerAutoRefreshMsg struct{}
 const (
 	scopeUi               keybindings.Scope = "ui"
 	scopePreview          keybindings.Scope = "ui.preview"
+	scopeStatusExpanded   keybindings.Scope = "ui.status_expanded"
 	scopeDiff             keybindings.Scope = "diff"
 	scopeRevset           keybindings.Scope = "revset"
 	scopeFileSearch       keybindings.Scope = "file_search"
@@ -585,6 +586,25 @@ func (m *Model) handleUiRootIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return m.previewModel.HalfPageDown(), true
 		}
 		return nil, true
+	case intents.StatusScroll:
+		if !m.status.StatusExpanded() {
+			return nil, true
+		}
+		switch intent.Kind {
+		case intents.StatusScrollUp:
+			m.status.ScrollExpanded(-1)
+		case intents.StatusScrollDown:
+			m.status.ScrollExpanded(1)
+		case intents.StatusPageUp:
+			m.status.PageUpExpanded()
+		case intents.StatusPageDown:
+			m.status.PageDownExpanded()
+		case intents.StatusHalfPageUp:
+			m.status.HalfPageUpExpanded()
+		case intents.StatusHalfPageDown:
+			m.status.HalfPageDownExpanded()
+		}
+		return nil, true
 	case intents.QuickSearch:
 		if m.oplog == nil && !m.revisions.InNormalMode() {
 			return nil, true
@@ -846,10 +866,13 @@ func (m *Model) dispatchScopes() []keybindings.Scope {
 		return []keybindings.Scope{scopeCommandHistory}
 	}
 	primary := m.primaryScope()
-	if primary == "" {
-		return nil
-	}
 	var scopes []keybindings.Scope
+	if m.status.StatusExpanded() && !m.status.IsFocused() {
+		scopes = append(scopes, scopeStatusExpanded)
+	}
+	if primary == "" {
+		return scopes
+	}
 	if m.oplog != nil && m.oplog.HasQuickSearch() {
 		scopes = append(scopes, scopeOplogQuickSearch)
 	}
@@ -952,7 +975,14 @@ func (m *Model) initConfiguredActions() {
 }
 
 func (m *Model) bindingStatusHelp() []helpkeys.Entry {
-	scopes := m.dispatchScopes()
+	dispatchScopes := m.dispatchScopes()
+	scopes := make([]keybindings.Scope, 0, len(dispatchScopes))
+	for _, scope := range dispatchScopes {
+		if scope == scopeStatusExpanded {
+			continue
+		}
+		scopes = append(scopes, scope)
+	}
 	if len(scopes) == 0 {
 		return nil
 	}
