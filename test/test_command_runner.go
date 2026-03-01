@@ -59,6 +59,10 @@ func (t *CommandRunner) RunCommandImmediate(args []string) ([]byte, error) {
 	return nil, nil
 }
 
+func (t *CommandRunner) RunCommandWithPTY(args []string, cols int, rows int) ([]byte, error) {
+	return t.RunCommandImmediate(args)
+}
+
 func (t *CommandRunner) RunCommandStreaming(_ context.Context, args []string) (*appContext.StreamingCommand, error) {
 	reader, err := t.RunCommandImmediate(args)
 	return &appContext.StreamingCommand{
