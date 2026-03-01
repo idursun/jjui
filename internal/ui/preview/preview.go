@@ -225,7 +225,7 @@ func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
 			})
 		}
 
-		output, _ := m.context.RunCommandImmediate(args)
+		output, _ := m.context.RunCommandWithPTY(args, m.view.Width(), m.view.Height())
 		return updatePreviewContentMsg{
 			Content: string(output),
 		}
@@ -247,6 +247,7 @@ func New(context *context.MainContext) *Model {
 	}
 
 	return &Model{
+		view:                viewport.Model{SoftWrap: true},
 		context:             context,
 		previewAutoPosition: previewAutoPosition,
 		previewAtBottom:     previewAtBottom,

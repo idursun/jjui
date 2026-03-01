@@ -13,14 +13,18 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/creack/pty/v2"
 	"github.com/idursun/jjui/internal/askpass"
 	"github.com/idursun/jjui/internal/ui/common"
+	"golang.org/x/term"
 )
 
 type CommandRunner interface {
 	RunCommandImmediate(args []string) ([]byte, error)
+	RunCommandWithPTY(args []string, cols int, rows int) ([]byte, error)
 	RunCommandStreaming(ctx context.Context, args []string) (*StreamingCommand, error)
 	RunCommand(args []string, continuations ...tea.Cmd) tea.Cmd
 	RunCommandWithInput(args []string, input string, continuations ...tea.Cmd) tea.Cmd
@@ -47,6 +51,53 @@ func (a *MainCommandRunner) RunCommandImmediate(args []string) ([]byte, error) {
 	} else {
 		return bytes.Trim(output, "\n"), nil
 	}
+}
+
+func (a *MainCommandRunner) RunCommandWithPTY(args []string, cols int, rows int) ([]byte, error) {
+	ptmx, pts, err := pty.Open()
+	if err != nil {
+		if errors.Is(err, pty.ErrUnsupported) {
+			return a.RunCommandImmediate(args)
+		}
+		return nil, err
+	}
+	defer ptmx.Close()
+
+	pty.Setsize(pts, &pty.Winsize{Cols: uint16(cols), Rows: uint16(rows)})
+
+	// Raw mode disables the line discipline so the kernel passes data through
+	// without per-character processing. Without this, long lines cause hangs.
+	_, _ = term.MakeRaw(int(ptmx.Fd()))
+
+	args = append([]string{"--no-pager"}, args...)
+	c := exec.Command("jj", args...)
+	c.Dir = a.Location
+	c.Env = append(os.Environ(), "TERM=dumb")
+	c.Stdout = pts
+	c.Stderr = pts
+	// stdin deliberately left unset (defaults to /dev/null) so pagers
+	// and interactive tools don't block waiting for input.
+
+	if err := c.Start(); err != nil {
+		pts.Close()
+		return nil, err
+	}
+	// Close the slave side in the parent after the child inherits it,
+	// so ReadAll gets EOF when the child exits.
+	pts.Close()
+
+	output, readErr := io.ReadAll(ptmx)
+
+	waitErr := c.Wait()
+
+	if readErr != nil && !errors.Is(readErr, syscall.EIO) {
+		return nil, readErr
+	}
+
+	if waitErr != nil {
+		return bytes.TrimRight(output, "\n"), waitErr
+	}
+	return bytes.TrimRight(output, "\n"), nil
 }
 
 func (a *MainCommandRunner) RunCommandStreaming(ctx context.Context, args []string) (*StreamingCommand, error) {

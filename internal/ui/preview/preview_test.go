@@ -29,6 +29,8 @@ func TestModel_View(t *testing.T) {
 		expected string
 	}{
 		{
+			// With soft-wrap, lines longer than the viewport width wrap onto
+			// the next visual line rather than being clipped.
 			name:     "clips",
 			scrollBy: layout.Position{},
 			width:    5,
@@ -40,7 +42,7 @@ func TestModel_View(t *testing.T) {
 			`),
 			expected: test.Stripped(`
 			+++++
-			+abcd
+			..
 			`),
 		},
 		{
@@ -56,11 +58,13 @@ func TestModel_View(t *testing.T) {
 			`),
 			expected: test.Stripped(`
 			+++++
+			..
 			+abcd
-			+++++
 			`),
 		},
 		{
+			// With soft-wrap enabled, horizontal scroll has no effect; lines
+			// wrap at the viewport width instead.
 			name:     "Scroll by down and right",
 			scrollBy: layout.Position{X: 1, Y: 1},
 			width:    5,
@@ -71,8 +75,8 @@ func TestModel_View(t *testing.T) {
 			.......
 			`),
 			expected: test.Stripped(`
-			abcde
-			.....
+			..
+			.abcd
 			`),
 		},
 		{
@@ -87,11 +91,14 @@ func TestModel_View(t *testing.T) {
 			.......
 			`),
 			expected: test.Stripped(`
+			..
 			.abcd
-			.....
+			e.
 			`),
 		},
 		{
+			// Horizontal scroll is a no-op with soft-wrap; the view starts
+			// from the top unchanged.
 			name:     "Scroll 2 right when at bottom",
 			scrollBy: layout.Position{X: 2, Y: 0},
 			atBottom: true,
@@ -104,8 +111,8 @@ func TestModel_View(t *testing.T) {
 			`),
 			expected: test.Stripped(`
 			.....
-			bcde.
-			.....
+			..
+			.abcd
 			`),
 		},
 	}
