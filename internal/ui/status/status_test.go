@@ -69,3 +69,15 @@ func TestStatus_Update_ExecProcessCompletedMsg(t *testing.T) {
 		})
 	}
 }
+
+func TestModel_BuildHelpGrid_ColumnMajorOrder(t *testing.T) {
+	m := &Model{}
+	entries := []string{"A", "B", "C", "D", "E", "F"}
+
+	lines := m.buildHelpGrid(entries, 1, 9)
+
+	assert.Equal(t, []string{
+		"A  C  E",
+		"B  D  F",
+	}, lines)
+}
