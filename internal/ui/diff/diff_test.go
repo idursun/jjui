@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -16,33 +17,100 @@ func TestNew_TrimsCarriageReturnsAndHandlesEmpty(t *testing.T) {
 	assert.Equal(t, "(empty)", test.Stripped(test.RenderImmediate(emptyModel, 10, 3)))
 }
 
-func TestScroll_AdjustsViewportOffset(t *testing.T) {
-	content := "1\n2\n3\n4\n5\n"
-	model := New(content)
+func TestScroll_ChangesVisibleContent(t *testing.T) {
+	model := New("1\n2\n3\n4\n5")
 
-	model.Scroll(2)
-	assert.Equal(t, 2, model.view.YOffset())
+	// Initially line 1 should be visible
+	before := test.Stripped(test.RenderImmediate(model, 10, 2))
+	assert.Contains(t, before, "1")
 
-	model.Scroll(-1)
-	assert.Equal(t, 1, model.view.YOffset())
+	// Scroll down 2 — line 1 should no longer be visible
+	model.Update(intents.DiffScroll{Kind: intents.DiffScrollDown})
+	model.Update(intents.DiffScroll{Kind: intents.DiffScrollDown})
+	after := test.Stripped(test.RenderImmediate(model, 10, 2))
+	assert.NotContains(t, after, "1")
+	assert.Contains(t, after, "3")
 }
 
-func TestUpdate_ScrollMsgStillScrolls(t *testing.T) {
-	model := New("1\n2\n3\n4\n5\n")
-	cmd := model.Update(ScrollMsg{Delta: 1})
-	assert.Nil(t, cmd)
-	assert.Equal(t, 1, model.view.YOffset())
+func TestUpdate_ScrollMsgScrollsContent(t *testing.T) {
+	model := New("a\nb\nc\nd\ne")
+
+	// Line "a" should be visible before scroll
+	before := test.Stripped(test.RenderImmediate(model, 10, 2))
+	assert.Contains(t, before, "a")
+
+	model.Update(ScrollMsg{Delta: 2})
+	after := test.Stripped(test.RenderImmediate(model, 10, 2))
+	assert.NotContains(t, after, "a")
+	assert.Contains(t, after, "c")
 }
 
-func TestUpdate_DiffScrollIntent(t *testing.T) {
-	model := New("1\n2\n3\n4\n5\n")
-	model.view.SetHeight(3)
+func TestUpdate_DiffScrollIntentChangesContent(t *testing.T) {
+	model := New("1\n2\n3\n4\n5")
 
-	cmd := model.Update(intents.DiffScroll{Kind: intents.DiffScrollDown})
-	assert.Nil(t, cmd)
-	assert.Equal(t, 1, model.view.YOffset())
+	first := test.Stripped(test.RenderImmediate(model, 10, 2))
+	assert.Contains(t, first, "1")
 
-	cmd = model.Update(intents.DiffScroll{Kind: intents.DiffScrollUp})
-	assert.Nil(t, cmd)
-	assert.Equal(t, 0, model.view.YOffset())
+	model.Update(intents.DiffScroll{Kind: intents.DiffScrollDown})
+	second := test.Stripped(test.RenderImmediate(model, 10, 2))
+	assert.NotContains(t, second, "1")
+	assert.Contains(t, second, "2")
+
+	model.Update(intents.DiffScroll{Kind: intents.DiffScrollUp})
+	third := test.Stripped(test.RenderImmediate(model, 10, 2))
+	assert.Contains(t, third, "1")
+}
+
+func TestWrap_LongLinesWrapAtViewportWidth(t *testing.T) {
+	// 20-character line rendered in a 10-wide viewport should produce 2 visual rows
+	model := New("12345678901234567890")
+	model.Update(intents.DiffToggleWrap{})
+
+	rendered := test.Stripped(test.RenderImmediate(model, 10, 3))
+	lines := strings.Split(rendered, "\n")
+	// Both halves should be present
+	assert.Equal(t, "1234567890", lines[0])
+	assert.Equal(t, "1234567890", lines[1])
+}
+
+func TestWrap_ResizeRecomputes(t *testing.T) {
+	// Line of 20 chars
+	model := New("12345678901234567890")
+	model.Update(intents.DiffToggleWrap{})
+
+	// At width 10, line occupies 2 visual rows.
+	rendered := test.Stripped(test.RenderImmediate(model, 10, 5))
+	assert.Contains(t, rendered, "1234567890\n1234567890")
+
+	// At width 5, line occupies 4 visual rows.
+	rendered = test.Stripped(test.RenderImmediate(model, 5, 10))
+	assert.Contains(t, rendered, "12345\n67890\n12345\n67890")
+}
+
+func TestNoWrap_HorizontalScroll(t *testing.T) {
+	// 20-character line rendered in a 10-wide viewport
+	model := New("abcdefghijklmnopqrst")
+
+	// Without horizontal scroll, first 10 chars visible
+	rendered := test.Stripped(test.RenderImmediate(model, 10, 1))
+	assert.Equal(t, "abcdefghij", rendered)
+
+	// Scroll right 5 columns
+	for range 5 {
+		model.Update(intents.DiffScrollHorizontal{Kind: intents.DiffScrollRight})
+	}
+	rendered = test.Stripped(test.RenderImmediate(model, 10, 1))
+	assert.Equal(t, "fghijklmno", rendered)
+}
+
+func TestWrap_HorizontalScrollIsNoop(t *testing.T) {
+	model := New("abcdefghijklmnopqrst")
+	model.Update(intents.DiffToggleWrap{})
+	before := test.Stripped(test.RenderImmediate(model, 10, 2))
+
+	// Horizontal scroll should not change output in wrap mode.
+	model.Update(intents.DiffScrollHorizontal{Kind: intents.DiffScrollRight})
+	model.Update(intents.DiffScrollHorizontal{Kind: intents.DiffScrollRight})
+	after := test.Stripped(test.RenderImmediate(model, 10, 2))
+	assert.Equal(t, before, after)
 }

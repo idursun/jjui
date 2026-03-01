@@ -70,6 +70,7 @@ const (
 	DiffRight                              keybindings.Action = "diff.right"
 	DiffScrollDown                         keybindings.Action = "diff.scroll_down"
 	DiffScrollUp                           keybindings.Action = "diff.scroll_up"
+	DiffToggleWrap                         keybindings.Action = "diff.toggle_wrap"
 	FileSearchApply                        keybindings.Action = "file_search.apply"
 	FileSearchCancel                       keybindings.Action = "file_search.cancel"
 	FileSearchEdit                         keybindings.Action = "file_search.edit"
@@ -358,6 +359,8 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.DiffScroll{Kind: intents.DiffScrollDown}, true
 		case keybindings.Action("diff.scroll_up"):
 			return intents.DiffScroll{Kind: intents.DiffScrollUp}, true
+		case keybindings.Action("diff.toggle_wrap"):
+			return intents.DiffToggleWrap{}, true
 		}
 	case OwnerFileSearch:
 		switch action {

@@ -37,3 +37,8 @@ type DiffScrollHorizontal struct {
 }
 
 func (DiffScrollHorizontal) isIntent() {}
+
+//jjui:bind scope=diff action=toggle_wrap
+type DiffToggleWrap struct{}
+
+func (DiffToggleWrap) isIntent() {}
