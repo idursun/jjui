@@ -449,7 +449,7 @@ func (m *Model) applyCompletion(input string, item CompletionItem) string {
 		return item.Name
 	}
 
-    paren := ""
+	paren := ""
 	if item.Kind == KindFunction {
 		if !item.HasParameters {
 			paren = "()"
@@ -457,8 +457,7 @@ func (m *Model) applyCompletion(input string, item CompletionItem) string {
 			paren = "("
 		}
 	}
-	completionText:= item.Name + paren
-
+	completionText := item.Name + paren
 
 	lastTokenIndex, _ := m.completionProvider.GetLastToken(input)
 	if lastTokenIndex > 0 {
