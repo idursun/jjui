@@ -44,6 +44,9 @@ type Model struct {
 	styles          styles
 	statusExpanded  bool
 	statusTruncated bool
+	expandedOffset  int
+	expandedTotal   int
+	expandedVisible int
 }
 
 type styles struct {
@@ -235,15 +238,39 @@ func (m *Model) renderContent(width, modeWidth int) string {
 // renderExpandedStatus orchestrates expanded help overlay
 func (m *Model) renderExpandedStatus(dl *render.DisplayContext, box layout.Box, width int) {
 	if !m.statusExpanded || len(m.entries) == 0 || m.IsFocused() {
+		m.expandedVisible = 0
+		m.expandedTotal = 0
+		m.expandedOffset = 0
 		return
 	}
 
 	expandedHelp, contentLineCount := m.expandedStatusView(m.entries, max(0, width-4))
 	expandedLines := strings.Split(expandedHelp, "\n")
-	startY := box.R.Min.Y - contentLineCount
+	m.expandedTotal = len(expandedLines)
+
+	availableRows := box.R.Min.Y + 1 // includes the status row at the bottom
+	if availableRows <= 1 {
+		m.expandedVisible = 0
+		m.expandedOffset = 0
+		return
+	}
+	maxOverlayRows := max(4, (availableRows*3)/4)
+	maxOverlayRows = min(maxOverlayRows, availableRows)
+	maxContentRows := maxOverlayRows - 1 // reserve one row for top border
+	if maxContentRows <= 0 {
+		m.expandedVisible = 0
+		m.expandedOffset = 0
+		return
+	}
+	m.expandedVisible = min(contentLineCount, maxContentRows)
+	maxOffset := max(0, m.expandedTotal-m.expandedVisible)
+	m.expandedOffset = min(max(m.expandedOffset, 0), maxOffset)
+
+	visible := expandedLines[m.expandedOffset : m.expandedOffset+m.expandedVisible]
+	startY := box.R.Min.Y - m.expandedVisible
 
 	m.renderExpandedStatusBorder(dl, box, width, startY)
-	m.renderExpandedStatusContent(dl, box, width, startY, expandedLines)
+	m.renderExpandedStatusContent(dl, box, width, startY, visible)
 }
 
 // renderExpandedStatusBorder draws the top border of expanded status
@@ -251,11 +278,34 @@ func (m *Model) renderExpandedStatusBorder(dl *render.DisplayContext, box layout
 	if startY < 0 {
 		return
 	}
-	modeLabel := m.styles.title.Render("  " + m.mode + "  ")
-	borderLine := strings.Repeat("─", max(0, width-lipgloss.Width(modeLabel)))
+	modeText := "  " + m.mode
+	if indicator := strings.TrimSpace(m.expandedScrollIndicator()); indicator != "" {
+		modeText += indicator
+	}
+	modeLabel := m.styles.title.Render(modeText + "  ")
+	borderLineWidth := max(0, width-lipgloss.Width(modeLabel))
+	borderLine := strings.Repeat("─", borderLineWidth)
 	topBorder := modeLabel + m.styles.dimmed.Render(borderLine)
 	borderRect := layout.Rect(box.R.Min.X, startY, width, 1)
 	dl.AddDraw(borderRect, topBorder, render.ZExpandedStatus)
+}
+
+func (m *Model) expandedScrollIndicator() string {
+	if m.expandedVisible <= 0 || m.expandedTotal <= m.expandedVisible {
+		return ""
+	}
+	above := m.expandedOffset > 0
+	below := m.expandedOffset+m.expandedVisible < m.expandedTotal
+	switch {
+	case above && below:
+		return " ↕ "
+	case above:
+		return " ↑ "
+	case below:
+		return " ↓ "
+	default:
+		return ""
+	}
 }
 
 // renderExpandedStatusContent draws the content for the expanded status
@@ -321,6 +371,9 @@ func (m *Model) ToggleStatusExpand() {
 	}
 	if m.statusExpanded || m.statusTruncated {
 		m.statusExpanded = !m.statusExpanded
+		if !m.statusExpanded {
+			m.expandedOffset = 0
+		}
 	}
 }
 
@@ -330,6 +383,9 @@ func (m *Model) SetStatusExpanded(expanded bool) {
 		return
 	}
 	m.statusExpanded = expanded
+	if !expanded {
+		m.expandedOffset = 0
+	}
 }
 
 func (m *Model) Help() []helpkeys.Entry {
@@ -353,6 +409,34 @@ func (m *Model) SetMode(mode string) {
 
 func (m *Model) Mode() string {
 	return m.mode
+}
+
+func (m *Model) ScrollExpanded(delta int) {
+	if !m.statusExpanded || m.expandedVisible <= 0 || m.expandedTotal <= m.expandedVisible {
+		return
+	}
+	maxOffset := m.expandedTotal - m.expandedVisible
+	m.expandedOffset = min(max(m.expandedOffset+delta, 0), maxOffset)
+}
+
+func (m *Model) HalfPageDownExpanded() {
+	step := max(1, m.expandedVisible/2)
+	m.ScrollExpanded(step)
+}
+
+func (m *Model) HalfPageUpExpanded() {
+	step := max(1, m.expandedVisible/2)
+	m.ScrollExpanded(-step)
+}
+
+func (m *Model) PageDownExpanded() {
+	step := max(1, m.expandedVisible)
+	m.ScrollExpanded(step)
+}
+
+func (m *Model) PageUpExpanded() {
+	step := max(1, m.expandedVisible)
+	m.ScrollExpanded(-step)
 }
 
 func (m *Model) InputValue() string {

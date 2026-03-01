@@ -267,6 +267,12 @@ const (
 	UiPreviewToggleBottom                  keybindings.Action = "ui.preview_toggle_bottom"
 	UiQuickSearch                          keybindings.Action = "ui.quick_search"
 	UiQuit                                 keybindings.Action = "ui.quit"
+	UiStatusHalfPageDown                   keybindings.Action = "ui.status_half_page_down"
+	UiStatusHalfPageUp                     keybindings.Action = "ui.status_half_page_up"
+	UiStatusPageDown                       keybindings.Action = "ui.status_page_down"
+	UiStatusPageUp                         keybindings.Action = "ui.status_page_up"
+	UiStatusScrollDown                     keybindings.Action = "ui.status_scroll_down"
+	UiStatusScrollUp                       keybindings.Action = "ui.status_scroll_up"
 	UiSuspend                              keybindings.Action = "ui.suspend"
 	UndoApply                              keybindings.Action = "undo.apply"
 	UndoCancel                             keybindings.Action = "undo.cancel"
@@ -827,6 +833,18 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.QuickSearch{}, true
 		case keybindings.Action("ui.quit"):
 			return intents.Quit{}, true
+		case keybindings.Action("ui.status_half_page_down"):
+			return intents.StatusScroll{Kind: intents.StatusHalfPageDown}, true
+		case keybindings.Action("ui.status_half_page_up"):
+			return intents.StatusScroll{Kind: intents.StatusHalfPageUp}, true
+		case keybindings.Action("ui.status_page_down"):
+			return intents.StatusScroll{Kind: intents.StatusPageDown}, true
+		case keybindings.Action("ui.status_page_up"):
+			return intents.StatusScroll{Kind: intents.StatusPageUp}, true
+		case keybindings.Action("ui.status_scroll_down"):
+			return intents.StatusScroll{Kind: intents.StatusScrollDown}, true
+		case keybindings.Action("ui.status_scroll_up"):
+			return intents.StatusScroll{Kind: intents.StatusScrollUp}, true
 		case keybindings.Action("ui.suspend"):
 			return intents.Suspend{}, true
 		}
