@@ -405,7 +405,7 @@ func (m *Model) buildHelpGrid(entries []string, maxEntryWidth, maxWidth int) []s
 	for row := range numRows {
 		var line strings.Builder
 		for col := range numCols {
-			idx := row*numCols + col
+			idx := col*numRows + row
 			if idx < len(entries) {
 				entry := entries[idx]
 				line.WriteString(entry)
