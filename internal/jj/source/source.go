@@ -26,17 +26,6 @@ type Item struct {
 	HasParameters bool
 }
 
-// DisplayName returns the item name, appending "()" for parameterless functions and "(" for functions with parameters.
-func (i Item) DisplayName() string {
-	if i.Kind == KindFunction {
-		if !i.HasParameters {
-			return i.Name + "()"
-		}
-		return i.Name + "("
-	}
-	return i.Name
-}
-
 // Runner executes a jj command and returns its output.
 type Runner = func([]string) ([]byte, error)
 

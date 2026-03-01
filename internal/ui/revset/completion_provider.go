@@ -25,6 +25,7 @@ type CompletionItem struct {
 	Kind          CompletionKind
 	MatchedPart   string
 	RestPart      string
+	HasParameters bool
 }
 
 type CompletionProvider struct {
@@ -70,10 +71,18 @@ func (p *CompletionProvider) GetCompletions(input string) []string {
 		return nil
 	}
 
-	for _, item := range p.items {
-		if item.Kind == KindFunction || item.Kind == KindAlias {
-			if strings.HasPrefix(item.Name, lastToken) {
-				suggestions = append(suggestions, item.DisplayName())
+	for _, si := range p.items {
+		if si.Kind == KindFunction || si.Kind == KindAlias {
+			if strings.HasPrefix(si.Name, lastToken) {
+				paren := ""
+				if si.Kind == KindFunction {
+					if !si.HasParameters {
+						paren = "()"
+					} else {
+						paren = "("
+					}
+				}
+				suggestions = append(suggestions, si.Name+paren)
 			}
 		}
 	}
@@ -102,13 +111,13 @@ func (p *CompletionProvider) GetCompletionItems(input string, history []string) 
 		}
 		// No history: fall through to show all available completions
 		for _, si := range p.items {
-			name := si.DisplayName()
 			items = append(items, CompletionItem{
-				Name:          name,
+				Name:          si.Name,
 				SignatureHelp: si.SignatureHelp,
 				Kind:          si.Kind,
 				MatchedPart:   "",
-				RestPart:      name,
+				RestPart:      si.Name,
+				HasParameters: si.HasParameters,
 			})
 		}
 		return items
@@ -121,13 +130,13 @@ func (p *CompletionProvider) GetCompletionItems(input string, history []string) 
 
 	for _, si := range p.items {
 		if strings.HasPrefix(si.Name, lastToken) {
-			name := si.DisplayName()
 			items = append(items, CompletionItem{
-				Name:          name,
+				Name:          si.Name,
 				SignatureHelp: si.SignatureHelp,
 				Kind:          si.Kind,
 				MatchedPart:   lastToken,
-				RestPart:      strings.TrimPrefix(name, lastToken),
+				RestPart:      strings.TrimPrefix(si.Name, lastToken),
+				HasParameters: si.HasParameters,
 			})
 		}
 	}
