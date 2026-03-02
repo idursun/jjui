@@ -187,27 +187,6 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		}
 		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intent)})
 	}))
-	revisionsTable.RawSetString("start_squash", L.NewFunction(func(L *lua.LState) int {
-		payload := payloadFromTop(L)
-		intent := intents.StartSquash{
-			Files: stringSlice(payload, "files"),
-		}
-		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intent)})
-	}))
-	revisionsTable.RawSetString("start_rebase", L.NewFunction(func(L *lua.LState) int {
-		payload := payloadFromTop(L)
-		intent := intents.StartRebase{
-			Source: parseRebaseSource(stringVal(payload, "source")),
-			Target: parseModeTarget(stringVal(payload, "target")),
-		}
-		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intent)})
-	}))
-	revisionsTable.RawSetString("open_details", L.NewFunction(func(L *lua.LState) int {
-		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intents.OpenDetails{})})
-	}))
-	revisionsTable.RawSetString("start_inline_describe", L.NewFunction(func(L *lua.LState) int {
-		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intents.StartInlineDescribe{}), matcher: matchCloseViewMsg})
-	}))
 
 	revsetTable := L.NewTable()
 	revsetTable.RawSetString("set", L.NewFunction(func(L *lua.LState) int {
@@ -425,6 +404,12 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		}
 		return yieldStep(L, step{cmd: input.ShowWithTitle("", ""), matcher: matchInput})
 	})
+	waitCloseFn := L.NewFunction(func(L *lua.LState) int {
+		return yieldStep(L, step{matcher: matchCloseViewMsg})
+	})
+	waitRefreshFn := L.NewFunction(func(L *lua.LState) int {
+		return yieldStep(L, step{matcher: matchUpdateRevisionsSuccess})
+	})
 
 	// make sure we have a `jjui` namespace
 	root := L.NewTable()
@@ -440,6 +425,8 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	root.RawSetString("split_lines", splitLinesFn)
 	root.RawSetString("choose", chooseFn)
 	root.RawSetString("input", inputFn)
+	root.RawSetString("wait_close", waitCloseFn)
+	root.RawSetString("wait_refresh", waitRefreshFn)
 	registerGeneratedActionAPI(L, root)
 	L.SetGlobal("jjui", root)
 
@@ -456,6 +443,8 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	L.SetGlobal("split_lines", splitLinesFn)
 	L.SetGlobal("choose", chooseFn)
 	L.SetGlobal("input", inputFn)
+	L.SetGlobal("wait_close", waitCloseFn)
+	L.SetGlobal("wait_refresh", waitRefreshFn)
 }
 
 func registerGeneratedActionAPI(L *lua.LState, root *lua.LTable) {

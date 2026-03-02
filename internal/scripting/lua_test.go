@@ -6,9 +6,24 @@ import (
 	lua "github.com/yuin/gopher-lua"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/idursun/jjui/internal/ui/common"
 	uicontext "github.com/idursun/jjui/internal/ui/context"
 )
+
+func strPtr(v string) *string {
+	return &v
+}
+
+func assertLuaStringOrNil(t *testing.T, val lua.LValue, expected *string) {
+	t.Helper()
+	if expected == nil {
+		assert.Equal(t, lua.LNil, val)
+		return
+	}
+	assert.Equal(t, *expected, val.String())
+}
 
 // runScriptAndGetGlobal runs a Lua script and returns the value of a global variable
 // before the Lua state is closed.
@@ -43,120 +58,146 @@ func runScriptAndGetGlobals(t *testing.T, ctx *uicontext.MainContext, script str
 	return results
 }
 
-func TestContext_ChangeId_WithSelectedRevision(t *testing.T) {
-	ctx := &uicontext.MainContext{
-		SelectedItem: uicontext.SelectedRevision{
-			ChangeId: "abc123",
-			CommitId: "def456",
+func TestContext_ChangeId(t *testing.T) {
+	tests := []struct {
+		name string
+		ctx  *uicontext.MainContext
+		want *string
+	}{
+		{
+			name: "selected revision",
+			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedRevision{
+				ChangeId: "abc123",
+				CommitId: "def456",
+			}},
+			want: strPtr("abc123"),
+		},
+		{
+			name: "selected file",
+			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedFile{
+				ChangeId: "file123",
+				CommitId: "commit456",
+				File:     "test.go",
+			}},
+			want: strPtr("file123"),
+		},
+		{
+			name: "no selection",
+			ctx:  &uicontext.MainContext{},
+			want: nil,
 		},
 	}
 
-	val := runScriptAndGetGlobal(t, ctx, `result = context.change_id()`, "result")
-	assert.Equal(t, "abc123", val.String())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val := runScriptAndGetGlobal(t, tt.ctx, `result = context.change_id()`, "result")
+			assertLuaStringOrNil(t, val, tt.want)
+		})
+	}
 }
 
-func TestContext_ChangeId_WithSelectedFile(t *testing.T) {
-	ctx := &uicontext.MainContext{
-		SelectedItem: uicontext.SelectedFile{
-			ChangeId: "file123",
-			CommitId: "commit456",
-			File:     "test.go",
+func TestContext_CommitId(t *testing.T) {
+	tests := []struct {
+		name string
+		ctx  *uicontext.MainContext
+		want *string
+	}{
+		{
+			name: "selected revision",
+			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedRevision{
+				ChangeId: "abc123",
+				CommitId: "def456",
+			}},
+			want: strPtr("def456"),
+		},
+		{
+			name: "selected file",
+			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedFile{
+				ChangeId: "file123",
+				CommitId: "commit456",
+				File:     "test.go",
+			}},
+			want: strPtr("commit456"),
+		},
+		{
+			name: "selected commit",
+			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedCommit{
+				CommitId: "onlycommit789",
+			}},
+			want: strPtr("onlycommit789"),
 		},
 	}
 
-	val := runScriptAndGetGlobal(t, ctx, `result = context.change_id()`, "result")
-	assert.Equal(t, "file123", val.String())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val := runScriptAndGetGlobal(t, tt.ctx, `result = context.commit_id()`, "result")
+			assertLuaStringOrNil(t, val, tt.want)
+		})
+	}
 }
 
-func TestContext_ChangeId_WithNoSelection(t *testing.T) {
-	ctx := &uicontext.MainContext{}
-
-	val := runScriptAndGetGlobal(t, ctx, `result = context.change_id()`, "result")
-	assert.Equal(t, lua.LNil, val)
-}
-
-func TestContext_CommitId_WithSelectedRevision(t *testing.T) {
-	ctx := &uicontext.MainContext{
-		SelectedItem: uicontext.SelectedRevision{
-			ChangeId: "abc123",
-			CommitId: "def456",
+func TestContext_File(t *testing.T) {
+	tests := []struct {
+		name string
+		ctx  *uicontext.MainContext
+		want *string
+	}{
+		{
+			name: "selected file",
+			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedFile{
+				ChangeId: "file123",
+				CommitId: "commit456",
+				File:     "path/to/file.go",
+			}},
+			want: strPtr("path/to/file.go"),
+		},
+		{
+			name: "selected revision",
+			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedRevision{
+				ChangeId: "abc123",
+				CommitId: "def456",
+			}},
+			want: nil,
 		},
 	}
 
-	val := runScriptAndGetGlobal(t, ctx, `result = context.commit_id()`, "result")
-	assert.Equal(t, "def456", val.String())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val := runScriptAndGetGlobal(t, tt.ctx, `result = context.file()`, "result")
+			assertLuaStringOrNil(t, val, tt.want)
+		})
+	}
 }
 
-func TestContext_CommitId_WithSelectedFile(t *testing.T) {
-	ctx := &uicontext.MainContext{
-		SelectedItem: uicontext.SelectedFile{
-			ChangeId: "file123",
-			CommitId: "commit456",
-			File:     "test.go",
+func TestContext_OperationId(t *testing.T) {
+	tests := []struct {
+		name string
+		ctx  *uicontext.MainContext
+		want *string
+	}{
+		{
+			name: "selected operation",
+			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedOperation{
+				OperationId: "op123456",
+			}},
+			want: strPtr("op123456"),
+		},
+		{
+			name: "selected revision",
+			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedRevision{
+				ChangeId: "abc123",
+				CommitId: "def456",
+			}},
+			want: nil,
 		},
 	}
 
-	val := runScriptAndGetGlobal(t, ctx, `result = context.commit_id()`, "result")
-	assert.Equal(t, "commit456", val.String())
-}
-
-func TestContext_CommitId_WithSelectedCommit(t *testing.T) {
-	ctx := &uicontext.MainContext{
-		SelectedItem: uicontext.SelectedCommit{
-			CommitId: "onlycommit789",
-		},
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val := runScriptAndGetGlobal(t, tt.ctx, `result = context.operation_id()`, "result")
+			assertLuaStringOrNil(t, val, tt.want)
+		})
 	}
-
-	val := runScriptAndGetGlobal(t, ctx, `result = context.commit_id()`, "result")
-	assert.Equal(t, "onlycommit789", val.String())
-}
-
-func TestContext_File_WithSelectedFile(t *testing.T) {
-	ctx := &uicontext.MainContext{
-		SelectedItem: uicontext.SelectedFile{
-			ChangeId: "file123",
-			CommitId: "commit456",
-			File:     "path/to/file.go",
-		},
-	}
-
-	val := runScriptAndGetGlobal(t, ctx, `result = context.file()`, "result")
-	assert.Equal(t, "path/to/file.go", val.String())
-}
-
-func TestContext_File_WithSelectedRevision(t *testing.T) {
-	ctx := &uicontext.MainContext{
-		SelectedItem: uicontext.SelectedRevision{
-			ChangeId: "abc123",
-			CommitId: "def456",
-		},
-	}
-
-	val := runScriptAndGetGlobal(t, ctx, `result = context.file()`, "result")
-	assert.Equal(t, lua.LNil, val)
-}
-
-func TestContext_OperationId_WithSelectedOperation(t *testing.T) {
-	ctx := &uicontext.MainContext{
-		SelectedItem: uicontext.SelectedOperation{
-			OperationId: "op123456",
-		},
-	}
-
-	val := runScriptAndGetGlobal(t, ctx, `result = context.operation_id()`, "result")
-	assert.Equal(t, "op123456", val.String())
-}
-
-func TestContext_OperationId_WithSelectedRevision(t *testing.T) {
-	ctx := &uicontext.MainContext{
-		SelectedItem: uicontext.SelectedRevision{
-			ChangeId: "abc123",
-			CommitId: "def456",
-		},
-	}
-
-	val := runScriptAndGetGlobal(t, ctx, `result = context.operation_id()`, "result")
-	assert.Equal(t, lua.LNil, val)
 }
 
 func TestContext_CheckedFiles(t *testing.T) {
@@ -273,4 +314,107 @@ func TestGeneratedActions_AccessViaJjuiNamespace(t *testing.T) {
 	assert.Equal(t, "function", vals[0].String())
 	assert.Equal(t, "function", vals[1].String())
 	assert.Equal(t, "nil", vals[2].String())
+}
+
+func TestWaitHelpers_AccessViaTopLevelAndJjuiNamespace(t *testing.T) {
+	ctx := &uicontext.MainContext{}
+
+	vals := runScriptAndGetGlobals(t, ctx, `
+		top_close = type(wait_close)
+		top_refresh = type(wait_refresh)
+		ns_close = type(jjui.wait_close)
+		ns_refresh = type(jjui.wait_refresh)
+	`, "top_close", "top_refresh", "ns_close", "ns_refresh")
+
+	assert.Equal(t, "function", vals[0].String())
+	assert.Equal(t, "function", vals[1].String())
+	assert.Equal(t, "function", vals[2].String())
+	assert.Equal(t, "function", vals[3].String())
+}
+
+func runWaitingScript(t *testing.T, script string) (*uicontext.MainContext, *Runner) {
+	t.Helper()
+
+	ctx := setupVM(t)
+	runner, cmd, err := RunScript(ctx, script)
+	require.NoError(t, err)
+	require.NotNil(t, runner)
+	if cmd != nil {
+		_ = cmd()
+	}
+	require.False(t, runner.Done())
+
+	return ctx, runner
+}
+
+func TestRunner_WaitClose(t *testing.T) {
+	t.Run("ignores non-close messages and resumes on close", func(t *testing.T) {
+		ctx, runner := runWaitingScript(t, `
+			done = false
+			applied = wait_close()
+			done = true
+		`)
+
+		cmd := runner.HandleMsg(common.UpdateRevisionsSuccessMsg{})
+		assert.Nil(t, cmd)
+		assert.False(t, runner.Done())
+		assert.Equal(t, "false", ctx.ScriptVM.GetGlobal("done").String())
+
+		cmd = runner.HandleMsg(common.CloseViewMsg{Applied: true})
+		if cmd != nil {
+			_ = cmd()
+		}
+		assert.True(t, runner.Done())
+		assert.Equal(t, "true", ctx.ScriptVM.GetGlobal("done").String())
+		assert.Equal(t, "true", ctx.ScriptVM.GetGlobal("applied").String())
+	})
+
+	tests := []struct {
+		name    string
+		applied bool
+	}{
+		{name: "applied", applied: true},
+		{name: "cancelled", applied: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, runner := runWaitingScript(t, `applied = wait_close()`)
+
+			cmd := runner.HandleMsg(common.CloseViewMsg{Applied: tt.applied})
+			if cmd != nil {
+				_ = cmd()
+			}
+
+			assert.True(t, runner.Done())
+			assert.Equal(t, tt.applied, ctx.ScriptVM.GetGlobal("applied") == lua.LTrue)
+		})
+	}
+}
+
+func TestRunner_WaitRefreshResumesOnUpdateRevisions(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  any
+	}{
+		{name: "success", msg: common.UpdateRevisionsSuccessMsg{}},
+		{name: "failed", msg: common.UpdateRevisionsFailedMsg{Output: "err"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, runner := runWaitingScript(t, `
+				done = false
+				wait_refresh()
+				done = true
+			`)
+
+			cmd := runner.HandleMsg(tt.msg)
+			if cmd != nil {
+				_ = cmd()
+			}
+			assert.True(t, runner.Done())
+			assert.Equal(t, "true", ctx.ScriptVM.GetGlobal("done").String())
+		})
+	}
 }
