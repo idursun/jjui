@@ -522,8 +522,12 @@ func (m *Model) handleUiRootIntent(intent intents.Intent) (tea.Cmd, bool) {
 		if !m.revisions.InNormalMode() {
 			return nil, true
 		}
+		current := m.revisions.SelectedRevision()
+		if current == nil {
+			return nil, true
+		}
 		changeIds := m.revisions.GetCommitIds()
-		model := bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds)
+		model := bookmarks.NewModel(m.context, current, changeIds)
 		m.stacked = model
 		return m.stacked.Init(), true
 	case intents.OpenGit:
