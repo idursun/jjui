@@ -91,6 +91,17 @@ func Test_PushChange(t *testing.T) {
 	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
 }
 
+func Test_NewModel_DoesNotPanicWithNilSelectedRevision(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
+	defer commandRunner.Verify()
+
+	assert.NotPanics(t, func() {
+		model := NewModel(test.NewTestContext(commandRunner), jj.NewSelectedRevisions(nil))
+		assert.NotNil(t, model)
+	})
+}
+
 // TestGit_ZIndex_RendersAboveMainContent verifies that the git overlay renders
 // at z-index >= render.ZMenuBorder. This ensures the git operations menu
 // renders above the main revision list content.

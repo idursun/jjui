@@ -5,8 +5,15 @@ type SelectedRevisions struct {
 }
 
 func NewSelectedRevisions(revisions ...*Commit) SelectedRevisions {
+	filtered := make([]*Commit, 0, len(revisions))
+	for _, revision := range revisions {
+		if revision != nil {
+			filtered = append(filtered, revision)
+		}
+	}
+
 	return SelectedRevisions{
-		Revisions: revisions,
+		Revisions: filtered,
 	}
 }
 
