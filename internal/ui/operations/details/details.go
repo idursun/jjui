@@ -225,7 +225,7 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		return s.confirmation.Init()
 	case intents.DetailsSquash:
 		return func() tea.Msg {
-			return intents.StartSquash{
+			return intents.OpenSquash{
 				Selected: jj.NewSelectedRevisions(s.revision),
 				Files:    s.getSelectedFiles(true),
 			}

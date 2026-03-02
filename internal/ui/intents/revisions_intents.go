@@ -8,50 +8,50 @@ type OpenDetails struct{}
 func (OpenDetails) isIntent() {}
 
 //jjui:bind scope=revisions action=open_squash
-type StartSquash struct {
+type OpenSquash struct {
 	Selected jj.SelectedRevisions
 	Files    []string
 }
 
-func (StartSquash) isIntent() {}
+func (OpenSquash) isIntent() {}
 
 //jjui:bind scope=revisions action=open_rebase
-type StartRebase struct {
+type OpenRebase struct {
 	Selected jj.SelectedRevisions
 	Source   RebaseSource
 	Target   ModeTarget
 }
 
-func (StartRebase) isIntent() {}
+func (OpenRebase) isIntent() {}
 
 //jjui:bind scope=revisions action=open_revert
-type StartRevert struct {
+type OpenRevert struct {
 	Selected jj.SelectedRevisions
 	Target   ModeTarget
 }
 
-func (StartRevert) isIntent() {}
+func (OpenRevert) isIntent() {}
 
 //jjui:bind scope=revisions action=describe
-type StartDescribe struct {
+type Describe struct {
 	Selected jj.SelectedRevisions
 }
 
-func (StartDescribe) isIntent() {}
+func (Describe) isIntent() {}
 
-//jjui:bind scope=revisions action=inline_describe
-type StartInlineDescribe struct {
+//jjui:bind scope=revisions action=open_inline_describe
+type OpenInlineDescribe struct {
 	Selected *jj.Commit
 }
 
-func (StartInlineDescribe) isIntent() {}
+func (OpenInlineDescribe) isIntent() {}
 
 //jjui:bind scope=revisions action=open_evolog
-type StartEvolog struct {
+type OpenEvolog struct {
 	Selected *jj.Commit
 }
 
-func (StartEvolog) isIntent() {}
+func (OpenEvolog) isIntent() {}
 
 //jjui:bind scope=revisions action=diff
 type ShowDiff struct {
@@ -136,25 +136,25 @@ type StartEdit struct {
 func (StartEdit) isIntent() {}
 
 //jjui:bind scope=revisions action=diff_edit
-type StartDiffEdit struct {
+type DiffEdit struct {
 	Selected *jj.Commit
 }
 
-func (StartDiffEdit) isIntent() {}
+func (DiffEdit) isIntent() {}
 
 //jjui:bind scope=revisions action=absorb
-type StartAbsorb struct {
+type Absorb struct {
 	Selected *jj.Commit
 }
 
-func (StartAbsorb) isIntent() {}
+func (Absorb) isIntent() {}
 
-//jjui:bind scope=revisions action=abandon
-type StartAbandon struct {
+//jjui:bind scope=revisions action=open_abandon
+type OpenAbandon struct {
 	Selected jj.SelectedRevisions
 }
 
-func (StartAbandon) isIntent() {}
+func (OpenAbandon) isIntent() {}
 
 //jjui:bind scope=revisions.abandon action=toggle_select
 type AbandonToggleSelect struct{}
@@ -167,18 +167,18 @@ type AbandonSelectDescendants struct{}
 func (AbandonSelectDescendants) isIntent() {}
 
 //jjui:bind scope=revisions action=open_duplicate
-type StartDuplicate struct {
+type OpenDuplicate struct {
 	Selected jj.SelectedRevisions
 }
 
-func (StartDuplicate) isIntent() {}
+func (OpenDuplicate) isIntent() {}
 
-//jjui:bind scope=revisions action=set_parents
-type SetParents struct {
+//jjui:bind scope=revisions action=open_set_parents
+type OpenSetParents struct {
 	Selected *jj.Commit
 }
 
-func (SetParents) isIntent() {}
+func (OpenSetParents) isIntent() {}
 
 //jjui:bind scope=revisions.set_parents action=toggle_select
 type SetParentsToggleSelect struct{}

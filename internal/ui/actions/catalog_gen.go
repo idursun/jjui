@@ -112,7 +112,6 @@ const (
 	RedoCancel                             keybindings.Action = "redo.cancel"
 	RedoNext                               keybindings.Action = "redo.next"
 	RedoPrev                               keybindings.Action = "redo.prev"
-	RevisionsAbandon                       keybindings.Action = "revisions.abandon"
 	RevisionsAbandonAceJump                keybindings.Action = "revisions.abandon.ace_jump"
 	RevisionsAbandonApply                  keybindings.Action = "revisions.abandon.apply"
 	RevisionsAbandonCancel                 keybindings.Action = "revisions.abandon.cancel"
@@ -125,7 +124,6 @@ const (
 	RevisionsAceJumpApply                  keybindings.Action = "revisions.ace_jump.apply"
 	RevisionsAceJumpCancel                 keybindings.Action = "revisions.ace_jump.cancel"
 	RevisionsApply                         keybindings.Action = "revisions.apply"
-	RevisionsBookmarkSet                   keybindings.Action = "revisions.bookmark_set"
 	RevisionsCommit                        keybindings.Action = "revisions.commit"
 	RevisionsDescribe                      keybindings.Action = "revisions.describe"
 	RevisionsDetailsAbsorb                 keybindings.Action = "revisions.details.absorb"
@@ -165,7 +163,6 @@ const (
 	RevisionsEvologRestore                 keybindings.Action = "revisions.evolog.restore"
 	RevisionsForceApply                    keybindings.Action = "revisions.force_apply"
 	RevisionsForceEdit                     keybindings.Action = "revisions.force_edit"
-	RevisionsInlineDescribe                keybindings.Action = "revisions.inline_describe"
 	RevisionsInlineDescribeAccept          keybindings.Action = "revisions.inline_describe.accept"
 	RevisionsInlineDescribeCancel          keybindings.Action = "revisions.inline_describe.cancel"
 	RevisionsInlineDescribeEditor          keybindings.Action = "revisions.inline_describe.editor"
@@ -175,11 +172,15 @@ const (
 	RevisionsMoveDown                      keybindings.Action = "revisions.move_down"
 	RevisionsMoveUp                        keybindings.Action = "revisions.move_up"
 	RevisionsNew                           keybindings.Action = "revisions.new"
+	RevisionsOpenAbandon                   keybindings.Action = "revisions.open_abandon"
 	RevisionsOpenDetails                   keybindings.Action = "revisions.open_details"
 	RevisionsOpenDuplicate                 keybindings.Action = "revisions.open_duplicate"
 	RevisionsOpenEvolog                    keybindings.Action = "revisions.open_evolog"
+	RevisionsOpenInlineDescribe            keybindings.Action = "revisions.open_inline_describe"
 	RevisionsOpenRebase                    keybindings.Action = "revisions.open_rebase"
 	RevisionsOpenRevert                    keybindings.Action = "revisions.open_revert"
+	RevisionsOpenSetBookmark               keybindings.Action = "revisions.open_set_bookmark"
+	RevisionsOpenSetParents                keybindings.Action = "revisions.open_set_parents"
 	RevisionsOpenSquash                    keybindings.Action = "revisions.open_squash"
 	RevisionsPageDown                      keybindings.Action = "revisions.page_down"
 	RevisionsPageUp                        keybindings.Action = "revisions.page_up"
@@ -207,7 +208,6 @@ const (
 	RevisionsSetBookmarkAutocomplete       keybindings.Action = "revisions.set_bookmark.autocomplete"
 	RevisionsSetBookmarkAutocompleteBack   keybindings.Action = "revisions.set_bookmark.autocomplete_back"
 	RevisionsSetBookmarkCancel             keybindings.Action = "revisions.set_bookmark.cancel"
-	RevisionsSetParents                    keybindings.Action = "revisions.set_parents"
 	RevisionsSetParentsAceJump             keybindings.Action = "revisions.set_parents.ace_jump"
 	RevisionsSetParentsApply               keybindings.Action = "revisions.set_parents.apply"
 	RevisionsSetParentsCancel              keybindings.Action = "revisions.set_parents.cancel"
@@ -466,32 +466,26 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		}
 	case OwnerRevisions:
 		switch action {
-		case keybindings.Action("revisions.abandon"):
-			return intents.StartAbandon{}, true
 		case keybindings.Action("revisions.absorb"):
-			return intents.StartAbsorb{}, true
+			return intents.Absorb{}, true
 		case keybindings.Action("revisions.ace_jump"):
 			return intents.StartAceJump{}, true
 		case keybindings.Action("revisions.apply"):
 			return intents.Apply{Force: actionargs.BoolArg(args, "force", false)}, true
-		case keybindings.Action("revisions.bookmark_set"):
-			return intents.BookmarksSet{}, true
 		case keybindings.Action("revisions.commit"):
 			return intents.CommitWorkingCopy{}, true
 		case keybindings.Action("revisions.describe"):
-			return intents.StartDescribe{}, true
+			return intents.Describe{}, true
 		case keybindings.Action("revisions.diff"):
 			return intents.ShowDiff{}, true
 		case keybindings.Action("revisions.diff_edit"):
-			return intents.StartDiffEdit{}, true
+			return intents.DiffEdit{}, true
 		case keybindings.Action("revisions.edit"):
 			return intents.StartEdit{}, true
 		case keybindings.Action("revisions.force_apply"):
 			return intents.Apply{Force: true}, true
 		case keybindings.Action("revisions.force_edit"):
 			return intents.StartEdit{IgnoreImmutable: true}, true
-		case keybindings.Action("revisions.inline_describe"):
-			return intents.StartInlineDescribe{}, true
 		case keybindings.Action("revisions.jump_to_children"):
 			return intents.Navigate{Target: intents.TargetChild}, true
 		case keybindings.Action("revisions.jump_to_parent"):
@@ -504,18 +498,26 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.Navigate{Delta: -1}, true
 		case keybindings.Action("revisions.new"):
 			return intents.StartNew{}, true
+		case keybindings.Action("revisions.open_abandon"):
+			return intents.OpenAbandon{}, true
 		case keybindings.Action("revisions.open_details"):
 			return intents.OpenDetails{}, true
 		case keybindings.Action("revisions.open_duplicate"):
-			return intents.StartDuplicate{}, true
+			return intents.OpenDuplicate{}, true
 		case keybindings.Action("revisions.open_evolog"):
-			return intents.StartEvolog{}, true
+			return intents.OpenEvolog{}, true
+		case keybindings.Action("revisions.open_inline_describe"):
+			return intents.OpenInlineDescribe{}, true
 		case keybindings.Action("revisions.open_rebase"):
-			return intents.StartRebase{}, true
+			return intents.OpenRebase{}, true
 		case keybindings.Action("revisions.open_revert"):
-			return intents.StartRevert{}, true
+			return intents.OpenRevert{}, true
+		case keybindings.Action("revisions.open_set_bookmark"):
+			return intents.OpenSetBookmark{}, true
+		case keybindings.Action("revisions.open_set_parents"):
+			return intents.OpenSetParents{}, true
 		case keybindings.Action("revisions.open_squash"):
-			return intents.StartSquash{}, true
+			return intents.OpenSquash{}, true
 		case keybindings.Action("revisions.page_down"):
 			return intents.Navigate{Delta: 1, IsPage: true}, true
 		case keybindings.Action("revisions.page_up"):
@@ -528,8 +530,6 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.QuickSearchCycle{Reverse: true}, true
 		case keybindings.Action("revisions.refresh"):
 			return intents.Refresh{}, true
-		case keybindings.Action("revisions.set_parents"):
-			return intents.SetParents{}, true
 		case keybindings.Action("revisions.split"):
 			return intents.StartSplit{}, true
 		case keybindings.Action("revisions.split_parallel"):

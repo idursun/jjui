@@ -55,10 +55,10 @@ type OpenRevset struct{}
 
 func (OpenRevset) isIntent() {}
 
-//jjui:bind scope=revisions action=bookmark_set
-type BookmarksSet struct{}
+//jjui:bind scope=revisions action=open_set_bookmark
+type OpenSetBookmark struct{}
 
-func (BookmarksSet) isIntent() {}
+func (OpenSetBookmark) isIntent() {}
 
 type BookmarksFilterKind string
 

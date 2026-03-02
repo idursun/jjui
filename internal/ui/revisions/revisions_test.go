@@ -74,17 +74,17 @@ func TestModel_OperationIntents(t *testing.T) {
 	}{
 		{
 			name:     "abandon",
-			intent:   intents.StartAbandon{},
+			intent:   intents.OpenAbandon{},
 			expected: "abandon",
 		},
 		{
 			name:     "rebase",
-			intent:   intents.StartRebase{},
+			intent:   intents.OpenRebase{},
 			expected: "rebase",
 		},
 		{
 			name:     "duplicate",
-			intent:   intents.StartDuplicate{},
+			intent:   intents.OpenDuplicate{},
 			expected: "duplicate",
 		},
 	}
@@ -112,7 +112,7 @@ func TestModel_ForwardsOperationIntentToFocusedOperation(t *testing.T) {
 	model := New(ctx)
 	model.updateGraphRows(rows, "a")
 
-	test.SimulateModel(model, model.Update(intents.StartRebase{}))
+	test.SimulateModel(model, model.Update(intents.OpenRebase{}))
 	assert.False(t, model.InNormalMode())
 	assert.False(t, model.IsEditing())
 
@@ -125,7 +125,7 @@ func TestModel_StartAceJumpMsg_OpensAceJumpOperation(t *testing.T) {
 	model := New(ctx)
 	model.updateGraphRows(rows, "a")
 
-	test.SimulateModel(model, model.Update(intents.StartAbandon{}))
+	test.SimulateModel(model, model.Update(intents.OpenAbandon{}))
 	assert.Equal(t, "abandon", model.CurrentOperation().Name())
 
 	test.SimulateModel(model, model.Update(common.StartAceJumpMsg{}))
