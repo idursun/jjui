@@ -213,7 +213,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		return m.context.RunCommand(jj.Args(selected.command...), common.Refresh, common.Close)
+		return m.context.RunCommand(jj.Args(selected.command...), common.Refresh, common.CloseApplied)
 	case intents.GitFilter:
 		filter := string(msg.Kind)
 		if filter == "" {
@@ -255,7 +255,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 		for _, listItem := range m.visibleItems() {
 			if listItem.key == msg.Key {
-				return m.context.RunCommand(jj.Args(listItem.command...), common.Refresh, common.Close)
+				return m.context.RunCommand(jj.Args(listItem.command...), common.Refresh, common.CloseApplied)
 			}
 		}
 		return nil
@@ -278,18 +278,18 @@ func (m *Model) executeDefaultForFilter(kind intents.GitFilterKind) tea.Cmd {
 	if ok {
 		for _, listItem := range m.visibleItems() {
 			if slices.Equal(listItem.command, defaultCommand) {
-				return m.context.RunCommand(jj.Args(listItem.command...), common.Refresh, common.Close)
+				return m.context.RunCommand(jj.Args(listItem.command...), common.Refresh, common.CloseApplied)
 			}
 		}
 	}
 
 	if selected, ok := m.selectedItem(); ok {
-		return m.context.RunCommand(jj.Args(selected.command...), common.Refresh, common.Close)
+		return m.context.RunCommand(jj.Args(selected.command...), common.Refresh, common.CloseApplied)
 	}
 
 	for _, listItem := range m.visibleItems() {
 		if string(listItem.category) == string(kind) {
-			return m.context.RunCommand(jj.Args(listItem.command...), common.Refresh, common.Close)
+			return m.context.RunCommand(jj.Args(listItem.command...), common.Refresh, common.CloseApplied)
 		}
 	}
 	return nil

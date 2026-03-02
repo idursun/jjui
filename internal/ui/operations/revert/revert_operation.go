@@ -114,11 +114,11 @@ func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		if r.Target == intents.ModeTargetInsert {
 			insertAfter := r.InsertStart.GetChangeId()
 			insertBefore := r.targetArg()
-			return r.context.RunCommand(jj.RevertInsert(r.From, insertAfter, insertBefore), common.RefreshAndSelect(r.From.Last()), common.Close)
+			return r.context.RunCommand(jj.RevertInsert(r.From, insertAfter, insertBefore), common.RefreshAndSelect(r.From.Last()), common.CloseApplied)
 		}
 		source := "--revisions"
 		target := targetToFlags[r.Target]
-		return r.context.RunCommand(jj.Revert(r.From, r.targetArg(), source, target), common.RefreshAndSelect(r.From.Last()), common.Close)
+		return r.context.RunCommand(jj.Revert(r.From, r.targetArg(), source, target), common.RefreshAndSelect(r.From.Last()), common.CloseApplied)
 	case intents.Cancel:
 		return common.Close
 	default:

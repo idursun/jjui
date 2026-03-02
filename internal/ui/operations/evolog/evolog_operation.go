@@ -162,7 +162,7 @@ func (o *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 		from := o.getSelectedEvolog().CommitId
 		into := o.target.GetChangeId()
-		return o.context.RunCommand(jj.RestoreEvolog(from, into), common.Close, common.Refresh)
+		return o.context.RunCommand(jj.RestoreEvolog(from, into), common.CloseApplied, common.Refresh)
 	}
 	return nil
 }

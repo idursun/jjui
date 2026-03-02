@@ -98,7 +98,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 			parentsToRemove = append(parentsToRemove, changeId)
 		}
 
-		return m.context.RunCommand(jj.SetParents(m.target.GetChangeId(), parentsToAdd, parentsToRemove), common.RefreshAndSelect(m.target.GetChangeId()), common.Close)
+		return m.context.RunCommand(jj.SetParents(m.target.GetChangeId(), parentsToAdd, parentsToRemove), common.RefreshAndSelect(m.target.GetChangeId()), common.CloseApplied)
 	case intents.Cancel:
 		return common.Close
 	}

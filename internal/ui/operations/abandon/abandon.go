@@ -82,7 +82,7 @@ func (a *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		if len(a.selectedRevisions.Revisions) == 0 {
 			return nil
 		}
-		return a.context.RunCommand(jj.Abandon(a.selectedRevisions, force), common.Refresh, common.Close)
+		return a.context.RunCommand(jj.Abandon(a.selectedRevisions, force), common.Refresh, common.CloseApplied)
 	case intents.AbandonToggleSelect:
 		if a.current == nil {
 			return nil

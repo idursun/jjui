@@ -98,9 +98,9 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		args := jj.Squash(s.from, s.targetArg(), s.files, s.keepEmptied, s.useDestinationMessage, s.interactive, intent.Force)
 		continuation := common.RefreshAndSelect(s.current.GetChangeId())
 		if s.interactive || !s.useDestinationMessage {
-			return tea.Batch(common.Close, s.context.RunInteractiveCommand(args, continuation))
+			return tea.Batch(common.CloseApplied, s.context.RunInteractiveCommand(args, continuation))
 		}
-		return tea.Batch(common.Close, s.context.RunCommand(args, continuation))
+		return tea.Batch(common.CloseApplied, s.context.RunCommand(args, continuation))
 	case intents.SquashOpenTargetPicker:
 		s.targetPicker = target_picker.NewModel(s.context)
 		return s.targetPicker.Init()

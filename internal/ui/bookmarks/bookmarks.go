@@ -370,7 +370,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		return m.context.RunCommand(selected.args, common.Refresh, common.Close)
+		return m.context.RunCommand(selected.args, common.Refresh, common.CloseApplied)
 	case intents.BookmarksFilter:
 		filter := string(msg.Kind)
 		if filter == "" {
@@ -411,7 +411,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 		for _, listItem := range m.visibleItems() {
 			if listItem.key == msg.Key {
-				return m.context.RunCommand(jj.Args(listItem.args...), common.Refresh, common.Close)
+				return m.context.RunCommand(jj.Args(listItem.args...), common.Refresh, common.CloseApplied)
 			}
 		}
 		return nil
@@ -421,11 +421,11 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 
 func (m *Model) executeDefaultForFilter(kind intents.BookmarksFilterKind) tea.Cmd {
 	if selected, ok := m.selectedItem(); ok {
-		return m.context.RunCommand(jj.Args(selected.args...), common.Refresh, common.Close)
+		return m.context.RunCommand(jj.Args(selected.args...), common.Refresh, common.CloseApplied)
 	}
 	for _, listItem := range m.visibleItems() {
 		if strings.HasPrefix(listItem.FilterValue(), string(kind)) {
-			return m.context.RunCommand(jj.Args(listItem.args...), common.Refresh, common.Close)
+			return m.context.RunCommand(jj.Args(listItem.args...), common.Refresh, common.CloseApplied)
 		}
 	}
 	return nil

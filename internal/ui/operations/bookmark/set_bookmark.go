@@ -40,7 +40,7 @@ func (s *SetBookmarkOperation) Update(msg tea.Msg) tea.Cmd {
 		case intents.Cancel:
 			return common.Close
 		case intents.Apply:
-			return s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), common.Close, common.Refresh)
+			return s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), common.CloseApplied, common.Refresh)
 		case intents.AutocompleteCycle:
 			s.cycleSuggestion(msg.Reverse)
 			return nil
