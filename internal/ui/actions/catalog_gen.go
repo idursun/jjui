@@ -139,6 +139,8 @@ const (
 	RevisionsDetailsDiff                   keybindings.Action = "revisions.details.diff"
 	RevisionsDetailsMoveDown               keybindings.Action = "revisions.details.move_down"
 	RevisionsDetailsMoveUp                 keybindings.Action = "revisions.details.move_up"
+	RevisionsDetailsPageDown               keybindings.Action = "revisions.details.page_down"
+	RevisionsDetailsPageUp                 keybindings.Action = "revisions.details.page_up"
 	RevisionsDetailsQuit                   keybindings.Action = "revisions.details.quit"
 	RevisionsDetailsRefresh                keybindings.Action = "revisions.details.refresh"
 	RevisionsDetailsRestore                keybindings.Action = "revisions.details.restore"
@@ -582,6 +584,10 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.DetailsNavigate{Delta: 1}, true
 		case keybindings.Action("revisions.details.move_up"):
 			return intents.DetailsNavigate{Delta: -1}, true
+		case keybindings.Action("revisions.details.page_down"):
+			return intents.DetailsNavigate{Delta: 1, IsPage: true}, true
+		case keybindings.Action("revisions.details.page_up"):
+			return intents.DetailsNavigate{Delta: -1, IsPage: true}, true
 		case keybindings.Action("revisions.details.quit"):
 			return intents.Quit{}, true
 		case keybindings.Action("revisions.details.refresh"):

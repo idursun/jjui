@@ -2,8 +2,11 @@ package intents
 
 //jjui:bind scope=revisions.details action=move_up set=Delta:-1
 //jjui:bind scope=revisions.details action=move_down set=Delta:1
+//jjui:bind scope=revisions.details action=page_up set=Delta:-1,IsPage:true
+//jjui:bind scope=revisions.details action=page_down set=Delta:1,IsPage:true
 type DetailsNavigate struct {
-	Delta int
+	Delta  int
+	IsPage bool
 }
 
 func (DetailsNavigate) isIntent() {}

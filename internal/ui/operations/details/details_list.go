@@ -56,18 +56,34 @@ func (d *DetailsList) setItems(files []*item) {
 	d.ensureCursorView = true
 }
 
-func (d *DetailsList) cursorUp() {
-	if d.cursor > 0 {
-		d.cursor--
-		d.ensureCursorView = true
+func (d *DetailsList) navigate(delta int, page bool) {
+	if d.Len() == 0 {
+		return
 	}
-}
 
-func (d *DetailsList) cursorDown() {
-	if d.cursor < len(d.files)-1 {
-		d.cursor++
-		d.ensureCursorView = true
+	// Calculate step (convert page scroll to item count)
+	step := delta
+	if page {
+		firstRowIndex := d.listRenderer.GetFirstRowIndex()
+		lastRowIndex := d.listRenderer.GetLastRowIndex()
+		span := max(lastRowIndex-firstRowIndex-1, 1)
+		if step < 0 {
+			step = -span
+		} else {
+			step = span
+		}
 	}
+
+	// Calculate new cursor position
+	totalItems := len(d.files)
+	newCursor := d.cursor + step
+	if newCursor < 0 {
+		newCursor = 0
+	} else if newCursor >= totalItems {
+		newCursor = totalItems - 1
+	}
+
+	d.setCursor(newCursor)
 }
 
 func (d *DetailsList) setCursor(index int) {
@@ -205,6 +221,9 @@ func (d *DetailsList) rangeSelect(from, to int) {
 }
 
 func (d *DetailsList) Len() int {
+	if d.files == nil {
+		return 0
+	}
 	return len(d.files)
 }
 

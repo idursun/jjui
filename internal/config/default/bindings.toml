@@ -140,6 +140,8 @@ bindings = [
     # revisions.details
     { key = ["up", "k"], action = "revisions.details.move_up", scope = "revisions.details", desc = "up" },
     { key = ["down", "j"], action = "revisions.details.move_down", scope = "revisions.details", desc = "down" },
+    { key = "pgup", action = "revisions.details.page_up", scope = "revisions.details", desc = "pgup" },
+    { key = "pgdown", action = "revisions.details.page_down", scope = "revisions.details", desc = "pgdown" },
     { key = ["esc", "left", "h"], action = "revisions.details.cancel", scope = "revisions.details", desc = "close" },
     { key = "ctrl+r", action = "revisions.details.refresh", scope = "revisions.details", desc = "refresh" },
     { key = "d", action = "revisions.details.diff", scope = "revisions.details", desc = "diff" },

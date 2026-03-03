@@ -183,11 +183,7 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 		return nil
 	case intents.DetailsNavigate:
-		if intent.Delta < 0 {
-			s.cursorUp()
-		} else if intent.Delta > 0 {
-			s.cursorDown()
-		}
+		s.navigate(intent.Delta, intent.IsPage)
 		return nil
 	case intents.DetailsClose:
 		return common.Close
@@ -281,7 +277,7 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 				s.context.RemoveCheckedItem(checkedFile)
 			}
 
-			s.cursorDown()
+			s.navigate(1, false)
 		}
 		return nil
 	case intents.DetailsRevisionsChangingFile:
