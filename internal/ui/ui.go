@@ -2,9 +2,10 @@ package ui
 
 import (
 	"fmt"
-	uv "github.com/charmbracelet/ultraviolet"
 	"strings"
 	"time"
+
+	uv "github.com/charmbracelet/ultraviolet"
 
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/actionmeta"
