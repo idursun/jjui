@@ -308,12 +308,14 @@ func TestGeneratedActions_AccessViaJjuiNamespace(t *testing.T) {
 	vals := runScriptAndGetGlobals(t, ctx, `
 		result_details = type(jjui.revisions.details.cancel)
 		result_nested = type(jjui.revisions.details.confirmation.apply)
+		result_builtin = type(jjui.builtin.revisions.details.cancel)
 		result_legacy = type(jjui.action)
-	`, "result_details", "result_nested", "result_legacy")
+	`, "result_details", "result_nested", "result_builtin", "result_legacy")
 
 	assert.Equal(t, "function", vals[0].String())
 	assert.Equal(t, "function", vals[1].String())
-	assert.Equal(t, "nil", vals[2].String())
+	assert.Equal(t, "function", vals[2].String())
+	assert.Equal(t, "nil", vals[3].String())
 }
 
 func TestWaitHelpers_AccessViaTopLevelAndJjuiNamespace(t *testing.T) {

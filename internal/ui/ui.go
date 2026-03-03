@@ -201,7 +201,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 		}
 		action := keybindings.Action(strings.TrimSpace(msg.Action))
-		result := m.resolver.ResolveAction(action, msg.Args, m.intentOverride())
+		var result dispatch.Result
+		if msg.BuiltIn {
+			result = m.resolver.ResolveBuiltInAction(action, msg.Args, m.intentOverride())
+		} else {
+			result = m.resolver.ResolveAction(action, msg.Args, m.intentOverride())
+		}
 		if result.LuaScript != "" {
 			return luaCmd(result.LuaScript)
 		}

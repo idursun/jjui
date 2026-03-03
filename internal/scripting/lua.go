@@ -427,7 +427,10 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	root.RawSetString("input", inputFn)
 	root.RawSetString("wait_close", waitCloseFn)
 	root.RawSetString("wait_refresh", waitRefreshFn)
-	registerGeneratedActionAPI(L, root)
+	builtinRoot := L.NewTable()
+	root.RawSetString("builtin", builtinRoot)
+	registerGeneratedActionAPI(L, root, false)
+	registerGeneratedActionAPI(L, builtinRoot, true)
 	L.SetGlobal("jjui", root)
 
 	// but also expose at the top level for convenience
@@ -447,7 +450,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	L.SetGlobal("wait_refresh", waitRefreshFn)
 }
 
-func registerGeneratedActionAPI(L *lua.LState, root *lua.LTable) {
+func registerGeneratedActionAPI(L *lua.LState, root *lua.LTable, builtIn bool) {
 	actions := actionmeta.BuiltInActions()
 	sort.Strings(actions)
 	for _, actionID := range actions {
@@ -462,9 +465,9 @@ func registerGeneratedActionAPI(L *lua.LState, root *lua.LTable) {
 			if ownerTable.RawGetString(token) != lua.LNil {
 				continue
 			}
-			ownerTable.RawSetString(token, generatedActionFn(L, actionID))
+			ownerTable.RawSetString(token, generatedActionFn(L, actionID, builtIn))
 			if token == "cancel" && ownerTable.RawGetString("close") == lua.LNil {
-				ownerTable.RawSetString("close", generatedActionFn(L, actionID))
+				ownerTable.RawSetString("close", generatedActionFn(L, actionID, builtIn))
 			}
 		}
 	}
@@ -485,13 +488,14 @@ func ensureOwnerTable(L *lua.LState, root *lua.LTable, owner string) *lua.LTable
 	return current
 }
 
-func generatedActionFn(L *lua.LState, canonical string) *lua.LFunction {
+func generatedActionFn(L *lua.LState, canonical string, builtIn bool) *lua.LFunction {
 	return L.NewFunction(func(L *lua.LState) int {
 		args := optionalLuaMapArg(L, 1)
 		return yieldStep(L, step{cmd: func() tea.Msg {
 			return common.DispatchActionMsg{
-				Action: canonical,
-				Args:   args,
+				Action:  canonical,
+				Args:    args,
+				BuiltIn: builtIn,
 			}
 		}})
 	})

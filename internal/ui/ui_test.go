@@ -688,6 +688,36 @@ func Test_Update_LuaActionDispatchesBuiltInAction(t *testing.T) {
 	assert.True(t, model.revsetModel.Editing, "lua-dispatched ui.open_revset should enter revset editing")
 }
 
+func Test_Update_LuaBuiltinActionBypassesConfiguredOverride(t *testing.T) {
+	origActions := config.Current.Actions
+	defer func() {
+		config.Current.Actions = origActions
+	}()
+	config.Current.Actions = []config.ActionConfig{
+		{Name: "ui.open_revset", Lua: `flash("override")`},
+	}
+
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll())
+	commandRunner.Expect(jj.TagList())
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	require.NoError(t, scripting.InitVM(ctx))
+	defer scripting.CloseVM(ctx)
+	model := NewUI(ctx)
+
+	cmd := model.Update(common.RunLuaScriptMsg{Script: `jjui.ui.open_revset()`})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+	assert.False(t, model.revsetModel.Editing, "override should replace default action behavior")
+
+	cmd = model.Update(common.RunLuaScriptMsg{Script: `jjui.builtin.ui.open_revset()`})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+	assert.True(t, model.revsetModel.Editing, "builtin action should bypass override and run default behavior")
+}
+
 func Test_Update_LuaInputEscCancelsAndFinishesScript(t *testing.T) {
 	origBindings := config.Current.Bindings
 	defer func() {

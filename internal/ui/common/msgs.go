@@ -67,8 +67,9 @@ type (
 		Script string
 	}
 	DispatchActionMsg struct {
-		Action string
-		Args   map[string]any
+		Action  string
+		Args    map[string]any
+		BuiltIn bool
 	}
 	TogglePasswordMsg struct {
 		Prompt   string
