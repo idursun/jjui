@@ -162,6 +162,8 @@ bindings = [
     # revisions.evolog
     { key = ["up", "k"], action = "revisions.evolog.move_up", scope = "revisions.evolog", desc = "up" },
     { key = ["down", "j"], action = "revisions.evolog.move_down", scope = "revisions.evolog", desc = "down" },
+    { key = "pgup", action = "revisions.evolog.page_up", scope = "revisions.evolog", desc = "pgup" },
+    { key = "pgdown", action = "revisions.evolog.page_down", scope = "revisions.evolog", desc = "pgdown" },
     { key = "esc", action = "revisions.evolog.cancel", scope = "revisions.evolog", desc = "cancel" },
     { key = "enter", action = "revisions.evolog.apply", scope = "revisions.evolog", desc = "apply" },
     { key = "q", action = "ui.quit", scope = "revisions.evolog", desc = "quit" },

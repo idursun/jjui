@@ -58,6 +58,24 @@ type Operation struct {
 	ensureCursorView bool
 }
 
+func (o *Operation) Len() int {
+	if o.rows == nil {
+		return 0
+	}
+	return len(o.rows)
+}
+
+func (o *Operation) Cursor() int {
+	return o.cursor
+}
+
+func (o *Operation) SetCursor(index int) {
+	if index >= 0 && index < len(o.rows) {
+		o.cursor = index
+		o.ensureCursorView = true
+	}
+}
+
 func (o *Operation) IsOverlay() bool {
 	return o.mode == selectMode
 }
@@ -72,10 +90,6 @@ func (o *Operation) Init() tea.Cmd {
 
 func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	o.renderListToDisplayContext(dl, box.R, o.ensureCursorView)
-}
-
-func (o *Operation) Len() int {
-	return len(o.rows)
 }
 
 type styles struct {
@@ -130,17 +144,7 @@ func (o *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		if o.mode == restoreMode {
 			return intents.Invoke(intents.Navigate{Delta: msg.Delta})
 		}
-		if msg.Delta < 0 && o.cursor > 0 {
-			o.cursor--
-			o.ensureCursorView = true
-			return o.updateSelection()
-		}
-		if msg.Delta > 0 && o.cursor < len(o.rows)-1 {
-			o.cursor++
-			o.ensureCursorView = true
-			return o.updateSelection()
-		}
-		return nil
+		return o.navigate(msg.Delta, msg.IsPage)
 	case intents.EvologDiff:
 		if o.mode != selectMode {
 			return nil
@@ -165,6 +169,37 @@ func (o *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		return o.context.RunCommand(jj.RestoreEvolog(from, into), common.CloseApplied, common.Refresh)
 	}
 	return nil
+}
+
+func (o *Operation) navigate(delta int, page bool) tea.Cmd {
+	if o.Len() == 0 {
+		return nil
+	}
+
+	// Calculate step (convert page scroll to item count)
+	step := delta
+	if page {
+		firstRowIndex := o.dlRenderer.GetFirstRowIndex()
+		lastRowIndex := o.dlRenderer.GetLastRowIndex()
+		span := max(lastRowIndex-firstRowIndex-1, 1)
+		if step < 0 {
+			step = -span
+		} else {
+			step = span
+		}
+	}
+
+	// Calculate new cursor position
+	totalItems := len(o.rows)
+	newCursor := o.cursor + step
+	if newCursor < 0 {
+		newCursor = 0
+	} else if newCursor >= totalItems {
+		newCursor = totalItems - 1
+	}
+
+	o.SetCursor(newCursor)
+	return o.updateSelection()
 }
 
 func (o *Operation) ResolveAction(action keybindings.Action, args map[string]any) (intents.Intent, bool) {

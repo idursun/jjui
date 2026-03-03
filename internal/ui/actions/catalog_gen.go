@@ -164,6 +164,8 @@ const (
 	RevisionsEvologDiff                    keybindings.Action = "revisions.evolog.diff"
 	RevisionsEvologMoveDown                keybindings.Action = "revisions.evolog.move_down"
 	RevisionsEvologMoveUp                  keybindings.Action = "revisions.evolog.move_up"
+	RevisionsEvologPageDown                keybindings.Action = "revisions.evolog.page_down"
+	RevisionsEvologPageUp                  keybindings.Action = "revisions.evolog.page_up"
 	RevisionsEvologQuit                    keybindings.Action = "revisions.evolog.quit"
 	RevisionsEvologRestore                 keybindings.Action = "revisions.evolog.restore"
 	RevisionsForceApply                    keybindings.Action = "revisions.force_apply"
@@ -647,6 +649,10 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.EvologNavigate{Delta: 1}, true
 		case keybindings.Action("revisions.evolog.move_up"):
 			return intents.EvologNavigate{Delta: -1}, true
+		case keybindings.Action("revisions.evolog.page_down"):
+			return intents.EvologNavigate{Delta: 1, IsPage: true}, true
+		case keybindings.Action("revisions.evolog.page_up"):
+			return intents.EvologNavigate{Delta: -1, IsPage: true}, true
 		case keybindings.Action("revisions.evolog.quit"):
 			return intents.Quit{}, true
 		case keybindings.Action("revisions.evolog.restore"):
