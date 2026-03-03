@@ -201,7 +201,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 		}
 		action := keybindings.Action(strings.TrimSpace(msg.Action))
-		result := m.resolver.ResolveAction(m.primaryScope(), action, msg.Args, m.intentOverride())
+		result := m.resolver.ResolveAction(action, msg.Args, m.intentOverride())
 		if result.LuaScript != "" {
 			return luaCmd(result.LuaScript)
 		}
@@ -217,7 +217,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.stacked = nil
 		if action, ok := m.paletteActions[msg.Value]; ok {
 			m.paletteActions = nil
-			result := m.resolver.ResolveAction(m.primaryScope(), action, nil, m.intentOverride())
+			result := m.resolver.ResolveAction(action, nil, m.intentOverride())
 			if result.LuaScript != "" {
 				return luaCmd(result.LuaScript)
 			}
@@ -615,7 +615,7 @@ func (m *Model) handleUiRootIntent(intent intents.Intent) (tea.Cmd, bool) {
 }
 
 func (m *Model) handleDispatchedAction(action keybindings.Action, args map[string]any) (tea.Cmd, bool) {
-	result := m.resolver.ResolveAction(m.primaryScope(), action, args, m.intentOverride())
+	result := m.resolver.ResolveAction(action, args, m.intentOverride())
 	if result.LuaScript != "" {
 		return luaCmd(result.LuaScript), true
 	}

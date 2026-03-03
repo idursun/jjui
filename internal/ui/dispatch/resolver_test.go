@@ -113,7 +113,7 @@ func TestResolveAction_DirectCall(t *testing.T) {
 		{Action: "ui.quit", Scope: "ui", Key: []string{"q"}},
 	}, nil)
 
-	result := r.ResolveAction("ui", "ui.quit", nil, nil)
+	result := r.ResolveAction("ui.quit", nil, nil)
 	assert.True(t, result.Consumed)
 	assert.NotNil(t, result.Intent)
 	_, isQuit := result.Intent.(intents.Quit)
