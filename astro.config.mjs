@@ -18,7 +18,6 @@ export default defineConfig({
 					label: 'Jujutsu UI',
 					items: [
 						{ label: 'Overview', slug: 'overview' },
-						{ label: 'Showcase', slug: 'showcase' },
 						{ label: 'Install', slug: 'install' },
 					],
 				},
