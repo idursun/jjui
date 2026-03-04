@@ -55,7 +55,6 @@ export default defineConfig({
 							label: 'Experimental Features',
 							items: [
 								{ label: 'Lua Custom Commands', slug: 'features/custom-commands-lua' },
-								{ label: 'Tracing', slug: 'customization/tracing' },
 							],
 						},
 						{
@@ -95,7 +94,7 @@ export default defineConfig({
 				{
 					label: 'Migration Guides',
 					items: [
-  				      { label: 'Migrating to v0.10', slug: 'migrating/v0_10', },
+						{ label: 'Migrating to v0.10', slug: 'migrating/v0_10', },
 					],
 				},
 			],
