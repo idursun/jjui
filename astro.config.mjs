@@ -4,10 +4,25 @@ import starlight from '@astrojs/starlight';
 
 import catppuccin from "@catppuccin/starlight";
 
+/** Rewrites hard-coded /jjui/ paths to the versioned base at build time. */
+function remarkRebaseLinks() {
+	const newBase = (process.env.DOCS_BASE ?? '/jjui').replace(/\/$/, '');
+	function walk(node) {
+		if (node.url !== undefined && node.url.startsWith('/jjui')) {
+			node.url = newBase + node.url.slice('/jjui'.length);
+		}
+		if (node.children) node.children.forEach(walk);
+	}
+	return (tree) => walk(tree);
+}
+
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://idursun.github.io',
 	base: process.env.DOCS_BASE ?? '/jjui',
+	markdown: {
+		remarkPlugins: [remarkRebaseLinks],
+	},
 	integrations: [
 		starlight({
 			title: 'jjui',
