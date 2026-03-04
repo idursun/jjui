@@ -4,10 +4,12 @@ import starlight from '@astrojs/starlight';
 
 import catppuccin from "@catppuccin/starlight";
 
+const docsBase = (process.env.DOCS_BASE ?? '/jjui').replace(/\/$/, '');
+
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://idursun.github.io',
-	base: process.env.DOCS_BASE ?? '/jjui',
+	base: docsBase,
 	integrations: [
 		starlight({
 			title: 'jjui',

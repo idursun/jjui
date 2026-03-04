@@ -1,0 +1,5 @@
+---
+const dest = import.meta.env.BASE_URL.replace(/\/?$/, '/') + 'overview';
+---
+<meta http-equiv="refresh" content={`0; url=${dest}`} />
+<script define:vars={{ dest }}>window.location.replace(dest);</script>
