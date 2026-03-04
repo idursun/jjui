@@ -7,10 +7,13 @@ import catppuccin from "@catppuccin/starlight";
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://idursun.github.io',
-	base: '/jjui',
+	base: process.env.DOCS_BASE ?? '/jjui',
 	integrations: [
 		starlight({
 			title: 'jjui',
+			banner: process.env.PRE_RELEASE === 'true' ? {
+				content: 'This is pre-release documentation for an upcoming version.',
+			} : undefined,
 			// NOTE: icons for top-level are at ./src/components/Sidebar.astro#getIcon
 			sidebar: [
 				{

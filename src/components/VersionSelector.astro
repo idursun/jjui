@@ -1,0 +1,14 @@
+---
+interface Version { label: string; href: string; }
+const versions: Version[] = JSON.parse(import.meta.env.DOCS_VERSIONS ?? '[]');
+const currentBase = import.meta.env.DOCS_BASE ?? '/jjui';
+---
+{versions.length > 1 && (
+  <div class="version-selector">
+    <select onchange="window.location.href=this.value">
+      {versions.map(v => (
+        <option value={v.href} selected={v.href === currentBase + '/'}>{v.label}</option>
+      ))}
+    </select>
+  </div>
+)}
