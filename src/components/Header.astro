@@ -1,0 +1,11 @@
+---
+import DefaultHeader from '@astrojs/starlight/components/Header.astro';
+const preRelease = import.meta.env.PRE_RELEASE === 'true';
+---
+
+{preRelease && (
+  <div class="pre-release-banner">
+    This is pre-release documentation for an upcoming version.
+  </div>
+)}
+<DefaultHeader />

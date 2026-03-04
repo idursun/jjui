@@ -11,10 +11,7 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'jjui',
-			banner: process.env.PRE_RELEASE === 'true' ? {
-				content: 'This is pre-release documentation for an upcoming version.',
-			} : undefined,
-			// NOTE: icons for top-level are at ./src/components/Sidebar.astro#getIcon
+// NOTE: icons for top-level are at ./src/components/Sidebar.astro#getIcon
 			sidebar: [
 				{
 					label: 'Jujutsu UI',
@@ -90,6 +87,7 @@ export default defineConfig({
 			],
 			components: {
 				Sidebar: './src/components/Sidebar.astro',
+				Header: './src/components/Header.astro',
 				Footer: './src/components/Footer.astro',
 				SocialIcons: './src/components/SocialIcons.astro',
 				PageSidebar: './src/components/PageSidebar.astro',
