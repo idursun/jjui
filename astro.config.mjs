@@ -4,35 +4,10 @@ import starlight from '@astrojs/starlight';
 
 import catppuccin from "@catppuccin/starlight";
 
-/**
- * Rewrites hard-coded /jjui/ paths to the versioned base at build time.
- * Runs as a Vite plugin so it covers both frontmatter YAML and markdown body.
- * Only active when DOCS_BASE differs from the default (/jjui).
- */
-function vitePluginRebaseLinks() {
-	const newBase = (process.env.DOCS_BASE ?? '/jjui').replace(/\/$/, '');
-	if (newBase === '/jjui') return { name: 'rebase-links' };
-	return {
-		name: 'rebase-links',
-		transform(code, id) {
-			if (!/\.mdx?$/.test(id)) return null;
-			// Match /jjui/ only when preceded by a quote, paren, or whitespace
-			// so that external URLs like https://github.com/idursun/jjui/... are untouched.
-			const replaced = code.replace(/(["'(\s])(\/jjui)(\/)/g, (_, before, _base, slash) => {
-				return before + newBase + slash;
-			});
-			return replaced !== code ? { code: replaced, map: null } : null;
-		},
-	};
-}
-
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://idursun.github.io',
 	base: process.env.DOCS_BASE ?? '/jjui',
-	vite: {
-		plugins: [vitePluginRebaseLinks()],
-	},
 	integrations: [
 		starlight({
 			title: 'jjui',

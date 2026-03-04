@@ -36,7 +36,12 @@ jobs:
         env:
           DOCS_BASE: /jjui/v0.9
           PRE_RELEASE: "false"
-        run: pnpm install && pnpm build
+        run: |
+          pnpm install
+          # Rewrite hardcoded /jjui/ paths in content to versioned base.
+          # Matches /jjui/ after " ' ( or space — skips external URLs like github.com/idursun/jjui/
+          grep -rl '/jjui/' src/content | xargs sed -i -E "s|([\"'( ])/jjui/|\1${DOCS_BASE}/|g"
+          pnpm build
 
       # --- v0.10 (pre-release) ---
       - name: Checkout docs-v0.10 branch
@@ -49,7 +54,10 @@ jobs:
         env:
           DOCS_BASE: /jjui/v0.10
           PRE_RELEASE: "true"
-        run: pnpm install && pnpm build
+        run: |
+          pnpm install
+          grep -rl '/jjui/' src/content | xargs sed -i -E "s|([\"'( ])/jjui/|\1${DOCS_BASE}/|g"
+          pnpm build
 
       # --- Combine and add root redirect ---
       - name: Combine builds
