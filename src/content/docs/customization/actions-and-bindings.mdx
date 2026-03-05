@@ -1,19 +1,20 @@
 ---
 title: Actions and Bindings
-description: Customize jjui using actions and key bindings
+description: Define custom actions and key bindings in config.toml or config.lua
 ---
 
-jjui customization is based on `[[actions]]` and `[[bindings]]`.
+Actions are named operations. Bindings connect actions to keys. Both can be defined in `config.toml` or `config.lua` — use whichever fits your workflow.
 
-Legacy `[custom_commands]` and `[leader]` sections are no longer supported.
+## Defining an action
 
-## Define a custom action
+### In config.toml
 
-Use `[[actions]]` to define Lua-powered actions:
+Use `[[actions]]` with an inline Lua snippet:
 
 ```toml
 [[actions]]
 name = "copy-change-id"
+desc = "copy change id to clipboard"
 lua = '''
 local id = context.change_id()
 if id then
@@ -23,9 +24,27 @@ end
 '''
 ```
 
-## Bind actions to keys
+### In config.lua
 
-Use `[[bindings]]` to bind built-in or custom actions.
+Pass a function directly to `config.action`:
+
+```lua
+function setup(config)
+  config.action("copy-change-id", function()
+    local id = context.change_id()
+    if id then
+      copy_to_clipboard(id)
+      flash("Copied: " .. id)
+    end
+  end, { desc = "copy change id to clipboard" })
+end
+```
+
+---
+
+## Binding an action to a key
+
+### In config.toml
 
 ```toml
 [[bindings]]
@@ -35,32 +54,49 @@ scope = "revisions"
 desc = "copy change id"
 ```
 
-You can also bind built-in actions:
+### In config.lua
 
-```toml
-[[bindings]]
-action = "ui.open_revset"
-key = "L"
-scope = "revisions"
-desc = "revset"
+Either pass binding options directly to `config.action`:
+
+```lua
+config.action("copy-change-id", fn, {
+  key = "Y",
+  scope = "revisions",
+  desc = "copy change id",
+})
 ```
+
+Or bind separately with `config.bind`:
+
+```lua
+config.bind({
+  action = "copy-change-id",
+  key = "Y",
+  scope = "revisions",
+  desc = "copy change id",
+})
+```
+
+---
 
 ## Binding fields
 
-- `action` (required): action name.
-- `scope` (required): where the binding is active.
-- `key` or `seq` (required): set exactly one.
-- `desc` (optional): label shown in help/status UI.
-- `args` (optional): action arguments for built-ins.
+| Field | Required | Notes |
+|-------|----------|-------|
+| `action` | yes | Action name or built-in action ID |
+| `scope` | yes | Where the binding is active |
+| `key` or `seq` | yes | Set exactly one |
+| `desc` | no | Label shown in the help/status bar |
+| `args` | no | Arguments for built-in actions |
 
-`key` supports a single key or alternatives:
+`key` accepts a single key or a list of alternatives:
 
 ```toml
 key = "r"
 key = ["up", "k"]
 ```
 
-`seq` defines ordered key sequences:
+`seq` defines an ordered key sequence (chord):
 
 ```toml
 [[bindings]]
@@ -70,14 +106,39 @@ scope = "revisions"
 desc = "open revset"
 ```
 
-## Default bindings reference
+---
 
-All built-in default bindings are defined in:
+## Rebinding built-in actions
 
-`internal/config/default/bindings.toml`
+You can bind any built-in action by its action ID:
 
-Use that file as the source of truth for action names, scopes, and default keys.
+```toml
+[[bindings]]
+action = "ui.open_revset"
+key = "L"
+scope = "revisions"
+desc = "revset"
+```
+
+All built-in action IDs and their default bindings are in `internal/config/default/bindings.toml`. See [Default Keybindings](/jjui/customization/default-keybindings) for the full reference.
+
+---
+
+## Overriding built-in actions
+
+You can replace a built-in action's behavior entirely. Call the original via `jjui.builtin.*` to preserve it:
+
+```lua
+config.action("revisions.toggle_select", function()
+  jjui.builtin.revisions.toggle_select()
+  jjui.builtin.revisions.move_down()
+end)
+```
+
+This overrides `toggle_select` to also advance the cursor after selecting.
+
+---
 
 ## Migration notes
 
-If you still have old config sections, see [Migrating to v0.10](/jjui/migrating/v0_10).
+Legacy `[custom_commands]` and `[leader]` sections are no longer supported. See [Migrating to v0.10](/jjui/migrating/v0_10).

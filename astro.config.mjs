@@ -22,6 +22,17 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Customization',
+					items: [
+						{ label: 'config.toml', slug: 'customization/config-toml' },
+						{ label: 'config.lua', slug: 'customization/config-lua' },
+						{ label: 'Actions and Bindings', slug: 'customization/actions-and-bindings' },
+						{ label: 'Lua Scripting', slug: 'customization/lua-scripting' },
+						{ label: 'Themes', slug: 'customization/themes' },
+{ label: 'Command Line Options', slug: 'customization/command-line-options' },
+					],
+				},
+				{
 					label: 'Revisions',
 					items: [
 						{ label: 'Overview', slug: 'revisions' },
@@ -112,18 +123,6 @@ export default defineConfig({
 					label: 'How-to Guides',
 					items: [
 						{ label: 'Jujutsu Workflows', slug: 'how-do-i' },
-					],
-				},
-				{
-					label: 'Customization',
-					items: [
-						{ label: 'Actions and Bindings', slug: 'customization/actions-and-bindings' },
-						{ label: 'Lua Scripting', slug: 'customization/lua-scripting' },
-						{ label: 'config.lua', slug: 'customization/config-lua' },
-						{ label: 'Themes', slug: 'customization/themes' },
-						{ label: 'Configuration Options', slug: 'customization/configuration-options' },
-						{ label: 'Command Line Options', slug: 'customization/command-line-options' },
-						{ label: 'Default Keybindings', slug: 'customization/default-keybindings' },
 					],
 				},
 				{

@@ -1,0 +1,87 @@
+---
+title: config.toml
+description: Configure jjui with config.toml
+---
+
+jjui reads configuration from a TOML file at startup.
+
+**Default locations:**
+- Linux / macOS: `~/.config/jjui/config.toml`
+- Windows: `%AppData%/jjui/config.toml`
+- Custom: `$JJUI_CONFIG_DIR/config.toml`
+
+Open the file directly in your editor with:
+
+```bash
+jjui --config
+```
+
+---
+
+## Revisions
+
+Override the default log template or revset:
+
+```toml
+[revisions]
+template = "builtin_log_compact"
+revset = ""
+```
+
+## Preview
+
+```toml
+[preview]
+position = "auto"          # auto | right | bottom
+show_at_start = false
+width_percentage = 50.0
+width_increment_percentage = 5.0
+```
+
+## Op Log
+
+```toml
+[oplog]
+limit = 200
+```
+
+## SSH
+
+Disable jjui's SSH askpass helper if you manage SSH credentials yourself:
+
+```toml
+[ssh]
+hijack_askpass = false
+```
+
+## Exec suggestions
+
+Controls autocomplete suggestions in the `:` and `$` command prompts:
+
+```toml
+[suggest.exec]
+mode = "fuzzy"   # off | regex | fuzzy
+```
+
+## Colors and themes
+
+Quick inline overrides go in `[ui.colors]`:
+
+```toml
+[ui.colors]
+"selected" = { bg = "#303446" }
+```
+
+For a full theme file, see [Themes](/jjui/customization/themes).
+
+## Bindings profile
+
+Load an alternative bindings file as the base instead of the built-in defaults:
+
+```toml
+bindings_profile = "vim_bindings.toml"
+```
+
+Your own `[[bindings]]` entries are applied on top of the profile. Use `:builtin` to explicitly reset to embedded defaults.
+
+For defining actions and bindings, see [Actions and Bindings](/jjui/customization/actions-and-bindings).

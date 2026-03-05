@@ -1,62 +1,126 @@
 ---
 title: config.lua
-description: Programmatic startup customization with setup(config)
+description: Programmatic startup configuration with setup(config)
 ---
 
-Use `config.lua` when you want to modify jjui configuration programmatically at startup.
+`config.lua` is loaded at startup before the UI appears. It's the right place for programmatic configuration — conditional settings, modules, and anything that benefits from real code instead of TOML.
 
-## File location
-
+**File location:**
 - `~/.config/jjui/config.lua`
 - `$JJUI_CONFIG_DIR/config.lua`
 
-At startup, jjui loads this file and calls `setup(config)` if present.
+---
 
 ## setup(config)
 
+Define a `setup(config)` function and jjui will call it at startup, passing a `config` object you can use to register actions, add bindings, and set colors.
+
 ```lua
 function setup(config)
-  config.action("copy-change-id", function()
-    local id = context.change_id()
-    if id then
-      copy_to_clipboard(id)
-      flash("Copied: " .. id)
-    end
-  end, {
-    key = "Y",
-    scope = "revisions",
-    desc = "copy change id",
-  })
-
-  config.bind({
-    action = "ui.open_revset",
-    seq = {"g", "r"},
-    scope = "revisions",
-    desc = "open revset",
-  })
+  -- register actions and bindings here
 end
 ```
 
-## Helpers available in setup
+For the full `config.action` / `config.bind` API, see [Actions and Bindings](/jjui/customization/actions-and-bindings).
 
-- `config.action(name, fn, opts?)`
-- `config.bind({ action, scope, key?/seq?, desc? })`
+---
 
-`config.action` rules:
+## Examples
 
-- `opts.key` and `opts.seq` are mutually exclusive.
-- If `opts.key` or `opts.seq` is set, `opts.scope` is required.
+### Run an external tool on the current revision
+
+A common pattern: grab the current change ID and pass it to a shell command. If nothing is selected, show an error instead of running.
+
+```lua
+config.action("show diff in diffnav", function()
+  local change_id = context.change_id()
+  if not change_id or change_id == "" then
+    flash({ text = "No revision selected", error = true })
+    return
+  end
+  exec_shell(string.format("jj diff -r %q --git --color always | diffnav", change_id))
+end, { desc = "open diff in diffnav", key = "ctrl+d", scope = "revisions" })
+```
+
+### Chain UI operations with wait
+
+Lua scripts pause at `wait_close()` and `wait_refresh()`, resuming only when the UI event arrives. This lets you build multi-step workflows that feel native.
+
+The example below opens inline describe, waits for it to close, then creates a new revision and jumps to it — looping until the user cancels:
+
+```lua
+config.action("new revision loop", function()
+  while true do
+    revisions.open_inline_describe()
+    if not wait_close() then
+      break
+    end
+    wait_refresh()
+    revisions.new()
+    wait_refresh()
+    revisions.jump_to_working_copy()
+  end
+end, { desc = "describe and create next", seq = { "w", "c" }, scope = "revisions" })
+```
+
+### Split config into modules
+
+As your config grows, split it into separate Lua files. `require(...)` resolves modules from your config directory (`?.lua` and `?/init.lua`).
+
+```lua
+-- ~/.config/jjui/config.lua
+local revset_tools = require("plugins.revset")
+
+function setup(config)
+  revset_tools.setup(config)
+end
+```
+
+```lua
+-- ~/.config/jjui/plugins/revset.lua
+local M = {}
+
+function M.setup(config)
+  config.action("filter to bookmarks", function()
+    revset.set("bookmarks()")
+  end, { desc = "show only bookmarks", key = "+", scope = "revisions" })
+end
+
+return M
+```
+
+### Per-repository configuration
+
+`config.repo` contains the path of the current repository. Use it to apply different settings depending on which repo jjui is opened in.
+
+```lua
+function setup(config)
+  if config.repo:match("work/") then
+    -- apply work-specific theme or bindings
+    config.ui = config.ui or {}
+    config.ui.colors = config.ui.colors or {}
+    config.ui.colors.selected = { bg = "#002244" }
+  end
+end
+```
+
+---
 
 ## Environment values
 
-Inside `setup(config)`, jjui also provides:
+These are available inside `setup(config)` and are read-only:
 
-- `config.repo`: repository path
-- `config.terminal.dark_mode`: terminal dark mode detection
-- `config.terminal.bg` and `config.terminal.fg`: terminal color placeholders
+| Value | Type | Notes |
+|-------|------|-------|
+| `config.repo` | string | Absolute path of the current repository |
+| `config.terminal.dark_mode` | bool | Whether the terminal reports dark mode |
+| `config.terminal.bg` | string | Terminal background color (hex, if detectable) |
+| `config.terminal.fg` | string | Terminal foreground color (hex, if detectable) |
+
+---
 
 ## Modules
 
-`require(...)` resolves modules from your config directory as well (`?.lua` and `?/init.lua`).
+`require(...)` resolves modules from your config directory in addition to the standard Lua path. Files are found at `?.lua` or `?/init.lua` relative to the config directory.
 
-For Lua API reference (context/revisions/revset helpers), see [Lua Scripting](/jjui/customization/lua-scripting).
+For the full runtime Lua API (`context`, `revisions`, `jj`, `flash`, etc.), see [Lua Scripting](/jjui/customization/lua-scripting).
