@@ -5,22 +5,15 @@ description: Remove selected revisions interactively
 
 Abandon removes selected revisions from history.
 
-Press `a` in Revisions to enter abandon mode.
-
-## Workflow
-
-1. Select revisions with `space` (optional for multi-select).
-2. Press `a` to open abandon mode.
-3. Optionally refine selection in abandon mode.
-4. Press `enter` to apply (`alt+enter` to force apply).
+Press `a` in Revisions to enter abandon mode. If revisions were already selected with `space`, abandon mode opens pre-populated with them. You can then refine the set further before applying.
 
 ## Abandon mode keys
 
 - `space`: toggle selected revision
-- `s`: select descendants of current revision
+- `s`: select the highlighted revision and all its descendants — a quick way to abandon a whole chain without selecting each revision individually
 - `f`: ace jump
 - `@`: jump to working copy
 - `j`/`k`, `pgup`/`pgdown`: navigation
-- `esc`: cancel
 - `enter`: apply
 - `alt+enter`: force apply
+- `esc`: cancel

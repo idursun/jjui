@@ -1,42 +1,67 @@
 ---
 title: Details
-description: Details
+description: Inspect and operate on files within a revision
 ---
 
-The details view provides an in-depth look at the files and changes within a selected revision. To open the details view, press `l` while a revision is selected.
+Press `l` or `right` to open the details view for the highlighted revision. It shows all files changed in that revision with their status (Added, Modified, Deleted, Renamed, Copied). Conflict markers are shown next to files with conflicts.
 
-In details mode, you can:
-- Leave the details mode using `h`
-- Split selected files using `s`
-- Restore selected files using `r`
-- View the diff of the highlighted file by pressing `d`
-- Change the revset to show all revisions that touched the selected file by pressing `*`
-
-You can toggle file selection using `m` or `space` keys. These actions allow you to manage files within a revision, split changes, and restore previous states efficiently.
-
-## Showing Diff
-Press `d` to show the diff of the selected file. This helps you review changes before making further modifications.
-
-## Splitting Files in a Revision
-Press `s` to split the selected files into two revisions:
-- Selected files remain in the current revision.
-- Unselected files move to a new revision.
-If no file is selected, the currently highlighted file will be split.
+Press `esc`, `left`, or `h` to close and return to the revision list.
 
 ![GIF](/jjui/gifs/jjui_details_split.gif)
 
-## Restoring Files in a Revision
-Press `r` to restore the selected files to their previous state, discarding changes as needed.
+## Selecting files
 
-## Show Revisions That Touched the File
-Press `*` to change the revset to show all revisions that have affected the highlighted file. This is useful for tracking the history of specific files.
+- `m` or `space`: toggle-select the highlighted file (cursor advances automatically)
+- Most operations act on selected files. If no files are selected, the operation uses the highlighted file.
 
-## Conflict Markers
-The details view displays conflict markers next to files with conflicts, making it easy to identify and resolve issues directly from the panel.
+### Mouse selection
 
-Details mode works together with other revision operations such as rebase, squash, and abandon, providing a comprehensive workflow for managing changes in your repository.
+- Click: move cursor
+- Ctrl+click: toggle-select a file
+- Alt+click: range-select from the previous cursor position to the clicked file
+
+## File operations
+
+### Diff
+Press `d` to view the diff of the highlighted file in the diff viewer.
+
+![GIF](/jjui/gifs/jjui_details_diff.gif)
+
+### Restore
+Press `r` to restore selected files (`jj restore`). A confirmation appears:
+- **Yes**: restores the files non-interactively. Selected files "gets restored", unselected "stays as is".
+- **Interactive** (`i`): opens the interactive restore editor.
 
 ![GIF](/jjui/gifs/jjui_details_restore.gif)
 
-![GIF](/jjui/gifs/jjui_details_diff.gif)
+### Split
+Press `s` to split selected files out of the revision. Selected files stay in the current revision; unselected files move to a new revision. A confirmation appears:
+- **Yes**: non-interactive split.
+- **Interactive** (`i`): opens the split editor to choose individual hunks.
+
+Press `alt+s` for a parallel split instead.
+
+### Squash
+Press `shift+s` to open [Squash](/jjui/revisions/squash) mode pre-filled with the selected files. Use this to move specific files into a different revision.
+
+### Absorb
+Press `shift+a` to run `jj absorb` on the selected files.
+
+### Show revisions touching a file
+Press `*` to change the active revset to `files(<filename>)`, showing all revisions that touched the highlighted file.
+
 <img width="912" alt="image" src="https://github.com/user-attachments/assets/ab33ae31-a9cb-4721-bf1c-ff72f1319bb7" />
+
+## Keys summary
+
+- `d`: diff highlighted file
+- `m` / `space`: toggle-select file
+- `r`: restore selected files
+- `s`: split selected files
+- `alt+s`: split parallel
+- `shift+s`: squash selected files
+- `shift+a`: absorb selected files
+- `*`: filter revset to revisions touching this file
+- `p`: toggle preview
+- `ctrl+r`: refresh
+- `esc` / `left` / `h`: close

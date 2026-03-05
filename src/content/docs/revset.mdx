@@ -3,21 +3,28 @@ title: Revset
 description: Edit and apply the active revset expression
 ---
 
-Revset controls which revisions are shown in the Revisions view.
+Revset controls which revisions are shown in the Revisions view. The current revset is always shown in the status bar.
 
-Press `shift+l` from Revisions to open revset input.
+Press `shift+l` from Revisions to open the revset editor.
 
-## Revset input keys
+## Autocomplete
+
+As soon as the editor opens, completions appear automatically — functions, aliases, bookmarks, and tags are all listed. Once you start typing a function name, the editor shows the function's signature inline.
+
+- `tab` / `shift+tab`: cycle through completions
+
+## History
+
+Every revset you apply during a session is saved to history. When you re-open the editor, it defaults to showing your history — use `up`/`down` to navigate it.
+
+## Keys
 
 - `enter`: apply
 - `esc` or `ctrl+c`: cancel
-- `tab`: autocomplete
-- `shift+tab`: autocomplete back
 - `up` / `down`: navigate history/completions
 
 ## Behavior
 
-- The top bar always shows the current revset.
 - If jjui is started with `--revset/-r`, that value becomes the session default.
 - Submitting an empty revset resets to the session default.
 

@@ -1,20 +1,29 @@
 ---
-title: Bookmark Menu
-description: Bookmark menu
+title: Bookmarks
+description: Managing bookmarks from the Revisions view
 ---
 
-The bookmark menu in jjui provides an interface for managing bookmarks directly from the Revisions view. This feature allows you to organize, move, track, untrack, forget, and delete bookmarks efficiently.
+jjui provides two ways to manage bookmarks: a quick inline input for setting bookmarks directly on a revision, and a full bookmark menu for all other operations.
 
-To use the bookmark menu, press `b` to open the pop-up menu. The menu displays available bookmark commands for the selected revision. You can select multiple revisions using `space` before opening the menu.
+## Setting a bookmark
 
-Available actions include:
-- Move: Press `m` to filter the list to move bookmark commands, allowing you to move bookmarks to the selected revision.
-- Untrack: Press `u` to filter the list to untrack bookmark commands, letting you untrack bookmarks from the selected revision.
-- Forget: Press `f` to filter the list to forget bookmark commands, which will forget bookmarks from the selected revision.
-- Track: Press `t` to filter the list to track bookmark commands, enabling you to track bookmarks on the selected revision.
-- Delete: Press `d` to filter the list to delete bookmark commands, removing bookmarks from the selected revision.
-- Free Text Filter: Press `/` to activate the free text filter, allowing you to filter the bookmark list by typing a bookmark name.
+Press `shift+b` on a revision to open an inline input box next to the revision's existing bookmarks.
 
-The bookmark menu streamlines bookmark management and works alongside other revision operations such as abandon, rebase, and squash. Filtering with shortcut keys helps you quickly find the desired command for efficient workflow.
+- Type a new name to create a bookmark on that revision.
+- Type the name of an existing bookmark to move it to that revision.
+- You can repeat this to create multiple bookmarks on the same revision.
+
+## Bookmark menu
+
+Press `b` to open the bookmark menu. It lists all available bookmark commands and can be filtered by type using shortcut keys:
+
+- `m`: filter to **move** commands — move a bookmark to the highlighted revision
+- `t`: filter to **track** commands — start tracking a remote bookmark
+- `u`: filter to **untrack** commands
+- `f`: filter to **forget** commands
+- `d`: filter to **delete** commands
+- `/`: free text filter — type a bookmark name to narrow the list
+
+Press `esc` to close the menu.
 
 <img width="1132" height="787" alt="image" src="https://github.com/user-attachments/assets/34f7a265-dfd5-4b8d-94cb-3f4074e72ab6" />

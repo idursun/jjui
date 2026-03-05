@@ -1,33 +1,37 @@
 ---
-title: Squash Operation
-description: Squash Operation
+title: Squash
+description: Squash revisions into a target
 ---
 
-The squash operation combines multiple revisions into a single revision.
-
-To activate squash, press `shift+s` in the Revisions view. The cursor moves to the parent of the selected revisions so you can pick a target.
+Press `shift+s` to enter squash mode. The highlighted (or selected) revision is marked `<< from >>` as the source. Navigate to the target revision and press `enter` to apply.
 
 ## Options
 
-- `e`: toggle `--keep-emptied`
-- `d`: toggle `--use-destination-message`
-- `i`: toggle `--interactive`
-- `t`: open target picker
+Toggle these before applying:
 
-## Workflow
-
-1. Select revisions to squash.
-2. Press `shift+s` to activate squash mode.
-3. Choose target revision directly, or press `t` to open target picker.
-4. Toggle options (`e`, `d`, `i`) as needed.
-5. Press `enter` to apply (`alt+enter` to force apply).
+- `e` **keep emptied**: when on, the source revision is kept even if squashing empties it. The source marker changes to `<< keep empty >>`.
+- `d` **use destination message**: when on, the target shows `<< use this message >>` and squash uses the target's commit message directly, skipping the editor.
+- `i` **interactive**: when on, squash opens an interactive editor so you can choose individual hunks to move. The source marker shows `(interactive)`.
 
 ## Target picker
 
-The target picker uses the shared `revisions.target_picker` bindings:
+When the target isn't in the current revset, press `t` to open the target picker. It lists bookmarks and tags, and also accepts a raw revset expression.
 
 - `up`/`down`: move
 - `tab` / `shift+tab`: autocomplete
 - `enter`: apply
 - `alt+enter`: force apply
 - `esc`: cancel
+
+## Other keys
+
+- `enter`: apply
+- `alt+enter`: force apply
+- `esc`: cancel
+- `f`: ace jump
+- `@`: jump to working copy
+- `j`/`k`, `pgup`/`pgdown`: navigation
+
+## Squashing specific files
+
+From [Details](/jjui/details), select files with `m` or `space` and press `shift+s` to open squash pre-filled with those files. This lets you move specific files into a different revision without touching the rest.

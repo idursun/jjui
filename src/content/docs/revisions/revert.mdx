@@ -3,30 +3,30 @@ title: Revert Operation
 description: Revert selected revisions against a target
 ---
 
-Revert creates inverse changes from selected revisions and applies them relative to a target.
+Revert creates inverse changes from the selected revisions and places them at a target.
 
-Press `shift+r` in the Revisions view to enter revert mode.
+Press `shift+r` in the Revisions view to enter revert mode. The source revisions are marked with `<< revert >>` in the list.
 
 ## Target modes
 
-- `o`: onto (destination)
-- `a`: after
-- `b`: before
-- `i`: insert
-- `t`: open target picker
+- `o` **onto**: places the reverted changes as children of the target. Existing descendants of the target are not affected.
+- `a` **after**: places the reverted changes after the target, and rebases the target's existing descendants on top.
+- `b` **before**: places the reverted changes before the target, inserting them between the target and its parents.
+- `i` **insert**: two-step placement — navigate to the "after" revision and press `i` to mark it (`<< after this >>`), then navigate to the "before" revision and press `enter` (`<< before this >>`). The reverted changes are inserted between the two points.
+- `t`: open the target picker.
 
-## Apply and cancel
+## Target picker
 
+When the target revision is not visible in the current revset, press `t` to open the target picker. It lists bookmarks and tags, and also accepts a raw revset expression.
+
+- `up`/`down`: move
+- `tab` / `shift+tab`: autocomplete
 - `enter`: apply
 - `alt+enter`: force apply
 - `esc`: cancel
 
-## Target picker
+## Apply and cancel
 
-The target picker uses the shared `revisions.target_picker` bindings:
-
-- `up`/`down`: move
-- `tab` / `shift+tab`: autocomplete
 - `enter`: apply
 - `alt+enter`: force apply
 - `esc`: cancel

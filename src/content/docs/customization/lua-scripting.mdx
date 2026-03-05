@@ -25,51 +25,409 @@ scope = "revisions"
 desc = "hello"
 ```
 
-## Core APIs
+## Namespaces
 
-### Context API
+All functions are available both as top-level globals and under the `jjui` namespace — `flash(...)` and `jjui.flash(...)` are the same.
 
-- `context.change_id()`
-- `context.commit_id()`
-- `context.file()`
-- `context.operation_id()`
-- `context.checked_files()`
-- `context.checked_change_ids()`
-- `context.checked_commit_ids()`
+Built-in action wrappers are additionally available under `jjui.builtin.*`, which forces built-in resolution and ignores any user-defined overrides for those action names.
 
-### Revisions API
+---
 
-- `revisions.current()`
-- `revisions.checked()`
-- `revisions.open_details()`
-- `revisions.refresh({ keep_selections?, selected_revision? })`
-- `revisions.navigate({ by?, page?, target?, to?, fallback?, ensureView?, allowStream? })`
-- `revisions.start_squash({ files? })`
-- `revisions.start_rebase({ source?, target? })`
-  - `source`: `"revision" | "branch" | "descendants"`
-  - `target`: `"destination" | "after" | "before" | "insert"`
-- `revisions.start_inline_describe()`
+## context.*
 
-### Revset API
+Read-only access to the currently highlighted or selected item.
 
-- `revset.current()`
-- `revset.default()`
-- `revset.set(expression)`
-- `revset.reset()`
+| Function | Returns | Notes |
+|----------|---------|-------|
+| `context.change_id()` | string | Available for revisions and files |
+| `context.commit_id()` | string | Available for revisions, files, and commits |
+| `context.file()` | string | Only when a file is selected in the details view |
+| `context.operation_id()` | string | Only in the oplog |
+| `context.checked_files()` | string[] | Files checked in the details view |
+| `context.checked_change_ids()` | string[] | Checked revisions or files |
+| `context.checked_commit_ids()` | string[] | Checked revisions, files, or commits |
 
-### Command execution
+---
 
-- `jj(...args)` returns `(output, err)`
-- `jj_async(...args)`
-- `jj_interactive(...args)`
+## revisions.*
 
-### UI and utilities
+| Function | Returns | Notes |
+|----------|---------|-------|
+| `revisions.current()` | string | `change_id` of the highlighted revision |
+| `revisions.checked()` | string[] | `change_id` of every checked revision |
+| `revisions.refresh({ keep_selections?, selected_revision? })` | — | Yields until the revision list finishes loading |
+| `revisions.navigate({ by?, page?, target?, to?, fallback?, ensureView?, allowStream? })` | — | `target`: `"parent"`, `"child"`, or `"working"` |
 
-- `flash(message)`
-- `choose(options)`
-- `input({ title?, prompt? })`
-- `copy_to_clipboard(text)`
-- `split_lines(text, keep_empty?)`
-- `exec_shell(command)`
+---
 
-Most functions are also available under the `jjui` namespace (for example, `jjui.input(...)`).
+## revset.*
+
+| Function | Returns |
+|----------|---------|
+| `revset.current()` | Active revset expression string |
+| `revset.default()` | Default revset from config |
+
+---
+
+## jj commands
+
+| Function | Returns | Notes |
+|----------|---------|-------|
+| `jj(...args)` | `(output, err)` | Runs synchronously; returns output string and error |
+| `jj_async(...args)` | — | Yields until the command completes |
+| `jj_interactive(...args)` | — | Opens an interactive terminal for the command |
+
+Args can be passed as individual strings or as a single table of strings.
+
+---
+
+## UI helpers
+
+| Function | Returns | Notes |
+|----------|---------|-------|
+| `flash(text)` | — | Show a short status message |
+| `flash({ text, error?, sticky? })` | — | `error = true` styles as error; `sticky = true` keeps it visible |
+| `choose(option1, option2, ...)` | string or nil | Show a picker; returns the selected value or nil if cancelled |
+| `choose({ options, title?, filter?, ordered? })` | string or nil | Table form |
+| `input({ title?, prompt? })` | string or nil | Show a text input dialog; returns the entered text or nil |
+| `copy_to_clipboard(text)` | `(true, nil)` or `(nil, err)` | Copy to system clipboard |
+| `split_lines(text, keep_empty?)` | string[] | Split on newlines; strips `\r`; skips empty lines by default |
+| `exec_shell(command)` | — | Run a shell command line; yields until done |
+
+---
+
+## Yield helpers
+
+These pause the script until a matching UI event arrives.
+
+| Function | Returns | Notes |
+|----------|---------|-------|
+| `wait_close()` | bool | Waits for any modal or view to close; returns `true` if it was applied |
+| `wait_refresh()` | — | Waits for the revision list to finish refreshing |
+
+---
+
+## Built-in action API
+
+Every built-in action is exposed as a Lua function via `jjui.<scope>.<action>()`. These dispatch the action into the UI and yield until it is handled, so they compose naturally with other async steps.
+
+Actions that take a single required string arg accept it positionally:
+
+```lua
+revset.set("trunk()")
+-- equivalent to:
+revset.set({ value = "trunk()" })
+```
+
+### revisions.*
+
+| Function | Notes |
+|----------|-------|
+| `revisions.absorb()` | Run `jj absorb` on the current revision |
+| `revisions.new()` | Create a new revision |
+| `revisions.commit()` | |
+| `revisions.describe()` | Open external editor to edit description |
+| `revisions.edit()` | |
+| `revisions.force_edit()` | |
+| `revisions.diff()` | |
+| `revisions.diff_edit()` | |
+| `revisions.split()` | |
+| `revisions.split_parallel()` | |
+| `revisions.apply({ force? })` | |
+| `revisions.force_apply()` | |
+| `revisions.toggle_select()` | |
+| `revisions.refresh()` | |
+| `revisions.move_up()` / `move_down()` | |
+| `revisions.page_up()` / `page_down()` | |
+| `revisions.jump_to_parent()` | |
+| `revisions.jump_to_children()` | |
+| `revisions.jump_to_working_copy()` | |
+| `revisions.ace_jump()` | |
+| `revisions.quick_search_next()` / `_prev()` / `_clear()` | |
+| `revisions.open_abandon()` | Enter abandon mode |
+| `revisions.open_details()` | Open the details view |
+| `revisions.open_duplicate()` | Enter duplicate mode |
+| `revisions.open_evolog()` | Open the evolution log |
+| `revisions.open_inline_describe()` | Start inline describe |
+| `revisions.open_rebase()` | Enter rebase mode |
+| `revisions.open_revert()` | Enter revert mode |
+| `revisions.open_set_bookmark()` | Open bookmark input |
+| `revisions.open_set_parents()` | Enter set-parents mode |
+| `revisions.open_squash()` | Enter squash mode |
+
+### revisions.rebase.*
+
+| Function | Args |
+|----------|------|
+| `revisions.rebase.set_source({ source })` | `"revision"`, `"branch"`, or `"source"` (descendants) |
+| `revisions.rebase.set_target({ target })` | `"onto"`, `"after"`, `"before"`, or `"insert"` |
+| `revisions.rebase.skip_emptied()` | Toggle |
+| `revisions.rebase.apply({ force? })` | |
+| `revisions.rebase.force_apply()` | |
+| `revisions.rebase.cancel()` | |
+| `revisions.rebase.target_picker()` | |
+| `revisions.rebase.ace_jump()` | |
+| `revisions.rebase.jump_to_working_copy()` | |
+
+### revisions.squash.*
+
+| Function | Args |
+|----------|------|
+| `revisions.squash.interactive()` | Toggle |
+| `revisions.squash.keep_emptied()` | Toggle |
+| `revisions.squash.use_destination_msg()` | Toggle |
+| `revisions.squash.apply({ force? })` | |
+| `revisions.squash.force_apply()` | |
+| `revisions.squash.cancel()` | |
+| `revisions.squash.target_picker()` | |
+| `revisions.squash.ace_jump()` | |
+| `revisions.squash.jump_to_working_copy()` | |
+
+### revisions.duplicate.*
+
+| Function | Args |
+|----------|------|
+| `revisions.duplicate.set_target({ target })` | `"onto"`, `"after"`, `"before"`, or `"insert"` |
+| `revisions.duplicate.apply({ force? })` | |
+| `revisions.duplicate.force_apply()` | |
+| `revisions.duplicate.cancel()` | |
+| `revisions.duplicate.target_picker()` | |
+| `revisions.duplicate.ace_jump()` | |
+| `revisions.duplicate.jump_to_working_copy()` | |
+
+### revisions.revert.*
+
+| Function | Args |
+|----------|------|
+| `revisions.revert.set_target({ target })` | `"onto"`, `"after"`, `"before"`, or `"insert"` |
+| `revisions.revert.apply({ force? })` | |
+| `revisions.revert.force_apply()` | |
+| `revisions.revert.cancel()` | |
+| `revisions.revert.target_picker()` | |
+
+### revisions.abandon.*
+
+| Function |
+|----------|
+| `revisions.abandon.toggle_select()` |
+| `revisions.abandon.select_descendants()` |
+| `revisions.abandon.apply({ force? })` |
+| `revisions.abandon.force_apply()` |
+| `revisions.abandon.cancel()` |
+| `revisions.abandon.ace_jump()` |
+| `revisions.abandon.jump_to_working_copy()` |
+
+### revisions.set_parents.*
+
+| Function |
+|----------|
+| `revisions.set_parents.toggle_select()` |
+| `revisions.set_parents.apply()` |
+| `revisions.set_parents.cancel()` |
+| `revisions.set_parents.ace_jump()` |
+| `revisions.set_parents.jump_to_working_copy()` |
+
+### revisions.inline_describe.*
+
+| Function | Notes |
+|----------|-------|
+| `revisions.inline_describe.accept()` | Apply the description |
+| `revisions.inline_describe.editor()` | Open external editor |
+| `revisions.inline_describe.cancel()` | Cancel without saving |
+
+### revisions.details.*
+
+| Function | Args |
+|----------|------|
+| `revisions.details.select_file(file)` | Required string (positional) |
+| `revisions.details.toggle_select()` | |
+| `revisions.details.squash()` | |
+| `revisions.details.absorb()` | |
+| `revisions.details.split()` | |
+| `revisions.details.split_parallel()` | |
+| `revisions.details.restore()` | |
+| `revisions.details.diff()` | |
+| `revisions.details.refresh()` | |
+| `revisions.details.revisions_changing_file()` | |
+| `revisions.details.move_up()` / `move_down()` | |
+| `revisions.details.page_up()` / `page_down()` | |
+| `revisions.details.cancel()` / `revisions.details.quit()` | |
+
+### revisions.details.confirmation.*
+
+Shown when a details operation (e.g. squash) affects multiple revisions and needs confirmation.
+
+| Function |
+|----------|
+| `revisions.details.confirmation.apply({ force? })` |
+| `revisions.details.confirmation.force_apply()` |
+| `revisions.details.confirmation.cancel()` |
+| `revisions.details.confirmation.next()` |
+| `revisions.details.confirmation.prev()` |
+
+### revisions.evolog.*
+
+| Function |
+|----------|
+| `revisions.evolog.restore()` |
+| `revisions.evolog.apply({ force? })` |
+| `revisions.evolog.diff()` |
+| `revisions.evolog.move_up()` / `move_down()` |
+| `revisions.evolog.page_up()` / `page_down()` |
+| `revisions.evolog.cancel()` / `revisions.evolog.quit()` |
+
+### revisions.ace_jump.*
+
+| Function |
+|----------|
+| `revisions.ace_jump.apply()` |
+| `revisions.ace_jump.cancel()` |
+
+### revisions.target_picker.*
+
+Shared target picker used by rebase, squash, duplicate, and revert.
+
+| Function |
+|----------|
+| `revisions.target_picker.move_up()` / `move_down()` |
+| `revisions.target_picker.apply({ force? })` |
+| `revisions.target_picker.force_apply()` |
+| `revisions.target_picker.cancel()` |
+| `revisions.target_picker.autocomplete()` / `autocomplete_back()` |
+
+### revisions.set_bookmark.*
+
+| Function |
+|----------|
+| `revisions.set_bookmark.apply()` |
+| `revisions.set_bookmark.cancel()` |
+| `revisions.set_bookmark.autocomplete()` / `autocomplete_back()` |
+
+### revset.*
+
+| Function | Args |
+|----------|------|
+| `revset.set(value)` | Required string (positional) |
+| `revset.reset()` | |
+| `revset.edit({ clear? })` | Open the revset editor |
+| `revset.apply()` | |
+| `revset.cancel()` | |
+| `revset.autocomplete()` / `autocomplete_back()` | Cycle completion suggestions |
+| `revset.move_up()` / `revset.move_down()` | Navigate completion list |
+
+### ui.*
+
+| Function | Notes |
+|----------|-------|
+| `ui.cancel()` | |
+| `ui.quit()` | |
+| `ui.suspend()` | |
+| `ui.open_bookmarks()` | |
+| `ui.open_git()` | |
+| `ui.open_oplog()` | |
+| `ui.open_undo()` | |
+| `ui.open_redo()` | |
+| `ui.open_revset()` | |
+| `ui.open_command_history()` | |
+| `ui.file_search_toggle()` | |
+| `ui.quick_search()` | |
+| `ui.expand_status()` | |
+| `ui.preview_toggle()` | |
+| `ui.preview_toggle_bottom()` | |
+| `ui.preview_expand()` / `ui.preview_shrink()` | |
+| `ui.preview_scroll_down()` / `ui.preview_scroll_up()` | |
+| `ui.preview_half_page_down()` / `ui.preview_half_page_up()` | |
+| `ui.exec_jj()` | Open the jj command prompt |
+| `ui.exec_shell()` | Open the shell command prompt |
+
+### oplog.*
+
+| Function |
+|----------|
+| `oplog.restore()` |
+| `oplog.revert()` |
+| `oplog.diff()` |
+| `oplog.move_up()` / `oplog.move_down()` |
+| `oplog.page_up()` / `oplog.page_down()` |
+| `oplog.close()` / `oplog.quit()` |
+
+### bookmarks.*
+
+| Function |
+|----------|
+| `bookmarks.cycle_remotes()` / `bookmarks.cycle_remotes_back()` |
+| `bookmarks.filter()` |
+| `bookmarks.bookmark_delete()` |
+| `bookmarks.bookmark_forget()` |
+| `bookmarks.bookmark_move()` |
+| `bookmarks.bookmark_track()` |
+| `bookmarks.bookmark_untrack()` |
+| `bookmarks.move_up()` / `bookmarks.move_down()` |
+| `bookmarks.page_up()` / `bookmarks.page_down()` |
+| `bookmarks.apply()` / `bookmarks.cancel()` / `bookmarks.quit()` |
+
+### git.*
+
+| Function |
+|----------|
+| `git.push()` |
+| `git.fetch()` |
+| `git.filter()` |
+| `git.cycle_remotes()` / `git.cycle_remotes_back()` |
+| `git.move_up()` / `git.move_down()` |
+| `git.page_up()` / `git.page_down()` |
+| `git.apply()` / `git.cancel()` / `git.quit()` |
+
+### diff.*
+
+| Function |
+|----------|
+| `diff.scroll_up()` / `diff.scroll_down()` |
+| `diff.page_up()` / `diff.page_down()` |
+| `diff.half_page_up()` / `diff.half_page_down()` |
+| `diff.move_top()` / `diff.move_bottom()` |
+| `diff.left()` / `diff.right()` |
+| `diff.toggle_wrap()` |
+
+### undo.* / redo.*
+
+| Function |
+|----------|
+| `undo.apply()` / `undo.cancel()` |
+| `undo.prev()` / `undo.next()` |
+| `redo.apply()` / `redo.cancel()` |
+| `redo.prev()` / `redo.next()` |
+
+### choose.*
+
+| Function |
+|----------|
+| `choose.apply()` |
+| `choose.cancel()` |
+| `choose.move_up()` / `choose.move_down()` |
+
+### input.*
+
+| Function |
+|----------|
+| `input.apply()` |
+| `input.cancel()` |
+
+### command_history.*
+
+| Function |
+|----------|
+| `command_history.move_up()` / `command_history.move_down()` |
+| `command_history.close()` |
+| `command_history.delete_selected()` |
+
+### file_search.*
+
+| Function |
+|----------|
+| `file_search.move_up()` / `file_search.move_down()` |
+| `file_search.page_up()` / `file_search.page_down()` |
+| `file_search.preview_half_page_up()` / `file_search.preview_half_page_down()` |
+| `file_search.toggle()` |
+| `file_search.edit()` |
+| `file_search.apply()` / `file_search.cancel()` |

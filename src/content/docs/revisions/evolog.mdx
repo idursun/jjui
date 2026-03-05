@@ -1,25 +1,29 @@
 ---
-title: Evolog Operation
-description: Inspect and restore evolution entries for selected revisions
+title: Evolog
+description: Inspect and restore evolution entries for a revision
 ---
 
-Evolog opens revision evolution history for selected revisions.
+Press `v` on a revision to open its evolution log inline below it.
 
-Press `v` in Revisions to open Evolog.
+Evolog has two modes: **select** and **restore**.
 
-## Core actions
+## Select mode
 
-- `r`: restore selected evolog entry
-- `d`: open full diff for selected evolog entry
-- `enter`: apply selected evolog entry
+The evolog entries are listed below the revision. Navigate through them to inspect how the revision evolved over time.
 
-## Navigation and view
-
-- `j`/`k` or arrows: move
-- `p`: toggle preview
+- `j`/`k`, `pgup`/`pgdown`: navigate entries
+- `d`: view the diff of the highlighted entry
+- `r`: switch to restore mode
+- `p`: toggle preview (shows the diff patch for the highlighted entry)
 - `shift+p`: move preview to bottom
+- `esc`: close evolog
 
-## Exit
+## Restore mode
 
-- `esc`: cancel/close evolog
-- `q`: quit jjui
+After pressing `r`, the evolog list hides and focus returns to the revision list. Navigate to the revision you want to restore into — it will show a `<< restore >>` marker. Press `enter` to apply.
+
+Under the hood this runs `jj restore --from <evolog_commit_id> --into <target_change_id>`.
+
+- `j`/`k`: navigate the revision list
+- `enter`: apply restore
+- `esc`: cancel and return to select mode

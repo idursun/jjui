@@ -1,12 +1,14 @@
 ---
-title: Absorb Operation
-description: Absorb Operation
+title: Absorb
+description: Absorb working-copy changes into parent revisions
 ---
 
-The absorb operation lets you automatically incorporate changes from the working copy or child revisions into the selected revision. To use this feature, press `shift+a` to run `jj absorb` on the highlighted revision.
+Press `shift+a` to run `jj absorb` on the highlighted revision. Absorb automatically moves changes into the most recent ancestor revision that touched each changed line.
 
-After absorbing changes, affected revisions will display a hint line indicating they were updated by the last operation. This helps you track which commits have been modified.
+While absorb runs, revisions that will receive absorbed changes are annotated with a hint inline — giving you a visual cue of where each change is going before the operation completes.
 
-Absorb is commonly used together with other revision management features such as abandon, squash, and rebase, to keep your history clean and organized.
+## From details
+
+In the [Details](/jjui/details) view, select specific files with `m` or `space` and press `shift+a` to absorb only those files.
 
 ![image](https://github.com/user-attachments/assets/60ecf82c-18b2-49c9-83d7-75e8d574d31f)

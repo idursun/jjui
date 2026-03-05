@@ -1,47 +1,56 @@
 ---
 title: Preview
-description: Preview
+description: Context-aware diff and detail preview pane
 ---
 
-You can open the preview window by pressing `p`.
+Press `p` to toggle the preview pane. It updates automatically as you navigate — what it shows depends on what is currently selected.
 
-The preview window displays output of the configured command for the selected revision, file, or operation.
+![GIF](/jjui/gifs/jjui_preview.gif)
 
-Configure preview commands under `[preview]` in your config.
+## Context-aware content
 
-Default commands:
+| Context | What preview shows |
+|---------|-------------------|
+| Revision highlighted | Diff of that revision (`jj show`) |
+| File highlighted in details | Diff of that file (`jj diff`) |
+| Evolog entry highlighted | Patch diff of that entry (`jj evolog -p -n 1`) |
+| Oplog entry highlighted | Operation details (`jj op show`) |
 
-```toml
-[preview]
-revision_command = ["show", "--color", "always", "-r", "$change_id"]
-oplog_command = ["op", "show", "$operation_id", "--color", "always"]
-file_command = ["diff", "--color", "always", "-r", "$change_id", "$file"]
-```
+## Keys
 
-While the preview window is open:
-
+- `p`: toggle preview on/off
+- `shift+p`: move preview to bottom (toggle between side and bottom)
 - `ctrl+n`: scroll one line down
 - `ctrl+p`: scroll one line up
 - `ctrl+d`: scroll half page down
 - `ctrl+u`: scroll half page up
 - `ctrl+h`: expand preview width
 - `ctrl+l`: shrink preview width
-- `shift+p`: move preview to bottom (toggle)
 
-When mouse support is available, you can scroll preview and drag the preview border to resize.
+When mouse support is available, you can scroll the preview and drag the separator to resize it.
 
-![GIF](/jjui/gifs/jjui_preview.gif)
-
-## Preview Position
-
-Use the `position` field to control where preview appears:
+## Position
 
 ```toml
 [preview]
-position = "auto"   # auto | bottom | right
-show_at_start = true
+position = "auto"      # auto | right | bottom
+show_at_start = false
+width_percentage = 50.0
+width_increment_percentage = 5.0
 ```
 
-- `auto` (default): choose bottom in tall terminals, right in wide terminals
-- `bottom`: always bottom
-- `right`: always right
+- `auto` (default): uses bottom in tall terminals, right in wide terminals
+- `right`: always on the right
+- `bottom`: always at the bottom
+
+## Customizing preview commands
+
+All preview commands are configurable. The placeholders `$change_id`, `$commit_id`, `$operation_id`, and `$file` are substituted at runtime.
+
+```toml
+[preview]
+revision_command = ["show", "--color", "always", "-r", "$change_id"]
+evolog_command   = ["evolog", "--color", "always", "-r", "$commit_id", "-p", "-n", "1"]
+oplog_command    = ["op", "show", "$operation_id", "--color", "always"]
+file_command     = ["diff", "--color", "always", "-r", "$change_id", "$file"]
+```

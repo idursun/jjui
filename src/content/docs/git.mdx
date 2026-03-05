@@ -1,20 +1,46 @@
 ---
-title: Git Menu
-description: Git Menu
+title: Git
+description: Run git push and fetch operations
 ---
 
-
-The Git menu in jjui provides an interface for running Git-related commands directly from the Revisions view. This feature makes it easy to perform common Git operations without leaving the application.
-
-To use the Git menu, press `g` to open the pop-up menu. The menu displays available Git commands for the current context, allowing you to quickly access fetch, push, and other actions.
-
-Filtering commands:
-- Fetch: Press `f` to filter the list to fetch commands.
-- Push: Press `p` to filter the list to push commands.
-
-You can use assigned shortcuts to quickly invoke items in the menu. For example:
-- `gpa`: Invokes `git push --all`.
-- `gpc`: Invokes `git push --change`.
-
+Press `g` to open the Git menu. It lists push and fetch commands for the current context.
 
 <img width="1132" height="787" alt="image" src="https://github.com/user-attachments/assets/016d047b-813d-4b33-bee0-f13610ddf05f" />
+
+## Remotes
+
+All configured remotes are shown at the top of the menu. Press `tab` / `shift+tab` to cycle between them — changing the selected remote changes which remote all commands in the list target. You can also click a remote name directly.
+
+## Filtering commands
+
+- `p`: filter to push commands. Pressing `p` again immediately executes the default push for the selected remote.
+- `f`: filter to fetch commands. Pressing `f` again immediately executes the default fetch for the selected remote.
+
+When a category filter is active, item shortcut keys become available.
+
+## Push commands
+
+Commands shown vary based on the selected remote and any highlighted/selected revisions:
+
+| Key | Command |
+|-----|---------|
+| `p` | `git push --remote <remote>` — push tracking bookmarks in the current revset |
+| `a` | `git push --all --deleted --remote <remote>` |
+| `c` | `git push --change <change_id> --remote <remote>` |
+| `d` | `git push --deleted --remote <remote>` |
+| `t` | `git push --tracked --remote <remote>` |
+
+Per-bookmark push commands are also generated automatically for each bookmark on the selected revisions.
+
+## Fetch commands
+
+| Key | Command |
+|-----|---------|
+| `f` | `git fetch --remote <remote>` |
+| `t` | `git fetch --tracked --remote <remote>` |
+| `a` | `git fetch --all-remotes` |
+
+## Other keys
+
+- `/`: free text filter to search commands by name
+- `esc`: close the menu

@@ -3,40 +3,41 @@ title: Rebase
 description: Rebase revisions interactively
 ---
 
-Rebase lets you move selected revisions relative to a target revision.
+Rebase moves selected revisions relative to a target. Whatever is selected (or the highlighted revision if nothing is selected) when you press `r` becomes the source.
 
 ![GIF](/jjui/gifs/jjui_rebase.gif)
 
 Press `r` in the Revisions view to open rebase mode.
 
-By default:
-
-- source = `revision`
-- target = `destination` (onto)
-
 ## Source modes
 
-- `r`: `revision` (only selected revision)
-- `shift+b`: `branch` (selected revision's branch)
-- `s`: `descendants` (selected revision and descendants)
+- `r`: **revision** — only the highlighted/selected revision(s), without descendants (`jj rebase -r`)
+- `shift+b`: **branch** — the selected revision's whole branch relative to the destination (`jj rebase -b`)
+- `s`: **descendants** — the selected revision and all its descendants (`jj rebase -s`)
 
 ## Target modes
 
-- `o`: `onto` (destination)
-- `a`: `after`
-- `b`: `before`
-- `i`: `insert`
+Navigate to the target revision, then press:
+
+- `o` **onto**: moves source onto the target. Existing descendants of the target are not affected. (`jj rebase --onto`)
+- `a` **after**: inserts source after the target, rebasing the target's existing descendants on top. (`jj rebase --insert-after`)
+- `b` **before**: inserts source before the target, rebasing the target and its descendants on top. (`jj rebase --insert-before`)
+- `i` **insert**: two-step — navigate to the "after" revision and press `i` to mark it, then navigate to the "before" revision and press `enter`. Source revisions are slotted between the two points.
 - `t`: open target picker
 
 ## Target picker
 
-Press `t` to open a target picker with autocomplete.
+When the target isn't visible in the current revset (e.g. it's filtered out, or it's a remote branch you're not tracking), press `t` to open the target picker. It lists bookmarks and tags, and also accepts a raw revset expression typed directly.
 
 - `up`/`down`: move selection
 - `tab` / `shift+tab`: autocomplete
 - `enter`: apply
 - `alt+enter`: force apply
 - `esc`: cancel
+
+## Options
+
+- `e` **skip emptied**: when enabled, any revision that becomes empty as a result of the rebase is abandoned automatically instead of being kept as an empty commit.
 
 ## Apply and cancel
 

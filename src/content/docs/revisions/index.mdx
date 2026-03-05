@@ -3,7 +3,7 @@ title: Revisions
 description: Main view for browsing history and running operations
 ---
 
-Revisions is the default view in `jjui`.
+Revisions is the default view in `jjui`. All other views (Git, Oplog, Bookmarks, Diff) are stacked on top of it — pressing `esc` from any of them returns here.
 
 ## Core navigation
 
@@ -14,13 +14,21 @@ Revisions is the default view in `jjui`.
 - `shift+k`: jump to children
 - `space`: toggle revision selection
 
+## Selection
+
+The highlighted revision is the default source for all operations. `space` selects additional revisions — operations that support multi-select will use all of them.
+
+- Select multiple revisions then press `r` → all selected become the rebase source.
+- Select multiple revisions then press `a` → abandon applies to all of them.
+- `esc` clears the current selection.
+
 ## Main actions
 
 - `l` or `right`: open [Details](/jjui/details)
 - `d`: open full diff
 - `enter`: [Inline Describe](/jjui/revisions/inline-describe)
 - `shift+d`: describe in editor
-- `n`: create new change
+- `n`: create new change from the highlighted revision (or from all selected revisions)
 - `s`: split
 - `alt+s`: split parallel
 - `e`: edit
@@ -28,6 +36,15 @@ Revisions is the default view in `jjui`.
 - `shift+e`: diff edit
 - `c`: commit
 - `shift+b`: set bookmark
+
+## Creating a revision at a specific position
+
+`n` always creates a new revision as a child of the highlighted revision. To place it elsewhere, create it first then rebase it into position:
+
+1. Press `n` to create the revision.
+2. Navigate to the new revision.
+3. Press `r` to enter rebase mode.
+4. Navigate to the target and press `a` (after) or `b` (before), then `enter`.
 
 ## Revision operations
 

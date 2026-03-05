@@ -1,12 +1,15 @@
 ---
 title: Inline Describe
-description: Inline Describe
+description: Edit a revision description without leaving the revision list
 ---
 
-Inline describe allows you to quickly edit the description of a revision directly from the Revisions view without having to leave the UI.
+Press `enter` on a revision to open the inline description editor. The current description is loaded into the editor.
 
-To use inline describe:
-- Select the revision you want to edit.
-- Press `Enter` to load the current description into the inline editor.
-- Make your changes in the editor.
-- Accept the changes by pressing `Alt+Enter` or `Ctrl+S`.
+- `enter`: insert a new line
+- `alt+enter` or `ctrl+s`: apply — runs `jj describe` with what you've typed
+- `alt+e`: open the description in your external editor instead
+- `esc`: cancel
+
+## Draft stashing
+
+If the revision had an **empty description** when you opened the editor, pressing `esc` stashes your typed text as a draft instead of discarding it. The next time you open inline describe on that same revision, the draft is restored automatically.

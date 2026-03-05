@@ -7,20 +7,19 @@ Duplicate copies one or more selected revisions and places the copies at a targe
 
 Press `y` in the Revisions view to enter duplicate mode.
 
-## Workflow
+Whatever is selected (or the highlighted revision if nothing is selected) when you press `y` becomes the source. The source revisions are marked `<< duplicate >>` in the list. Navigate to the target revision, choose a placement mode, then press `enter` to apply (or `alt+enter` to force apply).
 
-1. Select source revision(s) (`space` for multi-select).
-2. Press `y` to start duplicate mode.
-3. Choose target placement:
-   - `o`: onto (destination)
-   - `a`: after
-   - `b`: before
-   - `t`: open target picker
-4. Press `enter` to apply (`alt+enter` to force apply).
+## Target modes
+
+- `o` **onto**: places the copies as children of the target. Existing descendants of the target are not affected.
+- `a` **after**: places the copies after the target, and rebases the target's existing descendants on top of the copies.
+- `b` **before**: places the copies before the target, inserting them between the target and its parents.
+- `i` **insert**: two-step placement — navigate to the "after" revision and press `i` to mark it, then navigate to the "before" revision and press `enter`. The copies are inserted between the two points.
+- `t`: open the target picker.
 
 ## Target picker
 
-The target picker uses the shared `revisions.target_picker` bindings:
+When the target revision is not visible in the current revset, press `t` to open the target picker. It lists bookmarks and tags, and also accepts a raw revset expression.
 
 - `up`/`down`: move
 - `tab` / `shift+tab`: autocomplete

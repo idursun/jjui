@@ -3,21 +3,20 @@ title: Op Log
 description: Browse and act on repository operation history
 ---
 
-Press `o` in Revisions to open Op Log.
+Press `o` to open the operation log. It shows the history of all jj operations run in the repository, limited to 200 entries by default.
 
-By default, Op Log shows the latest 200 operations. Configure this with `oplog.limit`.
+![GIF](/jjui/gifs/jjui_oplog.gif)
 
-## Core actions
+## Actions
 
-- `r`: restore selected operation (`jj op restore <operation_id>`)
-- `shift+r`: revert selected operation (`jj op revert <operation_id>`)
-- `d`: open full diff for selected operation
+- `d`: view the diff for the highlighted operation — opens the diff viewer showing what changed
+- `r` **restore**: runs `jj op restore <op_id>` — takes the repository back to the state it was in at that operation. Everything after it is discarded.
+- `shift+r` **revert**: runs `jj op revert <op_id>` — undoes only what that specific operation did, without discarding subsequent operations.
 
-## Navigation and view
+## Navigation
 
-- `j`/`k` or arrows: move
-- `pgup`/`pgdown`: page navigation
-- `p`: toggle preview
+- `j`/`k`, `pgup`/`pgdown`: navigate entries
+- `p`: toggle preview (shows `jj op show` for the highlighted entry)
 - `shift+p`: move preview to bottom
 
 ## Quick search
@@ -29,7 +28,12 @@ By default, Op Log shows the latest 200 operations. Configure this with `oplog.l
 
 ## Exit
 
-- `esc`: close Op Log and return
+- `esc`: close and return to revisions
 - `q`: quit jjui
 
-![GIF](/jjui/gifs/jjui_oplog.gif)
+## Configuration
+
+```toml
+[oplog]
+limit = 200  # number of operations to load
+```
