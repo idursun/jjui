@@ -1,0 +1,27 @@
+---
+title: Diff Viewer
+description: Full-screen diff viewer for revisions, files, and operations
+---
+
+The diff viewer shows a full-screen, colored diff. It opens from several places in jjui:
+
+- **Revisions**: press `d` to view the diff for the highlighted revision
+- **Details**: press `d` to view the diff for the selected file
+- **Evolog**: press `d` to compare with the previous evolution entry
+- **Oplog**: press `d` to view the diff for the selected operation
+
+Press `esc` or `q` to close the diff and return to the previous view.
+
+## Navigation
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` or arrows | Scroll up / down |
+| `f` / `b` or `pgdown` / `pgup` | Page down / up |
+| `d` / `u` or `ctrl+d` / `ctrl+u` | Half page down / up |
+| `g` | Jump to top |
+| `G` | Jump to bottom |
+| `h` / `l` or left / right | Scroll horizontally |
+| `w` | Toggle line wrapping |
+
+When line wrapping is enabled, long lines wrap within the viewport and horizontal scrolling is disabled.

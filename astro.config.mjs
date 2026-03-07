@@ -102,6 +102,12 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Diff Viewer',
+					items: [
+						{ label: 'Diff Viewer', slug: 'diff-viewer' },
+					],
+				},
+				{
 					label: 'Fuzzy File Finder',
 					items: [
 						{ label: 'Fuzzy File Finder', slug: 'fuzzy-file-finder' },

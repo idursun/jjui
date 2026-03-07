@@ -26,4 +26,13 @@ Press `b` to open the bookmark menu. It lists all available bookmark commands an
 
 Press `esc` to close the menu.
 
+## Remote cycling
+
+The bookmark menu shows **"local"** as the first remote, followed by all configured remotes. Press `tab` / `shift+tab` to cycle between them. The selected remote filters which commands appear:
+
+- **local**: move, delete, forget, and untrack commands for all bookmarks, plus track commands for local-only bookmarks (those without a remote)
+- **a specific remote**: only track and untrack commands for bookmarks on that remote
+
+Items within each category are sorted by distance from the current revision — bookmarks closer to where your cursor is appear first in the move list.
+
 <img width="1132" height="787" alt="image" src="https://github.com/user-attachments/assets/34f7a265-dfd5-4b8d-94cb-3f4074e72ab6" />
