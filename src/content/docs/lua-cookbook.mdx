@@ -1,0 +1,226 @@
+---
+title: "Lua Cookbook"
+description: Lua scripting examples and custom workflow recipes for jjui
+---
+
+This page contains practical Lua scripting examples for extending jjui. Each example can be added to your `config.toml` or `config.lua`.
+
+For the full Lua API reference, see [Lua Scripting](/jjui/customization/lua-scripting). For binding actions to keys, see [Actions and Bindings](/jjui/customization/actions-and-bindings).
+
+If you have a workflow to share, open a [Q&A discussion](https://github.com/idursun/jjui/discussions/categories/q-a).
+
+### Open diff in an external viewer
+
+`exec_shell` lets you pipe `jj` output to any external tool. This example opens the current revision's diff in [`diffnav`](https://github.com/dlvhdr/diffnav) on `ctrl+d`:
+
+```lua
+-- ~/.config/jjui/config.lua
+function setup(config)
+  config.action("show diff in diffnav", function()
+    local change_id = context.change_id()
+    if not change_id or change_id == "" then
+      flash({ text = "No revision selected", error = true })
+      return
+    end
+
+    exec_shell(string.format("jj diff -r %q --git --color always | diffnav", change_id))
+  end, { desc = "show diff in diffnav", key = "ctrl+d", scope = "revisions" })
+end
+```
+
+Replace `diffnav` with any pager or diff viewer that reads from stdin (`delta`, `bat`, `less`, etc.).
+
+---
+
+### Select all files in the same directory
+
+When browsing files in the details view, pressing `ctrl+space` selects all files that share the same top-level directory as the currently highlighted file. Useful for quickly staging a whole subtree for squash or split.
+
+```toml
+[[actions]]
+name = "select_dir_files"
+lua = '''
+local file = context.file()
+if not file then return end
+
+local dir = file:match("^(.*)/[^/]*$") or ""
+local change_id = context.change_id()
+
+local out, err = jj({"diff", "--summary", "-r", change_id, "--color", "never", "--ignore-working-copy"})
+if err then
+  flash({ text = err, error = true })
+  return
+end
+
+for _, line in ipairs(split_lines(out)) do
+  local f = line:sub(3)  -- strip "M " / "A " / "D " status prefix
+  local f_dir = f:match("^(.*)/[^/]*$") or ""
+  if f_dir == dir then
+    jjui.builtin.revisions.details.select_file({ file = f })
+  end
+end
+'''
+
+[[bindings]]
+action = "select_dir_files"
+key = "ctrl+space"
+scope = "revisions.details"
+desc = "select all files in same directory"
+```
+
+`jjui.builtin.revisions.details.select_file` is used here instead of `revisions.details.select_file` to ensure the built-in implementation is called even if you have overridden that action elsewhere.
+
+---
+
+### Open a file at the first diff line
+
+When a file is highlighted in the details view, pressing `e` opens it in `nvim` and jumps directly to the first changed line by parsing the diff hunk header.
+
+```lua
+-- ~/.config/jjui/config.lua
+function setup(config)
+  config.action("edit file", function()
+    local function first_hunk_new_lineno(git_diff)
+      for line in git_diff:gmatch("[^\n]+") do
+        if line:sub(1, 3) == "@@ " then
+          local new_start = line:match("%+(%d+)")
+          if new_start then
+            return tonumber(new_start)
+          end
+        end
+      end
+      return nil
+    end
+
+    local diff = jj("diff", "--git", "-r", context.change_id(), context.file())
+    local line_number = first_hunk_new_lineno(diff)
+    exec_shell(string.format("nvim +%q %q", line_number, context.file()))
+  end, {
+    scope = "revisions.details",
+    key = "e",
+  })
+end
+```
+
+`context.file()` is only available when a file is selected in the details view, which makes `revisions.details` the right scope here.
+
+---
+
+### Incrementally expand ancestors in the revset
+
+Pressing `+` appends `ancestors(<change_id>, 2)` to the current revset. Pressing it again increments the depth, letting you progressively reveal more history for the highlighted revision.
+
+```toml
+[[actions]]
+name = "append-ancestors-to-revset"
+desc = "append ancestors of current revision to revset"
+lua = '''
+local change_id = revisions.current()
+if not change_id then return end
+
+local current = revset.current()
+local bumped = false
+local updated = current:gsub("ancestors%(" .. change_id .. "%s*,%s*(%d+)%)", function(n)
+  bumped = true
+  return "ancestors(" .. change_id .. ", " .. (tonumber(n) + 1) .. ")"
+end, 1)
+
+if not bumped then
+  updated = current .. " | ancestors(" .. change_id .. ", 2)"
+end
+
+revset.set(updated)
+'''
+
+[[bindings]]
+action = "append-ancestors-to-revset"
+key = "+"
+scope = "revisions"
+desc = "append ancestors to revset"
+```
+
+---
+
+### Dynamic theme plugin
+
+Plugins are Lua modules placed in `~/.config/jjui/plugins/` and loaded via `require` in `config.lua`. This example derives a full color palette from a single accent hex color, with an adaptive selection background that reads the terminal's actual background color via `config.terminal.bg`.
+
+```lua
+-- ~/.config/jjui/plugins/dynamic_theme.lua
+local function clamp(n, lo, hi)
+  if n < lo then return lo end
+  if n > hi then return hi end
+  return n
+end
+
+local function parse_hex(color)
+  local hex = color:gsub("^#", "")
+  if #hex ~= 6 then return nil end
+  return tonumber(hex:sub(1,2), 16), tonumber(hex:sub(3,4), 16), tonumber(hex:sub(5,6), 16)
+end
+
+local function to_hex(r, g, b)
+  return string.format("#%02X%02X%02X",
+    clamp(math.floor(r+0.5), 0, 255),
+    clamp(math.floor(g+0.5), 0, 255),
+    clamp(math.floor(b+0.5), 0, 255))
+end
+
+local function lighten(color, pct)
+  local r, g, b = parse_hex(color)
+  if not r then return color end
+  local t = clamp(pct, 0, 100) / 100.0
+  return to_hex(r + (255-r)*t, g + (255-g)*t, b + (255-b)*t)
+end
+
+local function darken(color, pct)
+  local r, g, b = parse_hex(color)
+  if not r then return color end
+  local t = 1.0 - clamp(pct, 0, 100) / 100.0
+  return to_hex(r*t, g*t, b*t)
+end
+
+local M = {}
+
+function M.setup(primary, config)
+  local bright  = lighten(primary, 58)
+  local mid     = lighten(primary, 40)
+  local soft    = darken(primary, 44)
+  local darker  = darken(primary, 68)
+
+  -- Adapt selected background to the terminal's actual background color.
+  local selected_bg = darker
+  local terminal_bg = config.terminal and config.terminal.bg
+  if type(terminal_bg) == "string" and terminal_bg ~= "" then
+    selected_bg = darken(terminal_bg, 18)
+  end
+
+  config.ui = config.ui or {}
+  config.ui.colors = config.ui.colors or {}
+
+  config.ui.colors.title    = { fg = primary, bold = true }
+  config.ui.colors.dimmed   = { fg = mid }
+  config.ui.colors.shortcut = { fg = bright, bold = true }
+  config.ui.colors.selected = { fg = bright, bg = selected_bg, bold = true }
+  config.ui.colors.success  = { fg = lighten(primary, 55), bold = true }
+  config.ui.colors.error    = { fg = lighten(primary, 52), bold = true }
+
+  config.ui.colors["revisions selected"] = { fg = bright, bg = selected_bg, bold = true }
+  config.ui.colors["revisions dimmed"]   = { fg = mid }
+end
+
+return M
+```
+
+Wire it up in `config.lua` by calling `M.setup` with an accent color inside `setup`:
+
+```lua
+-- ~/.config/jjui/config.lua
+local dynamic_theme = require("plugins.dynamic_theme")
+
+function setup(config)
+  dynamic_theme.setup("#5B8DEF", config)
+end
+```
+
+Pass any hex color as the accent. All palette variants — highlights, dimmed text, selection backgrounds — are derived from that single value. `config.terminal.bg` is queried at startup and used to darken the selection background relative to the actual terminal color rather than a hardcoded value.

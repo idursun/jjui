@@ -19,6 +19,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Overview', slug: 'overview' },
 						{ label: 'Install', slug: 'install' },
+						{ label: 'Migrating to v0.10', slug: 'migrating/v0_10' },
 					],
 				},
 				{
@@ -29,13 +30,14 @@ export default defineConfig({
 						{ label: 'Actions and Bindings', slug: 'customization/actions-and-bindings' },
 						{ label: 'Lua Scripting', slug: 'customization/lua-scripting' },
 						{ label: 'Themes', slug: 'customization/themes' },
-{ label: 'Command Line Options', slug: 'customization/command-line-options' },
+						{ label: 'Command Line Options', slug: 'customization/command-line-options' },
 					],
 				},
 				{
 					label: 'Revisions',
 					items: [
 						{ label: 'Overview', slug: 'revisions' },
+						{ label: 'Details', slug: 'details' },
 						{ label: 'Rebase', slug: 'revisions/rebase' },
 						{ label: 'Absorb', slug: 'revisions/absorb' },
 						{ label: 'Abandon', slug: 'revisions/abandon' },
@@ -45,90 +47,34 @@ export default defineConfig({
 						{ label: 'Set Parents', slug: 'revisions/set-parents' },
 						{ label: 'Evolog', slug: 'revisions/evolog' },
 						{ label: 'Inline Describe', slug: 'revisions/inline-describe' },
-					],
-				},
-				{
-					label: 'Git',
-					items: [
-						{ label: 'Git', slug: 'git' },
-					],
-				},
-				{
-					label: 'Bookmarks',
-					items: [
-						{ label: 'Bookmarks', slug: 'bookmarks' },
-					],
-				},
-				{
-					label: 'Undo and Redo',
-					items: [
-						{ label: 'Undo and Redo', slug: 'undo-redo' },
-					],
-				},
-				{
-					label: 'Revset',
-					items: [
-						{ label: 'Revset', slug: 'revset' },
-					],
-				},
-				{
-					label: 'Oplog',
-					items: [
-						{ label: 'Oplog', slug: 'oplog' },
-					],
-				},
-				{
-					label: 'Command Execution',
-					items: [
-						{ label: 'Command Execution', slug: 'command-execution' },
-					],
-				},
-				{
-					label: 'Command History',
-					items: [
-						{ label: 'Command History', slug: 'command-history' },
-					],
-				},
-				{
-					label: 'Preview',
-					items: [
-						{ label: 'Preview', slug: 'preview' },
-					],
-				},
-				{
-					label: 'Details',
-					items: [
-						{ label: 'Details', slug: 'details' },
-					],
-				},
-				{
-					label: 'Fuzzy File Finder',
-					items: [
-						{ label: 'Fuzzy File Finder', slug: 'fuzzy-file-finder' },
-					],
-				},
-				{
-					label: 'Ace Jump',
-					items: [
 						{ label: 'Ace Jump', slug: 'ace-jump' },
 					],
 				},
 				{
-					label: 'Flash Messages',
+					label: 'Views',
 					items: [
+						{ label: 'Revset', slug: 'revset' },
+						{ label: 'Oplog', slug: 'oplog' },
+						{ label: 'Undo and Redo', slug: 'undo-redo' },
+						{ label: 'Git', slug: 'git' },
+						{ label: 'Bookmarks', slug: 'bookmarks' },
+					],
+				},
+				{
+					label: 'Tools',
+					items: [
+						{ label: 'Preview', slug: 'preview' },
+						{ label: 'Diff Viewer', slug: 'diff-viewer' },
 						{ label: 'Flash Messages', slug: 'flash-messages' },
+						{ label: 'Command History', slug: 'command-history' },
+						{ label: 'Fuzzy File Finder', slug: 'fuzzy-file-finder' },
+						{ label: 'Command Execution', slug: 'command-execution' },
 					],
 				},
 				{
-					label: 'How-to Guides',
+					label: 'Guides',
 					items: [
-						{ label: 'Jujutsu Workflows', slug: 'how-do-i' },
-					],
-				},
-				{
-					label: 'Migration Guides',
-					items: [
-						{ label: 'Migrating to v0.10', slug: 'migrating/v0_10' },
+						{ label: 'Lua Cookbook', slug: 'lua-cookbook' },
 					],
 				},
 			],

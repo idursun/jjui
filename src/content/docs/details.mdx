@@ -32,7 +32,7 @@ Press `r` to restore selected files (`jj restore`). A confirmation appears:
 - **Yes**: restores the files non-interactively. Selected files "gets restored", unselected "stays as is".
 - **Interactive** (`i`): opens the interactive restore editor.
 
-![GIF](/jjui/gifs/jjui_details_restore.gif)
+<img alt="Details restore" src="/jjui/images/details-restore.png" />
 
 ### Split
 Press `s` to split selected files out of the revision. Selected files stay in the current revision; unselected files move to a new revision. A confirmation appears:
@@ -50,18 +50,4 @@ Press `shift+a` to run `jj absorb` on the selected files.
 ### Show revisions touching a file
 Press `*` to change the active revset to `files(<filename>)`, showing all revisions that touched the highlighted file.
 
-<img width="912" alt="image" src="https://github.com/user-attachments/assets/ab33ae31-a9cb-4721-bf1c-ff72f1319bb7" />
-
-## Keys summary
-
-- `d`: diff highlighted file
-- `m` / `space`: toggle-select file
-- `r`: restore selected files
-- `s`: split selected files
-- `alt+s`: split parallel
-- `shift+s`: squash selected files
-- `shift+a`: absorb selected files
-- `*`: filter revset to revisions touching this file
-- `p`: toggle preview
-- `ctrl+r`: refresh
-- `esc` / `left` / `h`: close
+<img alt="Details changing file" src="/jjui/images/details-changing-file.png" />

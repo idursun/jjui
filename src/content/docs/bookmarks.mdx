@@ -3,17 +3,11 @@ title: Bookmarks
 description: Managing bookmarks from the Revisions view
 ---
 
-jjui provides two ways to manage bookmarks: a quick inline input for setting bookmarks directly on a revision, and a full bookmark menu for all other operations.
-
-## Setting a bookmark
-
-Press `shift+b` on a revision to open an inline input box next to the revision's existing bookmarks.
-
-- Type a new name to create a bookmark on that revision.
-- Type the name of an existing bookmark to move it to that revision.
-- You can repeat this to create multiple bookmarks on the same revision.
+jjui provides two ways to manage bookmarks: a full bookmark menu for all operations, and a quick inline input for setting bookmarks directly on a revision.
 
 ## Bookmark menu
+
+<img alt="Bookmarks menu" src="/jjui/images/bookmarks.png" />
 
 Press `b` to open the bookmark menu. It lists all available bookmark commands and can be filtered by type using shortcut keys:
 
@@ -26,4 +20,19 @@ Press `b` to open the bookmark menu. It lists all available bookmark commands an
 
 Press `esc` to close the menu.
 
-<img width="1132" height="787" alt="image" src="https://github.com/user-attachments/assets/34f7a265-dfd5-4b8d-94cb-3f4074e72ab6" />
+## Remote cycling
+
+The bookmark menu shows **"local"** as the first remote, followed by all configured remotes. Press `tab` / `shift+tab` to cycle between them. The selected remote filters which commands appear:
+
+- **local**: move, delete, forget, and untrack commands for all bookmarks, plus track commands for local-only bookmarks (those without a remote)
+- **a specific remote**: only track and untrack commands for bookmarks on that remote
+
+Items within each category are sorted by distance from the current revision — bookmarks closer to where your cursor is appear first in the move list.
+
+## Setting a bookmark
+
+Press `shift+b` on a revision to open an inline input box next to the revision's existing bookmarks.
+
+- Type a new name to create a bookmark on that revision.
+- Type the name of an existing bookmark to move it to that revision.
+- You can repeat this to create multiple bookmarks on the same revision.

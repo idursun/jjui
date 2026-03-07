@@ -26,7 +26,12 @@ Override the default log template or revset:
 [revisions]
 template = "builtin_log_compact"
 revset = ""
+log_batching = true
+log_batch_size = 50
 ```
+
+- `log_batching`: load revisions incrementally in batches (default: `true`)
+- `log_batch_size`: number of revisions per batch when batching is enabled (default: `50`)
 
 ## Preview
 
@@ -62,6 +67,24 @@ Controls autocomplete suggestions in the `:` and `$` command prompts:
 [suggest.exec]
 mode = "fuzzy"   # off | regex | fuzzy
 ```
+
+## Auto-refresh
+
+```toml
+[ui]
+auto_refresh_interval = 0
+```
+
+Seconds between automatic revision list refreshes. Default is `0` (disabled). Override at startup with `--period`.
+
+## Flash messages
+
+```toml
+[ui]
+flash_message_display_seconds = 4
+```
+
+How long success flash messages stay visible in seconds. Default is `4`. Set to `0` to keep them until manually dismissed with `esc`.
 
 ## Colors and themes
 

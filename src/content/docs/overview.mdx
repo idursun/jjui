@@ -1,42 +1,33 @@
 ---
-title: jjui Features Overview
-description: jjui Features Overview
+title: Overview
+description: jjui — a terminal UI for the Jujutsu version control system
 ---
 
-### UI Segments
+**jjui** is a terminal user interface for [Jujutsu (jj)](https://github.com/martinvonz/jj), a Git-compatible version control system. It wraps the most common `jj` workflows in an interactive, keyboard-driven interface so you can explore and manipulate your repository without memorizing command syntax.
 
-- [Revisions](/jjui/revisions): Main view for exploring and managing revisions.
-- [Git](/jjui/git): Run common git operations.
-- [Bookmarks](/jjui/bookmarks): Manage bookmarks.
-- [Undo and Redo](/jjui/undo-redo): Navigate and apply undo/redo entries.
-- [Revset](/jjui/revset): Edit and apply revset expressions.
-- [Oplog](/jjui/oplog): Browse repository operation history.
-- [Command Execution](/jjui/command-execution): Run `jj` and shell commands from the UI.
-- [Command History](/jjui/command-history): Browse and reuse recent `:` and `$` commands.
-- [Preview](/jjui/preview): View diffs and details for revisions, files, and operations.
-- [Details](/jjui/details): Inspect and operate on files in a revision.
-- [Fuzzy File Finder](/jjui/fuzzy-file-finder): Search files and inspect related changes.
-- [Ace Jump](/jjui/ace-jump): Jump quickly between revisions.
-- [Flash Messages](/jjui/flash-messages): Inline command feedback and errors.
+## What you can do
 
-### Revisions Operations
+**Browse and manage revisions** — the main view shows your revision graph. Move between commits, inspect diffs in the preview panel, and perform operations directly from the list.
 
-- [Rebase](/jjui/revisions/rebase): Move revisions relative to another target.
-- [Absorb](/jjui/revisions/absorb): Absorb working-copy changes into a revision.
-- [Abandon](/jjui/revisions/abandon): Remove selected revisions.
-- [Duplicate](/jjui/revisions/duplicate): Copy selected revisions.
-- [Squash](/jjui/revisions/squash): Combine revisions.
-- [Revert](/jjui/revisions/revert): Revert selected revisions relative to a target.
-- [Set Parents](/jjui/revisions/set-parents): Rewrite parents of the selected revision.
-- [Evolog](/jjui/revisions/evolog): Inspect evolution history.
-- [Inline Describe](/jjui/revisions/inline-describe): Edit descriptions inline.
+**Rebase, squash, revert, and more** — interactive modes for common multi-step operations let you visually pick source and target before committing to a change. Operations include rebase, squash, absorb, split, duplicate, revert, set parents, and abandon.
 
-### Customization
+**Manage bookmarks and git remotes** — view, create, move, delete, track, and push bookmarks. Run `git fetch` and `git push` from the git view.
 
-- [Actions and Bindings](/jjui/customization/actions-and-bindings): Customize behavior with `[[actions]]` and `[[bindings]]`.
-- [Lua Scripting](/jjui/customization/lua-scripting): Build workflows with the built-in Lua API.
-- [config.lua](/jjui/customization/config-lua): Startup-time programmable configuration via `setup(config)`.
-- [Configuration Options](/jjui/customization/configuration-options): Configure runtime behavior in `config.toml`.
-- [Command Line Options](/jjui/customization/command-line-options): Startup/runtime flags.
-- [Themes](/jjui/customization/themes): Theme and color customization.
-- [Default Keybindings](/jjui/customization/default-keybindings): Built-in default bindings reference.
+**Navigate history** — the oplog view lets you browse every operation in the repository's history and restore or revert to any point. The evolog view shows the evolution history of individual revisions.
+
+**Run commands inline** — press `:` to execute a `jj` command or `$` to run a shell command without leaving the UI. Commands are context-aware and can reference the selected revision, file, or operation.
+
+**Search and jump** — fuzzy file finder, quick search across the revision list, and ace jump for instant cursor movement.
+
+## Customization
+
+jjui is designed to be extended. Everything from key bindings to full scripted workflows can be configured:
+
+- **`config.toml`** — configure behavior, colors, preview settings, and log batching without writing code.
+- **Key bindings** — rebind any built-in action or add new ones using `[[bindings]]` blocks. Supports single keys, multi-key sequences, and scoped overrides.
+- **Custom actions** — define actions in Lua directly in `config.toml` or in `config.lua`. Actions have access to the full Lua API: run `jj` commands, read context, update the revset, show flash messages, open pickers, and more.
+- **`config.lua`** — programmatic setup via a `setup(config)` function. Register actions and bindings in code, branch on repository path, load plugins, and adjust colors at startup.
+- **Themes** — choose a built-in theme or override individual color keys for fine-grained control. Colors can also be set dynamically from Lua based on the repository or terminal background.
+- **Plugins** — Lua modules in `~/.config/jjui/plugins/` can be loaded with `require` and reused across configurations.
+
+See [Lua Scripting](/jjui/customization/lua-scripting) for the full API reference, or [Lua Cookbook](/jjui/lua-cookbook) for ready-to-use examples.

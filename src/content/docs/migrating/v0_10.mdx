@@ -13,7 +13,7 @@ This guide covers what changed and how to update your configuration.
 
 ## TL;DR
 
-**If you have `[keys]`**, replace each entry with a `[[bindings]]` block — see [Replacing `[keys]`](#replacing-keys-key-rebinding) below.
+**If you have `[keys]`**, look up the old key name in the [mapping table](#top-level-keys-mapping) to find the new action and scope, then add a `[[bindings]]` block for each one. Sub-sections like `[keys.rebase]` map to their corresponding scope (e.g. `revisions.rebase`) — see [Replacing `[keys]`](#replacing-keys-key-rebinding) below.
 
 **If you have `[custom_commands]`**, convert each entry to `[[actions]]` + `[[bindings]]` — see [Replacing `[custom_commands]`](#replacing-custom_commands) below.
 
@@ -124,7 +124,7 @@ Common scopes: `revisions`, `revisions.rebase`, `revisions.squash`, `revisions.d
 
 ## Replacing `[keys]` (key rebinding)
 
-The old `[keys]` table mapped action names to keys. Replace each entry with a `[[bindings]]` block referencing the equivalent built-in action.
+The old `[keys]` table mapped action names to keys. Replace each entry with a `[[bindings]]` block referencing the equivalent built-in action and scope.
 
 **Before:**
 
@@ -137,16 +137,106 @@ abandon = "x"
 
 ```toml
 [[bindings]]
-action = "revisions.abandon"
+action = "revisions.open_abandon"
 key = "x"
 scope = "revisions"
 ```
+
+### Top-level `[keys]` mapping
+
+| Old `[keys]` name | New action | Scope |
+|---|---|---|
+| `up` | `revisions.move_up` | `revisions` |
+| `down` | `revisions.move_down` | `revisions` |
+| `scroll_up` | `revisions.page_up` | `revisions` |
+| `scroll_down` | `revisions.page_down` | `revisions` |
+| `jump_to_parent` | `revisions.jump_to_parent` | `revisions` |
+| `jump_to_children` | `revisions.jump_to_children` | `revisions` |
+| `jump_to_working_copy` | `revisions.jump_to_working_copy` | `revisions` |
+| `apply` | `revisions.open_inline_describe` | `revisions` |
+| `cancel` | `ui.cancel` | `ui` |
+| `toggle_select` | `revisions.toggle_select` | `revisions` |
+| `new` | `revisions.new` | `revisions` |
+| `commit` | `revisions.commit` | `revisions` |
+| `refresh` | `revisions.refresh` | `revisions` |
+| `abandon` | `revisions.open_abandon` | `revisions` |
+| `diff` | `revisions.diff` | `revisions` |
+| `quit` | `ui.quit` | `ui` |
+| `expand_status` | `ui.expand_status` | `ui` |
+| `describe` | `revisions.describe` | `revisions` |
+| `edit` | `revisions.edit` | `revisions` |
+| `force_edit` | `revisions.force_edit` | `revisions` |
+| `diffedit` | `revisions.diff_edit` | `revisions` |
+| `absorb` | `revisions.absorb` | `revisions` |
+| `split` | `revisions.split` | `revisions` |
+| `split_parallel` | `revisions.split_parallel` | `revisions` |
+| `undo` | `ui.open_undo` | `revisions` |
+| `redo` | `ui.open_redo` | `revisions` |
+| `revset` | `revset.edit` | `revisions` |
+| `exec_jj` | `ui.exec_jj` | `revisions` |
+| `exec_shell` | `ui.exec_shell` | `revisions` |
+| `ace_jump` | `revisions.ace_jump` | `revisions` |
+| `quick_search` | `ui.quick_search` | `revisions` |
+| `quick_search_cycle` | `revisions.quick_search_next` | `revisions.quick_search` |
+| `quick_search_cycle_back` | `revisions.quick_search_prev` | `revisions.quick_search` |
+| `suspend` | `ui.suspend` | `ui` |
+| `set_parents` | `revisions.open_set_parents` | `revisions` |
+| `custom_commands` | *(removed)* | — |
+| `leader` | *(removed — use `seq` in `[[bindings]]`)* | — |
+
+### Sub-section `[keys.xxx]` mapping
+
+Each `[keys.xxx]` section maps to a corresponding scope. The `mode` key (the one that opens the view) moves to the parent scope.
+
+| Old section | New scope | `mode` key → new action in `revisions` scope |
+|---|---|---|
+| `[keys.rebase]` | `revisions.rebase` | `revisions.open_rebase` |
+| `[keys.revert]` | `revisions.revert` | `revisions.open_revert` |
+| `[keys.duplicate]` | `revisions.duplicate` | `revisions.open_duplicate` |
+| `[keys.squash]` | `revisions.squash` | `revisions.open_squash` |
+| `[keys.details]` | `revisions.details` | `revisions.open_details` |
+| `[keys.evolog]` | `revisions.evolog` | `revisions.open_evolog` |
+| `[keys.preview]` | `ui.preview` | `ui.preview_toggle` |
+| `[keys.bookmark]` | `bookmarks` | `ui.open_bookmarks` |
+| `[keys.inline_describe]` | `revisions.inline_describe` | `revisions.open_inline_describe` |
+| `[keys.git]` | `git` | `ui.open_git` |
+| `[keys.oplog]` | `oplog` | `ui.open_oplog` |
+| `[keys.file_search]` | `file_search` | `ui.file_search_toggle` |
+| `[keys.diff_view]` | `diff` | `revisions.diff` |
+
+Within each sub-scope, the key names map directly to action names in that scope. For example:
+
+```toml
+# Old
+[keys.rebase]
+source = ["s"]
+after  = ["a"]
+
+# New
+[[bindings]]
+action = "revisions.rebase.set_source"
+key = "s"
+scope = "revisions.rebase"
+args.source = "source"
+
+[[bindings]]
+action = "revisions.rebase.set_target"
+key = "a"
+scope = "revisions.rebase"
+args.target = "after"
+```
+
+For the complete list of built-in actions per scope, see `internal/config/default/bindings.toml` in the source.
 
 ---
 
 ## Replacing `[leader]` (key sequences)
 
-Leader key sequences become `seq` bindings.
+Leader key sequences become `seq` bindings. The leader key itself (`\` by default) becomes the first element of `seq`.
+
+### Simple send → built-in action
+
+When a leader entry just fires a single key that maps to a built-in, bind the built-in directly with `seq`:
 
 **Before:**
 
@@ -160,13 +250,44 @@ send = ["L"]
 
 ```toml
 [[bindings]]
-action = "ui.open_revset"
+action = "revset.edit"
 seq = ["g", "r"]
 scope = "revisions"
 desc = "open revset"
 ```
 
-The `seq` field takes an ordered array of keys. When the user presses the first key, jjui enters a pending state and waits for subsequent keys.
+### `send` with `:` commands → Lua action
+
+Leader entries that used `send = [":", "jj-command $change_id", "enter"]` to run `jj` commands become Lua actions. Replace `$change_id` with `context.change_id()` and call `jj()` directly:
+
+**Before:**
+
+```toml
+[leader.na]
+help = "New After"
+send = [":", "new -A $change_id", "enter"]
+```
+
+**After:**
+
+```toml
+[[actions]]
+name = "new after"
+lua = '''
+  jj("new", "-A", context.change_id())
+  revisions.refresh()
+'''
+
+[[bindings]]
+action = "new after"
+seq = ["\\", "n", "a"]
+scope = "revisions"
+desc = "New After"
+```
+
+The backslash `"\\"` in `seq` is the literal `\` key — the old leader key. You can use any key as the sequence prefix; it does not need to be `\`.
+
+The `seq` field takes an ordered array of keys. When the user presses the first key, jjui enters a pending state and waits for the remaining keys in the sequence.
 
 ---
 
@@ -404,70 +525,40 @@ end
 
 ---
 
+## Changed Lua API
+
+Three `revisions.start_*` functions were renamed to `revisions.open_*`, and their return value was removed. Previously they returned a boolean indicating whether the operation was accepted or dismissed. Now they return nothing — use `wait_close()` or `wait_refresh()` to sequence work after them.
+
+| Old | New |
+|-----|-----|
+| `revisions.start_rebase()` | `revisions.open_rebase()` |
+| `revisions.start_squash()` | `revisions.open_squash()` |
+| `revisions.start_inline_describe()` | `revisions.open_inline_describe()` |
+
+**Before:**
+
+```lua
+if revisions.start_inline_describe() then
+  -- user accepted
+end
+```
+
+**After:**
+
+```lua
+revisions.open_inline_describe()
+if wait_close() then
+  -- user accepted
+end
+```
+
+`wait_close()` returns `true` if the user accepted the operation, `false` if they dismissed it. Use `wait_refresh()` instead if you only need to wait for the UI to finish updating before continuing.
+
+---
+
 ## Lua API Reference
 
-All APIs are available as top-level globals and also under `jjui.*`.
-
-### Command helpers
-
-| Function | Description |
-|----------|-------------|
-| `jj(...)` | Run jj command immediately, returns `(output, err)` |
-| `jj_async(...)` | Run jj command asynchronously |
-| `jj_interactive(...)` | Run interactive jj command (like `diffedit`) |
-| `exec_shell(command)` | Run a shell command |
-
-### UI helpers
-
-| Function | Description |
-|----------|-------------|
-| `flash("text")` | Show a flash message |
-| `flash({ text, error, sticky })` | Show a flash message with options |
-| `copy_to_clipboard(text)` | Copy text to clipboard, returns `(ok, err)` |
-| `split_lines(text, keep_empty?)` | Split a string by newlines into an array |
-| `choose(options)` | Show a selection menu, returns the chosen string or `nil` |
-| `choose({ options, title })` | Show a selection menu with a title |
-| `input({ title, prompt })` | Show a text input, returns the entered string or `nil` |
-
-### Context helpers
-
-Available as `context.*`:
-
-| Function | Description |
-|----------|-------------|
-| `context.change_id()` | Currently selected change ID |
-| `context.commit_id()` | Currently selected commit ID |
-| `context.file()` | Currently selected file (in details view) |
-| `context.operation_id()` | Currently selected operation ID (in oplog) |
-| `context.checked_files()` | Array of checked file paths |
-| `context.checked_change_ids()` | Array of checked change IDs |
-| `context.checked_commit_ids()` | Array of checked commit IDs |
-
-### Revisions helpers
-
-Available as `revisions.*`:
-
-| Function | Description |
-|----------|-------------|
-| `revisions.current()` | Current change ID |
-| `revisions.checked()` | Array of checked change IDs |
-| `revisions.refresh({ keep_selections, selected_revision })` | Refresh the revision list |
-| `revisions.navigate({ by, page, target, to, fallback, ensureView, allowStream })` | Move cursor |
-| `revisions.start_squash({ files })` | Start squash operation |
-| `revisions.start_rebase({ source, target })` | Start rebase operation |
-| `revisions.open_details()` | Open details view |
-| `revisions.start_inline_describe()` | Start inline describe |
-
-### Revset helpers
-
-Available as `revset.*`:
-
-| Function | Description |
-|----------|-------------|
-| `revset.set(value)` | Set the active revset |
-| `revset.reset()` | Reset to the default revset |
-| `revset.current()` | Return the current revset string |
-| `revset.default()` | Return the default revset string |
+For the full Lua API reference, see [Lua Scripting](/jjui/customization/lua-scripting).
 
 ---
 

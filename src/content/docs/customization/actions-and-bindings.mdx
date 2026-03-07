@@ -120,13 +120,39 @@ scope = "revisions"
 desc = "revset"
 ```
 
-All built-in action IDs and their default bindings are in `internal/config/default/bindings.toml`. See [Default Keybindings](/jjui/customization/default-keybindings) for the full reference.
+All built-in action IDs and their default bindings are defined in `internal/config/default/bindings.toml` in the source repository.
 
 ---
 
 ## Overriding built-in actions
 
-You can replace a built-in action's behavior entirely. Call the original via `jjui.builtin.*` to preserve it:
+You can replace a built-in action's behavior entirely by defining an action with the same name as a built-in. Use `jjui.builtin.*` to call the original implementation from your override.
+
+### In config.toml
+
+```toml
+[[actions]]
+name = "revisions.move_down"
+lua = '''
+jjui.builtin.revisions.move_down()
+flash("Moved down to: " .. context.change_id())
+'''
+```
+
+### In config.lua
+
+```lua
+function setup(config)
+  config.action("revisions.move_down", function()
+    jjui.builtin.revisions.move_down()
+    flash("Moved down to: " .. context.change_id())
+  end)
+end
+```
+
+Both examples override `move_down` to show a flash message with the change ID after each move, while still performing the original navigation via `jjui.builtin.revisions.move_down()`.
+
+You can use this pattern with any built-in action — for example, making `toggle_select` automatically advance the cursor:
 
 ```lua
 config.action("revisions.toggle_select", function()
@@ -134,8 +160,6 @@ config.action("revisions.toggle_select", function()
   jjui.builtin.revisions.move_down()
 end)
 ```
-
-This overrides `toggle_select` to also advance the cursor after selecting.
 
 ---
 
