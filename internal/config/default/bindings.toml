@@ -2,8 +2,21 @@ bindings = [
     # ui
     { key = "esc", action = "ui.cancel", scope = "ui", desc = "cancel" },
     { key = "q", action = "ui.quit", scope = "ui", desc = "quit" },
-    { key = "?", action = "ui.expand_status", scope = "ui", desc = "help" },
+    { key = "?", action = "ui.expand_status", scope = "ui", desc = "expand status help" },
+    { key = "f1", action = "ui.open_help", scope = "ui", desc = "help" },
     { key = "ctrl+z", action = "ui.suspend", scope = "ui", desc = "suspend" },
+
+    # help
+    { key = "esc", action = "help.cancel", scope = "help", desc = "close" },
+    { key = ["up", "k"], action = "help.scroll_up", scope = "help", desc = "up" },
+    { key = ["down", "j"], action = "help.scroll_down", scope = "help", desc = "down" },
+    { key = "pgup", action = "help.page_up", scope = "help", desc = "pgup" },
+    { key = "pgdown", action = "help.page_down", scope = "help", desc = "pgdown" },
+    { key = "g", action = "help.move_top", scope = "help", desc = "top" },
+    { key = "G", action = "help.move_bottom", scope = "help", desc = "bottom" },
+    { key = "/", action = "help.filter", scope = "help", desc = "search" },
+    { key = "esc", action = "help.cancel", scope = "help.filter", desc = "cancel" },
+    { key = "enter", action = "help.apply", scope = "help.filter", desc = "apply" },
 
     # revset
     { key = ["esc", "ctrl+c"], action = "revset.cancel", scope = "revset", desc = "cancel" },

@@ -40,6 +40,33 @@ type ExpandStatusToggle struct{}
 
 func (ExpandStatusToggle) isIntent() {}
 
+//jjui:bind scope=ui action=open_help
+type OpenHelp struct{}
+
+func (OpenHelp) isIntent() {}
+
+//jjui:bind scope=help action=close
+type HelpClose struct{}
+
+func (HelpClose) isIntent() {}
+
+//jjui:bind scope=help action=filter
+type HelpFilter struct{}
+
+func (HelpFilter) isIntent() {}
+
+//jjui:bind scope=help action=scroll_up set=Delta:-1
+//jjui:bind scope=help action=scroll_down set=Delta:1
+//jjui:bind scope=help action=page_up set=Delta:-10
+//jjui:bind scope=help action=page_down set=Delta:10
+//jjui:bind scope=help action=move_top set=Delta:0
+//jjui:bind scope=help action=move_bottom set=Delta:999999
+type HelpScroll struct {
+	Delta int
+}
+
+func (HelpScroll) isIntent() {}
+
 //jjui:bind scope=ui action=open_bookmarks
 type OpenBookmarks struct{}
 
@@ -181,6 +208,7 @@ func (ChooseCancel) isIntent() {}
 //jjui:bind scope=revisions.inline_describe action=cancel
 //jjui:bind scope=revisions.ace_jump action=cancel
 //jjui:bind scope=ui action=cancel
+//jjui:bind scope=help action=cancel
 //jjui:bind scope=bookmarks action=cancel
 //jjui:bind scope=git action=cancel
 //jjui:bind scope=status.input action=cancel
@@ -221,6 +249,7 @@ func (Cancel) isIntent() {}
 //jjui:bind scope=revset action=apply
 //jjui:bind scope=password action=apply
 //jjui:bind scope=input action=apply
+//jjui:bind scope=help action=apply
 //jjui:bind scope=undo action=apply
 //jjui:bind scope=redo action=apply
 type Apply struct {

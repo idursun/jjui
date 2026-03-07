@@ -14,6 +14,7 @@ const (
 	OwnerDiff                = "diff"
 	OwnerFileSearch          = "file_search"
 	OwnerGit                 = "git"
+	OwnerHelp                = "help"
 	OwnerInput               = "input"
 	OwnerOplog               = "oplog"
 	OwnerOplogQuickSearch    = "oplog.quick_search"
@@ -95,6 +96,16 @@ const (
 	GitPageUp                              keybindings.Action = "git.page_up"
 	GitPush                                keybindings.Action = "git.push"
 	GitQuit                                keybindings.Action = "git.quit"
+	HelpApply                              keybindings.Action = "help.apply"
+	HelpCancel                             keybindings.Action = "help.cancel"
+	HelpClose                              keybindings.Action = "help.close"
+	HelpFilter                             keybindings.Action = "help.filter"
+	HelpMoveBottom                         keybindings.Action = "help.move_bottom"
+	HelpMoveTop                            keybindings.Action = "help.move_top"
+	HelpPageDown                           keybindings.Action = "help.page_down"
+	HelpPageUp                             keybindings.Action = "help.page_up"
+	HelpScrollDown                         keybindings.Action = "help.scroll_down"
+	HelpScrollUp                           keybindings.Action = "help.scroll_up"
 	InputApply                             keybindings.Action = "input.apply"
 	InputCancel                            keybindings.Action = "input.cancel"
 	OplogClose                             keybindings.Action = "oplog.close"
@@ -264,6 +275,7 @@ const (
 	UiOpenBookmarks                        keybindings.Action = "ui.open_bookmarks"
 	UiOpenCommandHistory                   keybindings.Action = "ui.open_command_history"
 	UiOpenGit                              keybindings.Action = "ui.open_git"
+	UiOpenHelp                             keybindings.Action = "ui.open_help"
 	UiOpenOplog                            keybindings.Action = "ui.open_oplog"
 	UiOpenRedo                             keybindings.Action = "ui.open_redo"
 	UiOpenRevset                           keybindings.Action = "ui.open_revset"
@@ -287,7 +299,7 @@ const (
 
 func IsRevisionsOwner(owner string) bool {
 	switch owner {
-	case OwnerCommandHistory, OwnerOplogQuickSearch, OwnerRevisions, OwnerAbandon, OwnerAceJump, OwnerDetails, OwnerDetailsConfirmation, OwnerDuplicate, OwnerEvolog, OwnerInlineDescribe, OwnerQuickSearchInput, OwnerRebase, OwnerRevert, OwnerSetBookmark, OwnerSetParents, OwnerSquash, OwnerTargetPicker:
+	case OwnerCommandHistory, OwnerHelp, OwnerOplogQuickSearch, OwnerRevisions, OwnerAbandon, OwnerAceJump, OwnerDetails, OwnerDetailsConfirmation, OwnerDuplicate, OwnerEvolog, OwnerInlineDescribe, OwnerQuickSearchInput, OwnerRebase, OwnerRevert, OwnerSetBookmark, OwnerSetParents, OwnerSquash, OwnerTargetPicker:
 		return true
 	default:
 		return false
@@ -425,6 +437,29 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.GitFilter{Kind: intents.GitFilterPush}, true
 		case keybindings.Action("git.quit"):
 			return intents.Quit{}, true
+		}
+	case OwnerHelp:
+		switch action {
+		case keybindings.Action("help.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("help.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("help.close"):
+			return intents.HelpClose{}, true
+		case keybindings.Action("help.filter"):
+			return intents.HelpFilter{}, true
+		case keybindings.Action("help.move_bottom"):
+			return intents.HelpScroll{Delta: 999999}, true
+		case keybindings.Action("help.move_top"):
+			return intents.HelpScroll{Delta: 0}, true
+		case keybindings.Action("help.page_down"):
+			return intents.HelpScroll{Delta: 10}, true
+		case keybindings.Action("help.page_up"):
+			return intents.HelpScroll{Delta: -10}, true
+		case keybindings.Action("help.scroll_down"):
+			return intents.HelpScroll{Delta: 1}, true
+		case keybindings.Action("help.scroll_up"):
+			return intents.HelpScroll{Delta: -1}, true
 		}
 	case OwnerInput:
 		switch action {
@@ -832,6 +867,8 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.CommandHistoryToggle{}, true
 		case keybindings.Action("ui.open_git"):
 			return intents.OpenGit{}, true
+		case keybindings.Action("ui.open_help"):
+			return intents.OpenHelp{}, true
 		case keybindings.Action("ui.open_oplog"):
 			return intents.OpLogOpen{}, true
 		case keybindings.Action("ui.open_redo"):

@@ -32,6 +32,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/exec_process"
 	"github.com/idursun/jjui/internal/ui/git"
+	"github.com/idursun/jjui/internal/ui/help"
 
 	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/oplog"
@@ -525,6 +526,13 @@ func (m *Model) handleUiRootIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.ExpandStatusToggle:
 		m.status.ToggleStatusExpand()
 		return nil, true
+	case intents.OpenHelp:
+		if m.stacked != nil || m.diff != nil {
+			return nil, true
+		}
+		model := help.New()
+		m.stacked = model
+		return m.stacked.Init(), true
 	case intents.OpenBookmarks:
 		if !m.revisions.InNormalMode() {
 			return nil, true
@@ -719,7 +727,8 @@ func (m *Model) routeIntentByOwner(owner string, intent intents.Intent) (tea.Cmd
 		actions.OwnerChoose,
 		actions.OwnerUndo,
 		actions.OwnerRedo,
-		actions.OwnerInput:
+		actions.OwnerInput,
+		actions.OwnerHelp:
 		if m.stacked != nil && owner == m.stacked.StackedActionOwner() {
 			return m.stacked.Update(intent), true
 		}
