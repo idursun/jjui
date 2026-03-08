@@ -2,7 +2,7 @@ name: GH Pages
 on:
   workflow_dispatch:
   push:
-    branches: [docs, docs-v0.10]
+    branches: [docs]
 permissions:
   contents: read
   pages: write
@@ -16,64 +16,28 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    env:
-      # Update this when adding/removing versions. Used by version selector in each build.
-      DOCS_VERSIONS: '[{"label":"v0.9","href":"/jjui/v0.9/"},{"label":"v0.10 (pre-release)","href":"/jjui/v0.10/"}]'
     steps:
       - uses: pnpm/action-setup@v4
         name: Install pnpm
         with:
           version: 10
 
-      # --- v0.9 (stable, from docs branch) ---
       - name: Checkout docs branch
         uses: actions/checkout@v4
         with:
           ref: docs
-          path: docs-v0.9
-      - name: Build v0.9
-        working-directory: docs-v0.9
-        env:
-          DOCS_BASE: /jjui/v0.9
-          PRE_RELEASE: "false"
+
+      - name: Build
         run: |
           pnpm install
-          # Rewrite hardcoded /jjui/ paths in content to versioned base.
-          # Matches /jjui/ after " ' ( or space — skips external URLs like github.com/idursun/jjui/
-          grep -rl '/jjui/' src/content | xargs sed -i -E "s|([\"'( ])/jjui/|\1${DOCS_BASE}/|g"
           pnpm build
-
-      # --- v0.10 (pre-release) ---
-      - name: Checkout docs-v0.10 branch
-        uses: actions/checkout@v4
-        with:
-          ref: docs-v0.10
-          path: docs-v0.10
-      - name: Build v0.10
-        working-directory: docs-v0.10
-        env:
-          DOCS_BASE: /jjui/v0.10
-          PRE_RELEASE: "true"
-        run: |
-          pnpm install
-          grep -rl '/jjui/' src/content | xargs sed -i -E "s|([\"'( ])/jjui/|\1${DOCS_BASE}/|g"
-          pnpm build
-
-      # --- Combine and add root redirect ---
-      - name: Combine builds
-        run: |
-          mkdir -p final/v0.9 final/v0.10
-          cp -r docs-v0.9/dist/. final/v0.9/
-          cp -r docs-v0.10/dist/. final/v0.10/
-          # Root redirect to current stable
-          echo '<meta http-equiv="refresh" content="0; url=/jjui/v0.9/">' > final/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'final'
+          path: 'dist'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
