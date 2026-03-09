@@ -298,25 +298,26 @@ The `seq` field takes an ordered array of keys. When the user presses the first 
 **Before:**
 
 ```toml
-[custom_commands."show diff"]
-key = ["U"]
-args = ["diff", "-r", "$change_id", "--git"]
+[custom_commands."new after"]
+key = ["N"]
+args = ["new", "--after", "$change_id"]
 ```
 
 **After:**
 
 ```toml
 [[actions]]
-name = "show-diff"
+name = "new-after"
 lua = '''
-jj_async("diff", "-r", context.change_id(), "--git")
+jj_async("new", "--after", context.change_id())
+revisions.refresh()
 '''
 
 [[bindings]]
-action = "show-diff"
-key = "U"
+action = "new-after"
+key = "N"
 scope = "revisions"
-desc = "show diff"
+desc = "new after"
 ```
 
 ### Interactive command
