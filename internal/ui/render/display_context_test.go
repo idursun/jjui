@@ -7,6 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDisplayContext_AddDraw(t *testing.T) {
@@ -177,9 +178,30 @@ func TestDisplayContext_HighlightPreservesWideCharacters(t *testing.T) {
 	dl.Render(buf)
 
 	out := buf.Render()
-	if !strings.Contains(out, "🙂") {
-		t.Fatalf("expected highlighted output to preserve emoji, got: %q", out)
-	}
+	assert.Contains(t, out, "🙂", "highlighted output should preserve emoji")
+}
+
+func TestDisplayContext_HighlightPreservesWideCharactersWithExistingBackground(t *testing.T) {
+	dl := NewDisplayContext()
+
+	text := lipgloss.NewStyle().Background(lipgloss.Color("0")).Render("hello🙂中文어👨‍👩‍👧‍👦Ａあ가")
+	rect := layout.Rect(0, 0, 28, 1)
+
+	dl.AddDraw(rect, text, 0)
+	dl.AddHighlight(rect, lipgloss.NewStyle().Background(lipgloss.Color("4")), 1)
+
+	buf := uv.NewScreenBuffer(28, 1)
+	dl.Render(buf)
+
+	out := buf.Render()
+	assert.Contains(t, out, "🙂", "highlighted output should preserve emoji with existing background")
+	assert.Contains(t, out, "中", "highlighted output should preserve CJK glyphs with existing background")
+	assert.Contains(t, out, "文", "highlighted output should preserve CJK glyphs with existing background")
+	assert.Contains(t, out, "어", "highlighted output should preserve Korean glyphs with existing background")
+	assert.Contains(t, out, "👨‍👩‍👧‍👦", "highlighted output should preserve ZWJ emoji sequences with existing background")
+	assert.Contains(t, out, "Ａ", "highlighted output should preserve full-width Latin characters with existing background")
+	assert.Contains(t, out, "あ", "highlighted output should preserve Hiragana glyphs with existing background")
+	assert.Contains(t, out, "가", "highlighted output should preserve Hangul glyphs with existing background")
 }
 
 func TestEmptyDisplayContext(t *testing.T) {

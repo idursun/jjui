@@ -61,7 +61,7 @@ func (e HighlightEffect) Apply(buf uv.Screen) {
 			newCell.Style.Bg = bgColor
 			return newCell
 		}
-		return cell
+		return nil
 	})
 }
 
