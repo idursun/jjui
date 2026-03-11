@@ -74,7 +74,7 @@ func Test_Update_PreviewScrollKeysWorkWhenVisible(t *testing.T) {
 			ctx := test.NewTestContext(commandRunner)
 
 			model := NewUI(ctx)
-			model.previewModel.SetVisible(true)
+			model.secondaryPane.showPreview()
 
 			var content strings.Builder
 			for range 100 {
@@ -129,11 +129,11 @@ func Test_Update_PreviewResizeKeysWorkWhenVisible(t *testing.T) {
 			ctx := test.NewTestContext(commandRunner)
 
 			model := NewUI(ctx)
-			model.previewModel.SetVisible(true)
+			model.secondaryPane.showPreview()
 
-			initialWidth := model.revisionsSplit.State.Percent
+			initialWidth := model.secondaryPane.previewSplit.State.Percent
 			model.Update(tc.key)
-			newWidth := model.revisionsSplit.State.Percent
+			newWidth := model.secondaryPane.previewSplit.State.Percent
 
 			if tc.expectedResize > 0 {
 				assert.Greater(t, newWidth, initialWidth, "expected preview to expand for key %s", tc.name)
@@ -229,11 +229,11 @@ func Test_ToggleBookmarkView_OpensFocusedPaneAndTabReturnsFocusToRevisions(t *te
 	test.SimulateModel(model, model.Update(intents.ToggleBookmarkView{}))
 	require.NotNil(t, model.bookmarkPane)
 	assert.True(t, model.bookmarkPane.Visible())
-	assert.True(t, model.bookmarkFocused)
+	assert.True(t, model.secondaryPane.bookmarkFocused)
 	assert.Equal(t, keybindings.Scope(actions.OwnerBookmarkView), model.primaryScope())
 
 	model.Update(intents.FocusNextPane{})
-	assert.False(t, model.bookmarkFocused)
+	assert.False(t, model.secondaryPane.bookmarkFocused)
 	assert.Equal(t, revisions.ScopeRevisions, model.primaryScope())
 
 	model.Update(intents.ToggleBookmarkView{})
@@ -247,15 +247,15 @@ func Test_ToggleBookmarkView_HidesPreviewAndRestoresOnClose(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.previewModel.SetVisible(true)
+	model.secondaryPane.showPreview()
 
 	test.SimulateModel(model, model.Update(intents.ToggleBookmarkView{}))
 	assert.True(t, model.bookmarkPane.Visible())
-	assert.False(t, model.previewModel.Visible())
+	assert.False(t, model.secondaryPane.previewVisible())
 
 	model.Update(intents.ToggleBookmarkView{})
 	assert.False(t, model.bookmarkPane.Visible())
-	assert.True(t, model.previewModel.Visible())
+	assert.True(t, model.secondaryPane.previewVisible())
 }
 
 func Test_BookmarkViewEscDismissesFlashBeforeClosingPane(t *testing.T) {
@@ -275,6 +275,47 @@ func Test_BookmarkViewEscDismissesFlashBeforeClosingPane(t *testing.T) {
 	test.SimulateModel(model, test.Press(tea.KeyEscape))
 	assert.False(t, model.flash.Any(), "esc should dismiss flash first")
 	assert.True(t, model.bookmarkPane.Visible(), "bookmark pane should remain open after dismissing flash")
+}
+
+func Test_BookmarkViewEscCollapsesExpandedStatusBeforeClosingPane(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkView{}))
+	require.True(t, model.bookmarkPane.Visible())
+
+	model.status.SetStatusExpanded(true)
+	require.True(t, model.status.StatusExpanded())
+
+	test.SimulateModel(model, test.Press(tea.KeyEscape))
+	assert.False(t, model.status.StatusExpanded(), "esc should collapse expanded status first")
+	assert.True(t, model.bookmarkPane.Visible(), "bookmark pane should remain open while status collapses")
+}
+
+func Test_BookmarkViewClose_RestoresRevsetAfterShowInRevisions(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	ctx.CurrentRevset = "all()"
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkView{}))
+	showMsg, ok := model.showBookmarkTarget("main", "abc123")().(common.UpdateRevSetMsg)
+	require.True(t, ok)
+	model.Update(showMsg)
+	assert.Equal(t, "::main", ctx.CurrentRevset)
+
+	restoreMsg, ok := model.Update(intents.ToggleBookmarkView{})().(common.UpdateRevSetMsg)
+	require.True(t, ok)
+	model.Update(restoreMsg)
+	assert.Equal(t, "all()", ctx.CurrentRevset)
+	assert.Empty(t, model.bookmarkRevsetRestore)
 }
 
 // this test verifies that when `git` is activated and `status` is expanded,
@@ -1129,7 +1170,7 @@ func Test_Update_SetBookmarkTypingDoesNotTogglePreview(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.previewModel.SetVisible(true)
+	model.secondaryPane.showPreview()
 
 	op := bookmark.NewSetBookmarkOperation(ctx, "abc123")
 	test.SimulateModel(op, op.Init())
@@ -1138,5 +1179,5 @@ func Test_Update_SetBookmarkTypingDoesNotTogglePreview(t *testing.T) {
 	require.True(t, model.revisions.IsEditing(), "set bookmark should be editing")
 
 	test.SimulateModel(model, test.Type("p"))
-	assert.True(t, model.previewModel.Visible(), "typing in set_bookmark should not toggle preview")
+	assert.True(t, model.secondaryPane.previewVisible(), "typing in set_bookmark should not toggle preview")
 }

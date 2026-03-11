@@ -286,6 +286,7 @@ bindings = [
     { key = "space", action = "bookmark_view.toggle_expand", scope = "bookmark_view", desc = "expand" },
     { key = "/", action = "bookmark_view.filter", scope = "bookmark_view", desc = "filter" },
     { key = "enter", action = "bookmark_view.reveal", scope = "bookmark_view", desc = "reveal" },
+    { key = "alt+enter", action = "bookmark_view.reveal_in_revisions", scope = "bookmark_view", desc = "show" },
     { key = "e", action = "bookmark_view.edit", scope = "bookmark_view", desc = "edit" },
     { key = "n", action = "bookmark_view.new", scope = "bookmark_view", desc = "new" },
     { key = "r", action = "bookmark_view.rename", scope = "bookmark_view", desc = "rename" },

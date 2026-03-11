@@ -169,6 +169,11 @@ type BookmarkViewReveal struct{}
 
 func (BookmarkViewReveal) isIntent() {}
 
+//jjui:bind scope=bookmark_view action=reveal_in_revisions
+type BookmarkViewRevealInRevisions struct{}
+
+func (BookmarkViewRevealInRevisions) isIntent() {}
+
 //jjui:bind scope=bookmark_view action=edit
 type BookmarkViewEdit struct{}
 

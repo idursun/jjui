@@ -16,34 +16,14 @@ import (
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
-type remoteRef struct {
-	Remote   string
-	Tracked  bool
-	Conflict bool
-	CommitID string
-}
-
-type bookmarkRow struct {
-	Name       string
-	Local      *remoteRef
-	Remotes    []remoteRef
-	Conflict   bool
-	Expanded   bool
-	RemoteOnly bool
-}
-
-type visibleEntry struct {
-	BookmarkIndex int
-	RemoteIndex   int
-	IsRemote      bool
-}
-
-func (e visibleEntry) IsLocal() bool {
-	return !e.IsRemote
+type Callbacks struct {
+	CurrentRevision func() *jj.Commit
+	RevealVisible   func(string) tea.Cmd
+	ShowInRevisions func(target, commitID string) tea.Cmd
 }
 
 type rowsLoadedMsg struct {
-	rows []bookmarkRow
+	tree bookmarkTree
 }
 
 type itemClickedMsg struct {
@@ -91,12 +71,12 @@ type styles struct {
 
 type Model struct {
 	context              *context.MainContext
-	getCurrentRevision   func() *jj.Commit
-	revealRevision       func(string) tea.Cmd
+	callbacks            Callbacks
 	visible              bool
 	focused              bool
-	rows                 []bookmarkRow
-	visibleEntries       []visibleEntry
+	tree                 bookmarkTree
+	visibleRows          []visibleRow
+	expanded             map[string]bool
 	cursor               int
 	listRenderer         *render.ListRenderer
 	ensureCursorVisible  bool
@@ -114,7 +94,7 @@ var _ common.Editable = (*Model)(nil)
 
 func (m *Model) Init() tea.Cmd { return nil }
 
-func NewModel(c *context.MainContext, currentRevision func() *jj.Commit, revealRevision func(string) tea.Cmd) *Model {
+func NewModel(c *context.MainContext, callbacks Callbacks) *Model {
 	palette := common.DefaultPalette
 	s := styles{
 		title:        palette.Get("title"),
@@ -140,12 +120,12 @@ func NewModel(c *context.MainContext, currentRevision func() *jj.Commit, revealR
 	filterInput.SetStyles(fis)
 
 	m := &Model{
-		context:            c,
-		getCurrentRevision: currentRevision,
-		revealRevision:     revealRevision,
-		listRenderer:       render.NewListRenderer(itemScrollMsg{}),
-		filterInput:        filterInput,
-		styles:             s,
+		context:      c,
+		callbacks:    callbacks,
+		expanded:     make(map[string]bool),
+		listRenderer: render.NewListRenderer(itemScrollMsg{}),
+		filterInput:  filterInput,
+		styles:       s,
 	}
 	m.listRenderer.Z = render.ZMenuContent
 	return m
@@ -170,8 +150,10 @@ func (m *Model) Open() tea.Cmd {
 	m.visible = true
 	m.focused = true
 	m.pendingSelectionHint = ""
-	if current := m.getCurrentRevision(); current != nil {
-		m.pendingSelectionHint = current.CommitId
+	if m.callbacks.CurrentRevision != nil {
+		if current := m.callbacks.CurrentRevision(); current != nil {
+			m.pendingSelectionHint = current.CommitId
+		}
 	}
 	return m.loadRows
 }
@@ -195,7 +177,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case rowsLoadedMsg:
 		previousTarget, hadSelection := m.selectedTarget()
-		m.rows = msg.rows
+		m.tree = msg.tree
 		m.applyFilters(false)
 		switch {
 		case m.pendingSelectionHint != "":
@@ -206,7 +188,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case itemClickedMsg:
-		if msg.index >= 0 && msg.index < len(m.visibleEntries) {
+		if msg.index >= 0 && msg.index < len(m.visibleRows) {
 			m.cursor = msg.index
 			m.ensureCursorVisible = true
 		}
@@ -318,6 +300,8 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.moveSelected()
 	case intents.BookmarkViewReveal:
 		return m.revealSelected()
+	case intents.BookmarkViewRevealInRevisions:
+		return m.showSelectedInRevisions()
 	}
 	return nil
 }
@@ -343,8 +327,10 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 func (m *Model) renderTitle(dl *render.DisplayContext, box layout.Box) {
 	title := "Bookmarks"
-	if current := m.getCurrentRevision(); current != nil {
-		title = fmt.Sprintf("Bookmarks (%s)", current.GetChangeId())
+	if m.callbacks.CurrentRevision != nil {
+		if current := m.callbacks.CurrentRevision(); current != nil {
+			title = fmt.Sprintf("Bookmarks (%s)", current.GetChangeId())
+		}
 	}
 	dl.Text(box.R.Min.X, box.R.Min.Y, render.ZMenuContent).
 		Styled(title, m.styles.title).
@@ -377,32 +363,34 @@ func (m *Model) renderList(dl *render.DisplayContext, box layout.Box) {
 	m.listRenderer.Render(
 		dl,
 		box,
-		len(m.visibleEntries),
+		len(m.visibleRows),
 		m.cursor,
 		m.ensureCursorVisible,
 		func(_ int) int { return 1 },
 		func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
-			if index < 0 || index >= len(m.visibleEntries) {
+			if index < 0 || index >= len(m.visibleRows) {
 				return
 			}
-			entry := m.visibleEntries[index]
-			row := m.rows[entry.BookmarkIndex]
+			row := m.visibleRows[index]
+			group := m.tree.Items[row.BookmarkIndex]
 			if index == m.cursor && m.focused {
 				dl.AddHighlight(rect, m.styles.selected, render.ZMenuContent+1)
 			}
 			tb := dl.Text(rect.Min.X, rect.Min.Y, render.ZMenuContent)
-			if entry.IsRemote {
-				remote := row.Remotes[entry.RemoteIndex]
+			if row.Depth > 0 {
 				tb.Styled("  ", m.styles.text).
 					Styled("└─ ", m.styles.childGuide).
-					Styled(fmt.Sprintf(" %s ", remote.Remote), m.styles.remoteBadge).
+					Styled(fmt.Sprintf(" %s ", row.Node.Remote), m.styles.remoteBadge).
 					Styled(" ", m.styles.text).
-					Styled(row.Name+"@"+remote.Remote, m.styles.text)
-				if remote.Tracked {
+					Styled(row.Node.Target(), m.styles.text)
+				if row.Node.Tracked {
 					tb.Styled(" ", m.styles.text).Styled("tracked", m.styles.trackedBadge)
 				}
-				if remote.CommitID != "" {
-					tb.Styled(" ", m.styles.text).Styled(remote.CommitID, m.styles.dimmed)
+				if row.Node.Conflict {
+					tb.Styled(" ", m.styles.text).Styled("conflict", m.styles.conflict)
+				}
+				if row.Node.CommitID != "" {
+					tb.Styled(" ", m.styles.text).Styled(row.Node.CommitID, m.styles.dimmed)
 				}
 				tb.Done()
 				return
@@ -410,12 +398,12 @@ func (m *Model) renderList(dl *render.DisplayContext, box layout.Box) {
 
 			label := " local "
 			style := m.styles.localBadge
-			if row.RemoteOnly {
+			if group.RemoteOnly {
 				label = " remote "
 				style = m.styles.remoteBadge
 			}
 			prefix := "  "
-			if len(row.Remotes) > 0 {
+			if row.HasChildren {
 				if row.Expanded {
 					prefix = "▾ "
 				} else {
@@ -425,16 +413,15 @@ func (m *Model) renderList(dl *render.DisplayContext, box layout.Box) {
 			tb.Styled(prefix, m.styles.childGuide).
 				Styled(label, style).
 				Styled(" ", m.styles.text).
-				Styled(row.Name, m.styles.text)
-			if row.Local != nil && row.Local.Tracked {
+				Styled(row.Node.Name, m.styles.text)
+			if row.Node.Tracked {
 				tb.Styled(" ", m.styles.text).Styled("tracked", m.styles.trackedBadge)
 			}
-			if row.Conflict {
+			if row.Node.Conflict {
 				tb.Styled(" ", m.styles.text).Styled("conflict", m.styles.conflict)
 			}
-			commitID := row.commitID()
-			if commitID != "" {
-				tb.Styled(" ", m.styles.text).Styled(commitID, m.styles.dimmed)
+			if row.Node.CommitID != "" {
+				tb.Styled(" ", m.styles.text).Styled(row.Node.CommitID, m.styles.dimmed)
 			}
 			tb.Done()
 		},
@@ -445,7 +432,7 @@ func (m *Model) renderList(dl *render.DisplayContext, box layout.Box) {
 }
 
 func (m *Model) moveCursor(delta int) {
-	if len(m.visibleEntries) == 0 {
+	if len(m.visibleRows) == 0 {
 		m.cursor = 0
 		return
 	}
@@ -453,8 +440,8 @@ func (m *Model) moveCursor(delta int) {
 	if next < 0 {
 		next = 0
 	}
-	if next >= len(m.visibleEntries) {
-		next = len(m.visibleEntries) - 1
+	if next >= len(m.visibleRows) {
+		next = len(m.visibleRows) - 1
 	}
 	if next != m.cursor {
 		m.cursor = next
@@ -470,44 +457,11 @@ func (m *Model) currentFilterText() string {
 }
 
 func (m *Model) applyFilters(resetCursor bool) {
-	filterText := strings.ToLower(m.currentFilterText())
-	m.visibleEntries = m.visibleEntries[:0]
-	for idx, row := range m.rows {
-		if !m.bookmarkMatches(row, filterText) {
-			continue
-		}
-		m.visibleEntries = append(m.visibleEntries, visibleEntry{BookmarkIndex: idx})
-		if row.Expanded {
-			for remoteIndex, remote := range row.Remotes {
-				if filterText == "" || strings.Contains(strings.ToLower(row.Name+" "+remote.Remote+" "+row.Name+"@"+remote.Remote), filterText) {
-					m.visibleEntries = append(m.visibleEntries, visibleEntry{
-						BookmarkIndex: idx,
-						RemoteIndex:   remoteIndex,
-						IsRemote:      true,
-					})
-				}
-			}
-		}
-	}
-	if resetCursor || m.cursor >= len(m.visibleEntries) {
+	m.visibleRows = m.tree.buildVisibleRows(m.currentFilterText())
+	if resetCursor || m.cursor >= len(m.visibleRows) {
 		m.cursor = 0
 	}
 	m.listRenderer.StartLine = 0
-}
-
-func (m *Model) bookmarkMatches(row bookmarkRow, filterText string) bool {
-	if filterText == "" {
-		return true
-	}
-	if strings.Contains(strings.ToLower(row.Name), filterText) {
-		return true
-	}
-	for _, remote := range row.Remotes {
-		if strings.Contains(strings.ToLower(remote.Remote), filterText) || strings.Contains(strings.ToLower(row.Name+"@"+remote.Remote), filterText) {
-			return true
-		}
-	}
-	return false
 }
 
 func (m *Model) loadRows() tea.Msg {
@@ -515,90 +469,53 @@ func (m *Model) loadRows() tea.Msg {
 	if err != nil {
 		return rowsLoadedMsg{}
 	}
-	bookmarks := jj.ParseBookmarkListOutput(string(output))
-	rows := make([]bookmarkRow, 0, len(bookmarks))
-	for _, bookmark := range bookmarks {
-		row := bookmarkRow{
-			Name:       bookmark.Name,
-			Conflict:   bookmark.Conflict,
-			RemoteOnly: bookmark.Local == nil,
-		}
-		if bookmark.Local != nil {
-			row.Local = &remoteRef{
-				Remote:   ".",
-				Tracked:  bookmark.Local.Tracked,
-				Conflict: bookmark.Conflict,
-				CommitID: bookmark.Local.CommitId,
-			}
-		}
-		for _, remote := range bookmark.Remotes {
-			row.Remotes = append(row.Remotes, remoteRef{
-				Remote:   remote.Remote,
-				Tracked:  remote.Tracked,
-				Conflict: bookmark.Conflict,
-				CommitID: remote.CommitId,
-			})
-		}
-		rows = append(rows, row)
-	}
-	return rowsLoadedMsg{rows: rows}
+	return rowsLoadedMsg{tree: loadBookmarkTree(string(output), m.expanded)}
 }
 
 func (m *Model) visibleHeight() int { return 8 }
 
-func (m *Model) selectedEntry() (visibleEntry, bool) {
-	if m.cursor < 0 || m.cursor >= len(m.visibleEntries) {
-		return visibleEntry{}, false
+func (m *Model) selectedRow() (visibleRow, bool) {
+	if m.cursor < 0 || m.cursor >= len(m.visibleRows) {
+		return visibleRow{}, false
 	}
-	return m.visibleEntries[m.cursor], true
+	return m.visibleRows[m.cursor], true
 }
 
-func (m *Model) selectedBookmark() (bookmarkRow, bool) {
-	entry, ok := m.selectedEntry()
-	if !ok || entry.BookmarkIndex < 0 || entry.BookmarkIndex >= len(m.rows) {
-		return bookmarkRow{}, false
+func (m *Model) selectedBookmark() (bookmarkTreeItem, bool) {
+	row, ok := m.selectedRow()
+	if !ok || row.BookmarkIndex < 0 || row.BookmarkIndex >= len(m.tree.Items) {
+		return bookmarkTreeItem{}, false
 	}
-	return m.rows[entry.BookmarkIndex], true
+	return m.tree.Items[row.BookmarkIndex], true
+}
+
+func (m *Model) selectedNode() (bookmarkRefNode, bool) {
+	row, ok := m.selectedRow()
+	if !ok {
+		return bookmarkRefNode{}, false
+	}
+	return row.Node, true
 }
 
 func (m *Model) selectedTarget() (string, bool) {
-	entry, ok := m.selectedEntry()
+	node, ok := m.selectedNode()
 	if !ok {
 		return "", false
 	}
-	row := m.rows[entry.BookmarkIndex]
-	if entry.IsRemote {
-		remote := row.Remotes[entry.RemoteIndex]
-		return row.Name + "@" + remote.Remote, true
-	}
-	return row.Name, true
+	return node.Target(), true
 }
 
 func (m *Model) selectedCommitID() string {
-	entry, ok := m.selectedEntry()
-	if !ok {
-		return ""
+	node, ok := m.selectedNode()
+	if ok {
+		return node.CommitID
 	}
-	row := m.rows[entry.BookmarkIndex]
-	if entry.IsRemote {
-		return row.Remotes[entry.RemoteIndex].CommitID
-	}
-	return row.commitID()
+	return ""
 }
 
 func (m *Model) selectTarget(target string) bool {
-	for idx, entry := range m.visibleEntries {
-		row := m.rows[entry.BookmarkIndex]
-		if entry.IsRemote {
-			remote := row.Remotes[entry.RemoteIndex]
-			if strings.EqualFold(row.Name+"@"+remote.Remote, target) || strings.EqualFold(remote.CommitID, target) {
-				m.cursor = idx
-				m.ensureCursorVisible = true
-				return true
-			}
-			continue
-		}
-		if strings.EqualFold(row.Name, target) || strings.EqualFold(row.commitID(), target) {
+	for idx, row := range m.visibleRows {
+		if strings.EqualFold(row.Node.Target(), target) || strings.EqualFold(row.Node.CommitID, target) {
 			m.cursor = idx
 			m.ensureCursorVisible = true
 			return true
@@ -608,16 +525,17 @@ func (m *Model) selectTarget(target string) bool {
 }
 
 func (m *Model) toggleExpandSelected() {
-	entry, ok := m.selectedEntry()
-	if !ok || entry.IsRemote {
+	row, ok := m.selectedRow()
+	if !ok || row.Depth > 0 {
 		return
 	}
-	row := &m.rows[entry.BookmarkIndex]
-	if len(row.Remotes) == 0 {
+	group := &m.tree.Items[row.BookmarkIndex]
+	if len(group.Remotes) == 0 {
 		return
 	}
 	target, _ := m.selectedTarget()
-	row.Expanded = !row.Expanded
+	group.Expanded = !group.Expanded
+	m.expanded[group.Name] = group.Expanded
 	m.applyFilters(false)
 	m.selectTarget(target)
 }
@@ -625,13 +543,26 @@ func (m *Model) toggleExpandSelected() {
 func (m *Model) revealSelected() tea.Cmd {
 	commitID := m.selectedCommitID()
 	target, _ := m.selectedTarget()
-	if commitID == "" || m.revealRevision == nil {
+	if commitID == "" || m.callbacks.RevealVisible == nil {
 		return nil
 	}
-	if cmd := m.revealRevision(commitID); cmd != nil {
+	if m.callbacks.CurrentRevision != nil {
+		if current := m.callbacks.CurrentRevision(); current != nil && current.CommitId == commitID {
+			return intents.Invoke(intents.AddMessage{Text: fmt.Sprintf("Already at bookmark %s", target)})
+		}
+	}
+	if cmd := m.callbacks.RevealVisible(commitID); cmd != nil {
 		return cmd
 	}
 	return intents.Invoke(intents.AddMessage{Text: fmt.Sprintf("Bookmark %s is not visible in the current revisions list", target)})
+}
+
+func (m *Model) showSelectedInRevisions() tea.Cmd {
+	target, ok := m.selectedTarget()
+	if !ok || m.callbacks.ShowInRevisions == nil {
+		return nil
+	}
+	return m.callbacks.ShowInRevisions(target, m.selectedCommitID())
 }
 
 func (m *Model) editSelected() tea.Cmd {
@@ -652,8 +583,8 @@ func (m *Model) newFromSelected() tea.Cmd {
 
 func (m *Model) renameSelected() tea.Cmd {
 	row, ok := m.selectedBookmark()
-	entry, entryOK := m.selectedEntry()
-	if !ok || !entryOK || entry.IsRemote || row.Local == nil {
+	selected, selectedOK := m.selectedNode()
+	if !ok || !selectedOK || selected.IsRemote() || row.Local == nil {
 		return nil
 	}
 	m.pendingInput = pendingInputRename
@@ -662,8 +593,8 @@ func (m *Model) renameSelected() tea.Cmd {
 
 func (m *Model) deleteSelected() tea.Cmd {
 	row, ok := m.selectedBookmark()
-	entry, entryOK := m.selectedEntry()
-	if !ok || !entryOK || entry.IsRemote || row.Local == nil {
+	selected, selectedOK := m.selectedNode()
+	if !ok || !selectedOK || selected.IsRemote() || row.Local == nil {
 		return nil
 	}
 	return m.context.RunCommand(jj.BookmarkDelete(row.Name), common.Refresh, m.loadRows)
@@ -671,8 +602,8 @@ func (m *Model) deleteSelected() tea.Cmd {
 
 func (m *Model) forgetSelected() tea.Cmd {
 	row, ok := m.selectedBookmark()
-	entry, entryOK := m.selectedEntry()
-	if !ok || !entryOK || entry.IsRemote || row.Local == nil {
+	selected, selectedOK := m.selectedNode()
+	if !ok || !selectedOK || selected.IsRemote() || row.Local == nil {
 		return nil
 	}
 	return m.context.RunCommand(jj.BookmarkForget(row.Name), common.Refresh, m.loadRows)
@@ -680,16 +611,15 @@ func (m *Model) forgetSelected() tea.Cmd {
 
 func (m *Model) trackSelected() tea.Cmd {
 	row, ok := m.selectedBookmark()
-	entry, entryOK := m.selectedEntry()
-	if !ok || !entryOK {
+	selected, selectedOK := m.selectedNode()
+	if !ok || !selectedOK {
 		return nil
 	}
-	if entry.IsRemote {
-		remote := row.Remotes[entry.RemoteIndex]
-		if remote.Remote == "" || remote.Tracked {
+	if selected.IsRemote() {
+		if selected.Remote == "" || selected.Tracked {
 			return nil
 		}
-		return m.context.RunCommand(jj.BookmarkTrack(row.Name, remote.Remote), common.Refresh, m.loadRows)
+		return m.context.RunCommand(jj.BookmarkTrack(row.Name, selected.Remote), common.Refresh, m.loadRows)
 	}
 	if row.Local == nil {
 		return nil
@@ -703,22 +633,24 @@ func (m *Model) trackSelected() tea.Cmd {
 
 func (m *Model) untrackSelected() tea.Cmd {
 	row, ok := m.selectedBookmark()
-	entry, entryOK := m.selectedEntry()
-	if !ok || !entryOK || !entry.IsRemote {
+	selected, selectedOK := m.selectedNode()
+	if !ok || !selectedOK || !selected.IsRemote() {
 		return nil
 	}
-	remote := row.Remotes[entry.RemoteIndex]
-	if remote.Remote == "" || !remote.Tracked {
+	if selected.Remote == "" || !selected.Tracked {
 		return nil
 	}
-	return m.context.RunCommand(jj.BookmarkUntrack(row.Name, remote.Remote), common.Refresh, m.loadRows)
+	return m.context.RunCommand(jj.BookmarkUntrack(row.Name, selected.Remote), common.Refresh, m.loadRows)
 }
 
 func (m *Model) moveSelected() tea.Cmd {
 	row, ok := m.selectedBookmark()
-	entry, entryOK := m.selectedEntry()
-	current := m.getCurrentRevision()
-	if !ok || !entryOK || entry.IsRemote || row.Local == nil || current == nil {
+	selected, selectedOK := m.selectedNode()
+	var current *jj.Commit
+	if m.callbacks.CurrentRevision != nil {
+		current = m.callbacks.CurrentRevision()
+	}
+	if !ok || !selectedOK || selected.IsRemote() || row.Local == nil || current == nil {
 		return nil
 	}
 	m.pendingSelectionHint = row.Name
@@ -738,16 +670,6 @@ func (m *Model) defaultTrackRemote() string {
 	}
 	if len(remotes) > 0 {
 		return remotes[0]
-	}
-	return ""
-}
-
-func (r bookmarkRow) commitID() string {
-	if r.Local != nil {
-		return r.Local.CommitID
-	}
-	if len(r.Remotes) > 0 {
-		return r.Remotes[0].CommitID
 	}
 	return ""
 }

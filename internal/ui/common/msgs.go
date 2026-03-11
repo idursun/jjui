@@ -48,8 +48,9 @@ type (
 		Ordered bool
 	}
 	ShowInputMsg struct {
-		Title  string
-		Prompt string
+		Title        string
+		Prompt       string
+		InitialValue string
 	}
 	ExecProcessCompletedMsg struct {
 		Err error

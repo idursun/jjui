@@ -21,8 +21,10 @@ func TestOpen_LoadsRowsAndPreselectsCurrentRevisionBookmark(t *testing.T) {
 
 	model := NewModel(
 		test.NewTestContext(commandRunner),
-		func() *jj.Commit { return &jj.Commit{ChangeId: "feature-change", CommitId: "bbb222"} },
-		func(string) tea.Cmd { return nil },
+		Callbacks{
+			CurrentRevision: func() *jj.Commit { return &jj.Commit{ChangeId: "feature-change", CommitId: "bbb222"} },
+			RevealVisible:   func(string) tea.Cmd { return nil },
+		},
 	)
 	test.SimulateModel(model, model.Open())
 
@@ -40,8 +42,10 @@ func TestRenameSelected_LocalBookmarkOpensPrompt(t *testing.T) {
 
 	model := NewModel(
 		test.NewTestContext(commandRunner),
-		func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "dest123"} },
-		func(string) tea.Cmd { return nil },
+		Callbacks{
+			CurrentRevision: func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "dest123"} },
+			RevealVisible:   func(string) tea.Cmd { return nil },
+		},
 	)
 	test.SimulateModel(model, model.Open())
 
@@ -60,10 +64,12 @@ func TestRevealSelected_UsesCallbackWithCommitID(t *testing.T) {
 	var revealed string
 	model := NewModel(
 		test.NewTestContext(commandRunner),
-		func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "dest123"} },
-		func(revision string) tea.Cmd {
-			revealed = revision
-			return func() tea.Msg { return nil }
+		Callbacks{
+			CurrentRevision: func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "dest123"} },
+			RevealVisible: func(revision string) tea.Cmd {
+				revealed = revision
+				return func() tea.Msg { return nil }
+			},
 		},
 	)
 	test.SimulateModel(model, model.Open())
@@ -72,6 +78,29 @@ func TestRevealSelected_UsesCallbackWithCommitID(t *testing.T) {
 	require.NotNil(t, cmd)
 	_ = cmd()
 	assert.Equal(t, "abc123", revealed)
+}
+
+func TestRevealSelected_WhenAlreadyAtBookmark_ShowsMessage(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	model := NewModel(
+		test.NewTestContext(commandRunner),
+		Callbacks{
+			CurrentRevision: func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "abc123"} },
+			RevealVisible: func(revision string) tea.Cmd {
+				return func() tea.Msg { return nil }
+			},
+		},
+	)
+	test.SimulateModel(model, model.Open())
+
+	cmd := model.Update(intents.BookmarkViewReveal{})
+	require.NotNil(t, cmd)
+	msg, ok := cmd().(intents.AddMessage)
+	require.True(t, ok)
+	assert.Equal(t, "Already at bookmark main", msg.Text)
 }
 
 func TestToggleExpand_ShowsRemoteChildren(t *testing.T) {
@@ -83,17 +112,46 @@ func TestToggleExpand_ShowsRemoteChildren(t *testing.T) {
 
 	model := NewModel(
 		test.NewTestContext(commandRunner),
-		func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "dest123"} },
-		func(string) tea.Cmd { return nil },
+		Callbacks{
+			CurrentRevision: func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "dest123"} },
+			RevealVisible:   func(string) tea.Cmd { return nil },
+		},
 	)
 	test.SimulateModel(model, model.Open())
-	require.Len(t, model.visibleEntries, 1)
+	require.Len(t, model.visibleRows, 1)
 
 	model.Update(intents.BookmarkViewToggleExpand{})
-	require.Len(t, model.visibleEntries, 3)
+	require.Len(t, model.visibleRows, 3)
 
 	model.Update(intents.BookmarkViewNavigate{Delta: 1})
 	target, ok := model.selectedTarget()
 	require.True(t, ok)
 	assert.Equal(t, "feature@origin", target)
+}
+
+func TestRevealInRevisions_UsesDedicatedCallback(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	var shownTarget string
+	var shownCommit string
+	model := NewModel(
+		test.NewTestContext(commandRunner),
+		Callbacks{
+			CurrentRevision: func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "dest123"} },
+			ShowInRevisions: func(target, commitID string) tea.Cmd {
+				shownTarget = target
+				shownCommit = commitID
+				return func() tea.Msg { return nil }
+			},
+		},
+	)
+	test.SimulateModel(model, model.Open())
+
+	cmd := model.Update(intents.BookmarkViewRevealInRevisions{})
+	require.NotNil(t, cmd)
+	_ = cmd()
+	assert.Equal(t, "main", shownTarget)
+	assert.Equal(t, "abc123", shownCommit)
 }
