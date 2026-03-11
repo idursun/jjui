@@ -222,6 +222,15 @@ bindings = [
     { key = "tab", action = "revisions.set_bookmark.autocomplete", scope = "revisions.set_bookmark", desc = "autocomplete" },
     { key = "shift+tab", action = "revisions.set_bookmark.autocomplete_back", scope = "revisions.set_bookmark", desc = "autocomplete back" },
 
+    # revisions.bookmark_move
+    { key = "esc", action = "revisions.set_bookmark.cancel", scope = "revisions.bookmark_move", desc = "cancel" },
+    { key = "enter", action = "revisions.set_bookmark.apply", scope = "revisions.bookmark_move", desc = "apply" },
+    { key = ["up", "k"], action = "revisions.move_up", scope = "revisions.bookmark_move", desc = "up" },
+    { key = ["down", "j"], action = "revisions.move_down", scope = "revisions.bookmark_move", desc = "down" },
+    { key = "pgup", action = "revisions.page_up", scope = "revisions.bookmark_move", desc = "pgup" },
+    { key = "pgdown", action = "revisions.page_down", scope = "revisions.bookmark_move", desc = "pgdown" },
+    { key = "@", action = "revisions.jump_to_working_copy", scope = "revisions.bookmark_move", desc = "jump to working copy" },
+
     # revisions.target_picker
     { key = "esc", action = "revisions.target_picker.cancel", scope = "revisions.target_picker", desc = "cancel" },
     { key = "enter", action = "revisions.target_picker.apply", scope = "revisions.target_picker", desc = "apply" },

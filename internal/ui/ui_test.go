@@ -230,10 +230,12 @@ func Test_ToggleBookmarkView_OpensFocusedPaneAndTabReturnsFocusToRevisions(t *te
 	require.NotNil(t, model.bookmarkPane)
 	assert.True(t, model.bookmarkPane.Visible())
 	assert.True(t, model.secondaryPane.bookmarkFocused)
+	assert.False(t, model.revisions.IsFocused())
 	assert.Equal(t, keybindings.Scope(actions.OwnerBookmarkView), model.primaryScope())
 
 	model.Update(intents.FocusNextPane{})
 	assert.False(t, model.secondaryPane.bookmarkFocused)
+	assert.True(t, model.revisions.IsFocused())
 	assert.Equal(t, revisions.ScopeRevisions, model.primaryScope())
 
 	model.Update(intents.ToggleBookmarkView{})
@@ -316,6 +318,27 @@ func Test_BookmarkViewClose_RestoresRevsetAfterShowInRevisions(t *testing.T) {
 	model.Update(restoreMsg)
 	assert.Equal(t, "all()", ctx.CurrentRevset)
 	assert.Empty(t, model.bookmarkRevsetRestore)
+}
+
+func Test_BookmarkViewMove_StartsRevisionOperationAndShiftsFocus(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nsecond;.;false;false;false;def456\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkView{}))
+	require.True(t, model.secondaryPane.bookmarkFocused)
+
+	cmd := model.bookmarkPane.Update(intents.BookmarkViewMove{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	assert.False(t, model.secondaryPane.bookmarkFocused)
+	assert.True(t, model.revisions.IsFocused())
+	_, ok := model.revisions.CurrentOperation().(*bookmark.MoveBookmarkOperation)
+	require.True(t, ok)
 }
 
 // this test verifies that when `git` is activated and `status` is expanded,

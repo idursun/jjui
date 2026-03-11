@@ -15,6 +15,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/helpkeys"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/operations"
+	bookmarkop "github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/internal/ui/password"
 	"github.com/idursun/jjui/internal/ui/render"
 
@@ -460,7 +462,7 @@ func (m *Model) renderSplit(primary common.ImmediateModel, box layout.Box) {
 }
 
 func (m *Model) initSplit() {
-	m.secondaryPane = newSecondaryPaneController(m.previewModel, m.bookmarkPane)
+	m.secondaryPane = newSecondaryPaneController(m.previewModel, m.bookmarkPane, m.revisions)
 }
 
 func (m *Model) openBookmarkPane() tea.Cmd {
@@ -1018,6 +1020,30 @@ func NewUI(c *context.MainContext) *Model {
 				return nil
 			}
 			return ui.showBookmarkTarget(target, commitID)
+		},
+		FocusRevisions: func() tea.Cmd {
+			if ui == nil || ui.secondaryPane == nil || !ui.secondaryPane.bookmarkVisible() || !ui.secondaryPane.bookmarkFocused {
+				return nil
+			}
+			ui.secondaryPane.focusNext()
+			return nil
+		},
+		BeginMoveBookmark: func(name string) tea.Cmd {
+			if ui == nil {
+				return nil
+			}
+			op := bookmarkop.NewMoveBookmarkOperation(c, name, func() tea.Msg {
+				if ui.secondaryPane == nil || !ui.secondaryPane.bookmarkVisible() || ui.secondaryPane.bookmarkFocused {
+					return nil
+				}
+				ui.secondaryPane.focusNext()
+				return nil
+			})
+			cmds := []tea.Cmd{common.RestoreOperation(op)}
+			if ui.secondaryPane != nil && ui.secondaryPane.bookmarkVisible() && ui.secondaryPane.bookmarkFocused {
+				ui.secondaryPane.focusNext()
+			}
+			return tea.Batch(cmds...)
 		},
 	})
 

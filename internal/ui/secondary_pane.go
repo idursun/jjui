@@ -23,6 +23,7 @@ const (
 type secondaryPaneController struct {
 	preview         *preview.Model
 	bookmark        *bookmarkpane.Model
+	revisions       interface{ SetFocused(bool) }
 	previewSplit    *split
 	bookmarkSplit   *split
 	active          secondaryPaneKind
@@ -30,10 +31,11 @@ type secondaryPaneController struct {
 	bookmarkFocused bool
 }
 
-func newSecondaryPaneController(previewModel *preview.Model, bookmarkModel *bookmarkpane.Model) *secondaryPaneController {
+func newSecondaryPaneController(previewModel *preview.Model, bookmarkModel *bookmarkpane.Model, revisionsModel interface{ SetFocused(bool) }) *secondaryPaneController {
 	return &secondaryPaneController{
-		preview:  previewModel,
-		bookmark: bookmarkModel,
+		preview:   previewModel,
+		bookmark:  bookmarkModel,
+		revisions: revisionsModel,
 		previewSplit: newSplit(
 			newSplitState(config.Current.Preview.WidthPercentage),
 			nil,
@@ -123,6 +125,9 @@ func (c *secondaryPaneController) openBookmark() tea.Cmd {
 	c.active = secondaryPaneBookmark
 	c.bookmarkFocused = true
 	c.bookmark.SetFocused(true)
+	if c.revisions != nil {
+		c.revisions.SetFocused(false)
+	}
 	return c.bookmark.Open()
 }
 
@@ -133,6 +138,9 @@ func (c *secondaryPaneController) closeBookmark() {
 	c.bookmark.Close()
 	c.bookmarkFocused = false
 	c.active = secondaryPaneNone
+	if c.revisions != nil {
+		c.revisions.SetFocused(true)
+	}
 	if c.restoreOnClose == secondaryPanePreview && c.preview != nil {
 		c.preview.SetVisible(true)
 		c.active = secondaryPanePreview
@@ -178,6 +186,9 @@ func (c *secondaryPaneController) focusNext() {
 	}
 	c.bookmarkFocused = !c.bookmarkFocused
 	c.bookmark.SetFocused(c.bookmarkFocused)
+	if c.revisions != nil {
+		c.revisions.SetFocused(!c.bookmarkFocused)
+	}
 }
 
 func (c *secondaryPaneController) primaryScope() keybindings.Scope {

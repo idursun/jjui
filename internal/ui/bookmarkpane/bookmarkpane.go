@@ -17,9 +17,11 @@ import (
 )
 
 type Callbacks struct {
-	CurrentRevision func() *jj.Commit
-	RevealVisible   func(string) tea.Cmd
-	ShowInRevisions func(target, commitID string) tea.Cmd
+	CurrentRevision   func() *jj.Commit
+	RevealVisible     func(string) tea.Cmd
+	ShowInRevisions   func(target, commitID string) tea.Cmd
+	FocusRevisions    func() tea.Cmd
+	BeginMoveBookmark func(name string) tea.Cmd
 }
 
 type rowsLoadedMsg struct {
@@ -88,9 +90,11 @@ type Model struct {
 	styles               styles
 }
 
-var _ common.ImmediateModel = (*Model)(nil)
-var _ common.Focusable = (*Model)(nil)
-var _ common.Editable = (*Model)(nil)
+var (
+	_ common.ImmediateModel = (*Model)(nil)
+	_ common.Focusable      = (*Model)(nil)
+	_ common.Editable       = (*Model)(nil)
+)
 
 func (m *Model) Init() tea.Cmd { return nil }
 
@@ -100,7 +104,7 @@ func NewModel(c *context.MainContext, callbacks Callbacks) *Model {
 		title:        palette.Get("title"),
 		text:         palette.Get("picker text"),
 		dimmed:       palette.Get("picker dimmed"),
-		selected:     palette.Get("picker selected"),
+		selected:     palette.Get("revisions selected"),
 		localBadge:   palette.Get("picker bookmark"),
 		remoteBadge:  palette.Get("picker dimmed"),
 		trackedBadge: palette.Get("status text"),
@@ -217,6 +221,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case input.CancelledMsg:
 		m.pendingInput = pendingInputNone
 		return nil
+	case common.RefreshMsg:
+		if m.visible {
+			return m.loadRows
+		}
+		return nil
 	case intents.Intent:
 		return m.handleIntent(msg)
 	case tea.KeyMsg:
@@ -311,6 +320,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
+	dl.AddFill(box.R, ' ', m.styles.text, render.ZMenuContent)
+
 	content := box
 	if content.R.Dx() <= 0 || content.R.Dy() <= 0 {
 		return
@@ -326,14 +337,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 }
 
 func (m *Model) renderTitle(dl *render.DisplayContext, box layout.Box) {
-	title := "Bookmarks"
-	if m.callbacks.CurrentRevision != nil {
-		if current := m.callbacks.CurrentRevision(); current != nil {
-			title = fmt.Sprintf("Bookmarks (%s)", current.GetChangeId())
-		}
-	}
 	dl.Text(box.R.Min.X, box.R.Min.Y, render.ZMenuContent).
-		Styled(title, m.styles.title).
+		Styled("Bookmarks", m.styles.title).
 		Done()
 }
 
@@ -552,6 +557,9 @@ func (m *Model) revealSelected() tea.Cmd {
 		}
 	}
 	if cmd := m.callbacks.RevealVisible(commitID); cmd != nil {
+		if m.callbacks.FocusRevisions != nil {
+			return tea.Batch(cmd, m.callbacks.FocusRevisions())
+		}
 		return cmd
 	}
 	return intents.Invoke(intents.AddMessage{Text: fmt.Sprintf("Bookmark %s is not visible in the current revisions list", target)})
@@ -646,15 +654,11 @@ func (m *Model) untrackSelected() tea.Cmd {
 func (m *Model) moveSelected() tea.Cmd {
 	row, ok := m.selectedBookmark()
 	selected, selectedOK := m.selectedNode()
-	var current *jj.Commit
-	if m.callbacks.CurrentRevision != nil {
-		current = m.callbacks.CurrentRevision()
-	}
-	if !ok || !selectedOK || selected.IsRemote() || row.Local == nil || current == nil {
+	if !ok || !selectedOK || selected.IsRemote() || row.Local == nil || m.callbacks.BeginMoveBookmark == nil {
 		return nil
 	}
 	m.pendingSelectionHint = row.Name
-	return m.context.RunCommand(jj.BookmarkMove(current.GetChangeId(), row.Name, "--allow-backwards"), common.Refresh, m.loadRows)
+	return m.callbacks.BeginMoveBookmark(row.Name)
 }
 
 func (m *Model) defaultTrackRemote() string {
