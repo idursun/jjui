@@ -75,6 +75,7 @@ type Model struct {
 	matchedStyle           lipgloss.Style
 	ensureCursorView       bool
 	requestInFlight        bool
+	focused                bool
 }
 
 type revisionsMsg struct {
@@ -252,7 +253,11 @@ func (m *Model) IsFocused() bool {
 	if focusable, ok := m.baseOperation().(common.Focusable); ok {
 		return focusable.IsFocused()
 	}
-	return false
+	return m.focused
+}
+
+func (m *Model) SetFocused(focused bool) {
+	m.focused = focused
 }
 
 func (m *Model) InNormalMode() bool {
@@ -1073,6 +1078,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	// Set selections
 	m.displayContextRenderer.SetSelections(m.context.GetSelectedRevisions())
+	m.displayContextRenderer.SetSelectionFocused(m.focused)
 
 	renderOp := m.baseOperation()
 
@@ -1202,6 +1208,15 @@ func (m *Model) GetCommitIds() []string {
 	return commitIds
 }
 
+func (m *Model) RevealRevision(revision string) tea.Cmd {
+	index := m.selectRevision(revision)
+	if index < 0 {
+		return nil
+	}
+	m.SetCursor(index)
+	return m.updateSelection()
+}
+
 func New(c *appContext.MainContext) *Model {
 	m := Model{
 		context:       c,
@@ -1214,6 +1229,7 @@ func New(c *appContext.MainContext) *Model {
 		dimmedStyle:   common.DefaultPalette.Get("revisions dimmed"),
 		selectedStyle: common.DefaultPalette.Get("revisions selected"),
 		matchedStyle:  common.DefaultPalette.Get("revisions matched"),
+		focused:       true,
 	}
 	m.displayContextRenderer = NewDisplayContextRenderer(m.textStyle, m.dimmedStyle, m.selectedStyle, m.matchedStyle)
 	return &m

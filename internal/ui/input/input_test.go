@@ -11,7 +11,7 @@ import (
 func TestNewWithTitle(t *testing.T) {
 	title := "Enter text"
 	prompt := "Text: "
-	model := NewWithTitle(title, prompt)
+	model := NewWithTitle(title, prompt, "")
 
 	assert.NotEmpty(t, model.title)
 	assert.NotEmpty(t, model.prompt)
@@ -30,7 +30,7 @@ func TestNew(t *testing.T) {
 func TestModel_View(t *testing.T) {
 	title := "Enter text"
 	prompt := "Text: "
-	model := NewWithTitle(title, prompt)
+	model := NewWithTitle(title, prompt, "")
 	test.SimulateModel(model, model.Init())
 	output := test.RenderImmediate(model, 80, 20)
 	require.NotEmpty(t, output)
@@ -41,7 +41,7 @@ func TestModel_View(t *testing.T) {
 
 func TestModel_View_NoTitle(t *testing.T) {
 	prompt := "Text: "
-	model := NewWithTitle("", prompt)
+	model := NewWithTitle("", prompt, "")
 	test.SimulateModel(model, model.Init())
 	output := test.RenderImmediate(model, 80, 20)
 	require.NotEmpty(t, output)

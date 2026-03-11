@@ -41,10 +41,10 @@ type styles struct {
 }
 
 func New() *Model {
-	return NewWithTitle("", "")
+	return NewWithTitle("", "", "")
 }
 
-func NewWithTitle(title string, prompt string) *Model {
+func NewWithTitle(title string, prompt string, initialValue string) *Model {
 	styles := styles{
 		border: common.DefaultPalette.GetBorder("input border", lipgloss.RoundedBorder()),
 		text:   common.DefaultPalette.Get("input text"),
@@ -60,6 +60,10 @@ func NewWithTitle(title string, prompt string) *Model {
 	ti.SetStyles(is)
 	if ti.Prompt == "" {
 		ti.Prompt = "> "
+	}
+
+	if initialValue != "" {
+		ti.SetValue(initialValue)
 	}
 
 	return &Model{
@@ -133,8 +137,8 @@ func newCmd(msg tea.Msg) tea.Cmd {
 	return func() tea.Msg { return msg }
 }
 
-func ShowWithTitle(title string, prompt string) tea.Cmd {
+func ShowWithTitle(title string, prompt string, initialValue string) tea.Cmd {
 	return func() tea.Msg {
-		return common.ShowInputMsg{Title: title, Prompt: prompt}
+		return common.ShowInputMsg{Title: title, Prompt: prompt, InitialValue: initialValue}
 	}
 }
