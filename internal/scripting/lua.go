@@ -390,10 +390,10 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 				if promptVal := tbl.RawGetString("prompt"); promptVal != lua.LNil {
 					prompt = promptVal.String()
 				}
-				return yieldStep(L, step{cmd: input.ShowWithTitle(title, prompt), matcher: matchInput})
+				return yieldStep(L, step{cmd: input.ShowWithTitle(title, prompt, ""), matcher: matchInput})
 			}
 		}
-		return yieldStep(L, step{cmd: input.ShowWithTitle("", ""), matcher: matchInput})
+		return yieldStep(L, step{cmd: input.ShowWithTitle("", "", ""), matcher: matchInput})
 	})
 	waitCloseFn := L.NewFunction(func(L *lua.LState) int {
 		return yieldStep(L, step{matcher: matchCloseViewMsg})
