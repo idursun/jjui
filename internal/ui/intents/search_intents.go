@@ -26,6 +26,7 @@ func (FileSearchToggle) isIntent() {}
 //jjui:bind scope=revisions.duplicate action=ace_jump
 //jjui:bind scope=revisions.abandon action=ace_jump
 //jjui:bind scope=revisions.set_parents action=ace_jump
+//jjui:bind scope=revisions.bookmark_move action=ace_jump
 //jjui:bind scope=revisions action=ace_jump
 type StartAceJump struct{}
 

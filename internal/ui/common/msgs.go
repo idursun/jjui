@@ -85,6 +85,9 @@ type (
 	RestoreOperationMsg struct {
 		Operation any
 	}
+	StartSetBookmarkMsg struct {
+		Revision string
+	}
 	StartAceJumpMsg     struct{}
 	OpenTargetPickerMsg struct{}
 )

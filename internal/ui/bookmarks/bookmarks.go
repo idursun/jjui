@@ -220,7 +220,11 @@ func (m *Model) loadMovables() tea.Msg {
 	var bookmarkItems []item
 	bookmarks := jj.ParseBookmarkListOutput(string(output))
 	for _, b := range bookmarks {
-		if !b.Conflict && b.CommitId == m.current.CommitId {
+		if b.Local == nil || !b.Local.Present {
+			continue
+		}
+		localCommitID := b.Local.CommitId
+		if !b.Conflict && localCommitID == m.current.CommitId {
 			continue
 		}
 
@@ -237,7 +241,7 @@ func (m *Model) loadMovables() tea.Msg {
 			name:     name,
 			priority: moveCommand,
 			args:     jj.BookmarkMove(m.current.GetChangeId(), b.Name, extraFlags...),
-			dist:     m.distance(b.CommitId),
+			dist:     m.distance(localCommitID),
 		}
 		if b.Name == "main" || b.Name == "master" {
 			elem.key = "m"
@@ -248,61 +252,71 @@ func (m *Model) loadMovables() tea.Msg {
 }
 
 func (m *Model) loadAll() tea.Msg {
-	if output, err := m.context.RunCommandImmediate(jj.BookmarkListAll()); err != nil {
+	output, err := m.context.RunCommandImmediate(jj.BookmarkListAll())
+	if err != nil {
 		return nil
-	} else {
-		bookmarks := jj.ParseBookmarkListOutput(string(output))
+	}
 
-		items := make([]item, 0)
-		for _, b := range bookmarks {
-			distance := m.distance(b.CommitId)
-			if b.IsDeletable() {
-				items = append(items, item{
-					name:     fmt.Sprintf("delete '%s'", b.Name),
-					priority: deleteCommand,
-					dist:     distance,
-					args:     jj.BookmarkDelete(b.Name),
-				})
-			}
+	bookmarks := jj.ParseBookmarkListOutput(string(output))
+	items := make([]item, 0)
+	defaultRemote := m.defaultTrackRemote()
+	for _, b := range bookmarks {
+		localCommitID := ""
+		if b.Local != nil {
+			localCommitID = b.Local.CommitId
+		}
+		distance := m.distance(localCommitID)
+		if command, ok := jj.BookmarkDeleteCommand(b); ok {
+			items = append(items, item{
+				name:     fmt.Sprintf("delete '%s'", b.Name),
+				priority: deleteCommand,
+				dist:     distance,
+				args:     command,
+			})
+		}
 
+		if command, ok := jj.BookmarkForgetCommand(b); ok {
 			items = append(items, item{
 				name:     fmt.Sprintf("forget '%s'", b.Name),
 				priority: forgetCommand,
 				dist:     distance,
-				args:     jj.BookmarkForget(b.Name),
+				args:     command,
 			})
+		}
 
-			// Track local bookmarks as they have no remotes
-			if b.IsTrackable() {
+		if b.IsTrackable() {
+			if command, ok := jj.BookmarkTrackLocalCommand(b, defaultRemote); ok {
 				items = append(items, item{
 					name:     fmt.Sprintf("track '%s'", b.Name),
 					priority: trackCommand,
 					dist:     distance,
-					args:     jj.BookmarkTrack(b.Name, m.defaultTrackRemote()),
+					args:     command,
 				})
 			}
+		}
 
-			for _, remote := range b.Remotes {
-				nameWithRemote := fmt.Sprintf("%s@%s", b.Name, remote.Remote)
-				if remote.Tracked {
-					items = append(items, item{
-						name:     fmt.Sprintf("untrack '%s'", nameWithRemote),
-						priority: untrackCommand,
-						dist:     distance,
-						args:     jj.BookmarkUntrack(b.Name, remote.Remote),
-					})
-				} else {
-					items = append(items, item{
-						name:     fmt.Sprintf("track '%s'", nameWithRemote),
-						priority: trackCommand,
-						dist:     distance,
-						args:     jj.BookmarkTrack(b.Name, remote.Remote),
-					})
-				}
+		for _, remote := range b.Remotes {
+			nameWithRemote := fmt.Sprintf("%s@%s", b.Name, remote.Remote)
+			if command, ok := jj.BookmarkUntrackRemoteCommand(b, remote); ok {
+				items = append(items, item{
+					name:     fmt.Sprintf("untrack '%s'", nameWithRemote),
+					priority: untrackCommand,
+					dist:     distance,
+					args:     command,
+				})
+				continue
+			}
+			if command, ok := jj.BookmarkTrackRemoteCommand(b, remote); ok {
+				items = append(items, item{
+					name:     fmt.Sprintf("track '%s'", nameWithRemote),
+					priority: trackCommand,
+					dist:     distance,
+					args:     command,
+				})
 			}
 		}
-		return updateItemsMsg{items: items}
 	}
+	return updateItemsMsg{items: items}
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
@@ -557,15 +571,8 @@ func loadRemoteNames(c context.CommandRunner) []string {
 }
 
 func (m *Model) defaultTrackRemote() string {
-	for _, remote := range m.remoteNames {
-		if remote == "origin" {
-			return remote
-		}
-	}
-	for _, remote := range m.remoteNames {
-		if remote != "local" {
-			return remote
-		}
+	if len(m.remoteNames) > 1 {
+		return m.remoteNames[1]
 	}
 	return "origin"
 }

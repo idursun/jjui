@@ -8,11 +8,11 @@ import (
 )
 
 func TestParseBookmarkListOutput_WithNonLocalBookmarks(t *testing.T) {
-	output := `alpha;origin;false;false;false;2
-main;.;false;false;false;b
-main;git;true;false;false;b
-main;origin;true;false;false;b
-zeta;origin;false;false;false;c`
+	output := `alpha;origin;true;false;false;false;2
+main;.;true;false;false;false;b
+main;git;true;true;false;false;b
+main;origin;true;true;false;false;b
+zeta;origin;true;false;false;false;c`
 	bookmarks := ParseBookmarkListOutput(output)
 	assert.Len(t, bookmarks, 3)
 
@@ -46,7 +46,7 @@ func TestParseBookmarkListOutput(t *testing.T) {
 		{
 			name: "single",
 			args: args{
-				output: "feat-1;.;false;false;false;9",
+				output: "feat-1;.;true;false;false;false;9",
 			},
 			want: []Bookmark{
 				{
@@ -56,57 +56,94 @@ func TestParseBookmarkListOutput(t *testing.T) {
 						Remote:   ".",
 						CommitId: "9",
 						Tracked:  false,
+						Present:  true,
 					},
 					Conflict:  false,
 					Backwards: false,
-					CommitId:  "9",
 				},
 			},
 		},
 		{
 			name: "remote",
 			args: args{
-				output: `feature;.;false;false;false;b
-feature;origin;true;false;false;b`,
+				output: `feature;.;true;false;false;false;b
+feature;origin;true;true;false;false;b`,
 			},
 			want: []Bookmark{
 				{
 					Name: "feature",
 					Remotes: []BookmarkRemote{
-						{"origin", "b", true},
+						{
+							Remote:   "origin",
+							CommitId: "b",
+							Tracked:  true,
+							Present:  true,
+						},
 					},
 					Local: &BookmarkRemote{
 						Remote:   ".",
 						CommitId: "b",
 						Tracked:  false,
+						Present:  true,
 					},
 					Conflict:  false,
 					Backwards: false,
-					CommitId:  "b",
 				},
 			},
 		},
 		{
 			name: "quoted bookmarks",
 			args: args{
-				output: `"test--bookmark";.;false;false;false;7
-"test--bookmark";git;true;false;false;7
-"test--bookmark";origin;true;false;false;6`,
+				output: `"test--bookmark";.;true;false;false;false;7
+"test--bookmark";git;true;true;false;false;7
+"test--bookmark";origin;true;true;false;false;6`,
 			},
 			want: []Bookmark{
 				{
 					Name: "test--bookmark",
 					Remotes: []BookmarkRemote{
-						{"origin", "6", true},
+						{
+							Remote:   "origin",
+							CommitId: "6",
+							Tracked:  true,
+							Present:  true,
+						},
 					},
 					Local: &BookmarkRemote{
 						Remote:   ".",
 						CommitId: "7",
 						Tracked:  false,
+						Present:  true,
 					},
 					Conflict:  false,
 					Backwards: false,
-					CommitId:  "7",
+				},
+			},
+		},
+		{
+			name: "deleted local bookmark",
+			args: args{
+				output: "main;.;false;false;false;false;\nmain;origin;true;true;false;false;abc123",
+			},
+			want: []Bookmark{
+				{
+					Name: "main",
+					Remotes: []BookmarkRemote{
+						{
+							Remote:   "origin",
+							CommitId: "abc123",
+							Tracked:  true,
+							Present:  true,
+						},
+					},
+					Local: &BookmarkRemote{
+						Remote:   ".",
+						CommitId: "",
+						Tracked:  false,
+						Present:  false,
+					},
+					Conflict:  false,
+					Backwards: false,
 				},
 			},
 		},

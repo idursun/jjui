@@ -59,11 +59,11 @@ func Test_loadBookmarks(t *testing.T) {
 	const changeId = "changeid"
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkList(changeId)).SetOutput([]byte(`
-feat/allow-new-bookmarks;.;false;false;false;83
-feat/allow-new-bookmarks;origin;true;false;false;83
-main;.;false;false;false;86
-main;origin;true;false;false;86
-test;.;false;false;false;d0
+feat/allow-new-bookmarks;.;true;false;false;false;83
+feat/allow-new-bookmarks;origin;true;true;false;false;83
+main;.;true;false;false;false;86
+main;origin;true;true;false;false;86
+test;.;true;false;false;false;d0
 `))
 	defer commandRunner.Verify()
 
