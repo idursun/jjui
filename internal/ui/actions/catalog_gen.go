@@ -8,6 +8,8 @@ import (
 )
 
 const (
+	OwnerBookmarkView        = "bookmark_view"
+	OwnerBookmarkViewFilter  = "bookmark_view.filter"
 	OwnerBookmarks           = "bookmarks"
 	OwnerChoose              = "choose"
 	OwnerCommandHistory      = "command_history"
@@ -41,6 +43,25 @@ const (
 	OwnerUiPreview           = "ui.preview"
 	OwnerUndo                = "undo"
 
+	BookmarkViewApply                      keybindings.Action = "bookmark_view.apply"
+	BookmarkViewCancel                     keybindings.Action = "bookmark_view.cancel"
+	BookmarkViewDelete                     keybindings.Action = "bookmark_view.delete"
+	BookmarkViewEdit                       keybindings.Action = "bookmark_view.edit"
+	BookmarkViewFilter                     keybindings.Action = "bookmark_view.filter"
+	BookmarkViewFilterApply                keybindings.Action = "bookmark_view.filter.apply"
+	BookmarkViewFilterCancel               keybindings.Action = "bookmark_view.filter.cancel"
+	BookmarkViewForget                     keybindings.Action = "bookmark_view.forget"
+	BookmarkViewMove                       keybindings.Action = "bookmark_view.move"
+	BookmarkViewMoveDown                   keybindings.Action = "bookmark_view.move_down"
+	BookmarkViewMoveUp                     keybindings.Action = "bookmark_view.move_up"
+	BookmarkViewNew                        keybindings.Action = "bookmark_view.new"
+	BookmarkViewPageDown                   keybindings.Action = "bookmark_view.page_down"
+	BookmarkViewPageUp                     keybindings.Action = "bookmark_view.page_up"
+	BookmarkViewRename                     keybindings.Action = "bookmark_view.rename"
+	BookmarkViewReveal                     keybindings.Action = "bookmark_view.reveal"
+	BookmarkViewToggleExpand               keybindings.Action = "bookmark_view.toggle_expand"
+	BookmarkViewTrack                      keybindings.Action = "bookmark_view.track"
+	BookmarkViewUntrack                    keybindings.Action = "bookmark_view.untrack"
 	BookmarksApply                         keybindings.Action = "bookmarks.apply"
 	BookmarksBookmarkDelete                keybindings.Action = "bookmarks.bookmark_delete"
 	BookmarksBookmarkForget                keybindings.Action = "bookmarks.bookmark_forget"
@@ -274,6 +295,7 @@ const (
 	UiExecShell                            keybindings.Action = "ui.exec_shell"
 	UiExpandStatus                         keybindings.Action = "ui.expand_status"
 	UiFileSearchToggle                     keybindings.Action = "ui.file_search_toggle"
+	UiFocusNextPane                        keybindings.Action = "ui.focus_next_pane"
 	UiOpenBookmarks                        keybindings.Action = "ui.open_bookmarks"
 	UiOpenCommandHistory                   keybindings.Action = "ui.open_command_history"
 	UiOpenGit                              keybindings.Action = "ui.open_git"
@@ -294,6 +316,7 @@ const (
 	UiQuickSearch                          keybindings.Action = "ui.quick_search"
 	UiQuit                                 keybindings.Action = "ui.quit"
 	UiSuspend                              keybindings.Action = "ui.suspend"
+	UiToggleBookmarkView                   keybindings.Action = "ui.toggle_bookmark_view"
 	UndoApply                              keybindings.Action = "undo.apply"
 	UndoCancel                             keybindings.Action = "undo.cancel"
 	UndoNext                               keybindings.Action = "undo.next"
@@ -311,6 +334,50 @@ func IsRevisionsOwner(owner string) bool {
 
 func ResolveIntent(owner string, action keybindings.Action, args map[string]any) (intents.Intent, bool) {
 	switch owner {
+	case OwnerBookmarkView:
+		switch action {
+		case keybindings.Action("bookmark_view.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("bookmark_view.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("bookmark_view.delete"):
+			return intents.BookmarkViewDelete{}, true
+		case keybindings.Action("bookmark_view.edit"):
+			return intents.BookmarkViewEdit{}, true
+		case keybindings.Action("bookmark_view.filter"):
+			return intents.BookmarkViewOpenFilter{}, true
+		case keybindings.Action("bookmark_view.forget"):
+			return intents.BookmarkViewForget{}, true
+		case keybindings.Action("bookmark_view.move"):
+			return intents.BookmarkViewMove{}, true
+		case keybindings.Action("bookmark_view.move_down"):
+			return intents.BookmarkViewNavigate{Delta: 1}, true
+		case keybindings.Action("bookmark_view.move_up"):
+			return intents.BookmarkViewNavigate{Delta: -1}, true
+		case keybindings.Action("bookmark_view.new"):
+			return intents.BookmarkViewNew{}, true
+		case keybindings.Action("bookmark_view.page_down"):
+			return intents.BookmarkViewNavigate{Delta: 1, IsPage: true}, true
+		case keybindings.Action("bookmark_view.page_up"):
+			return intents.BookmarkViewNavigate{Delta: -1, IsPage: true}, true
+		case keybindings.Action("bookmark_view.rename"):
+			return intents.BookmarkViewRename{}, true
+		case keybindings.Action("bookmark_view.reveal"):
+			return intents.BookmarkViewReveal{}, true
+		case keybindings.Action("bookmark_view.toggle_expand"):
+			return intents.BookmarkViewToggleExpand{}, true
+		case keybindings.Action("bookmark_view.track"):
+			return intents.BookmarkViewTrack{}, true
+		case keybindings.Action("bookmark_view.untrack"):
+			return intents.BookmarkViewUntrack{}, true
+		}
+	case OwnerBookmarkViewFilter:
+		switch action {
+		case keybindings.Action("bookmark_view.filter.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("bookmark_view.filter.cancel"):
+			return intents.Cancel{}, true
+		}
 	case OwnerBookmarks:
 		switch action {
 		case keybindings.Action("bookmarks.apply"):
@@ -866,6 +933,8 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.ExpandStatusToggle{}, true
 		case keybindings.Action("ui.file_search_toggle"):
 			return intents.FileSearchToggle{}, true
+		case keybindings.Action("ui.focus_next_pane"):
+			return intents.FocusNextPane{}, true
 		case keybindings.Action("ui.open_bookmarks"):
 			return intents.OpenBookmarks{}, true
 		case keybindings.Action("ui.open_command_history"):
@@ -904,6 +973,8 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.Quit{}, true
 		case keybindings.Action("ui.suspend"):
 			return intents.Suspend{}, true
+		case keybindings.Action("ui.toggle_bookmark_view"):
+			return intents.ToggleBookmarkView{}, true
 		}
 	case OwnerUiPreview:
 		switch action {

@@ -22,6 +22,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/details"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/revisions"
 	"github.com/idursun/jjui/internal/ui/revset"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
@@ -215,6 +216,65 @@ func Test_HandleDispatchedAction_UsesFlashScopeWhenVisible(t *testing.T) {
 	require.True(t, ok)
 	model.Update(closeMsg)
 	assert.False(t, model.commandHistoryOpen())
+}
+
+func Test_ToggleBookmarkView_OpensFocusedPaneAndTabReturnsFocusToRevisions(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkView{}))
+	require.NotNil(t, model.bookmarkPane)
+	assert.True(t, model.bookmarkPane.Visible())
+	assert.True(t, model.bookmarkFocused)
+	assert.Equal(t, keybindings.Scope(actions.OwnerBookmarkView), model.primaryScope())
+
+	model.Update(intents.FocusNextPane{})
+	assert.False(t, model.bookmarkFocused)
+	assert.Equal(t, revisions.ScopeRevisions, model.primaryScope())
+
+	model.Update(intents.ToggleBookmarkView{})
+	assert.False(t, model.bookmarkPane.Visible())
+}
+
+func Test_ToggleBookmarkView_HidesPreviewAndRestoresOnClose(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(""))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.previewModel.SetVisible(true)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkView{}))
+	assert.True(t, model.bookmarkPane.Visible())
+	assert.False(t, model.previewModel.Visible())
+
+	model.Update(intents.ToggleBookmarkView{})
+	assert.False(t, model.bookmarkPane.Visible())
+	assert.True(t, model.previewModel.Visible())
+}
+
+func Test_BookmarkViewEscDismissesFlashBeforeClosingPane(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkView{}))
+	require.True(t, model.bookmarkPane.Visible())
+
+	model.Update(intents.AddMessage{Text: "flash", Sticky: true})
+	require.True(t, model.flash.Any())
+
+	test.SimulateModel(model, test.Press(tea.KeyEscape))
+	assert.False(t, model.flash.Any(), "esc should dismiss flash first")
+	assert.True(t, model.bookmarkPane.Visible(), "bookmark pane should remain open after dismissing flash")
 }
 
 // this test verifies that when `git` is activated and `status` is expanded,

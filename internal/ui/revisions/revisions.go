@@ -1016,6 +1016,15 @@ func (m *Model) GetCommitIds() []string {
 	return commitIds
 }
 
+func (m *Model) RevealRevision(revision string) tea.Cmd {
+	index := m.selectRevision(revision)
+	if index < 0 {
+		return nil
+	}
+	m.SetCursor(index)
+	return m.updateSelection()
+}
+
 func New(c *appContext.MainContext) *Model {
 	m := Model{
 		context:       c,
