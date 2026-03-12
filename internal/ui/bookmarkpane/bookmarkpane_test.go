@@ -163,3 +163,23 @@ func TestRevealInRevisions_UsesDedicatedCallback(t *testing.T) {
 	assert.Equal(t, "main", shownTarget)
 	assert.Equal(t, "abc123", shownCommit)
 }
+
+func TestMoveSelected_RemoteOnlyBookmarkShowsMessage(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("remote-only;origin;true;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	model := NewModel(
+		test.NewTestContext(commandRunner),
+		Callbacks{
+			CurrentRevision: func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "dest123"} },
+		},
+	)
+	test.SimulateModel(model, model.Open())
+
+	cmd := model.Update(intents.BookmarkViewMove{})
+	require.NotNil(t, cmd)
+	msg, ok := cmd().(intents.AddMessage)
+	require.True(t, ok)
+	assert.Equal(t, "No local bookmark for remote-only", msg.Text)
+}

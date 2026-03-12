@@ -341,6 +341,29 @@ func Test_BookmarkViewMove_StartsRevisionOperationAndShiftsFocus(t *testing.T) {
 	require.True(t, ok)
 }
 
+func Test_BookmarkViewMove_CancelRestoresFocusToBookmarkView(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nsecond;.;false;false;false;def456\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkView{}))
+	require.True(t, model.secondaryPane.bookmarkFocused)
+
+	cmd := model.bookmarkPane.Update(intents.BookmarkViewMove{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	op, ok := model.revisions.CurrentOperation().(*bookmark.MoveBookmarkOperation)
+	require.True(t, ok)
+	test.SimulateModel(model, op.Update(intents.Cancel{}))
+
+	assert.True(t, model.secondaryPane.bookmarkFocused)
+	assert.False(t, model.revisions.IsFocused())
+}
+
 // this test verifies that when `git` is activated and `status` is expanded,
 // pressing `esc` closes expanded `status`
 func Test_GitWithExpandedStatus_EscClosesStackedFirst(t *testing.T) {

@@ -105,7 +105,7 @@ func loadBookmarkTree(output string, expanded map[string]bool, currentCommitID s
 
 	distanceMap := calcDistanceMap(currentCommitID, visibleCommitIDs)
 	slices.SortFunc(items, func(a, b bookmarkTreeItem) int {
-		return compareBookmarkTreeItems(a, b, currentCommitID, distanceMap)
+		return compareBookmarkTreeItems(a, b, distanceMap)
 	})
 
 	return bookmarkTree{Items: items}
@@ -175,8 +175,8 @@ func nodeMatches(node bookmarkRefNode, filterText string) bool {
 	return false
 }
 
-func compareBookmarkTreeItems(a, b bookmarkTreeItem, currentCommitID string, distanceMap map[string]int) int {
-	if rankA, rankB := bookmarkSortRank(a, currentCommitID), bookmarkSortRank(b, currentCommitID); rankA != rankB {
+func compareBookmarkTreeItems(a, b bookmarkTreeItem, distanceMap map[string]int) int {
+	if rankA, rankB := bookmarkSortRank(a), bookmarkSortRank(b); rankA != rankB {
 		return rankA - rankB
 	}
 	if distCmp := compareDistance(bookmarkDistance(distanceMap, a.commitID()), bookmarkDistance(distanceMap, b.commitID())); distCmp != 0 {
@@ -185,8 +185,7 @@ func compareBookmarkTreeItems(a, b bookmarkTreeItem, currentCommitID string, dis
 	return strings.Compare(a.Name, b.Name)
 }
 
-func bookmarkSortRank(item bookmarkTreeItem, currentCommitID string) int {
-	_ = currentCommitID
+func bookmarkSortRank(item bookmarkTreeItem) int {
 	if item.Local == nil {
 		return 1
 	}

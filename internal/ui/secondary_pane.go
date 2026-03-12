@@ -184,10 +184,21 @@ func (c *secondaryPaneController) focusNext() {
 	if !c.bookmarkVisible() || c.bookmark == nil {
 		return
 	}
-	c.bookmarkFocused = !c.bookmarkFocused
-	c.bookmark.SetFocused(c.bookmarkFocused)
+	c.setBookmarkFocused(!c.bookmarkFocused)
+}
+
+func (c *secondaryPaneController) focusBookmark() {
+	if !c.bookmarkVisible() || c.bookmark == nil {
+		return
+	}
+	c.setBookmarkFocused(true)
+}
+
+func (c *secondaryPaneController) setBookmarkFocused(focused bool) {
+	c.bookmarkFocused = focused
+	c.bookmark.SetFocused(focused)
 	if c.revisions != nil {
-		c.revisions.SetFocused(!c.bookmarkFocused)
+		c.revisions.SetFocused(!focused)
 	}
 }
 

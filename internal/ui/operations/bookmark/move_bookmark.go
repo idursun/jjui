@@ -67,7 +67,7 @@ func (m *MoveBookmarkOperation) Update(msg tea.Msg) tea.Cmd {
 			return m.context.RunCommand(jj.BookmarkMove(m.target.GetChangeId(), m.bookmarkName, "--allow-backwards"), cmds...)
 		case intents.Cancel:
 			if m.onExit != nil {
-				return tea.Batch(common.Close, m.onExit)
+				return tea.Sequence(common.Close, m.onExit)
 			}
 			return common.Close
 		}

@@ -59,6 +59,13 @@ const (
 	filterApplied
 )
 
+type rowSelectionMode int
+
+const (
+	selectionResetTop rowSelectionMode = iota
+	selectionPreserve
+)
+
 type styles struct {
 	title           lipgloss.Style
 	text            lipgloss.Style
@@ -89,7 +96,7 @@ type Model struct {
 	filterText           string
 	pendingInput         pendingInputKind
 	pendingSelectionHint string
-	resetSelectionOnLoad bool
+	selectionMode        rowSelectionMode
 	styles               styles
 }
 
@@ -158,7 +165,7 @@ func (m *Model) Open() tea.Cmd {
 	m.visible = true
 	m.focused = true
 	m.pendingSelectionHint = ""
-	m.resetSelectionOnLoad = true
+	m.selectionMode = selectionResetTop
 	m.cursor = 0
 	m.ensureCursorVisible = true
 	m.listRenderer.StartLine = 0
@@ -185,15 +192,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case rowsLoadedMsg:
 		previousTarget, hadSelection := m.selectedTarget()
 		m.tree = msg.tree
-		m.applyFilters(m.resetSelectionOnLoad)
+		m.applyFilters(m.selectionMode == selectionResetTop)
 		switch {
 		case m.pendingSelectionHint != "":
 			m.selectTarget(m.pendingSelectionHint)
 			m.pendingSelectionHint = ""
-		case hadSelection && !m.resetSelectionOnLoad:
+		case hadSelection && m.selectionMode == selectionPreserve:
 			m.selectTarget(previousTarget)
 		}
-		m.resetSelectionOnLoad = false
+		m.selectionMode = selectionPreserve
 		return nil
 	case itemClickedMsg:
 		if msg.index >= 0 && msg.index < len(m.visibleRows) {
@@ -227,6 +234,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case common.RefreshMsg:
 		if m.visible {
+			m.selectionMode = selectionPreserve
 			return m.loadRows
 		}
 		return nil
@@ -518,12 +526,28 @@ func (m *Model) selectedBookmark() (bookmarkTreeItem, bool) {
 	return m.tree.Items[row.BookmarkIndex], true
 }
 
-func (m *Model) selectedNode() (bookmarkRefNode, bool) {
+func (m *Model) selectedBookmarkAndNode() (bookmarkTreeItem, bookmarkRefNode, bool) {
 	row, ok := m.selectedRow()
+	if !ok || row.BookmarkIndex < 0 || row.BookmarkIndex >= len(m.tree.Items) {
+		return bookmarkTreeItem{}, bookmarkRefNode{}, false
+	}
+	return m.tree.Items[row.BookmarkIndex], row.Node, true
+}
+
+func (m *Model) selectedNode() (bookmarkRefNode, bool) {
+	_, node, ok := m.selectedBookmarkAndNode()
 	if !ok {
 		return bookmarkRefNode{}, false
 	}
-	return row.Node, true
+	return node, true
+}
+
+func (m *Model) selectedLocalBookmark() (bookmarkTreeItem, bookmarkRefNode, bool) {
+	bookmark, node, ok := m.selectedBookmarkAndNode()
+	if !ok || node.IsRemote() || bookmark.Local == nil {
+		return bookmarkTreeItem{}, bookmarkRefNode{}, false
+	}
+	return bookmark, node, true
 }
 
 func (m *Model) selectedTarget() (string, bool) {
@@ -614,9 +638,8 @@ func (m *Model) newFromSelected() tea.Cmd {
 }
 
 func (m *Model) renameSelected() tea.Cmd {
-	row, ok := m.selectedBookmark()
-	selected, selectedOK := m.selectedNode()
-	if !ok || !selectedOK || selected.IsRemote() || row.Local == nil {
+	row, _, ok := m.selectedLocalBookmark()
+	if !ok {
 		return nil
 	}
 	m.pendingInput = pendingInputRename
@@ -624,18 +647,16 @@ func (m *Model) renameSelected() tea.Cmd {
 }
 
 func (m *Model) deleteSelected() tea.Cmd {
-	row, ok := m.selectedBookmark()
-	selected, selectedOK := m.selectedNode()
-	if !ok || !selectedOK || selected.IsRemote() || row.Local == nil {
+	row, _, ok := m.selectedLocalBookmark()
+	if !ok {
 		return nil
 	}
 	return m.context.RunCommand(jj.BookmarkDelete(row.Name), common.Refresh, m.loadRows)
 }
 
 func (m *Model) forgetSelected() tea.Cmd {
-	row, ok := m.selectedBookmark()
-	selected, selectedOK := m.selectedNode()
-	if !ok || !selectedOK || selected.IsRemote() || row.Local == nil {
+	row, _, ok := m.selectedLocalBookmark()
+	if !ok {
 		return nil
 	}
 	return m.context.RunCommand(jj.BookmarkForget(row.Name), common.Refresh, m.loadRows)
@@ -676,9 +697,14 @@ func (m *Model) untrackSelected() tea.Cmd {
 }
 
 func (m *Model) moveSelected() tea.Cmd {
-	row, ok := m.selectedBookmark()
-	selected, selectedOK := m.selectedNode()
-	if !ok || !selectedOK || selected.IsRemote() || row.Local == nil || m.callbacks.BeginMoveBookmark == nil {
+	row, selected, ok := m.selectedBookmarkAndNode()
+	if !ok {
+		return nil
+	}
+	if row.Local == nil {
+		return intents.Invoke(intents.AddMessage{Text: fmt.Sprintf("No local bookmark for %s", row.Name)})
+	}
+	if selected.IsRemote() || m.callbacks.BeginMoveBookmark == nil {
 		return nil
 	}
 	m.pendingSelectionHint = row.Name

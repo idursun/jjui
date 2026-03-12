@@ -1033,10 +1033,10 @@ func NewUI(c *context.MainContext) *Model {
 				return nil
 			}
 			op := bookmarkop.NewMoveBookmarkOperation(c, name, func() tea.Msg {
-				if ui.secondaryPane == nil || !ui.secondaryPane.bookmarkVisible() || ui.secondaryPane.bookmarkFocused {
+				if ui.secondaryPane == nil || !ui.secondaryPane.bookmarkVisible() {
 					return nil
 				}
-				ui.secondaryPane.focusNext()
+				ui.secondaryPane.focusBookmark()
 				return nil
 			})
 			cmds := []tea.Cmd{common.RestoreOperation(op)}
