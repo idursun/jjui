@@ -12,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/helpkeys"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -726,6 +727,78 @@ func Test_Update_OperationScopedConfiguredActionOverridesBuiltInIntent(t *testin
 	runLua, ok := msg.(common.RunLuaScriptMsg)
 	require.True(t, ok, "configured action should run before operation intent resolution")
 	assert.Contains(t, runLua.Script, `flash("override")`)
+}
+
+func Test_Update_DispatchedDiffShowOpensAndUpdatesDiff(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	cmd := model.Update(common.DispatchActionMsg{
+		Action:  "diff.show",
+		Args:    map[string]any{"content": "new"},
+		BuiltIn: true,
+	})
+	require.Nil(t, cmd)
+	require.NotNil(t, model.diff)
+	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(model.diff, 20, 3)))
+}
+
+func Test_Update_DispatchedDiffShowUpdatesExistingDiff(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.diff = diff.New("old")
+
+	cmd := model.Update(common.DispatchActionMsg{
+		Action:  "diff.show",
+		Args:    map[string]any{"content": "new"},
+		BuiltIn: true,
+	})
+	require.Nil(t, cmd)
+	require.NotNil(t, model.diff)
+	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(model.diff, 20, 3)))
+}
+
+func Test_Update_DispatchedPreviewShowUpdatesVisiblePreview(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.previewModel.SetVisible(true)
+	model.previewModel.SetContent("old")
+
+	cmd := model.Update(common.DispatchActionMsg{
+		Action:  "ui.preview.show",
+		Args:    map[string]any{"content": "new"},
+		BuiltIn: true,
+	})
+	require.Nil(t, cmd)
+	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(model.previewModel, 20, 3)))
+}
+
+func Test_Update_DispatchedPreviewShowOpensHiddenPreview(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.previewModel.SetContent("old")
+	model.previewModel.SetVisible(false)
+
+	cmd := model.Update(common.DispatchActionMsg{
+		Action:  "ui.preview.show",
+		Args:    map[string]any{"content": "new"},
+		BuiltIn: true,
+	})
+	require.Nil(t, cmd)
+	assert.True(t, model.previewModel.Visible())
+	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(model.previewModel, 20, 3)))
 }
 
 func Test_Update_LuaInputEscCancelsAndFinishesScript(t *testing.T) {

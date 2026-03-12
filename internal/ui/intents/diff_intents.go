@@ -46,3 +46,10 @@ func (DiffScrollHorizontal) isIntent() {}
 type DiffToggleWrap struct{}
 
 func (DiffToggleWrap) isIntent() {}
+
+//jjui:bind scope=diff action=show set=Content:$string(content)
+type DiffShow struct {
+	Content string
+}
+
+func (DiffShow) isIntent() {}

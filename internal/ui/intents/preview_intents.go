@@ -40,3 +40,10 @@ type PreviewScroll struct {
 }
 
 func (PreviewScroll) isIntent() {}
+
+//jjui:bind scope=ui.preview action=show set=Content:$string(content)
+type PreviewShow struct {
+	Content string
+}
+
+func (PreviewShow) isIntent() {}

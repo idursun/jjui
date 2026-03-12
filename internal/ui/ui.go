@@ -170,9 +170,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return exec_process.ExecLine(m.context, msg)
 	case common.ExecProcessCompletedMsg:
 		cmds = append(cmds, common.Refresh)
-	case common.ShowDiffMsg:
-		m.diff = diff.New(string(msg))
-		return m.diff.Init()
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
 	case triggerAutoRefreshMsg:
@@ -492,6 +489,16 @@ func (m *Model) handleDelegatedIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return nil, true
 		}
 		return m.revsetModel.Update(intent), true
+	case intents.DiffShow:
+		if m.diff == nil {
+			m.diff = diff.New("")
+		}
+		return m.diff.Update(intent), true
+	case intents.PreviewShow:
+		if !m.previewModel.Visible() {
+			m.previewModel.ToggleVisible()
+		}
+		return m.previewModel.Update(intent), true
 	default:
 		return nil, false
 	}
@@ -702,6 +709,10 @@ func (m *Model) routeIntentByOwner(owner string, intent intents.Intent) (tea.Cmd
 	case actions.OwnerDiff:
 		if m.diff != nil {
 			return m.diff.Update(intent), true
+		}
+	case actions.OwnerUiPreview:
+		if m.previewModel.Visible() {
+			return m.previewModel.Update(intent), true
 		}
 	case actions.OwnerOplog, actions.OwnerOplogQuickSearch:
 		if m.oplog != nil {

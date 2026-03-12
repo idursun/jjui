@@ -47,6 +47,7 @@ var builtInActions = map[string]struct{}{
 	"diff.right":                                 {},
 	"diff.scroll_down":                           {},
 	"diff.scroll_up":                             {},
+	"diff.show":                                  {},
 	"diff.toggle_wrap":                           {},
 	"file_search.apply":                          {},
 	"file_search.cancel":                         {},
@@ -254,6 +255,7 @@ var builtInActions = map[string]struct{}{
 	"ui.open_redo":                               {},
 	"ui.open_revset":                             {},
 	"ui.open_undo":                               {},
+	"ui.preview.show":                            {},
 	"ui.preview_expand":                          {},
 	"ui.preview_half_page_down":                  {},
 	"ui.preview_half_page_up":                    {},
@@ -305,6 +307,7 @@ var builtInActionOwners = map[string][]string{
 	"diff.right":                                 {"diff"},
 	"diff.scroll_down":                           {"diff"},
 	"diff.scroll_up":                             {"diff"},
+	"diff.show":                                  {"diff"},
 	"diff.toggle_wrap":                           {"diff"},
 	"file_search.apply":                          {"file_search"},
 	"file_search.cancel":                         {"file_search"},
@@ -512,6 +515,7 @@ var builtInActionOwners = map[string][]string{
 	"ui.open_redo":                               {"ui"},
 	"ui.open_revset":                             {"ui"},
 	"ui.open_undo":                               {"ui"},
+	"ui.preview.show":                            {"ui.preview"},
 	"ui.preview_expand":                          {"ui"},
 	"ui.preview_half_page_down":                  {"ui"},
 	"ui.preview_half_page_up":                    {"ui"},
@@ -530,6 +534,9 @@ var builtInActionOwners = map[string][]string{
 }
 
 var builtInActionArgSchemas = map[string]map[string]string{
+	"diff.show": {
+		"content": "string",
+	},
 	"revisions.abandon.apply": {
 		"force": "bool",
 	},
@@ -578,15 +585,20 @@ var builtInActionArgSchemas = map[string]map[string]string{
 	"revset.set": {
 		"value": "string",
 	},
+	"ui.preview.show": {
+		"content": "string",
+	},
 }
 
 var builtInActionRequiredArgs = map[string][]string{
+	"diff.show":                      {"content"},
 	"revisions.details.select_file":  {"file"},
 	"revisions.duplicate.set_target": {"target"},
 	"revisions.rebase.set_source":    {"source"},
 	"revisions.rebase.set_target":    {"target"},
 	"revisions.revert.set_target":    {"target"},
 	"revset.set":                     {"value"},
+	"ui.preview.show":                {"content"},
 }
 
 var builtInActionOrder = []string{
@@ -623,6 +635,7 @@ var builtInActionOrder = []string{
 	"diff.right",
 	"diff.scroll_down",
 	"diff.scroll_up",
+	"diff.show",
 	"diff.toggle_wrap",
 	"file_search.apply",
 	"file_search.cancel",
@@ -830,6 +843,7 @@ var builtInActionOrder = []string{
 	"ui.open_redo",
 	"ui.open_revset",
 	"ui.open_undo",
+	"ui.preview.show",
 	"ui.preview_expand",
 	"ui.preview_half_page_down",
 	"ui.preview_half_page_up",

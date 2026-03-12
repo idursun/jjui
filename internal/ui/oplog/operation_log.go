@@ -193,7 +193,7 @@ func (m *Model) showDiff(intent intents.OpLogShowDiff) tea.Cmd {
 	}
 	return func() tea.Msg {
 		output, _ := m.context.RunCommandImmediate(jj.OpShow(opId))
-		return common.ShowDiffMsg(output)
+		return intents.DiffShow{Content: string(output)}
 	}
 }
 

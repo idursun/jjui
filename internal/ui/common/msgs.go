@@ -14,7 +14,6 @@ type (
 		SelectedRevision string
 		KeepSelections   bool
 	}
-	ShowDiffMsg              string
 	UpdateRevisionsFailedMsg struct {
 		Output string
 		Err    error

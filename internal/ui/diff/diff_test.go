@@ -114,3 +114,26 @@ func TestWrap_HorizontalScrollIsNoop(t *testing.T) {
 	after := test.Stripped(test.RenderImmediate(model, 10, 2))
 	assert.Equal(t, before, after)
 }
+
+func TestSetContent_ResetsScrollOffsets(t *testing.T) {
+	model := New("abcdefghijklmnopqrstuvwxyz")
+
+	model.Update(intents.DiffScrollHorizontal{Kind: intents.DiffScrollRight})
+	model.Update(intents.DiffScrollHorizontal{Kind: intents.DiffScrollRight})
+	model.Update(intents.DiffScrollHorizontal{Kind: intents.DiffScrollRight})
+	model.Update(intents.DiffScrollHorizontal{Kind: intents.DiffScrollRight})
+	model.Update(intents.DiffScrollHorizontal{Kind: intents.DiffScrollRight})
+	model.Update(intents.DiffShow{Content: "abcdefghijklmnopqrstuvwxyz"})
+
+	rendered := test.Stripped(test.RenderImmediate(model, 10, 1))
+	assert.Equal(t, "abcdefghij", rendered)
+}
+
+func TestSetContent_PreservesWrapMode(t *testing.T) {
+	model := New("12345678901234567890")
+	model.Update(intents.DiffToggleWrap{})
+	model.Update(intents.DiffShow{Content: "abcdefghij1234567890"})
+
+	rendered := test.Stripped(test.RenderImmediate(model, 10, 3))
+	assert.Contains(t, rendered, "abcdefghij\n1234567890")
+}

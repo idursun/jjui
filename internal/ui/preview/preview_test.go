@@ -3,10 +3,15 @@ package preview
 import (
 	"testing"
 
+	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestModel_Init(t *testing.T) {
@@ -129,4 +134,46 @@ func TestModel_View(t *testing.T) {
 			assert.Equal(t, tc.expected, v)
 		})
 	}
+}
+
+func TestUpdate_PreviewShowResetsScroll(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+
+	model.SetContent("first line\nsecond line\nthird line")
+	model.Scroll(2)
+	model.ScrollHorizontal(2)
+
+	cmd := model.Update(intents.PreviewShow{Content: "updated"})
+	require.Nil(t, cmd)
+
+	assert.Equal(t, 0, model.view.YOffset())
+	assert.Equal(t, 0, model.view.XOffset())
+	assert.Equal(t, "updated", model.content)
+}
+
+func TestUpdate_PreviewShowDoesNotBreakSelectionRefresh(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	ctx.CurrentRevset = "all()"
+	model := New(ctx)
+
+	selected := common.SelectedRevision{ChangeId: "change", CommitId: "commit"}
+	args := jj.TemplatedArgs(config.Current.Preview.RevisionCommand, map[string]string{
+		jj.RevsetPlaceholder:       ctx.CurrentRevset,
+		jj.ChangeIdPlaceholder:     selected.ChangeId,
+		jj.CommitIdPlaceholder:     selected.CommitId,
+		jj.PreviewWidthPlaceholder: "0",
+	})
+	commandRunner.Expect(args).SetOutput([]byte("auto preview"))
+
+	model.Update(intents.PreviewShow{Content: "manual"})
+	cmd := model.Update(common.SelectionChangedMsg{Item: selected})
+	require.NotNil(t, cmd)
+
+	test.SimulateModel(model, cmd)
+
+	assert.Equal(t, "auto preview", model.content)
 }

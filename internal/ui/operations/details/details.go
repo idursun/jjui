@@ -198,7 +198,7 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 		return func() tea.Msg {
 			output, _ := s.context.RunCommandImmediate(jj.Diff(s.revision.GetChangeId(), selected.fileName))
-			return common.ShowDiffMsg(output)
+			return intents.DiffShow{Content: string(output)}
 		}
 	case intents.DetailsSplit:
 		selectedFiles := s.getSelectedFiles(true)

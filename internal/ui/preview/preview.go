@@ -12,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
@@ -142,6 +143,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		} else {
 			m.Scroll(msg.Delta)
 		}
+	case intents.PreviewShow:
+		m.SetContent(msg.Content)
+		return nil
 	case common.SelectionChangedMsg:
 		if msg.Item != nil {
 			return m.refreshPreviewForItem(msg.Item)
@@ -157,8 +161,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) SetContent(content string) {
+	content = strings.ReplaceAll(content, "\r", "")
 	m.reset()
-	m.content = strings.ReplaceAll(content, "\r", "")
+	m.content = content
 	m.view.SetContent(content)
 }
 

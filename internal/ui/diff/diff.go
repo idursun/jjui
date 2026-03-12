@@ -172,6 +172,36 @@ func (m *Model) clampScroll(width, height int) {
 	m.scrollY = max(0, min(m.scrollY, max(0, total-height)))
 }
 
+func (m *Model) SetContent(content string) {
+	wrapped := false
+	if m.mode != nil {
+		_, wrapped = m.mode.(*wrappedView)
+	}
+
+	content = strings.ReplaceAll(content, "\r", "")
+	if content == "" {
+		content = "(empty)"
+	}
+
+	lines := strings.Split(content, "\n")
+	maxWidth := 0
+	for _, line := range lines {
+		if w := render.StringWidth(line); w > maxWidth {
+			maxWidth = w
+		}
+	}
+
+	m.lines = lines
+	m.maxLineWidth = maxWidth
+	m.scrollY = 0
+
+	if wrapped {
+		m.mode = newWrappedView(lines)
+		return
+	}
+	m.mode = newDefaultView(lines, maxWidth)
+}
+
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.DiffScroll:
@@ -202,6 +232,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		default:
 			m.mode = newWrappedView(m.lines)
 		}
+		return nil
+
+	case intents.DiffShow:
+		m.SetContent(msg.Content)
 		return nil
 
 	case intents.DiffScrollHorizontal:
@@ -236,22 +270,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 }
 
 func New(output string) *Model {
-	content := strings.ReplaceAll(output, "\r", "")
-	if content == "" {
-		content = "(empty)"
-	}
-	lines := strings.Split(content, "\n")
-	maxWidth := 0
-	for _, line := range lines {
-		if w := render.StringWidth(line); w > maxWidth {
-			maxWidth = w
-		}
-	}
-
-	model := &Model{
-		lines:        lines,
-		maxLineWidth: maxWidth,
-		mode:         newDefaultView(lines, maxWidth),
-	}
+	model := &Model{}
+	model.SetContent(output)
 	return model
 }
