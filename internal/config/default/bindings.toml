@@ -223,8 +223,8 @@ bindings = [
     { key = "shift+tab", action = "revisions.set_bookmark.autocomplete_back", scope = "revisions.set_bookmark", desc = "autocomplete back" },
 
     # revisions.bookmark_move
-    { key = "esc", action = "revisions.set_bookmark.cancel", scope = "revisions.bookmark_move", desc = "cancel" },
-    { key = "enter", action = "revisions.set_bookmark.apply", scope = "revisions.bookmark_move", desc = "apply" },
+    { key = "esc", action = "revisions.bookmark_move.cancel", scope = "revisions.bookmark_move", desc = "cancel" },
+    { key = "enter", action = "revisions.bookmark_move.apply", scope = "revisions.bookmark_move", desc = "apply" },
     { key = ["up", "k"], action = "revisions.move_up", scope = "revisions.bookmark_move", desc = "up" },
     { key = ["down", "j"], action = "revisions.move_down", scope = "revisions.bookmark_move", desc = "down" },
     { key = "pgup", action = "revisions.page_up", scope = "revisions.bookmark_move", desc = "pgup" },

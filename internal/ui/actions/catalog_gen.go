@@ -25,6 +25,7 @@ const (
 	OwnerRevisions           = "revisions"
 	OwnerAbandon             = "revisions.abandon"
 	OwnerAceJump             = "revisions.ace_jump"
+	OwnerBookmarkMove        = "revisions.bookmark_move"
 	OwnerDetails             = "revisions.details"
 	OwnerDetailsConfirmation = "revisions.details.confirmation"
 	OwnerDuplicate           = "revisions.duplicate"
@@ -162,6 +163,8 @@ const (
 	RevisionsAceJumpApply                  keybindings.Action = "revisions.ace_jump.apply"
 	RevisionsAceJumpCancel                 keybindings.Action = "revisions.ace_jump.cancel"
 	RevisionsApply                         keybindings.Action = "revisions.apply"
+	RevisionsBookmarkMoveApply             keybindings.Action = "revisions.bookmark_move.apply"
+	RevisionsBookmarkMoveCancel            keybindings.Action = "revisions.bookmark_move.cancel"
 	RevisionsCommit                        keybindings.Action = "revisions.commit"
 	RevisionsDescribe                      keybindings.Action = "revisions.describe"
 	RevisionsDetailsAbsorb                 keybindings.Action = "revisions.details.absorb"
@@ -326,7 +329,7 @@ const (
 
 func IsRevisionsOwner(owner string) bool {
 	switch owner {
-	case OwnerCommandHistory, OwnerHelp, OwnerOplogQuickSearch, OwnerRevisions, OwnerAbandon, OwnerAceJump, OwnerDetails, OwnerDetailsConfirmation, OwnerDuplicate, OwnerEvolog, OwnerInlineDescribe, OwnerQuickSearchInput, OwnerRebase, OwnerRevert, OwnerSetBookmark, OwnerSetParents, OwnerSquash, OwnerTargetPicker:
+	case OwnerCommandHistory, OwnerHelp, OwnerOplogQuickSearch, OwnerRevisions, OwnerAbandon, OwnerAceJump, OwnerBookmarkMove, OwnerDetails, OwnerDetailsConfirmation, OwnerDuplicate, OwnerEvolog, OwnerInlineDescribe, OwnerQuickSearchInput, OwnerRebase, OwnerRevert, OwnerSetBookmark, OwnerSetParents, OwnerSquash, OwnerTargetPicker:
 		return true
 	default:
 		return false
@@ -686,6 +689,13 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.ace_jump.apply"):
 			return intents.Apply{}, true
 		case keybindings.Action("revisions.ace_jump.cancel"):
+			return intents.Cancel{}, true
+		}
+	case OwnerBookmarkMove:
+		switch action {
+		case keybindings.Action("revisions.bookmark_move.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("revisions.bookmark_move.cancel"):
 			return intents.Cancel{}, true
 		}
 	case OwnerDetails:
