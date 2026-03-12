@@ -84,6 +84,14 @@ const (
 	scopeCommandHistory   keybindings.Scope = "command_history"
 )
 
+// Use wcwidth-style measurement for the final screen buffer.
+//
+// This matches how terminals typically place variation-selector emoji such as
+// "⬇️": GraphemeWidth counts it as 2 cells, but terminals commonly render it
+// in 1 cell. Using WcWidth keeps pane separators aligned with terminal layout.
+// Regular emoji like "😭" still measure as width 2.
+var screenWidthMethod = ansi.WcWidth
+
 func (m *Model) Init() tea.Cmd {
 	return tea.Batch(m.revisions.Init(), m.scheduleAutoRefresh())
 }
@@ -366,7 +374,7 @@ func (m *Model) View() string {
 
 	box := layout.NewBox(layout.Rect(0, 0, m.width, m.height))
 	screenBuf := uv.NewScreenBuffer(m.width, m.height)
-	screenBuf.Method = ansi.GraphemeWidth
+	screenBuf.Method = screenWidthMethod
 
 	if m.diff != nil {
 		m.renderDiffLayout(box)

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/scripting"
@@ -36,6 +37,12 @@ func dispatchAction(model *Model, action keybindings.Action, args map[string]any
 		return model.routeIntent(result.Owner, result.Intent), true
 	}
 	return nil, result.Consumed
+}
+
+func Test_ScreenWidthMethod_MatchesTerminalWidthForVariationSelectorEmoji(t *testing.T) {
+	assert.Equal(t, ansi.WcWidth, screenWidthMethod)
+	assert.Equal(t, 1, screenWidthMethod.StringWidth("⬇️"))
+	assert.Equal(t, 2, screenWidthMethod.StringWidth("😭"))
 }
 
 func Test_Update_PreviewScrollKeysWorkWhenVisible(t *testing.T) {
