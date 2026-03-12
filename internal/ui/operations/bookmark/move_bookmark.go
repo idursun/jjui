@@ -23,6 +23,7 @@ type MoveBookmarkOperation struct {
 	context      *context.MainContext
 	bookmarkName string
 	target       *jj.Commit
+	movable      bool
 	onExit       tea.Cmd
 	styles       struct {
 		targetMarker lipgloss.Style
@@ -49,6 +50,20 @@ func (m *MoveBookmarkOperation) IsFocused() bool { return true }
 
 func (m *MoveBookmarkOperation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 	m.target = commit
+	m.movable = false
+	if commit == nil {
+		return nil
+	}
+	output, err := m.context.RunCommandImmediate(jj.BookmarkListMovable(commit.GetChangeId()))
+	if err != nil {
+		return nil
+	}
+	for _, bookmark := range jj.ParseBookmarkListOutput(string(output)) {
+		if bookmark.Name == m.bookmarkName {
+			m.movable = true
+			break
+		}
+	}
 	return nil
 }
 
@@ -59,6 +74,9 @@ func (m *MoveBookmarkOperation) Update(msg tea.Msg) tea.Cmd {
 		case intents.Apply:
 			if m.target == nil {
 				return nil
+			}
+			if !m.movable {
+				return intents.Invoke(intents.AddMessage{Text: fmt.Sprintf("Bookmark %s can't be moved to %s", m.bookmarkName, m.target.GetChangeId())})
 			}
 			cmds := []tea.Cmd{common.CloseApplied, common.Refresh}
 			if m.onExit != nil {

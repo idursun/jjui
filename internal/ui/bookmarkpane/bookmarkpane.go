@@ -385,74 +385,89 @@ func (m *Model) renderList(dl *render.DisplayContext, box layout.Box) {
 		m.ensureCursorVisible,
 		func(_ int) int { return 1 },
 		func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
-			if index < 0 || index >= len(m.visibleRows) {
-				return
-			}
-			row := m.visibleRows[index]
-			group := m.tree.Items[row.BookmarkIndex]
-			if index == m.cursor && m.focused {
-				dl.AddHighlight(rect, m.styles.selected, render.ZMenuContent+1)
-			}
-			tb := dl.Text(rect.Min.X, rect.Min.Y, render.ZMenuContent)
-			if row.Depth > 0 {
-				tb.Styled("  ", m.styles.text).
-					Styled("└─ ", m.styles.childGuide).
-					Styled(fmt.Sprintf(" %s ", row.Node.Remote), m.styles.remoteNameBadge).
-					Styled(" ", m.styles.text).
-					Styled(row.Node.Target(), m.styles.text)
-				if row.Node.Tracked {
-					tb.Styled(" ", m.styles.text).Styled("tracked", m.styles.trackedBadge)
-				}
-				if row.Node.Conflict {
-					tb.Styled(" ", m.styles.text).Styled("conflict", m.styles.conflict)
-				}
-				if row.Node.CommitID != "" {
-					tb.Styled(" ", m.styles.text).Styled(row.Node.CommitID, m.styles.dimmed)
-				}
-				tb.Done()
-				return
-			}
-
-			label := " local "
-			style := m.styles.localBadge
-			if group.RemoteOnly {
-				label = " remote "
-				style = m.styles.remoteBadge
-			}
-			prefix := "  "
-			if row.HasChildren {
-				if row.Expanded {
-					prefix = "▾ "
-				} else {
-					prefix = "▸ "
-				}
-			}
-			tb.Styled(prefix, m.styles.childGuide).
-				Styled(label, style).
-				Styled(" ", m.styles.text).
-				Styled(row.Node.Name, m.styles.text)
-			for i, remote := range group.Remotes {
-				separator := " "
-				if i == 0 {
-					separator = "  "
-				}
-				tb.Styled(separator, m.styles.text).Styled(remote.Remote, m.styles.remoteNameBadge)
-			}
-			if row.Node.Tracked {
-				tb.Styled(" ", m.styles.text).Styled("tracked", m.styles.trackedBadge)
-			}
-			if row.Node.Conflict {
-				tb.Styled(" ", m.styles.text).Styled("conflict", m.styles.conflict)
-			}
-			if row.Node.CommitID != "" {
-				tb.Styled(" ", m.styles.text).Styled(row.Node.CommitID, m.styles.dimmed)
-			}
-			tb.Done()
+			m.renderListRow(dl, index, rect)
 		},
 		func(index int, _ tea.Mouse) tea.Msg { return itemClickedMsg{index: index} },
 	)
 	m.listRenderer.RegisterScroll(dl, box)
 	m.ensureCursorVisible = false
+}
+
+func (m *Model) renderListRow(dl *render.DisplayContext, index int, rect layout.Rectangle) {
+	if index < 0 || index >= len(m.visibleRows) {
+		return
+	}
+	row := m.visibleRows[index]
+	group := m.tree.Items[row.BookmarkIndex]
+	if index == m.cursor && m.focused {
+		dl.AddHighlight(rect, m.styles.selected, render.ZMenuContent+1)
+	}
+
+	tb := dl.Text(rect.Min.X, rect.Min.Y, render.ZMenuContent)
+	if row.Depth > 0 {
+		m.renderRemoteChildRow(tb, row)
+		tb.Done()
+		return
+	}
+
+	m.renderTopLevelRow(tb, row, group)
+	tb.Done()
+}
+
+func (m *Model) renderRemoteChildRow(tb *render.TextBuilder, row visibleRow) {
+	tb.Styled("  ", m.styles.text).
+		Styled("└─ ", m.styles.childGuide).
+		Styled(fmt.Sprintf(" %s ", row.Node.Remote), m.styles.remoteNameBadge).
+		Styled(" ", m.styles.text).
+		Styled(row.Node.Target(), m.styles.text)
+	m.renderRowMetadata(tb, row.Node)
+}
+
+func (m *Model) renderTopLevelRow(tb *render.TextBuilder, row visibleRow, group bookmarkTreeItem) {
+	label := " local "
+	style := m.styles.localBadge
+	if group.RemoteOnly {
+		label = " remote "
+		style = m.styles.remoteBadge
+	}
+
+	prefix := "  "
+	if row.HasChildren {
+		if row.Expanded {
+			prefix = "▾ "
+		} else {
+			prefix = "▸ "
+		}
+	}
+
+	tb.Styled(prefix, m.styles.childGuide).
+		Styled(label, style).
+		Styled(" ", m.styles.text).
+		Styled(row.Node.Name, m.styles.text)
+	m.renderTopLevelRemotes(tb, group.Remotes)
+	m.renderRowMetadata(tb, row.Node)
+}
+
+func (m *Model) renderTopLevelRemotes(tb *render.TextBuilder, remotes []bookmarkRefNode) {
+	for i, remote := range remotes {
+		separator := " "
+		if i == 0 {
+			separator = "  "
+		}
+		tb.Styled(separator, m.styles.text).Styled(remote.Remote, m.styles.remoteNameBadge)
+	}
+}
+
+func (m *Model) renderRowMetadata(tb *render.TextBuilder, node bookmarkRefNode) {
+	if node.Tracked {
+		tb.Styled(" ", m.styles.text).Styled("tracked", m.styles.trackedBadge)
+	}
+	if node.Conflict {
+		tb.Styled(" ", m.styles.text).Styled("conflict", m.styles.conflict)
+	}
+	if node.CommitID != "" {
+		tb.Styled(" ", m.styles.text).Styled(node.CommitID, m.styles.dimmed)
+	}
 }
 
 func (m *Model) moveCursor(delta int) {
