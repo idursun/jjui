@@ -18,6 +18,7 @@ import (
 
 type Callbacks struct {
 	CurrentRevision   func() *jj.Commit
+	VisibleCommitIDs  func() []string
 	RevealVisible     func(string) tea.Cmd
 	ShowInRevisions   func(target, commitID string) tea.Cmd
 	FocusRevisions    func() tea.Cmd
@@ -154,11 +155,6 @@ func (m *Model) Open() tea.Cmd {
 	m.visible = true
 	m.focused = true
 	m.pendingSelectionHint = ""
-	if m.callbacks.CurrentRevision != nil {
-		if current := m.callbacks.CurrentRevision(); current != nil {
-			m.pendingSelectionHint = current.CommitId
-		}
-	}
 	return m.loadRows
 }
 
@@ -474,7 +470,20 @@ func (m *Model) loadRows() tea.Msg {
 	if err != nil {
 		return rowsLoadedMsg{}
 	}
-	return rowsLoadedMsg{tree: loadBookmarkTree(string(output), m.expanded)}
+
+	var currentCommitID string
+	if m.callbacks.CurrentRevision != nil {
+		if current := m.callbacks.CurrentRevision(); current != nil {
+			currentCommitID = current.CommitId
+		}
+	}
+
+	var visibleCommitIDs []string
+	if m.callbacks.VisibleCommitIDs != nil {
+		visibleCommitIDs = m.callbacks.VisibleCommitIDs()
+	}
+
+	return rowsLoadedMsg{tree: loadBookmarkTree(string(output), m.expanded, currentCommitID, visibleCommitIDs)}
 }
 
 func (m *Model) visibleHeight() int { return 8 }

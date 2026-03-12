@@ -6,7 +6,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -100,10 +99,6 @@ func (m *MoveBookmarkOperation) DesiredHeight(_ *jj.Commit, _ operations.RenderP
 
 func (m *MoveBookmarkOperation) Name() string {
 	return fmt.Sprintf("move bookmark %s", m.bookmarkName)
-}
-
-func (m *MoveBookmarkOperation) ResolveAction(action keybindings.Action, args map[string]any) (intents.Intent, bool) {
-	return actions.ResolveByScopeStrict(keybindings.Scope(actions.OwnerSetBookmark), action, args)
 }
 
 func (m *MoveBookmarkOperation) Scope() keybindings.Scope {

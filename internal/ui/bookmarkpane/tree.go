@@ -1,6 +1,8 @@
 package bookmarkpane
 
 import (
+	"math"
+	"slices"
 	"strings"
 
 	"github.com/idursun/jjui/internal/jj"
@@ -69,7 +71,7 @@ type visibleRow struct {
 	HasChildren   bool
 }
 
-func loadBookmarkTree(output string, expanded map[string]bool) bookmarkTree {
+func loadBookmarkTree(output string, expanded map[string]bool, currentCommitID string, visibleCommitIDs []string) bookmarkTree {
 	bookmarks := jj.ParseBookmarkListOutput(output)
 	items := make([]bookmarkTreeItem, 0, len(bookmarks))
 	for _, bookmark := range bookmarks {
@@ -100,6 +102,12 @@ func loadBookmarkTree(output string, expanded map[string]bool) bookmarkTree {
 		}
 		items = append(items, item)
 	}
+
+	distanceMap := calcDistanceMap(currentCommitID, visibleCommitIDs)
+	slices.SortFunc(items, func(a, b bookmarkTreeItem) int {
+		return compareBookmarkTreeItems(a, b, currentCommitID, distanceMap)
+	})
+
 	return bookmarkTree{Items: items}
 }
 
@@ -165,4 +173,66 @@ func nodeMatches(node bookmarkRefNode, filterText string) bool {
 		}
 	}
 	return false
+}
+
+func compareBookmarkTreeItems(a, b bookmarkTreeItem, currentCommitID string, distanceMap map[string]int) int {
+	if rankA, rankB := bookmarkSortRank(a, currentCommitID), bookmarkSortRank(b, currentCommitID); rankA != rankB {
+		return rankA - rankB
+	}
+	if distCmp := compareDistance(bookmarkDistance(distanceMap, a.commitID()), bookmarkDistance(distanceMap, b.commitID())); distCmp != 0 {
+		return distCmp
+	}
+	return strings.Compare(a.Name, b.Name)
+}
+
+func bookmarkSortRank(item bookmarkTreeItem, currentCommitID string) int {
+	if item.Local == nil {
+		return 2
+	}
+	if currentCommitID != "" && item.Local.CommitID == currentCommitID {
+		return 1
+	}
+	return 0
+}
+
+func bookmarkDistance(distanceMap map[string]int, commitID string) int {
+	if dist, ok := distanceMap[commitID]; ok {
+		return dist
+	}
+	return math.MinInt32
+}
+
+func compareDistance(a, b int) int {
+	if a == b {
+		return 0
+	}
+	if a >= 0 && b >= 0 {
+		return a - b
+	}
+	if a < 0 && b < 0 {
+		return b - a
+	}
+	return b - a
+}
+
+func calcDistanceMap(current string, commitIDs []string) map[string]int {
+	distanceMap := make(map[string]int, len(commitIDs))
+	if current == "" {
+		for _, commitID := range commitIDs {
+			distanceMap[commitID] = math.MinInt32
+		}
+		return distanceMap
+	}
+
+	currentPos := -1
+	for i, commitID := range commitIDs {
+		if commitID == current {
+			currentPos = i
+			break
+		}
+	}
+	for i, commitID := range commitIDs {
+		distanceMap[commitID] = i - currentPos
+	}
+	return distanceMap
 }

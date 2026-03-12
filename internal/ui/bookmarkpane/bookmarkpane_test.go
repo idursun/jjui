@@ -12,27 +12,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOpen_LoadsRowsAndPreselectsCurrentRevisionBookmark(t *testing.T) {
+func TestOpen_SortsLocalBookmarksFirstByDistanceAndSelectsClosestMoveable(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(
-		"main;.;false;false;false;aaa111\nfeature;.;false;false;false;bbb222\nfeature;origin;true;false;false;bbb222\n",
+		"remote-only;origin;true;false;false;ccc333\ncurrent;.;false;false;false;bbb222\nfar-local;.;false;false;false;ddd444\nnear-local;.;false;false;false;aaa111\n",
 	))
 	defer commandRunner.Verify()
 
 	model := NewModel(
 		test.NewTestContext(commandRunner),
 		Callbacks{
-			CurrentRevision: func() *jj.Commit { return &jj.Commit{ChangeId: "feature-change", CommitId: "bbb222"} },
-			RevealVisible:   func(string) tea.Cmd { return nil },
+			CurrentRevision:  func() *jj.Commit { return &jj.Commit{ChangeId: "current-change", CommitId: "bbb222"} },
+			VisibleCommitIDs: func() []string { return []string{"aaa111", "bbb222", "ccc333", "ddd444"} },
+			RevealVisible:    func(string) tea.Cmd { return nil },
 		},
 	)
 	test.SimulateModel(model, model.Open())
 
 	require.True(t, model.Visible())
+	require.Len(t, model.visibleRows, 4)
+
+	assert.Equal(t, "far-local", model.visibleRows[0].Node.Target())
+	assert.Equal(t, "near-local", model.visibleRows[1].Node.Target())
+	assert.Equal(t, "current", model.visibleRows[2].Node.Target())
+	assert.Equal(t, "remote-only@origin", model.visibleRows[3].Node.Target())
+
 	target, ok := model.selectedTarget()
 	require.True(t, ok)
-	assert.Equal(t, "feature", target)
-	assert.Equal(t, "bbb222", model.selectedCommitID())
+	assert.Equal(t, "far-local", target)
+	assert.Equal(t, "ddd444", model.selectedCommitID())
 }
 
 func TestRenameSelected_LocalBookmarkOpensPrompt(t *testing.T) {
@@ -53,7 +61,7 @@ func TestRenameSelected_LocalBookmarkOpensPrompt(t *testing.T) {
 	require.NotNil(t, cmd)
 	showInput, ok := cmd().(common.ShowInputMsg)
 	require.True(t, ok, "rename should request input")
-	assert.Equal(t, "main", showInput.Value)
+	assert.Equal(t, "main", showInput.InitialValue)
 }
 
 func TestRevealSelected_UsesCallbackWithCommitID(t *testing.T) {

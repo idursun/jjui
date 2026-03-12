@@ -15,7 +15,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/helpkeys"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
-	"github.com/idursun/jjui/internal/ui/operations"
 	bookmarkop "github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/internal/ui/password"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -1013,8 +1012,9 @@ func NewUI(c *context.MainContext) *Model {
 	revsetModel := revset.New(c)
 	var ui *Model
 	bookmarkPaneModel := bookmarkpane.NewModel(c, bookmarkpane.Callbacks{
-		CurrentRevision: revisionsModel.SelectedRevision,
-		RevealVisible:   revisionsModel.RevealRevision,
+		CurrentRevision:  revisionsModel.SelectedRevision,
+		VisibleCommitIDs: revisionsModel.GetCommitIds,
+		RevealVisible:    revisionsModel.RevealRevision,
 		ShowInRevisions: func(target, commitID string) tea.Cmd {
 			if ui == nil {
 				return nil
