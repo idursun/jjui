@@ -186,10 +186,8 @@ func compareBookmarkTreeItems(a, b bookmarkTreeItem, currentCommitID string, dis
 }
 
 func bookmarkSortRank(item bookmarkTreeItem, currentCommitID string) int {
+	_ = currentCommitID
 	if item.Local == nil {
-		return 2
-	}
-	if currentCommitID != "" && item.Local.CommitID == currentCommitID {
 		return 1
 	}
 	return 0

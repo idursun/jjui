@@ -89,6 +89,7 @@ type Model struct {
 	filterText           string
 	pendingInput         pendingInputKind
 	pendingSelectionHint string
+	resetSelectionOnLoad bool
 	styles               styles
 }
 
@@ -157,6 +158,10 @@ func (m *Model) Open() tea.Cmd {
 	m.visible = true
 	m.focused = true
 	m.pendingSelectionHint = ""
+	m.resetSelectionOnLoad = true
+	m.cursor = 0
+	m.ensureCursorVisible = true
+	m.listRenderer.StartLine = 0
 	return m.loadRows
 }
 
@@ -180,14 +185,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case rowsLoadedMsg:
 		previousTarget, hadSelection := m.selectedTarget()
 		m.tree = msg.tree
-		m.applyFilters(false)
+		m.applyFilters(m.resetSelectionOnLoad)
 		switch {
 		case m.pendingSelectionHint != "":
 			m.selectTarget(m.pendingSelectionHint)
 			m.pendingSelectionHint = ""
-		case hadSelection:
+		case hadSelection && !m.resetSelectionOnLoad:
 			m.selectTarget(previousTarget)
 		}
+		m.resetSelectionOnLoad = false
 		return nil
 	case itemClickedMsg:
 		if msg.index >= 0 && msg.index < len(m.visibleRows) {

@@ -32,15 +32,15 @@ func TestOpen_SortsLocalBookmarksFirstByDistanceAndSelectsClosestMoveable(t *tes
 	require.True(t, model.Visible())
 	require.Len(t, model.visibleRows, 4)
 
-	assert.Equal(t, "far-local", model.visibleRows[0].Node.Target())
-	assert.Equal(t, "near-local", model.visibleRows[1].Node.Target())
-	assert.Equal(t, "current", model.visibleRows[2].Node.Target())
+	assert.Equal(t, "current", model.visibleRows[0].Node.Target())
+	assert.Equal(t, "far-local", model.visibleRows[1].Node.Target())
+	assert.Equal(t, "near-local", model.visibleRows[2].Node.Target())
 	assert.Equal(t, "remote-only@origin", model.visibleRows[3].Node.Target())
 
 	target, ok := model.selectedTarget()
 	require.True(t, ok)
-	assert.Equal(t, "far-local", target)
-	assert.Equal(t, "ddd444", model.selectedCommitID())
+	assert.Equal(t, "current", target)
+	assert.Equal(t, "bbb222", model.selectedCommitID())
 }
 
 func TestRenameSelected_LocalBookmarkOpensPrompt(t *testing.T) {
