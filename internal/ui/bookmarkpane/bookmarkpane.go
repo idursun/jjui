@@ -60,16 +60,17 @@ const (
 )
 
 type styles struct {
-	title        lipgloss.Style
-	text         lipgloss.Style
-	dimmed       lipgloss.Style
-	selected     lipgloss.Style
-	localBadge   lipgloss.Style
-	remoteBadge  lipgloss.Style
-	trackedBadge lipgloss.Style
-	conflict     lipgloss.Style
-	filterPrompt lipgloss.Style
-	childGuide   lipgloss.Style
+	title           lipgloss.Style
+	text            lipgloss.Style
+	dimmed          lipgloss.Style
+	selected        lipgloss.Style
+	localBadge      lipgloss.Style
+	remoteBadge     lipgloss.Style
+	remoteNameBadge lipgloss.Style
+	trackedBadge    lipgloss.Style
+	conflict        lipgloss.Style
+	filterPrompt    lipgloss.Style
+	childGuide      lipgloss.Style
 }
 
 type Model struct {
@@ -102,16 +103,17 @@ func (m *Model) Init() tea.Cmd { return nil }
 func NewModel(c *context.MainContext, callbacks Callbacks) *Model {
 	palette := common.DefaultPalette
 	s := styles{
-		title:        palette.Get("title"),
-		text:         palette.Get("picker text"),
-		dimmed:       palette.Get("picker dimmed"),
-		selected:     palette.Get("revisions selected"),
-		localBadge:   palette.Get("picker bookmark"),
-		remoteBadge:  palette.Get("picker dimmed"),
-		trackedBadge: palette.Get("status text"),
-		conflict:     palette.Get("error"),
-		filterPrompt: palette.Get("picker matched"),
-		childGuide:   palette.Get("picker dimmed"),
+		title:           palette.Get("title"),
+		text:            palette.Get("picker text"),
+		dimmed:          palette.Get("picker dimmed"),
+		selected:        palette.Get("revisions selected"),
+		localBadge:      palette.Get("picker bookmark"),
+		remoteBadge:     palette.Get("picker dimmed"),
+		remoteNameBadge: palette.Get("picker matched"),
+		trackedBadge:    palette.Get("status text"),
+		conflict:        palette.Get("error"),
+		filterPrompt:    palette.Get("picker matched"),
+		childGuide:      palette.Get("picker dimmed"),
 	}
 
 	filterInput := textinput.New()
@@ -381,7 +383,7 @@ func (m *Model) renderList(dl *render.DisplayContext, box layout.Box) {
 			if row.Depth > 0 {
 				tb.Styled("  ", m.styles.text).
 					Styled("└─ ", m.styles.childGuide).
-					Styled(fmt.Sprintf(" %s ", row.Node.Remote), m.styles.remoteBadge).
+					Styled(fmt.Sprintf(" %s ", row.Node.Remote), m.styles.remoteNameBadge).
 					Styled(" ", m.styles.text).
 					Styled(row.Node.Target(), m.styles.text)
 				if row.Node.Tracked {
@@ -415,6 +417,13 @@ func (m *Model) renderList(dl *render.DisplayContext, box layout.Box) {
 				Styled(label, style).
 				Styled(" ", m.styles.text).
 				Styled(row.Node.Name, m.styles.text)
+			for i, remote := range group.Remotes {
+				separator := " "
+				if i == 0 {
+					separator = "  "
+				}
+				tb.Styled(separator, m.styles.text).Styled(remote.Remote, m.styles.remoteNameBadge)
+			}
 			if row.Node.Tracked {
 				tb.Styled(" ", m.styles.text).Styled("tracked", m.styles.trackedBadge)
 			}
