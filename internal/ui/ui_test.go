@@ -242,6 +242,27 @@ func Test_ToggleBookmarkView_OpensFocusedPaneAndTabReturnsFocusToRevisions(t *te
 	assert.False(t, model.bookmarkPane.Visible())
 }
 
+func Test_BookmarkViewCancel_ClosesPaneAndRestoresRevisionFocus(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkView{}))
+	require.True(t, model.bookmarkPane.Visible())
+	require.True(t, model.secondaryPane.bookmarkFocused)
+	require.False(t, model.revisions.IsFocused())
+
+	cmd := model.routeIntent(actions.OwnerBookmarkView, intents.Cancel{})
+	test.SimulateModel(model, cmd)
+
+	assert.False(t, model.bookmarkPane.Visible())
+	assert.False(t, model.secondaryPane.bookmarkVisible())
+	assert.True(t, model.revisions.IsFocused())
+}
+
 func Test_ToggleBookmarkView_HidesPreviewAndRestoresOnClose(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(""))

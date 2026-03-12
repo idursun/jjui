@@ -735,6 +735,20 @@ func (m *Model) routeCancel(owner string, cancel intents.Cancel) tea.Cmd {
 		return nil
 	}
 
+	if m.secondaryPane != nil && m.secondaryPane.bookmarkFocused && (owner == actions.OwnerBookmarkView || owner == actions.OwnerBookmarkView+".filter") {
+		cmd := m.bookmarkPane.Update(cancel)
+		if m.bookmarkPane != nil && !m.bookmarkPane.Visible() {
+			closeCmd := m.closeBookmarkPane()
+			if cmd != nil && closeCmd != nil {
+				return tea.Batch(cmd, closeCmd)
+			}
+			if closeCmd != nil {
+				return closeCmd
+			}
+		}
+		return cmd
+	}
+
 	if cmd, handled := m.routeIntentByOwner(owner, cancel); handled {
 		return cmd
 	}
