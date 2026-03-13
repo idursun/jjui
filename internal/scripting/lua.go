@@ -428,6 +428,12 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	// but also expose at the top level for convenience
 	L.SetGlobal("revisions", revisionsTable)
 	L.SetGlobal("revset", revsetTable)
+	if diffTable, ok := root.RawGetString("diff").(*lua.LTable); ok {
+		L.SetGlobal("diff", diffTable)
+	}
+	if uiTable, ok := root.RawGetString("ui").(*lua.LTable); ok {
+		L.SetGlobal("ui", uiTable)
+	}
 	L.SetGlobal("context", contextTable)
 	L.SetGlobal("jj_async", jjAsyncFn)
 	L.SetGlobal("jj_interactive", jjInteractiveFn)
