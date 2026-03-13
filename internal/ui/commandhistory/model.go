@@ -193,7 +193,7 @@ func (m *Model) renderEntry(entry flash.CommandHistoryEntry, maxWidth int, selec
 	}
 
 	content := strings.Join(parts, "\n")
-	if lipgloss.Width(content) > maxWidth {
+	if render.BlockWidth(content) > maxWidth {
 		content = lipgloss.NewStyle().Width(maxWidth).Render(content)
 	}
 

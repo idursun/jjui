@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/idursun/jjui/internal/scripting"
@@ -115,6 +114,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.ModeReportMsg:
+		if msg.Mode == ansi.ModeUnicodeCore {
+			if msg.Value == ansi.ModeReset || msg.Value == ansi.ModeSet || msg.Value == ansi.ModePermanentlySet {
+				render.SetWidthMethod(ansi.GraphemeWidth)
+			}
+		}
+		return nil
 	case tea.FocusMsg:
 		return common.RefreshAndKeepSelections
 	case tea.MouseReleaseMsg:
@@ -365,8 +371,7 @@ func (m *Model) View() string {
 	m.updateStatus()
 
 	box := layout.NewBox(layout.Rect(0, 0, m.width, m.height))
-	screenBuf := uv.NewScreenBuffer(m.width, m.height)
-	screenBuf.Method = ansi.GraphemeWidth
+	screenBuf := render.NewScreenBuffer(m.width, m.height)
 
 	if m.diff != nil {
 		m.renderDiffLayout(box)

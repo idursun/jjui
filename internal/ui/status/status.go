@@ -227,8 +227,8 @@ func (m *Model) renderContent(width, modeWidth int) string {
 		editHelp, _ = m.helpView(m.entries, 0)
 	}
 
-	promptWidth := len(m.input.Prompt) + 2
-	m.input.SetWidth(width - modeWidth - promptWidth - lipgloss.Width(editHelp))
+	promptWidth := render.StringWidth(m.input.Prompt) + 2
+	m.input.SetWidth(width - modeWidth - promptWidth - render.StringWidth(editHelp))
 	return lipgloss.JoinHorizontal(0, m.input.View(), editHelp)
 }
 
@@ -252,7 +252,7 @@ func (m *Model) renderExpandedStatusBorder(dl *render.DisplayContext, box layout
 		return
 	}
 	modeLabel := m.styles.title.Render("  " + m.mode + "  ")
-	borderLine := strings.Repeat("─", max(0, width-lipgloss.Width(modeLabel)))
+	borderLine := strings.Repeat("─", max(0, width-render.StringWidth(modeLabel)))
 	topBorder := modeLabel + m.styles.dimmed.Render(borderLine)
 	borderRect := layout.Rect(box.R.Min.X, startY, width, 1)
 	dl.AddDraw(borderRect, topBorder, render.ZExpandedStatus)
@@ -276,7 +276,7 @@ func (m *Model) renderExpandedStatusContent(dl *render.DisplayContext, box layou
 
 		// calculate right padding
 		// subtract 4 for: 2 chars left padding + 2 chars border space
-		padding := max(0, width-lipgloss.Width(line)-4)
+		padding := max(0, width-render.StringWidth(line)-4)
 
 		// padded line: 2-space indent + content + right padding
 		paddedLine := "  " + line + strings.Repeat(" ", padding)
@@ -380,12 +380,12 @@ func (m *Model) collectHelpEntries(helpEntries []helpkeys.Entry) ([]string, int)
 		}
 		e := m.styles.shortcut.Render(entry.Label) + m.styles.dimmed.PaddingLeft(1).Render(entry.Desc)
 		rendered = append(rendered, e)
-		if w := lipgloss.Width(e); w > maxEntryWidth {
+		if w := render.StringWidth(e); w > maxEntryWidth {
 			maxEntryWidth = w
 		}
 	}
 
-	if w := lipgloss.Width(closeHint); w > maxEntryWidth {
+	if w := render.StringWidth(closeHint); w > maxEntryWidth {
 		maxEntryWidth = w
 	}
 	rendered = append(rendered, closeHint)
@@ -410,7 +410,7 @@ func (m *Model) buildHelpGrid(entries []string, maxEntryWidth, maxWidth int) []s
 				entry := entries[idx]
 				line.WriteString(entry)
 				if col < numCols-1 {
-					padding := max(0, colWidth-lipgloss.Width(entry))
+					padding := max(0, colWidth-render.StringWidth(entry))
 					line.WriteString(strings.Repeat(" ", padding))
 				}
 			}
@@ -426,7 +426,7 @@ func (m *Model) helpView(helpEntries []helpkeys.Entry, maxWidth int) (string, bo
 	expandKey := m.expandStatusKey(helpEntries)
 	moreHint := separator + m.styles.shortcut.Render(expandKey) + m.styles.dimmed.PaddingLeft(1).Render("more")
 
-	rendered, truncated := m.collectHelpEntriesWithLimit(helpEntries, maxWidth, lipgloss.Width(separator), lipgloss.Width(moreHint))
+	rendered, truncated := m.collectHelpEntriesWithLimit(helpEntries, maxWidth, render.StringWidth(separator), render.StringWidth(moreHint))
 
 	result := strings.Join(rendered, separator)
 	if truncated {
@@ -447,7 +447,7 @@ func (m *Model) collectHelpEntriesWithLimit(helpEntries []helpkeys.Entry, maxWid
 		}
 
 		e := m.styles.shortcut.Render(entry.Label) + m.styles.dimmed.PaddingLeft(1).Render(entry.Desc)
-		entryWidth := lipgloss.Width(e)
+		entryWidth := render.StringWidth(e)
 
 		addedWidth := entryWidth
 		if len(rendered) > 0 {

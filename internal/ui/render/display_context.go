@@ -159,7 +159,7 @@ func (dl *DisplayContext) Render(buf uv.Screen) {
 // RenderToString is a convenience method that renders to a new buffer
 // and returns the final string output.
 func (dl *DisplayContext) RenderToString(width, height int) string {
-	buf := uv.NewScreenBuffer(width, height)
+	buf := NewScreenBuffer(width, height)
 	dl.Render(buf)
 	return buf.Render()
 }

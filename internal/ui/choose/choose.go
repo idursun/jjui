@@ -242,10 +242,10 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		orderPrefix = 3 // "N. " prefix
 	}
 	for _, opt := range m.options {
-		itemWidth = max(itemWidth, lipgloss.Width(opt)+2+orderPrefix)
+		itemWidth = max(itemWidth, render.StringWidth(opt)+2+orderPrefix)
 	}
 	if m.title != "" {
-		itemWidth = max(itemWidth, lipgloss.Width(m.title))
+		itemWidth = max(itemWidth, render.StringWidth(m.title))
 	}
 	if m.filtering {
 		itemWidth = max(itemWidth, 25)

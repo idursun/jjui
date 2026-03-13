@@ -110,7 +110,7 @@ func (tb *TextBuilder) layout() ([]layoutSegment, int, int) {
 			}
 
 			rendered := seg.style.Render(part)
-			width := lipgloss.Width(rendered)
+			width := StringWidth(rendered)
 			if width == 0 {
 				continue
 			}

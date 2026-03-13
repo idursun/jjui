@@ -285,7 +285,7 @@ func (m *Model) renderGroups(groups []scopeGroup, width int) []string {
 func (m *Model) renderEntries(entries []helpkeys.Entry, width int) []string {
 	maxLabelWidth := 0
 	for _, e := range entries {
-		if w := lipgloss.Width(e.Label); w > maxLabelWidth {
+		if w := render.StringWidth(e.Label); w > maxLabelWidth {
 			maxLabelWidth = w
 		}
 	}
@@ -307,7 +307,7 @@ func (m *Model) renderEntries(entries []helpkeys.Entry, width int) []string {
 			label := m.styles.shortcut.Width(maxLabelWidth + 1).Render(e.Label)
 			desc := m.styles.desc.Render(e.Desc)
 			entry := "  " + label + " " + desc
-			entryWidth := lipgloss.Width(entry)
+			entryWidth := render.StringWidth(entry)
 			if col < numCols-1 {
 				entry += strings.Repeat(" ", max(0, actualColWidth-entryWidth))
 			}
@@ -327,7 +327,7 @@ func (m *Model) totalLines() int {
 		total++ // header
 		maxLabelWidth := 0
 		for _, e := range group.entries {
-			if w := lipgloss.Width(e.Label); w > maxLabelWidth {
+			if w := render.StringWidth(e.Label); w > maxLabelWidth {
 				maxLabelWidth = w
 			}
 		}

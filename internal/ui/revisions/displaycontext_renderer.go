@@ -337,7 +337,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		extended := item.Extend()
 		gutterWidth := 0
 		for _, segment := range extended.Segments {
-			gutterWidth += lipgloss.Width(segment.Text)
+			gutterWidth += render.StringWidth(segment.Text)
 		}
 
 		// Create content rect offset by gutter width
@@ -404,7 +404,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 			extended := item.Extend()
 			gutterWidth := 0
 			for _, segment := range extended.Segments {
-				gutterWidth += lipgloss.Width(segment.Text)
+				gutterWidth += render.StringWidth(segment.Text)
 			}
 
 			// Create content rect with proper width (minus gutter)
@@ -455,7 +455,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		extended := item.Extend()
 		gutterWidth := 0
 		for _, segment := range extended.Segments {
-			gutterWidth += lipgloss.Width(segment.Text)
+			gutterWidth += render.StringWidth(segment.Text)
 		}
 
 		// Try RenderToDisplayContext first

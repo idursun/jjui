@@ -1,7 +1,6 @@
 package test
 
 import (
-	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
@@ -13,7 +12,7 @@ func RenderImmediate(model interface {
 	dl := render.NewDisplayContext()
 	box := layout.NewBox(layout.Rect(0, 0, width, height))
 	model.ViewRect(dl, box)
-	buf := uv.NewScreenBuffer(width, height)
+	buf := render.NewScreenBuffer(width, height)
 	dl.Render(buf)
 	return buf.Render()
 }

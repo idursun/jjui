@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -42,7 +41,7 @@ func (v *defaultView) scrollHorizontal(delta int, viewportWidth int) {
 func (v *defaultView) ViewRect(dl *render.DisplayContext, box layout.Box, scrollY int) {
 	width := box.R.Dx()
 	height := box.R.Dy()
-	buf := uv.NewScreenBuffer(width, height)
+	buf := render.NewScreenBuffer(width, height)
 	firstLine := max(0, scrollY)
 	lineW := max(width, v.maxLineWidth)
 	for i := range height {
@@ -77,7 +76,7 @@ func (v *wrappedView) recomputeIndex(width int) {
 	v.visualRowStart = make([]int, len(v.lines))
 	total := 0
 	for i, line := range v.lines {
-		visWidth := lipgloss.Width(line)
+		visWidth := render.StringWidth(line)
 		h := max(1, (visWidth+width-1)/width)
 		v.rowHeights[i] = h
 		v.visualRowStart[i] = total
@@ -120,7 +119,7 @@ func (v *wrappedView) ViewRect(dl *render.DisplayContext, box layout.Box, scroll
 	width := box.R.Dx()
 	height := box.R.Dy()
 	v.ensureIndex(width)
-	buf := uv.NewScreenBuffer(width, height)
+	buf := render.NewScreenBuffer(width, height)
 	firstLine, skip := v.firstLine(scrollY, width)
 	destY := 0
 	for i := firstLine; i < len(v.lines) && destY < height; i++ {
@@ -244,7 +243,7 @@ func New(output string) *Model {
 	lines := strings.Split(content, "\n")
 	maxWidth := 0
 	for _, line := range lines {
-		if w := lipgloss.Width(line); w > maxWidth {
+		if w := render.StringWidth(line); w > maxWidth {
 			maxWidth = w
 		}
 	}
