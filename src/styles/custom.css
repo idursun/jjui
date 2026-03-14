@@ -3,29 +3,3 @@
   --sl-font: 'Victor Mono';
 }
 */
-
-.pre-release-banner {
-  background-color: var(--sl-color-orange-low, #fff3cd);
-  color: var(--sl-color-orange-high, #856404);
-  border-bottom: 1px solid var(--sl-color-orange-high, #ffc107);
-  padding: 0.5rem 1rem;
-  text-align: center;
-  font-size: var(--sl-text-sm);
-  font-weight: 600;
-}
-
-.version-selector {
-  padding: 0.5rem 1rem;
-  border-top: 1px solid var(--sl-color-gray-5);
-}
-
-.version-selector select {
-  background-color: var(--sl-color-bg);
-  color: var(--sl-color-text);
-  border: 1px solid var(--sl-color-gray-4);
-  border-radius: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  font-size: var(--sl-text-sm);
-  cursor: pointer;
-  width: 100%;
-}

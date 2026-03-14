@@ -80,7 +80,6 @@ export default defineConfig({
 			],
 			components: {
 				Sidebar: './src/components/Sidebar.astro',
-				Header: './src/components/Header.astro',
 				Footer: './src/components/Footer.astro',
 				SocialIcons: './src/components/SocialIcons.astro',
 				PageSidebar: './src/components/PageSidebar.astro',
