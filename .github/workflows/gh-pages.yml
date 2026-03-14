@@ -2,7 +2,7 @@ name: GH Pages
 on:
   workflow_dispatch:
   push:
-    branches: [docs]
+    branches: [docs, docs-next]
 permissions:
   contents: read
   pages: write
@@ -22,22 +22,46 @@ jobs:
         with:
           version: 10
 
+      # --- stable (from docs branch) ---
       - name: Checkout docs branch
         uses: actions/checkout@v4
         with:
           ref: docs
-
-      - name: Build
+          path: docs-stable
+      - name: Build stable
+        working-directory: docs-stable
         run: |
           pnpm install
           pnpm build
+
+      # --- next (from docs-next branch) ---
+      - name: Checkout docs-next branch
+        uses: actions/checkout@v4
+        with:
+          ref: docs-next
+          path: docs-next
+      - name: Build next
+        working-directory: docs-next
+        env:
+          DOCS_BASE: /jjui/next
+        run: |
+          pnpm install
+          grep -rl '/jjui/' src/content | xargs sed -i -E "s|([\"'( ])/jjui/|\1${DOCS_BASE}/|g"
+          pnpm build
+
+      # --- Combine builds ---
+      - name: Combine builds
+        run: |
+          mkdir -p final/next
+          cp -r docs-stable/dist/. final/
+          cp -r docs-next/dist/. final/next/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'dist'
+          path: 'final'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
