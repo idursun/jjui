@@ -113,6 +113,8 @@ These pause the script until a matching UI event arrives.
 
 Every built-in action is exposed as a Lua function via `jjui.<scope>.<action>()`. These dispatch the action into the UI and yield until it is handled, so they compose naturally with other async steps.
 
+In every scope that has a `cancel()` action, `close()` is available as an alias — e.g. `jjui.git.close()` is the same as `jjui.git.cancel()`.
+
 Actions that take a single required string arg accept it positionally:
 
 ```lua
