@@ -62,6 +62,7 @@ const (
 	BookmarkViewReveal                     keybindings.Action = "bookmark_view.reveal"
 	BookmarkViewRevealInRevisions          keybindings.Action = "bookmark_view.reveal_in_revisions"
 	BookmarkViewToggleExpand               keybindings.Action = "bookmark_view.toggle_expand"
+	BookmarkViewToggleSelect               keybindings.Action = "bookmark_view.toggle_select"
 	BookmarkViewTrack                      keybindings.Action = "bookmark_view.track"
 	BookmarkViewUntrack                    keybindings.Action = "bookmark_view.untrack"
 	BookmarksApply                         keybindings.Action = "bookmarks.apply"
@@ -372,6 +373,8 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.BookmarkViewRevealInRevisions{}, true
 		case keybindings.Action("bookmark_view.toggle_expand"):
 			return intents.BookmarkViewToggleExpand{}, true
+		case keybindings.Action("bookmark_view.toggle_select"):
+			return intents.BookmarkViewToggleSelect{}, true
 		case keybindings.Action("bookmark_view.track"):
 			return intents.BookmarkViewTrack{}, true
 		case keybindings.Action("bookmark_view.untrack"):

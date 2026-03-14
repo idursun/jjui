@@ -214,6 +214,11 @@ type BookmarkViewMove struct{}
 
 func (BookmarkViewMove) isIntent() {}
 
+//jjui:bind scope=bookmark_view action=toggle_select
+type BookmarkViewToggleSelect struct{}
+
+func (BookmarkViewToggleSelect) isIntent() {}
+
 type GitFilterKind string
 
 const (

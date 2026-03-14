@@ -89,6 +89,7 @@ type Model struct {
 	visibleRows          []visibleRow
 	expanded             map[string]bool
 	cursor               int
+	selected             map[string]bool
 	listRenderer         *render.ListRenderer
 	ensureCursorVisible  bool
 	filterInput          textinput.Model
@@ -138,6 +139,7 @@ func NewModel(c *context.MainContext, callbacks Callbacks) *Model {
 		context:      c,
 		callbacks:    callbacks,
 		expanded:     make(map[string]bool),
+		selected:     make(map[string]bool),
 		listRenderer: render.NewListRenderer(itemScrollMsg{}),
 		filterInput:  filterInput,
 		styles:       s,
@@ -323,6 +325,9 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.revealSelected()
 	case intents.BookmarkViewRevealInRevisions:
 		return m.showSelectedInRevisions()
+	case intents.BookmarkViewToggleSelect:
+		m.toggleSelectCurrent()
+		return nil
 	}
 	return nil
 }
@@ -404,6 +409,9 @@ func (m *Model) renderListRow(dl *render.DisplayContext, index int, rect layout.
 	}
 
 	tb := dl.Text(rect.Min.X, rect.Min.Y, render.ZMenuContent)
+	if m.selected[row.Node.Target()] {
+		tb.Styled("✓ ", m.styles.selected)
+	}
 	if row.Depth > 0 {
 		m.renderRemoteChildRow(tb, row)
 		tb.Done()
@@ -590,6 +598,18 @@ func (m *Model) selectTarget(target string) bool {
 		}
 	}
 	return false
+}
+
+func (m *Model) toggleSelectCurrent() {
+	target, ok := m.selectedTarget()
+	if !ok {
+		return
+	}
+	if m.selected[target] {
+		delete(m.selected, target)
+	} else {
+		m.selected[target] = true
+	}
 }
 
 func (m *Model) toggleExpandSelected() {
