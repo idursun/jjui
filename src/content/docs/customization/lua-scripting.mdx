@@ -27,7 +27,9 @@ desc = "hello"
 
 ## Namespaces
 
-All functions are available both as top-level globals and under the `jjui` namespace — `flash(...)` and `jjui.flash(...)` are the same.
+Helper functions and the `revisions`, `revset`, and `context` tables are available both as top-level globals and under the `jjui` namespace — `flash(...)` and `jjui.flash(...)` are the same, and `revisions.edit()` and `jjui.revisions.edit()` are the same.
+
+Other built-in action scopes (`ui`, `git`, `diff`, `oplog`, `bookmarks`, `undo`, `redo`, `choose`, `input`, `command_history`, `file_search`) are **only** available under the `jjui` namespace — e.g. `jjui.git.push()`, not `git.push()`.
 
 Built-in action wrappers are additionally available under `jjui.builtin.*`, which forces built-in resolution and ignores any user-defined overrides for those action names.
 
@@ -315,119 +317,119 @@ Shared target picker used by rebase, squash, duplicate, and revert.
 | `revset.autocomplete()` / `autocomplete_back()` | Cycle completion suggestions |
 | `revset.move_up()` / `revset.move_down()` | Navigate completion list |
 
-### ui.*
+### jjui.ui.*
 
 | Function | Notes |
 |----------|-------|
-| `ui.cancel()` | |
-| `ui.quit()` | |
-| `ui.suspend()` | |
-| `ui.open_bookmarks()` | |
-| `ui.open_git()` | |
-| `ui.open_oplog()` | |
-| `ui.open_undo()` | |
-| `ui.open_redo()` | |
-| `ui.open_revset()` | |
-| `ui.open_command_history()` | |
-| `ui.file_search_toggle()` | |
-| `ui.quick_search()` | |
-| `ui.expand_status()` | |
-| `ui.preview_toggle()` | |
-| `ui.preview_toggle_bottom()` | |
-| `ui.preview_expand()` / `ui.preview_shrink()` | |
-| `ui.preview_scroll_down()` / `ui.preview_scroll_up()` | |
-| `ui.preview_half_page_down()` / `ui.preview_half_page_up()` | |
-| `ui.exec_jj()` | Open the jj command prompt |
-| `ui.exec_shell()` | Open the shell command prompt |
+| `jjui.ui.cancel()` | |
+| `jjui.ui.quit()` | |
+| `jjui.ui.suspend()` | |
+| `jjui.ui.open_bookmarks()` | |
+| `jjui.ui.open_git()` | |
+| `jjui.ui.open_oplog()` | |
+| `jjui.ui.open_undo()` | |
+| `jjui.ui.open_redo()` | |
+| `jjui.ui.open_revset()` | |
+| `jjui.ui.open_command_history()` | |
+| `jjui.ui.file_search_toggle()` | |
+| `jjui.ui.quick_search()` | |
+| `jjui.ui.expand_status()` | |
+| `jjui.ui.preview_toggle()` | |
+| `jjui.ui.preview_toggle_bottom()` | |
+| `jjui.ui.preview_expand()` / `jjui.ui.preview_shrink()` | |
+| `jjui.ui.preview_scroll_down()` / `jjui.ui.preview_scroll_up()` | |
+| `jjui.ui.preview_half_page_down()` / `jjui.ui.preview_half_page_up()` | |
+| `jjui.ui.exec_jj()` | Open the jj command prompt |
+| `jjui.ui.exec_shell()` | Open the shell command prompt |
 
-### oplog.*
-
-| Function |
-|----------|
-| `oplog.restore()` |
-| `oplog.revert()` |
-| `oplog.diff()` |
-| `oplog.move_up()` / `oplog.move_down()` |
-| `oplog.page_up()` / `oplog.page_down()` |
-| `oplog.close()` / `oplog.quit()` |
-
-### bookmarks.*
+### jjui.oplog.*
 
 | Function |
 |----------|
-| `bookmarks.cycle_remotes()` / `bookmarks.cycle_remotes_back()` |
-| `bookmarks.filter()` |
-| `bookmarks.bookmark_delete()` |
-| `bookmarks.bookmark_forget()` |
-| `bookmarks.bookmark_move()` |
-| `bookmarks.bookmark_track()` |
-| `bookmarks.bookmark_untrack()` |
-| `bookmarks.move_up()` / `bookmarks.move_down()` |
-| `bookmarks.page_up()` / `bookmarks.page_down()` |
-| `bookmarks.apply()` / `bookmarks.cancel()` / `bookmarks.quit()` |
+| `jjui.oplog.restore()` |
+| `jjui.oplog.revert()` |
+| `jjui.oplog.diff()` |
+| `jjui.oplog.move_up()` / `jjui.oplog.move_down()` |
+| `jjui.oplog.page_up()` / `jjui.oplog.page_down()` |
+| `jjui.oplog.close()` / `jjui.oplog.quit()` |
 
-### git.*
+### jjui.bookmarks.*
 
 | Function |
 |----------|
-| `git.push()` |
-| `git.fetch()` |
-| `git.filter()` |
-| `git.cycle_remotes()` / `git.cycle_remotes_back()` |
-| `git.move_up()` / `git.move_down()` |
-| `git.page_up()` / `git.page_down()` |
-| `git.apply()` / `git.cancel()` / `git.quit()` |
+| `jjui.bookmarks.cycle_remotes()` / `jjui.bookmarks.cycle_remotes_back()` |
+| `jjui.bookmarks.filter()` |
+| `jjui.bookmarks.bookmark_delete()` |
+| `jjui.bookmarks.bookmark_forget()` |
+| `jjui.bookmarks.bookmark_move()` |
+| `jjui.bookmarks.bookmark_track()` |
+| `jjui.bookmarks.bookmark_untrack()` |
+| `jjui.bookmarks.move_up()` / `jjui.bookmarks.move_down()` |
+| `jjui.bookmarks.page_up()` / `jjui.bookmarks.page_down()` |
+| `jjui.bookmarks.apply()` / `jjui.bookmarks.cancel()` / `jjui.bookmarks.quit()` |
 
-### diff.*
-
-| Function |
-|----------|
-| `diff.scroll_up()` / `diff.scroll_down()` |
-| `diff.page_up()` / `diff.page_down()` |
-| `diff.half_page_up()` / `diff.half_page_down()` |
-| `diff.move_top()` / `diff.move_bottom()` |
-| `diff.left()` / `diff.right()` |
-| `diff.toggle_wrap()` |
-
-### undo.* / redo.*
+### jjui.git.*
 
 | Function |
 |----------|
-| `undo.apply()` / `undo.cancel()` |
-| `undo.prev()` / `undo.next()` |
-| `redo.apply()` / `redo.cancel()` |
-| `redo.prev()` / `redo.next()` |
+| `jjui.git.push()` |
+| `jjui.git.fetch()` |
+| `jjui.git.filter()` |
+| `jjui.git.cycle_remotes()` / `jjui.git.cycle_remotes_back()` |
+| `jjui.git.move_up()` / `jjui.git.move_down()` |
+| `jjui.git.page_up()` / `jjui.git.page_down()` |
+| `jjui.git.apply()` / `jjui.git.cancel()` / `jjui.git.quit()` |
 
-### choose.*
-
-| Function |
-|----------|
-| `choose.apply()` |
-| `choose.cancel()` |
-| `choose.move_up()` / `choose.move_down()` |
-
-### input.*
+### jjui.diff.*
 
 | Function |
 |----------|
-| `input.apply()` |
-| `input.cancel()` |
+| `jjui.diff.scroll_up()` / `jjui.diff.scroll_down()` |
+| `jjui.diff.page_up()` / `jjui.diff.page_down()` |
+| `jjui.diff.half_page_up()` / `jjui.diff.half_page_down()` |
+| `jjui.diff.move_top()` / `jjui.diff.move_bottom()` |
+| `jjui.diff.left()` / `jjui.diff.right()` |
+| `jjui.diff.toggle_wrap()` |
 
-### command_history.*
-
-| Function |
-|----------|
-| `command_history.move_up()` / `command_history.move_down()` |
-| `command_history.close()` |
-| `command_history.delete_selected()` |
-
-### file_search.*
+### jjui.undo.* / jjui.redo.*
 
 | Function |
 |----------|
-| `file_search.move_up()` / `file_search.move_down()` |
-| `file_search.page_up()` / `file_search.page_down()` |
-| `file_search.preview_half_page_up()` / `file_search.preview_half_page_down()` |
-| `file_search.toggle()` |
-| `file_search.edit()` |
-| `file_search.apply()` / `file_search.cancel()` |
+| `jjui.undo.apply()` / `jjui.undo.cancel()` |
+| `jjui.undo.prev()` / `jjui.undo.next()` |
+| `jjui.redo.apply()` / `jjui.redo.cancel()` |
+| `jjui.redo.prev()` / `jjui.redo.next()` |
+
+### jjui.choose.*
+
+| Function |
+|----------|
+| `jjui.choose.apply()` |
+| `jjui.choose.cancel()` |
+| `jjui.choose.move_up()` / `jjui.choose.move_down()` |
+
+### jjui.input.*
+
+| Function |
+|----------|
+| `jjui.input.apply()` |
+| `jjui.input.cancel()` |
+
+### jjui.command_history.*
+
+| Function |
+|----------|
+| `jjui.command_history.move_up()` / `jjui.command_history.move_down()` |
+| `jjui.command_history.close()` |
+| `jjui.command_history.delete_selected()` |
+
+### jjui.file_search.*
+
+| Function |
+|----------|
+| `jjui.file_search.move_up()` / `jjui.file_search.move_down()` |
+| `jjui.file_search.page_up()` / `jjui.file_search.page_down()` |
+| `jjui.file_search.preview_half_page_up()` / `jjui.file_search.preview_half_page_down()` |
+| `jjui.file_search.toggle()` |
+| `jjui.file_search.edit()` |
+| `jjui.file_search.apply()` / `jjui.file_search.cancel()` |
