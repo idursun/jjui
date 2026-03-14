@@ -321,6 +321,8 @@ Shared target picker used by rebase, squash, duplicate, and revert.
 
 ### jjui.ui.*
 
+Also available as a top-level global — `ui.cancel()` and `jjui.ui.cancel()` are the same.
+
 | Function | Notes |
 |----------|-------|
 | `jjui.ui.cancel()` | |
@@ -341,6 +343,7 @@ Shared target picker used by rebase, squash, duplicate, and revert.
 | `jjui.ui.preview_expand()` / `jjui.ui.preview_shrink()` | |
 | `jjui.ui.preview_scroll_down()` / `jjui.ui.preview_scroll_up()` | |
 | `jjui.ui.preview_half_page_down()` / `jjui.ui.preview_half_page_up()` | |
+| `jjui.ui.preview.show(content)` | Required string (positional) — display content in the preview panel |
 | `jjui.ui.exec_jj()` | Open the jj command prompt |
 | `jjui.ui.exec_shell()` | Open the shell command prompt |
 
@@ -384,6 +387,8 @@ Shared target picker used by rebase, squash, duplicate, and revert.
 
 ### jjui.diff.*
 
+Also available as a top-level global — `diff.show(content)` and `jjui.diff.show(content)` are the same.
+
 | Function |
 |----------|
 | `jjui.diff.scroll_up()` / `jjui.diff.scroll_down()` |
@@ -391,6 +396,7 @@ Shared target picker used by rebase, squash, duplicate, and revert.
 | `jjui.diff.half_page_up()` / `jjui.diff.half_page_down()` |
 | `jjui.diff.move_top()` / `jjui.diff.move_bottom()` |
 | `jjui.diff.left()` / `jjui.diff.right()` |
+| `jjui.diff.show(content)` | Required string (positional) — display content in the diff view |
 | `jjui.diff.toggle_wrap()` |
 
 ### jjui.undo.* / jjui.redo.*
