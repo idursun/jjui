@@ -141,6 +141,32 @@ desc = "append ancestors to revset"
 
 ---
 
+### Continuous commit loop
+
+Pressing `N` creates a new revision, opens the inline describe editor, and repeats — letting you rapidly commit multiple changes in succession. Cancel the describe prompt (e.g. press `Escape`) to break out of the loop.
+
+```lua
+-- ~/.config/jjui/config.lua
+function setup(config)
+  config.action("new + inline describe loop", function()
+    while true do
+      revisions.open_inline_describe()
+      if not wait_close() then
+        break
+      end
+      wait_refresh()
+      revisions.new()
+      wait_refresh()
+      revisions.jump_to_working_copy()
+    end
+  end, { key = "N", scope = "revisions" })
+end
+```
+
+`wait_close()` blocks until the inline describe editor is dismissed and returns `false` when the user cancels, which breaks the loop. `wait_refresh()` ensures the revision list is up to date before proceeding.
+
+---
+
 ### Dynamic theme plugin
 
 Plugins are Lua modules placed in `~/.config/jjui/plugins/` and loaded via `require` in `config.lua`. This example derives a full color palette from a single accent hex color, with an adaptive selection background that reads the terminal's actual background color via `config.terminal.bg`.
