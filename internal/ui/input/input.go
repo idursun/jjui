@@ -87,7 +87,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return newCmd(CancelledMsg{})
 		}
 		return nil
-	case tea.KeyMsg:
+	case tea.KeyMsg, tea.PasteMsg:
 		var cmd tea.Cmd
 		m.input, cmd = m.input.Update(msg)
 		return cmd

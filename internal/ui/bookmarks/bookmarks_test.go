@@ -97,3 +97,17 @@ main;.;false;false;false;86
 	test.SimulateModel(op, func() tea.Msg { return intents.BookmarksFilter{Kind: intents.BookmarksFilterMove} })
 	test.SimulateModel(op, func() tea.Msg { return intents.BookmarksFilter{Kind: intents.BookmarksFilterMove} })
 }
+
+func Test_FilterEditing_AcceptsPasteMsg(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
+	defer commandRunner.Verify()
+
+	commit := &jj.Commit{ChangeId: "abc123", CommitId: "commit123"}
+	op := NewModel(test.NewTestContext(commandRunner), commit, []string{"commit123"})
+
+	test.SimulateModel(op, func() tea.Msg { return intents.BookmarksOpenFilter{} })
+	test.SimulateModel(op, func() tea.Msg { return tea.PasteMsg{Content: "track feature"} })
+
+	assert.Equal(t, "track feature", op.filterInput.Value())
+}

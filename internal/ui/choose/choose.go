@@ -127,14 +127,18 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 			return newCmd(CancelledMsg{})
 		}
-	case tea.KeyMsg:
+	case tea.KeyMsg, tea.PasteMsg:
 		if m.filtering {
 			m.input, cmd = m.input.Update(msg)
 			m.filterOptions()
 			return cmd
 		}
+		keyMsg, ok := msg.(tea.KeyMsg)
+		if !ok {
+			return nil
+		}
 		if m.ordered {
-			if r := msg.String(); len(r) == 1 && r[0] >= '1' && r[0] <= '9' {
+			if r := keyMsg.String(); len(r) == 1 && r[0] >= '1' && r[0] <= '9' {
 				idx := int(r[0] - '1')
 				if idx < len(m.filteredOptions) {
 					m.selected = idx
@@ -142,7 +146,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				}
 			}
 		}
-		if m.filterable && msg.String() == "/" {
+		if m.filterable && keyMsg.String() == "/" {
 			m.filtering = true
 			m.input.Focus()
 			return textinput.Blink

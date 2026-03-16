@@ -63,7 +63,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 		}
 		return nil
-	case tea.KeyMsg:
+	case tea.KeyMsg, tea.PasteMsg:
 		var cmd tea.Cmd
 		m.textInput, cmd = m.textInput.Update(msg)
 		return cmd

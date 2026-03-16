@@ -173,7 +173,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		} else {
 			m.scroll = max(0, m.scroll+msg.Delta)
 		}
-	case tea.KeyMsg:
+	case tea.KeyMsg, tea.PasteMsg:
 		if m.filtering {
 			prev := m.input.Value()
 			var cmd tea.Cmd

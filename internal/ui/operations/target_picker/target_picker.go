@@ -161,7 +161,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 			return nil
 		}
-	case tea.KeyMsg:
+	case tea.KeyMsg, tea.PasteMsg:
 		var cmd tea.Cmd
 		m.input, cmd = m.input.Update(msg)
 		m.search(m.input.Value())

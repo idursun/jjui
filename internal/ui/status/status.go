@@ -136,7 +136,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.fuzzy.Update(msg)
 		}
 		return nil
-	case tea.KeyMsg:
+	case tea.KeyMsg, tea.PasteMsg:
 		if m.IsFocused() {
 			var cmd tea.Cmd
 			previous := m.input.Value()

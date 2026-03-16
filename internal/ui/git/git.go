@@ -176,7 +176,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case intents.Intent:
 		return m.handleIntent(msg)
-	case tea.KeyMsg:
+	case tea.KeyMsg, tea.PasteMsg:
 		if m.filterState == filterEditing {
 			updated, cmd := m.filterInput.Update(msg)
 			filterChanged := m.filterInput.Value() != updated.Value()
@@ -186,7 +186,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 			return cmd
 		}
-		if cmd := m.handleIntent(intents.GitApplyShortcut{Key: msg.String()}); cmd != nil {
+		keyMsg, ok := msg.(tea.KeyMsg)
+		if !ok {
+			return nil
+		}
+		if cmd := m.handleIntent(intents.GitApplyShortcut{Key: keyMsg.String()}); cmd != nil {
 			return cmd
 		}
 	}
