@@ -233,3 +233,19 @@ func LoadTheme(name string, base map[string]Color) (map[string]Color, error) {
 	}
 	return loadTheme(data, base)
 }
+
+func SetupLuaTypes() error {
+	configDir := GetConfigDir()
+	if configDir == "" {
+		return fmt.Errorf("could not determine config directory")
+	}
+	data, err := configFS.ReadFile("default/types.lua")
+	if err != nil {
+		return fmt.Errorf("embedded types.lua not found: %w", err)
+	}
+	dest := filepath.Join(configDir, "types.lua")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(dest, data, 0o644)
+}
