@@ -108,6 +108,16 @@ func main() {
 		fmt.Fprintf(os.Stderr, "write action meta file: %v\n", err)
 		os.Exit(1)
 	}
+
+	luaTypes, err := generateLuaTypesSource(actionIDs, actionArgSchemas, actionRequiredArgs, actionOwners)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "generate lua types: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(repoRoot, "internal/config/default/types.lua"), luaTypes, 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "write types.lua: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func findRepoRoot() (string, error) {
@@ -1090,4 +1100,312 @@ func toCamel(s string) string {
 		parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
 	}
 	return strings.Join(parts, "")
+}
+
+// Hand-written Lua API stubs that cannot be derived from annotations.
+const luaHandWrittenAPI = `---@class jjui.revisions
+---@field current fun(): string? Get the current selected revision's change ID
+---@field checked fun(): string[] Get array of checked revision change IDs
+---@field refresh fun(options?: {keep_selections?: boolean, selected_revision?: string}) Refresh revisions
+---@field navigate fun(options?: {target?: "parent"|"child"|"children"|"working"|"working_copy"|"work", by?: integer, page?: boolean, to?: string, fallback?: string, ensureView?: boolean, allowStream?: boolean}) Navigate revisions
+
+---@class jjui.revset
+---@field current fun(): string Get current revset string
+---@field default fun(): string Get default revset string
+
+---@class jjui.context
+---@field change_id fun(): string? Get selected item's change ID
+---@field commit_id fun(): string? Get selected item's commit ID
+---@field file fun(): string? Get selected file path
+---@field operation_id fun(): string? Get selected operation ID
+---@field checked_files fun(): string[] Get array of checked files
+---@field checked_change_ids fun(): string[] Get array of checked change IDs
+---@field checked_commit_ids fun(): string[] Get array of checked commit IDs
+
+---Run a jj command asynchronously (yields, resumes after completion)
+---@param ... string|string[] Command arguments for jj (variadic strings or a single table)
+---@return string output The command output
+function jj_async(...) end
+
+---Run a jj command interactively (takes over the terminal)
+---@param ... string|string[] Command arguments for jj (variadic strings or a single table)
+function jj_interactive(...) end
+
+---Run a jj command synchronously and return its output
+---@param ... string|string[] Command arguments for jj (variadic strings or a single table)
+---@return string? output The command output (nil on error)
+---@return string? error The error message (nil on success)
+function jj(...) end
+
+---Show a flash message in the status bar
+---@param text_or_options string|{text: string, error?: boolean, sticky?: boolean} Message text or options table
+function flash(text_or_options) end
+
+---Copy text to the system clipboard
+---@param text string Text to copy
+function copy_to_clipboard(text) end
+
+---Execute a shell command
+---@param command string Shell command to execute
+---@return string output The command output
+function exec_shell(command) end
+
+---Split text into an array of lines
+---@param text string Text to split
+---@param keepEmpty? boolean Keep empty lines (default: false)
+---@return string[] lines Array of lines
+function split_lines(text, keepEmpty) end
+
+---Show a choice dialog and wait for user selection (yields)
+---@param options_or_array string[]|{options: string[], title?: string, filter?: boolean, ordered?: boolean} Options array or options table
+---@return string|nil selected The selected option, or nil if cancelled
+function choose(options_or_array) end
+
+---Show a text input dialog and wait for user input (yields)
+---@param options {title?: string, prompt?: string} Input options
+---@return string|nil value The entered text, or nil if cancelled
+function input(options) end
+
+---Yield and wait for the current view to close
+function wait_close() end
+
+---Yield and wait for revisions to be updated
+function wait_refresh() end
+`
+
+type ownerNode struct {
+	name     string
+	children map[string]*ownerNode
+	actions  []string // action tokens (last segment of canonical action ID)
+}
+
+func generateLuaTypesSource(actionIDs []string, argSchemas map[string]map[string]string, requiredArgs map[string][]string, owners map[string][]string) ([]byte, error) {
+	// Build owner tree from action IDs and their owners
+	root := &ownerNode{children: map[string]*ownerNode{}}
+	actionsByOwner := map[string][]string{} // owner -> list of canonical action IDs
+
+	for _, actionID := range actionIDs {
+		ownerList := owners[actionID]
+		for _, owner := range ownerList {
+			actionsByOwner[owner] = append(actionsByOwner[owner], actionID)
+		}
+	}
+
+	// Collect all unique owner strings and build tree
+	allOwners := make([]string, 0, len(actionsByOwner))
+	for owner := range actionsByOwner {
+		allOwners = append(allOwners, owner)
+	}
+	sort.Strings(allOwners)
+
+	for _, owner := range allOwners {
+		segments := strings.Split(owner, ".")
+		current := root
+		for _, seg := range segments {
+			if current.children[seg] == nil {
+				current.children[seg] = &ownerNode{name: seg, children: map[string]*ownerNode{}}
+			}
+			current = current.children[seg]
+		}
+	}
+
+	var b bytes.Buffer
+	b.WriteString("---@meta\n")
+	b.WriteString("-- LuaLS type definitions for jjui Lua API\n")
+	b.WriteString("-- Code generated by cmd/genactions; DO NOT EDIT.\n\n")
+
+	// Hand-written API stubs
+	b.WriteString(luaHandWrittenAPI)
+	b.WriteString("\n")
+
+	// Generate action classes for each owner
+	for _, owner := range allOwners {
+		className := "jjui." + owner
+		b.WriteString(fmt.Sprintf("---@class %s\n", className))
+
+		// Add child fields
+		childNames := sortedChildNames(root, owner)
+		for _, childName := range childNames {
+			childOwner := owner + "." + childName
+			b.WriteString(fmt.Sprintf("---@field %s jjui.%s\n", childName, childOwner))
+		}
+
+		// Add action functions
+		actions := actionsByOwner[owner]
+		sort.Strings(actions)
+		hasCancel := false
+		hasClose := false
+		for _, actionID := range actions {
+			token := actionTokenFromCanonical(actionID)
+			if token == "" {
+				continue
+			}
+			if token == "cancel" {
+				hasCancel = true
+			}
+			if token == "close" {
+				hasClose = true
+			}
+			schema := argSchemas[actionID]
+			required := requiredArgs[actionID]
+			writeActionFunction(&b, token, schema, required)
+		}
+		// Mirror the runtime "close" alias for "cancel"
+		if hasCancel && !hasClose {
+			b.WriteString("---@field close fun()\n")
+		}
+		b.WriteString("\n")
+	}
+
+	// Root jjui class
+	b.WriteString("---@class jjui\n")
+	b.WriteString("---@field revisions jjui.revisions\n")
+	b.WriteString("---@field revset jjui.revset\n")
+	b.WriteString("---@field context jjui.context\n")
+
+	// Add top-level owner children (those without dots)
+	topLevel := sortedKeys(root.children)
+	for _, name := range topLevel {
+		// Skip revisions, revset, context — already declared above with hand-written types
+		if name == "revisions" || name == "revset" || name == "context" {
+			continue
+		}
+		b.WriteString(fmt.Sprintf("---@field %s jjui.%s\n", name, name))
+	}
+
+	b.WriteString("---@field builtin jjui.builtin\n")
+
+	// Write hand-written function fields on jjui
+	b.WriteString("---@field jj_async fun(...: string|string[]): string\n")
+	b.WriteString("---@field jj_interactive fun(...: string|string[])\n")
+	b.WriteString("---@field jj fun(...: string|string[]): string?, string?\n")
+	b.WriteString("---@field flash fun(text_or_options: string|{text: string, error?: boolean, sticky?: boolean})\n")
+	b.WriteString("---@field copy_to_clipboard fun(text: string)\n")
+	b.WriteString("---@field exec_shell fun(command: string): string\n")
+	b.WriteString("---@field split_lines fun(text: string, keepEmpty?: boolean): string[]\n")
+	b.WriteString("---@field choose fun(options_or_array: string[]|{options: string[], title?: string, filter?: boolean, ordered?: boolean}): string|nil\n")
+	b.WriteString("---@field input fun(options: {title?: string, prompt?: string}): string|nil\n")
+	b.WriteString("---@field wait_close fun()\n")
+	b.WriteString("---@field wait_refresh fun()\n")
+	b.WriteString("\n")
+
+	// jjui.builtin class — mirrors the generated action structure
+	b.WriteString("---@class jjui.builtin\n")
+	for _, name := range topLevel {
+		b.WriteString(fmt.Sprintf("---@field %s jjui.%s\n", name, name))
+	}
+	b.WriteString("\n")
+
+	// Global aliases
+	b.WriteString("---@type jjui\n")
+	b.WriteString("jjui = {}\n\n")
+
+	b.WriteString("---@type jjui.revisions\n")
+	b.WriteString("revisions = {}\n\n")
+
+	b.WriteString("---@type jjui.revset\n")
+	b.WriteString("revset = {}\n\n")
+
+	b.WriteString("---@type jjui.context\n")
+	b.WriteString("context = {}\n\n")
+
+	// Expose diff and ui as globals if they exist as top-level owners
+	for _, name := range topLevel {
+		if name == "diff" || name == "ui" {
+			b.WriteString(fmt.Sprintf("---@type jjui.%s\n", name))
+			b.WriteString(fmt.Sprintf("%s = {}\n\n", name))
+		}
+	}
+
+	return b.Bytes(), nil
+}
+
+func sortedChildNames(root *ownerNode, owner string) []string {
+	segments := strings.Split(owner, ".")
+	current := root
+	for _, seg := range segments {
+		child, ok := current.children[seg]
+		if !ok {
+			return nil
+		}
+		current = child
+	}
+	return sortedKeys(current.children)
+}
+
+func sortedKeys(m map[string]*ownerNode) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func actionTokenFromCanonical(canonical string) string {
+	idx := strings.LastIndex(canonical, ".")
+	if idx < 0 {
+		return canonical
+	}
+	return canonical[idx+1:]
+}
+
+func writeActionFunction(b *bytes.Buffer, token string, schema map[string]string, required []string) {
+	if len(schema) == 0 {
+		b.WriteString(fmt.Sprintf("---@field %s fun()\n", token))
+		return
+	}
+
+	// Check for single required string arg (supports positional call)
+	requiredSet := map[string]struct{}{}
+	for _, r := range required {
+		requiredSet[r] = struct{}{}
+	}
+
+	hasSingleRequiredString := len(required) == 1 && schema[required[0]] == "string"
+
+	// Build args type annotation
+	argNames := make([]string, 0, len(schema))
+	for name := range schema {
+		argNames = append(argNames, name)
+	}
+	sort.Strings(argNames)
+
+	var params []string
+	for _, name := range argNames {
+		typ := schema[name]
+		_, isRequired := requiredSet[name]
+		luaType := schemaTypeToLua(typ)
+		optional := ""
+		if !isRequired {
+			optional = "?"
+		}
+		params = append(params, fmt.Sprintf("%s%s: %s", name, optional, luaType))
+	}
+
+	if hasSingleRequiredString {
+		// Can be called with just the string value or a table
+		b.WriteString(fmt.Sprintf("---@field %s fun(value?: string|{%s})\n", token, strings.Join(params, ", ")))
+	} else {
+		b.WriteString(fmt.Sprintf("---@field %s fun(args: {%s})\n", token, strings.Join(params, ", ")))
+	}
+}
+
+func schemaTypeToLua(schemaType string) string {
+	switch schemaType {
+	case "bool":
+		return "boolean"
+	case "string":
+		return "string"
+	default:
+		if strings.HasPrefix(schemaType, "enum:") {
+			values := strings.Split(strings.TrimPrefix(schemaType, "enum:"), "|")
+			quoted := make([]string, len(values))
+			for i, v := range values {
+				quoted[i] = fmt.Sprintf("%q", v)
+			}
+			return strings.Join(quoted, "|")
+		}
+		return "any"
+	}
 }

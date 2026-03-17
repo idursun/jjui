@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"path/filepath"
 	"os/exec"
 	"path/filepath"
 	"runtime/debug"
@@ -46,6 +47,7 @@ var (
 	limit      int
 	version    bool
 	editConfig bool
+	installLuaTypes bool
 	help       bool
 )
 
@@ -58,6 +60,7 @@ func init() {
 	flag.IntVar(&limit, "n", 0, "Number of revisions to show (alias for --limit)")
 	flag.BoolVar(&version, "version", false, "Show version information")
 	flag.BoolVar(&editConfig, "config", false, "Open configuration file in $EDITOR")
+	flag.BoolVar(&installLuaTypes, "install-lua-types", false, "Write Lua type definitions to config directory for LuaLS autocomplete")
 	flag.BoolVar(&help, "help", false, "Show help information")
 
 	flag.Usage = func() {
@@ -98,6 +101,13 @@ func run() int {
 		return 0
 	case version:
 		fmt.Println(getVersion())
+		return 0
+	case installLuaTypes:
+		if err := config.SetupLuaTypes(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			return 1
+		}
+		fmt.Printf("Lua type definitions written to %s\n", filepath.Join(config.GetConfigDir(), "types.lua"))
 		return 0
 	case editConfig:
 		return config.Edit()

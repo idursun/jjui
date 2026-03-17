@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-//go:embed default/*.toml
+//go:embed default/*.toml default/types.lua
 var configFS embed.FS
 
 var Current = loadDefaultConfig()
