@@ -137,3 +137,31 @@ func TestSetContent_PreservesWrapMode(t *testing.T) {
 	rendered := test.Stripped(test.RenderImmediate(model, 10, 3))
 	assert.Contains(t, rendered, "abcdefghij\n1234567890")
 }
+
+func TestTabs_RenderIndentedInDefaultView(t *testing.T) {
+	model := New("+\tfoo")
+
+	rendered := test.RenderImmediate(model, 12, 1)
+	assert.Equal(t, "+    foo", rendered)
+}
+
+func TestTabs_AffectHorizontalScrollWidth(t *testing.T) {
+	model := New("\tabcdefghij")
+
+	rendered := test.RenderImmediate(model, 8, 1)
+	assert.Equal(t, "    abcd", rendered)
+
+	for range 6 {
+		model.Update(intents.DiffScrollHorizontal{Kind: intents.DiffScrollRight})
+	}
+	rendered = test.RenderImmediate(model, 8, 1)
+	assert.Equal(t, "cdefghij", rendered)
+}
+
+func TestTabs_WrapUsingExpandedWidth(t *testing.T) {
+	model := New("\t123456")
+	model.Update(intents.DiffToggleWrap{})
+
+	rendered := test.RenderImmediate(model, 5, 2)
+	assert.Equal(t, "    1\n23456", rendered)
+}

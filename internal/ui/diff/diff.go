@@ -183,9 +183,12 @@ func (m *Model) SetContent(content string) {
 		content = "(empty)"
 	}
 
-	lines := strings.Split(content, "\n")
+	rawLines := strings.Split(content, "\n")
+	lines := make([]string, len(rawLines))
 	maxWidth := 0
-	for _, line := range lines {
+	for i, line := range rawLines {
+		line = render.ExpandTabs(line)
+		lines[i] = line
 		if w := render.StringWidth(line); w > maxWidth {
 			maxWidth = w
 		}
