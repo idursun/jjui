@@ -21,6 +21,7 @@ import (
 
 type CommandRunner interface {
 	RunCommandImmediate(args []string) ([]byte, error)
+	RunCommandImmediateWithEnv(args []string, env []string) ([]byte, error)
 	RunCommandStreaming(ctx context.Context, args []string) (*StreamingCommand, error)
 	RunCommand(args []string, continuations ...tea.Cmd) tea.Cmd
 	RunCommandWithInput(args []string, input string, continuations ...tea.Cmd) tea.Cmd
@@ -35,9 +36,12 @@ type MainCommandRunner struct {
 
 func (a *MainCommandRunner) nextID() int { return int(a.idCounter.Add(1)) }
 
-func (a *MainCommandRunner) RunCommandImmediate(args []string) ([]byte, error) {
+func (a *MainCommandRunner) RunCommandImmediateWithEnv(args []string, env []string) ([]byte, error) {
 	c := exec.Command("jj", args...)
 	c.Dir = a.Location
+	if len(env) > 0 {
+		c.Env = append(os.Environ(), env...)
+	}
 	if output, err := c.Output(); err != nil {
 		var exitError *exec.ExitError
 		if errors.As(err, &exitError) {
@@ -47,6 +51,10 @@ func (a *MainCommandRunner) RunCommandImmediate(args []string) ([]byte, error) {
 	} else {
 		return bytes.Trim(output, "\n"), nil
 	}
+}
+
+func (a *MainCommandRunner) RunCommandImmediate(args []string) ([]byte, error) {
+	return a.RunCommandImmediateWithEnv(args, nil)
 }
 
 func (a *MainCommandRunner) RunCommandStreaming(ctx context.Context, args []string) (*StreamingCommand, error) {

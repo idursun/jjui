@@ -219,7 +219,14 @@ func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
 			})
 		}
 
-		output, _ := m.context.RunCommandImmediate(args)
+		env := []string{
+			// The preview subprocess does not run in a pane-sized PTY, so let
+			// width-sensitive tools like `jj diff` see the preview size via the
+			// conventional terminal size environment variables.
+			"COLUMNS=" + strconv.Itoa(m.view.Width()),
+			"LINES=" + strconv.Itoa(m.view.Height()),
+		}
+		output, _ := m.context.RunCommandImmediateWithEnv(args, env)
 		return updatePreviewContentMsg{
 			Content: string(output),
 		}
