@@ -18,16 +18,23 @@ type mergeOverlay struct {
 	Bindings []BindingConfig `toml:"bindings"`
 }
 
+func EnvConfigDir() string {
+	if dir := os.Getenv("JJUI_CONFIG_DIR"); dir != "" {
+		if s, err := os.Stat(dir); err == nil && s.IsDir() {
+			return dir
+		}
+	}
+	return ""
+}
+
 // getConfigFilePath returns the effective global config file path.
 // When JJUI_CONFIG_DIR is set and valid, it takes precedence over standard dirs.
 func getConfigFilePath() string {
 	var configDirs []string
 
 	// useful during development or other non-standard setups.
-	if dir := os.Getenv("JJUI_CONFIG_DIR"); dir != "" {
-		if s, err := os.Stat(dir); err == nil && s.IsDir() {
-			return filepath.Join(dir, "config.toml")
-		}
+	if dir := EnvConfigDir(); dir != "" {
+		return filepath.Join(dir, "config.toml")
 	}
 
 	// os.UserConfigDir() already does this for linux leaving darwin to handle

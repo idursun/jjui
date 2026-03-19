@@ -150,7 +150,7 @@ func run() int {
 		return 1
 	}
 	// if JJUI_CONFIG_DIR is set, skip loading repository config as env config takes precedence over both global and repo-local configs. Otherwise load repo-local config which overrides global config on conflicts.
-	if os.Getenv("JJUI_CONFIG_DIR") == "" {
+	if config.EnvConfigDir() == "" {
 		if output, err := config.LoadRepoConfigFile(rootLocation); err == nil {
 			repoConfigDir := filepath.Join(rootLocation, ".jjui")
 			if err := config.Current.Load(string(output), repoConfigDir); err != nil {
@@ -185,7 +185,7 @@ func run() int {
 	}
 
 	// if JJUI_CONFIG_DIR is set, skip loading repository config as env config takes precedence over both global and repo-local configs. Otherwise load repo-local config which overrides global config on conflicts.
-	if os.Getenv("JJUI_CONFIG_DIR") == "" {
+	if config.EnvConfigDir() == "" {
 		if luaSource, err := config.LoadRepoLuaConfigFile(rootLocation); err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading repository config.lua: %v\n", err)
 			return 1
