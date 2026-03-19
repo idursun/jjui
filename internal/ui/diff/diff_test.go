@@ -142,7 +142,7 @@ func TestTabs_RenderIndentedInDefaultView(t *testing.T) {
 	model := New("+\tfoo")
 
 	rendered := test.RenderImmediate(model, 12, 1)
-	assert.Equal(t, "+    foo", rendered)
+	assert.Equal(t, "+   foo", rendered)
 }
 
 func TestTabs_AffectHorizontalScrollWidth(t *testing.T) {

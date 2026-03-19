@@ -162,6 +162,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) SetContent(content string) {
 	content = strings.ReplaceAll(content, "\r", "")
+	if strings.ContainsRune(content, '\t') {
+		lines := strings.Split(content, "\n")
+		for i, line := range lines {
+			lines[i] = render.ExpandTabs(line)
+		}
+		content = strings.Join(lines, "\n")
+	}
 	m.reset()
 	m.content = content
 	m.view.SetContent(content)
