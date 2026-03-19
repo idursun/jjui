@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -83,7 +85,7 @@ name = "new_action"
 lua = "return 2"
 `
 
-	require.NoError(t, cfg.Load(content))
+	require.NoError(t, cfg.Load(content, ""))
 	require.Len(t, cfg.Actions, 4)
 	action, ok := findLastActionByName(cfg.Actions, "open_details_alias")
 	require.True(t, ok)
@@ -118,7 +120,7 @@ action = "revset.cancel"
 key = "esc"
 `
 
-	require.NoError(t, cfg.Load(content))
+	require.NoError(t, cfg.Load(content, ""))
 
 	// original bindings remain in the slice (shadowing happens at runtime)
 	assert.Contains(t, cfg.Bindings, BindingConfig{
@@ -172,7 +174,7 @@ seq = ["w", "h"]
 scope = "ui"
 `
 
-	require.NoError(t, cfg.Load(content))
+	require.NoError(t, cfg.Load(content, ""))
 
 	found := false
 	for _, b := range cfg.Bindings {
@@ -184,4 +186,112 @@ scope = "ui"
 		assert.Equal(t, StringList{"w", "h"}, b.Seq)
 	}
 	assert.True(t, found, "expected merged binding for action 'say hello'")
+}
+
+func TestLoadFromDir_BindingsProfileRelativeToBaseDir(t *testing.T) {
+	dir := t.TempDir()
+
+	profileContent := `
+[[bindings]]
+scope = "revisions"
+action = "revisions.move_up"
+key = "j"
+`
+	err := os.WriteFile(filepath.Join(dir, "my-profile.toml"), []byte(profileContent), 0600)
+	require.NoError(t, err)
+
+	configContent := `bindings_profile = "my-profile.toml"`
+
+	cfg := &Config{}
+	err = cfg.Load(configContent, dir)
+	require.NoError(t, err)
+
+	assert.Contains(t, cfg.Bindings, BindingConfig{
+		Scope:  "revisions",
+		Action: "revisions.move_up",
+		Key:    StringList{"j"},
+	})
+}
+
+func TestLoadFromDir_BindingsProfileAbsPathIgnoresBaseDir(t *testing.T) {
+	dir := t.TempDir()
+
+	profileContent := `
+[[bindings]]
+scope = "revisions"
+action = "revisions.move_down"
+key = "k"
+`
+	profilePath := filepath.Join(dir, "abs-profile.toml")
+	err := os.WriteFile(profilePath, []byte(profileContent), 0600)
+	require.NoError(t, err)
+
+	// Use an absolute path — baseDir should be irrelevant
+	configContent := `bindings_profile = "` + profilePath + `"`
+
+	cfg := &Config{}
+	err = cfg.Load(configContent, "/some/other/dir")
+	require.NoError(t, err)
+
+	assert.Contains(t, cfg.Bindings, BindingConfig{
+		Scope:  "revisions",
+		Action: "revisions.move_down",
+		Key:    StringList{"k"},
+	})
+}
+
+// TestConfigLayering verifies the precedence chain:
+// - Without JJUI_CONFIG_DIR: global config then repo-local (repo wins on conflict)
+// - With JJUI_CONFIG_DIR: env config only, both global and repo-local are skipped
+func TestConfigLayering(t *testing.T) {
+	envDir := t.TempDir()
+	repoConfigDir := t.TempDir()
+
+	// Global: sets all three fields
+	globalConfig := `
+limit = 10
+[ui]
+auto_refresh_interval = 5
+flash_message_display_seconds = 7
+`
+
+	// Repo-local: overrides limit, leaves the others
+	repoConfig := `
+limit = 99
+`
+
+	// Env: only sets auto_refresh_interval; replaces both global and repo-local
+	envConfig := `
+[ui]
+auto_refresh_interval = 30
+`
+	require.NoError(t, os.WriteFile(filepath.Join(envDir, "config.toml"), []byte(envConfig), 0600))
+	t.Setenv("JJUI_CONFIG_DIR", envDir)
+
+	// Simulate what main.go does when JJUI_CONFIG_DIR is set:
+	// LoadConfigFile() routes through getConfigFilePath() which returns env dir,
+	// so it loads the env config. Repo-local is skipped.
+	cfg := &Config{}
+	data, err := LoadConfigFile()
+	require.NoError(t, err)
+	require.NoError(t, cfg.Load(string(data), GetConfigDir()))
+
+	// auto_refresh_interval comes from env config
+	assert.Equal(t, 30, cfg.UI.AutoRefreshInterval)
+	// global and repo values are absent — env replaced everything
+	assert.Equal(t, 0, cfg.Limit)
+	assert.Equal(t, 0, cfg.UI.FlashMessageDisplaySeconds)
+
+	// Now simulate without JJUI_CONFIG_DIR: global then repo-local
+	t.Setenv("JJUI_CONFIG_DIR", "")
+	cfg2 := &Config{}
+	require.NoError(t, cfg2.Load(globalConfig, ""))
+	require.NoError(t, cfg2.Load(repoConfig, repoConfigDir))
+
+	// flash_message_display_seconds: only in global, survives
+	assert.Equal(t, 7, cfg2.UI.FlashMessageDisplaySeconds)
+	// limit: global=10, overridden by repo=99
+	assert.Equal(t, 99, cfg2.Limit)
+	// auto_refresh_interval: only in global, survives
+	assert.Equal(t, 5, cfg2.UI.AutoRefreshInterval)
 }

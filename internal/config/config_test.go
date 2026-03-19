@@ -13,7 +13,7 @@ func TestLoad_Theme_Simple(t *testing.T) {
 theme = "my-theme"
 `
 	config := &Config{}
-	err := config.Load(content)
+	err := config.Load(content, "")
 	assert.NoError(t, err)
 	assert.Equal(t, "my-theme", config.UI.Theme.Light)
 	assert.Equal(t, "my-theme", config.UI.Theme.Dark)
@@ -26,7 +26,7 @@ dark = "dark-theme"
 light = "light-theme"
 `
 	config := &Config{}
-	err := config.Load(content)
+	err := config.Load(content, "")
 	assert.NoError(t, err)
 	assert.Equal(t, "dark-theme", config.UI.Theme.Dark)
 	assert.Equal(t, "light-theme", config.UI.Theme.Light)
@@ -38,7 +38,7 @@ func TestLoad_AutoRefreshInterval(t *testing.T) {
 auto_refresh_interval = 5000
 `
 	config := &Config{}
-	err := config.Load(content)
+	err := config.Load(content, "")
 	assert.NoError(t, err)
 	assert.Equal(t, 5000, config.UI.AutoRefreshInterval)
 }
@@ -49,7 +49,7 @@ func TestLoad_FlashMessageDisplaySeconds(t *testing.T) {
 flash_message_display_seconds = 10
 `
 	config := &Config{}
-	err := config.Load(content)
+	err := config.Load(content, "")
 	assert.NoError(t, err)
 	assert.Equal(t, 10, config.UI.FlashMessageDisplaySeconds)
 	assert.Equal(t, 10*time.Second, GetExpiringFlashMessageTimeout(config))
@@ -62,7 +62,7 @@ simple = "red"
 complex = { fg = "blue", bg = "white", bold = true }
 `
 	config := &Config{}
-	err := config.Load(content)
+	err := config.Load(content, "")
 	assert.NoError(t, err)
 	assert.Len(t, config.UI.Colors, 2)
 
@@ -84,7 +84,7 @@ unset = { fg = "red" }
 explicit_false = { fg = "blue", underline = false }
 `
 	config := &Config{}
-	err := config.Load(content)
+	err := config.Load(content, "")
 	assert.NoError(t, err)
 
 	assert.Nil(t, config.UI.Colors["unset"].Underline)

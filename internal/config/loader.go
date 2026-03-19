@@ -18,6 +18,8 @@ type mergeOverlay struct {
 	Bindings []BindingConfig `toml:"bindings"`
 }
 
+// getConfigFilePath returns the effective global config file path.
+// When JJUI_CONFIG_DIR is set and valid, it takes precedence over standard dirs.
 func getConfigFilePath() string {
 	var configDirs []string
 
@@ -70,7 +72,7 @@ func loadDefaultConfig() *Config {
 	}
 
 	config := &Config{}
-	if err := config.Load(string(data)); err != nil {
+	if err := config.Load(string(data), ""); err != nil {
 		fmt.Fprintf(os.Stderr, "Fatal: failed to load embedded default config: %v\n", err)
 		os.Exit(1)
 	}
@@ -80,7 +82,7 @@ func loadDefaultConfig() *Config {
 		fmt.Fprintf(os.Stderr, "Fatal: no embedded default bindings found: %v\n", err)
 		os.Exit(1)
 	}
-	if err := config.Load(string(bindingsData)); err != nil {
+	if err := config.Load(string(bindingsData), ""); err != nil {
 		fmt.Fprintf(os.Stderr, "Fatal: failed to load embedded default bindings: %v\n", err)
 		os.Exit(1)
 	}
@@ -88,7 +90,9 @@ func loadDefaultConfig() *Config {
 	return config
 }
 
-func (c *Config) Load(data string) error {
+// Load loads config data where relative bindings_profile paths are resolved
+// against baseDir.
+func (c *Config) Load(data, baseDir string) error {
 	baseActions := append([]ActionConfig(nil), c.Actions...)
 	baseBindings := append([]BindingConfig(nil), c.Bindings...)
 
@@ -107,7 +111,7 @@ func (c *Config) Load(data string) error {
 
 	// If a custom bindings profile is specified, use it as the base instead of built-in defaults
 	if metadata.IsDefined("bindings_profile") && c.BindingsProfile != "" && c.BindingsProfile != ":builtin" {
-		profileBindings, err := loadProfileBindings(c.BindingsProfile)
+		profileBindings, err := loadProfileBindings(c.BindingsProfile, baseDir)
 		if err != nil {
 			return err
 		}
@@ -127,11 +131,10 @@ func (c *Config) Load(data string) error {
 	return c.ValidateBindingsAndActions()
 }
 
-func loadProfileBindings(profile string) ([]BindingConfig, error) {
-	configFilePath := getConfigFilePath()
+func loadProfileBindings(profile, baseDir string) ([]BindingConfig, error) {
 	profilePath := profile
 	if !filepath.IsAbs(profilePath) {
-		profilePath = filepath.Join(filepath.Dir(configFilePath), profilePath)
+		profilePath = filepath.Join(baseDir, profilePath)
 	}
 	data, err := os.ReadFile(profilePath)
 	if err != nil {
@@ -171,6 +174,27 @@ func LoadConfigFile() ([]byte, error) {
 		return nil, err
 	}
 	return data, nil
+}
+
+func LoadRepoConfigFile(repoRoot string) ([]byte, error) {
+	repoConfigPath := filepath.Join(repoRoot, ".jjui", "config.toml")
+	data, err := os.ReadFile(repoConfigPath)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func LoadRepoLuaConfigFile(repoRoot string) (string, error) {
+	luaFile := filepath.Join(repoRoot, ".jjui", "config.lua")
+	data, err := os.ReadFile(luaFile)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", nil
+		}
+		return "", err
+	}
+	return string(data), nil
 }
 
 func loadTheme(data []byte, base map[string]Color) (map[string]Color, error) {

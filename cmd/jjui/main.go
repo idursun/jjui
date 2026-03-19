@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"unicode"
@@ -133,14 +134,11 @@ func run() int {
 		log.SetOutput(io.Discard)
 	}
 
-	if limit > 0 {
-		config.Current.Limit = limit
-	}
-
 	appContext := context.NewAppContext(rootLocation, askpassServer)
 	defer appContext.Histories.Flush()
+
 	if output, err := config.LoadConfigFile(); err == nil {
-		if err := config.Current.Load(string(output)); err != nil {
+		if err := config.Current.Load(string(output), config.GetConfigDir()); err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
 			return 1
 		}
@@ -150,6 +148,22 @@ func run() int {
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		return 1
+	}
+	// if JJUI_CONFIG_DIR is set, skip loading repository config as env config takes precedence over both global and repo-local configs. Otherwise load repo-local config which overrides global config on conflicts.
+	if os.Getenv("JJUI_CONFIG_DIR") == "" {
+		if output, err := config.LoadRepoConfigFile(rootLocation); err == nil {
+			repoConfigDir := filepath.Join(rootLocation, ".jjui")
+			if err := config.Current.Load(string(output), repoConfigDir); err != nil {
+				fmt.Fprintf(os.Stderr, "Error loading repository configuration: %v\n", err)
+				return 1
+			}
+			for _, warning := range config.DeprecatedConfigWarnings(string(output)) {
+				fmt.Fprintf(os.Stderr, "Warning: %s\n", warning)
+			}
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			return 1
+		}
 	}
 
 	if err := scripting.InitVM(appContext); err != nil {
@@ -167,6 +181,23 @@ func run() int {
 		if err := scripting.RunSetup(appContext, config.Current, luaSource); err != nil {
 			fmt.Fprintf(os.Stderr, "Error in config.lua: %v\n", err)
 			return 1
+		}
+	}
+
+	// if JJUI_CONFIG_DIR is set, skip loading repository config as env config takes precedence over both global and repo-local configs. Otherwise load repo-local config which overrides global config on conflicts.
+	if os.Getenv("JJUI_CONFIG_DIR") == "" {
+		if luaSource, err := config.LoadRepoLuaConfigFile(rootLocation); err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading repository config.lua: %v\n", err)
+			return 1
+		} else if luaSource != "" {
+			if !appContext.TerminalThemeDetected {
+				appContext.TerminalHasDarkBackground = lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
+				appContext.TerminalThemeDetected = true
+			}
+			if err := scripting.RunSetup(appContext, config.Current, luaSource); err != nil {
+				fmt.Fprintf(os.Stderr, "Error in repository config.lua: %v\n", err)
+				return 1
+			}
 		}
 	}
 
@@ -210,6 +241,9 @@ func run() int {
 
 	if period >= 0 {
 		config.Current.UI.AutoRefreshInterval = period
+	}
+	if limit > 0 {
+		config.Current.Limit = limit
 	}
 	if revset != "" {
 		appContext.DefaultRevset = revset

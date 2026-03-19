@@ -26,7 +26,7 @@ seq = ["g", "g"]
 `
 
 	cfg := &Config{}
-	err := cfg.Load(content)
+	err := cfg.Load(content, "")
 	require.NoError(t, err)
 	require.Len(t, cfg.Actions, 1)
 	require.Len(t, cfg.Bindings, 2)
@@ -98,7 +98,7 @@ args = { force = "yes" }
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := &Config{}
-			err := cfg.Load(tc.content)
+			err := cfg.Load(tc.content, "")
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.want)
 		})
@@ -114,7 +114,7 @@ key = ["b"]
 args = { target = "before" }
 `
 	cfg := &Config{}
-	require.NoError(t, cfg.Load(valid))
+	require.NoError(t, cfg.Load(valid, ""))
 
 	invalid := `
 [[bindings]]
@@ -123,7 +123,7 @@ scope = "revisions.revert"
 key = ["b"]
 `
 	cfg = &Config{}
-	err := cfg.Load(invalid)
+	err := cfg.Load(invalid, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "requires arg")
 }
