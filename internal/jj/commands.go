@@ -186,6 +186,10 @@ func BookmarkDelete(name string) CommandArgs {
 	return []string{"bookmark", "delete", name}
 }
 
+func BookmarkRename(oldName string, newName string) CommandArgs {
+	return []string{"bookmark", "rename", oldName, newName}
+}
+
 func BookmarkForget(name string) CommandArgs {
 	return []string{"bookmark", "forget", name}
 }

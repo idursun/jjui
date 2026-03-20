@@ -1,0 +1,185 @@
+package bookmarkpane
+
+import (
+	"testing"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/test"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestOpen_SortsLocalBookmarksFirstByDistanceAndSelectsClosestMoveable(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(
+		"remote-only;origin;true;false;false;ccc333\ncurrent;.;false;false;false;bbb222\nfar-local;.;false;false;false;ddd444\nnear-local;.;false;false;false;aaa111\n",
+	))
+	defer commandRunner.Verify()
+
+	model := NewModel(
+		test.NewTestContext(commandRunner),
+		Callbacks{
+			CurrentRevision:  func() *jj.Commit { return &jj.Commit{ChangeId: "current-change", CommitId: "bbb222"} },
+			VisibleCommitIDs: func() []string { return []string{"aaa111", "bbb222", "ccc333", "ddd444"} },
+			RevealVisible:    func(string) tea.Cmd { return nil },
+		},
+	)
+	test.SimulateModel(model, model.Open())
+
+	require.True(t, model.Visible())
+	require.Len(t, model.visibleRows, 4)
+
+	assert.Equal(t, "current", model.visibleRows[0].Node.Target())
+	assert.Equal(t, "far-local", model.visibleRows[1].Node.Target())
+	assert.Equal(t, "near-local", model.visibleRows[2].Node.Target())
+	assert.Equal(t, "remote-only@origin", model.visibleRows[3].Node.Target())
+
+	target, ok := model.selectedTarget()
+	require.True(t, ok)
+	assert.Equal(t, "current", target)
+	assert.Equal(t, "bbb222", model.selectedCommitID())
+}
+
+func TestRenameSelected_LocalBookmarkOpensPrompt(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	model := NewModel(
+		test.NewTestContext(commandRunner),
+		Callbacks{
+			CurrentRevision: func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "dest123"} },
+			RevealVisible:   func(string) tea.Cmd { return nil },
+		},
+	)
+	test.SimulateModel(model, model.Open())
+
+	cmd := model.Update(intents.BookmarkViewRename{})
+	require.NotNil(t, cmd)
+	showInput, ok := cmd().(common.ShowInputMsg)
+	require.True(t, ok, "rename should request input")
+	assert.Equal(t, "main", showInput.InitialValue)
+}
+
+func TestRevealSelected_UsesCallbackWithCommitID(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	var revealed string
+	model := NewModel(
+		test.NewTestContext(commandRunner),
+		Callbacks{
+			CurrentRevision: func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "dest123"} },
+			RevealVisible: func(revision string) tea.Cmd {
+				revealed = revision
+				return func() tea.Msg { return nil }
+			},
+		},
+	)
+	test.SimulateModel(model, model.Open())
+
+	cmd := model.Update(intents.BookmarkViewReveal{})
+	require.NotNil(t, cmd)
+	_ = cmd()
+	assert.Equal(t, "abc123", revealed)
+}
+
+func TestRevealSelected_WhenAlreadyAtBookmark_ShowsMessage(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	model := NewModel(
+		test.NewTestContext(commandRunner),
+		Callbacks{
+			CurrentRevision: func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "abc123"} },
+			RevealVisible: func(revision string) tea.Cmd {
+				return func() tea.Msg { return nil }
+			},
+		},
+	)
+	test.SimulateModel(model, model.Open())
+
+	cmd := model.Update(intents.BookmarkViewReveal{})
+	require.NotNil(t, cmd)
+	msg, ok := cmd().(intents.AddMessage)
+	require.True(t, ok)
+	assert.Equal(t, "Already at bookmark main", msg.Text)
+}
+
+func TestToggleExpand_ShowsRemoteChildren(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(
+		"feature;.;false;false;false;abc123\nfeature;origin;true;false;false;abc123\nfeature;upstream;false;false;false;abc123\n",
+	))
+	defer commandRunner.Verify()
+
+	model := NewModel(
+		test.NewTestContext(commandRunner),
+		Callbacks{
+			CurrentRevision: func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "dest123"} },
+			RevealVisible:   func(string) tea.Cmd { return nil },
+		},
+	)
+	test.SimulateModel(model, model.Open())
+	require.Len(t, model.visibleRows, 1)
+
+	model.Update(intents.BookmarkViewToggleExpand{})
+	require.Len(t, model.visibleRows, 3)
+
+	model.Update(intents.BookmarkViewNavigate{Delta: 1})
+	target, ok := model.selectedTarget()
+	require.True(t, ok)
+	assert.Equal(t, "feature@origin", target)
+}
+
+func TestRevealInRevisions_UsesDedicatedCallback(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	var shownTarget string
+	var shownCommit string
+	model := NewModel(
+		test.NewTestContext(commandRunner),
+		Callbacks{
+			CurrentRevision: func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "dest123"} },
+			ShowInRevisions: func(target, commitID string) tea.Cmd {
+				shownTarget = target
+				shownCommit = commitID
+				return func() tea.Msg { return nil }
+			},
+		},
+	)
+	test.SimulateModel(model, model.Open())
+
+	cmd := model.Update(intents.BookmarkViewRevealInRevisions{})
+	require.NotNil(t, cmd)
+	_ = cmd()
+	assert.Equal(t, "main", shownTarget)
+	assert.Equal(t, "abc123", shownCommit)
+}
+
+func TestMoveSelected_RemoteOnlyBookmarkShowsMessage(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("remote-only;origin;true;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	model := NewModel(
+		test.NewTestContext(commandRunner),
+		Callbacks{
+			CurrentRevision: func() *jj.Commit { return &jj.Commit{ChangeId: "dest", CommitId: "dest123"} },
+		},
+	)
+	test.SimulateModel(model, model.Open())
+
+	cmd := model.Update(intents.BookmarkViewMove{})
+	require.NotNil(t, cmd)
+	msg, ok := cmd().(intents.AddMessage)
+	require.True(t, ok)
+	assert.Equal(t, "No local bookmark for remote-only", msg.Text)
+}
