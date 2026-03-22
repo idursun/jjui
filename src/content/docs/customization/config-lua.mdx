@@ -5,9 +5,15 @@ description: Programmatic startup configuration with setup(config)
 
 `config.lua` is an optional Lua file loaded at startup before the UI appears. Use it for programmatic configuration — conditional settings, loading plugins, and anything that benefits from real code instead of TOML.
 
-**File location:**
-- `~/.config/jjui/config.lua`
-- `$JJUI_CONFIG_DIR/config.lua`
+**Global config:**
+- Linux / macOS: `~/.config/jjui/config.lua`
+- Windows: `%AppData%/jjui/config.lua`
+
+**Repo-specific config:**
+You can create a `.jjui/config.lua` file in the root of any jj repo and it will *override* anything that was set by your global `config.lua`.
+
+**Custom config:**
+You can also set a custom path with the `JJUI_CONFIG_DIR` environment variable. If you use this, it will *replace* the global and repo configs, rather than just override them.
 
 ---
 
