@@ -5,16 +5,21 @@ description: Configure jjui with config.toml
 
 jjui reads configuration from a TOML file at startup.
 
-**Default locations:**
+**Global config:**
 - Linux / macOS: `~/.config/jjui/config.toml`
 - Windows: `%AppData%/jjui/config.toml`
-- Custom: `$JJUI_CONFIG_DIR/config.toml`
 
 Open the file directly in your editor with:
 
 ```bash
 jjui --config
 ```
+
+**Repo-specific config:**
+You can create a `.jjui/config.toml` file in the root of any jj repo and it will *override* anything that was set by your global config. This allows you to define settings, actions, and bindings that apply to all repos, but then granularly override particular settings per-repo.
+
+**Custom config:**
+You can also set a custom directory with the `JJUI_CONFIG_DIR` environment variable. jjui will then look for your `config.toml` file inside that directory. If you use this, it will *replace* the global and repo configs, rather than just override them.
 
 ---
 
