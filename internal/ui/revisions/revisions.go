@@ -69,6 +69,7 @@ type Model struct {
 	matchedStyle           lipgloss.Style
 	ensureCursorView       bool
 	requestInFlight        bool
+	pendingRefresh         bool
 }
 
 type revisionsMsg struct {
@@ -347,15 +348,27 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		m.hasMore = msg.hasMore
 		m.isLoading = m.hasMore && len(m.offScreenRows) > 0
 
+		streamDone := false
 		if m.hasMore {
 			// keep requesting rows until we reach the initial load count or the current cursor position
 			lastRowIndex := m.displayContextRenderer.GetLastRowIndex()
 			if len(m.offScreenRows) < m.cursor+1 || len(m.offScreenRows) < lastRowIndex+1 {
 				return m.requestMoreRows(msg.tag)
 			}
-		} else if m.streamer != nil {
-			m.streamer.Close()
+			// Have enough rows — close the stream so the jj process doesn't linger
+			if m.streamer != nil {
+				m.streamer.Close()
+				m.streamer = nil
+			}
+			streamDone = true
+		} else {
+			if m.streamer != nil {
+				m.streamer.Close()
+				m.streamer = nil
+			}
+			streamDone = true
 		}
+		m.isLoading = false
 
 		currentSelectedRevision := m.SelectedRevision()
 		m.rows = m.offScreenRows
@@ -377,6 +390,10 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			cmds = append(cmds, func() tea.Msg {
 				return common.UpdateRevisionsSuccessMsg{}
 			})
+		}
+		if streamDone && m.pendingRefresh {
+			m.pendingRefresh = false
+			cmds = append(cmds, common.RefreshAndKeepSelections)
 		}
 		return tea.Batch(cmds...)
 	}
@@ -498,6 +515,10 @@ func (m *Model) startBookmarkSet() tea.Cmd {
 }
 
 func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
+	if config.Current.Revisions.LogBatching && m.isLoading {
+		m.pendingRefresh = true
+		return nil
+	}
 	if !intent.KeepSelections {
 		m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
 	}
