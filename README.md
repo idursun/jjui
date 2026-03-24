@@ -104,7 +104,7 @@ The latest release of `jjui` is available on Homebrew core:
 brew install jjui
 ```
 
-### Archlinux (maintained by [@TeddyHuang-00](https://github.com/TeddyHuang-00))
+### Archlinux (maintained by [@TeddyHuang-00](https://github.com/TeddyHuang-00) and [@alerque](https://github.com/alerque))
 
 The built `jjui` binary from latest release is available on the AUR:
 
@@ -112,6 +112,14 @@ The built `jjui` binary from latest release is available on the AUR:
 paru -S jjui-bin
 # OR
 yay -S jjui-bin
+```
+
+Or you can choose to build from scratch, also available on the AUR:
+
+```shell
+paru -S jjui
+# OR
+yay -S jjui
 ```
 
 ### Nix
