@@ -10,8 +10,10 @@ import (
 var builtInActionScopes = map[string][]string{
 	"bookmark_view.apply":                        {"bookmark_view"},
 	"bookmark_view.cancel":                       {"bookmark_view"},
+	"bookmark_view.create":                       {"bookmark_view"},
 	"bookmark_view.delete":                       {"bookmark_view"},
 	"bookmark_view.edit":                         {"bookmark_view"},
+	"bookmark_view.fetch":                        {"bookmark_view"},
 	"bookmark_view.filter":                       {"bookmark_view"},
 	"bookmark_view.filter.apply":                 {"bookmark_view.filter"},
 	"bookmark_view.filter.cancel":                {"bookmark_view.filter"},
@@ -22,6 +24,7 @@ var builtInActionScopes = map[string][]string{
 	"bookmark_view.new":                          {"bookmark_view"},
 	"bookmark_view.page_down":                    {"bookmark_view"},
 	"bookmark_view.page_up":                      {"bookmark_view"},
+	"bookmark_view.push":                         {"bookmark_view"},
 	"bookmark_view.rename":                       {"bookmark_view"},
 	"bookmark_view.reveal":                       {"bookmark_view"},
 	"bookmark_view.reveal_in_revisions":          {"bookmark_view"},

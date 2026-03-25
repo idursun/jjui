@@ -55,10 +55,14 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Apply{}, true
 		case keybindings.Action("bookmark_view.cancel"):
 			return intents.Cancel{}, true
+		case keybindings.Action("bookmark_view.create"):
+			return intents.BookmarkViewCreate{}, true
 		case keybindings.Action("bookmark_view.delete"):
 			return intents.BookmarkViewDelete{}, true
 		case keybindings.Action("bookmark_view.edit"):
 			return intents.BookmarkViewEdit{}, true
+		case keybindings.Action("bookmark_view.fetch"):
+			return intents.BookmarkViewFetch{}, true
 		case keybindings.Action("bookmark_view.filter"):
 			return intents.BookmarkViewOpenFilter{}, true
 		case keybindings.Action("bookmark_view.forget"):
@@ -75,6 +79,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.BookmarkViewNavigate{Delta: 1, IsPage: true}, true
 		case keybindings.Action("bookmark_view.page_up"):
 			return intents.BookmarkViewNavigate{Delta: -1, IsPage: true}, true
+		case keybindings.Action("bookmark_view.push"):
+			return intents.BookmarkViewPush{}, true
 		case keybindings.Action("bookmark_view.rename"):
 			return intents.BookmarkViewRename{}, true
 		case keybindings.Action("bookmark_view.reveal"):

@@ -202,6 +202,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.syncBookmarkPaneContext()
 	case common.SelectionChangedMsg:
 		m.syncBookmarkPaneContext()
+	case common.StartSetBookmarkMsg:
+		return m.revisions.Update(intents.OpenSetBookmark{Revision: msg.Revision, ReturnFocusToBookmarkView: msg.ReturnFocusToBookmarkView})
 	case common.FocusBookmarkViewMsg:
 		if m.bookmarkVisible() {
 			m.focusBookmarkPane()
@@ -283,6 +285,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return m.showBookmarkTarget(msg.Target, msg.CommitID)
 	case bookmarkpane.BeginMoveBookmarkMsg:
 		op := bookmarkop.NewMoveBookmarkOperation(m.context, msg.Name)
+		cmds = append(cmds, common.RestoreOperation(op))
+		if m.bookmarkVisible() && m.bookmarkPaneFocused {
+			m.focusNextPane()
+		}
+		return tea.Batch(cmds...)
+	case bookmarkpane.BeginCreateBookmarkMsg:
+		op := bookmarkop.NewCreateBookmarkOperation(m.context)
 		cmds = append(cmds, common.RestoreOperation(op))
 		if m.bookmarkVisible() && m.bookmarkPaneFocused {
 			m.focusNextPane()
@@ -904,9 +913,12 @@ func (m *Model) handleBookmarkPaneIntent(intent intents.Intent) (tea.Cmd, bool) 
 		intents.BookmarkViewRename,
 		intents.BookmarkViewDelete,
 		intents.BookmarkViewForget,
+		intents.BookmarkViewCreate,
 		intents.BookmarkViewTrack,
 		intents.BookmarkViewUntrack,
 		intents.BookmarkViewMove,
+		intents.BookmarkViewPush,
+		intents.BookmarkViewFetch,
 		intents.BookmarkViewReveal,
 		intents.BookmarkViewRevealInRevisions,
 		intents.BookmarkViewToggleSelect:

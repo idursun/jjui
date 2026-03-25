@@ -22,11 +22,13 @@ var _ common.Editable = (*SetBookmarkOperation)(nil)
 var _ dispatch.ScopeProvider = (*SetBookmarkOperation)(nil)
 
 type SetBookmarkOperation struct {
-	context         *context.MainContext
-	revision        string
-	name            textinput.Model
-	suggestions     []string
-	suggestionIndex int
+	context             *context.MainContext
+	revision            string
+	name                textinput.Model
+	suggestions         []string
+	suggestionIndex     int
+	applyContinuations  []tea.Cmd
+	cancelContinuations []tea.Cmd
 }
 
 func (s *SetBookmarkOperation) IsEditing() bool {
@@ -46,9 +48,13 @@ func (s *SetBookmarkOperation) Scopes() []dispatch.Scope {
 func (s *SetBookmarkOperation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
 	case intents.Cancel:
-		return common.Close, true
+		cmds := []tea.Cmd{common.Close}
+		cmds = append(cmds, s.cancelContinuations...)
+		return tea.Sequence(cmds...), true
 	case intents.Apply:
-		return s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), common.CloseApplied, common.Refresh), true
+		continuations := []tea.Cmd{common.CloseApplied, common.Refresh}
+		continuations = append(continuations, s.applyContinuations...)
+		return s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), continuations...), true
 	case intents.AutocompleteCycle:
 		s.cycleSuggestion(intent.Reverse)
 		return nil, true
@@ -108,6 +114,19 @@ func (s *SetBookmarkOperation) Name() string {
 }
 
 func NewSetBookmarkOperation(context *context.MainContext, changeId string) *SetBookmarkOperation {
+	return newSetBookmarkOperation(context, changeId, nil, nil)
+}
+
+func NewSetBookmarkOperationWithReturnFocus(context *context.MainContext, changeId string) *SetBookmarkOperation {
+	return newSetBookmarkOperation(
+		context,
+		changeId,
+		[]tea.Cmd{common.FocusBookmarkView()},
+		[]tea.Cmd{common.FocusBookmarkView()},
+	)
+}
+
+func newSetBookmarkOperation(context *context.MainContext, changeId string, applyContinuations []tea.Cmd, cancelContinuations []tea.Cmd) *SetBookmarkOperation {
 	dimmedStyle := common.DefaultPalette.Get("revisions dimmed").Inline(true)
 	textStyle := common.DefaultPalette.Get("revisions text").Inline(true)
 	t := textinput.New()
@@ -128,9 +147,11 @@ func NewSetBookmarkOperation(context *context.MainContext, changeId string) *Set
 	t.Focus()
 
 	op := &SetBookmarkOperation{
-		name:     t,
-		revision: changeId,
-		context:  context,
+		name:                t,
+		revision:            changeId,
+		context:             context,
+		applyContinuations:  applyContinuations,
+		cancelContinuations: cancelContinuations,
 		// -1 means no active completion cycle.
 		suggestionIndex: -1,
 	}

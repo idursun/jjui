@@ -33,6 +33,8 @@ type BeginMoveBookmarkMsg struct {
 	Name string
 }
 
+type BeginCreateBookmarkMsg struct{}
+
 type rowsLoadedMsg struct {
 	tree bookmarkTree
 }
@@ -351,6 +353,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.deleteSelected(), true
 	case intents.BookmarkViewForget:
 		return m.forgetSelected(), true
+	case intents.BookmarkViewCreate:
+		return m.createSelected(), true
 	case intents.BookmarkViewTrack:
 		return m.trackSelected(), true
 	case intents.BookmarkViewUntrack:
@@ -364,6 +368,10 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.BookmarkViewToggleSelect:
 		m.toggleSelectCurrent()
 		return nil, true
+	case intents.BookmarkViewPush:
+		return m.pushSelected(), true
+	case intents.BookmarkViewFetch:
+		return m.fetchSelected(), true
 	}
 	return nil, false
 }
@@ -744,6 +752,30 @@ func (m *Model) newFromSelected() tea.Cmd {
 	return m.context.RunCommand(jj.New(jj.NewSelectedRevisions(&jj.Commit{ChangeId: target})), common.Refresh)
 }
 
+func (m *Model) pushSelected() tea.Cmd {
+	bookmark, node, ok := m.selectedBookmarkAndNode()
+	if !ok {
+		return nil
+	}
+	flags := []string{"--bookmark", bookmark.Name}
+	if node.IsRemote() && node.Remote != "" {
+		flags = append(flags, "--remote", node.Remote)
+	}
+	return m.context.RunCommand(jj.GitPush(flags...), common.Refresh)
+}
+
+func (m *Model) fetchSelected() tea.Cmd {
+	bookmark, node, ok := m.selectedBookmarkAndNode()
+	if !ok {
+		return nil
+	}
+	flags := []string{"--branch", bookmark.Name}
+	if node.IsRemote() && node.Remote != "" {
+		flags = append(flags, "--remote", node.Remote)
+	}
+	return m.context.RunCommand(jj.GitFetch(flags...), common.Refresh)
+}
+
 func (m *Model) renameSelected() tea.Cmd {
 	row, _, ok := m.selectedLocalBookmark()
 	if !ok {
@@ -751,6 +783,15 @@ func (m *Model) renameSelected() tea.Cmd {
 	}
 	m.pendingInput = pendingInputRename
 	return input.ShowWithTitle("Rename bookmark", "", row.Name)
+}
+
+func (m *Model) createSelected() tea.Cmd {
+	if _, ok := m.selectedRow(); !ok {
+		return nil
+	}
+	return func() tea.Msg {
+		return BeginCreateBookmarkMsg{}
+	}
 }
 
 func (m *Model) deleteSelected() tea.Cmd {

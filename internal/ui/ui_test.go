@@ -504,6 +504,77 @@ func Test_BookmarkViewMove_CancelRestoresFocusToBookmarkView(t *testing.T) {
 	assert.False(t, model.revisions.IsFocused())
 }
 
+func Test_BookmarkViewCreate_StartsRevisionOperationAndShiftsFocus(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nsecond;.;false;false;false;def456\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkView{}))
+	require.True(t, model.bookmarkPaneFocused)
+
+	cmd := model.bookmarkPane.Update(intents.BookmarkViewCreate{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	assert.False(t, model.bookmarkPaneFocused)
+	assert.True(t, model.revisions.IsFocused())
+	_, ok := model.revisions.CurrentOperation().(*bookmark.CreateBookmarkOperation)
+	require.True(t, ok)
+}
+
+func Test_BookmarkViewCreate_CancelRestoresFocusToBookmarkView(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nsecond;.;false;false;false;def456\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkView{}))
+	require.True(t, model.bookmarkPaneFocused)
+
+	cmd := model.bookmarkPane.Update(intents.BookmarkViewCreate{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	createOp, ok := model.revisions.CurrentOperation().(*bookmark.CreateBookmarkOperation)
+	require.True(t, ok)
+	test.SimulateModel(model, createOp.Update(intents.Cancel{}))
+
+	assert.True(t, model.bookmarkPaneFocused)
+	assert.False(t, model.revisions.IsFocused())
+}
+
+func Test_BookmarkViewCreate_ApplyStartsSetBookmarkOperation(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nsecond;.;false;false;false;def456\n"))
+	commandRunner.Expect(jj.BookmarkListMovable("abc123")).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkView{}))
+	require.True(t, model.bookmarkPaneFocused)
+
+	cmd := model.bookmarkPane.Update(intents.BookmarkViewCreate{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	createOp, ok := model.revisions.CurrentOperation().(*bookmark.CreateBookmarkOperation)
+	require.True(t, ok)
+	test.SimulateModel(model, createOp.SetSelectedRevision(&jj.Commit{ChangeId: "abc123", CommitId: "abc123"}))
+	test.SimulateModel(model, createOp.Update(intents.Apply{}))
+
+	_, ok = model.revisions.CurrentOperation().(*bookmark.SetBookmarkOperation)
+	require.True(t, ok)
+	assert.False(t, model.bookmarkPaneFocused)
+	assert.True(t, model.revisions.IsFocused())
+}
+
 // this test verifies that when `git` is activated and `status` is expanded,
 // pressing `esc` closes expanded `status`
 func Test_GitWithExpandedStatus_EscClosesStackedFirst(t *testing.T) {
