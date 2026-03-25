@@ -222,7 +222,7 @@ func Test_HandleDispatchedAction_UsesFlashScopeWhenVisible(t *testing.T) {
 
 func Test_ToggleBookmarkView_OpensFocusedPaneAndTabReturnsFocusToRevisions(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -246,7 +246,7 @@ func Test_ToggleBookmarkView_OpensFocusedPaneAndTabReturnsFocusToRevisions(t *te
 
 func Test_BookmarkViewCancel_ClosesPaneAndRestoresRevisionFocus(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -267,7 +267,7 @@ func Test_BookmarkViewCancel_ClosesPaneAndRestoresRevisionFocus(t *testing.T) {
 
 func Test_BookmarkViewReveal_FocusesRevisionsPane(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -305,7 +305,7 @@ func Test_ToggleBookmarkView_HidesPreviewAndRestoresOnClose(t *testing.T) {
 
 func Test_BookmarkViewEscDismissesFlashBeforeClosingPane(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -324,7 +324,7 @@ func Test_BookmarkViewEscDismissesFlashBeforeClosingPane(t *testing.T) {
 
 func Test_BookmarkViewEscClosesStackedInputBeforeDismissingFlash(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -348,7 +348,7 @@ func Test_BookmarkViewEscClosesStackedInputBeforeDismissingFlash(t *testing.T) {
 
 func Test_BookmarkViewEscCollapsesExpandedStatusBeforeClosingPane(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -367,7 +367,7 @@ func Test_BookmarkViewEscCollapsesExpandedStatusBeforeClosingPane(t *testing.T) 
 
 func Test_BookmarkViewClose_RestoresRevsetAfterShowInRevisions(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -406,7 +406,7 @@ func Test_PreviewShow_ClosesBookmarkPaneAndShowsPreview(t *testing.T) {
 
 func Test_BookmarkViewMove_StartsRevisionOperationAndShiftsFocus(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nsecond;.;false;false;false;def456\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -427,7 +427,7 @@ func Test_BookmarkViewMove_StartsRevisionOperationAndShiftsFocus(t *testing.T) {
 
 func Test_BookmarkViewMove_CancelRestoresFocusToBookmarkView(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nsecond;.;false;false;false;def456\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -450,7 +450,7 @@ func Test_BookmarkViewMove_CancelRestoresFocusToBookmarkView(t *testing.T) {
 
 func Test_BookmarkViewCreate_StartsRevisionOperationAndShiftsFocus(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nsecond;.;false;false;false;def456\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -471,7 +471,7 @@ func Test_BookmarkViewCreate_StartsRevisionOperationAndShiftsFocus(t *testing.T)
 
 func Test_BookmarkViewCreate_CancelRestoresFocusToBookmarkView(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nsecond;.;false;false;false;def456\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -494,8 +494,8 @@ func Test_BookmarkViewCreate_CancelRestoresFocusToBookmarkView(t *testing.T) {
 
 func Test_BookmarkViewCreate_ApplyStartsSetBookmarkOperation(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nsecond;.;false;false;false;def456\n"))
-	commandRunner.Expect(jj.BookmarkListMovable("abc123")).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
+	commandRunner.Expect(jj.BookmarkListMovable("abc123")).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)

@@ -19,7 +19,7 @@ import (
 func bookmarkListOutput(count int) string {
 	var out strings.Builder
 	for i := range count {
-		fmt.Fprintf(&out, "bookmark-%02d;.;false;false;false;commit-%02d\n", i, i)
+		fmt.Fprintf(&out, "bookmark-%02d;.;true;false;false;false;commit-%02d\n", i, i)
 	}
 	return out.String()
 }
@@ -27,7 +27,7 @@ func bookmarkListOutput(count int) string {
 func TestOpen_SortsLocalBookmarksFirstByDistanceAndSelectsClosestMoveable(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(
-		"remote-only;origin;true;false;false;ccc333\ncurrent;.;false;false;false;bbb222\nfar-local;.;false;false;false;ddd444\nnear-local;.;false;false;false;aaa111\n",
+		"remote-only;origin;true;true;false;false;ccc333\ncurrent;.;true;false;false;false;bbb222\nfar-local;.;true;false;false;false;ddd444\nnear-local;.;true;false;false;false;aaa111\n",
 	))
 	defer commandRunner.Verify()
 
@@ -52,7 +52,7 @@ func TestOpen_SortsLocalBookmarksFirstByDistanceAndSelectsClosestMoveable(t *tes
 
 func TestRenameSelected_LocalBookmarkOpensPrompt(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	defer commandRunner.Verify()
 
 	model := NewModel(test.NewTestContext(commandRunner))
@@ -68,7 +68,7 @@ func TestRenameSelected_LocalBookmarkOpensPrompt(t *testing.T) {
 
 func TestCreateSelected_ReturnsBeginCreateMessage(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	defer commandRunner.Verify()
 
 	model := NewModel(test.NewTestContext(commandRunner))
@@ -100,7 +100,7 @@ func TestCreateSelected_ReturnsBeginCreateMessageWhenNoBookmarksVisible(t *testi
 
 func TestRevealSelected_ReturnsRevealMessageWithCommitID(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	defer commandRunner.Verify()
 
 	model := NewModel(test.NewTestContext(commandRunner))
@@ -117,7 +117,7 @@ func TestRevealSelected_ReturnsRevealMessageWithCommitID(t *testing.T) {
 
 func TestRevealSelected_WhenAlreadyAtBookmark_ReturnsRevealMessage(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	defer commandRunner.Verify()
 
 	model := NewModel(test.NewTestContext(commandRunner))
@@ -194,7 +194,7 @@ func TestWindowResize_ResetsCachedPageHeightBeforeNextRender(t *testing.T) {
 
 func TestPushSelected_RunsGitPushForBookmark(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	commandRunner.Expect(jj.GitPush("--bookmark", "main"))
 	defer commandRunner.Verify()
 
@@ -209,7 +209,7 @@ func TestPushSelected_RunsGitPushForBookmark(t *testing.T) {
 
 func TestFetchSelected_RunsGitFetchForBookmark(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	commandRunner.Expect(jj.GitFetch("--branch", "main"))
 	defer commandRunner.Verify()
 
@@ -224,7 +224,7 @@ func TestFetchSelected_RunsGitFetchForBookmark(t *testing.T) {
 
 func TestPushSelected_RemoteBookmarkUsesRemote(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nmain;origin;true;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nmain;origin;true;true;false;false;abc123\n"))
 	commandRunner.Expect(jj.GitPush("--bookmark", "main", "--remote", "origin"))
 	defer commandRunner.Verify()
 
@@ -241,7 +241,7 @@ func TestPushSelected_RemoteBookmarkUsesRemote(t *testing.T) {
 
 func TestFetchSelected_RemoteBookmarkUsesRemote(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nmain;origin;true;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nmain;origin;true;true;false;false;abc123\n"))
 	commandRunner.Expect(jj.GitFetch("--branch", "main", "--remote", "origin"))
 	defer commandRunner.Verify()
 
@@ -259,7 +259,7 @@ func TestFetchSelected_RemoteBookmarkUsesRemote(t *testing.T) {
 func TestToggleExpand_ShowsRemoteChildren(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(
-		"feature;.;false;false;false;abc123\nfeature;origin;true;false;false;abc123\nfeature;upstream;false;false;false;abc123\n",
+		"feature;.;true;false;false;false;abc123\nfeature;origin;true;true;false;false;abc123\nfeature;upstream;true;false;false;false;abc123\n",
 	))
 	defer commandRunner.Verify()
 
@@ -277,9 +277,36 @@ func TestToggleExpand_ShowsRemoteChildren(t *testing.T) {
 	assert.Equal(t, "feature@origin", target)
 }
 
+func TestOpen_DeletedLocalBookmarkShowsDeletedState(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(
+		"main;.;false;false;false;false;\nmain;origin;true;true;false;false;abc123\n",
+	))
+	defer commandRunner.Verify()
+
+	model := NewModel(test.NewTestContext(commandRunner))
+	model.SetCurrentCommitID("abc123")
+	model.SetVisibleCommitIDs([]string{"abc123"})
+	test.SimulateModel(model, model.Open())
+
+	require.Len(t, model.visibleRows, 1)
+	row := model.visibleRows[0]
+	assert.Equal(t, "main", row.Node.Target())
+	assert.True(t, row.Node.Deleted)
+	assert.False(t, model.tree.Items[row.BookmarkIndex].RemoteOnly)
+
+	model.Update(intents.BookmarkViewToggleExpand{})
+	require.Len(t, model.visibleRows, 2)
+	assert.Equal(t, "main@origin", model.visibleRows[1].Node.Target())
+
+	dl := render.NewDisplayContext()
+	model.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 80, 10)))
+	assert.Contains(t, dl.RenderToString(80, 10), "deleted")
+}
+
 func TestRevealInRevisions_ReturnsMessage(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	defer commandRunner.Verify()
 
 	model := NewModel(test.NewTestContext(commandRunner))
@@ -296,7 +323,7 @@ func TestRevealInRevisions_ReturnsMessage(t *testing.T) {
 
 func TestDeleteSelected_UsesSelectedBookmarksForBatchDelete(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nfeature;.;false;false;false;def456\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nfeature;.;true;false;false;false;def456\n"))
 	commandRunner.Expect(jj.BookmarkDelete("main"))
 	commandRunner.Expect(jj.BookmarkDelete("feature"))
 	defer commandRunner.Verify()
@@ -316,7 +343,7 @@ func TestDeleteSelected_UsesSelectedBookmarksForBatchDelete(t *testing.T) {
 
 func TestForgetSelected_UsesSelectedBookmarksForBatchForget(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nfeature;.;false;false;false;def456\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nfeature;.;true;false;false;false;def456\n"))
 	commandRunner.Expect(jj.BookmarkForget("main"))
 	commandRunner.Expect(jj.BookmarkForget("feature"))
 	defer commandRunner.Verify()
@@ -336,7 +363,7 @@ func TestForgetSelected_UsesSelectedBookmarksForBatchForget(t *testing.T) {
 
 func TestTrackSelected_UsesSelectedBookmarksForBatchTrack(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;origin;false;false;false;abc123\nfeature;upstream;false;false;false;def456\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;origin;true;false;false;false;abc123\nfeature;upstream;true;false;false;false;def456\n"))
 	commandRunner.Expect(jj.BookmarkTrack("main", "origin"))
 	commandRunner.Expect(jj.BookmarkTrack("feature", "upstream"))
 	defer commandRunner.Verify()
@@ -356,7 +383,7 @@ func TestTrackSelected_UsesSelectedBookmarksForBatchTrack(t *testing.T) {
 
 func TestUntrackSelected_UsesSelectedBookmarksForBatchUntrack(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;origin;true;false;false;abc123\nfeature;upstream;true;false;false;def456\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;origin;true;true;false;false;abc123\nfeature;upstream;true;true;false;false;def456\n"))
 	commandRunner.Expect(jj.BookmarkUntrack("main", "origin"))
 	commandRunner.Expect(jj.BookmarkUntrack("feature", "upstream"))
 	defer commandRunner.Verify()
@@ -376,7 +403,7 @@ func TestUntrackSelected_UsesSelectedBookmarksForBatchUntrack(t *testing.T) {
 
 func TestMoveSelected_RemoteOnlyBookmarkShowsMessage(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("remote-only;origin;true;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("remote-only;origin;true;true;false;false;abc123\n"))
 	defer commandRunner.Verify()
 
 	model := NewModel(test.NewTestContext(commandRunner))

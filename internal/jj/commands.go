@@ -241,8 +241,7 @@ func Squash(from SelectedRevisions, destination string, files []string, keepEmpt
 }
 
 func BookmarkList(revset string) CommandArgs {
-	const template = `separate(";", name, if(remote, remote, "."), tracked, conflict, 'false', normal_target.commit_id().shortest(1)) ++ "\n"`
-	return []string{"bookmark", "list", "-a", "-r", revset, "--template", template, "--color", "never", "--ignore-working-copy"}
+	return []string{"bookmark", "list", "-a", "-r", revset, "--template", allBookmarkTemplate, "--color", "never", "--ignore-working-copy"}
 }
 
 func BookmarkListMovable(revision string) CommandArgs {
