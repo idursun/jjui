@@ -1575,7 +1575,7 @@ func Test_Update_SetBookmarkTypingDoesNotTogglePreview(t *testing.T) {
 	model := NewUI(ctx)
 	model.showPreview()
 
-	op := bookmark.NewSetBookmarkOperation(ctx, "abc123")
+	op := bookmark.NewSetBookmarkOperation(ctx, "abc123", bookmark.SetBookmarkOptions{})
 	test.SimulateModel(op, op.Init())
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	require.False(t, model.revisions.InNormalMode(), "set bookmark operation should be active")

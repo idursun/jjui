@@ -1,15 +1,28 @@
 package bookmarkpane
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func bookmarkListOutput(count int) string {
+	var out strings.Builder
+	for i := range count {
+		fmt.Fprintf(&out, "bookmark-%02d;.;false;false;false;commit-%02d\n", i, i)
+	}
+	return out.String()
+}
 
 func TestOpen_SortsLocalBookmarksFirstByDistanceAndSelectsClosestMoveable(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
@@ -117,6 +130,66 @@ func TestRevealSelected_WhenAlreadyAtBookmark_ReturnsRevealMessage(t *testing.T)
 	msg, ok := cmd().(RevealBookmarkMsg)
 	require.True(t, ok)
 	assert.Equal(t, "abc123", msg.CommitID)
+}
+
+func TestBookmarkViewPageNavigation_UsesRenderedListHeight(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(bookmarkListOutput(20)))
+	defer commandRunner.Verify()
+
+	model := NewModel(test.NewTestContext(commandRunner))
+	test.SimulateModel(model, model.Open())
+
+	dl := render.NewDisplayContext()
+	model.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 40, 10)))
+	require.Equal(t, 6, model.lastListHeight, "list height should reflect rendered viewport height")
+	require.Equal(t, 0, model.listRenderer.GetScrollOffset())
+	require.Equal(t, 0, model.listRenderer.GetFirstRowIndex())
+
+	model.Update(intents.BookmarkViewNavigate{Delta: 1, IsPage: true})
+	assert.Equal(t, 6, model.listRenderer.GetScrollOffset())
+
+	dl = render.NewDisplayContext()
+	model.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 40, 10)))
+	assert.Equal(t, 6, model.listRenderer.GetFirstRowIndex())
+	assert.Equal(t, 11, model.listRenderer.GetLastRowIndex())
+}
+
+func TestOpen_ResetsCachedPageHeightBeforeFirstRender(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(bookmarkListOutput(20)))
+	defer commandRunner.Verify()
+
+	model := NewModel(test.NewTestContext(commandRunner))
+	test.SimulateModel(model, model.Open())
+	model.ViewRect(render.NewDisplayContext(), layout.NewBox(layout.Rect(0, 0, 40, 10)))
+	require.Equal(t, 6, model.lastListHeight)
+
+	model.Close()
+	require.Zero(t, model.lastListHeight)
+
+	model.Open()
+	require.Zero(t, model.lastListHeight)
+
+	model.Update(intents.BookmarkViewNavigate{Delta: 1, IsPage: true})
+	assert.Equal(t, 8, model.listRenderer.GetScrollOffset(), "page navigation should fall back safely before the next render")
+}
+
+func TestWindowResize_ResetsCachedPageHeightBeforeNextRender(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(bookmarkListOutput(20)))
+	defer commandRunner.Verify()
+
+	model := NewModel(test.NewTestContext(commandRunner))
+	test.SimulateModel(model, model.Open())
+	model.ViewRect(render.NewDisplayContext(), layout.NewBox(layout.Rect(0, 0, 40, 10)))
+	require.Equal(t, 6, model.lastListHeight)
+
+	model.Update(tea.WindowSizeMsg{Width: 80, Height: 40})
+	require.Zero(t, model.lastListHeight)
+
+	model.Update(intents.BookmarkViewNavigate{Delta: 1, IsPage: true})
+	assert.Equal(t, 8, model.listRenderer.GetScrollOffset(), "page navigation should not use stale rendered height after resize-before-render")
 }
 
 func TestPushSelected_RunsGitPushForBookmark(t *testing.T) {

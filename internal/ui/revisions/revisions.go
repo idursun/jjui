@@ -686,10 +686,9 @@ func (m *Model) startBookmarkSet(intent intents.OpenSetBookmark) tea.Cmd {
 		}
 		revision = rev.GetChangeId()
 	}
-	if intent.ReturnFocusToBookmarkView {
-		return m.setBaseOperation(bookmark.NewSetBookmarkOperationWithReturnFocus(m.context, revision))
-	}
-	return m.setBaseOperation(bookmark.NewSetBookmarkOperation(m.context, revision))
+	return m.setBaseOperation(bookmark.NewSetBookmarkOperation(m.context, revision, bookmark.SetBookmarkOptions{
+		ReturnFocusToBookmarkView: intent.ReturnFocusToBookmarkView,
+	}))
 }
 
 func (m *Model) refresh(intent intents.Refresh) tea.Cmd {

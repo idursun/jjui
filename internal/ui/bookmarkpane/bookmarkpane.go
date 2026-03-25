@@ -102,6 +102,7 @@ type Model struct {
 	cursor               int
 	selected             map[string]bool
 	listRenderer         *render.ListRenderer
+	lastListHeight       int
 	ensureCursorVisible  bool
 	filterInput          textinput.Model
 	filterState          filterState
@@ -207,6 +208,7 @@ func (m *Model) Open() tea.Cmd {
 	m.pendingSelectionHint = ""
 	m.selectionMode = selectionResetTop
 	m.cursor = 0
+	m.lastListHeight = 0
 	m.ensureCursorVisible = true
 	m.listRenderer.StartLine = 0
 	return m.loadRows
@@ -216,6 +218,7 @@ func (m *Model) Close() {
 	m.visible = false
 	m.focused = false
 	m.pendingInput = pendingInputNone
+	m.lastListHeight = 0
 	if m.filterState == filterEditing {
 		m.filterInput.Blur()
 		m.filterState = filterApplied
@@ -277,6 +280,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.selectionMode = selectionPreserve
 			return m.loadRows
 		}
+		return nil
+	case tea.WindowSizeMsg:
+		m.lastListHeight = 0
 		return nil
 	case intents.Intent:
 		cmd, _ := m.HandleIntent(msg)
@@ -426,6 +432,7 @@ func (m *Model) renderList(dl *render.DisplayContext, box layout.Box) {
 	if box.R.Dx() <= 0 || box.R.Dy() <= 0 {
 		return
 	}
+	m.lastListHeight = box.R.Dy()
 	m.listRenderer.Render(
 		dl,
 		box,
@@ -566,7 +573,12 @@ func (m *Model) loadRows() tea.Msg {
 	return rowsLoadedMsg{tree: loadBookmarkTree(string(output), m.expanded, m.currentCommitID, m.visibleCommitIDs)}
 }
 
-func (m *Model) visibleHeight() int { return 8 }
+func (m *Model) visibleHeight() int {
+	if m.lastListHeight > 0 {
+		return m.lastListHeight
+	}
+	return 8
+}
 
 func (m *Model) selectedRow() (visibleRow, bool) {
 	if m.cursor < 0 || m.cursor >= len(m.visibleRows) {
