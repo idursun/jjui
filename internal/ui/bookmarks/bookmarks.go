@@ -241,7 +241,7 @@ func (m *Model) loadMovables() tea.Msg {
 	var bookmarkItems []item
 	bookmarks := jj.ParseBookmarkListOutput(string(output))
 	for _, b := range bookmarks {
-		if !b.Conflict && b.CommitId == m.current.CommitId {
+		if !b.Conflict && b.BestCommitID() == m.current.CommitId {
 			continue
 		}
 
@@ -258,7 +258,7 @@ func (m *Model) loadMovables() tea.Msg {
 			name:     name,
 			priority: moveCommand,
 			args:     jj.BookmarkMove(m.current.GetChangeId(), b.Name, extraFlags...),
-			dist:     m.distance(b.CommitId),
+			dist:     m.distance(b.BestCommitID()),
 		}
 		if b.Name == "main" || b.Name == "master" {
 			elem.key = "m"
@@ -276,7 +276,7 @@ func (m *Model) loadAll() tea.Msg {
 
 		items := make([]item, 0)
 		for _, b := range bookmarks {
-			distance := m.distance(b.CommitId)
+			distance := m.distance(b.BestCommitID())
 			if b.IsDeletable() {
 				items = append(items, item{
 					name:     fmt.Sprintf("delete '%s'", b.Name),

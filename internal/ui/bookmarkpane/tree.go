@@ -21,6 +21,7 @@ type bookmarkRefNode struct {
 	Remote   string
 	Tracked  bool
 	Conflict bool
+	Deleted  bool
 	CommitID string
 }
 
@@ -55,7 +56,13 @@ func (i bookmarkTreeItem) primaryNode() bookmarkRefNode {
 }
 
 func (i bookmarkTreeItem) commitID() string {
-	return i.primaryNode().CommitID
+	if i.Local != nil && i.Local.CommitID != "" {
+		return i.Local.CommitID
+	}
+	if len(i.Remotes) > 0 {
+		return i.Remotes[0].CommitID
+	}
+	return ""
 }
 
 type bookmarkTree struct {
@@ -82,12 +89,17 @@ func loadBookmarkTree(output string, expanded map[string]bool, currentCommitID s
 			RemoteOnly: bookmark.Local == nil,
 		}
 		if bookmark.Local != nil {
+			commitID := bookmark.Local.CommitId
+			if commitID == "" {
+				commitID = bookmark.BestCommitID()
+			}
 			item.Local = &bookmarkRefNode{
 				Kind:     refKindLocal,
 				Name:     bookmark.Name,
 				Tracked:  bookmark.Local.Tracked,
 				Conflict: bookmark.Conflict,
-				CommitID: bookmark.Local.CommitId,
+				Deleted:  bookmark.IsDeleted(),
+				CommitID: commitID,
 			}
 		}
 		for _, remote := range bookmark.Remotes {
@@ -97,6 +109,7 @@ func loadBookmarkTree(output string, expanded map[string]bool, currentCommitID s
 				Remote:   remote.Remote,
 				Tracked:  remote.Tracked,
 				Conflict: bookmark.Conflict,
+				Deleted:  !remote.Present,
 				CommitID: remote.CommitId,
 			})
 		}
@@ -164,6 +177,9 @@ func nodeMatches(node bookmarkRefNode, filterText string) bool {
 		return true
 	}
 	haystacks := []string{node.Name, node.Target(), node.CommitID}
+	if node.Deleted {
+		haystacks = append(haystacks, "deleted")
+	}
 	if node.IsRemote() {
 		haystacks = append(haystacks, node.Remote)
 	}
@@ -186,10 +202,14 @@ func compareBookmarkTreeItems(a, b bookmarkTreeItem, distanceMap map[string]int)
 }
 
 func bookmarkSortRank(item bookmarkTreeItem) int {
-	if item.Local == nil {
+	switch {
+	case item.Local != nil && !item.Local.Deleted:
+		return 0
+	case item.Local != nil && item.Local.Deleted:
 		return 1
+	default:
+		return 2
 	}
-	return 0
 }
 
 func bookmarkDistance(distanceMap map[string]int, commitID string) int {

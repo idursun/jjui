@@ -75,9 +75,11 @@ func TestHistorySource(t *testing.T) {
 
 func TestBookmarkSource(t *testing.T) {
 	mockRunner := func(args []string) ([]byte, error) {
-		return []byte(`main;.;false;false;false;abc123
-main;origin;true;false;false;abc123
-feature;.;false;false;false;def456
+		return []byte(`main;.;true;false;false;false;abc123
+main;origin;true;true;false;false;abc123
+deleted;.;false;false;false;false;
+deleted;origin;true;true;false;false;999999
+feature;.;true;false;false;false;def456
 `), nil
 	}
 
@@ -93,6 +95,8 @@ feature;.;false;false;false;def456
 	assert.Contains(t, names, "main")
 	assert.Contains(t, names, "main@origin")
 	assert.Contains(t, names, "feature")
+	assert.NotContains(t, names, "deleted")
+	assert.Contains(t, names, "deleted@origin")
 }
 
 func TestSourceFetchError(t *testing.T) {

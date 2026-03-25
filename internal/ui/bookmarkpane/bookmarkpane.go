@@ -85,6 +85,7 @@ type styles struct {
 	remoteBadge     lipgloss.Style
 	remoteNameBadge lipgloss.Style
 	trackedBadge    lipgloss.Style
+	deleted         lipgloss.Style
 	conflict        lipgloss.Style
 	filterPrompt    lipgloss.Style
 	childGuide      lipgloss.Style
@@ -152,6 +153,7 @@ func NewModel(c *context.MainContext) *Model {
 		remoteBadge:     palette.Get("picker dimmed"),
 		remoteNameBadge: palette.Get("picker matched"),
 		trackedBadge:    palette.Get("status text"),
+		deleted:         palette.Get("deleted"),
 		conflict:        palette.Get("error"),
 		filterPrompt:    palette.Get("picker matched"),
 		childGuide:      palette.Get("picker dimmed"),
@@ -266,7 +268,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.pendingInput = pendingInputNone
 			value := strings.TrimSpace(msg.Value)
 			selected, ok := m.selectedBookmark()
-			if !ok || value == "" || value == selected.Name || selected.Local == nil {
+			if !ok || value == "" || value == selected.Name || selected.Local == nil || selected.Local.Deleted {
 				return nil
 			}
 			m.pendingSelectionHint = value
@@ -490,6 +492,9 @@ func (m *Model) renderTopLevelRow(tb *render.TextBuilder, row visibleRow, group 
 	if group.RemoteOnly {
 		label = " remote "
 		style = m.styles.remoteBadge
+	} else if row.Node.Deleted {
+		label = " deleted "
+		style = m.styles.deleted
 	}
 
 	prefix := "  "
@@ -522,6 +527,9 @@ func (m *Model) renderTopLevelRemotes(tb *render.TextBuilder, remotes []bookmark
 func (m *Model) renderRowMetadata(tb *render.TextBuilder, node bookmarkRefNode) {
 	if node.Tracked {
 		tb.Styled(" ", m.styles.text).Styled("tracked", m.styles.trackedBadge)
+	}
+	if node.Deleted {
+		tb.Styled(" ", m.styles.text).Styled("deleted", m.styles.deleted)
 	}
 	if node.Conflict {
 		tb.Styled(" ", m.styles.text).Styled("conflict", m.styles.conflict)
@@ -613,7 +621,7 @@ func (m *Model) selectedNode() (bookmarkRefNode, bool) {
 
 func (m *Model) selectedLocalBookmark() (bookmarkTreeItem, bookmarkRefNode, bool) {
 	bookmark, node, ok := m.selectedBookmarkAndNode()
-	if !ok || node.IsRemote() || bookmark.Local == nil {
+	if !ok || node.IsRemote() || bookmark.Local == nil || bookmark.Local.Deleted {
 		return bookmarkTreeItem{}, bookmarkRefNode{}, false
 	}
 	return bookmark, node, true
@@ -891,7 +899,7 @@ func (m *Model) moveSelected() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	if row.Local == nil {
+	if row.Local == nil || row.Local.Deleted {
 		return intents.Invoke(intents.AddMessage{Text: fmt.Sprintf("No local bookmark for %s", row.Name)})
 	}
 	if selected.IsRemote() {
