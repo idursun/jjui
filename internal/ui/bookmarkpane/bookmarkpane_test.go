@@ -53,6 +53,22 @@ func TestRenameSelected_LocalBookmarkOpensPrompt(t *testing.T) {
 	assert.Equal(t, "main", showInput.InitialValue)
 }
 
+func TestCreateSelected_ReturnsBeginCreateMessage(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	model := NewModel(test.NewTestContext(commandRunner))
+	model.SetCurrentCommitID("dest123")
+	test.SimulateModel(model, model.Open())
+
+	cmd := model.Update(intents.BookmarkViewCreate{})
+	require.NotNil(t, cmd)
+	msg, ok := cmd().(BeginCreateBookmarkMsg)
+	require.True(t, ok)
+	assert.Equal(t, BeginCreateBookmarkMsg{}, msg)
+}
+
 func TestRevealSelected_ReturnsRevealMessageWithCommitID(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
@@ -85,6 +101,70 @@ func TestRevealSelected_WhenAlreadyAtBookmark_ReturnsRevealMessage(t *testing.T)
 	msg, ok := cmd().(RevealBookmarkMsg)
 	require.True(t, ok)
 	assert.Equal(t, "abc123", msg.CommitID)
+}
+
+func TestPushSelected_RunsGitPushForBookmark(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.GitPush("--bookmark", "main"))
+	defer commandRunner.Verify()
+
+	model := NewModel(test.NewTestContext(commandRunner))
+	model.SetCurrentCommitID("dest123")
+	test.SimulateModel(model, model.Open())
+
+	cmd := model.Update(intents.BookmarkViewPush{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+}
+
+func TestFetchSelected_RunsGitFetchForBookmark(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.GitFetch("--branch", "main"))
+	defer commandRunner.Verify()
+
+	model := NewModel(test.NewTestContext(commandRunner))
+	model.SetCurrentCommitID("dest123")
+	test.SimulateModel(model, model.Open())
+
+	cmd := model.Update(intents.BookmarkViewFetch{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+}
+
+func TestPushSelected_RemoteBookmarkUsesRemote(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nmain;origin;true;false;false;abc123\n"))
+	commandRunner.Expect(jj.GitPush("--bookmark", "main", "--remote", "origin"))
+	defer commandRunner.Verify()
+
+	model := NewModel(test.NewTestContext(commandRunner))
+	model.SetCurrentCommitID("dest123")
+	test.SimulateModel(model, model.Open())
+	model.Update(intents.BookmarkViewToggleExpand{})
+	model.Update(intents.BookmarkViewNavigate{Delta: 1})
+
+	cmd := model.Update(intents.BookmarkViewPush{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+}
+
+func TestFetchSelected_RemoteBookmarkUsesRemote(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;false;false;false;abc123\nmain;origin;true;false;false;abc123\n"))
+	commandRunner.Expect(jj.GitFetch("--branch", "main", "--remote", "origin"))
+	defer commandRunner.Verify()
+
+	model := NewModel(test.NewTestContext(commandRunner))
+	model.SetCurrentCommitID("dest123")
+	test.SimulateModel(model, model.Open())
+	model.Update(intents.BookmarkViewToggleExpand{})
+	model.Update(intents.BookmarkViewNavigate{Delta: 1})
+
+	cmd := model.Update(intents.BookmarkViewFetch{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
 }
 
 func TestToggleExpand_ShowsRemoteChildren(t *testing.T) {
