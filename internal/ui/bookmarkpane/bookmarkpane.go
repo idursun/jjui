@@ -763,9 +763,6 @@ func (m *Model) renameSelected() tea.Cmd {
 }
 
 func (m *Model) createSelected() tea.Cmd {
-	if _, ok := m.selectedRow(); !ok {
-		return nil
-	}
 	return func() tea.Msg {
 		return BeginCreateBookmarkMsg{}
 	}
