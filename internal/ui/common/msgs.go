@@ -78,6 +78,10 @@ type (
 	RestoreOperationMsg struct {
 		Operation any
 	}
+	StartSetBookmarkMsg struct {
+		Revision                  string
+		ReturnFocusToBookmarkView bool
+	}
 	FocusBookmarkViewMsg struct{}
 	StartAceJumpMsg      struct{}
 )

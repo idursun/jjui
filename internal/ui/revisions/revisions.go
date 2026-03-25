@@ -446,7 +446,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.OpenSetParents:
 		return m.startSetParents(intent)
 	case intents.OpenSetBookmark:
-		return m.startBookmarkSet()
+		return m.startBookmarkSet(intent)
 	case intents.RevisionsToggleSelect:
 		commit := m.rows[m.cursor].Commit
 		changeId := commit.GetChangeId()
@@ -493,12 +493,20 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	return nil
 }
 
-func (m *Model) startBookmarkSet() tea.Cmd {
-	rev := m.SelectedRevision()
-	if rev == nil {
-		return nil
+func (m *Model) startBookmarkSet(intent intents.OpenSetBookmark) tea.Cmd {
+	revision := intent.Revision
+	if revision == "" {
+		rev := m.SelectedRevision()
+		if rev == nil {
+			return nil
+		}
+		revision = rev.GetChangeId()
 	}
-	m.op = bookmark.NewSetBookmarkOperation(m.context, rev.GetChangeId())
+	if intent.ReturnFocusToBookmarkView {
+		m.op = bookmark.NewSetBookmarkOperationWithReturnFocus(m.context, revision)
+	} else {
+		m.op = bookmark.NewSetBookmarkOperation(m.context, revision)
+	}
 	return m.op.Init()
 }
 

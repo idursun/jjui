@@ -88,7 +88,10 @@ type OpenGit struct{}
 func (OpenGit) isIntent() {}
 
 //jjui:bind scope=revisions action=open_set_bookmark
-type OpenSetBookmark struct{}
+type OpenSetBookmark struct {
+	Revision                  string
+	ReturnFocusToBookmarkView bool
+}
 
 func (OpenSetBookmark) isIntent() {}
 
@@ -218,6 +221,21 @@ func (BookmarkViewMove) isIntent() {}
 type BookmarkViewToggleSelect struct{}
 
 func (BookmarkViewToggleSelect) isIntent() {}
+
+//jjui:bind scope=bookmark_view action=create
+type BookmarkViewCreate struct{}
+
+func (BookmarkViewCreate) isIntent() {}
+
+//jjui:bind scope=bookmark_view action=push
+type BookmarkViewPush struct{}
+
+func (BookmarkViewPush) isIntent() {}
+
+//jjui:bind scope=bookmark_view action=fetch
+type BookmarkViewFetch struct{}
+
+func (BookmarkViewFetch) isIntent() {}
 
 type GitFilterKind string
 
