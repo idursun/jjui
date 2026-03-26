@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -234,18 +235,61 @@ func LoadTheme(name string, base map[string]Color) (map[string]Color, error) {
 	return loadTheme(data, base)
 }
 
-func SetupLuaTypes() error {
+type LuaTypesInstallResult struct {
+	TypesPath    string
+	LuaRCPath    string
+	LuaRCCreated bool
+}
+
+func SetupLuaTypes() (*LuaTypesInstallResult, error) {
 	configDir := GetConfigDir()
 	if configDir == "" {
-		return fmt.Errorf("could not determine config directory")
+		return nil, fmt.Errorf("could not determine config directory")
 	}
 	data, err := configFS.ReadFile("default/types.lua")
 	if err != nil {
-		return fmt.Errorf("embedded types.lua not found: %w", err)
+		return nil, fmt.Errorf("embedded types.lua not found: %w", err)
 	}
 	dest := filepath.Join(configDir, "types.lua")
 	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		return err
+		return nil, err
 	}
-	return os.WriteFile(dest, data, 0o644)
+	if err := os.WriteFile(dest, data, 0o644); err != nil {
+		return nil, err
+	}
+
+	luaRCPath := filepath.Join(configDir, ".luarc.json")
+	created, err := ensureLuaRC(luaRCPath, dest)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LuaTypesInstallResult{
+		TypesPath:    dest,
+		LuaRCPath:    luaRCPath,
+		LuaRCCreated: created,
+	}, nil
+}
+
+func ensureLuaRC(luaRCPath, typesPath string) (bool, error) {
+	if _, err := os.Stat(luaRCPath); err == nil {
+		return false, nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return false, err
+	}
+
+	content, err := json.MarshalIndent(map[string]any{
+		"workspace": map[string]any{
+			"library": []string{typesPath},
+		},
+	}, "", "  ")
+	if err != nil {
+		return false, err
+	}
+	content = append(content, '\n')
+
+	if err := os.WriteFile(luaRCPath, content, 0o644); err != nil {
+		return false, err
+	}
+	return true, nil
 }
