@@ -17,8 +17,8 @@ const (
 	ZRevsetOverlay = 15
 
 	// ZDialogs is for dialogs (undo/redo confirmation, input fields)
-	// that should appear above the preview panel
-	ZDialogs = 50
+	// that should appear above menus and the preview panel
+	ZDialogs = 150
 
 	// ZMenuBorder is for menu borders (git, bookmarks, choose, custom_commands)
 	ZMenuBorder = 100
