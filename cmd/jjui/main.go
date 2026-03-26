@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"log"
 	"os"
-	"path/filepath"
 	"os/exec"
 	"path/filepath"
 	"runtime/debug"
@@ -42,13 +41,13 @@ func getVersion() string {
 }
 
 var (
-	revset     string
-	period     int
-	limit      int
-	version    bool
-	editConfig bool
+	revset          string
+	period          int
+	limit           int
+	version         bool
+	editConfig      bool
 	installLuaTypes bool
-	help       bool
+	help            bool
 )
 
 func init() {
@@ -103,11 +102,17 @@ func run() int {
 		fmt.Println(getVersion())
 		return 0
 	case installLuaTypes:
-		if err := config.SetupLuaTypes(); err != nil {
+		result, err := config.SetupLuaTypes()
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			return 1
 		}
-		fmt.Printf("Lua type definitions written to %s\n", filepath.Join(config.GetConfigDir(), "types.lua"))
+		fmt.Printf("Lua type definitions written to %s\n", result.TypesPath)
+		if result.LuaRCCreated {
+			fmt.Printf("LuaLS config written to %s\n", result.LuaRCPath)
+		} else {
+			fmt.Printf("LuaLS config already exists at %s; leaving it unchanged\n", result.LuaRCPath)
+		}
 		return 0
 	case editConfig:
 		return config.Edit()
