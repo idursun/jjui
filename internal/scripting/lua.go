@@ -322,7 +322,8 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		return 2
 	})
 	execShellFn := L.NewFunction(func(L *lua.LState) int {
-		command := L.CheckString(1)
+		args := argsFromLua(L)
+		command := strings.Join(args, " ")
 		msg := common.ExecMsg{
 			Line: command,
 			Mode: common.ExecShell,
