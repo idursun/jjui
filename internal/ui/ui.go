@@ -394,10 +394,7 @@ func (m *Model) statusMode() string {
 
 	switch {
 	case m.bookmarkVisible() && m.bookmarkPaneFocused:
-		if m.bookmarkEditing() {
-			return actions.ScopeBookmarkViewFilter
-		}
-		return actions.ScopeBookmarkView
+		return string(m.bookmarkPane.ScopeName())
 	case m.diff != nil:
 		return "diff"
 	case m.oplog != nil:
@@ -727,14 +724,9 @@ func (m *Model) bookmarkPaneScopes() []dispatch.Scope {
 		return nil
 	}
 
-	name := actions.ScopeBookmarkView
-	if m.bookmarkEditing() {
-		name = actions.ScopeBookmarkViewFilter
-	}
-
 	return []dispatch.Scope{
 		{
-			Name:    keybindings.ScopeName(name),
+			Name:    m.bookmarkPane.ScopeName(),
 			Leak:    dispatch.LeakNone,
 			Handler: m,
 		},
@@ -749,6 +741,7 @@ func (m *Model) handleBookmarkPaneIntent(intent intents.Intent) (tea.Cmd, bool) 
 	switch intent.(type) {
 	case intents.Apply,
 		intents.Cancel,
+		intents.OptionSelect,
 		intents.BookmarkViewNavigate,
 		intents.BookmarkViewOpenFilter,
 		intents.BookmarkViewToggleExpand,

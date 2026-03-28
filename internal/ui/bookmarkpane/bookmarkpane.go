@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -12,6 +13,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/input"
@@ -112,6 +114,8 @@ type Model struct {
 	pendingSelectionHint string
 	selectionMode        rowSelectionMode
 	styles               styles
+	confirmation         *confirmation.Model
+	confirmationAnchor   string
 }
 
 var (
@@ -128,14 +132,9 @@ func (m *Model) Scopes() []dispatch.Scope {
 		return nil
 	}
 
-	scopeName := actions.ScopeBookmarkView
-	if m.filterState == filterEditing {
-		scopeName = actions.ScopeBookmarkViewFilter
-	}
-
 	return []dispatch.Scope{
 		{
-			Name:    keybindings.ScopeName(scopeName),
+			Name:    m.ScopeName(),
 			Leak:    dispatch.LeakNone,
 			Handler: m,
 		},
@@ -185,7 +184,18 @@ func (m *Model) Visible() bool { return m.visible }
 
 func (m *Model) IsFocused() bool { return m.focused }
 
-func (m *Model) IsEditing() bool { return m.filterState == filterEditing }
+func (m *Model) IsEditing() bool { return m.filterState == filterEditing || m.confirmation != nil }
+
+func (m *Model) ScopeName() keybindings.ScopeName {
+	switch {
+	case m.confirmation != nil:
+		return keybindings.ScopeName(actions.ScopeBookmarkViewConfirmation)
+	case m.filterState == filterEditing:
+		return keybindings.ScopeName(actions.ScopeBookmarkViewFilter)
+	default:
+		return keybindings.ScopeName(actions.ScopeBookmarkView)
+	}
+}
 
 func (m *Model) SetCurrentCommitID(commitID string) {
 	m.currentCommitID = commitID
@@ -207,6 +217,8 @@ func (m *Model) SetFocused(focused bool) {
 func (m *Model) Open() tea.Cmd {
 	m.visible = true
 	m.focused = true
+	m.confirmation = nil
+	m.confirmationAnchor = ""
 	m.pendingSelectionHint = ""
 	m.selectionMode = selectionResetTop
 	m.cursor = 0
@@ -219,6 +231,8 @@ func (m *Model) Open() tea.Cmd {
 func (m *Model) Close() {
 	m.visible = false
 	m.focused = false
+	m.confirmation = nil
+	m.confirmationAnchor = ""
 	m.pendingInput = pendingInputNone
 	m.lastListHeight = 0
 	if m.filterState == filterEditing {
@@ -234,6 +248,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	}
 
 	switch msg := msg.(type) {
+	case confirmation.CloseMsg:
+		m.confirmation = nil
+		m.confirmationAnchor = ""
+		return nil
+	case confirmation.SelectOptionMsg:
+		if m.confirmation != nil {
+			return m.confirmation.Update(msg)
+		}
+		return nil
 	case rowsLoadedMsg:
 		previousTarget, hadSelection := m.selectedTarget()
 		m.tree = msg.tree
@@ -248,6 +271,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.selectionMode = selectionPreserve
 		return nil
 	case itemClickedMsg:
+		if m.confirmation != nil {
+			return nil
+		}
 		if msg.index >= 0 && msg.index < len(m.visibleRows) {
 			m.cursor = msg.index
 			m.ensureCursorVisible = true
@@ -290,6 +316,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		cmd, _ := m.HandleIntent(msg)
 		return cmd
 	case tea.KeyMsg:
+		if m.confirmation != nil {
+			return m.confirmation.Update(msg)
+		}
 		if m.filterState == filterEditing {
 			updated, cmd := m.filterInput.Update(msg)
 			changed := updated.Value() != m.filterInput.Value()
@@ -305,6 +334,43 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
+	case intents.Apply:
+		if m.confirmation != nil {
+			return m.confirmation.Update(intent), true
+		}
+		if m.filterState == filterEditing {
+			m.filterState = filterApplied
+			m.filterText = strings.TrimSpace(m.filterInput.Value())
+			m.filterInput.Blur()
+			m.applyFilters(true)
+			return nil, true
+		}
+		return m.revealSelected(), true
+	case intents.Cancel:
+		if m.confirmation != nil {
+			return m.confirmation.Update(intent), true
+		}
+		if m.filterState == filterEditing {
+			m.filterInput.SetValue("")
+			m.filterText = ""
+			m.filterState = filterOff
+			m.filterInput.Blur()
+			m.applyFilters(true)
+			return nil, true
+		}
+		if m.currentFilterText() != "" {
+			m.filterInput.SetValue("")
+			m.filterText = ""
+			m.filterState = filterOff
+			m.applyFilters(true)
+			return nil, true
+		}
+		return common.Close, true
+	case intents.OptionSelect:
+		if m.confirmation != nil {
+			return m.confirmation.Update(intent), true
+		}
+		return nil, false
 	case intents.BookmarkViewNavigate:
 		if intent.IsPage {
 			height := max(1, m.visibleHeight())
@@ -325,32 +391,6 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.BookmarkViewToggleExpand:
 		m.toggleExpandSelected()
 		return nil, true
-	case intents.Apply:
-		if m.filterState == filterEditing {
-			m.filterState = filterApplied
-			m.filterText = strings.TrimSpace(m.filterInput.Value())
-			m.filterInput.Blur()
-			m.applyFilters(true)
-			return nil, true
-		}
-		return m.revealSelected(), true
-	case intents.Cancel:
-		if m.filterState == filterEditing {
-			m.filterInput.SetValue("")
-			m.filterText = ""
-			m.filterState = filterOff
-			m.filterInput.Blur()
-			m.applyFilters(true)
-			return nil, true
-		}
-		if m.currentFilterText() != "" {
-			m.filterInput.SetValue("")
-			m.filterText = ""
-			m.filterState = filterOff
-			m.applyFilters(true)
-			return nil, true
-		}
-		return common.Close, true
 	case intents.BookmarkViewEdit:
 		return m.editSelected(), true
 	case intents.BookmarkViewNew:
@@ -403,6 +443,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.renderFilter(dl, filterBox)
 	_, listBox = listBox.CutTop(1)
 	m.renderList(dl, listBox)
+	if m.confirmation != nil {
+		m.renderConfirmation(dl, listBox)
+	}
 }
 
 func (m *Model) renderTitle(dl *render.DisplayContext, box layout.Box) {
@@ -435,6 +478,9 @@ func (m *Model) renderList(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 	m.lastListHeight = box.R.Dy()
+	if m.confirmation != nil {
+		m.ensureConfirmationVisible(box.R.Dy())
+	}
 	m.listRenderer.Render(
 		dl,
 		box,
@@ -449,6 +495,17 @@ func (m *Model) renderList(dl *render.DisplayContext, box layout.Box) {
 	)
 	m.listRenderer.RegisterScroll(dl, box)
 	m.ensureCursorVisible = false
+}
+
+func (m *Model) renderConfirmation(dl *render.DisplayContext, box layout.Box) {
+	if box.R.Dx() <= 0 || box.R.Dy() <= 0 || m.confirmation == nil {
+		return
+	}
+	rect, ok := m.confirmationRect(box)
+	if !ok {
+		return
+	}
+	m.confirmation.ViewRect(dl, layout.Box{R: rect})
 }
 
 func (m *Model) renderListRow(dl *render.DisplayContext, index int, rect layout.Rectangle) {
@@ -555,6 +612,69 @@ func (m *Model) moveCursor(delta int) {
 		m.cursor = next
 		m.ensureCursorVisible = true
 	}
+}
+
+func (m *Model) confirmationHeight() int {
+	if m.confirmation == nil {
+		return 0
+	}
+	return lipgloss.Height(m.confirmation.View())
+}
+
+func (m *Model) confirmationAnchorIndex() int {
+	if m.confirmationAnchor == "" {
+		if m.cursor >= 0 && m.cursor < len(m.visibleRows) {
+			return m.cursor
+		}
+		return -1
+	}
+	for i, row := range m.visibleRows {
+		if row.Node.Target() == m.confirmationAnchor {
+			return i
+		}
+	}
+	return -1
+}
+
+func (m *Model) ensureConfirmationVisible(viewHeight int) {
+	if m.confirmation == nil || viewHeight <= 0 {
+		return
+	}
+	index := m.confirmationAnchorIndex()
+	if index < 0 {
+		return
+	}
+	start := m.listRenderer.StartLine
+	rowStart := index
+	rowEnd := rowStart + 1
+	requiredEnd := rowEnd + m.confirmationHeight()
+
+	if rowStart < start {
+		start = rowStart
+	}
+	if requiredEnd > start+viewHeight {
+		start = requiredEnd - viewHeight
+	}
+	m.listRenderer.StartLine = render.ClampStartLine(start, viewHeight, len(m.visibleRows))
+}
+
+func (m *Model) confirmationRect(box layout.Box) (layout.Rectangle, bool) {
+	index := m.confirmationAnchorIndex()
+	height := m.confirmationHeight()
+	if index < 0 || height <= 0 {
+		return layout.Rectangle{}, false
+	}
+
+	top := box.R.Min.Y + index + 1 - m.listRenderer.StartLine
+	if top < box.R.Min.Y || top >= box.R.Max.Y {
+		return layout.Rectangle{}, false
+	}
+
+	visibleHeight := min(height, box.R.Max.Y-top)
+	if visibleHeight <= 0 {
+		return layout.Rectangle{}, false
+	}
+	return layout.Rect(box.R.Min.X, top, box.R.Dx(), visibleHeight), true
 }
 
 func (m *Model) currentFilterText() string {
@@ -761,7 +881,10 @@ func (m *Model) editSelected() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	return m.context.RunCommand(jj.Edit(target, false), common.Refresh)
+	return m.openConfirmation(
+		[]string{fmt.Sprintf("Are you sure you want to edit %s?", target)},
+		m.context.RunCommand(jj.Edit(target, false), common.Refresh),
+	)
 }
 
 func (m *Model) newFromSelected() tea.Cmd {
@@ -769,7 +892,10 @@ func (m *Model) newFromSelected() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	return m.context.RunCommand(jj.New(jj.NewSelectedRevisions(&jj.Commit{ChangeId: target})), common.Refresh)
+	return m.openConfirmation(
+		[]string{fmt.Sprintf("Are you sure you want to create a new change from %s?", target)},
+		m.context.RunCommand(jj.New(jj.NewSelectedRevisions(&jj.Commit{ChangeId: target})), common.Refresh),
+	)
 }
 
 func (m *Model) pushSelected() tea.Cmd {
@@ -781,7 +907,10 @@ func (m *Model) pushSelected() tea.Cmd {
 	if node.IsRemote() && node.Remote != "" {
 		flags = append(flags, "--remote", node.Remote)
 	}
-	return m.context.RunCommand(jj.GitPush(flags...), common.Refresh)
+	return m.openConfirmation(
+		[]string{fmt.Sprintf("Are you sure you want to push %s?", node.Target())},
+		m.context.RunCommand(jj.GitPush(flags...), common.Refresh),
+	)
 }
 
 func (m *Model) fetchSelected() tea.Cmd {
@@ -793,7 +922,10 @@ func (m *Model) fetchSelected() tea.Cmd {
 	if node.IsRemote() && node.Remote != "" {
 		flags = append(flags, "--remote", node.Remote)
 	}
-	return m.context.RunCommand(jj.GitFetch(flags...), common.Refresh)
+	return m.openConfirmation(
+		[]string{fmt.Sprintf("Are you sure you want to fetch %s?", node.Target())},
+		m.context.RunCommand(jj.GitFetch(flags...), common.Refresh),
+	)
 }
 
 func (m *Model) renameSelected() tea.Cmd {
@@ -812,6 +944,39 @@ func (m *Model) createSelected() tea.Cmd {
 }
 
 func (m *Model) deleteSelected() tea.Cmd {
+	return m.confirmBookmarkCommands("delete", m.deleteCommands())
+}
+
+func (m *Model) forgetSelected() tea.Cmd {
+	return m.confirmBookmarkCommands("forget", m.forgetCommands())
+}
+
+func (m *Model) trackSelected() tea.Cmd {
+	return m.confirmBookmarkCommands("track", m.trackCommands())
+}
+
+func (m *Model) untrackSelected() tea.Cmd {
+	return m.confirmBookmarkCommands("untrack", m.untrackCommands())
+}
+
+func (m *Model) moveSelected() tea.Cmd {
+	row, selected, ok := m.selectedBookmarkAndNode()
+	if !ok {
+		return nil
+	}
+	if row.Local == nil || row.Local.Deleted {
+		return intents.Invoke(intents.AddMessage{Text: fmt.Sprintf("No local bookmark for %s", row.Name)})
+	}
+	if selected.IsRemote() {
+		return nil
+	}
+	m.pendingSelectionHint = row.Name
+	return func() tea.Msg {
+		return BeginMoveBookmarkMsg{Name: row.Name}
+	}
+}
+
+func (m *Model) deleteCommands() []jj.CommandArgs {
 	var commands []jj.CommandArgs
 	seen := make(map[string]bool)
 	for _, selection := range m.selectionsForBookmarkOperation() {
@@ -821,10 +986,10 @@ func (m *Model) deleteSelected() tea.Cmd {
 		seen[selection.bookmark.Name] = true
 		commands = append(commands, jj.BookmarkDelete(selection.bookmark.Name))
 	}
-	return m.runBookmarkCommands(commands)
+	return commands
 }
 
-func (m *Model) forgetSelected() tea.Cmd {
+func (m *Model) forgetCommands() []jj.CommandArgs {
 	var commands []jj.CommandArgs
 	seen := make(map[string]bool)
 	for _, selection := range m.selectionsForBookmarkOperation() {
@@ -834,10 +999,10 @@ func (m *Model) forgetSelected() tea.Cmd {
 		seen[selection.bookmark.Name] = true
 		commands = append(commands, jj.BookmarkForget(selection.bookmark.Name))
 	}
-	return m.runBookmarkCommands(commands)
+	return commands
 }
 
-func (m *Model) trackSelected() tea.Cmd {
+func (m *Model) trackCommands() []jj.CommandArgs {
 	defaultRemote := ""
 	var commands []jj.CommandArgs
 	seen := make(map[string]bool)
@@ -865,10 +1030,10 @@ func (m *Model) trackSelected() tea.Cmd {
 		}
 		commands = append(commands, jj.BookmarkTrack(selection.bookmark.Name, defaultRemote))
 	}
-	return m.runBookmarkCommands(commands)
+	return commands
 }
 
-func (m *Model) untrackSelected() tea.Cmd {
+func (m *Model) untrackCommands() []jj.CommandArgs {
 	var commands []jj.CommandArgs
 	seen := make(map[string]bool)
 	for _, selection := range m.selectionsForBookmarkOperation() {
@@ -891,24 +1056,7 @@ func (m *Model) untrackSelected() tea.Cmd {
 			}
 		}
 	}
-	return m.runBookmarkCommands(commands)
-}
-
-func (m *Model) moveSelected() tea.Cmd {
-	row, selected, ok := m.selectedBookmarkAndNode()
-	if !ok {
-		return nil
-	}
-	if row.Local == nil || row.Local.Deleted {
-		return intents.Invoke(intents.AddMessage{Text: fmt.Sprintf("No local bookmark for %s", row.Name)})
-	}
-	if selected.IsRemote() {
-		return nil
-	}
-	m.pendingSelectionHint = row.Name
-	return func() tea.Msg {
-		return BeginMoveBookmarkMsg{Name: row.Name}
-	}
+	return commands
 }
 
 func (m *Model) defaultTrackRemote() string {
@@ -926,4 +1074,37 @@ func (m *Model) defaultTrackRemote() string {
 		return remotes[0]
 	}
 	return ""
+}
+
+func (m *Model) confirmBookmarkCommands(verb string, commands []jj.CommandArgs) tea.Cmd {
+	if len(commands) == 0 {
+		return nil
+	}
+	target := "the selected bookmark"
+	if len(commands) > 1 {
+		target = "the selected bookmarks"
+	}
+	return m.openConfirmation(
+		[]string{fmt.Sprintf("Are you sure you want to %s %s?", verb, target)},
+		m.runBookmarkCommands(commands),
+	)
+}
+
+func (m *Model) openConfirmation(messages []string, cmd tea.Cmd) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+	target, _ := m.selectedTarget()
+	m.confirmationAnchor = target
+	m.confirmation = confirmation.New(
+		messages,
+		confirmation.WithZIndex(render.ZDialogs),
+		confirmation.WithOption("Yes",
+			tea.Batch(cmd, confirmation.Close),
+			key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+		confirmation.WithOption("No",
+			confirmation.Close,
+			key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+	)
+	return m.confirmation.Init()
 }

@@ -327,6 +327,7 @@ func (ChooseCancel) isIntent() {}
 //jjui:bind scope=undo action=cancel
 //jjui:bind scope=redo action=cancel
 //jjui:bind scope=bookmark_view action=cancel
+//jjui:bind scope=bookmark_view.confirmation action=cancel
 //jjui:bind scope=bookmark_view.filter action=cancel
 type Cancel struct{}
 
@@ -365,6 +366,7 @@ func (Cancel) isIntent() {}
 //jjui:bind scope=undo action=apply
 //jjui:bind scope=redo action=apply
 //jjui:bind scope=bookmark_view action=apply
+//jjui:bind scope=bookmark_view.confirmation action=apply set=Force:$bool(force)
 //jjui:bind scope=bookmark_view.filter action=apply
 type Apply struct {
 	Value string
@@ -379,6 +381,8 @@ func (Apply) isIntent() {}
 //jjui:bind scope=redo action=next set=Delta:1
 //jjui:bind scope=revisions.details.confirmation action=prev set=Delta:-1
 //jjui:bind scope=revisions.details.confirmation action=next set=Delta:1
+//jjui:bind scope=bookmark_view.confirmation action=prev set=Delta:-1
+//jjui:bind scope=bookmark_view.confirmation action=next set=Delta:1
 type OptionSelect struct {
 	Delta int
 }

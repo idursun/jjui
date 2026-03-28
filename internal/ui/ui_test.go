@@ -341,6 +341,32 @@ func Test_BookmarkViewReveal_FocusesRevisionsPane(t *testing.T) {
 	assert.Equal(t, keybindings.ScopeName(actions.ScopeRevisions), model.dispatchScopes()[0].Name)
 }
 
+func Test_BookmarkViewConfirmation_UsesConfirmationScopeAndCancelKeepsPaneOpen(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkView{}))
+	cmd, handled := model.HandleIntent(intents.BookmarkViewDelete{})
+	require.True(t, handled)
+	test.SimulateModel(model, cmd)
+
+	require.NotEmpty(t, model.dispatchScopes())
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeBookmarkViewConfirmation), model.dispatchScopes()[0].Name)
+
+	cmd, handled = model.HandleIntent(intents.Cancel{})
+	require.True(t, handled)
+	test.SimulateModel(model, cmd)
+
+	assert.True(t, model.bookmarkPane.Visible())
+	assert.True(t, model.bookmarkPaneFocused)
+	require.NotEmpty(t, model.dispatchScopes())
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeBookmarkView), model.dispatchScopes()[0].Name)
+}
+
 func Test_ToggleBookmarkView_HidesPreviewAndRestoresOnClose(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(""))

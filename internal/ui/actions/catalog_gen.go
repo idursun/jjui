@@ -8,43 +8,44 @@ import (
 )
 
 const (
-	ScopeBookmarkView        = "bookmark_view"
-	ScopeBookmarkViewFilter  = "bookmark_view.filter"
-	ScopeBookmarks           = "bookmarks"
-	ScopeChoose              = "choose"
-	ScopeCommandHistory      = "command_history"
-	ScopeDiff                = "diff"
-	ScopeFileSearch          = "file_search"
-	ScopeGit                 = "git"
-	ScopeHelp                = "help"
-	ScopeInput               = "input"
-	ScopeOplog               = "oplog"
-	ScopeOplogQuickSearch    = "oplog.quick_search"
-	ScopePassword            = "password"
-	ScopeRedo                = "redo"
-	ScopeRevisions           = "revisions"
-	ScopeAbandon             = "revisions.abandon"
-	ScopeAbsorb              = "revisions.absorb"
-	ScopeAceJump             = "revisions.ace_jump"
-	ScopeBookmarkMove        = "revisions.bookmark_move"
-	ScopeDetails             = "revisions.details"
-	ScopeDetailsConfirmation = "revisions.details.confirmation"
-	ScopeDuplicate           = "revisions.duplicate"
-	ScopeEvolog              = "revisions.evolog"
-	ScopeInlineDescribe      = "revisions.inline_describe"
-	ScopeQuickSearch         = "revisions.quick_search"
-	ScopeQuickSearchInput    = "revisions.quick_search.input"
-	ScopeRebase              = "revisions.rebase"
-	ScopeRevert              = "revisions.revert"
-	ScopeSetBookmark         = "revisions.set_bookmark"
-	ScopeSetParents          = "revisions.set_parents"
-	ScopeSquash              = "revisions.squash"
-	ScopeTargetPicker        = "revisions.target_picker"
-	ScopeRevset              = "revset"
-	ScopeStatusInput         = "status.input"
-	ScopeUi                  = "ui"
-	ScopeUiPreview           = "ui.preview"
-	ScopeUndo                = "undo"
+	ScopeBookmarkView             = "bookmark_view"
+	ScopeBookmarkViewConfirmation = "bookmark_view.confirmation"
+	ScopeBookmarkViewFilter       = "bookmark_view.filter"
+	ScopeBookmarks                = "bookmarks"
+	ScopeChoose                   = "choose"
+	ScopeCommandHistory           = "command_history"
+	ScopeDiff                     = "diff"
+	ScopeFileSearch               = "file_search"
+	ScopeGit                      = "git"
+	ScopeHelp                     = "help"
+	ScopeInput                    = "input"
+	ScopeOplog                    = "oplog"
+	ScopeOplogQuickSearch         = "oplog.quick_search"
+	ScopePassword                 = "password"
+	ScopeRedo                     = "redo"
+	ScopeRevisions                = "revisions"
+	ScopeAbandon                  = "revisions.abandon"
+	ScopeAbsorb                   = "revisions.absorb"
+	ScopeAceJump                  = "revisions.ace_jump"
+	ScopeBookmarkMove             = "revisions.bookmark_move"
+	ScopeDetails                  = "revisions.details"
+	ScopeDetailsConfirmation      = "revisions.details.confirmation"
+	ScopeDuplicate                = "revisions.duplicate"
+	ScopeEvolog                   = "revisions.evolog"
+	ScopeInlineDescribe           = "revisions.inline_describe"
+	ScopeQuickSearch              = "revisions.quick_search"
+	ScopeQuickSearchInput         = "revisions.quick_search.input"
+	ScopeRebase                   = "revisions.rebase"
+	ScopeRevert                   = "revisions.revert"
+	ScopeSetBookmark              = "revisions.set_bookmark"
+	ScopeSetParents               = "revisions.set_parents"
+	ScopeSquash                   = "revisions.squash"
+	ScopeTargetPicker             = "revisions.target_picker"
+	ScopeRevset                   = "revset"
+	ScopeStatusInput              = "status.input"
+	ScopeUi                       = "ui"
+	ScopeUiPreview                = "ui.preview"
+	ScopeUndo                     = "undo"
 )
 
 func ResolveIntent(scope string, action keybindings.Action, args map[string]any) (intents.Intent, bool) {
@@ -95,6 +96,17 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.BookmarkViewTrack{}, true
 		case keybindings.Action("bookmark_view.untrack"):
 			return intents.BookmarkViewUntrack{}, true
+		}
+	case ScopeBookmarkViewConfirmation:
+		switch action {
+		case keybindings.Action("bookmark_view.confirmation.apply"):
+			return intents.Apply{Force: actionargs.BoolArg(args, "force", false)}, true
+		case keybindings.Action("bookmark_view.confirmation.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("bookmark_view.confirmation.next"):
+			return intents.OptionSelect{Delta: 1}, true
+		case keybindings.Action("bookmark_view.confirmation.prev"):
+			return intents.OptionSelect{Delta: -1}, true
 		}
 	case ScopeBookmarkViewFilter:
 		switch action {

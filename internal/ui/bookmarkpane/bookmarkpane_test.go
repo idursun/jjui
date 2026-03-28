@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -202,9 +203,9 @@ func TestPushSelected_RunsGitPushForBookmark(t *testing.T) {
 	model.SetCurrentCommitID("dest123")
 	test.SimulateModel(model, model.Open())
 
-	cmd := model.Update(intents.BookmarkViewPush{})
-	require.NotNil(t, cmd)
-	test.SimulateModel(model, cmd)
+	model.Update(intents.BookmarkViewPush{})
+	require.NotNil(t, model.confirmation)
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestFetchSelected_RunsGitFetchForBookmark(t *testing.T) {
@@ -217,9 +218,9 @@ func TestFetchSelected_RunsGitFetchForBookmark(t *testing.T) {
 	model.SetCurrentCommitID("dest123")
 	test.SimulateModel(model, model.Open())
 
-	cmd := model.Update(intents.BookmarkViewFetch{})
-	require.NotNil(t, cmd)
-	test.SimulateModel(model, cmd)
+	model.Update(intents.BookmarkViewFetch{})
+	require.NotNil(t, model.confirmation)
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestPushSelected_RemoteBookmarkUsesRemote(t *testing.T) {
@@ -234,9 +235,9 @@ func TestPushSelected_RemoteBookmarkUsesRemote(t *testing.T) {
 	model.Update(intents.BookmarkViewToggleExpand{})
 	model.Update(intents.BookmarkViewNavigate{Delta: 1})
 
-	cmd := model.Update(intents.BookmarkViewPush{})
-	require.NotNil(t, cmd)
-	test.SimulateModel(model, cmd)
+	model.Update(intents.BookmarkViewPush{})
+	require.NotNil(t, model.confirmation)
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestFetchSelected_RemoteBookmarkUsesRemote(t *testing.T) {
@@ -251,9 +252,9 @@ func TestFetchSelected_RemoteBookmarkUsesRemote(t *testing.T) {
 	model.Update(intents.BookmarkViewToggleExpand{})
 	model.Update(intents.BookmarkViewNavigate{Delta: 1})
 
-	cmd := model.Update(intents.BookmarkViewFetch{})
-	require.NotNil(t, cmd)
-	test.SimulateModel(model, cmd)
+	model.Update(intents.BookmarkViewFetch{})
+	require.NotNil(t, model.confirmation)
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestToggleExpand_ShowsRemoteChildren(t *testing.T) {
@@ -336,9 +337,9 @@ func TestDeleteSelected_UsesSelectedBookmarksForBatchDelete(t *testing.T) {
 	model.Update(intents.BookmarkViewNavigate{Delta: 1})
 	model.Update(intents.BookmarkViewToggleSelect{})
 
-	cmd := model.Update(intents.BookmarkViewDelete{})
-	require.NotNil(t, cmd)
-	test.SimulateModel(model, cmd)
+	model.Update(intents.BookmarkViewDelete{})
+	require.NotNil(t, model.confirmation)
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestForgetSelected_UsesSelectedBookmarksForBatchForget(t *testing.T) {
@@ -356,9 +357,9 @@ func TestForgetSelected_UsesSelectedBookmarksForBatchForget(t *testing.T) {
 	model.Update(intents.BookmarkViewNavigate{Delta: 1})
 	model.Update(intents.BookmarkViewToggleSelect{})
 
-	cmd := model.Update(intents.BookmarkViewForget{})
-	require.NotNil(t, cmd)
-	test.SimulateModel(model, cmd)
+	model.Update(intents.BookmarkViewForget{})
+	require.NotNil(t, model.confirmation)
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestTrackSelected_UsesSelectedBookmarksForBatchTrack(t *testing.T) {
@@ -376,9 +377,9 @@ func TestTrackSelected_UsesSelectedBookmarksForBatchTrack(t *testing.T) {
 	model.Update(intents.BookmarkViewNavigate{Delta: 1})
 	model.Update(intents.BookmarkViewToggleSelect{})
 
-	cmd := model.Update(intents.BookmarkViewTrack{})
-	require.NotNil(t, cmd)
-	test.SimulateModel(model, cmd)
+	model.Update(intents.BookmarkViewTrack{})
+	require.NotNil(t, model.confirmation)
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestUntrackSelected_UsesSelectedBookmarksForBatchUntrack(t *testing.T) {
@@ -396,9 +397,9 @@ func TestUntrackSelected_UsesSelectedBookmarksForBatchUntrack(t *testing.T) {
 	model.Update(intents.BookmarkViewNavigate{Delta: 1})
 	model.Update(intents.BookmarkViewToggleSelect{})
 
-	cmd := model.Update(intents.BookmarkViewUntrack{})
-	require.NotNil(t, cmd)
-	test.SimulateModel(model, cmd)
+	model.Update(intents.BookmarkViewUntrack{})
+	require.NotNil(t, model.confirmation)
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestMoveSelected_RemoteOnlyBookmarkShowsMessage(t *testing.T) {
@@ -415,4 +416,93 @@ func TestMoveSelected_RemoteOnlyBookmarkShowsMessage(t *testing.T) {
 	msg, ok := cmd().(intents.AddMessage)
 	require.True(t, ok)
 	assert.Equal(t, "No local bookmark for remote-only", msg.Text)
+}
+
+func TestEditSelected_RunsAfterConfirmation(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.Edit("main", false))
+	defer commandRunner.Verify()
+
+	model := NewModel(test.NewTestContext(commandRunner))
+	model.SetCurrentCommitID("dest123")
+	test.SimulateModel(model, model.Open())
+
+	model.Update(intents.BookmarkViewEdit{})
+	require.NotNil(t, model.confirmation)
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
+}
+
+func TestNewFromSelected_RunsAfterConfirmation(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.New(jj.NewSelectedRevisions(&jj.Commit{ChangeId: "main"})))
+	defer commandRunner.Verify()
+
+	model := NewModel(test.NewTestContext(commandRunner))
+	model.SetCurrentCommitID("dest123")
+	test.SimulateModel(model, model.Open())
+
+	model.Update(intents.BookmarkViewNew{})
+	require.NotNil(t, model.confirmation)
+	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
+}
+
+func TestConfirmationRendersJustBelowAnchoredBookmark(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nfeature;.;true;false;false;false;def456\n"))
+	defer commandRunner.Verify()
+
+	model := NewModel(test.NewTestContext(commandRunner))
+	model.SetCurrentCommitID("dest123")
+	test.SimulateModel(model, model.Open())
+	anchored, ok := model.selectedTarget()
+	require.True(t, ok)
+
+	model.Update(intents.BookmarkViewDelete{})
+	require.NotNil(t, model.confirmation)
+
+	rendered := test.RenderImmediate(model, 80, 14)
+	lines := strings.Split(rendered, "\n")
+
+	rowLine := findLineContaining(lines, anchored)
+	messageLine := findLineContaining(lines, "Are you sure you want to delete the selected bookmark?")
+	require.NotEqual(t, -1, rowLine)
+	require.NotEqual(t, -1, messageLine)
+	assert.LessOrEqual(t, messageLine-rowLine, 2, "confirmation should render directly below the anchored bookmark")
+}
+
+func TestConfirmationIgnoresRowClicksWhileOpen(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nfeature;.;true;false;false;false;def456\n"))
+	defer commandRunner.Verify()
+
+	model := NewModel(test.NewTestContext(commandRunner))
+	model.SetCurrentCommitID("dest123")
+	test.SimulateModel(model, model.Open())
+	anchored, ok := model.selectedTarget()
+	require.True(t, ok)
+	initialCursor := model.cursor
+	clickedIndex := 0
+	if initialCursor == 0 {
+		clickedIndex = 1
+	}
+
+	model.Update(intents.BookmarkViewDelete{})
+	require.NotNil(t, model.confirmation)
+	assert.Equal(t, anchored, model.confirmationAnchor)
+
+	model.Update(itemClickedMsg{index: clickedIndex})
+
+	assert.Equal(t, initialCursor, model.cursor)
+	assert.Equal(t, anchored, model.confirmationAnchor)
+}
+
+func findLineContaining(lines []string, fragment string) int {
+	for i, line := range lines {
+		if strings.Contains(line, fragment) {
+			return i
+		}
+	}
+	return -1
 }

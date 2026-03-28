@@ -73,6 +73,45 @@ function wait_close() end
 ---Yield and wait for revisions to be updated
 function wait_refresh() end
 
+---@class jjui.bookmark_view
+---@field confirmation jjui.bookmark_view.confirmation
+---@field filter jjui.bookmark_view.filter
+---@field apply fun()
+---@field cancel fun()
+---@field create fun()
+---@field delete fun()
+---@field edit fun()
+---@field fetch fun()
+---@field filter fun()
+---@field forget fun()
+---@field move fun()
+---@field move_down fun()
+---@field move_up fun()
+---@field new fun()
+---@field page_down fun()
+---@field page_up fun()
+---@field push fun()
+---@field rename fun()
+---@field reveal fun()
+---@field reveal_in_revisions fun()
+---@field toggle_expand fun()
+---@field toggle_select fun()
+---@field track fun()
+---@field untrack fun()
+---@field close fun()
+
+---@class jjui.bookmark_view.confirmation
+---@field apply fun(args: {force?: boolean})
+---@field cancel fun()
+---@field next fun()
+---@field prev fun()
+---@field close fun()
+
+---@class jjui.bookmark_view.filter
+---@field apply fun()
+---@field cancel fun()
+---@field close fun()
+
 ---@class jjui.bookmarks
 ---@field apply fun()
 ---@field bookmark_delete fun()
@@ -196,6 +235,7 @@ function wait_refresh() end
 ---@field abandon jjui.revisions.abandon
 ---@field absorb jjui.revisions.absorb
 ---@field ace_jump jjui.revisions.ace_jump
+---@field bookmark_move jjui.revisions.bookmark_move
 ---@field details jjui.revisions.details
 ---@field duplicate jjui.revisions.duplicate
 ---@field evolog jjui.revisions.evolog
@@ -263,6 +303,12 @@ function wait_refresh() end
 ---@class jjui.revisions.ace_jump
 ---@field apply fun()
 ---@field cancel fun()
+---@field close fun()
+
+---@class jjui.revisions.bookmark_move
+---@field apply fun(args: {force?: boolean})
+---@field cancel fun()
+---@field force_apply fun()
 ---@field close fun()
 
 ---@class jjui.revisions.details
@@ -423,6 +469,7 @@ function wait_refresh() end
 ---@field exec_shell fun()
 ---@field expand_status fun()
 ---@field file_search_toggle fun()
+---@field focus_next_pane fun()
 ---@field open_bookmarks fun()
 ---@field open_command_history fun()
 ---@field open_git fun()
@@ -442,6 +489,7 @@ function wait_refresh() end
 ---@field quick_search fun()
 ---@field quit fun()
 ---@field suspend fun()
+---@field toggle_bookmark_view fun()
 ---@field close fun()
 
 ---@class jjui.ui.preview
@@ -458,6 +506,7 @@ function wait_refresh() end
 ---@field revisions jjui.revisions
 ---@field revset jjui.revset
 ---@field context jjui.context
+---@field bookmark_view jjui.bookmark_view
 ---@field bookmarks jjui.bookmarks
 ---@field choose jjui.choose
 ---@field command_history jjui.command_history
@@ -486,6 +535,7 @@ function wait_refresh() end
 ---@field wait_refresh fun()
 
 ---@class jjui.builtin
+---@field bookmark_view jjui.bookmark_view
 ---@field bookmarks jjui.bookmarks
 ---@field choose jjui.choose
 ---@field command_history jjui.command_history
