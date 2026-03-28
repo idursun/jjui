@@ -187,6 +187,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.syncBookmarkPaneContext()
 	case common.SelectionChangedMsg:
 		m.syncBookmarkPaneContext()
+	case bookmarkpane.ItemClickedMsg, bookmarkpane.PaneClickedMsg:
+		if m.bookmarkVisible() {
+			m.focusBookmarkPane()
+		}
+	case revisions.ItemClickedMsg, revisions.PaneClickedMsg:
+		if m.bookmarkVisible() {
+			m.setBookmarkPaneFocused(false)
+		}
 	case common.StartSetBookmarkMsg:
 		return m.revisions.Update(intents.OpenSetBookmark{Revision: msg.Revision, ReturnFocusToBookmarkView: msg.ReturnFocusToBookmarkView})
 	case common.FocusBookmarkViewMsg:
