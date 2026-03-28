@@ -6,8 +6,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -17,6 +19,7 @@ import (
 var _ operations.Operation = (*MoveBookmarkOperation)(nil)
 var _ operations.TracksSelectedRevision = (*MoveBookmarkOperation)(nil)
 var _ common.Focusable = (*MoveBookmarkOperation)(nil)
+var _ dispatch.ScopeProvider = (*MoveBookmarkOperation)(nil)
 
 type MoveBookmarkOperation struct {
 	context      *context.MainContext
@@ -44,32 +47,48 @@ func (m *MoveBookmarkOperation) Init() tea.Cmd { return nil }
 
 func (m *MoveBookmarkOperation) IsFocused() bool { return true }
 
+func (m *MoveBookmarkOperation) Scopes() []dispatch.Scope {
+	return []dispatch.Scope{
+		{
+			Name:    actions.ScopeBookmarkMove,
+			Leak:    dispatch.LeakAll,
+			Handler: m,
+		},
+	}
+}
+
 func (m *MoveBookmarkOperation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 	m.target = commit
 	return nil
 }
 
+func (m *MoveBookmarkOperation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	switch intent := intent.(type) {
+	case intents.Apply:
+		if m.target == nil {
+			return nil, true
+		}
+		var extraFlags []string
+		if intent.Force {
+			extraFlags = append(extraFlags, "--allow-backwards")
+		}
+		return m.context.RunCommand(
+			jj.BookmarkMove(m.target.GetChangeId(), m.bookmarkName, extraFlags...),
+			common.CloseApplied,
+			common.Refresh,
+			common.FocusBookmarkView(),
+		), true
+	case intents.Cancel:
+		return tea.Sequence(common.Close, common.FocusBookmarkView()), true
+	}
+	return nil, false
+}
+
 func (m *MoveBookmarkOperation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
-		switch msg := msg.(type) {
-		case intents.Apply:
-			if m.target == nil {
-				return nil
-			}
-			var extraFlags []string
-			if msg.Force {
-				extraFlags = append(extraFlags, "--allow-backwards")
-			}
-			return m.context.RunCommand(
-				jj.BookmarkMove(m.target.GetChangeId(), m.bookmarkName, extraFlags...),
-				common.CloseApplied,
-				common.Refresh,
-				common.FocusBookmarkView(),
-			)
-		case intents.Cancel:
-			return tea.Sequence(common.Close, common.FocusBookmarkView())
-		}
+		cmd, _ := m.HandleIntent(msg)
+		return cmd
 	}
 	return nil
 }

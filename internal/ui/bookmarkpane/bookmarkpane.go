@@ -41,8 +41,8 @@ type rowsLoadedMsg struct {
 	tree bookmarkTree
 }
 
-type itemClickedMsg struct {
-	index int
+type ItemClickedMsg struct {
+	Index int
 }
 
 type itemScrollMsg struct {
@@ -270,12 +270,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		m.selectionMode = selectionPreserve
 		return nil
-	case itemClickedMsg:
+	case ItemClickedMsg:
 		if m.confirmation != nil {
 			return nil
 		}
-		if msg.index >= 0 && msg.index < len(m.visibleRows) {
-			m.cursor = msg.index
+		if msg.Index >= 0 && msg.Index < len(m.visibleRows) {
+			m.cursor = msg.Index
 			m.ensureCursorVisible = true
 		}
 		return nil
@@ -429,6 +429,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
+	dl.AddInteraction(box.R, PaneClickedMsg{}, render.InteractionClick, render.ZMenuBorder)
 	dl.AddFill(box.R, ' ', m.styles.text, render.ZMenuContent)
 
 	content := box
@@ -491,7 +492,7 @@ func (m *Model) renderList(dl *render.DisplayContext, box layout.Box) {
 		func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
 			m.renderListRow(dl, index, rect)
 		},
-		func(index int, _ tea.Mouse) tea.Msg { return itemClickedMsg{index: index} },
+		func(index int, _ tea.Mouse) tea.Msg { return ItemClickedMsg{Index: index} },
 	)
 	m.listRenderer.RegisterScroll(dl, box)
 	m.ensureCursorVisible = false

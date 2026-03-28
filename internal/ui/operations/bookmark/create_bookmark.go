@@ -6,8 +6,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -17,6 +19,7 @@ import (
 var _ operations.Operation = (*CreateBookmarkOperation)(nil)
 var _ operations.TracksSelectedRevision = (*CreateBookmarkOperation)(nil)
 var _ common.Focusable = (*CreateBookmarkOperation)(nil)
+var _ dispatch.ScopeProvider = (*CreateBookmarkOperation)(nil)
 
 type CreateBookmarkOperation struct {
 	context *context.MainContext
@@ -38,29 +41,45 @@ func (c *CreateBookmarkOperation) Init() tea.Cmd { return nil }
 
 func (c *CreateBookmarkOperation) IsFocused() bool { return true }
 
+func (c *CreateBookmarkOperation) Scopes() []dispatch.Scope {
+	return []dispatch.Scope{
+		{
+			Name:    actions.ScopeBookmarkMove,
+			Leak:    dispatch.LeakAll,
+			Handler: c,
+		},
+	}
+}
+
 func (c *CreateBookmarkOperation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 	c.target = commit
 	return nil
 }
 
+func (c *CreateBookmarkOperation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	switch intent := intent.(type) {
+	case intents.Apply:
+		_ = intent
+		if c.target == nil {
+			return nil, true
+		}
+		return tea.Sequence(
+			common.Close,
+			func() tea.Msg {
+				return common.StartSetBookmarkMsg{Revision: c.target.GetChangeId(), ReturnFocusToBookmarkView: true}
+			},
+		), true
+	case intents.Cancel:
+		return tea.Sequence(common.Close, common.FocusBookmarkView()), true
+	}
+	return nil, false
+}
+
 func (c *CreateBookmarkOperation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
-		switch msg := msg.(type) {
-		case intents.Apply:
-			_ = msg
-			if c.target == nil {
-				return nil
-			}
-			return tea.Sequence(
-				common.Close,
-				func() tea.Msg {
-					return common.StartSetBookmarkMsg{Revision: c.target.GetChangeId(), ReturnFocusToBookmarkView: true}
-				},
-			)
-		case intents.Cancel:
-			return tea.Sequence(common.Close, common.FocusBookmarkView())
-		}
+		cmd, _ := c.HandleIntent(msg)
+		return cmd
 	}
 	return nil
 }

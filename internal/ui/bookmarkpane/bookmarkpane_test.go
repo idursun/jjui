@@ -492,7 +492,7 @@ func TestConfirmationIgnoresRowClicksWhileOpen(t *testing.T) {
 	require.NotNil(t, model.confirmation)
 	assert.Equal(t, anchored, model.confirmationAnchor)
 
-	model.Update(itemClickedMsg{index: clickedIndex})
+	model.Update(ItemClickedMsg{Index: clickedIndex})
 
 	assert.Equal(t, initialCursor, model.cursor)
 	assert.Equal(t, anchored, model.confirmationAnchor)

@@ -94,6 +94,8 @@ type ItemClickedMsg struct {
 	Alt   bool
 }
 
+type PaneClickedMsg struct{}
+
 type ViewportScrollMsg struct {
 	Delta      int
 	Horizontal bool
@@ -1071,6 +1073,8 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	dl.AddInteraction(box.R, PaneClickedMsg{}, render.InteractionClick, -1)
+
 	if len(m.rows) == 0 {
 		content := ""
 		if m.isLoading {
