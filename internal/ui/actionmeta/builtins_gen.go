@@ -10,6 +10,10 @@ import (
 var builtInActionOwners = map[string][]string{
 	"bookmark_view.apply":                        {"bookmark_view"},
 	"bookmark_view.cancel":                       {"bookmark_view"},
+	"bookmark_view.confirmation.apply":           {"bookmark_view.confirmation"},
+	"bookmark_view.confirmation.cancel":          {"bookmark_view.confirmation"},
+	"bookmark_view.confirmation.next":            {"bookmark_view.confirmation"},
+	"bookmark_view.confirmation.prev":            {"bookmark_view.confirmation"},
 	"bookmark_view.create":                       {"bookmark_view"},
 	"bookmark_view.delete":                       {"bookmark_view"},
 	"bookmark_view.edit":                         {"bookmark_view"},
@@ -298,6 +302,9 @@ var builtInActionOwners = map[string][]string{
 }
 
 var builtInActionArgSchemas = map[string]map[string]string{
+	"bookmark_view.confirmation.apply": {
+		"force": "bool",
+	},
 	"diff.show": {
 		"content": "string",
 	},

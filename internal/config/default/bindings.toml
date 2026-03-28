@@ -311,6 +311,11 @@ bindings = [
     { key = "t", action = "bookmark_view.track", scope = "bookmark_view", desc = "track" },
     { key = "u", action = "bookmark_view.untrack", scope = "bookmark_view", desc = "untrack" },
     { key = "esc", action = "bookmark_view.cancel", scope = "bookmark_view", desc = "cancel" },
+    { key = ["left", "h"], action = "bookmark_view.confirmation.prev", scope = "bookmark_view.confirmation", desc = "prev" },
+    { key = ["right", "l"], action = "bookmark_view.confirmation.next", scope = "bookmark_view.confirmation", desc = "next" },
+    { key = "enter", action = "bookmark_view.confirmation.apply", scope = "bookmark_view.confirmation", desc = "apply" },
+    { key = "alt+enter", action = "bookmark_view.confirmation.apply", scope = "bookmark_view.confirmation", desc = "force apply", args = { force = true } },
+    { key = "esc", action = "bookmark_view.confirmation.cancel", scope = "bookmark_view.confirmation", desc = "cancel" },
     { key = "enter", action = "bookmark_view.apply", scope = "bookmark_view.filter", desc = "apply" },
     { key = "esc", action = "bookmark_view.cancel", scope = "bookmark_view.filter", desc = "cancel" },
 

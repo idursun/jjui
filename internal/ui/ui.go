@@ -392,7 +392,7 @@ func (m *Model) statusMode() string {
 	case m.commandHistoryOpen():
 		return "history"
 	case m.bookmarkVisible() && m.bookmarkPaneFocused:
-		return actions.OwnerBookmarkView
+		return string(m.bookmarkPane.Scope())
 	case m.stacked != nil:
 		return m.stacked.StackedActionOwner()
 	case m.diff != nil:
@@ -734,7 +734,7 @@ func (m *Model) routeCancel(owner string, cancel intents.Cancel) tea.Cmd {
 		return nil
 	}
 
-	if m.bookmarkPaneFocused && (owner == actions.OwnerBookmarkView || owner == actions.OwnerBookmarkViewFilter) {
+	if m.bookmarkPaneFocused && (owner == actions.OwnerBookmarkView || owner == actions.OwnerBookmarkViewConfirmation || owner == actions.OwnerBookmarkViewFilter) {
 		cmd := m.bookmarkPane.Update(cancel)
 		if m.bookmarkPane != nil && !m.bookmarkPane.Visible() {
 			closeCmd := m.closeBookmarkPane()
@@ -800,6 +800,7 @@ func (m *Model) routeIntentByOwner(owner string, intent intents.Intent) (tea.Cmd
 	case actions.OwnerCommandHistory,
 		actions.OwnerBookmarks,
 		actions.OwnerBookmarkView,
+		actions.OwnerBookmarkViewConfirmation,
 		actions.OwnerBookmarkViewFilter,
 		actions.OwnerGit,
 		actions.OwnerChoose,
@@ -810,7 +811,7 @@ func (m *Model) routeIntentByOwner(owner string, intent intents.Intent) (tea.Cmd
 		if m.stacked != nil && owner == m.stacked.StackedActionOwner() {
 			return m.stacked.Update(intent), true
 		}
-		if m.bookmarkPane != nil && (owner == actions.OwnerBookmarkView || owner == actions.OwnerBookmarkViewFilter) {
+		if m.bookmarkPane != nil && (owner == actions.OwnerBookmarkView || owner == actions.OwnerBookmarkViewConfirmation || owner == actions.OwnerBookmarkViewFilter) {
 			return m.bookmarkPane.Update(intent), true
 		}
 	default:
@@ -898,10 +899,7 @@ func (m *Model) primaryScope() keybindings.Scope {
 	}
 
 	if m.bookmarkVisible() && m.bookmarkPaneFocused {
-		if m.bookmarkEditing() {
-			return actions.OwnerBookmarkViewFilter
-		}
-		return actions.OwnerBookmarkView
+		return m.bookmarkPane.Scope()
 	}
 
 	if m.revisions.HasQuickSearch() {

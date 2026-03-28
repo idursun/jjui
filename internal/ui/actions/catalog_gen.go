@@ -8,46 +8,47 @@ import (
 )
 
 const (
-	OwnerBookmarkView        = "bookmark_view"
-	OwnerBookmarkViewFilter  = "bookmark_view.filter"
-	OwnerBookmarks           = "bookmarks"
-	OwnerChoose              = "choose"
-	OwnerCommandHistory      = "command_history"
-	OwnerDiff                = "diff"
-	OwnerFileSearch          = "file_search"
-	OwnerGit                 = "git"
-	OwnerHelp                = "help"
-	OwnerInput               = "input"
-	OwnerOplog               = "oplog"
-	OwnerOplogQuickSearch    = "oplog.quick_search"
-	OwnerPassword            = "password"
-	OwnerRedo                = "redo"
-	OwnerRevisions           = "revisions"
-	OwnerAbandon             = "revisions.abandon"
-	OwnerAceJump             = "revisions.ace_jump"
-	OwnerBookmarkMove        = "revisions.bookmark_move"
-	OwnerDetails             = "revisions.details"
-	OwnerDetailsConfirmation = "revisions.details.confirmation"
-	OwnerDuplicate           = "revisions.duplicate"
-	OwnerEvolog              = "revisions.evolog"
-	OwnerInlineDescribe      = "revisions.inline_describe"
-	OwnerQuickSearchInput    = "revisions.quick_search.input"
-	OwnerRebase              = "revisions.rebase"
-	OwnerRevert              = "revisions.revert"
-	OwnerSetBookmark         = "revisions.set_bookmark"
-	OwnerSetParents          = "revisions.set_parents"
-	OwnerSquash              = "revisions.squash"
-	OwnerTargetPicker        = "revisions.target_picker"
-	OwnerRevset              = "revset"
-	OwnerStatusInput         = "status.input"
-	OwnerUi                  = "ui"
-	OwnerUiPreview           = "ui.preview"
-	OwnerUndo                = "undo"
+	OwnerBookmarkView             = "bookmark_view"
+	OwnerBookmarkViewConfirmation = "bookmark_view.confirmation"
+	OwnerBookmarkViewFilter       = "bookmark_view.filter"
+	OwnerBookmarks                = "bookmarks"
+	OwnerChoose                   = "choose"
+	OwnerCommandHistory           = "command_history"
+	OwnerDiff                     = "diff"
+	OwnerFileSearch               = "file_search"
+	OwnerGit                      = "git"
+	OwnerHelp                     = "help"
+	OwnerInput                    = "input"
+	OwnerOplog                    = "oplog"
+	OwnerOplogQuickSearch         = "oplog.quick_search"
+	OwnerPassword                 = "password"
+	OwnerRedo                     = "redo"
+	OwnerRevisions                = "revisions"
+	OwnerAbandon                  = "revisions.abandon"
+	OwnerAceJump                  = "revisions.ace_jump"
+	OwnerBookmarkMove             = "revisions.bookmark_move"
+	OwnerDetails                  = "revisions.details"
+	OwnerDetailsConfirmation      = "revisions.details.confirmation"
+	OwnerDuplicate                = "revisions.duplicate"
+	OwnerEvolog                   = "revisions.evolog"
+	OwnerInlineDescribe           = "revisions.inline_describe"
+	OwnerQuickSearchInput         = "revisions.quick_search.input"
+	OwnerRebase                   = "revisions.rebase"
+	OwnerRevert                   = "revisions.revert"
+	OwnerSetBookmark              = "revisions.set_bookmark"
+	OwnerSetParents               = "revisions.set_parents"
+	OwnerSquash                   = "revisions.squash"
+	OwnerTargetPicker             = "revisions.target_picker"
+	OwnerRevset                   = "revset"
+	OwnerStatusInput              = "status.input"
+	OwnerUi                       = "ui"
+	OwnerUiPreview                = "ui.preview"
+	OwnerUndo                     = "undo"
 )
 
 func IsRevisionsOwner(owner string) bool {
 	switch owner {
-	case OwnerCommandHistory, OwnerHelp, OwnerOplogQuickSearch, OwnerRevisions, OwnerAbandon, OwnerAceJump, OwnerBookmarkMove, OwnerDetails, OwnerDetailsConfirmation, OwnerDuplicate, OwnerEvolog, OwnerInlineDescribe, OwnerQuickSearchInput, OwnerRebase, OwnerRevert, OwnerSetBookmark, OwnerSetParents, OwnerSquash, OwnerTargetPicker:
+	case OwnerBookmarkViewConfirmation, OwnerCommandHistory, OwnerHelp, OwnerOplogQuickSearch, OwnerRevisions, OwnerAbandon, OwnerAceJump, OwnerBookmarkMove, OwnerDetails, OwnerDetailsConfirmation, OwnerDuplicate, OwnerEvolog, OwnerInlineDescribe, OwnerQuickSearchInput, OwnerRebase, OwnerRevert, OwnerSetBookmark, OwnerSetParents, OwnerSquash, OwnerTargetPicker:
 		return true
 	default:
 		return false
@@ -102,6 +103,17 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 			return intents.BookmarkViewTrack{}, true
 		case keybindings.Action("bookmark_view.untrack"):
 			return intents.BookmarkViewUntrack{}, true
+		}
+	case OwnerBookmarkViewConfirmation:
+		switch action {
+		case keybindings.Action("bookmark_view.confirmation.apply"):
+			return intents.Apply{Force: actionargs.BoolArg(args, "force", false)}, true
+		case keybindings.Action("bookmark_view.confirmation.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("bookmark_view.confirmation.next"):
+			return intents.OptionSelect{Delta: 1}, true
+		case keybindings.Action("bookmark_view.confirmation.prev"):
+			return intents.OptionSelect{Delta: -1}, true
 		}
 	case OwnerBookmarkViewFilter:
 		switch action {
