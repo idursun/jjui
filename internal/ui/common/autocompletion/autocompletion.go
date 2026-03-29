@@ -62,7 +62,7 @@ func WithCompletionsDisabled() Option {
 }
 
 func New(provider CompletionProvider, options ...Option) *AutoCompletionInput {
-	ti := textinput.New()
+	ti := common.TextInputNew()
 	ti.Focus()
 	ti.Prompt = ""
 	ti.ShowSuggestions = true

@@ -53,7 +53,7 @@ func NewWithTitle(title string, prompt string) *Model {
 		text:   common.DefaultPalette.Get("input text"),
 		title:  common.DefaultPalette.Get("input title"),
 	}
-	ti := textinput.New()
+	ti := common.TextInputNew()
 	ti.SetWidth(40)
 	ti.Focus()
 	ti.Prompt = prompt
