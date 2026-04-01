@@ -116,7 +116,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	luaTypes, err := generateLuaTypesSource(actionIDs, actionArgSchemas, actionRequiredArgs, actionOwners)
+	luaTypes, err := generateLuaTypesSource(actionIDs, actionArgSchemas, actionRequiredArgs)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "generate lua types: %v\n", err)
 		os.Exit(1)
@@ -1068,7 +1068,7 @@ func toCamel(s string) string {
 }
 
 // Hand-written Lua API stubs that cannot be derived from annotations.
-const luaHandWrittenAPI = `---@class jjui.revisions
+const luaHandWrittenClasses = `---@class jjui.revisions
 ---@field current fun(): string? Get the current selected revision's change ID
 ---@field checked fun(): string[] Get array of checked revision change IDs
 ---@field refresh fun(options?: {keep_selections?: boolean, selected_revision?: string}) Refresh revisions
@@ -1087,92 +1087,142 @@ const luaHandWrittenAPI = `---@class jjui.revisions
 ---@field checked_change_ids fun(): string[] Get array of checked change IDs
 ---@field checked_commit_ids fun(): string[] Get array of checked commit IDs
 
----Run a jj command asynchronously (yields, resumes after completion)
----@param ... string|string[] Command arguments for jj (variadic strings or a single table)
----@return string output The command output
-function jj_async(...) end
-
----Run a jj command interactively (takes over the terminal)
----@param ... string|string[] Command arguments for jj (variadic strings or a single table)
-function jj_interactive(...) end
-
----Run a jj command synchronously and return its output
----@param ... string|string[] Command arguments for jj (variadic strings or a single table)
----@return string? output The command output (nil on error)
----@return string? error The error message (nil on success)
-function jj(...) end
-
----Show a flash message in the status bar
----@param text_or_options string|{text: string, error?: boolean, sticky?: boolean} Message text or options table
-function flash(text_or_options) end
-
----Copy text to the system clipboard
----@param text string Text to copy
-function copy_to_clipboard(text) end
-
----Execute a shell command
----@param command string Shell command to execute
----@return string output The command output
-function exec_shell(command) end
-
----Split text into an array of lines
----@param text string Text to split
----@param keepEmpty? boolean Keep empty lines (default: false)
----@return string[] lines Array of lines
-function split_lines(text, keepEmpty) end
-
----Show a choice dialog and wait for user selection (yields)
----@param options_or_array string[]|{options: string[], title?: string, filter?: boolean, ordered?: boolean} Options array or options table
----@return string|nil selected The selected option, or nil if cancelled
-function choose(options_or_array) end
-
----Show a text input dialog and wait for user input (yields)
----@param options {title?: string, prompt?: string} Input options
----@return string|nil value The entered text, or nil if cancelled
-function input(options) end
-
----Yield and wait for the current view to close
-function wait_close() end
-
----Yield and wait for revisions to be updated
-function wait_refresh() end
 `
 
-type ownerNode struct {
-	name     string
-	children map[string]*ownerNode
-	actions  []string // action tokens (last segment of canonical action ID)
+type luaFunctionSpec struct {
+	Comment     string
+	ParamDocs   []string
+	ReturnDocs  []string
+	Declaration string
+	FieldName   string
+	FieldType   string
 }
 
-func generateLuaTypesSource(actionIDs []string, argSchemas map[string]map[string]string, requiredArgs map[string][]string, owners map[string][]string) ([]byte, error) {
-	// Build owner tree from action IDs and their owners
-	root := &ownerNode{children: map[string]*ownerNode{}}
-	actionsByOwner := map[string][]string{} // owner -> list of canonical action IDs
+var luaHandWrittenFunctions = []luaFunctionSpec{
+	{
+		Comment:     "Run a jj command asynchronously (yields, resumes after completion)",
+		ParamDocs:   []string{"---@param ... string|string[] Command arguments for jj (variadic strings or a single table)"},
+		Declaration: "function jj_async(...) end",
+		FieldName:   "jj_async",
+		FieldType:   "fun(...: string|string[])",
+	},
+	{
+		Comment:     "Run a jj command interactively (takes over the terminal)",
+		ParamDocs:   []string{"---@param ... string|string[] Command arguments for jj (variadic strings or a single table)"},
+		Declaration: "function jj_interactive(...) end",
+		FieldName:   "jj_interactive",
+		FieldType:   "fun(...: string|string[])",
+	},
+	{
+		Comment:     "Run a jj command synchronously and return its output",
+		ParamDocs:   []string{"---@param ... string|string[] Command arguments for jj (variadic strings or a single table)"},
+		ReturnDocs:  []string{"---@return string? output The command output (nil on error)", "---@return string? error The error message (nil on success)"},
+		Declaration: "function jj(...) end",
+		FieldName:   "jj",
+		FieldType:   "fun(...: string|string[]): string?, string?",
+	},
+	{
+		Comment:     "Show a flash message in the status bar",
+		ParamDocs:   []string{"---@param text_or_options string|{text: string, error?: boolean, sticky?: boolean} Message text or options table"},
+		Declaration: "function flash(text_or_options) end",
+		FieldName:   "flash",
+		FieldType:   "fun(text_or_options: string|{text: string, error?: boolean, sticky?: boolean})",
+	},
+	{
+		Comment:     "Copy text to the system clipboard",
+		ParamDocs:   []string{"---@param text string Text to copy"},
+		ReturnDocs:  []string{"---@return boolean? ok True on success", "---@return string? error The error message (nil on success)"},
+		Declaration: "function copy_to_clipboard(text) end",
+		FieldName:   "copy_to_clipboard",
+		FieldType:   "fun(text: string): boolean?, string?",
+	},
+	{
+		Comment:     "Execute a shell command",
+		ParamDocs:   []string{"---@param command string Shell command to execute"},
+		Declaration: "function exec_shell(command) end",
+		FieldName:   "exec_shell",
+		FieldType:   "fun(command: string)",
+	},
+	{
+		Comment:     "Split text into an array of lines",
+		ParamDocs:   []string{"---@param text string Text to split", "---@param keepEmpty? boolean Keep empty lines (default: false)"},
+		ReturnDocs:  []string{"---@return string[] lines Array of lines"},
+		Declaration: "function split_lines(text, keepEmpty) end",
+		FieldName:   "split_lines",
+		FieldType:   "fun(text: string, keepEmpty?: boolean): string[]",
+	},
+	{
+		Comment:     "Show a choice dialog and wait for user selection (yields)",
+		ParamDocs:   []string{"---@param ... string|string[]|{options?: string[]|string, title?: string, filter?: boolean, ordered?: boolean} Options as variadic strings, a single array, or an options table"},
+		ReturnDocs:  []string{"---@return string|nil selected The selected option, or nil if cancelled"},
+		Declaration: "function choose(...) end",
+		FieldName:   "choose",
+		FieldType:   "fun(...: string|string[]|{options?: string[]|string, title?: string, filter?: boolean, ordered?: boolean}): string|nil",
+	},
+	{
+		Comment:     "Show a text input dialog and wait for user input (yields)",
+		ParamDocs:   []string{"---@param options? {title?: string, prompt?: string} Input options"},
+		ReturnDocs:  []string{"---@return string|nil value The entered text, or nil if cancelled"},
+		Declaration: "function input(options) end",
+		FieldName:   "input",
+		FieldType:   "fun(options?: {title?: string, prompt?: string}): string|nil",
+	},
+	{
+		Comment:     "Yield and wait for the current view to close",
+		ReturnDocs:  []string{"---@return boolean applied True when the closed view was applied"},
+		Declaration: "function wait_close() end",
+		FieldName:   "wait_close",
+		FieldType:   "fun(): boolean",
+	},
+	{
+		Comment:     "Yield and wait for revisions to be updated",
+		Declaration: "function wait_refresh() end",
+		FieldName:   "wait_refresh",
+		FieldType:   "fun()",
+	},
+}
 
-	for _, actionID := range actionIDs {
-		ownerList := owners[actionID]
-		for _, owner := range ownerList {
-			actionsByOwner[owner] = append(actionsByOwner[owner], actionID)
+func writeLuaHandWrittenFunctions(b *bytes.Buffer) {
+	for _, fn := range luaHandWrittenFunctions {
+		if fn.Comment != "" {
+			b.WriteString("---" + fn.Comment + "\n")
 		}
-	}
-
-	// Collect all unique owner strings and build tree
-	allOwners := make([]string, 0, len(actionsByOwner))
-	for owner := range actionsByOwner {
-		allOwners = append(allOwners, owner)
-	}
-	sort.Strings(allOwners)
-
-	for _, owner := range allOwners {
-		segments := strings.Split(owner, ".")
-		current := root
-		for _, seg := range segments {
-			if current.children[seg] == nil {
-				current.children[seg] = &ownerNode{name: seg, children: map[string]*ownerNode{}}
-			}
-			current = current.children[seg]
+		for _, line := range fn.ParamDocs {
+			b.WriteString(line + "\n")
 		}
+		for _, line := range fn.ReturnDocs {
+			b.WriteString(line + "\n")
+		}
+		b.WriteString(fn.Declaration + "\n\n")
 	}
+}
+
+func writeLuaHandWrittenRootFields(b *bytes.Buffer) {
+	for _, fn := range luaHandWrittenFunctions {
+		b.WriteString(fmt.Sprintf("---@field %s %s\n", fn.FieldName, fn.FieldType))
+	}
+}
+
+type scopeNode struct {
+	name     string
+	fullName string
+	children map[string]*scopeNode
+	actions  []luaActionSpec
+}
+
+type luaActionSpec struct {
+	Canonical               string
+	Token                   string
+	Schema                  map[string]string
+	Required                []string
+	RequiredSet             map[string]struct{}
+	HasSingleRequiredString bool
+}
+
+func generateLuaTypesSource(actionIDs []string, argSchemas map[string]map[string]string, requiredArgs map[string][]string) ([]byte, error) {
+	root := buildLuaScopeTree(actionIDs, argSchemas, requiredArgs)
+	scopes := collectLuaScopes(root)
+	topLevel := sortedScopeNames(root.children)
 
 	var b bytes.Buffer
 	b.WriteString("---@meta\n")
@@ -1180,40 +1230,33 @@ func generateLuaTypesSource(actionIDs []string, argSchemas map[string]map[string
 	b.WriteString("-- Code generated by cmd/genactions; DO NOT EDIT.\n\n")
 
 	// Hand-written API stubs
-	b.WriteString(luaHandWrittenAPI)
+	b.WriteString(luaHandWrittenClasses)
 	b.WriteString("\n")
+	writeLuaHandWrittenFunctions(&b)
 
-	// Generate action classes for each owner
-	for _, owner := range allOwners {
-		className := "jjui." + owner
+	// Generate action classes for each scope.
+	for _, scope := range scopes {
+		className := "jjui." + scope.fullName
 		b.WriteString(fmt.Sprintf("---@class %s\n", className))
 
 		// Add child fields
-		childNames := sortedChildNames(root, owner)
+		childNames := sortedScopeNames(scope.children)
 		for _, childName := range childNames {
-			childOwner := owner + "." + childName
-			b.WriteString(fmt.Sprintf("---@field %s jjui.%s\n", childName, childOwner))
+			childScope := scope.fullName + "." + childName
+			b.WriteString(fmt.Sprintf("---@field %s jjui.%s\n", childName, childScope))
 		}
 
 		// Add action functions
-		actions := actionsByOwner[owner]
-		sort.Strings(actions)
 		hasCancel := false
 		hasClose := false
-		for _, actionID := range actions {
-			token := actionTokenFromCanonical(actionID)
-			if token == "" {
-				continue
-			}
-			if token == "cancel" {
+		for _, action := range scope.actions {
+			if action.Token == "cancel" {
 				hasCancel = true
 			}
-			if token == "close" {
+			if action.Token == "close" {
 				hasClose = true
 			}
-			schema := argSchemas[actionID]
-			required := requiredArgs[actionID]
-			writeActionFunction(&b, token, schema, required)
+			writeActionFunction(&b, action)
 		}
 		// Mirror the runtime "close" alias for "cancel"
 		if hasCancel && !hasClose {
@@ -1228,8 +1271,7 @@ func generateLuaTypesSource(actionIDs []string, argSchemas map[string]map[string
 	b.WriteString("---@field revset jjui.revset\n")
 	b.WriteString("---@field context jjui.context\n")
 
-	// Add top-level owner children (those without dots)
-	topLevel := sortedKeys(root.children)
+	// Add top-level scope children (those without dots).
 	for _, name := range topLevel {
 		// Skip revisions, revset, context — already declared above with hand-written types
 		if name == "revisions" || name == "revset" || name == "context" {
@@ -1241,17 +1283,7 @@ func generateLuaTypesSource(actionIDs []string, argSchemas map[string]map[string
 	b.WriteString("---@field builtin jjui.builtin\n")
 
 	// Write hand-written function fields on jjui
-	b.WriteString("---@field jj_async fun(...: string|string[]): string\n")
-	b.WriteString("---@field jj_interactive fun(...: string|string[])\n")
-	b.WriteString("---@field jj fun(...: string|string[]): string?, string?\n")
-	b.WriteString("---@field flash fun(text_or_options: string|{text: string, error?: boolean, sticky?: boolean})\n")
-	b.WriteString("---@field copy_to_clipboard fun(text: string)\n")
-	b.WriteString("---@field exec_shell fun(command: string): string\n")
-	b.WriteString("---@field split_lines fun(text: string, keepEmpty?: boolean): string[]\n")
-	b.WriteString("---@field choose fun(options_or_array: string[]|{options: string[], title?: string, filter?: boolean, ordered?: boolean}): string|nil\n")
-	b.WriteString("---@field input fun(options: {title?: string, prompt?: string}): string|nil\n")
-	b.WriteString("---@field wait_close fun()\n")
-	b.WriteString("---@field wait_refresh fun()\n")
+	writeLuaHandWrittenRootFields(&b)
 	b.WriteString("\n")
 
 	// jjui.builtin class — mirrors the generated action structure
@@ -1274,7 +1306,7 @@ func generateLuaTypesSource(actionIDs []string, argSchemas map[string]map[string
 	b.WriteString("---@type jjui.context\n")
 	b.WriteString("context = {}\n\n")
 
-	// Expose diff and ui as globals if they exist as top-level owners
+	// Expose diff and ui as globals if they exist as top-level scopes.
 	for _, name := range topLevel {
 		if name == "diff" || name == "ui" {
 			b.WriteString(fmt.Sprintf("---@type jjui.%s\n", name))
@@ -1285,20 +1317,72 @@ func generateLuaTypesSource(actionIDs []string, argSchemas map[string]map[string
 	return b.Bytes(), nil
 }
 
-func sortedChildNames(root *ownerNode, owner string) []string {
-	segments := strings.Split(owner, ".")
-	current := root
-	for _, seg := range segments {
-		child, ok := current.children[seg]
-		if !ok {
-			return nil
+func buildLuaScopeTree(actionIDs []string, argSchemas map[string]map[string]string, requiredArgs map[string][]string) *scopeNode {
+	root := &scopeNode{children: map[string]*scopeNode{}}
+	for _, actionID := range actionIDs {
+		scopeName, token := splitCanonicalActionID(actionID)
+		if scopeName == "" || token == "" {
+			continue
 		}
-		current = child
+		current := root
+		var pathParts []string
+		for _, seg := range strings.Split(scopeName, ".") {
+			pathParts = append(pathParts, seg)
+			if current.children[seg] == nil {
+				current.children[seg] = &scopeNode{
+					name:     seg,
+					fullName: strings.Join(pathParts, "."),
+					children: map[string]*scopeNode{},
+				}
+			}
+			current = current.children[seg]
+		}
+		current.actions = append(current.actions, newLuaActionSpec(actionID, token, argSchemas[actionID], requiredArgs[actionID]))
 	}
-	return sortedKeys(current.children)
+	sortLuaScopeTree(root)
+	return root
 }
 
-func sortedKeys(m map[string]*ownerNode) []string {
+func newLuaActionSpec(canonical, token string, schema map[string]string, required []string) luaActionSpec {
+	requiredSet := make(map[string]struct{}, len(required))
+	for _, name := range required {
+		requiredSet[name] = struct{}{}
+	}
+	return luaActionSpec{
+		Canonical:               canonical,
+		Token:                   token,
+		Schema:                  schema,
+		Required:                required,
+		RequiredSet:             requiredSet,
+		HasSingleRequiredString: len(required) == 1 && schema[required[0]] == "string",
+	}
+}
+
+func sortLuaScopeTree(node *scopeNode) {
+	sort.Slice(node.actions, func(i, j int) bool {
+		return node.actions[i].Canonical < node.actions[j].Canonical
+	})
+	for _, childName := range sortedScopeNames(node.children) {
+		sortLuaScopeTree(node.children[childName])
+	}
+}
+
+func collectLuaScopes(root *scopeNode) []*scopeNode {
+	var out []*scopeNode
+	for _, childName := range sortedScopeNames(root.children) {
+		collectLuaScopesInto(&out, root.children[childName])
+	}
+	return out
+}
+
+func collectLuaScopesInto(out *[]*scopeNode, node *scopeNode) {
+	*out = append(*out, node)
+	for _, childName := range sortedScopeNames(node.children) {
+		collectLuaScopesInto(out, node.children[childName])
+	}
+}
+
+func sortedScopeNames(m map[string]*scopeNode) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -1307,39 +1391,41 @@ func sortedKeys(m map[string]*ownerNode) []string {
 	return keys
 }
 
-func actionTokenFromCanonical(canonical string) string {
+func splitCanonicalActionID(canonical string) (scope string, token string) {
 	idx := strings.LastIndex(canonical, ".")
 	if idx < 0 {
-		return canonical
+		return "", canonical
 	}
-	return canonical[idx+1:]
+	return canonical[:idx], canonical[idx+1:]
 }
 
-func writeActionFunction(b *bytes.Buffer, token string, schema map[string]string, required []string) {
-	if len(schema) == 0 {
-		b.WriteString(fmt.Sprintf("---@field %s fun()\n", token))
+func actionTokenFromCanonical(canonical string) string {
+	_, token := splitCanonicalActionID(canonical)
+	return token
+}
+
+func actionScopeFromCanonical(canonical string) string {
+	scope, _ := splitCanonicalActionID(canonical)
+	return scope
+}
+
+func writeActionFunction(b *bytes.Buffer, action luaActionSpec) {
+	if len(action.Schema) == 0 {
+		b.WriteString(fmt.Sprintf("---@field %s fun()\n", action.Token))
 		return
 	}
 
-	// Check for single required string arg (supports positional call)
-	requiredSet := map[string]struct{}{}
-	for _, r := range required {
-		requiredSet[r] = struct{}{}
-	}
-
-	hasSingleRequiredString := len(required) == 1 && schema[required[0]] == "string"
-
 	// Build args type annotation
-	argNames := make([]string, 0, len(schema))
-	for name := range schema {
+	argNames := make([]string, 0, len(action.Schema))
+	for name := range action.Schema {
 		argNames = append(argNames, name)
 	}
 	sort.Strings(argNames)
 
 	var params []string
 	for _, name := range argNames {
-		typ := schema[name]
-		_, isRequired := requiredSet[name]
+		typ := action.Schema[name]
+		_, isRequired := action.RequiredSet[name]
 		luaType := schemaTypeToLua(typ)
 		optional := ""
 		if !isRequired {
@@ -1348,11 +1434,11 @@ func writeActionFunction(b *bytes.Buffer, token string, schema map[string]string
 		params = append(params, fmt.Sprintf("%s%s: %s", name, optional, luaType))
 	}
 
-	if hasSingleRequiredString {
+	if action.HasSingleRequiredString {
 		// Can be called with just the string value or a table
-		b.WriteString(fmt.Sprintf("---@field %s fun(value?: string|{%s})\n", token, strings.Join(params, ", ")))
+		b.WriteString(fmt.Sprintf("---@field %s fun(value?: string|{%s})\n", action.Token, strings.Join(params, ", ")))
 	} else {
-		b.WriteString(fmt.Sprintf("---@field %s fun(args: {%s})\n", token, strings.Join(params, ", ")))
+		b.WriteString(fmt.Sprintf("---@field %s fun(args: {%s})\n", action.Token, strings.Join(params, ", ")))
 	}
 }
 

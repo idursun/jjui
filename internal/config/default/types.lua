@@ -21,9 +21,9 @@
 ---@field checked_change_ids fun(): string[] Get array of checked change IDs
 ---@field checked_commit_ids fun(): string[] Get array of checked commit IDs
 
+
 ---Run a jj command asynchronously (yields, resumes after completion)
 ---@param ... string|string[] Command arguments for jj (variadic strings or a single table)
----@return string output The command output
 function jj_async(...) end
 
 ---Run a jj command interactively (takes over the terminal)
@@ -42,11 +42,12 @@ function flash(text_or_options) end
 
 ---Copy text to the system clipboard
 ---@param text string Text to copy
+---@return boolean? ok True on success
+---@return string? error The error message (nil on success)
 function copy_to_clipboard(text) end
 
 ---Execute a shell command
 ---@param command string Shell command to execute
----@return string output The command output
 function exec_shell(command) end
 
 ---Split text into an array of lines
@@ -56,16 +57,17 @@ function exec_shell(command) end
 function split_lines(text, keepEmpty) end
 
 ---Show a choice dialog and wait for user selection (yields)
----@param options_or_array string[]|{options: string[], title?: string, filter?: boolean, ordered?: boolean} Options array or options table
+---@param ... string|string[]|{options?: string[]|string, title?: string, filter?: boolean, ordered?: boolean} Options as variadic strings, a single array, or an options table
 ---@return string|nil selected The selected option, or nil if cancelled
-function choose(options_or_array) end
+function choose(...) end
 
 ---Show a text input dialog and wait for user input (yields)
----@param options {title?: string, prompt?: string} Input options
+---@param options? {title?: string, prompt?: string} Input options
 ---@return string|nil value The entered text, or nil if cancelled
 function input(options) end
 
 ---Yield and wait for the current view to close
+---@return boolean applied True when the closed view was applied
 function wait_close() end
 
 ---Yield and wait for revisions to be updated
@@ -174,9 +176,9 @@ function wait_refresh() end
 ---@field revert fun()
 
 ---@class jjui.oplog.quick_search
----@field quick_search_clear fun()
----@field quick_search_next fun()
----@field quick_search_prev fun()
+---@field clear fun()
+---@field next fun()
+---@field prev fun()
 
 ---@class jjui.password
 ---@field apply fun()
@@ -207,6 +209,7 @@ function wait_refresh() end
 ---@field absorb fun()
 ---@field ace_jump fun()
 ---@field apply fun(args: {force?: boolean})
+---@field cancel fun()
 ---@field commit fun()
 ---@field describe fun()
 ---@field diff fun()
@@ -232,13 +235,11 @@ function wait_refresh() end
 ---@field open_squash fun()
 ---@field page_down fun()
 ---@field page_up fun()
----@field quick_search_clear fun()
----@field quick_search_next fun()
----@field quick_search_prev fun()
 ---@field refresh fun()
 ---@field split fun()
 ---@field split_parallel fun()
 ---@field toggle_select fun()
+---@field close fun()
 
 ---@class jjui.revisions.abandon
 ---@field ace_jump fun()
@@ -310,7 +311,14 @@ function wait_refresh() end
 ---@field cancel fun()
 ---@field editor fun()
 ---@field force_accept fun()
+---@field new_line fun()
 ---@field close fun()
+
+---@class jjui.revisions.quick_search
+---@field input jjui.revisions.quick_search.input
+---@field clear fun()
+---@field next fun()
+---@field prev fun()
 
 ---@class jjui.revisions.quick_search.input
 ---@field apply fun()
@@ -386,6 +394,9 @@ function wait_refresh() end
 ---@field set fun(value?: string|{value: string})
 ---@field close fun()
 
+---@class jjui.status
+---@field input jjui.status.input
+
 ---@class jjui.status.input
 ---@field apply fun()
 ---@field autocomplete fun()
@@ -453,16 +464,16 @@ function wait_refresh() end
 ---@field ui jjui.ui
 ---@field undo jjui.undo
 ---@field builtin jjui.builtin
----@field jj_async fun(...: string|string[]): string
+---@field jj_async fun(...: string|string[])
 ---@field jj_interactive fun(...: string|string[])
 ---@field jj fun(...: string|string[]): string?, string?
 ---@field flash fun(text_or_options: string|{text: string, error?: boolean, sticky?: boolean})
----@field copy_to_clipboard fun(text: string)
----@field exec_shell fun(command: string): string
+---@field copy_to_clipboard fun(text: string): boolean?, string?
+---@field exec_shell fun(command: string)
 ---@field split_lines fun(text: string, keepEmpty?: boolean): string[]
----@field choose fun(options_or_array: string[]|{options: string[], title?: string, filter?: boolean, ordered?: boolean}): string|nil
----@field input fun(options: {title?: string, prompt?: string}): string|nil
----@field wait_close fun()
+---@field choose fun(...: string|string[]|{options?: string[]|string, title?: string, filter?: boolean, ordered?: boolean}): string|nil
+---@field input fun(options?: {title?: string, prompt?: string}): string|nil
+---@field wait_close fun(): boolean
 ---@field wait_refresh fun()
 
 ---@class jjui.builtin
