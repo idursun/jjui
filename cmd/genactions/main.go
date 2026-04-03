@@ -1037,7 +1037,7 @@ func revisionsOwnerList(owners []string) []string {
 
 func isRevisionsOwner(owner string) bool {
 	switch owner {
-	case "bookmarks", "choose", "diff", "file_search", "flash", "git", "input", "oplog", "password", "redo", "revset", "status.input", "ui", "ui.preview", "undo":
+	case "bookmark_view", "bookmark_view.filter", "bookmarks", "choose", "diff", "file_search", "flash", "git", "input", "oplog", "password", "redo", "revset", "status.input", "ui", "ui.preview", "undo":
 		return false
 	}
 	return true

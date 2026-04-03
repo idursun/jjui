@@ -69,6 +69,7 @@ type Model struct {
 	matchedStyle           lipgloss.Style
 	ensureCursorView       bool
 	requestInFlight        bool
+	focused                bool
 }
 
 type revisionsMsg struct {
@@ -86,6 +87,8 @@ type ItemClickedMsg struct {
 	Ctrl  bool
 	Alt   bool
 }
+
+type PaneClickedMsg struct{}
 
 type ViewportScrollMsg struct {
 	Delta      int
@@ -170,7 +173,11 @@ func (m *Model) IsFocused() bool {
 	if f, ok := m.op.(common.Focusable); ok {
 		return f.IsFocused()
 	}
-	return false
+	return m.focused
+}
+
+func (m *Model) SetFocused(focused bool) {
+	m.focused = focused
 }
 
 func (m *Model) InNormalMode() bool {
@@ -476,7 +483,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.OpenSetParents:
 		return m.startSetParents(intent)
 	case intents.OpenSetBookmark:
-		return m.startBookmarkSet()
+		return m.startBookmarkSet(intent)
 	case intents.RevisionsToggleSelect:
 		commit := m.rows[m.cursor].Commit
 		changeId := commit.GetChangeId()
@@ -523,12 +530,18 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	return nil
 }
 
-func (m *Model) startBookmarkSet() tea.Cmd {
-	rev := m.SelectedRevision()
-	if rev == nil {
-		return nil
+func (m *Model) startBookmarkSet(intent intents.OpenSetBookmark) tea.Cmd {
+	revision := intent.Revision
+	if revision == "" {
+		rev := m.SelectedRevision()
+		if rev == nil {
+			return nil
+		}
+		revision = rev.GetChangeId()
 	}
-	m.op = bookmark.NewSetBookmarkOperation(m.context, rev.GetChangeId())
+	m.op = bookmark.NewSetBookmarkOperation(m.context, revision, bookmark.SetBookmarkOptions{
+		ReturnFocusToBookmarkView: intent.ReturnFocusToBookmarkView,
+	})
 	return m.op.Init()
 }
 
@@ -913,6 +926,8 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	dl.AddInteraction(box.R, PaneClickedMsg{}, render.InteractionClick, -1)
+
 	if len(m.rows) == 0 {
 		content := ""
 		if m.isLoading {
@@ -926,6 +941,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	// Set selections
 	m.displayContextRenderer.SetSelections(m.context.GetSelectedRevisions())
+	m.displayContextRenderer.SetSelectionFocused(m.focused)
 
 	// Get operation if any
 	var op operations.Operation
@@ -1057,6 +1073,15 @@ func (m *Model) GetCommitIds() []string {
 	return commitIds
 }
 
+func (m *Model) RevealRevision(revision string) tea.Cmd {
+	index := m.selectRevision(revision)
+	if index < 0 {
+		return nil
+	}
+	m.SetCursor(index)
+	return m.updateSelection()
+}
+
 func New(c *appContext.MainContext) *Model {
 	m := Model{
 		context:       c,
@@ -1068,6 +1093,7 @@ func New(c *appContext.MainContext) *Model {
 		dimmedStyle:   common.DefaultPalette.Get("revisions dimmed"),
 		selectedStyle: common.DefaultPalette.Get("revisions selected"),
 		matchedStyle:  common.DefaultPalette.Get("revisions matched"),
+		focused:       true,
 	}
 	m.displayContextRenderer = NewDisplayContextRenderer(m.textStyle, m.dimmedStyle, m.selectedStyle, m.matchedStyle)
 	return &m

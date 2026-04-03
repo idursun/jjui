@@ -21,12 +21,17 @@ import (
 var _ operations.Operation = (*SetBookmarkOperation)(nil)
 var _ common.Editable = (*SetBookmarkOperation)(nil)
 
+type SetBookmarkOptions struct {
+	ReturnFocusToBookmarkView bool
+}
+
 type SetBookmarkOperation struct {
-	context         *context.MainContext
-	revision        string
-	name            textinput.Model
-	suggestions     []string
-	suggestionIndex int
+	context                   *context.MainContext
+	revision                  string
+	name                      textinput.Model
+	suggestions               []string
+	suggestionIndex           int
+	returnFocusToBookmarkView bool
 }
 
 func (s *SetBookmarkOperation) IsEditing() bool {
@@ -38,9 +43,17 @@ func (s *SetBookmarkOperation) Update(msg tea.Msg) tea.Cmd {
 	case intents.Intent:
 		switch msg := msg.(type) {
 		case intents.Cancel:
-			return common.Close
+			cmds := []tea.Cmd{common.Close}
+			if s.returnFocusToBookmarkView {
+				cmds = append(cmds, common.FocusBookmarkView())
+			}
+			return tea.Sequence(cmds...)
 		case intents.Apply:
-			return s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), common.CloseApplied, common.Refresh)
+			continuations := []tea.Cmd{common.CloseApplied, common.Refresh}
+			if s.returnFocusToBookmarkView {
+				continuations = append(continuations, common.FocusBookmarkView())
+			}
+			return s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), continuations...)
 		case intents.AutocompleteCycle:
 			s.cycleSuggestion(msg.Reverse)
 			return nil
@@ -95,7 +108,7 @@ func (s *SetBookmarkOperation) Scope() keybindings.Scope {
 	return keybindings.Scope(actions.OwnerSetBookmark)
 }
 
-func NewSetBookmarkOperation(context *context.MainContext, changeId string) *SetBookmarkOperation {
+func NewSetBookmarkOperation(context *context.MainContext, changeId string, opts SetBookmarkOptions) *SetBookmarkOperation {
 	dimmedStyle := common.DefaultPalette.Get("revisions dimmed").Inline(true)
 	textStyle := common.DefaultPalette.Get("revisions text").Inline(true)
 	t := textinput.New()
@@ -116,9 +129,10 @@ func NewSetBookmarkOperation(context *context.MainContext, changeId string) *Set
 	t.Focus()
 
 	op := &SetBookmarkOperation{
-		name:     t,
-		revision: changeId,
-		context:  context,
+		name:                      t,
+		revision:                  changeId,
+		context:                   context,
+		returnFocusToBookmarkView: opts.ReturnFocusToBookmarkView,
 		// -1 means no active completion cycle.
 		suggestionIndex: -1,
 	}
