@@ -9,7 +9,6 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/helpkeys"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -96,7 +95,7 @@ var scopeOrder = []string{
 
 type scopeGroup struct {
 	name    string
-	entries []helpkeys.Entry
+	entries []Entry
 }
 
 type styles struct {
@@ -168,8 +167,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case intents.HelpScroll:
 		if msg.Delta == 0 {
 			m.scroll = 0
-		} else if msg.Delta >= 999999 {
-			m.scroll = m.totalLines()
 		} else {
 			m.scroll = max(0, m.scroll+msg.Delta)
 		}
@@ -196,7 +193,7 @@ func (m *Model) applyFilter() {
 	}
 	var result []scopeGroup
 	for _, group := range m.groups {
-		var matched []helpkeys.Entry
+		var matched []Entry
 		for _, e := range group.entries {
 			if strings.Contains(strings.ToLower(e.Desc), query) ||
 				strings.Contains(strings.ToLower(e.Label), query) ||
@@ -282,7 +279,7 @@ func (m *Model) renderGroups(groups []scopeGroup, width int) []string {
 	return lines
 }
 
-func (m *Model) renderEntries(entries []helpkeys.Entry, width int) []string {
+func (m *Model) renderEntries(entries []Entry, width int) []string {
 	maxLabelWidth := 0
 	for _, e := range entries {
 		if w := render.StringWidth(e.Label); w > maxLabelWidth {
@@ -316,25 +313,6 @@ func (m *Model) renderEntries(entries []helpkeys.Entry, width int) []string {
 		lines = append(lines, line.String())
 	}
 	return lines
-}
-
-func (m *Model) totalLines() int {
-	total := 0
-	for i, group := range m.groups {
-		if i > 0 {
-			total++ // blank line
-		}
-		total++ // header
-		maxLabelWidth := 0
-		for _, e := range group.entries {
-			if w := render.StringWidth(e.Label); w > maxLabelWidth {
-				maxLabelWidth = w
-			}
-		}
-		numRows := (len(group.entries) + 2) / 3 // rough estimate with 3 cols
-		total += numRows
-	}
-	return total
 }
 
 func New() *Model {
@@ -419,26 +397,21 @@ func buildGroups(bindings []config.BindingConfig) []scopeGroup {
 	return groups
 }
 
-func bindingsToEntries(bindings []config.BindingConfig) []helpkeys.Entry {
-	var entries []helpkeys.Entry
+func bindingsToEntries(bindings []config.BindingConfig) []Entry {
+	var entries []Entry
 	seenActions := make(map[string]bool)
 	for _, b := range bindings {
 		action := strings.TrimSpace(b.Action)
 		if action == "" {
 			continue
 		}
-		label := helpkeys.BindingLabel(b)
+		label := BindingLabel(b)
 		if label == "" {
 			continue
 		}
 		desc := strings.TrimSpace(b.Desc)
 		if desc == "" {
-			// derive from action name
-			if idx := strings.LastIndexByte(action, '.'); idx >= 0 && idx < len(action)-1 {
-				desc = strings.ReplaceAll(action[idx+1:], "_", " ")
-			} else {
-				desc = strings.ReplaceAll(action, "_", " ")
-			}
+			desc = descFromAction(action)
 		}
 
 		key := action + "|" + desc
@@ -447,7 +420,7 @@ func bindingsToEntries(bindings []config.BindingConfig) []helpkeys.Entry {
 		}
 		seenActions[key] = true
 
-		entries = append(entries, helpkeys.Entry{Label: label, Desc: desc})
+		entries = append(entries, Entry{Label: label, Desc: desc})
 	}
 	return entries
 }

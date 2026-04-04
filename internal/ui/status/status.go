@@ -5,7 +5,7 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/ui/helpkeys"
+	"github.com/idursun/jjui/internal/ui/help"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 
@@ -20,7 +20,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 )
 
-var expandFallback = helpkeys.Entry{Label: "?", Desc: "expand status"}
+var expandFallback = help.Entry{Label: "?", Desc: "expand status"}
 
 type FocusKind int
 
@@ -36,7 +36,7 @@ var _ common.ImmediateModel = (*Model)(nil)
 type Model struct {
 	context         *context.MainContext
 	input           textinput.Model
-	entries         []helpkeys.Entry
+	entries         []help.Entry
 	mode            string
 	focusKind       FocusKind
 	history         map[string][]string
@@ -297,7 +297,7 @@ func (m *Model) renderFuzzyOverlay(dl *render.DisplayContext, box layout.Box) {
 	m.fuzzy.ViewRect(dl, layout.Box{R: overlayRect})
 }
 
-func (m *Model) SetHelp(entries []helpkeys.Entry) {
+func (m *Model) SetHelp(entries []help.Entry) {
 	if len(m.entries) != len(entries) {
 		m.statusExpanded = false
 	}
@@ -332,7 +332,7 @@ func (m *Model) SetStatusExpanded(expanded bool) {
 	m.statusExpanded = expanded
 }
 
-func (m *Model) Help() []helpkeys.Entry {
+func (m *Model) Help() []help.Entry {
 	return m.entries
 }
 
@@ -359,7 +359,7 @@ func (m *Model) InputValue() string {
 	return m.input.Value()
 }
 
-func (m *Model) expandedStatusView(helpEntries []helpkeys.Entry, maxWidth int) (string, int) {
+func (m *Model) expandedStatusView(helpEntries []help.Entry, maxWidth int) (string, int) {
 	rendered, maxEntryWidth := m.collectHelpEntries(helpEntries)
 	lines := m.buildHelpGrid(rendered, maxEntryWidth, maxWidth)
 	return strings.Join(lines, "\n"), len(lines)
@@ -367,7 +367,7 @@ func (m *Model) expandedStatusView(helpEntries []helpkeys.Entry, maxWidth int) (
 
 // collectHelpEntries gathers all help entries and returns them
 // along with the maximum entry width for column layout calculation.
-func (m *Model) collectHelpEntries(helpEntries []helpkeys.Entry) ([]string, int) {
+func (m *Model) collectHelpEntries(helpEntries []help.Entry) ([]string, int) {
 	expandKey := m.expandStatusKey(helpEntries)
 	closeHint := m.styles.shortcut.Render(expandKey+"/esc") + m.styles.dimmed.PaddingLeft(1).Render("close help")
 
@@ -421,7 +421,7 @@ func (m *Model) buildHelpGrid(entries []string, maxEntryWidth, maxWidth int) []s
 	return lines
 }
 
-func (m *Model) helpView(helpEntries []helpkeys.Entry, maxWidth int) (string, bool) {
+func (m *Model) helpView(helpEntries []help.Entry, maxWidth int) (string, bool) {
 	separator := m.styles.dimmed.Render(" • ")
 	expandKey := m.expandStatusKey(helpEntries)
 	moreHint := separator + m.styles.shortcut.Render(expandKey) + m.styles.dimmed.PaddingLeft(1).Render("more")
@@ -437,7 +437,7 @@ func (m *Model) helpView(helpEntries []helpkeys.Entry, maxWidth int) (string, bo
 
 // collectHelpEntriesWithLimit gathers help entries that fit within maxWidth,
 // accounting for separators and the "more" hint when truncation occurs.
-func (m *Model) collectHelpEntriesWithLimit(helpEntries []helpkeys.Entry, maxWidth, separatorWidth, moreHintWidth int) ([]string, bool) {
+func (m *Model) collectHelpEntriesWithLimit(helpEntries []help.Entry, maxWidth, separatorWidth, moreHintWidth int) ([]string, bool) {
 	var rendered []string
 	currentWidth := 0
 
@@ -470,7 +470,7 @@ func (m *Model) collectHelpEntriesWithLimit(helpEntries []helpkeys.Entry, maxWid
 	return rendered, false
 }
 
-func (m *Model) expandStatusKey(helpEntries []helpkeys.Entry) string {
+func (m *Model) expandStatusKey(helpEntries []help.Entry) string {
 	for _, entry := range helpEntries {
 		if entry.Desc == "expand status" {
 			return entry.Label

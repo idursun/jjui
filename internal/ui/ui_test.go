@@ -14,7 +14,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/git"
-	"github.com/idursun/jjui/internal/ui/helpkeys"
+	"github.com/idursun/jjui/internal/ui/help"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
@@ -335,7 +335,7 @@ func Test_UpdateStatus_IncludesAlwaysOnUiBindings(t *testing.T) {
 	model := NewUI(ctx)
 
 	model.updateStatus()
-	assert.Contains(t, model.status.Help(), helpkeys.Entry{Label: "W", Desc: "command history"})
+	assert.Contains(t, model.status.Help(), help.Entry{Label: "W", Desc: "command history"})
 }
 
 func Test_Update_SequencePrefixBeatsSingleKeyBinding(t *testing.T) {

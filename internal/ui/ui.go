@@ -12,7 +12,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/dispatch"
-	"github.com/idursun/jjui/internal/ui/helpkeys"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/password"
@@ -55,7 +54,7 @@ type Model struct {
 	password         *password.Model
 	context          *context.MainContext
 	scriptRunner     *scripting.Runner
-	sequenceHelp     []helpkeys.Entry
+	sequenceHelp     []help.Entry
 	sequenceAutoOpen bool
 	resolver         *dispatch.Resolver
 	stacked          common.StackedModel
@@ -909,16 +908,16 @@ func NewUI(c *context.MainContext) *Model {
 	return ui
 }
 
-func (m *Model) bindingStatusHelp() []helpkeys.Entry {
+func (m *Model) bindingStatusHelp() []help.Entry {
 	scopes := m.dispatchScopes()
 	if len(scopes) == 0 {
 		return nil
 	}
-	return helpkeys.BuildFromBindings(scopes, config.Current.Bindings)
+	return help.BuildFromBindings(scopes, config.Current.Bindings)
 }
 
 func (m *Model) setSequenceStatusHelp(continuations []dispatch.Continuation) {
-	entries := helpkeys.BuildFromContinuations(continuations)
+	entries := help.BuildFromContinuations(continuations)
 	if len(entries) == 0 {
 		return
 	}

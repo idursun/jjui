@@ -1,4 +1,4 @@
-package helpkeys
+package help
 
 import (
 	"sort"
