@@ -70,7 +70,7 @@ func NewWithTitle(options []string, title string, filterable bool) *Model {
 }
 
 func NewWithOptions(options []string, title string, filterable bool, ordered bool) *Model {
-	ti := textinput.New()
+	ti := common.TextInputNew()
 	ti.Prompt = "/"
 	ti.Placeholder = "filter..."
 	ti.CharLimit = 100

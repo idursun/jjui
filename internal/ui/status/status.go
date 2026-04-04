@@ -487,7 +487,7 @@ func New(context *context.MainContext) *Model {
 		title:    common.DefaultPalette.Get("status title").PaddingLeft(1).PaddingRight(1),
 	}
 
-	t := textinput.New()
+	t := common.TextInputNew()
 	t.SetWidth(50)
 	ts := t.Styles()
 	ts.Focused.Text = styles.text

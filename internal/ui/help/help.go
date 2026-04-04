@@ -350,7 +350,7 @@ func New() *Model {
 		dimmed:   palette.Get("help dimmed"),
 	}
 
-	ti := textinput.New()
+	ti := common.TextInputNew()
 	ti.Placeholder = "search"
 	ti.Prompt = "/ "
 	ti.SetWidth(40)

@@ -86,7 +86,7 @@ func NewModel(ctx *context.MainContext) *Model {
 	palette := common.DefaultPalette
 	text := palette.Get("picker text")
 	dimmed := palette.Get("picker dimmed")
-	ti := textinput.New()
+	ti := common.TextInputNew()
 	ti.Prompt = "> "
 	tis := ti.Styles()
 	tis.Focused.Prompt = dimmed
