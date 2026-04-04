@@ -8,8 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/actions"
-	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -42,7 +40,8 @@ func (m *Model) Init() tea.Cmd {
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
-		return m.handleIntent(msg)
+		cmd, _ := m.HandleIntent(msg)
+		return cmd
 	}
 	return nil
 }
@@ -60,13 +59,13 @@ func (m *Model) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
+func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent.(type) {
 	case intents.StartAceJump:
-		return common.StartAceJump()
+		return common.StartAceJump(), true
 	case intents.SetParentsToggleSelect:
 		if m.current.GetChangeId() == m.target.GetChangeId() {
-			return nil
+			return nil, true
 		}
 
 		if slices.Contains(m.parents, m.current.CommitId) {
@@ -83,10 +82,10 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 				m.toAdd = append(m.toAdd, changeId)
 			}
 		}
-		return nil
+		return nil, true
 	case intents.Apply:
 		if len(m.toAdd) == 0 && len(m.toRemove) == 0 {
-			return common.Close
+			return common.Close, true
 		}
 
 		parentsToAdd := slices.Clone(m.toAdd)
@@ -96,11 +95,11 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 			parentsToRemove = append(parentsToRemove, changeId)
 		}
 
-		return m.context.RunCommand(jj.SetParents(m.target.GetChangeId(), parentsToAdd, parentsToRemove), common.RefreshAndSelect(m.target.GetChangeId()), common.CloseApplied)
+		return m.context.RunCommand(jj.SetParents(m.target.GetChangeId(), parentsToAdd, parentsToRemove), common.RefreshAndSelect(m.target.GetChangeId()), common.CloseApplied), true
 	case intents.Cancel:
-		return common.Close
+		return common.Close, true
 	}
-	return nil
+	return nil, false
 }
 
 func (m *Model) Render(commit *jj.Commit, renderPosition operations.RenderPosition) string {
@@ -125,10 +124,6 @@ func (m *Model) Render(commit *jj.Commit, renderPosition operations.RenderPositi
 
 func (m *Model) Name() string {
 	return "set parents"
-}
-
-func (m *Model) Scope() keybindings.Scope {
-	return keybindings.Scope(actions.OwnerSetParents)
 }
 
 func NewModel(ctx *context.MainContext, to *jj.Commit) *Model {

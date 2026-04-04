@@ -450,28 +450,28 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 func registerGeneratedActionAPI(L *lua.LState, root *lua.LTable, builtIn bool) {
 	actions := actionmeta.BuiltInActions()
 	for _, actionID := range actions {
-		owners := actionmeta.ActionOwners(actionID)
-		for _, owner := range owners {
-			ownerTable := ensureOwnerTable(L, root, owner)
+		scopes := actionmeta.ActionScopes(actionID)
+		for _, scope := range scopes {
+			scopeTable := ensureScopeTable(L, root, scope)
 			token := actionTokenFromCanonical(actionID)
 			if token == "" {
 				continue
 			}
 			// Keep existing utility helpers (e.g. jjui.revisions.refresh) intact.
-			if ownerTable.RawGetString(token) != lua.LNil {
+			if scopeTable.RawGetString(token) != lua.LNil {
 				continue
 			}
-			ownerTable.RawSetString(token, generatedActionFn(L, actionID, builtIn))
-			if token == "cancel" && ownerTable.RawGetString("close") == lua.LNil {
-				ownerTable.RawSetString("close", generatedActionFn(L, actionID, builtIn))
+			scopeTable.RawSetString(token, generatedActionFn(L, actionID, builtIn))
+			if token == "cancel" && scopeTable.RawGetString("close") == lua.LNil {
+				scopeTable.RawSetString("close", generatedActionFn(L, actionID, builtIn))
 			}
 		}
 	}
 }
 
-func ensureOwnerTable(L *lua.LState, root *lua.LTable, owner string) *lua.LTable {
+func ensureScopeTable(L *lua.LState, root *lua.LTable, scope string) *lua.LTable {
 	current := root
-	for segment := range strings.SplitSeq(owner, ".") {
+	for segment := range strings.SplitSeq(scope, ".") {
 		existing := current.RawGetString(segment)
 		if tbl, ok := existing.(*lua.LTable); ok {
 			current = tbl

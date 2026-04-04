@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/ui/bindings"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 // Continuation describes possible next keys while in sequence mode.
@@ -55,9 +56,9 @@ func (d *Dispatcher) ResetSequence() {
 	d.candidates = nil
 }
 
-// Resolve applies dispatch rules for a key in the provided scope chain.
-// Scopes must be ordered from innermost to outermost.
-func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []bindings.Scope) ResolveResult {
+// Resolve applies dispatch rules for a key in the provided layer chain.
+// Layers must be ordered from innermost to outermost.
+func (d *Dispatcher) Resolve(msg tea.KeyMsg, layers []routing.Layer) ResolveResult {
 	if msg.String() == "" {
 		return ResolveResult{}
 	}
@@ -67,7 +68,7 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []bindings.Scope) ResolveRes
 		return d.resolveSequenceKey(key)
 	}
 
-	seqCandidates := d.initialSequenceCandidates(key, scopes)
+	seqCandidates := d.initialSequenceCandidates(key, layers)
 	if len(seqCandidates) > 0 {
 		d.buffered = []tea.Key{key}
 		d.candidates = seqCandidates
@@ -78,7 +79,8 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []bindings.Scope) ResolveRes
 		}
 	}
 
-	for _, scope := range scopes {
+	for _, layer := range layers {
+		scope := layer.Scope
 		scopeBindings := d.bindings[scope]
 		for i := len(scopeBindings) - 1; i >= 0; i-- {
 			binding := scopeBindings[i]
@@ -90,6 +92,9 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []bindings.Scope) ResolveRes
 					return ResolveResult{Action: binding.Action, Scope: scope, Args: bindings.CloneArgs(binding.Args), Consumed: true}
 				}
 			}
+		}
+		if !layer.AllowLeak {
+			break
 		}
 	}
 
@@ -150,13 +155,17 @@ func (d *Dispatcher) resolveSequenceKey(key tea.Key) ResolveResult {
 	}
 }
 
-func (d *Dispatcher) initialSequenceCandidates(key tea.Key, scopes []bindings.Scope) []candidate {
+func (d *Dispatcher) initialSequenceCandidates(key tea.Key, layers []routing.Layer) []candidate {
 	var candidates []candidate
-	for _, scope := range scopes {
+	for _, layer := range layers {
+		scope := layer.Scope
 		for _, binding := range d.bindings[scope] {
 			if len(binding.Seq) > 0 && keyMatches(binding.Seq[0], key) {
 				candidates = append(candidates, candidate{scope: scope, binding: binding})
 			}
+		}
+		if !layer.AllowLeak {
+			break
 		}
 	}
 	return candidates

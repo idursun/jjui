@@ -5,10 +5,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 type viewMode interface {
@@ -155,6 +157,66 @@ type Model struct {
 	mode viewMode
 }
 
+func (m *Model) Layers() []routing.Layer {
+	return []routing.Layer{
+		{
+			Scope:     actions.ScopeDiff,
+			AllowLeak: true,
+			Handler:   m,
+		},
+	}
+}
+
+func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	switch msg := intent.(type) {
+	case intents.Cancel:
+		return common.Close, true
+	case intents.DiffScroll:
+		switch msg.Kind {
+		case intents.DiffScrollUp:
+			m.scrollY -= 1
+		case intents.DiffScrollDown:
+			m.scrollY += 1
+		case intents.DiffPageUp:
+			m.scrollY -= m.viewportHeight
+		case intents.DiffPageDown:
+			m.scrollY += m.viewportHeight
+		case intents.DiffHalfPageUp:
+			m.scrollY -= m.viewportHeight / 2
+		case intents.DiffHalfPageDown:
+			m.scrollY += m.viewportHeight / 2
+		case intents.DiffMoveTop:
+			m.scrollY = 0
+		case intents.DiffMoveBottom:
+			m.scrollY = max(0, m.mode.totalLines(m.viewportWidth)-m.viewportHeight)
+		}
+		return nil, true
+
+	case intents.DiffToggleWrap:
+		switch m.mode.(type) {
+		case *wrappedView:
+			m.mode = newDefaultView(m.lines, m.maxLineWidth)
+		default:
+			m.mode = newWrappedView(m.lines)
+		}
+		return nil, true
+
+	case intents.DiffShow:
+		m.SetContent(msg.Content)
+		return nil, true
+
+	case intents.DiffScrollHorizontal:
+		switch msg.Kind {
+		case intents.DiffScrollLeft:
+			m.mode.scrollHorizontal(-1, m.viewportWidth)
+		case intents.DiffScrollRight:
+			m.mode.scrollHorizontal(1, m.viewportWidth)
+		}
+		return nil, true
+	}
+	return nil, false
+}
+
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
@@ -210,48 +272,9 @@ func (m *Model) SetContent(content string) {
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case intents.DiffScroll:
-		switch msg.Kind {
-		case intents.DiffScrollUp:
-			m.scrollY -= 1
-		case intents.DiffScrollDown:
-			m.scrollY += 1
-		case intents.DiffPageUp:
-			m.scrollY -= m.viewportHeight
-		case intents.DiffPageDown:
-			m.scrollY += m.viewportHeight
-		case intents.DiffHalfPageUp:
-			m.scrollY -= m.viewportHeight / 2
-		case intents.DiffHalfPageDown:
-			m.scrollY += m.viewportHeight / 2
-		case intents.DiffMoveTop:
-			m.scrollY = 0
-		case intents.DiffMoveBottom:
-			m.scrollY = max(0, m.mode.totalLines(m.viewportWidth)-m.viewportHeight)
-		}
-		return nil
-
-	case intents.DiffToggleWrap:
-		switch m.mode.(type) {
-		case *wrappedView:
-			m.mode = newDefaultView(m.lines, m.maxLineWidth)
-		default:
-			m.mode = newWrappedView(m.lines)
-		}
-		return nil
-
-	case intents.DiffShow:
-		m.SetContent(msg.Content)
-		return nil
-
-	case intents.DiffScrollHorizontal:
-		switch msg.Kind {
-		case intents.DiffScrollLeft:
-			m.mode.scrollHorizontal(-1, m.viewportWidth)
-		case intents.DiffScrollRight:
-			m.mode.scrollHorizontal(1, m.viewportWidth)
-		}
-		return nil
+	case intents.DiffScroll, intents.DiffToggleWrap, intents.DiffShow, intents.DiffScrollHorizontal:
+		cmd, _ := m.HandleIntent(msg.(intents.Intent))
+		return cmd
 
 	case ScrollMsg:
 		if !msg.Horizontal {

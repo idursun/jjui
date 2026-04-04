@@ -8,52 +8,43 @@ import (
 )
 
 const (
-	OwnerBookmarks           = "bookmarks"
-	OwnerChoose              = "choose"
-	OwnerCommandHistory      = "command_history"
-	OwnerDiff                = "diff"
-	OwnerFileSearch          = "file_search"
-	OwnerGit                 = "git"
-	OwnerHelp                = "help"
-	OwnerInput               = "input"
-	OwnerOplog               = "oplog"
-	OwnerOplogQuickSearch    = "oplog.quick_search"
-	OwnerPassword            = "password"
-	OwnerRedo                = "redo"
-	OwnerRevisions           = "revisions"
-	OwnerAbandon             = "revisions.abandon"
-	OwnerAceJump             = "revisions.ace_jump"
-	OwnerDetails             = "revisions.details"
-	OwnerDetailsConfirmation = "revisions.details.confirmation"
-	OwnerDuplicate           = "revisions.duplicate"
-	OwnerEvolog              = "revisions.evolog"
-	OwnerInlineDescribe      = "revisions.inline_describe"
-	OwnerQuickSearchInput    = "revisions.quick_search.input"
-	OwnerRebase              = "revisions.rebase"
-	OwnerRevert              = "revisions.revert"
-	OwnerSetBookmark         = "revisions.set_bookmark"
-	OwnerSetParents          = "revisions.set_parents"
-	OwnerSquash              = "revisions.squash"
-	OwnerTargetPicker        = "revisions.target_picker"
-	OwnerRevset              = "revset"
-	OwnerStatusInput         = "status.input"
-	OwnerUi                  = "ui"
-	OwnerUiPreview           = "ui.preview"
-	OwnerUndo                = "undo"
+	ScopeBookmarks           = "bookmarks"
+	ScopeChoose              = "choose"
+	ScopeCommandHistory      = "command_history"
+	ScopeDiff                = "diff"
+	ScopeFileSearch          = "file_search"
+	ScopeGit                 = "git"
+	ScopeHelp                = "help"
+	ScopeInput               = "input"
+	ScopeOplog               = "oplog"
+	ScopeOplogQuickSearch    = "oplog.quick_search"
+	ScopePassword            = "password"
+	ScopeRedo                = "redo"
+	ScopeRevisions           = "revisions"
+	ScopeAbandon             = "revisions.abandon"
+	ScopeAceJump             = "revisions.ace_jump"
+	ScopeDetails             = "revisions.details"
+	ScopeDetailsConfirmation = "revisions.details.confirmation"
+	ScopeDuplicate           = "revisions.duplicate"
+	ScopeEvolog              = "revisions.evolog"
+	ScopeInlineDescribe      = "revisions.inline_describe"
+	ScopeQuickSearchInput    = "revisions.quick_search.input"
+	ScopeRebase              = "revisions.rebase"
+	ScopeRevert              = "revisions.revert"
+	ScopeSetBookmark         = "revisions.set_bookmark"
+	ScopeSetParents          = "revisions.set_parents"
+	ScopeSquash              = "revisions.squash"
+	ScopeTargetPicker        = "revisions.target_picker"
+	ScopeRevset              = "revset"
+	ScopeStatusInput         = "status.input"
+	ScopeUi                  = "ui"
+	ScopeUiPreview           = "ui.preview"
+	ScopeUndo                = "undo"
 )
 
-func IsRevisionsOwner(owner string) bool {
-	switch owner {
-	case OwnerCommandHistory, OwnerHelp, OwnerOplogQuickSearch, OwnerRevisions, OwnerAbandon, OwnerAceJump, OwnerDetails, OwnerDetailsConfirmation, OwnerDuplicate, OwnerEvolog, OwnerInlineDescribe, OwnerQuickSearchInput, OwnerRebase, OwnerRevert, OwnerSetBookmark, OwnerSetParents, OwnerSquash, OwnerTargetPicker:
-		return true
-	default:
-		return false
-	}
-}
-
-func ResolveIntent(owner string, action keybindings.Action, args map[string]any) (intents.Intent, bool) {
-	switch owner {
-	case OwnerBookmarks:
+func ResolveIntent(scope string, action keybindings.Action, args map[string]any) (intents.Intent, bool) {
+	switch scope {
+	case ScopeBookmarks:
 		switch action {
 		case keybindings.Action("bookmarks.apply"):
 			return intents.Apply{}, true
@@ -86,7 +77,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("bookmarks.quit"):
 			return intents.Quit{}, true
 		}
-	case OwnerChoose:
+	case ScopeChoose:
 		switch action {
 		case keybindings.Action("choose.apply"):
 			return intents.ChooseApply{}, true
@@ -97,7 +88,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("choose.move_up"):
 			return intents.ChooseNavigate{Delta: -1}, true
 		}
-	case OwnerCommandHistory:
+	case ScopeCommandHistory:
 		switch action {
 		case keybindings.Action("command_history.close"):
 			return intents.CommandHistoryClose{}, true
@@ -108,7 +99,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("command_history.move_up"):
 			return intents.CommandHistoryNavigate{Delta: -1}, true
 		}
-	case OwnerDiff:
+	case ScopeDiff:
 		switch action {
 		case keybindings.Action("diff.half_page_down"):
 			return intents.DiffScroll{Kind: intents.DiffHalfPageDown}, true
@@ -135,7 +126,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("diff.toggle_wrap"):
 			return intents.DiffToggleWrap{}, true
 		}
-	case OwnerFileSearch:
+	case ScopeFileSearch:
 		switch action {
 		case keybindings.Action("file_search.apply"):
 			return intents.Apply{}, true
@@ -158,7 +149,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("file_search.toggle"):
 			return intents.FileSearchTogglePreview{}, true
 		}
-	case OwnerGit:
+	case ScopeGit:
 		switch action {
 		case keybindings.Action("git.apply"):
 			return intents.Apply{}, true
@@ -185,7 +176,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("git.quit"):
 			return intents.Quit{}, true
 		}
-	case OwnerHelp:
+	case ScopeHelp:
 		switch action {
 		case keybindings.Action("help.apply"):
 			return intents.Apply{}, true
@@ -208,14 +199,14 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("help.scroll_up"):
 			return intents.HelpScroll{Delta: -1}, true
 		}
-	case OwnerInput:
+	case ScopeInput:
 		switch action {
 		case keybindings.Action("input.apply"):
 			return intents.Apply{}, true
 		case keybindings.Action("input.cancel"):
 			return intents.Cancel{}, true
 		}
-	case OwnerOplog:
+	case ScopeOplog:
 		switch action {
 		case keybindings.Action("oplog.close"):
 			return intents.OpLogClose{}, true
@@ -236,7 +227,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("oplog.revert"):
 			return intents.OpLogRevert{}, true
 		}
-	case OwnerOplogQuickSearch:
+	case ScopeOplogQuickSearch:
 		switch action {
 		case keybindings.Action("oplog.quick_search.quick_search_clear"):
 			return intents.OpLogQuickSearchClear{}, true
@@ -245,14 +236,14 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("oplog.quick_search.quick_search_prev"):
 			return intents.QuickSearchCycle{Reverse: true}, true
 		}
-	case OwnerPassword:
+	case ScopePassword:
 		switch action {
 		case keybindings.Action("password.apply"):
 			return intents.Apply{}, true
 		case keybindings.Action("password.cancel"):
 			return intents.Cancel{}, true
 		}
-	case OwnerRedo:
+	case ScopeRedo:
 		switch action {
 		case keybindings.Action("redo.apply"):
 			return intents.Apply{}, true
@@ -263,7 +254,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("redo.prev"):
 			return intents.OptionSelect{Delta: -1}, true
 		}
-	case OwnerRevisions:
+	case ScopeRevisions:
 		switch action {
 		case keybindings.Action("revisions.absorb"):
 			return intents.Absorb{}, true
@@ -336,7 +327,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.toggle_select"):
 			return intents.RevisionsToggleSelect{}, true
 		}
-	case OwnerAbandon:
+	case ScopeAbandon:
 		switch action {
 		case keybindings.Action("revisions.abandon.ace_jump"):
 			return intents.StartAceJump{}, true
@@ -353,14 +344,14 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.abandon.toggle_select"):
 			return intents.AbandonToggleSelect{}, true
 		}
-	case OwnerAceJump:
+	case ScopeAceJump:
 		switch action {
 		case keybindings.Action("revisions.ace_jump.apply"):
 			return intents.Apply{}, true
 		case keybindings.Action("revisions.ace_jump.cancel"):
 			return intents.Cancel{}, true
 		}
-	case OwnerDetails:
+	case ScopeDetails:
 		switch action {
 		case keybindings.Action("revisions.details.absorb"):
 			return intents.DetailsAbsorb{}, true
@@ -395,7 +386,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.details.toggle_select"):
 			return intents.DetailsToggleSelect{}, true
 		}
-	case OwnerDetailsConfirmation:
+	case ScopeDetailsConfirmation:
 		switch action {
 		case keybindings.Action("revisions.details.confirmation.apply"):
 			return intents.Apply{Force: actionargs.BoolArg(args, "force", false)}, true
@@ -408,7 +399,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.details.confirmation.prev"):
 			return intents.OptionSelect{Delta: -1}, true
 		}
-	case OwnerDuplicate:
+	case ScopeDuplicate:
 		switch action {
 		case keybindings.Action("revisions.duplicate.ace_jump"):
 			return intents.StartAceJump{}, true
@@ -425,7 +416,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.duplicate.target_picker"):
 			return intents.DuplicateOpenTargetPicker{}, true
 		}
-	case OwnerEvolog:
+	case ScopeEvolog:
 		switch action {
 		case keybindings.Action("revisions.evolog.apply"):
 			return intents.Apply{Force: actionargs.BoolArg(args, "force", false)}, true
@@ -446,7 +437,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.evolog.restore"):
 			return intents.EvologRestore{}, true
 		}
-	case OwnerInlineDescribe:
+	case ScopeInlineDescribe:
 		switch action {
 		case keybindings.Action("revisions.inline_describe.accept"):
 			return intents.InlineDescribeAccept{Force: actionargs.BoolArg(args, "force", false)}, true
@@ -457,14 +448,14 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.inline_describe.force_accept"):
 			return intents.InlineDescribeAccept{Force: true}, true
 		}
-	case OwnerQuickSearchInput:
+	case ScopeQuickSearchInput:
 		switch action {
 		case keybindings.Action("revisions.quick_search.input.apply"):
 			return intents.Apply{}, true
 		case keybindings.Action("revisions.quick_search.input.cancel"):
 			return intents.Cancel{}, true
 		}
-	case OwnerRebase:
+	case ScopeRebase:
 		switch action {
 		case keybindings.Action("revisions.rebase.ace_jump"):
 			return intents.StartAceJump{}, true
@@ -485,7 +476,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.rebase.target_picker"):
 			return intents.RebaseOpenTargetPicker{}, true
 		}
-	case OwnerRevert:
+	case ScopeRevert:
 		switch action {
 		case keybindings.Action("revisions.revert.apply"):
 			return intents.Apply{Force: actionargs.BoolArg(args, "force", false)}, true
@@ -498,7 +489,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.revert.target_picker"):
 			return intents.RevertOpenTargetPicker{}, true
 		}
-	case OwnerSetBookmark:
+	case ScopeSetBookmark:
 		switch action {
 		case keybindings.Action("revisions.set_bookmark.apply"):
 			return intents.Apply{}, true
@@ -509,7 +500,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.set_bookmark.cancel"):
 			return intents.Cancel{}, true
 		}
-	case OwnerSetParents:
+	case ScopeSetParents:
 		switch action {
 		case keybindings.Action("revisions.set_parents.ace_jump"):
 			return intents.StartAceJump{}, true
@@ -522,7 +513,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.set_parents.toggle_select"):
 			return intents.SetParentsToggleSelect{}, true
 		}
-	case OwnerSquash:
+	case ScopeSquash:
 		switch action {
 		case keybindings.Action("revisions.squash.ace_jump"):
 			return intents.StartAceJump{}, true
@@ -543,7 +534,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.squash.use_destination_msg"):
 			return intents.SquashToggleOption{Option: intents.SquashOptionUseDestinationMessage}, true
 		}
-	case OwnerTargetPicker:
+	case ScopeTargetPicker:
 		switch action {
 		case keybindings.Action("revisions.target_picker.apply"):
 			return intents.TargetPickerApply{Force: actionargs.BoolArg(args, "force", false)}, true
@@ -560,7 +551,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.target_picker.move_up"):
 			return intents.TargetPickerNavigate{Delta: -1}, true
 		}
-	case OwnerRevset:
+	case ScopeRevset:
 		switch action {
 		case keybindings.Action("revset.apply"):
 			return intents.Apply{}, true
@@ -581,7 +572,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revset.set"):
 			return intents.Set{Value: actionargs.StringArg(args, "value", "")}, true
 		}
-	case OwnerStatusInput:
+	case ScopeStatusInput:
 		switch action {
 		case keybindings.Action("status.input.apply"):
 			return intents.Apply{}, true
@@ -598,7 +589,7 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("status.input.page_up"):
 			return intents.SuggestNavigate{Delta: 1}, true
 		}
-	case OwnerUi:
+	case ScopeUi:
 		switch action {
 		case keybindings.Action("ui.cancel"):
 			return intents.Cancel{}, true
@@ -649,12 +640,12 @@ func ResolveIntent(owner string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("ui.suspend"):
 			return intents.Suspend{}, true
 		}
-	case OwnerUiPreview:
+	case ScopeUiPreview:
 		switch action {
 		case keybindings.Action("ui.preview.show"):
 			return intents.PreviewShow{Content: actionargs.StringArg(args, "content", "")}, true
 		}
-	case OwnerUndo:
+	case ScopeUndo:
 		switch action {
 		case keybindings.Action("undo.apply"):
 			return intents.Apply{}, true

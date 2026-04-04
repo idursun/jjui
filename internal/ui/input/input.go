@@ -9,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 type SelectedMsg struct {
@@ -31,10 +32,6 @@ type Model struct {
 
 func (m *Model) IsFocused() bool {
 	return true
-}
-
-func (m *Model) StackedActionOwner() string {
-	return actions.OwnerInput
 }
 
 type styles struct {
@@ -73,6 +70,26 @@ func NewWithTitle(title string, prompt string) *Model {
 	}
 }
 
+func (m *Model) Layers() []routing.Layer {
+	return []routing.Layer{
+		{
+			Scope:     actions.ScopeInput,
+			AllowLeak: false,
+			Handler:   m,
+		},
+	}
+}
+
+func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	switch intent.(type) {
+	case intents.Apply:
+		return m.selectCurrent(), true
+	case intents.Cancel:
+		return newCmd(CancelledMsg{}), true
+	}
+	return nil, false
+}
+
 func (m *Model) Init() tea.Cmd {
 	return m.input.Focus()
 }
@@ -80,13 +97,8 @@ func (m *Model) Init() tea.Cmd {
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
-		switch msg.(type) {
-		case intents.Apply:
-			return m.selectCurrent()
-		case intents.Cancel:
-			return newCmd(CancelledMsg{})
-		}
-		return nil
+		cmd, _ := m.HandleIntent(msg)
+		return cmd
 	case tea.KeyMsg, tea.PasteMsg:
 		var cmd tea.Cmd
 		m.input, cmd = m.input.Update(msg)

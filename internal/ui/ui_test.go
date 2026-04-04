@@ -23,6 +23,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revset"
+	"github.com/idursun/jjui/internal/ui/routing"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,7 +35,9 @@ func dispatchAction(model *Model, action keybindings.Action, args map[string]any
 		return luaCmd(result.LuaScript), true
 	}
 	if result.Intent != nil {
-		return model.routeIntent(result.Owner, result.Intent), true
+		layers := model.dispatchLayers()
+		cmd, handled := routing.RouteIntent(layers, result.Intent)
+		return cmd, handled
 	}
 	return nil, result.Consumed
 }
@@ -190,14 +193,16 @@ func Test_UpdateStatus_FlashVisibleShowsHistoryModeAndHelp(t *testing.T) {
 	assert.Equal(t, "delete selected", entries[1].Desc)
 }
 
-func Test_PrimaryScope_UsesFlashScopeWhenVisible(t *testing.T) {
+func Test_DispatchLayers_UsesCommandHistoryScopeWhenOpen(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
 	model.Update(intents.CommandHistoryToggle{})
 
-	assert.Equal(t, keybindings.Scope(actions.OwnerCommandHistory), model.primaryScope())
+	layers := model.dispatchLayers()
+	require.NotEmpty(t, layers)
+	assert.Equal(t, keybindings.Scope(actions.ScopeCommandHistory), layers[0].Scope)
 }
 
 func Test_HandleDispatchedAction_UsesFlashScopeWhenVisible(t *testing.T) {
@@ -206,7 +211,9 @@ func Test_HandleDispatchedAction_UsesFlashScopeWhenVisible(t *testing.T) {
 	model := NewUI(ctx)
 
 	model.Update(intents.CommandHistoryToggle{})
-	assert.True(t, model.commandHistoryOpen())
+	scope, ok := model.stackedScope()
+	require.True(t, ok)
+	assert.Equal(t, keybindings.Scope(actions.ScopeCommandHistory), scope)
 
 	cmd, handled := dispatchAction(model, keybindings.Action("command_history.close"), nil)
 	assert.True(t, handled)
@@ -214,7 +221,8 @@ func Test_HandleDispatchedAction_UsesFlashScopeWhenVisible(t *testing.T) {
 	closeMsg, ok := cmd().(common.CloseViewMsg)
 	require.True(t, ok)
 	model.Update(closeMsg)
-	assert.False(t, model.commandHistoryOpen())
+	_, ok = model.stackedScope()
+	assert.False(t, ok)
 }
 
 // this test verifies that when `git` is activated and `status` is expanded,
@@ -443,36 +451,6 @@ func Test_Update_RevsetEditingInterceptsQuitKey(t *testing.T) {
 	}
 }
 
-func Test_Update_GitUnmatchedShortcutFallback(t *testing.T) {
-	origBindings := config.Current.Bindings
-	defer func() {
-		config.Current.Bindings = origBindings
-	}()
-	config.Current.Bindings = []config.BindingConfig{
-		{Action: "git.filter", Scope: "git", Key: config.StringList{"/"}},
-		{Action: "git.apply", Scope: "git.filter", Key: config.StringList{"enter"}},
-		{Action: "git.apply", Scope: "git", Key: config.StringList{"enter"}},
-		{Action: "ui.cancel", Scope: "ui", Key: config.StringList{"esc"}},
-	}
-
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
-	defer commandRunner.Verify()
-
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
-	gitModel := git.NewModel(ctx, jj.NewSelectedRevisions())
-	test.SimulateModel(gitModel, gitModel.Init())
-	model.stacked = gitModel
-	test.SimulateModel(gitModel, func() tea.Msg { return intents.GitFilter{Kind: intents.GitFilterPush} })
-
-	assert.NotNil(t, model.stacked)
-
-	// 'p' is unmatched in dispatcher for this test and should be forwarded to git shortcut handling.
-	cmd := model.Update(tea.KeyPressMsg{Text: "p", Code: 'p'})
-	assert.NotNil(t, cmd, "unmatched git shortcut should be forwarded to git model fallback")
-}
-
 func Test_Update_GitFilterEditingEnterDoesNotTriggerApply(t *testing.T) {
 	origBindings := config.Current.Bindings
 	defer func() {
@@ -511,43 +489,54 @@ func Test_Update_GitFilterEditingEnterDoesNotTriggerApply(t *testing.T) {
 	assert.True(t, handled, "apply should dispatch after filter-edit mode")
 }
 
-type ownerOnlyStackedModel struct {
-	owner   string
+type scopeOnlyStackedModel struct {
+	scope   string
 	lastMsg tea.Msg
 }
 
-func (m *ownerOnlyStackedModel) Init() tea.Cmd {
+func (m *scopeOnlyStackedModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m *ownerOnlyStackedModel) Update(msg tea.Msg) tea.Cmd {
+func (m *scopeOnlyStackedModel) Update(msg tea.Msg) tea.Cmd {
 	m.lastMsg = msg
 	return nil
 }
 
-func (m *ownerOnlyStackedModel) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
+func (m *scopeOnlyStackedModel) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 
-func (m *ownerOnlyStackedModel) StackedActionOwner() string {
-	return m.owner
+func (m *scopeOnlyStackedModel) Layers() []routing.Layer {
+	return []routing.Layer{
+		{
+			Scope:     keybindings.Scope(m.scope),
+			AllowLeak: false,
+			Handler:   m,
+		},
+	}
 }
 
-func Test_DispatchScopes_UsesStackedOwnerScope(t *testing.T) {
+func (m *scopeOnlyStackedModel) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	m.lastMsg = intent
+	return nil, true
+}
+
+func Test_DispatchLayers_UsesStackedScope(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	model.stacked = &ownerOnlyStackedModel{owner: actions.OwnerUndo}
-	scopes := model.dispatchScopes()
-	require.NotEmpty(t, scopes)
-	assert.Equal(t, keybindings.Scope(actions.OwnerUndo), scopes[0])
+	model.stacked = &scopeOnlyStackedModel{scope: actions.ScopeUndo}
+	layers := model.dispatchLayers()
+	require.NotEmpty(t, layers)
+	assert.Equal(t, keybindings.Scope(actions.ScopeUndo), layers[0].Scope)
 }
 
-func Test_HandleDispatchedAction_UsesStackedOwnerScope(t *testing.T) {
+func Test_HandleDispatchedAction_UsesStackedScope(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	stacked := &ownerOnlyStackedModel{owner: actions.OwnerChoose}
+	stacked := &scopeOnlyStackedModel{scope: actions.ScopeChoose}
 	model.stacked = stacked
 
 	cmd, handled := dispatchAction(model, keybindings.Action("choose.move_down"), nil)
@@ -555,10 +544,33 @@ func Test_HandleDispatchedAction_UsesStackedOwnerScope(t *testing.T) {
 	assert.Nil(t, cmd)
 
 	intent, ok := stacked.lastMsg.(intents.ChooseNavigate)
-	assert.True(t, ok, "stacked model should receive choose intent via owner-based dispatch")
+	assert.True(t, ok, "stacked model should receive choose intent via scope-based dispatch")
 	if ok {
 		assert.Equal(t, 1, intent.Delta)
 	}
+}
+
+func Test_Update_BlockingLayerHandledNilCmdDoesNotReceiveRawKeyAgain(t *testing.T) {
+	origBindings := config.Current.Bindings
+	defer func() {
+		config.Current.Bindings = origBindings
+	}()
+	config.Current.Bindings = []config.BindingConfig{
+		{Action: "choose.cancel", Scope: "choose", Key: config.StringList{"esc"}},
+	}
+
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	stacked := &scopeOnlyStackedModel{scope: actions.ScopeChoose}
+	model.stacked = stacked
+
+	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	assert.Nil(t, cmd, "choose.cancel handler returns nil cmd")
+
+	_, ok := stacked.lastMsg.(intents.ChooseCancel)
+	assert.True(t, ok, "blocking layer should keep the handled intent instead of receiving the raw key")
 }
 
 func Test_HandleDispatchedAction_RevisionsScopedActionInRebaseMode(t *testing.T) {
@@ -579,7 +591,7 @@ func Test_HandleDispatchedAction_RevisionsScopedActionInRebaseMode(t *testing.T)
 	assert.True(t, handled, "revisions navigation actions should remain handled in rebase scope")
 }
 
-func Test_HandleDelegatedIntent_EditEntersRevsetInNormalMode(t *testing.T) {
+func Test_HandleIntent_EditEntersRevsetInNormalMode(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll())
 	commandRunner.Expect(jj.TagList())
@@ -588,32 +600,10 @@ func Test_HandleDelegatedIntent_EditEntersRevsetInNormalMode(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	cmd, handled := model.handleDelegatedIntent(intents.Edit{})
+	cmd, handled := model.HandleIntent(intents.Edit{})
 	assert.True(t, handled)
 	assert.NotNil(t, cmd)
 	assert.True(t, model.revsetModel.Editing)
-}
-
-func Test_HandleDelegatedIntent_EditIgnoredOutsideNormalMode(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	defer commandRunner.Verify()
-
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
-
-	op := rebase.NewOperation(
-		ctx,
-		jj.NewSelectedRevisions(&jj.Commit{ChangeId: "abc123", CommitId: "def456"}),
-		rebase.SourceRevision,
-		intents.ModeTargetDestination,
-	)
-	model.Update(common.RestoreOperationMsg{Operation: op})
-	assert.False(t, model.revisions.InNormalMode())
-
-	cmd, handled := model.handleDelegatedIntent(intents.Edit{})
-	assert.True(t, handled)
-	assert.Nil(t, cmd)
-	assert.False(t, model.revsetModel.Editing)
 }
 
 func Test_Update_RevsetScopedConfiguredActionDispatchesWhileEditing(t *testing.T) {
@@ -762,6 +752,32 @@ func Test_Update_DispatchedDiffShowUpdatesExistingDiff(t *testing.T) {
 	require.Nil(t, cmd)
 	require.NotNil(t, model.diff)
 	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(model.diff, 20, 3)))
+}
+
+func Test_Update_DiffEscClosesDiffAndRestoresDetails(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	model.Update(common.RestoreOperationMsg{Operation: op})
+	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
+	require.Equal(t, "details", model.revisions.CurrentOperation().Name())
+
+	model.Update(intents.DiffShow{Content: "diff content"})
+	require.NotNil(t, model.diff, "diff should open over details")
+
+	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	require.NotNil(t, cmd, "esc in diff should close diff")
+	closeMsg, ok := cmd().(common.CloseViewMsg)
+	require.True(t, ok, "esc in diff should dispatch close-view")
+
+	model.Update(closeMsg)
+	assert.Nil(t, model.diff, "diff should close after esc")
+	require.False(t, model.revisions.InNormalMode(), "details should remain active after closing diff")
+	assert.Equal(t, "details", model.revisions.CurrentOperation().Name())
 }
 
 func Test_Update_DispatchedPreviewShowUpdatesVisiblePreview(t *testing.T) {
@@ -994,11 +1010,13 @@ func Test_Update_InlineDescribeDispatcherKeysWorkWhileEditing(t *testing.T) {
 
 	op := describe.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
 	model.Update(common.RestoreOperationMsg{Operation: op})
-	require.Equal(t, keybindings.Scope(actions.OwnerInlineDescribe), model.dispatchScopes()[0])
+	layers := model.dispatchLayers()
+	require.NotEmpty(t, layers)
+	require.Equal(t, keybindings.Scope(actions.ScopeInlineDescribe), layers[0].Scope)
 	foundCancel := false
 	foundAccept := false
 	for _, b := range config.BindingsToRuntime(config.Current.Bindings) {
-		if b.Scope != keybindings.Scope(actions.OwnerInlineDescribe) {
+		if b.Scope != keybindings.Scope(actions.ScopeInlineDescribe) {
 			continue
 		}
 		if b.Action == "revisions.inline_describe.cancel" {
@@ -1052,6 +1070,59 @@ func Test_Update_DetailsCancelPrecedenceOverFlashDismissal(t *testing.T) {
 	test.SimulateModel(model, test.Type("h"))
 	assert.True(t, model.revisions.InNormalMode(), "details cancel should close details operation")
 	assert.True(t, model.flash.Any(), "details cancel should not dismiss flash first")
+}
+
+func Test_Update_DetailsEscClosesOperation(t *testing.T) {
+	origBindings := config.Current.Bindings
+	defer func() {
+		config.Current.Bindings = origBindings
+	}()
+	config.Current.Bindings = []config.BindingConfig{
+		{Action: "revisions.details.cancel", Scope: "revisions.details", Key: config.StringList{"esc"}},
+	}
+
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	model.Update(common.RestoreOperationMsg{Operation: op})
+	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
+
+	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	require.NotNil(t, cmd, "esc should resolve to revisions.details.cancel")
+
+	msg := cmd()
+	closeMsg, ok := msg.(common.CloseViewMsg)
+	require.True(t, ok, "esc should dispatch a close-view message from details")
+	assert.False(t, closeMsg.Applied, "plain esc should close without applied state")
+
+	model.Update(closeMsg)
+	assert.True(t, model.revisions.InNormalMode(), "details esc should close details operation")
+}
+
+func Test_Update_DetailsEscClosesOperation_WithDefaultBindings(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	model.Update(common.RestoreOperationMsg{Operation: op})
+	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
+
+	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	require.NotNil(t, cmd, "default esc binding should resolve in details scope")
+
+	msg := cmd()
+	closeMsg, ok := msg.(common.CloseViewMsg)
+	require.True(t, ok, "default details esc should dispatch a close-view message")
+
+	model.Update(closeMsg)
+	assert.True(t, model.revisions.InNormalMode(), "default details esc should close details operation")
 }
 
 func Test_Update_SetBookmarkTypingDoesNotTogglePreview(t *testing.T) {

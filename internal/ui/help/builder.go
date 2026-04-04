@@ -7,6 +7,7 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/dispatch"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 // Entry is a status-help key entry rendered as "key description".
@@ -71,6 +72,20 @@ func BuildFromBindings(
 	}
 
 	return entries
+}
+
+// BuildFromLayers returns short-help entries for the visible layer chain.
+func BuildFromLayers(layers []routing.Layer, bindings []config.BindingConfig) []Entry {
+	var scopes []keybindings.Scope
+	for _, layer := range layers {
+		if layer.Scope != "" {
+			scopes = append(scopes, layer.Scope)
+		}
+		if !layer.AllowLeak {
+			break
+		}
+	}
+	return BuildFromBindings(scopes, bindings)
 }
 
 // BuildFromContinuations returns sequence continuation entries, sorted for stable display.

@@ -12,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 var (
@@ -125,10 +126,6 @@ func (helpScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 	return intents.HelpScroll{Delta: delta}
 }
 
-func (m *Model) StackedActionOwner() string {
-	return actions.OwnerHelp
-}
-
 func (m *Model) IsEditing() bool {
 	return m.filtering
 }
@@ -137,12 +134,32 @@ func (m *Model) IsFocused() bool {
 	return m.filtering
 }
 
-func (m *Model) Init() tea.Cmd {
-	return nil
+func (m *Model) Layers() []routing.Layer {
+	if m.IsEditing() {
+		return []routing.Layer{
+			{
+				Scope:     actions.ScopeHelp + ".filter",
+				AllowLeak: false,
+				Handler:   m,
+			},
+			{
+				Scope:     actions.ScopeHelp,
+				AllowLeak: false,
+				Handler:   m,
+			},
+		}
+	}
+	return []routing.Layer{
+		{
+			Scope:     actions.ScopeHelp,
+			AllowLeak: true,
+			Handler:   m,
+		},
+	}
 }
 
-func (m *Model) Update(msg tea.Msg) tea.Cmd {
-	switch msg := msg.(type) {
+func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	switch msg := intent.(type) {
 	case intents.Cancel:
 		if m.filtering {
 			m.filtering = false
@@ -150,26 +167,41 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.input.Blur()
 			m.filtered = nil
 			m.scroll = 0
-			return nil
+			return nil, true
 		}
-		return common.Close
+		return common.Close, true
 	case intents.Apply:
 		if m.filtering {
 			m.filtering = false
 			m.input.Blur()
-			return nil
+			return nil, true
 		}
+		return nil, false
 	case intents.HelpClose:
-		return common.Close
+		return common.Close, true
 	case intents.HelpFilter:
 		m.filtering = true
-		return m.input.Focus()
+		return m.input.Focus(), true
 	case intents.HelpScroll:
 		if msg.Delta == 0 {
 			m.scroll = 0
 		} else {
 			m.scroll = max(0, m.scroll+msg.Delta)
 		}
+		return nil, true
+	}
+	return nil, false
+}
+
+func (m *Model) Init() tea.Cmd {
+	return nil
+}
+
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
+	switch msg := msg.(type) {
+	case intents.Intent:
+		cmd, _ := m.HandleIntent(msg)
+		return cmd
 	case tea.KeyMsg, tea.PasteMsg:
 		if m.filtering {
 			prev := m.input.Value()

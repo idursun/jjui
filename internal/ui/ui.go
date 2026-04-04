@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/password"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 
 	"github.com/idursun/jjui/internal/ui/commandhistory"
 	"github.com/idursun/jjui/internal/ui/flash"
@@ -134,7 +136,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case tea.KeyMsg:
 		if m.resolver != nil {
-			result := m.resolver.ResolveKey(msg, m.dispatchScopes())
+			layers := m.dispatchLayers()
+			result := m.resolver.ResolveKey(msg, layers)
 			if result.Pending {
 				m.setSequenceStatusHelp(result.Continuations)
 				return nil
@@ -144,15 +147,34 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				return luaCmd(result.LuaScript)
 			}
 			if result.Intent != nil {
-				return m.routeIntent(result.Owner, result.Intent)
+				start := slices.IndexFunc(layers, func(layer routing.Layer) bool {
+					return string(layer.Scope) == result.Scope
+				})
+				if start < 0 {
+					return nil
+				}
+				if cmd, handled := routing.RouteIntent(layers[start:], result.Intent); handled {
+					return cmd
+				}
+				if !layers[start].AllowLeak {
+					return m.updateBlockingLayer(layers[start], msg)
+				}
+				return nil
 			}
 			if result.Consumed {
 				return nil
 			}
+
+			for _, layer := range layers {
+				if !layer.AllowLeak {
+					return m.updateBlockingLayer(layer, msg)
+				}
+			}
+			return nil
 		}
-		return m.handleUnmatched(msg)
+		return nil
 	case intents.Intent:
-		if cmd := m.handleIntent(msg); cmd != nil {
+		if cmd, handled := m.HandleIntent(msg); handled {
 			return cmd
 		}
 	case common.ExecMsg:
@@ -206,7 +228,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return luaCmd(result.LuaScript)
 		}
 		if result.Intent != nil {
-			return m.routeIntent(result.Owner, result.Intent)
+			layers := m.dispatchLayers()
+			cmd, _ := routing.RouteIntent(layers, result.Intent)
+			return cmd
 		}
 		return nil
 	case common.ShowChooseMsg:
@@ -310,11 +334,14 @@ func (m *Model) updateStatus() {
 }
 
 func (m *Model) statusMode() string {
+	if scope, ok := m.stackedScope(); ok {
+		if scope == actions.ScopeCommandHistory {
+			return "history"
+		}
+		return string(scope)
+	}
+
 	switch {
-	case m.commandHistoryOpen():
-		return "history"
-	case m.stacked != nil:
-		return m.stacked.StackedActionOwner()
 	case m.diff != nil:
 		return "diff"
 	case m.oplog != nil:
@@ -363,9 +390,9 @@ func (m *Model) View() string {
 		m.stacked.ViewRect(m.displayContext, box)
 	}
 
-	if !m.commandHistoryOpen() {
-		m.flash.ViewRect(m.displayContext, box)
-	}
+		if scope, ok := m.stackedScope(); !ok || scope != actions.ScopeCommandHistory {
+			m.flash.ViewRect(m.displayContext, box)
+		}
 
 	if m.password != nil {
 		m.password.ViewRect(m.displayContext, box)
@@ -444,87 +471,71 @@ func (m *Model) scheduleAutoRefresh() tea.Cmd {
 	return nil
 }
 
-// handleIntent is the UI-root intent boundary.
-// - Delegated intents are owned by child models and forwarded.
-// - UI-root intents mutate top-level UI state, view composition, or lifecycle.
-func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
-	if cmd, handled := m.handleDelegatedIntent(intent); handled {
-		return cmd
+func (m *Model) dispatchLayers() []routing.Layer {
+	var layers []routing.Layer
+
+	// Always-present children — each returns nil when inactive.
+	// ui.Model does NOT inspect their internal state.
+	if m.password != nil {
+		layers = append(layers, m.password.Layers()...)
 	}
-	if cmd, handled := m.handleUiRootIntent(intent); handled {
-		return cmd
+	layers = append(layers, m.status.Layers()...)
+	layers = append(layers, m.revsetModel.Layers()...)
+
+	// Content layers — ui.Model knows which content child exists (structural
+	// concern), but not what's going on inside each one.
+	if m.diff != nil {
+		layers = append(layers, m.diff.Layers()...)
 	}
-	return nil
+	if m.stacked != nil {
+		layers = append(layers, m.stacked.Layers()...)
+	} else if m.oplog != nil {
+		layers = append(layers, m.oplog.Layers()...)
+	} else {
+		layers = append(layers, m.revisions.Layers()...)
+	}
+
+	// UI infrastructure — preview returns nil when not visible.
+	layers = append(layers, m.previewModel.Layers()...)
+	layers = append(layers, routing.Layer{
+		Scope:     scopeUi,
+		AllowLeak: false,
+		Handler:   m,
+	})
+
+	return layers
 }
 
-func (m *Model) handleDelegatedIntent(intent intents.Intent) (tea.Cmd, bool) {
+func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
-	case intents.Edit:
-		if !m.revisions.InNormalMode() {
-			return nil, true
-		}
-		return m.revsetModel.Update(intent), true
-	case intents.DiffShow:
-		if m.diff == nil {
-			m.diff = diff.New("")
-		}
-		return m.diff.Update(intent), true
-	case intents.PreviewShow:
-		if !m.previewModel.Visible() {
-			m.previewModel.ToggleVisible()
-		}
-		return m.previewModel.Update(intent), true
-	default:
-		return nil, false
-	}
-}
 
-func (m *Model) handleUiRootIntent(intent intents.Intent) (tea.Cmd, bool) {
-	switch intent := intent.(type) {
-	case intents.Cancel:
-		return m.routeCancel("", intent), true
-	case intents.Undo:
-		if !m.revisions.InNormalMode() {
-			return nil, true
-		}
-		model := undo.NewModel(m.context)
-		m.stacked = model
-		return m.stacked.Init(), true
-	case intents.Redo:
-		if !m.revisions.InNormalMode() {
-			return nil, true
-		}
-		model := redo.NewModel(m.context)
-		m.stacked = model
-		return m.stacked.Init(), true
-	case intents.ExecJJ:
-		if !m.revisions.InNormalMode() {
-			return nil, true
-		}
-		return m.status.StartExec(common.ExecJJ), true
-	case intents.ExecShell:
-		if !m.revisions.InNormalMode() {
-			return nil, true
-		}
-		return m.status.StartExec(common.ExecShell), true
+	// --- Quit / Suspend ---
 	case intents.Quit:
 		return tea.Quit, true
 	case intents.Suspend:
 		return tea.Suspend, true
-	case intents.ExpandStatusToggle:
-		m.status.ToggleStatusExpand()
-		return nil, true
-	case intents.OpenHelp:
-		if m.stacked != nil || m.diff != nil {
+
+	// --- Cancel fallback (only reached if no inner layer handled it) ---
+	case intents.Cancel:
+		if m.stacked != nil || m.diff != nil || m.oplog != nil {
+			return common.Close, true
+		}
+		if m.flash.Any() {
+			m.flash.DeleteOldest()
 			return nil, true
 		}
-		model := help.New()
+		if m.status.StatusExpanded() {
+			m.status.ToggleStatusExpand()
+			return nil, true
+		}
+		return nil, false
+
+	// --- Open stacked views ---
+	case intents.OpenGit:
+		model := git.NewModel(m.context, m.revisions.SelectedRevisions())
 		m.stacked = model
 		return m.stacked.Init(), true
 	case intents.OpenBookmarks:
-		if !m.revisions.InNormalMode() {
-			return nil, true
-		}
 		current := m.revisions.SelectedRevision()
 		if current == nil {
 			return nil, true
@@ -533,19 +544,50 @@ func (m *Model) handleUiRootIntent(intent intents.Intent) (tea.Cmd, bool) {
 		model := bookmarks.NewModel(m.context, current, changeIds)
 		m.stacked = model
 		return m.stacked.Init(), true
-	case intents.OpenGit:
-		if !m.revisions.InNormalMode() {
-			return nil, true
-		}
-		model := git.NewModel(m.context, m.revisions.SelectedRevisions())
-		m.stacked = model
-		return m.stacked.Init(), true
 	case intents.OpLogOpen:
-		if !m.revisions.InNormalMode() {
-			return nil, true
-		}
 		m.oplog = oplog.New(m.context)
 		return m.oplog.Init(), true
+	case intents.Undo:
+		model := undo.NewModel(m.context)
+		m.stacked = model
+		return m.stacked.Init(), true
+	case intents.Redo:
+		model := redo.NewModel(m.context)
+		m.stacked = model
+		return m.stacked.Init(), true
+	case intents.OpenHelp:
+		if m.stacked != nil || m.diff != nil {
+			return nil, true
+		}
+		model := help.New()
+		m.stacked = model
+		return m.stacked.Init(), true
+	case intents.CommandHistoryToggle:
+		if scope, ok := m.stackedScope(); ok && scope == actions.ScopeCommandHistory {
+			m.stacked = nil
+			return nil, true
+		}
+		m.stacked = commandhistory.New(m.context, m.flash)
+		return m.stacked.Init(), true
+
+	// --- Activate input modes ---
+	case intents.Edit:
+		return m.revsetModel.Update(intent), true
+	case intents.ExecJJ:
+		return m.status.StartExec(common.ExecJJ), true
+	case intents.ExecShell:
+		return m.status.StartExec(common.ExecShell), true
+	case intents.QuickSearch:
+		return m.status.StartQuickSearch(), true
+	case intents.FileSearchToggle:
+		rev := m.revisions.SelectedRevision()
+		if rev == nil {
+			return nil, true
+		}
+		out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
+		return common.FileSearch(m.context.CurrentRevset, m.previewModel.Visible(), rev, out), true
+
+	// --- Preview controls ---
 	case intents.PreviewToggle:
 		m.previewModel.ToggleVisible()
 		return common.SelectionChanged(m.context.SelectedItem), true
@@ -592,29 +634,26 @@ func (m *Model) handleUiRootIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return m.previewModel.HalfPageDown(), true
 		}
 		return nil, true
-	case intents.QuickSearch:
-		if m.oplog == nil && !m.revisions.InNormalMode() {
-			return nil, true
+
+	// --- Delegated intents ---
+	case intents.DiffShow:
+		if m.diff == nil {
+			m.diff = diff.New("")
 		}
-		return m.status.StartQuickSearch(), true
-	case intents.FileSearchToggle:
-		rev := m.revisions.SelectedRevision()
-		if rev == nil {
-			// noop if current revset does not exist (#264)
-			return nil, true
+		return m.diff.Update(intent), true
+	case intents.PreviewShow:
+		if !m.previewModel.Visible() {
+			m.previewModel.ToggleVisible()
 		}
-		out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
-		return common.FileSearch(m.context.CurrentRevset, m.previewModel.Visible(), rev, out), true
-	case intents.CommandHistoryToggle:
-		if m.commandHistoryOpen() {
-			m.stacked = nil
-			return nil, true
-		}
-		m.stacked = commandhistory.New(m.context, m.flash)
-		return m.stacked.Init(), true
-	default:
-		return nil, false
+		return m.previewModel.Update(intent), true
+
+	// --- Status ---
+	case intents.ExpandStatusToggle:
+		m.status.ToggleStatusExpand()
+		return nil, true
 	}
+
+	return nil, false
 }
 
 func luaCmd(script string) tea.Cmd {
@@ -623,222 +662,25 @@ func luaCmd(script string) tea.Cmd {
 	}
 }
 
-func (m *Model) routeIntent(owner string, intent intents.Intent) tea.Cmd {
-	// Cancel has priority-based routing that depends on UI state.
-	if cancel, ok := intent.(intents.Cancel); ok {
-		return m.routeCancel(owner, cancel)
+func (m *Model) stackedScope() (keybindings.Scope, bool) {
+	if m.stacked == nil {
+		return "", false
 	}
-
-	if cmd, handled := m.routeIntentByOwner(owner, intent); handled {
-		return cmd
+	layers := m.stacked.Layers()
+	if len(layers) == 0 || layers[0].Scope == "" {
+		return "", false
 	}
-	return m.handleIntent(intent)
+	return layers[0].Scope, true
 }
 
-func (m *Model) routeCancel(owner string, cancel intents.Cancel) tea.Cmd {
-	if cmd, handled := m.routeIntentByOwner(owner, cancel); handled {
-		return cmd
-	}
-
-	if m.stacked != nil || m.diff != nil || m.oplog != nil {
-		return common.Close
-	}
-
-	if m.shouldRouteCancelToRevisions() {
-		if cmd, handled := m.revisions.HandleDispatchedAction(keybindings.Action("ui.cancel"), nil); handled {
-			return cmd
-		}
-	}
-
-	if m.clearCancelUIState() {
+func (m *Model) updateBlockingLayer(layer routing.Layer, msg tea.KeyMsg) tea.Cmd {
+	if layer.Handler == m {
 		return nil
 	}
-	return nil
-}
-
-func (m *Model) clearCancelUIState() bool {
-	switch {
-	case m.flash.Any():
-		m.flash.DeleteOldest()
-		return true
-	case m.status.StatusExpanded():
-		m.status.ToggleStatusExpand()
-		return true
-	default:
-		return false
-	}
-}
-
-func (m *Model) routeIntentByOwner(owner string, intent intents.Intent) (tea.Cmd, bool) {
-	switch owner {
-	case actions.OwnerPassword:
-		if m.password != nil {
-			return m.password.Update(intent), true
-		}
-	case actions.OwnerStatusInput, actions.OwnerFileSearch, actions.OwnerQuickSearchInput:
-		if m.status.IsFocused() {
-			return m.status.Update(intent), true
-		}
-	case actions.OwnerRevset:
-		return m.revsetModel.Update(intent), true
-	case actions.OwnerDiff:
-		if m.diff != nil {
-			return m.diff.Update(intent), true
-		}
-	case actions.OwnerUiPreview:
-		if m.previewModel.Visible() {
-			return m.previewModel.Update(intent), true
-		}
-	case actions.OwnerOplog, actions.OwnerOplogQuickSearch:
-		if m.oplog != nil {
-			return m.oplog.Update(intent), true
-		}
-	case actions.OwnerCommandHistory,
-		actions.OwnerBookmarks,
-		actions.OwnerGit,
-		actions.OwnerChoose,
-		actions.OwnerUndo,
-		actions.OwnerRedo,
-		actions.OwnerInput,
-		actions.OwnerHelp:
-		if m.stacked != nil && owner == m.stacked.StackedActionOwner() {
-			return m.stacked.Update(intent), true
-		}
-	default:
-		if cmd, handled := m.revisions.RouteOwnedIntent(owner, intent); handled {
-			return cmd, true
-		}
-	}
-
-	return nil, false
-}
-
-func (m *Model) shouldRouteCancelToRevisions() bool {
-	if m.status.IsFocused() {
-		return false
-	}
-	if m.revsetModel.Editing || m.revisions.IsEditing() {
-		return false
-	}
-	if m.revisions.HasQuickSearch() {
-		return false
-	}
-	if m.flash.Any() || m.status.StatusExpanded() {
-		return false
-	}
-	return m.revisions.InNormalMode()
-}
-
-func (m *Model) handleUnmatched(msg tea.KeyMsg) tea.Cmd {
-	if m.commandHistoryOpen() {
-		return nil
-	}
-
-	if m.status.IsFocused() {
-		return m.status.Update(msg)
-	}
-
-	if m.revsetModel.Editing {
+	if layer.Handler == m.revsetModel {
 		m.state = common.Loading
-		return m.revsetModel.Update(msg)
 	}
-
-	if m.stacked != nil {
-		return m.stacked.Update(msg)
-	}
-	if m.diff != nil {
-		return m.diff.Update(msg)
-	}
-	if m.oplog != nil {
-		return nil
-	}
-	return m.revisions.Update(msg)
-}
-
-func (m *Model) primaryScope() keybindings.Scope {
-	if m.password != nil {
-		return keybindings.Scope(actions.OwnerPassword)
-	}
-
-	switch m.status.FocusKind() {
-	case status.FocusFileSearch:
-		return keybindings.Scope(actions.OwnerFileSearch)
-	case status.FocusInput:
-		return actions.OwnerStatusInput
-	case status.FocusQuickSearch:
-		return keybindings.Scope(actions.OwnerQuickSearchInput)
-	default:
-	}
-
-	if m.revsetModel.Editing {
-		return keybindings.Scope(actions.OwnerRevset)
-	}
-
-	if m.diff != nil {
-		return keybindings.Scope(actions.OwnerDiff)
-	}
-
-	if m.stacked != nil {
-		if e, ok := m.stacked.(common.Editable); ok && e.IsEditing() {
-			return keybindings.Scope(m.stacked.StackedActionOwner() + ".filter")
-		}
-		return keybindings.Scope(m.stacked.StackedActionOwner())
-	}
-
-	if m.revisions.HasQuickSearch() {
-		return revisions.ScopeQuickSearch
-	}
-
-	if m.oplog != nil {
-		return actions.OwnerOplog
-	}
-
-	scopes := m.revisions.ScopeChain()
-	if len(scopes) == 0 {
-		return revisions.ScopeRevisions
-	}
-	return scopes[0]
-}
-
-func (m *Model) alwaysOnScopes() []keybindings.Scope {
-	if m.status.IsFocused() || m.revsetModel.Editing || m.revisions.IsEditing() {
-		return nil
-	}
-	if m.stacked != nil {
-		if f, ok := m.stacked.(common.Focusable); ok && f.IsFocused() {
-			return nil
-		}
-	}
-	scopes := []keybindings.Scope{scopeUi}
-	if m.previewModel.Visible() {
-		scopes = append(scopes, keybindings.Scope(actions.OwnerUiPreview))
-	}
-	return scopes
-}
-
-func (m *Model) dispatchScopes() []keybindings.Scope {
-	if m.commandHistoryOpen() {
-		return []keybindings.Scope{keybindings.Scope(actions.OwnerCommandHistory)}
-	}
-	primary := m.primaryScope()
-	if primary == "" {
-		return nil
-	}
-	var scopes []keybindings.Scope
-	if m.oplog != nil && m.oplog.HasQuickSearch() {
-		scopes = append(scopes, keybindings.Scope(actions.OwnerOplogQuickSearch))
-	}
-	scopes = append(scopes, primary)
-	for _, scope := range m.alwaysOnScopes() {
-		if scope != "" && scope != primary {
-			scopes = append(scopes, scope)
-		}
-	}
-	return scopes
-}
-
-func (m *Model) commandHistoryOpen() bool {
-	return m.stacked != nil && m.stacked.StackedActionOwner() == actions.OwnerCommandHistory
+	return layer.Handler.Update(msg)
 }
 
 var _ tea.Model = (*wrapper)(nil)
@@ -909,11 +751,7 @@ func NewUI(c *context.MainContext) *Model {
 }
 
 func (m *Model) bindingStatusHelp() []help.Entry {
-	scopes := m.dispatchScopes()
-	if len(scopes) == 0 {
-		return nil
-	}
-	return help.BuildFromBindings(scopes, config.Current.Bindings)
+	return help.BuildFromLayers(m.dispatchLayers(), config.Current.Bindings)
 }
 
 func (m *Model) setSequenceStatusHelp(continuations []dispatch.Continuation) {

@@ -14,7 +14,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
-	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -22,6 +21,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 type updateCommitStatusMsg struct {
@@ -35,6 +35,7 @@ var (
 	_ common.Focusable             = (*Operation)(nil)
 	_ common.Editable              = (*Operation)(nil)
 	_ common.Overlay               = (*Operation)(nil)
+	_ routing.LayerProvider        = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -56,6 +57,23 @@ func (s *Operation) IsFocused() bool {
 
 func (s *Operation) IsEditing() bool {
 	return s.confirmation != nil
+}
+
+func (s *Operation) Layers() []routing.Layer {
+	var ret []routing.Layer
+	if s.confirmation != nil {
+		ret = append(ret, routing.Layer{
+			Scope:     actions.ScopeDetailsConfirmation,
+			AllowLeak: false,
+			Handler:   s,
+		})
+	}
+	ret = append(ret, routing.Layer{
+		Scope:     actions.ScopeDetails,
+		AllowLeak: false,
+		Handler:   s,
+	})
+	return ret
 }
 
 func (s *Operation) Init() tea.Cmd {
@@ -161,46 +179,47 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case intents.Intent:
-		return s.handleIntent(msg)
+		cmd, _ := s.HandleIntent(msg)
+		return cmd
 	}
 	return nil
 }
 
-func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
+func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
 	case intents.Apply:
 		if s.confirmation != nil {
-			return s.confirmation.Update(intent)
+			return s.confirmation.Update(intent), true
 		}
-		return nil
+		return nil, true
 	case intents.Cancel:
 		if s.confirmation != nil {
-			return s.confirmation.Update(intent)
+			return s.confirmation.Update(intent), true
 		}
-		return nil
+		return nil, true
 	case intents.OptionSelect:
 		if s.confirmation != nil {
-			return s.confirmation.Update(intent)
+			return s.confirmation.Update(intent), true
 		}
-		return nil
+		return nil, true
 	case intents.DetailsNavigate:
 		s.navigate(intent.Delta, intent.IsPage)
-		return nil
+		return nil, true
 	case intents.DetailsClose:
-		return common.Close
+		return common.Close, true
 	case intents.Quit:
-		return tea.Quit
+		return tea.Quit, true
 	case intents.Refresh:
-		return common.Refresh
+		return common.Refresh, true
 	case intents.DetailsDiff:
 		selected := s.current()
 		if selected == nil {
-			return nil
+			return nil, true
 		}
 		return func() tea.Msg {
 			output, _ := s.context.RunCommandImmediate(jj.Diff(s.revision.GetChangeId(), selected.fileName))
 			return intents.DiffShow{Content: string(output)}
-		}
+		}, true
 	case intents.DetailsSplit:
 		selectedFiles := s.getSelectedFiles(true)
 		s.selectedHint = "stays as is"
@@ -219,14 +238,14 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 				key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 		)
 		s.confirmation = model
-		return s.confirmation.Init()
+		return s.confirmation.Init(), true
 	case intents.DetailsSquash:
 		return func() tea.Msg {
 			return intents.OpenSquash{
 				Selected: jj.NewSelectedRevisions(s.revision),
 				Files:    s.getSelectedFiles(true),
 			}
-		}
+		}, true
 	case intents.DetailsRestore:
 		selectedFiles := s.getSelectedFiles(true)
 		s.selectedHint = "gets restored"
@@ -245,7 +264,7 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 				key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 		)
 		s.confirmation = model
-		return s.confirmation.Init()
+		return s.confirmation.Init(), true
 	case intents.DetailsAbsorb:
 		selectedFiles := s.getSelectedFiles(true)
 		s.selectedHint = "might get absorbed into parents"
@@ -261,7 +280,7 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 				key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 		)
 		s.confirmation = model
-		return s.confirmation.Init()
+		return s.confirmation.Init(), true
 	case intents.DetailsToggleSelect:
 		if current := s.current(); current != nil {
 			isChecked := !current.selected
@@ -280,12 +299,12 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 
 			s.navigate(1, false)
 		}
-		return nil
+		return nil, true
 	case intents.DetailsRevisionsChangingFile:
 		if current := s.current(); current != nil {
-			return tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(%s)", jj.EscapeFileName(current.fileName))))
+			return tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(%s)", jj.EscapeFileName(current.fileName)))), true
 		}
-		return nil
+		return nil, true
 	case intents.DetailsSelectFile:
 		for i := range s.files {
 			if s.files[i].fileName == intent.File {
@@ -300,9 +319,9 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 				break
 			}
 		}
-		return nil
+		return nil, true
 	}
-	return nil
+	return nil, false
 }
 
 func (s *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
@@ -379,13 +398,6 @@ func (s *Operation) renderIntoRect(dl *render.DisplayContext, rect layout.Rectan
 
 func (s *Operation) Name() string {
 	return "details"
-}
-
-func (s *Operation) Scope() keybindings.Scope {
-	if s.confirmation != nil {
-		return keybindings.Scope(actions.OwnerDetailsConfirmation)
-	}
-	return keybindings.Scope(actions.OwnerDetails)
 }
 
 func (s *Operation) syncCheckedItems() {

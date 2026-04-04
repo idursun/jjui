@@ -12,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 var _ common.StackedModel = (*Model)(nil)
@@ -59,29 +60,41 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) StackedActionOwner() string {
-	return actions.OwnerCommandHistory
+func (m *Model) Layers() []routing.Layer {
+	return []routing.Layer{
+		{
+			Scope:     actions.ScopeCommandHistory,
+			AllowLeak: false,
+			Handler:   m,
+		},
+	}
+}
+
+func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	switch intent := intent.(type) {
+	case intents.CommandHistoryNavigate:
+		if len(m.items) == 0 {
+			return nil, true
+		}
+		// History renders oldest->newest from bottom to top, so move selection
+		// opposite to delta to keep j moving visually down and k up.
+		m.selectedIndex = min(len(m.items)-1, max(0, m.selectedIndex-intent.Delta))
+		m.clampViewport()
+		return nil, true
+	case intents.CommandHistoryDeleteSelected:
+		m.deleteSelected()
+		return nil, true
+	case intents.CommandHistoryClose:
+		return common.Close, true
+	}
+	return nil, false
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
-		switch intent := msg.(type) {
-		case intents.CommandHistoryNavigate:
-			if len(m.items) == 0 {
-				return nil
-			}
-			// History renders oldest->newest from bottom to top, so move selection
-			// opposite to delta to keep j moving visually down and k up.
-			m.selectedIndex = min(len(m.items)-1, max(0, m.selectedIndex-intent.Delta))
-			m.clampViewport()
-			return nil
-		case intents.CommandHistoryDeleteSelected:
-			m.deleteSelected()
-			return nil
-		case intents.CommandHistoryClose:
-			return common.Close
-		}
+		cmd, _ := m.HandleIntent(msg)
+		return cmd
 	case selectHistoryItemMsg:
 		if msg.index < 0 || msg.index >= len(m.items) {
 			return nil

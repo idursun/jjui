@@ -4,10 +4,12 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 var _ common.ImmediateModel = (*Model)(nil)
@@ -42,6 +44,31 @@ func New(msg common.TogglePasswordMsg) *Model {
 	}
 }
 
+func (m *Model) Layers() []routing.Layer {
+	return []routing.Layer{
+		{
+			Scope:     actions.ScopePassword,
+			AllowLeak: false,
+			Handler:   m,
+		},
+	}
+}
+
+func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	switch intent.(type) {
+	case intents.Cancel:
+		return func() tea.Msg {
+			return common.TogglePasswordMsg{}
+		}, true
+	case intents.Apply:
+		m.passwordCh <- []byte(m.textInput.Value())
+		return func() tea.Msg {
+			return common.TogglePasswordMsg{}
+		}, true
+	}
+	return nil, false
+}
+
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
@@ -51,18 +78,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case common.TogglePasswordMsg:
 		close(m.passwordCh)
 	case intents.Intent:
-		switch msg.(type) {
-		case intents.Cancel:
-			return func() tea.Msg {
-				return common.TogglePasswordMsg{}
-			}
-		case intents.Apply:
-			m.passwordCh <- []byte(m.textInput.Value())
-			return func() tea.Msg {
-				return common.TogglePasswordMsg{}
-			}
-		}
-		return nil
+		cmd, _ := m.HandleIntent(msg)
+		return cmd
 	case tea.KeyMsg, tea.PasteMsg:
 		var cmd tea.Cmd
 		m.textInput, cmd = m.textInput.Update(msg)

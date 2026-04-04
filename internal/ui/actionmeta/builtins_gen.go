@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-var builtInActionOwners = map[string][]string{
+var builtInActionScopes = map[string][]string{
 	"bookmarks.apply":                            {"bookmarks"},
 	"bookmarks.bookmark_delete":                  {"bookmarks"},
 	"bookmarks.bookmark_forget":                  {"bookmarks"},
@@ -339,13 +339,13 @@ var builtInActionRequiredArgs = map[string][]string{
 	"ui.preview.show":                {"content"},
 }
 
-func ActionOwners(action string) []string {
+func ActionScopes(action string) []string {
 	action = strings.TrimSpace(action)
-	owners, ok := builtInActionOwners[action]
+	scopes, ok := builtInActionScopes[action]
 	if !ok {
 		return nil
 	}
-	return append([]string(nil), owners...)
+	return append([]string(nil), scopes...)
 }
 
 func ActionArgSchema(action string) map[string]string {
@@ -357,8 +357,8 @@ func ActionRequiredArgs(action string) []string {
 }
 
 func BuiltInActions() []string {
-	out := make([]string, 0, len(builtInActionOwners))
-	for action := range builtInActionOwners {
+	out := make([]string, 0, len(builtInActionScopes))
+	for action := range builtInActionScopes {
 		out = append(out, action)
 	}
 	sort.Strings(out)
@@ -367,7 +367,7 @@ func BuiltInActions() []string {
 
 func IsBuiltInAction(action string) bool {
 	action = strings.TrimSpace(action)
-	_, ok := builtInActionOwners[action]
+	_, ok := builtInActionScopes[action]
 	return ok
 }
 

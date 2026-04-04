@@ -6,12 +6,14 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 type EditRevSetMsg struct{}
@@ -66,6 +68,19 @@ type styles struct {
 	completionSelected   lipgloss.Style
 	completionDimmed     lipgloss.Style
 	completionBackground lipgloss.Style
+}
+
+func (m *Model) Layers() []routing.Layer {
+	if !m.Editing {
+		return nil
+	}
+	return []routing.Layer{
+		{
+			Scope:     actions.ScopeRevset,
+			AllowLeak: false,
+			Handler:   m,
+		},
+	}
 }
 
 func (m *Model) IsFocused() bool {
@@ -153,7 +168,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case intents.Intent:
-		return m.handleIntent(msg)
+		cmd, _ := m.HandleIntent(msg)
+		return cmd
 	case completionScrollMsg:
 		if msg.Horizontal {
 			return nil
@@ -182,7 +198,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.userInput = string(msg)
 		return nil
 	case EditRevSetMsg:
-		return m.handleIntent(intents.Edit{})
+		cmd, _ := m.HandleIntent(intents.Edit{})
+		return cmd
 	}
 
 	prevValue := m.autoComplete.Value()
@@ -232,7 +249,7 @@ func (m *Model) updatePreview() {
 	m.autoComplete.CursorEnd()
 }
 
-func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
+func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
 	case intents.Set:
 		m.Editing = false
@@ -241,11 +258,11 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		if strings.TrimSpace(value) == "" {
 			value = m.context.DefaultRevset
 		}
-		return tea.Batch(common.Close, common.UpdateRevSet(value))
+		return tea.Batch(common.Close, common.UpdateRevSet(value)), true
 	case intents.Reset:
 		m.Editing = false
 		m.autoComplete.Blur()
-		return tea.Batch(common.Close, common.UpdateRevSet(m.context.DefaultRevset))
+		return tea.Batch(common.Close, common.UpdateRevSet(m.context.DefaultRevset)), true
 	case intents.Edit:
 		m.Editing = true
 		m.autoComplete.Focus()
@@ -258,11 +275,11 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 		m.selectedIndex = -1 // no selection initially
 		m.updateCompletionItems()
-		return m.autoComplete.Init()
+		return m.autoComplete.Init(), true
 	case intents.Cancel:
 		m.Editing = false
 		m.autoComplete.Blur()
-		return nil
+		return nil, true
 	case intents.Apply:
 		value := intent.Value
 		if value == "" {
@@ -275,15 +292,15 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		// Validate the revset before applying
 		_, err := m.context.RunCommandImmediate(jj.RevsetValidate(value))
 		if err != nil {
-			return intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err})
+			return intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err}), true
 		}
 
 		m.Editing = false
 		m.autoComplete.Blur()
-		return tea.Batch(common.Close, common.UpdateRevSet(value))
+		return tea.Batch(common.Close, common.UpdateRevSet(value)), true
 	case intents.CompletionCycle:
 		if len(m.completionItems) == 0 {
-			return nil
+			return nil, true
 		}
 		if intent.Reverse {
 			if m.selectedIndex <= 0 {
@@ -298,10 +315,10 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 			}
 		}
 		m.updatePreview()
-		return nil
+		return nil, true
 	case intents.CompletionMove:
 		if len(m.completionItems) == 0 {
-			return nil
+			return nil, true
 		}
 		if intent.Delta < 0 {
 			if m.selectedIndex < 0 {
@@ -313,7 +330,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 				}
 			}
 			m.updatePreview()
-			return nil
+			return nil, true
 		}
 		if intent.Delta > 0 {
 			if m.selectedIndex < 0 {
@@ -326,9 +343,9 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 			}
 			m.updatePreview()
 		}
-		return nil
+		return nil, true
 	}
-	return nil
+	return nil, false
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {

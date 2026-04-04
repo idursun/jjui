@@ -8,7 +8,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
-	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -16,13 +15,15 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 var (
-	_ operations.Operation = (*Operation)(nil)
-	_ common.Focusable     = (*Operation)(nil)
-	_ common.Overlay       = (*Operation)(nil)
-	_ common.Editable      = (*Operation)(nil)
+	_ operations.Operation  = (*Operation)(nil)
+	_ common.Focusable      = (*Operation)(nil)
+	_ common.Overlay        = (*Operation)(nil)
+	_ common.Editable       = (*Operation)(nil)
+	_ routing.LayerProvider = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -50,6 +51,23 @@ func (s *Operation) IsOverlay() bool {
 	return s.targetPicker != nil
 }
 
+func (s *Operation) Layers() []routing.Layer {
+	var ret []routing.Layer
+	if s.targetPicker != nil {
+		ret = append(ret, routing.Layer{
+			Scope:     actions.ScopeTargetPicker,
+			AllowLeak: false,
+			Handler:   s.targetPicker,
+		})
+	}
+	ret = append(ret, routing.Layer{
+		Scope:     actions.ScopeSquash,
+		AllowLeak: true,
+		Handler:   s,
+	})
+	return ret
+}
+
 type styles struct {
 	dimmed       lipgloss.Style
 	sourceMarker lipgloss.Style
@@ -65,7 +83,8 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 	case target_picker.TargetSelectedMsg:
 		s.targetPicker = nil
 		s.targetName = strings.TrimSpace(msg.Target)
-		return s.handleIntent(intents.Apply{Force: msg.Force})
+		cmd, _ := s.HandleIntent(intents.Apply{Force: msg.Force})
+		return cmd
 	case target_picker.TargetPickerCancelMsg:
 		s.targetPicker = nil
 		return nil
@@ -76,7 +95,8 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 				return s.targetPicker.Update(msg)
 			}
 		}
-		return s.handleIntent(msg)
+		cmd, _ := s.HandleIntent(msg)
+		return cmd
 	case tea.KeyMsg:
 		if s.targetPicker != nil {
 			return s.targetPicker.Update(msg)
@@ -90,22 +110,22 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 	}
 }
 
-func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
+func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
 	case intents.StartAceJump:
-		return common.StartAceJump()
+		return common.StartAceJump(), true
 	case intents.Apply:
 		args := jj.Squash(s.from, s.targetArg(), s.files, s.keepEmptied, s.useDestinationMessage, s.interactive, intent.Force)
 		continuation := common.RefreshAndSelect(s.current.GetChangeId())
 		if s.interactive || !s.useDestinationMessage {
-			return tea.Batch(common.CloseApplied, s.context.RunInteractiveCommand(args, continuation))
+			return tea.Batch(common.CloseApplied, s.context.RunInteractiveCommand(args, continuation)), true
 		}
-		return tea.Batch(common.CloseApplied, s.context.RunCommand(args, continuation))
+		return tea.Batch(common.CloseApplied, s.context.RunCommand(args, continuation)), true
 	case intents.SquashOpenTargetPicker:
 		s.targetPicker = target_picker.NewModel(s.context)
-		return s.targetPicker.Init()
+		return s.targetPicker.Init(), true
 	case intents.Cancel:
-		return common.Close
+		return common.Close, true
 	case intents.SquashToggleOption:
 		switch intent.Option {
 		case intents.SquashOptionKeepEmptied:
@@ -115,10 +135,9 @@ func (s *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 		case intents.SquashOptionInteractive:
 			s.interactive = !s.interactive
 		}
-	default:
-		return nil
+		return nil, true
 	}
-	return nil
+	return nil, false
 }
 
 func (s *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
@@ -161,13 +180,6 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 
 func (s *Operation) Name() string {
 	return "squash"
-}
-
-func (s *Operation) Scope() keybindings.Scope {
-	if s.targetPicker != nil {
-		return keybindings.Scope(actions.OwnerTargetPicker)
-	}
-	return keybindings.Scope(actions.OwnerSquash)
 }
 
 func (s *Operation) targetArg() string {

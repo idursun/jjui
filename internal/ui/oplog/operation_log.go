@@ -9,11 +9,13 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 type updateOpLogMsg struct {
@@ -69,6 +71,23 @@ func (m *Model) HasQuickSearch() bool {
 	return m.quickSearch != ""
 }
 
+func (m *Model) Layers() []routing.Layer {
+	var ret []routing.Layer
+	if m.HasQuickSearch() {
+		ret = append(ret, routing.Layer{
+			Scope:     actions.ScopeOplogQuickSearch,
+			AllowLeak: false,
+			Handler:   m,
+		})
+	}
+	ret = append(ret, routing.Layer{
+		Scope:     actions.ScopeOplog,
+		AllowLeak: true,
+		Handler:   m,
+	})
+	return ret
+}
+
 func (m *Model) Init() tea.Cmd {
 	return m.load()
 }
@@ -84,7 +103,8 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
-		return m.handleIntent(msg)
+		cmd, _ := m.HandleIntent(msg)
+		return cmd
 	case common.QuickSearchMsg:
 		m.quickSearch = strings.ToLower(string(msg))
 		m.SetCursor(m.search(0, false))
@@ -107,30 +127,30 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
+func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
 	case intents.OpLogNavigate:
-		return m.navigate(intent.Delta, intent.IsPage)
+		return m.navigate(intent.Delta, intent.IsPage), true
 	case intents.OpLogClose:
-		return m.close()
+		return m.close(), true
 	case intents.OpLogShowDiff:
-		return m.showDiff(intent)
+		return m.showDiff(intent), true
 	case intents.OpLogRestore:
-		return m.restore(intent)
+		return m.restore(intent), true
 	case intents.OpLogRevert:
-		return m.revert(intent)
+		return m.revert(intent), true
 	case intents.QuickSearchCycle:
 		offset := 1
 		if intent.Reverse {
 			offset = -1
 		}
 		m.SetCursor(m.search(m.cursor+offset, intent.Reverse))
-		return m.updateSelection()
+		return m.updateSelection(), true
 	case intents.OpLogQuickSearchClear:
 		m.quickSearch = ""
-		return nil
+		return nil, true
 	}
-	return nil
+	return nil, false
 }
 
 func (m *Model) navigate(delta int, page bool) tea.Cmd {

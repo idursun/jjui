@@ -9,13 +9,13 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/actions"
-	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 type updateEvologMsg struct {
@@ -46,6 +46,7 @@ var _ operations.Operation = (*Operation)(nil)
 var _ operations.EmbeddedOperation = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
 var _ common.Overlay = (*Operation)(nil)
+var _ routing.LayerProvider = (*Operation)(nil)
 
 type Operation struct {
 	context          *context.MainContext
@@ -79,6 +80,16 @@ func (o *Operation) SetCursor(index int) {
 
 func (o *Operation) IsOverlay() bool {
 	return o.mode == selectMode
+}
+
+func (o *Operation) Layers() []routing.Layer {
+	return []routing.Layer{
+		{
+			Scope:     actions.ScopeEvolog,
+			AllowLeak: o.mode == restoreMode,
+			Handler:   o,
+		},
+	}
 }
 
 func (o *Operation) IsFocused() bool {
@@ -128,46 +139,47 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 		o.scroll(msg.Delta)
 		return nil
 	case intents.Intent:
-		return o.handleIntent(msg)
+		cmd, _ := o.HandleIntent(msg)
+		return cmd
 	}
 	return nil
 }
 
-func (o *Operation) handleIntent(intent intents.Intent) tea.Cmd {
-	switch msg := intent.(type) {
+func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	switch intent := intent.(type) {
 	case intents.Quit:
-		return tea.Quit
+		return tea.Quit, true
 	case intents.Cancel:
-		return common.Close
+		return common.Close, true
 	case intents.EvologNavigate:
 		if o.mode == restoreMode {
-			return intents.Invoke(intents.Navigate{Delta: msg.Delta})
+			return intents.Invoke(intents.Navigate{Delta: intent.Delta}), true
 		}
-		return o.navigate(msg.Delta, msg.IsPage)
+		return o.navigate(intent.Delta, intent.IsPage), true
 	case intents.EvologDiff:
 		if o.mode != selectMode {
-			return nil
+			return nil, true
 		}
 		return func() tea.Msg {
 			selectedCommitId := o.getSelectedEvolog().CommitId
 			output, _ := o.context.RunCommandImmediate(jj.Diff(selectedCommitId, ""))
 			return intents.DiffShow{Content: string(output)}
-		}
+		}, true
 	case intents.EvologRestore:
 		if o.mode != selectMode {
-			return nil
+			return nil, true
 		}
 		o.mode = restoreMode
-		return nil
+		return nil, true
 	case intents.Apply:
 		if o.mode != restoreMode {
-			return nil
+			return nil, true
 		}
 		from := o.getSelectedEvolog().CommitId
 		into := o.target.GetChangeId()
-		return o.context.RunCommand(jj.RestoreEvolog(from, into), common.CloseApplied, common.Refresh)
+		return o.context.RunCommand(jj.RestoreEvolog(from, into), common.CloseApplied, common.Refresh), true
 	}
-	return nil
+	return nil, false
 }
 
 func (o *Operation) navigate(delta int, page bool) tea.Cmd {
@@ -264,10 +276,6 @@ func (o *Operation) Name() string {
 		return "restore"
 	}
 	return "evolog"
-}
-
-func (o *Operation) Scope() keybindings.Scope {
-	return keybindings.Scope(actions.OwnerEvolog)
 }
 
 func (o *Operation) load() tea.Msg {

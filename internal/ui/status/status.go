@@ -5,9 +5,12 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/help"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -61,6 +64,81 @@ func (m *Model) FocusKind() FocusKind {
 	return m.focusKind
 }
 
+func (m *Model) Layers() []routing.Layer {
+	if m.focusKind == FocusNone {
+		return nil
+	}
+	var scope keybindings.Scope
+	switch m.focusKind {
+	case FocusFileSearch:
+		scope = actions.ScopeFileSearch
+	case FocusInput:
+		scope = actions.ScopeStatusInput
+	case FocusQuickSearch:
+		scope = actions.ScopeQuickSearchInput
+	default:
+		return nil
+	}
+	return []routing.Layer{
+		{
+			Scope:     scope,
+			AllowLeak: false,
+			Handler:   m,
+		},
+	}
+}
+
+func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	switch intent.(type) {
+	case intents.Cancel:
+		if m.IsFocused() {
+			editMode := m.mode
+			fuzzy := m.fuzzy
+			m.fuzzy = nil
+			m.focusKind = FocusNone
+			m.input.Reset()
+			if fuzzy != nil && strings.HasSuffix(editMode, "file") {
+				return fuzzy.Update(intents.FileSearchCancel{}), true
+			}
+			return nil, true
+		}
+	case intents.Apply:
+		if m.IsFocused() {
+			editMode := m.mode
+			input := m.input.Value()
+			prompt := m.input.Prompt
+			fuzzy := m.fuzzy
+			if fuzzy != nil {
+				if selected := fuzzy_search.SelectedMatch(fuzzy); selected != "" {
+					input = strings.Trim(selected, "'")
+					m.input.SetValue(input)
+				}
+			}
+			m.saveEditingSuggestions()
+
+			m.fuzzy = nil
+			m.focusKind = FocusNone
+			m.mode = ""
+			m.input.Reset()
+
+			switch {
+			case strings.HasSuffix(editMode, "file"):
+				if fuzzy != nil {
+					return fuzzy.Update(intents.FileSearchAccept{}), true
+				}
+				return nil, true
+			case strings.HasPrefix(editMode, "exec"):
+				return func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }, true
+			}
+			return func() tea.Msg { return common.QuickSearchMsg(input) }, true
+		}
+	}
+	if m.IsFocused() && m.fuzzy != nil {
+		return m.fuzzy.Update(intent), true
+	}
+	return nil, false
+}
+
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
@@ -88,54 +166,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case intents.Intent:
-		switch msg.(type) {
-		case intents.Cancel:
-			if m.IsFocused() {
-				editMode := m.mode
-				fuzzy := m.fuzzy
-				m.fuzzy = nil
-				m.focusKind = FocusNone
-				m.input.Reset()
-				if fuzzy != nil && strings.HasSuffix(editMode, "file") {
-					return fuzzy.Update(intents.FileSearchCancel{})
-				}
-				return nil
-			}
-		case intents.Apply:
-			if m.IsFocused() {
-				editMode := m.mode
-				input := m.input.Value()
-				prompt := m.input.Prompt
-				fuzzy := m.fuzzy
-				if fuzzy != nil {
-					if selected := fuzzy_search.SelectedMatch(fuzzy); selected != "" {
-						input = strings.Trim(selected, "'")
-						m.input.SetValue(input)
-					}
-				}
-				m.saveEditingSuggestions()
-
-				m.fuzzy = nil
-				m.focusKind = FocusNone
-				m.mode = ""
-				m.input.Reset()
-
-				switch {
-				case strings.HasSuffix(editMode, "file"):
-					if fuzzy != nil {
-						return fuzzy.Update(intents.FileSearchAccept{})
-					}
-					return nil
-				case strings.HasPrefix(editMode, "exec"):
-					return func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }
-				}
-				return func() tea.Msg { return common.QuickSearchMsg(input) }
-			}
-		}
-		if m.IsFocused() && m.fuzzy != nil {
-			return m.fuzzy.Update(msg)
-		}
-		return nil
+		cmd, _ := m.HandleIntent(msg)
+		return cmd
 	case tea.KeyMsg, tea.PasteMsg:
 		if m.IsFocused() {
 			var cmd tea.Cmd

@@ -9,12 +9,12 @@ import (
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/actions"
-	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 var (
@@ -22,6 +22,7 @@ var (
 	_ operations.SegmentRenderer = (*Operation)(nil)
 	_ common.Focusable           = (*Operation)(nil)
 	_ common.Editable            = (*Operation)(nil)
+	_ routing.LayerProvider      = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -40,12 +41,18 @@ func (o *Operation) IsFocused() bool {
 	return true
 }
 
-func (o *Operation) Name() string {
-	return "ace jump"
+func (o *Operation) Layers() []routing.Layer {
+	return []routing.Layer{
+		{
+			Scope:     actions.ScopeAceJump,
+			AllowLeak: false,
+			Handler:   o,
+		},
+	}
 }
 
-func (o *Operation) Scope() keybindings.Scope {
-	return keybindings.Scope(actions.OwnerAceJump)
+func (o *Operation) Name() string {
+	return "ace jump"
 }
 
 func NewOperation(setCursor func(int), getItemFn func(index int) parser.Row, first, last int, parentOp any) *Operation {
@@ -105,27 +112,33 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
+func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	switch intent.(type) {
+	case intents.Cancel:
+		o.aceJump = nil
+		if o.parentOp != nil {
+			return common.RestoreOperation(o.parentOp), true
+		}
+		return common.Close, true
+	case intents.Apply:
+		if o.aceJump == nil || o.aceJump.First() == nil {
+			return nil, true
+		}
+		o.setCursor(o.aceJump.First().RowIdx)
+		o.aceJump = nil
+		if o.parentOp != nil {
+			return common.RestoreOperation(o.parentOp), true
+		}
+		return common.Close, true
+	}
+	return nil, false
+}
+
 func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
-		switch msg.(type) {
-		case intents.Cancel:
-			o.aceJump = nil
-			if o.parentOp != nil {
-				return common.RestoreOperation(o.parentOp)
-			}
-			return common.Close
-		case intents.Apply:
-			if o.aceJump == nil || o.aceJump.First() == nil {
-				return nil
-			}
-			o.setCursor(o.aceJump.First().RowIdx)
-			o.aceJump = nil
-			if o.parentOp != nil {
-				return common.RestoreOperation(o.parentOp)
-			}
-			return common.Close
-		}
+		cmd, _ := o.HandleIntent(msg)
+		return cmd
 	case tea.KeyMsg:
 		return o.HandleKey(msg)
 	}

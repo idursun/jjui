@@ -19,7 +19,7 @@ func TestParseBindDirectives_RejectsUnknownKey(t *testing.T) {
 
 func TestValidateRules_RejectsTypeMismatch(t *testing.T) {
 	rules := []bindRule{{
-		Owner:  "revisions.squash",
+		Scope:  "revisions.squash",
 		Action: "apply",
 		Intent: "Apply",
 		Set:    map[string]string{"Force": "1"},
@@ -31,15 +31,15 @@ func TestValidateRules_RejectsTypeMismatch(t *testing.T) {
 }
 
 func TestValidateRules_RejectsInvalidScopeFormat(t *testing.T) {
-	rules := []bindRule{{Owner: "ui..global", Action: "apply", Intent: "Apply"}}
+	rules := []bindRule{{Scope: "ui..global", Action: "apply", Intent: "Apply"}}
 	intents := map[string]intentTypeMeta{"Apply": {Fields: map[string]string{}}}
 	err := validateRules(rules, intents, nil)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid owner")
+	require.Contains(t, err.Error(), "invalid scope")
 }
 
 func TestValidateRules_RejectsInvalidActionFormat(t *testing.T) {
-	rules := []bindRule{{Owner: "ui", Action: "set.target", Intent: "Apply"}}
+	rules := []bindRule{{Scope: "ui", Action: "set.target", Intent: "Apply"}}
 	intents := map[string]intentTypeMeta{"Apply": {Fields: map[string]string{}}}
 	err := validateRules(rules, intents, nil)
 	require.Error(t, err)
@@ -48,8 +48,8 @@ func TestValidateRules_RejectsInvalidActionFormat(t *testing.T) {
 
 func TestValidateRules_RejectsDuplicateFullActionID(t *testing.T) {
 	rules := []bindRule{
-		{Owner: "ui", Action: "apply", Intent: "Apply"},
-		{Owner: "ui", Action: "apply", Intent: "Apply"},
+		{Scope: "ui", Action: "apply", Intent: "Apply"},
+		{Scope: "ui", Action: "apply", Intent: "Apply"},
 	}
 	intents := map[string]intentTypeMeta{"Apply": {Fields: map[string]string{}}}
 	err := validateRules(rules, intents, nil)
@@ -57,10 +57,10 @@ func TestValidateRules_RejectsDuplicateFullActionID(t *testing.T) {
 	require.Contains(t, err.Error(), "duplicate full action id")
 }
 
-func TestValidateActionMetadata_RejectsMissingOwners(t *testing.T) {
+func TestValidateActionMetadata_RejectsMissingScopes(t *testing.T) {
 	err := validateActionMetadata([]string{"apply", ""}, map[string][]string{"apply": {"ui"}})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "has no owners")
+	require.Contains(t, err.Error(), "has no scopes")
 }
 
 func TestGeneratedCatalogIsUpToDate(t *testing.T) {
@@ -88,10 +88,10 @@ func TestGeneratedCatalogIsUpToDate(t *testing.T) {
 
 	schemas, requiredArgs, err := deriveActionArgSchemas(rules, intents, enums)
 	require.NoError(t, err)
-	owners := deriveActionOwners(rules)
-	err = validateActionMetadata(actionIDs, owners)
+	scopes := deriveActionScopes(rules)
+	err = validateActionMetadata(actionIDs, scopes)
 	require.NoError(t, err)
-	metaGenerated, err := generateActionMetaSource(schemas, requiredArgs, owners)
+	metaGenerated, err := generateActionMetaSource(schemas, requiredArgs, scopes)
 	require.NoError(t, err)
 	metaCurrent, err := os.ReadFile(filepath.Join(root, "internal/ui/actionmeta/builtins_gen.go"))
 	require.NoError(t, err)

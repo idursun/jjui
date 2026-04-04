@@ -13,6 +13,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -33,6 +34,8 @@ type Item struct {
 	Name string
 	Kind ItemKind
 }
+
+var _ routing.LayerHandler = (*Model)(nil)
 
 type Model struct {
 	context             *context.MainContext
@@ -141,26 +144,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.listRenderer.StartLine = 0
 		}
 	case intents.Intent:
-		switch msg := msg.(type) {
-		case intents.TargetPickerCancel:
-			return TargetPickerCancelCmd()
-		case intents.TargetPickerApply:
-			return m.accept(msg.Force)
-		case intents.TargetPickerNavigate:
-			if msg.Delta < 0 {
-				m.cursorUp()
-			} else if msg.Delta > 0 {
-				m.cursorDown()
-			}
-			return nil
-		case intents.AutocompleteCycle:
-			if msg.Reverse {
-				m.cursorUp()
-			} else {
-				m.cursorDown()
-			}
-			return nil
-		}
+		var cmd, _ = m.HandleIntent(msg)
+		return cmd
 	case tea.KeyMsg, tea.PasteMsg:
 		var cmd tea.Cmd
 		m.input, cmd = m.input.Update(msg)
@@ -168,6 +153,30 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return cmd
 	}
 	return nil
+}
+
+func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	switch intent := intent.(type) {
+	case intents.TargetPickerCancel:
+		return TargetPickerCancelCmd(), true
+	case intents.TargetPickerApply:
+		return m.accept(intent.Force), true
+	case intents.TargetPickerNavigate:
+		if intent.Delta < 0 {
+			m.cursorUp()
+		} else if intent.Delta > 0 {
+			m.cursorDown()
+		}
+		return nil, true
+	case intents.AutocompleteCycle:
+		if intent.Reverse {
+			m.cursorUp()
+		} else {
+			m.cursorDown()
+		}
+		return nil, true
+	}
+	return nil, false
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {

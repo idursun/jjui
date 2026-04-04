@@ -7,6 +7,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -127,4 +128,15 @@ func TestQuickSearch_UpdatesSelection(t *testing.T) {
 		model.quickSearch = "match"
 		assert.True(t, selectionChanged(model.Update(intents.QuickSearchCycle{})))
 	})
+}
+
+func TestLayers_ExposeQuickSearchScopeWhenSearchActive(t *testing.T) {
+	model := &Model{
+		quickSearch: "match",
+		op:          operations.NewDefault(),
+	}
+
+	layers := model.Layers()
+	assert.NotEmpty(t, layers)
+	assert.Equal(t, bindings.Scope("revisions.quick_search"), layers[0].Scope)
 }

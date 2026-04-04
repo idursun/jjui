@@ -6,9 +6,6 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
-	"github.com/idursun/jjui/internal/ui/actions"
-	keybindings "github.com/idursun/jjui/internal/ui/bindings"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
@@ -136,19 +133,4 @@ func TestModel_TargetPickerCancelClosesEditing(t *testing.T) {
 
 	test.SimulateModel(model, model.Update(intents.TargetPickerCancel{}))
 	assert.False(t, model.IsEditing(), "target picker cancel should exit editing mode")
-}
-
-func TestModel_StartAceJumpMsg_OpensAceJumpOperation(t *testing.T) {
-	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
-	model := New(ctx)
-	model.updateGraphRows(rows, "a")
-
-	test.SimulateModel(model, model.Update(intents.OpenAbandon{}))
-	assert.Equal(t, "abandon", model.CurrentOperation().Name())
-
-	test.SimulateModel(model, model.Update(common.StartAceJumpMsg{}))
-	scopes := model.ScopeChain()
-	assert.NotEmpty(t, scopes)
-	assert.Equal(t, keybindings.Scope(actions.OwnerAceJump), scopes[0])
-	assert.Len(t, scopes, 1)
 }

@@ -10,7 +10,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
-	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -18,6 +17,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 type Source int
@@ -51,10 +51,11 @@ type styles struct {
 }
 
 var (
-	_ operations.Operation = (*Operation)(nil)
-	_ common.Focusable     = (*Operation)(nil)
-	_ common.Overlay       = (*Operation)(nil)
-	_ common.Editable      = (*Operation)(nil)
+	_ operations.Operation  = (*Operation)(nil)
+	_ common.Focusable      = (*Operation)(nil)
+	_ common.Overlay        = (*Operation)(nil)
+	_ common.Editable       = (*Operation)(nil)
+	_ routing.LayerProvider = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -89,6 +90,25 @@ func (r *Operation) IsOverlay() bool {
 	return r.targetPicker != nil
 }
 
+func (r *Operation) Layers() []routing.Layer {
+	var ret []routing.Layer
+	if r.targetPicker != nil {
+		ret = append(ret,
+			routing.Layer{
+				Scope:     actions.ScopeTargetPicker,
+				AllowLeak: false,
+				Handler:   r.targetPicker,
+			})
+	}
+
+	ret = append(ret, routing.Layer{
+		Scope:     actions.ScopeRebase,
+		AllowLeak: true,
+		Handler:   r,
+	})
+	return ret
+}
+
 func (r *Operation) Init() tea.Cmd {
 	return nil
 }
@@ -98,7 +118,8 @@ func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 	case target_picker.TargetSelectedMsg:
 		r.targetPicker = nil
 		r.targetName = strings.TrimSpace(msg.Target)
-		return r.handleIntent(intents.Apply{Force: msg.Force})
+		cmd, _ := r.HandleIntent(intents.Apply{Force: msg.Force})
+		return cmd
 	case target_picker.TargetPickerCancelMsg:
 		r.targetPicker = nil
 		return nil
@@ -112,7 +133,8 @@ func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 				return r.targetPicker.Update(msg)
 			}
 		}
-		return r.handleIntent(msg)
+		cmd, _ := r.HandleIntent(msg)
+		return cmd
 	case tea.KeyMsg:
 		if r.targetPicker != nil {
 			return r.targetPicker.Update(msg)
@@ -126,38 +148,39 @@ func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 	}
 }
 
-func (r *Operation) handleIntent(intent intents.Intent) tea.Cmd {
+func (r *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch msg := intent.(type) {
 	case intents.StartAceJump:
-		return common.StartAceJump()
+		return common.StartAceJump(), true
 	case intents.RebaseSetSource:
 		r.Source = rebaseSourceFromIntent(msg.Source)
+		return nil, true
 	case intents.RebaseSetTarget:
 		r.Target = msg.Target
 		if r.Target == intents.ModeTargetInsert {
 			r.InsertStart = r.To
 		}
+		return nil, true
 	case intents.RebaseOpenTargetPicker:
 		r.targetPicker = target_picker.NewModel(r.context)
-		return r.targetPicker.Init()
+		return r.targetPicker.Init(), true
 	case intents.RebaseToggleSkipEmptied:
 		r.SkipEmptied = !r.SkipEmptied
+		return nil, true
 	case intents.Apply:
 		skipEmptied := r.SkipEmptied
 		source := sourceToFlags[r.Source]
 		if r.Target == intents.ModeTargetInsert {
 			insertAfter := r.InsertStart.GetChangeId()
 			insertBefore := r.targetArg()
-			return r.context.RunCommand(jj.RebaseInsert(r.From, source, insertAfter, insertBefore, skipEmptied, msg.Force), common.RefreshAndSelect(r.From.Last()), common.CloseApplied)
+			return r.context.RunCommand(jj.RebaseInsert(r.From, source, insertAfter, insertBefore, skipEmptied, msg.Force), common.RefreshAndSelect(r.From.Last()), common.CloseApplied), true
 		}
 		target := targetToFlags[r.Target]
-		return r.context.RunCommand(jj.Rebase(r.From, source, r.targetArg(), target, skipEmptied, msg.Force), common.RefreshAndSelect(r.From.Last()), common.CloseApplied)
+		return r.context.RunCommand(jj.Rebase(r.From, source, r.targetArg(), target, skipEmptied, msg.Force), common.RefreshAndSelect(r.From.Last()), common.CloseApplied), true
 	case intents.Cancel:
-		return common.Close
-	default:
-		return nil
+		return common.Close, true
 	}
-	return nil
+	return nil, false
 }
 
 func rebaseSourceFromIntent(source intents.RebaseSource) Source {
@@ -292,13 +315,6 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 
 func (r *Operation) Name() string {
 	return "rebase"
-}
-
-func (r *Operation) Scope() keybindings.Scope {
-	if r.targetPicker != nil {
-		return keybindings.Scope(actions.OwnerTargetPicker)
-	}
-	return keybindings.Scope(actions.OwnerRebase)
 }
 
 func (r *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {

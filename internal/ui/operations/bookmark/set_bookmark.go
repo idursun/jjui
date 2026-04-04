@@ -4,12 +4,12 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
+	"github.com/idursun/jjui/internal/ui/actions"
+	"github.com/idursun/jjui/internal/ui/routing"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/actions"
-	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -20,6 +20,7 @@ import (
 
 var _ operations.Operation = (*SetBookmarkOperation)(nil)
 var _ common.Editable = (*SetBookmarkOperation)(nil)
+var _ routing.LayerProvider = (*SetBookmarkOperation)(nil)
 
 type SetBookmarkOperation struct {
 	context         *context.MainContext
@@ -33,18 +34,34 @@ func (s *SetBookmarkOperation) IsEditing() bool {
 	return true
 }
 
+func (s *SetBookmarkOperation) Layers() []routing.Layer {
+	return []routing.Layer{
+		{
+			Scope:     actions.ScopeSetBookmark,
+			AllowLeak: false,
+			Handler:   s,
+		},
+	}
+}
+
+func (s *SetBookmarkOperation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	switch intent := intent.(type) {
+	case intents.Cancel:
+		return common.Close, true
+	case intents.Apply:
+		return s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), common.CloseApplied, common.Refresh), true
+	case intents.AutocompleteCycle:
+		s.cycleSuggestion(intent.Reverse)
+		return nil, true
+	}
+	return nil, false
+}
+
 func (s *SetBookmarkOperation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
-		switch msg := msg.(type) {
-		case intents.Cancel:
-			return common.Close
-		case intents.Apply:
-			return s.context.RunCommand(jj.BookmarkSet(s.revision, s.name.Value()), common.CloseApplied, common.Refresh)
-		case intents.AutocompleteCycle:
-			s.cycleSuggestion(msg.Reverse)
-			return nil
-		}
+		cmd, _ := s.HandleIntent(msg)
+		return cmd
 	}
 	var cmd tea.Cmd
 	s.name, cmd = s.name.Update(msg)
@@ -89,10 +106,6 @@ func (s *SetBookmarkOperation) Render(commit *jj.Commit, pos operations.RenderPo
 
 func (s *SetBookmarkOperation) Name() string {
 	return "set bookmark"
-}
-
-func (s *SetBookmarkOperation) Scope() keybindings.Scope {
-	return keybindings.Scope(actions.OwnerSetBookmark)
 }
 
 func NewSetBookmarkOperation(context *context.MainContext, changeId string) *SetBookmarkOperation {

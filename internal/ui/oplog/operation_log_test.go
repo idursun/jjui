@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/idursun/jjui/internal/ui/actions"
+	"github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -83,4 +85,13 @@ func TestOpLogNavigateIntent(t *testing.T) {
 	}
 
 	assert.Equal(t, 0, m.cursor, "expected cursor to move back to 0")
+}
+
+func TestLayers_ExposeQuickSearchScopeWhenSearchActive(t *testing.T) {
+	m := &Model{quickSearch: "match"}
+
+	layers := m.Layers()
+	require.Len(t, layers, 2)
+	assert.Equal(t, bindings.Scope(actions.ScopeOplogQuickSearch), layers[0].Scope)
+	assert.Equal(t, bindings.Scope(actions.ScopeOplog), layers[1].Scope)
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 type SelectedMsg struct {
@@ -100,33 +101,60 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) StackedActionOwner() string {
-	return actions.OwnerChoose
-}
-
 func (m *Model) IsEditing() bool {
 	return m.filtering
+}
+
+func (m *Model) Layers() []routing.Layer {
+	if m.IsEditing() {
+		return []routing.Layer{
+			{
+				Scope:     actions.ScopeChoose + ".filter",
+				AllowLeak: false,
+				Handler:   m,
+			},
+			{
+				Scope:     actions.ScopeChoose,
+				AllowLeak: false,
+				Handler:   m,
+			},
+		}
+	}
+	return []routing.Layer{
+		{
+			Scope:     actions.ScopeChoose,
+			AllowLeak: true,
+			Handler:   m,
+		},
+	}
+}
+
+func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	switch intent := intent.(type) {
+	case intents.ChooseNavigate:
+		m.move(intent.Delta)
+		return nil, true
+	case intents.ChooseApply:
+		return m.selectCurrent(), true
+	case intents.ChooseCancel:
+		if m.filtering {
+			m.filtering = false
+			m.input.Reset()
+			m.filteredOptions = m.options
+			m.selected = 0
+			return nil, true
+		}
+		return newCmd(CancelledMsg{}), true
+	}
+	return nil, false
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case intents.Intent:
-		switch intent := msg.(type) {
-		case intents.ChooseNavigate:
-			m.move(intent.Delta)
-		case intents.ChooseApply:
-			return m.selectCurrent()
-		case intents.ChooseCancel:
-			if m.filtering {
-				m.filtering = false
-				m.input.Reset()
-				m.filteredOptions = m.options
-				m.selected = 0
-				return nil
-			}
-			return newCmd(CancelledMsg{})
-		}
+		intentCmd, _ := m.HandleIntent(msg)
+		return intentCmd
 	case tea.KeyMsg, tea.PasteMsg:
 		if m.filtering {
 			m.input, cmd = m.input.Update(msg)

@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/idursun/jjui/internal/ui/actions"
+	"github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
@@ -28,7 +30,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
-	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/graph"
@@ -39,13 +40,17 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/evolog"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/operations/squash"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 var (
 	_ common.Focusable      = (*Model)(nil)
 	_ common.Editable       = (*Model)(nil)
 	_ common.ImmediateModel = (*Model)(nil)
+	_ routing.LayerProvider = (*Model)(nil)
 )
+
+const scopeQuickSearch bindings.Scope = "revisions.quick_search"
 
 type Model struct {
 	rows                   []parser.Row
@@ -184,21 +189,31 @@ func (m *Model) HasQuickSearch() bool {
 	return m.quickSearch != ""
 }
 
-func (m *Model) ScopeChain() []keybindings.Scope {
-	chain := make([]keybindings.Scope, 0, 3)
-	if sp, ok := m.op.(operations.ScopeProvider); ok {
-		opScope := sp.Scope()
-		chain = append(chain, opScope)
-		if opScope != ScopeRevisions && !m.IsEditing() {
-			chain = append(chain, ScopeRevisions)
-		}
-	} else {
-		chain = append(chain, ScopeRevisions)
+func (m *Model) Layers() []routing.Layer {
+	var ret []routing.Layer
+	if lp, ok := m.op.(routing.LayerProvider); ok {
+		ret = append(ret, lp.Layers()...)
 	}
+
 	if m.quickSearch != "" {
-		chain = append(chain, ScopeQuickSearch)
+		ret = append(ret, routing.Layer{
+			Scope:     scopeQuickSearch,
+			AllowLeak: !m.IsEditing() && !m.IsFocused(),
+			Handler:   m,
+		})
 	}
-	return chain
+
+	var scope bindings.Scope = actions.ScopeRevisions
+	if !m.InNormalMode() {
+		scope = ""
+	}
+
+	ret = append(ret, routing.Layer{
+		Scope:     scope,
+		AllowLeak: !m.IsEditing() && !m.IsFocused(),
+		Handler:   m,
+	})
+	return ret
 }
 
 func (m *Model) SelectedRevision() *jj.Commit {
@@ -250,7 +265,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
-		if cmd := m.handleIntent(msg); cmd != nil {
+		if cmd, handled := m.HandleIntent(msg); handled {
 			return cmd
 		}
 		return m.op.Update(msg)
@@ -293,7 +308,8 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		m.op = operations.NewDefault()
 		return m.updateSelection()
 	case common.StartAceJumpMsg:
-		return m.handleIntent(intents.StartAceJump{})
+		cmd, _ := m.HandleIntent(intents.StartAceJump{})
+		return cmd
 	case common.QuickSearchMsg:
 		m.quickSearch = strings.ToLower(string(msg))
 		m.SetCursor(m.search(0, false))
@@ -417,7 +433,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	}
 
 	if intent, ok := msg.(intents.Intent); ok {
-		if cmd := m.handleIntent(intent); cmd != nil {
+		if cmd, handled := m.HandleIntent(intent); handled {
 			return cmd
 		}
 		return m.op.Update(msg)
@@ -449,78 +465,109 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
+func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	// Cancel has special handling: delegate to op first, then clear selections
+	if _, ok := intent.(intents.Cancel); ok {
+		if h, ok := m.op.(routing.LayerHandler); ok {
+			if cmd, handled := h.HandleIntent(intent); handled {
+				return cmd, true
+			}
+		}
+		// Clear checked items and reset to default operation
+		if len(m.context.CheckedItems) > 0 || !m.InNormalMode() {
+			m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
+			m.op = operations.NewDefault()
+			return nil, true
+		}
+		return nil, false // nothing to cancel, leak to ui
+	}
+
+	// QuickSearch: swallow when an operation is active to preserve current behavior
+	if _, ok := intent.(intents.QuickSearch); ok {
+		if !m.InNormalMode() {
+			return nil, true
+		}
+		return nil, false
+	}
+
+	// StartAceJump is a revisions-level concern (replaces current operation).
+	// Handle before the operation to avoid delegation loops.
+	if _, ok := intent.(intents.StartAceJump); ok {
+		parentOp := m.op
+		op := ace_jump.NewOperation(m.SetCursor, func(index int) parser.Row {
+			return m.rows[index]
+		}, m.displayContextRenderer.GetFirstRowIndex(), m.displayContextRenderer.GetLastRowIndex(), parentOp)
+		m.op = op
+		return op.Init(), true
+	}
+
+	// Try the current operation first
+	if h, ok := m.op.(routing.LayerHandler); ok {
+		if cmd, handled := h.HandleIntent(intent); handled {
+			return cmd, true
+		}
+	}
+
+	// Then try revisions-level intents
 	switch intent := intent.(type) {
 	case intents.OpenDetails:
-		return m.openDetails(intent)
+		return m.openDetails(intent), true
 	case intents.OpenSquash:
-		return m.startSquash(intent)
+		return m.startSquash(intent), true
 	case intents.OpenInlineDescribe:
-		return m.startInlineDescribe(intent)
+		return m.startInlineDescribe(intent), true
 	case intents.Absorb:
-		return m.startAbsorb(intent)
+		return m.startAbsorb(intent), true
 	case intents.OpenAbandon:
-		return m.startAbandon(intent)
+		return m.startAbandon(intent), true
 	case intents.StartNew:
-		return m.startNew(intent)
+		return m.startNew(intent), true
 	case intents.CommitWorkingCopy:
-		return m.commitWorkingCopy()
+		return m.commitWorkingCopy(), true
 	case intents.StartEdit:
-		return m.startEdit(intent)
+		return m.startEdit(intent), true
 	case intents.DiffEdit:
-		return m.startDiffEdit(intent)
+		return m.startDiffEdit(intent), true
 	case intents.OpenRevert:
-		return m.startRevert(intent)
+		return m.startRevert(intent), true
 	case intents.OpenDuplicate:
-		return m.startDuplicate(intent)
+		return m.startDuplicate(intent), true
 	case intents.OpenSetParents:
-		return m.startSetParents(intent)
+		return m.startSetParents(intent), true
 	case intents.OpenSetBookmark:
-		return m.startBookmarkSet()
+		return m.startBookmarkSet(), true
 	case intents.RevisionsToggleSelect:
 		commit := m.rows[m.cursor].Commit
 		changeId := commit.GetChangeId()
 		item := appContext.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
 		m.context.ToggleCheckedItem(item)
-		return nil
+		return nil, true
 	case intents.Navigate:
-		return m.navigate(intent)
+		return m.navigate(intent), true
 	case intents.Describe:
-		return m.startDescribe(intent)
+		return m.startDescribe(intent), true
 	case intents.OpenEvolog:
-		return m.startEvolog(intent)
+		return m.startEvolog(intent), true
 	case intents.ShowDiff:
-		return m.showDiff(intent)
+		return m.showDiff(intent), true
 	case intents.StartSplit:
-		return m.startSplit(intent)
+		return m.startSplit(intent), true
 	case intents.OpenRebase:
-		return m.startRebase(intent)
+		return m.startRebase(intent), true
 	case intents.Refresh:
-		return m.refresh(intent)
-	case intents.Cancel:
-		m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
-		m.op = operations.NewDefault()
-		return nil
+		return m.refresh(intent), true
 	case intents.QuickSearchCycle:
 		offset := 1
 		if intent.Reverse {
 			offset = -1
 		}
 		m.SetCursor(m.search(m.cursor+offset, intent.Reverse))
-		return m.updateSelection()
+		return m.updateSelection(), true
 	case intents.RevisionsQuickSearchClear:
 		m.quickSearch = ""
-		return nil
-	case intents.StartAceJump:
-		parentOp := m.op
-		// Create ace jump with parent operation
-		op := ace_jump.NewOperation(m.SetCursor, func(index int) parser.Row {
-			return m.rows[index]
-		}, m.displayContextRenderer.GetFirstRowIndex(), m.displayContextRenderer.GetLastRowIndex(), parentOp)
-		m.op = op
-		return op.Init()
+		return nil, true
 	}
-	return nil
+	return nil, false
 }
 
 func (m *Model) startBookmarkSet() tea.Cmd {

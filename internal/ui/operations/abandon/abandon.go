@@ -9,19 +9,20 @@ import (
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/actions"
-	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 var (
 	_ operations.Operation       = (*Operation)(nil)
 	_ operations.SegmentRenderer = (*Operation)(nil)
 	_ common.Focusable           = (*Operation)(nil)
+	_ routing.LayerProvider      = (*Operation)(nil)
 )
 
 type selectionType int
@@ -55,6 +56,16 @@ func (a *Operation) IsFocused() bool {
 	return true
 }
 
+func (a *Operation) Layers() []routing.Layer {
+	return []routing.Layer{
+		{
+			Scope:     actions.ScopeAbandon,
+			AllowLeak: true,
+			Handler:   a,
+		},
+	}
+}
+
 func (a *Operation) Init() tea.Cmd {
 	return nil
 }
@@ -62,7 +73,8 @@ func (a *Operation) Init() tea.Cmd {
 func (a *Operation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
-		return a.handleIntent(msg)
+		cmd, _ := a.HandleIntent(msg)
+		return cmd
 	case addSelectionMsg:
 		a.selectedRevisions = msg.SelectedRevisions
 	}
@@ -71,32 +83,31 @@ func (a *Operation) Update(msg tea.Msg) tea.Cmd {
 
 func (a *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 
-func (a *Operation) handleIntent(intent intents.Intent) tea.Cmd {
-	switch intent.(type) {
+func (a *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	switch intent := intent.(type) {
 	case intents.StartAceJump:
-		return common.StartAceJump()
+		return common.StartAceJump(), true
 	case intents.Apply:
-		force := intent.(intents.Apply).Force
 		if len(a.selectedRevisions.Revisions) == 0 {
-			return nil
+			return nil, true
 		}
-		return a.context.RunCommand(jj.Abandon(a.selectedRevisions, force), common.Refresh, common.CloseApplied)
+		return a.context.RunCommand(jj.Abandon(a.selectedRevisions, intent.Force), common.Refresh, common.CloseApplied), true
 	case intents.AbandonToggleSelect:
 		if a.current == nil {
-			return nil
+			return nil, true
 		}
 		a.selections.toggle(a.current.GetChangeId(), selectionTypeRevision)
-		return a.refreshSelectedRevisionsCmd()
+		return a.refreshSelectedRevisionsCmd(), true
 	case intents.AbandonSelectDescendants:
 		if a.current == nil {
-			return nil
+			return nil, true
 		}
 		a.selections.toggle(a.current.GetChangeId(), selectionTypeDescendants)
-		return a.refreshSelectedRevisionsCmd()
+		return a.refreshSelectedRevisionsCmd(), true
 	case intents.Cancel:
-		return common.Close
+		return common.Close, true
 	}
-	return nil
+	return nil, false
 }
 
 func (a *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
@@ -141,10 +152,6 @@ func (a *Operation) refreshSelectedRevisionsCmd() tea.Cmd {
 
 func (a *Operation) Name() string {
 	return "abandon"
-}
-
-func (a *Operation) Scope() keybindings.Scope {
-	return actions.OwnerAbandon
 }
 
 func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRevisions) *Operation {

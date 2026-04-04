@@ -7,6 +7,7 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/routing"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,17 +33,25 @@ func makeResolver(bindings []keybindings.Binding, configured map[keybindings.Act
 	return newResolverWithActions(d, actions)
 }
 
+func resolverScopeLayers(scopes ...keybindings.Scope) []routing.Layer {
+	layers := make([]routing.Layer, 0, len(scopes))
+	for _, scope := range scopes {
+		layers = append(layers, routing.Layer{Scope: scope, AllowLeak: true})
+	}
+	return layers
+}
+
 func TestResolveKey_BuiltInAction(t *testing.T) {
 	r := makeResolver([]keybindings.Binding{
 		{Action: "ui.quit", Scope: "ui", Key: []string{"q"}},
 	}, nil)
 
-	result := r.ResolveKey(keyMsg("q"), []keybindings.Scope{"ui"})
+	result := r.ResolveKey(keyMsg("q"), resolverScopeLayers("ui"))
 	assert.True(t, result.Consumed)
 	assert.NotNil(t, result.Intent)
 	_, isQuit := result.Intent.(intents.Quit)
 	assert.True(t, isQuit)
-	assert.Equal(t, "ui", result.Owner)
+	assert.Equal(t, "ui", result.Scope)
 }
 
 func TestResolveKey_Pending(t *testing.T) {
@@ -50,7 +59,7 @@ func TestResolveKey_Pending(t *testing.T) {
 		{Action: "ui.quit", Scope: "ui", Seq: []string{"g", "q"}},
 	}, nil)
 
-	result := r.ResolveKey(keyMsg("g"), []keybindings.Scope{"ui"})
+	result := r.ResolveKey(keyMsg("g"), resolverScopeLayers("ui"))
 	assert.True(t, result.Pending)
 	assert.True(t, result.Consumed)
 	assert.Nil(t, result.Intent)
@@ -61,7 +70,7 @@ func TestResolveKey_Unmatched(t *testing.T) {
 		{Action: "ui.quit", Scope: "ui", Key: []string{"q"}},
 	}, nil)
 
-	result := r.ResolveKey(keyMsg("x"), []keybindings.Scope{"ui"})
+	result := r.ResolveKey(keyMsg("x"), resolverScopeLayers("ui"))
 	assert.False(t, result.Consumed)
 	assert.Nil(t, result.Intent)
 }
@@ -73,7 +82,7 @@ func TestResolveKey_ConfiguredLuaAction(t *testing.T) {
 		"my_action": {Lua: "print('hello')"},
 	})
 
-	result := r.ResolveKey(keyMsg("m"), []keybindings.Scope{"ui"})
+	result := r.ResolveKey(keyMsg("m"), resolverScopeLayers("ui"))
 	assert.True(t, result.Consumed)
 	assert.Nil(t, result.Intent)
 	assert.Equal(t, "print('hello')", result.LuaScript)
@@ -84,11 +93,23 @@ func TestResolveKey_BuiltInCatalogResolution(t *testing.T) {
 		{Action: "revisions.move_down", Scope: "revisions", Key: []string{"j"}},
 	}, nil)
 
-	result := r.ResolveKey(keyMsg("j"), []keybindings.Scope{"revisions"})
+	result := r.ResolveKey(keyMsg("j"), resolverScopeLayers("revisions"))
 	assert.True(t, result.Consumed)
 	nav, ok := result.Intent.(intents.Navigate)
 	assert.True(t, ok)
 	assert.Equal(t, 1, nav.Delta)
+}
+
+func TestResolveKey_UsesMatchedBindingScopeForRouting(t *testing.T) {
+	r := makeResolver([]keybindings.Binding{
+		{Action: "revset.edit", Scope: "revisions", Key: []string{"L"}},
+	}, nil)
+
+	result := r.ResolveKey(keyMsg("L"), resolverScopeLayers("revisions", "ui"))
+	assert.True(t, result.Consumed)
+	_, ok := result.Intent.(intents.Edit)
+	assert.True(t, ok)
+	assert.Equal(t, "revisions", result.Scope)
 }
 
 func TestResolveAction_ConfiguredLuaTakesPrecedenceOverBuiltIn(t *testing.T) {
@@ -109,7 +130,7 @@ func TestResolveKey_ConfiguredActionWithoutLuaIsNoop(t *testing.T) {
 		"bad_action": {},
 	})
 
-	result := r.ResolveKey(keyMsg("a"), []keybindings.Scope{"ui"})
+	result := r.ResolveKey(keyMsg("a"), resolverScopeLayers("ui"))
 	assert.True(t, result.Consumed)
 	assert.Nil(t, result.Intent)
 }
@@ -139,7 +160,7 @@ func TestResolveBuiltInAction_IgnoresConfiguredLuaOverride(t *testing.T) {
 	assert.True(t, isQuit)
 }
 
-func TestDeriveOwner(t *testing.T) {
+func TestDeriveScope(t *testing.T) {
 	tests := []struct {
 		action keybindings.Action
 		want   string
@@ -154,16 +175,8 @@ func TestDeriveOwner(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.action), func(t *testing.T) {
-			got := DeriveOwner(tt.action)
+			got := DeriveScope(tt.action)
 			assert.Equal(t, tt.want, got)
 		})
 	}
-}
-
-func TestIsRevisionsOwner(t *testing.T) {
-	assert.True(t, IsRevisionsOwner("revisions"))
-	assert.True(t, IsRevisionsOwner("revisions.rebase"))
-	assert.True(t, IsRevisionsOwner("revisions.details"))
-	assert.False(t, IsRevisionsOwner("ui"))
-	assert.False(t, IsRevisionsOwner("bookmarks"))
 }

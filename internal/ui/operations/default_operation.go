@@ -3,8 +3,7 @@ package operations
 import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/actions"
-	keybindings "github.com/idursun/jjui/internal/ui/bindings"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
@@ -16,6 +15,10 @@ type Default struct {
 
 func (n *Default) Init() tea.Cmd {
 	return nil
+}
+
+func (n *Default) HandleIntent(_ intents.Intent) (tea.Cmd, bool) {
+	return nil, false
 }
 
 func (n *Default) Update(msg tea.Msg) tea.Cmd {
@@ -30,10 +33,6 @@ func (n *Default) Render(*jj.Commit, RenderPosition) string {
 
 func (n *Default) Name() string {
 	return "normal"
-}
-
-func (n *Default) Scope() keybindings.Scope {
-	return actions.OwnerRevisions
 }
 
 func NewDefault() *Default {

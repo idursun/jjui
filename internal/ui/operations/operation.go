@@ -6,7 +6,6 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
-	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
@@ -39,8 +38,4 @@ type TracksSelectedRevision interface {
 
 type SegmentRenderer interface {
 	RenderSegment(currentStyle lipgloss.Style, segment *screen.Segment, row parser.Row) string
-}
-
-type ScopeProvider interface {
-	Scope() keybindings.Scope
 }

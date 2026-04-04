@@ -16,6 +16,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 type updateItemsMsg struct {
@@ -99,10 +100,6 @@ func (m *Model) IsEditing() bool {
 	return m.filterState == filterEditing
 }
 
-func (m *Model) StackedActionOwner() string {
-	return actions.OwnerBookmarks
-}
-
 type commandType int
 
 // defines the order of actions in the list
@@ -137,6 +134,30 @@ func (i item) Description() string {
 
 func (i item) ShortCut() string {
 	return i.key
+}
+
+func (m *Model) Layers() []routing.Layer {
+	if m.IsEditing() {
+		return []routing.Layer{
+			{
+				Scope:     actions.ScopeBookmarks + ".filter",
+				AllowLeak: false,
+				Handler:   m,
+			},
+			{
+				Scope:     actions.ScopeBookmarks,
+				AllowLeak: false,
+				Handler:   m,
+			},
+		}
+	}
+	return []routing.Layer{
+		{
+			Scope:     actions.ScopeBookmarks,
+			AllowLeak: true,
+			Handler:   m,
+		},
+	}
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -328,7 +349,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case intents.Intent:
-		return m.handleIntent(msg)
+		cmd, _ := m.HandleIntent(msg)
+		return cmd
 	case tea.KeyMsg, tea.PasteMsg:
 		if m.filterState == filterEditing {
 			updated, cmd := m.filterInput.Update(msg)
@@ -343,7 +365,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		if cmd := m.handleIntent(intents.BookmarksApplyShortcut{Key: keyMsg.String()}); cmd != nil {
+		if cmd, handled := m.HandleIntent(intents.BookmarksApplyShortcut{Key: keyMsg.String()}); handled && cmd != nil {
 			return cmd
 		}
 	case updateItemsMsg:
@@ -354,7 +376,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
+func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch msg := intent.(type) {
 	case intents.Apply:
 		if m.filterState == filterEditing {
@@ -368,59 +390,59 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 				m.filterInput.Blur()
 			}
 			m.applyFilters(true)
-			return nil
+			return nil, true
 		}
 		selected, ok := m.selectedItem()
 		if !ok {
-			return nil
+			return nil, true
 		}
-		return m.context.RunCommand(selected.args, common.Refresh, common.CloseApplied)
+		return m.context.RunCommand(selected.args, common.Refresh, common.CloseApplied), true
 	case intents.BookmarksFilter:
 		filter := string(msg.Kind)
 		if filter == "" {
-			return nil
+			return nil, true
 		}
 		if m.categoryFilter == filter {
-			return m.executeDefaultForFilter(msg.Kind)
+			return m.executeDefaultForFilter(msg.Kind), true
 		}
-		return m.filtered(filter)
+		return m.filtered(filter), true
 	case intents.BookmarksCycleRemotes:
-		return m.cycleRemotes(msg.Delta)
+		return m.cycleRemotes(msg.Delta), true
 	case intents.BookmarksOpenFilter:
 		m.filterState = filterEditing
 		m.filterInput.Focus()
 		m.filterInput.CursorEnd()
-		return textinput.Blink
+		return textinput.Blink, true
 	case intents.BookmarksNavigate:
 		if msg.IsPage {
 			m.ensureCursorVisible = false
 			m.listRenderer.StartLine += msg.Delta * m.itemHeight()
-			return nil
+			return nil, true
 		}
 		m.moveCursor(msg.Delta)
-		return nil
+		return nil, true
 	case intents.Cancel:
 		if m.filterState == filterEditing {
 			m.resetTextFilter()
-			return nil
+			return nil, true
 		}
 		if m.hasActiveFilter() {
 			m.resetAllFilters()
-			return nil
+			return nil, true
 		}
-		return common.Close
+		return common.Close, true
 	case intents.BookmarksApplyShortcut:
 		if m.categoryFilter == "" {
-			return nil
+			return nil, true
 		}
 		for _, listItem := range m.visibleItems() {
 			if listItem.key == msg.Key {
-				return m.context.RunCommand(jj.Args(listItem.args...), common.Refresh, common.CloseApplied)
+				return m.context.RunCommand(jj.Args(listItem.args...), common.Refresh, common.CloseApplied), true
 			}
 		}
-		return nil
+		return nil, true
 	}
-	return nil
+	return nil, false
 }
 
 func (m *Model) executeDefaultForFilter(kind intents.BookmarksFilterKind) tea.Cmd {
