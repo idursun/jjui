@@ -51,7 +51,7 @@ func TestDisplayContextRenderer_DetailsRendersBeforeElidedMarker(t *testing.T) {
 	width, height := 100, 15
 	dl := render.NewDisplayContext()
 	viewRect := layout.NewBox(layout.Rect(0, 0, width, height))
-	r.Render(dl, []parser.Row{targetRow}, 0, viewRect, op, "", true)
+	r.Render(dl, []parser.Row{targetRow}, 0, viewRect, op, nil, false, "", true)
 
 	screen := uv.NewScreenBuffer(width, height)
 	dl.Render(screen)
@@ -101,7 +101,7 @@ func TestDisplayContextRenderer_SingleRowDescriptionOverlay(t *testing.T) {
 	width, height := 70, 10
 	dl := render.NewDisplayContext()
 	viewRect := layout.NewBox(layout.Rect(0, 0, width, height))
-	r.Render(dl, []parser.Row{targetRow}, 0, viewRect, op, "", true)
+	r.Render(dl, []parser.Row{targetRow}, 0, viewRect, op, nil, false, "", true)
 
 	buf := uv.NewScreenBuffer(width, height)
 	dl.Render(buf)

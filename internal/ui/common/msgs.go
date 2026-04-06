@@ -77,7 +77,8 @@ type (
 	RestoreOperationMsg struct {
 		Operation any
 	}
-	StartAceJumpMsg struct{}
+	StartAceJumpMsg     struct{}
+	OpenTargetPickerMsg struct{}
 )
 
 type State int
@@ -104,6 +105,12 @@ func RestoreOperation(op any) tea.Cmd {
 func StartAceJump() tea.Cmd {
 	return func() tea.Msg {
 		return StartAceJumpMsg{}
+	}
+}
+
+func OpenTargetPicker() tea.Cmd {
+	return func() tea.Msg {
+		return OpenTargetPickerMsg{}
 	}
 }
 

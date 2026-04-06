@@ -35,50 +35,30 @@ type styles struct {
 
 var _ operations.Operation = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
-var _ common.Overlay = (*Operation)(nil)
-var _ common.Editable = (*Operation)(nil)
 var _ dispatch.ScopeProvider = (*Operation)(nil)
 
 type Operation struct {
-	context      *appContext.MainContext
-	From         jj.SelectedRevisions
-	InsertStart  *jj.Commit
-	To           *jj.Commit
-	Target       intents.ModeTarget
-	targetName   string
-	targetPicker *target_picker.Model
-	styles       styles
+	context     *appContext.MainContext
+	From        jj.SelectedRevisions
+	InsertStart *jj.Commit
+	To          *jj.Commit
+	Target      intents.ModeTarget
+	targetName  string
+	styles      styles
 }
 
 func (r *Operation) IsFocused() bool {
 	return true
 }
 
-func (r *Operation) IsEditing() bool {
-	return r.targetPicker != nil
-}
-
-func (r *Operation) IsOverlay() bool {
-	return r.targetPicker != nil
-}
-
 func (r *Operation) Scopes() []dispatch.Scope {
-	var ret []dispatch.Scope
-	if r.targetPicker != nil {
-		ret = append(ret,
-			dispatch.Scope{
-				Name:      actions.ScopeTargetPicker,
-				AllowLeak: false,
-				Handler:   r.targetPicker,
-			},
-		)
+	return []dispatch.Scope{
+		{
+			Name:      actions.ScopeDuplicate,
+			AllowLeak: true,
+			Handler:   r,
+		},
 	}
-	ret = append(ret, dispatch.Scope{
-		Name:      actions.ScopeDuplicate,
-		AllowLeak: true,
-		Handler:   r,
-	})
-	return ret
 }
 
 func (r *Operation) Init() tea.Cmd {
@@ -88,33 +68,14 @@ func (r *Operation) Init() tea.Cmd {
 func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case target_picker.TargetSelectedMsg:
-		r.targetPicker = nil
 		r.targetName = strings.TrimSpace(msg.Target)
 		cmd, _ := r.HandleIntent(intents.Apply{Force: msg.Force})
 		return cmd
-	case target_picker.TargetPickerCancelMsg:
-		r.targetPicker = nil
-		return nil
 	case intents.Intent:
-		if r.targetPicker != nil {
-			switch msg.(type) {
-			case intents.TargetPickerNavigate, intents.TargetPickerApply, intents.TargetPickerCancel:
-				return r.targetPicker.Update(msg)
-			}
-		}
 		cmd, _ := r.HandleIntent(msg)
 		return cmd
-	case tea.KeyMsg:
-		if r.targetPicker != nil {
-			return r.targetPicker.Update(msg)
-		}
-		return nil
-	default:
-		if r.targetPicker != nil {
-			return r.targetPicker.Update(msg)
-		}
-		return nil
 	}
+	return nil
 }
 
 func (r *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
@@ -128,8 +89,7 @@ func (r *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		}
 		return nil, true
 	case intents.DuplicateOpenTargetPicker:
-		r.targetPicker = target_picker.NewModel(r.context)
-		return r.targetPicker.Init(), true
+		return common.OpenTargetPicker(), true
 	case intents.Apply:
 		if r.Target == intents.ModeTargetInsert {
 			insertAfter := r.InsertStart.GetChangeId()
@@ -219,11 +179,7 @@ func (r *Operation) Name() string {
 	return "duplicate"
 }
 
-func (r *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	if r.targetPicker != nil {
-		r.targetPicker.ViewRect(dl, box)
-	}
-}
+func (r *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 
 func (r *Operation) targetArg() string {
 	if strings.TrimSpace(r.targetName) != "" {

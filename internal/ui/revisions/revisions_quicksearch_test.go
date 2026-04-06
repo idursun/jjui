@@ -10,9 +10,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
-	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
-	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -50,52 +48,11 @@ var searchableRows = []parser.Row{
 	},
 }
 
-// mockNonFocusableOperation is a mock operation that is never focused, editing, or overlay
-type mockNonFocusableOperation struct{}
-
-func (m *mockNonFocusableOperation) Render(commit *jj.Commit, renderPosition operations.RenderPosition) string {
-	return ""
-}
-
-func (m *mockNonFocusableOperation) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ layout.Rectangle, _ layout.Position) int {
-	return 0
-}
-
-func (m *mockNonFocusableOperation) DesiredHeight(_ *jj.Commit, _ operations.RenderPosition) int {
-	return 0
-}
-
-func (m *mockNonFocusableOperation) Name() string {
-	return "mock"
-}
-
-func (m *mockNonFocusableOperation) Init() tea.Cmd {
-	return nil
-}
-
-func (m *mockNonFocusableOperation) Update(msg tea.Msg) tea.Cmd {
-	return nil
-}
-
-func (m *mockNonFocusableOperation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
-
-func (m *mockNonFocusableOperation) IsFocused() bool {
-	return false
-}
-
-func (m *mockNonFocusableOperation) IsEditing() bool {
-	return false
-}
-
-func (m *mockNonFocusableOperation) IsOverlay() bool {
-	return false
-}
-
 // TestQuickSearch_ClearIntentClearsSearch tests that clear intent clears the search.
 func TestQuickSearch_ClearIntentClearsSearch(t *testing.T) {
 	model := &Model{
 		quickSearch: "test",
-		op:          &mockNonFocusableOperation{},
+		opStack:     []operations.Operation{operations.NewDefault()},
 		rows:        []parser.Row{{Commit: &jj.Commit{ChangeId: "test123"}}},
 	}
 
@@ -133,7 +90,7 @@ func TestQuickSearch_UpdatesSelection(t *testing.T) {
 func TestScopes_ExposeQuickSearchScopeWhenSearchActive(t *testing.T) {
 	model := &Model{
 		quickSearch: "match",
-		op:          operations.NewDefault(),
+		opStack:     []operations.Operation{operations.NewDefault()},
 	}
 
 	scopes := model.Scopes()

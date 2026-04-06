@@ -30,7 +30,6 @@ type Operation struct {
 	aceJump     *AceJump
 	getItemFn   func(index int) parser.Row
 	first, last int
-	parentOp    any // parent operation to return to after completion
 }
 
 func (o *Operation) IsEditing() bool {
@@ -55,14 +54,13 @@ func (o *Operation) Name() string {
 	return "ace jump"
 }
 
-func NewOperation(setCursor func(int), getItemFn func(index int) parser.Row, first, last int, parentOp any) *Operation {
+func NewOperation(setCursor func(int), getItemFn func(index int) parser.Row, first, last int) *Operation {
 	return &Operation{
 		setCursor: setCursor,
 		aceJump:   NewAceJump(),
 		first:     first,
 		last:      last,
 		getItemFn: getItemFn,
-		parentOp:  parentOp,
 	}
 }
 
@@ -104,9 +102,6 @@ func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	if found := o.aceJump.Narrow(msg); found != nil {
 		o.setCursor(found.RowIdx)
 		o.aceJump = nil
-		if o.parentOp != nil {
-			return common.RestoreOperation(o.parentOp)
-		}
 		return common.Close
 	}
 	return nil
@@ -116,9 +111,6 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent.(type) {
 	case intents.Cancel:
 		o.aceJump = nil
-		if o.parentOp != nil {
-			return common.RestoreOperation(o.parentOp), true
-		}
 		return common.Close, true
 	case intents.Apply:
 		if o.aceJump == nil || o.aceJump.First() == nil {
@@ -126,9 +118,6 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		}
 		o.setCursor(o.aceJump.First().RowIdx)
 		o.aceJump = nil
-		if o.parentOp != nil {
-			return common.RestoreOperation(o.parentOp), true
-		}
 		return common.Close, true
 	}
 	return nil, false

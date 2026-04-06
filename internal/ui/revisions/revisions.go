@@ -21,6 +21,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
 	"github.com/idursun/jjui/internal/ui/operations/revert"
 	"github.com/idursun/jjui/internal/ui/operations/set_parents"
+	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/render"
 
 	"github.com/idursun/jjui/internal/parser"
@@ -57,7 +58,7 @@ type Model struct {
 	offScreenRows          []parser.Row
 	streamer               *graph.GraphStreamer
 	hasMore                bool
-	op                     common.ImmediateModel
+	opStack                []operations.Operation
 	cursor                 int
 	context                *appContext.MainContext
 	output                 string
@@ -155,32 +156,49 @@ func (m *Model) Len() int {
 	return len(m.rows)
 }
 
+func (m *Model) currentOp() operations.Operation {
+	return m.opStack[len(m.opStack)-1]
+}
+
+func (m *Model) pushOp(op operations.Operation) tea.Cmd {
+	m.opStack = append(m.opStack, op)
+	return op.Init()
+}
+
+func (m *Model) popOp() tea.Cmd {
+	if len(m.opStack) > 1 {
+		m.opStack = m.opStack[:len(m.opStack)-1]
+	}
+	return m.updateSelection()
+}
+
+func (m *Model) resetOp() {
+	m.opStack = []operations.Operation{operations.NewDefault()}
+}
+
 func (m *Model) IsEditing() bool {
-	if f, ok := m.op.(common.Editable); ok {
+	if f, ok := m.currentOp().(common.Editable); ok {
 		return f.IsEditing()
 	}
 	return false
 }
 
 func (m *Model) IsOverlay() bool {
-	if o, ok := m.op.(common.Overlay); ok {
+	if o, ok := m.currentOp().(common.Overlay); ok {
 		return o.IsOverlay()
 	}
 	return false
 }
 
 func (m *Model) IsFocused() bool {
-	if f, ok := m.op.(common.Focusable); ok {
+	if f, ok := m.currentOp().(common.Focusable); ok {
 		return f.IsFocused()
 	}
 	return false
 }
 
 func (m *Model) InNormalMode() bool {
-	if _, ok := m.op.(*operations.Default); ok {
-		return true
-	}
-	return false
+	return len(m.opStack) == 1
 }
 
 func (m *Model) HasQuickSearch() bool {
@@ -189,8 +207,10 @@ func (m *Model) HasQuickSearch() bool {
 
 func (m *Model) Scopes() []dispatch.Scope {
 	var ret []dispatch.Scope
-	if lp, ok := m.op.(dispatch.ScopeProvider); ok {
-		ret = append(ret, lp.Scopes()...)
+	for i := len(m.opStack) - 1; i >= 0; i-- {
+		if lp, ok := m.opStack[i].(dispatch.ScopeProvider); ok {
+			ret = append(ret, lp.Scopes()...)
+		}
 	}
 
 	if m.quickSearch != "" {
@@ -252,8 +272,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	cmd := m.internalUpdate(msg)
 
 	if curSelected := m.SelectedRevision(); curSelected != nil {
-		if op, ok := m.op.(operations.TracksSelectedRevision); ok {
-			cmd = tea.Batch(cmd, op.SetSelectedRevision(curSelected))
+		for _, op := range m.opStack {
+			if tracked, ok := op.(operations.TracksSelectedRevision); ok {
+				cmd = tea.Batch(cmd, tracked.SetSelectedRevision(curSelected))
+			}
 		}
 	}
 
@@ -266,14 +288,14 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		if cmd, handled := m.HandleIntent(msg); handled {
 			return cmd
 		}
-		return m.op.Update(msg)
+		return m.currentOp().Update(msg)
 	case ItemClickedMsg:
 		// Don't allow changing selection if the operation is editing (e.g. describe)
-		if editable, ok := m.op.(common.Editable); ok && editable.IsEditing() {
+		if m.IsEditing() {
 			return nil
 		}
 		// Don't allow changing selection if the operation is an overlay (e.g. details)
-		if overlay, ok := m.op.(common.Overlay); ok && overlay.IsOverlay() {
+		if m.IsOverlay() {
 			return nil
 		}
 		switch {
@@ -296,22 +318,28 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		return m.Scroll(msg.Delta)
 
 	case common.CloseViewMsg:
-		m.op = operations.NewDefault()
-		return m.updateSelection()
+		return m.popOp()
 	case common.RestoreOperationMsg:
 		if op, ok := msg.Operation.(operations.Operation); ok {
-			m.op = op
+			m.opStack = []operations.Operation{operations.NewDefault(), op}
 			return m.updateSelection()
 		}
-		m.op = operations.NewDefault()
+		m.resetOp()
 		return m.updateSelection()
 	case common.StartAceJumpMsg:
 		cmd, _ := m.HandleIntent(intents.StartAceJump{})
 		return cmd
+	case common.OpenTargetPickerMsg:
+		return m.pushOp(target_picker.NewModel(m.context))
+	case target_picker.TargetSelectedMsg:
+		m.popOp()
+		return m.currentOp().Update(msg)
+	case target_picker.TargetPickerCancelMsg:
+		return m.popOp()
 	case common.QuickSearchMsg:
 		m.quickSearch = strings.ToLower(string(msg))
 		m.SetCursor(m.search(0, false))
-		m.op = operations.NewDefault()
+		m.resetOp()
 		return m.updateSelection()
 	case common.CommandCompletedMsg:
 		m.output = msg.Output
@@ -332,7 +360,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		return tea.Batch(m.refresh(intents.Refresh{
 			KeepSelections:   msg.KeepSelections,
 			SelectedRevision: msg.SelectedRevision,
-		}), m.op.Update(msg))
+		}), m.currentOp().Update(msg))
 	case updateRevisionsMsg:
 		m.isLoading = false
 		m.updateGraphRows(msg.rows, msg.selectedRevision)
@@ -434,29 +462,29 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		if cmd, handled := m.HandleIntent(intent); handled {
 			return cmd
 		}
-		return m.op.Update(msg)
+		return m.currentOp().Update(msg)
 	}
 
 	// Non-input messages are broadcast to the current operation
 	if !common.IsInputMessage(msg) {
-		return m.op.Update(msg)
+		return m.currentOp().Update(msg)
 	}
 
 	if len(m.rows) == 0 {
 		return nil
 	}
 
-	if op, ok := m.op.(common.Editable); ok && op.IsEditing() {
-		return m.op.Update(msg)
+	if m.IsEditing() {
+		return m.currentOp().Update(msg)
 	}
 
-	if op, ok := m.op.(common.Overlay); ok && op.IsOverlay() {
-		return m.op.Update(msg)
+	if m.IsOverlay() {
+		return m.currentOp().Update(msg)
 	}
 
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		if op, ok := m.op.(common.Focusable); ok && op.IsFocused() {
-			return m.op.Update(keyMsg)
+		if m.IsFocused() {
+			return m.currentOp().Update(keyMsg)
 		}
 	}
 
@@ -466,7 +494,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	// Cancel has special handling: delegate to op first, then clear selections
 	if _, ok := intent.(intents.Cancel); ok {
-		if h, ok := m.op.(dispatch.ScopeHandler); ok {
+		if h, ok := m.currentOp().(dispatch.ScopeHandler); ok {
 			if cmd, handled := h.HandleIntent(intent); handled {
 				return cmd, true
 			}
@@ -474,7 +502,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		// Clear checked items and reset to default operation
 		if len(m.context.CheckedItems) > 0 || !m.InNormalMode() {
 			m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
-			m.op = operations.NewDefault()
+			m.resetOp()
 			return nil, true
 		}
 		return nil, false // nothing to cancel, leak to ui
@@ -488,19 +516,17 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return nil, false
 	}
 
-	// StartAceJump is a revisions-level concern (replaces current operation).
+	// StartAceJump is a revisions-level concern (pushes onto the operation stack).
 	// Handle before the operation to avoid delegation loops.
 	if _, ok := intent.(intents.StartAceJump); ok {
-		parentOp := m.op
 		op := ace_jump.NewOperation(m.SetCursor, func(index int) parser.Row {
 			return m.rows[index]
-		}, m.displayContextRenderer.GetFirstRowIndex(), m.displayContextRenderer.GetLastRowIndex(), parentOp)
-		m.op = op
-		return op.Init(), true
+		}, m.displayContextRenderer.GetFirstRowIndex(), m.displayContextRenderer.GetLastRowIndex())
+		return m.pushOp(op), true
 	}
 
 	// Try the current operation first
-	if h, ok := m.op.(dispatch.ScopeHandler); ok {
+	if h, ok := m.currentOp().(dispatch.ScopeHandler); ok {
 		if cmd, handled := h.HandleIntent(intent); handled {
 			return cmd, true
 		}
@@ -573,17 +599,16 @@ func (m *Model) startBookmarkSet() tea.Cmd {
 	if rev == nil {
 		return nil
 	}
-	m.op = bookmark.NewSetBookmarkOperation(m.context, rev.GetChangeId())
-	return m.op.Init()
+	return m.activateOperation(bookmark.NewSetBookmarkOperation(m.context, rev.GetChangeId()))
 }
 
 func (m *Model) activateOperation(op operations.Operation) tea.Cmd {
-	m.op = op
+	m.opStack = []operations.Operation{operations.NewDefault(), op}
 
 	var cmds []tea.Cmd
-	cmds = append(cmds, m.op.Init())
+	cmds = append(cmds, op.Init())
 	if cur := m.SelectedRevision(); cur != nil {
-		if tracked, ok := m.op.(operations.TracksSelectedRevision); ok {
+		if tracked, ok := op.(operations.TracksSelectedRevision); ok {
 			cmds = append(cmds, tracked.SetSelectedRevision(cur))
 		}
 	}
@@ -866,9 +891,7 @@ func (m *Model) startInlineDescribe(intent intents.OpenInlineDescribe) tea.Cmd {
 	if commit == nil {
 		return nil
 	}
-	model := describe.NewOperation(m.context, commit)
-	m.op = model
-	return m.op.Init()
+	return m.activateOperation(describe.NewOperation(m.context, commit))
 }
 
 func (m *Model) showDiff(intent intents.ShowDiff) tea.Cmd {
@@ -978,10 +1001,22 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	// Set selections
 	m.displayContextRenderer.SetSelections(m.context.GetSelectedRevisions())
 
-	// Get operation if any
-	var op operations.Operation
-	if opModel, ok := m.op.(operations.Operation); ok {
-		op = opModel
+	// Find the base operation (first non-Default) for inline markers.
+	// Fall back to the default operation so the renderer never sees a nil op.
+	baseOpIndex := 0
+	renderOp := m.opStack[0]
+	for i, op := range m.opStack {
+		if _, isDefault := op.(*operations.Default); !isDefault {
+			baseOpIndex = i
+			renderOp = op
+			break
+		}
+	}
+
+	// Find SegmentRenderer from the top of the stack (e.g. ace_jump)
+	var segRenderer operations.SegmentRenderer
+	if sr, ok := m.currentOp().(operations.SegmentRenderer); ok {
+		segRenderer = sr
 	}
 
 	// Render to DisplayContext
@@ -990,20 +1025,17 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.rows,
 		m.cursor,
 		box,
-		op,
+		renderOp,
+		segRenderer,
+		m.IsOverlay(),
 		m.quickSearch,
 		m.ensureCursorView,
 	)
 
-	switch overlayOp := m.op.(type) {
-	case *rebase.Operation:
-		overlayOp.ViewRect(dl, box)
-	case *duplicate.Operation:
-		overlayOp.ViewRect(dl, box)
-	case *revert.Operation:
-		overlayOp.ViewRect(dl, box)
-	case *squash.Operation:
-		overlayOp.ViewRect(dl, box)
+	// Render only stacked child overlays above the base operation. The base
+	// operation is already rendered through DisplayContextRenderer.
+	for _, op := range m.opStack[baseOpIndex+1:] {
+		op.ViewRect(dl, box)
 	}
 
 	// Reset the flag after ensuring cursor is visible
@@ -1097,7 +1129,7 @@ func (m *Model) search(startIndex int, backward bool) int {
 }
 
 func (m *Model) CurrentOperation() operations.Operation {
-	return m.op.(operations.Operation)
+	return m.currentOp()
 }
 
 func (m *Model) GetCommitIds() []string {
@@ -1113,7 +1145,7 @@ func New(c *appContext.MainContext) *Model {
 		context:       c,
 		rows:          nil,
 		offScreenRows: nil,
-		op:            operations.NewDefault(),
+		opStack:       []operations.Operation{operations.NewDefault()},
 		cursor:        0,
 		textStyle:     common.DefaultPalette.Get("revisions text"),
 		dimmedStyle:   common.DefaultPalette.Get("revisions dimmed"),

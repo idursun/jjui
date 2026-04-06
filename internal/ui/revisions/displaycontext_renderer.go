@@ -8,7 +8,6 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -26,12 +25,13 @@ type DisplayContextRenderer struct {
 
 // itemRenderer is a helper for rendering individual revision items
 type itemRenderer struct {
-	renderer      *DisplayContextRenderer
-	row           parser.Row
-	isHighlighted bool
-	op            operations.Operation
-	SearchText    string
-	isChecked     bool
+	renderer        *DisplayContextRenderer
+	row             parser.Row
+	isHighlighted   bool
+	op              operations.Operation
+	segmentRenderer operations.SegmentRenderer
+	SearchText      string
+	isChecked       bool
 }
 
 // getSegmentStyleForLine returns the style for a segment, considering whether the line is highlightable.
@@ -107,6 +107,8 @@ func (r *DisplayContextRenderer) Render(
 	cursor int,
 	viewRect layout.Box,
 	operation operations.Operation,
+	segmentRenderer operations.SegmentRenderer,
+	isOverlay bool,
 	quickSearch string,
 	ensureCursorVisible bool,
 ) {
@@ -127,7 +129,7 @@ func (r *DisplayContextRenderer) Render(
 		isSelected := index == cursor
 
 		// Render the item content
-		r.renderItemToDisplayContext(dl, item, rect, isSelected, operation, quickSearch)
+		r.renderItemToDisplayContext(dl, item, rect, isSelected, operation, segmentRenderer, quickSearch)
 
 		// Add highlights for selected item (only for Highlightable lines)
 		if isSelected {
@@ -157,7 +159,7 @@ func (r *DisplayContextRenderer) Render(
 	)
 
 	// Register scroll only when no overlay operation is active
-	if overlay, ok := operation.(common.Overlay); !ok || !overlay.IsOverlay() {
+	if !isOverlay {
 		r.listRenderer.RegisterScroll(dl, viewRect)
 	}
 }
@@ -250,17 +252,19 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 	rect layout.Rectangle,
 	isSelected bool,
 	operation operations.Operation,
+	segmentRenderer operations.SegmentRenderer,
 	quickSearch string,
 ) {
 	y := rect.Min.Y
 
 	// Create an item renderer for this item
 	ir := itemRenderer{
-		renderer:      r,
-		row:           item,
-		isHighlighted: isSelected,
-		op:            operation,
-		SearchText:    quickSearch,
+		renderer:        r,
+		row:             item,
+		isHighlighted:   isSelected,
+		op:              operation,
+		segmentRenderer: segmentRenderer,
+		SearchText:      quickSearch,
 	}
 
 	// Check if this revision is selected (for checkbox)
@@ -564,9 +568,11 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 		if ir.isChecked {
 			tb.Styled("✓ ", ir.renderer.selectedStyle)
 		}
-		beforeChangeID := ir.op.Render(ir.row.Commit, operations.RenderBeforeChangeId)
-		if beforeChangeID != "" {
-			tb.Write(beforeChangeID)
+		if ir.op != nil {
+			beforeChangeID := ir.op.Render(ir.row.Commit, operations.RenderBeforeChangeId)
+			if beforeChangeID != "" {
+				tb.Write(beforeChangeID)
+			}
 		}
 	}
 
@@ -588,8 +594,8 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 		}
 
 		style := ir.getSegmentStyleForLine(*segment, lineIsHighlightable)
-		if sr, ok := ir.op.(operations.SegmentRenderer); ok {
-			rendered := sr.RenderSegment(style, segment, ir.row)
+		if ir.segmentRenderer != nil {
+			rendered := ir.segmentRenderer.RenderSegment(style, segment, ir.row)
 			if rendered != "" {
 				tb.Write(rendered)
 				continue
