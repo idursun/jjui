@@ -202,7 +202,7 @@ func Test_DispatchLayers_UsesCommandHistoryScopeWhenOpen(t *testing.T) {
 
 	layers := model.dispatchLayers()
 	require.NotEmpty(t, layers)
-	assert.Equal(t, keybindings.Scope(actions.ScopeCommandHistory), layers[0].Scope)
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeCommandHistory), layers[0].Scope)
 }
 
 func Test_HandleDispatchedAction_UsesFlashScopeWhenVisible(t *testing.T) {
@@ -213,7 +213,7 @@ func Test_HandleDispatchedAction_UsesFlashScopeWhenVisible(t *testing.T) {
 	model.Update(intents.CommandHistoryToggle{})
 	scope, ok := model.stackedScope()
 	require.True(t, ok)
-	assert.Equal(t, keybindings.Scope(actions.ScopeCommandHistory), scope)
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeCommandHistory), scope)
 
 	cmd, handled := dispatchAction(model, keybindings.Action("command_history.close"), nil)
 	assert.True(t, handled)
@@ -508,7 +508,7 @@ func (m *scopeOnlyStackedModel) ViewRect(_ *render.DisplayContext, _ layout.Box)
 func (m *scopeOnlyStackedModel) Layers() []routing.Layer {
 	return []routing.Layer{
 		{
-			Scope:     keybindings.Scope(m.scope),
+			Scope:     keybindings.ScopeName(m.scope),
 			AllowLeak: false,
 			Handler:   m,
 		},
@@ -528,7 +528,7 @@ func Test_DispatchLayers_UsesStackedScope(t *testing.T) {
 	model.stacked = &scopeOnlyStackedModel{scope: actions.ScopeUndo}
 	layers := model.dispatchLayers()
 	require.NotEmpty(t, layers)
-	assert.Equal(t, keybindings.Scope(actions.ScopeUndo), layers[0].Scope)
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeUndo), layers[0].Scope)
 }
 
 func Test_HandleDispatchedAction_UsesStackedScope(t *testing.T) {
@@ -1012,11 +1012,11 @@ func Test_Update_InlineDescribeDispatcherKeysWorkWhileEditing(t *testing.T) {
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	layers := model.dispatchLayers()
 	require.NotEmpty(t, layers)
-	require.Equal(t, keybindings.Scope(actions.ScopeInlineDescribe), layers[0].Scope)
+	require.Equal(t, keybindings.ScopeName(actions.ScopeInlineDescribe), layers[0].Scope)
 	foundCancel := false
 	foundAccept := false
 	for _, b := range config.BindingsToRuntime(config.Current.Bindings) {
-		if b.Scope != keybindings.Scope(actions.ScopeInlineDescribe) {
+		if b.Scope != keybindings.ScopeName(actions.ScopeInlineDescribe) {
 			continue
 		}
 		if b.Action == "revisions.inline_describe.cancel" {

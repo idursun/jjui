@@ -19,7 +19,7 @@ type Continuation struct {
 // ResolveResult is the outcome of resolving a key press.
 type ResolveResult struct {
 	Action        bindings.Action
-	Scope         bindings.Scope
+	Scope         bindings.ScopeName
 	Args          map[string]any
 	Pending       bool
 	Consumed      bool
@@ -27,13 +27,13 @@ type ResolveResult struct {
 }
 
 type candidate struct {
-	scope   bindings.Scope
+	scope   bindings.ScopeName
 	binding bindings.Binding
 }
 
 // Dispatcher resolves key presses against active scopes and bindings.
 type Dispatcher struct {
-	bindings map[bindings.Scope][]bindings.Binding
+	bindings map[bindings.ScopeName][]bindings.Binding
 
 	buffered   []tea.Key
 	candidates []candidate
@@ -44,7 +44,7 @@ func NewDispatcher(availableBindings []bindings.Binding) (*Dispatcher, error) {
 		return nil, err
 	}
 
-	d := &Dispatcher{bindings: make(map[bindings.Scope][]bindings.Binding)}
+	d := &Dispatcher{bindings: make(map[bindings.ScopeName][]bindings.Binding)}
 	for _, binding := range availableBindings {
 		d.bindings[binding.Scope] = append(d.bindings[binding.Scope], binding)
 	}
@@ -125,7 +125,7 @@ func (d *Dispatcher) resolveSequenceKey(key tea.Key) ResolveResult {
 	d.candidates = filtered
 
 	// Inner scope wins; within the same scope, last-added binding wins.
-	var matchScope bindings.Scope
+	var matchScope bindings.ScopeName
 	var matchAction bindings.Action
 	var matchArgs map[string]any
 	found := false

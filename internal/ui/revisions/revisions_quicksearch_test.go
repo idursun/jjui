@@ -138,5 +138,5 @@ func TestLayers_ExposeQuickSearchScopeWhenSearchActive(t *testing.T) {
 
 	layers := model.Layers()
 	assert.NotEmpty(t, layers)
-	assert.Equal(t, bindings.Scope("revisions.quick_search"), layers[0].Scope)
+	assert.Equal(t, bindings.ScopeName("revisions.quick_search"), layers[0].Scope)
 }

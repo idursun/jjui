@@ -201,7 +201,7 @@ func (m *Model) Layers() []routing.Layer {
 		})
 	}
 
-	var scope bindings.Scope = actions.ScopeRevisions
+	var scope bindings.ScopeName = actions.ScopeRevisions
 	if !m.InNormalMode() {
 		scope = ""
 	}

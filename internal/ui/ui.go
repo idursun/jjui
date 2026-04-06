@@ -70,7 +70,7 @@ type Model struct {
 type triggerAutoRefreshMsg struct{}
 
 const (
-	scopeUi keybindings.Scope = "ui"
+	scopeUi keybindings.ScopeName = "ui"
 )
 
 func (m *Model) Init() tea.Cmd {
@@ -390,9 +390,9 @@ func (m *Model) View() string {
 		m.stacked.ViewRect(m.displayContext, box)
 	}
 
-		if scope, ok := m.stackedScope(); !ok || scope != actions.ScopeCommandHistory {
-			m.flash.ViewRect(m.displayContext, box)
-		}
+	if scope, ok := m.stackedScope(); !ok || scope != actions.ScopeCommandHistory {
+		m.flash.ViewRect(m.displayContext, box)
+	}
 
 	if m.password != nil {
 		m.password.ViewRect(m.displayContext, box)
@@ -662,7 +662,7 @@ func luaCmd(script string) tea.Cmd {
 	}
 }
 
-func (m *Model) stackedScope() (keybindings.Scope, bool) {
+func (m *Model) stackedScope() (keybindings.ScopeName, bool) {
 	if m.stacked == nil {
 		return "", false
 	}

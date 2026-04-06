@@ -92,6 +92,6 @@ func TestLayers_ExposeQuickSearchScopeWhenSearchActive(t *testing.T) {
 
 	layers := m.Layers()
 	require.Len(t, layers, 2)
-	assert.Equal(t, bindings.Scope(actions.ScopeOplogQuickSearch), layers[0].Scope)
-	assert.Equal(t, bindings.Scope(actions.ScopeOplog), layers[1].Scope)
+	assert.Equal(t, bindings.ScopeName(actions.ScopeOplogQuickSearch), layers[0].Scope)
+	assert.Equal(t, bindings.ScopeName(actions.ScopeOplog), layers[1].Scope)
 }

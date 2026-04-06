@@ -9,7 +9,7 @@ import (
 // Layer represents one routing layer in the intent dispatch chain.
 // Layers are ordered from innermost (highest priority) to outermost.
 type Layer struct {
-	Scope keybindings.Scope
+	Scope keybindings.ScopeName
 
 	AllowLeak bool
 

@@ -33,7 +33,7 @@ func makeResolver(bindings []keybindings.Binding, configured map[keybindings.Act
 	return newResolverWithActions(d, actions)
 }
 
-func resolverScopeLayers(scopes ...keybindings.Scope) []routing.Layer {
+func resolverScopeLayers(scopes ...keybindings.ScopeName) []routing.Layer {
 	layers := make([]routing.Layer, 0, len(scopes))
 	for _, scope := range scopes {
 		layers = append(layers, routing.Layer{Scope: scope, AllowLeak: true})

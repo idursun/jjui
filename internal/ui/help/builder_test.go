@@ -16,7 +16,7 @@ func TestBuildFromBindings_RespectsScopeOrderAndActionTokenDedupe(t *testing.T) 
 		{Action: "revisions.apply", Scope: "revisions", Key: config.StringList{"enter"}},
 		{Action: "git.apply", Scope: "ui", Key: config.StringList{"a"}},
 	}
-	scopes := []keybindings.Scope{"revisions", "ui"}
+	scopes := []keybindings.ScopeName{"revisions", "ui"}
 
 	entries := BuildFromBindings(scopes, bindings)
 	assert.Equal(t, []Entry{
@@ -30,7 +30,7 @@ func TestBuildFromBindings_UsesConfiguredDescription(t *testing.T) {
 		{Action: "revisions.apply", Desc: "run operation", Scope: "revisions", Key: config.StringList{"enter"}},
 		{Action: "ui.cancel", Scope: "revisions", Key: config.StringList{"esc"}},
 	}
-	scopes := []keybindings.Scope{"revisions"}
+	scopes := []keybindings.ScopeName{"revisions"}
 
 	entries := BuildFromBindings(scopes, bindings)
 	assert.Equal(t, []Entry{
@@ -45,7 +45,7 @@ func TestBuildFromBindings_SameScopeLastBindingWins(t *testing.T) {
 		{Action: "revisions.move_down", Scope: "revisions", Key: config.StringList{"j"}},
 		{Action: "revisions.open_details", Scope: "revisions", Key: config.StringList{"o"}},
 	}
-	scopes := []keybindings.Scope{"revisions"}
+	scopes := []keybindings.ScopeName{"revisions"}
 
 	entries := BuildFromBindings(scopes, bindings)
 	assert.Equal(t, []Entry{
@@ -59,7 +59,7 @@ func TestBuildFromBindings_SameScopeDifferentActionsWithSameLeaf(t *testing.T) {
 		{Action: "revset.edit", Scope: "revisions", Key: config.StringList{"shift+l"}, Desc: "revset"},
 		{Action: "revisions.edit", Scope: "revisions", Key: config.StringList{"e"}, Desc: "edit"},
 	}
-	scopes := []keybindings.Scope{"revisions"}
+	scopes := []keybindings.ScopeName{"revisions"}
 
 	entries := BuildFromBindings(scopes, bindings)
 	assert.Equal(t, []Entry{

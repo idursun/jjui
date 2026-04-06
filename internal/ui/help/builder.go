@@ -19,12 +19,12 @@ type Entry struct {
 // BuildFromBindings returns short-help entries for the provided scope chain.
 // Scopes are expected from innermost to outermost.
 func BuildFromBindings(
-	scopes []keybindings.Scope,
+	scopes []keybindings.ScopeName,
 	bindings []config.BindingConfig,
 ) []Entry {
-	bindingsByScope := make(map[keybindings.Scope][]config.BindingConfig)
+	bindingsByScope := make(map[keybindings.ScopeName][]config.BindingConfig)
 	for _, binding := range bindings {
-		scope := keybindings.Scope(strings.TrimSpace(binding.Scope))
+		scope := keybindings.ScopeName(strings.TrimSpace(binding.Scope))
 		bindingsByScope[scope] = append(bindingsByScope[scope], binding)
 	}
 
@@ -76,7 +76,7 @@ func BuildFromBindings(
 
 // BuildFromLayers returns short-help entries for the visible layer chain.
 func BuildFromLayers(layers []routing.Layer, bindings []config.BindingConfig) []Entry {
-	var scopes []keybindings.Scope
+	var scopes []keybindings.ScopeName
 	for _, layer := range layers {
 		if layer.Scope != "" {
 			scopes = append(scopes, layer.Scope)

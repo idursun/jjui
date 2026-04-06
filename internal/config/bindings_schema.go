@@ -82,7 +82,7 @@ func validateActions(actions []ActionConfig) error {
 func BindingsToRuntime(bindings []BindingConfig) []keybindings.Binding {
 	out := make([]keybindings.Binding, 0, len(bindings))
 	for _, binding := range bindings {
-		scope := keybindings.Scope(strings.TrimSpace(binding.Scope))
+		scope := keybindings.ScopeName(strings.TrimSpace(binding.Scope))
 		action := keybindings.Action(strings.TrimSpace(binding.Action))
 		if scope == "" || action == "" {
 			continue

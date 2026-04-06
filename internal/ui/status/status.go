@@ -68,7 +68,7 @@ func (m *Model) Layers() []routing.Layer {
 	if m.focusKind == FocusNone {
 		return nil
 	}
-	var scope keybindings.Scope
+	var scope keybindings.ScopeName
 	switch m.focusKind {
 	case FocusFileSearch:
 		scope = actions.ScopeFileSearch

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func scopeLayers(scopes ...bindings.Scope) []routing.Layer {
+func scopeLayers(scopes ...bindings.ScopeName) []routing.Layer {
 	layers := make([]routing.Layer, 0, len(scopes))
 	for _, scope := range scopes {
 		layers = append(layers, routing.Layer{Scope: scope, AllowLeak: true})

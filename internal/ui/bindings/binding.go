@@ -9,7 +9,7 @@ import (
 type Binding struct {
 	Action Action
 	Desc   string
-	Scope  Scope
+	Scope  ScopeName
 	Key    []string
 	Seq    []string
 	Args   map[string]any
