@@ -78,7 +78,7 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []Scope) ResolveResult {
 		}
 	}
 
-	for _, scope := range scopes {
+	for _, scope := range VisibleScopes(scopes) {
 		scopeBindings := d.bindings[scope.Name]
 		for i := len(scopeBindings) - 1; i >= 0; i-- {
 			binding := scopeBindings[i]
@@ -90,9 +90,6 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []Scope) ResolveResult {
 					return ResolveResult{Action: binding.Action, Scope: scope.Name, Args: bindings.CloneArgs(binding.Args), Consumed: true}
 				}
 			}
-		}
-		if !scope.AllowLeak {
-			break
 		}
 	}
 
@@ -155,14 +152,11 @@ func (d *Dispatcher) resolveSequenceKey(key tea.Key) ResolveResult {
 
 func (d *Dispatcher) initialSequenceCandidates(key tea.Key, scopes []Scope) []candidate {
 	var candidates []candidate
-	for _, scope := range scopes {
+	for _, scope := range VisibleScopes(scopes) {
 		for _, binding := range d.bindings[scope.Name] {
 			if len(binding.Seq) > 0 && keyMatches(binding.Seq[0], key) {
 				candidates = append(candidates, candidate{scope: scope.Name, binding: binding})
 			}
-		}
-		if !scope.AllowLeak {
-			break
 		}
 	}
 	return candidates

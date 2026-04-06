@@ -73,19 +73,6 @@ func BuildFromBindings(
 	return entries
 }
 
-// BuildEntriesForScopes returns short-help entries for the visible layer chain.
-func BuildEntriesForScopes(scopes []dispatch.Scope, bindings []config.BindingConfig) []Entry {
-	var scopeNames []keybindings.ScopeName
-	for _, scope := range scopes {
-		if scope.Name != "" {
-			scopeNames = append(scopeNames, scope.Name)
-		}
-		if !scope.AllowLeak {
-			break
-		}
-	}
-	return BuildFromBindings(scopeNames, bindings)
-}
 
 // BuildFromContinuations returns sequence continuation entries, sorted for stable display.
 func BuildFromContinuations(continuations []dispatch.Continuation) []Entry {

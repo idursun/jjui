@@ -26,18 +26,19 @@ type ScopeProvider interface {
 	Scopes() []Scope
 }
 
-// RouteIntent walks the scope chain and delivers the intent to the first
-// handler that accepts it. The returned bool reports whether any scope
-// handled the intent, even when the resulting command is nil. If a
-// non-leaking scope blocks the intent, routing stops and reports the
-// intent as unhandled.
+func VisibleScopes(scopes []Scope) []Scope {
+	for i, scope := range scopes {
+		if !scope.AllowLeak {
+			return scopes[:i+1]
+		}
+	}
+	return scopes
+}
+
 func RouteIntent(scopes []Scope, intent intents.Intent) (tea.Cmd, bool) {
-	for _, scope := range scopes {
+	for _, scope := range VisibleScopes(scopes) {
 		if cmd, handled := scope.Handler.HandleIntent(intent); handled {
 			return cmd, true
-		}
-		if !scope.AllowLeak {
-			return nil, false
 		}
 	}
 	return nil, false

@@ -743,7 +743,14 @@ func NewUI(c *context.MainContext) *Model {
 }
 
 func (m *Model) bindingStatusHelp() []help.Entry {
-	return help.BuildEntriesForScopes(m.dispatchScopes(), config.Current.Bindings)
+	scopes := dispatch.VisibleScopes(m.dispatchScopes())
+	var scopeNames []keybindings.ScopeName
+	for _, scope := range scopes {
+		if scope.Name != "" {
+			scopeNames = append(scopeNames, scope.Name)
+		}
+	}
+	return help.BuildFromBindings(scopeNames, config.Current.Bindings)
 }
 
 func (m *Model) setSequenceStatusHelp(continuations []dispatch.Continuation) {
