@@ -7,6 +7,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -102,7 +103,8 @@ func TestModel_ViewRectOnlyRendersStackedChildren(t *testing.T) {
 
 	base := &viewRectTrackingOp{name: "base"}
 	child := &viewRectTrackingOp{name: "child"}
-	model.opStack = []operations.Operation{operations.NewDefault(), base, child}
+	model.baseOp = base
+	model.layers = []common.ImmediateModel{child}
 
 	_ = test.RenderImmediate(model, 100, 20)
 

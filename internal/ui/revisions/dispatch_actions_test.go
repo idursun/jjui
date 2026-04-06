@@ -103,7 +103,7 @@ func TestHandleIntent_DetailsConfirmationMoveDoesNotMoveRevisionsCursor(t *testi
 	model.SetCursor(0)
 
 	op := &confirmationTrackingOp{}
-	model.opStack = []operations.Operation{operations.NewDefault(), op}
+	model.baseOp = op
 
 	_, handled := model.HandleIntent(intents.OptionSelect{Delta: 1})
 	assert.True(t, handled, "move_down should be handled in details confirmation scope")
@@ -146,7 +146,7 @@ func TestHandleIntent_ApplyArgsFlowToOperation(t *testing.T) {
 	model.updateGraphRows(rows, "a")
 
 	op := &applyTrackingOp{}
-	model.opStack = []operations.Operation{operations.NewDefault(), op}
+	model.baseOp = op
 
 	_, handled := model.HandleIntent(intents.Apply{Force: true})
 	assert.True(t, handled, "apply should be handled by operation")

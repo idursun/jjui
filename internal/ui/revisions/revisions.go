@@ -58,7 +58,8 @@ type Model struct {
 	offScreenRows          []parser.Row
 	streamer               *graph.GraphStreamer
 	hasMore                bool
-	opStack                []operations.Operation
+	baseOp                 operations.Operation
+	layers                 []common.ImmediateModel
 	cursor                 int
 	context                *appContext.MainContext
 	output                 string
@@ -156,49 +157,106 @@ func (m *Model) Len() int {
 	return len(m.rows)
 }
 
-func (m *Model) currentOp() operations.Operation {
-	return m.opStack[len(m.opStack)-1]
+func (m *Model) activeModel() common.ImmediateModel {
+	if len(m.layers) > 0 {
+		return m.layers[len(m.layers)-1]
+	}
+	return m.baseOperation()
 }
 
-func (m *Model) pushOp(op operations.Operation) tea.Cmd {
-	m.opStack = append(m.opStack, op)
-	return op.Init()
+func (m *Model) activeOperation() operations.Operation {
+	if len(m.layers) > 0 {
+		if op, ok := m.layers[len(m.layers)-1].(operations.Operation); ok {
+			return op
+		}
+	}
+	return m.baseOperation()
 }
 
-func (m *Model) popOp() tea.Cmd {
-	if len(m.opStack) > 1 {
-		m.opStack = m.opStack[:len(m.opStack)-1]
+func (m *Model) pushLayer(layer common.ImmediateModel) tea.Cmd {
+	m.layers = append(m.layers, layer)
+	return layer.Init()
+}
+
+func (m *Model) popLayer() tea.Cmd {
+	if len(m.layers) > 0 {
+		m.layers = m.layers[:len(m.layers)-1]
 	}
 	return m.updateSelection()
 }
 
-func (m *Model) resetOp() {
-	m.opStack = []operations.Operation{operations.NewDefault()}
+func (m *Model) resetOperations() {
+	m.baseOp = operations.NewDefault()
+	m.layers = nil
+}
+
+func (m *Model) setBaseOperation(op operations.Operation) tea.Cmd {
+	m.baseOp = op
+	m.layers = nil
+
+	var cmds []tea.Cmd
+	cmds = append(cmds, op.Init())
+	if cur := m.SelectedRevision(); cur != nil {
+		if tracked, ok := op.(operations.TracksSelectedRevision); ok {
+			cmds = append(cmds, tracked.SetSelectedRevision(cur))
+		}
+	}
+	return tea.Batch(cmds...)
+}
+
+func (m *Model) baseOperation() operations.Operation {
+	if m.baseOp == nil {
+		m.baseOp = operations.NewDefault()
+	}
+	return m.baseOp
+}
+
+func (m *Model) topLayer() common.ImmediateModel {
+	if len(m.layers) == 0 {
+		return nil
+	}
+	return m.layers[len(m.layers)-1]
 }
 
 func (m *Model) IsEditing() bool {
-	if f, ok := m.currentOp().(common.Editable); ok {
-		return f.IsEditing()
+	if layer := m.topLayer(); layer != nil {
+		if editable, ok := layer.(common.Editable); ok {
+			return editable.IsEditing()
+		}
+	}
+	if editable, ok := m.baseOperation().(common.Editable); ok {
+		return editable.IsEditing()
 	}
 	return false
 }
 
 func (m *Model) IsOverlay() bool {
-	if o, ok := m.currentOp().(common.Overlay); ok {
-		return o.IsOverlay()
+	if layer := m.topLayer(); layer != nil {
+		if overlay, ok := layer.(common.Overlay); ok {
+			return overlay.IsOverlay()
+		}
+	}
+	if overlay, ok := m.baseOperation().(common.Overlay); ok {
+		return overlay.IsOverlay()
 	}
 	return false
 }
 
 func (m *Model) IsFocused() bool {
-	if f, ok := m.currentOp().(common.Focusable); ok {
-		return f.IsFocused()
+	if layer := m.topLayer(); layer != nil {
+		if focusable, ok := layer.(common.Focusable); ok {
+			return focusable.IsFocused()
+		}
+	}
+	if focusable, ok := m.baseOperation().(common.Focusable); ok {
+		return focusable.IsFocused()
 	}
 	return false
 }
 
 func (m *Model) InNormalMode() bool {
-	return len(m.opStack) == 1
+	_, isDefault := m.baseOperation().(*operations.Default)
+	return isDefault && len(m.layers) == 0
 }
 
 func (m *Model) HasQuickSearch() bool {
@@ -207,10 +265,13 @@ func (m *Model) HasQuickSearch() bool {
 
 func (m *Model) Scopes() []dispatch.Scope {
 	var ret []dispatch.Scope
-	for i := len(m.opStack) - 1; i >= 0; i-- {
-		if lp, ok := m.opStack[i].(dispatch.ScopeProvider); ok {
+	for i := len(m.layers) - 1; i >= 0; i-- {
+		if lp, ok := m.layers[i].(dispatch.ScopeProvider); ok {
 			ret = append(ret, lp.Scopes()...)
 		}
+	}
+	if lp, ok := m.baseOperation().(dispatch.ScopeProvider); ok {
+		ret = append(ret, lp.Scopes()...)
 	}
 
 	if m.quickSearch != "" {
@@ -272,8 +333,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	cmd := m.internalUpdate(msg)
 
 	if curSelected := m.SelectedRevision(); curSelected != nil {
-		for _, op := range m.opStack {
-			if tracked, ok := op.(operations.TracksSelectedRevision); ok {
+		if tracked, ok := m.baseOperation().(operations.TracksSelectedRevision); ok {
+			cmd = tea.Batch(cmd, tracked.SetSelectedRevision(curSelected))
+		}
+		for _, layer := range m.layers {
+			if tracked, ok := layer.(operations.TracksSelectedRevision); ok {
 				cmd = tea.Batch(cmd, tracked.SetSelectedRevision(curSelected))
 			}
 		}
@@ -288,7 +352,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		if cmd, handled := m.HandleIntent(msg); handled {
 			return cmd
 		}
-		return m.currentOp().Update(msg)
+		return m.activeModel().Update(msg)
 	case ItemClickedMsg:
 		// Don't allow changing selection if the operation is editing (e.g. describe)
 		if m.IsEditing() {
@@ -318,28 +382,33 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		return m.Scroll(msg.Delta)
 
 	case common.CloseViewMsg:
-		return m.popOp()
+		if len(m.layers) > 0 {
+			return m.popLayer()
+		}
+		m.resetOperations()
+		return m.updateSelection()
 	case common.RestoreOperationMsg:
 		if op, ok := msg.Operation.(operations.Operation); ok {
-			m.opStack = []operations.Operation{operations.NewDefault(), op}
+			m.baseOp = op
+			m.layers = nil
 			return m.updateSelection()
 		}
-		m.resetOp()
+		m.resetOperations()
 		return m.updateSelection()
 	case common.StartAceJumpMsg:
 		cmd, _ := m.HandleIntent(intents.StartAceJump{})
 		return cmd
 	case common.OpenTargetPickerMsg:
-		return m.pushOp(target_picker.NewModel(m.context))
+		return m.pushLayer(target_picker.NewModel(m.context))
 	case target_picker.TargetSelectedMsg:
-		m.popOp()
-		return m.currentOp().Update(msg)
+		m.popLayer()
+		return m.baseOperation().Update(msg)
 	case target_picker.TargetPickerCancelMsg:
-		return m.popOp()
+		return m.popLayer()
 	case common.QuickSearchMsg:
 		m.quickSearch = strings.ToLower(string(msg))
 		m.SetCursor(m.search(0, false))
-		m.resetOp()
+		m.resetOperations()
 		return m.updateSelection()
 	case common.CommandCompletedMsg:
 		m.output = msg.Output
@@ -360,7 +429,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		return tea.Batch(m.refresh(intents.Refresh{
 			KeepSelections:   msg.KeepSelections,
 			SelectedRevision: msg.SelectedRevision,
-		}), m.currentOp().Update(msg))
+		}), m.activeModel().Update(msg))
 	case updateRevisionsMsg:
 		m.isLoading = false
 		m.updateGraphRows(msg.rows, msg.selectedRevision)
@@ -462,12 +531,12 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		if cmd, handled := m.HandleIntent(intent); handled {
 			return cmd
 		}
-		return m.currentOp().Update(msg)
+		return m.activeModel().Update(msg)
 	}
 
 	// Non-input messages are broadcast to the current operation
 	if !common.IsInputMessage(msg) {
-		return m.currentOp().Update(msg)
+		return m.activeModel().Update(msg)
 	}
 
 	if len(m.rows) == 0 {
@@ -475,16 +544,16 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	}
 
 	if m.IsEditing() {
-		return m.currentOp().Update(msg)
+		return m.activeModel().Update(msg)
 	}
 
 	if m.IsOverlay() {
-		return m.currentOp().Update(msg)
+		return m.activeModel().Update(msg)
 	}
 
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		if m.IsFocused() {
-			return m.currentOp().Update(keyMsg)
+			return m.activeModel().Update(keyMsg)
 		}
 	}
 
@@ -494,7 +563,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	// Cancel has special handling: delegate to op first, then clear selections
 	if _, ok := intent.(intents.Cancel); ok {
-		if h, ok := m.currentOp().(dispatch.ScopeHandler); ok {
+		if h, ok := m.activeModel().(dispatch.ScopeHandler); ok {
 			if cmd, handled := h.HandleIntent(intent); handled {
 				return cmd, true
 			}
@@ -502,7 +571,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		// Clear checked items and reset to default operation
 		if len(m.context.CheckedItems) > 0 || !m.InNormalMode() {
 			m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
-			m.resetOp()
+			m.resetOperations()
 			return nil, true
 		}
 		return nil, false // nothing to cancel, leak to ui
@@ -522,11 +591,11 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		op := ace_jump.NewOperation(m.SetCursor, func(index int) parser.Row {
 			return m.rows[index]
 		}, m.displayContextRenderer.GetFirstRowIndex(), m.displayContextRenderer.GetLastRowIndex())
-		return m.pushOp(op), true
+		return m.pushLayer(op), true
 	}
 
 	// Try the current operation first
-	if h, ok := m.currentOp().(dispatch.ScopeHandler); ok {
+	if h, ok := m.activeModel().(dispatch.ScopeHandler); ok {
 		if cmd, handled := h.HandleIntent(intent); handled {
 			return cmd, true
 		}
@@ -599,20 +668,7 @@ func (m *Model) startBookmarkSet() tea.Cmd {
 	if rev == nil {
 		return nil
 	}
-	return m.activateOperation(bookmark.NewSetBookmarkOperation(m.context, rev.GetChangeId()))
-}
-
-func (m *Model) activateOperation(op operations.Operation) tea.Cmd {
-	m.opStack = []operations.Operation{operations.NewDefault(), op}
-
-	var cmds []tea.Cmd
-	cmds = append(cmds, op.Init())
-	if cur := m.SelectedRevision(); cur != nil {
-		if tracked, ok := op.(operations.TracksSelectedRevision); ok {
-			cmds = append(cmds, tracked.SetSelectedRevision(cur))
-		}
-	}
-	return tea.Batch(cmds...)
+	return m.setBaseOperation(bookmark.NewSetBookmarkOperation(m.context, rev.GetChangeId()))
 }
 
 func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
@@ -632,7 +688,7 @@ func (m *Model) openDetails(_ intents.OpenDetails) tea.Cmd {
 		return nil
 	}
 	model := details.NewOperation(m.context, m.SelectedRevision())
-	return m.activateOperation(model)
+	return m.setBaseOperation(model)
 }
 
 func (m *Model) startSquash(intent intents.OpenSquash) tea.Cmd {
@@ -651,7 +707,7 @@ func (m *Model) startSquash(intent intents.OpenSquash) tea.Cmd {
 	} else if m.cursor < len(m.rows)-1 {
 		m.SetCursor(m.cursor + 1)
 	}
-	cmd := m.activateOperation(squash.NewOperation(m.context, selected, squash.WithFiles(intent.Files)))
+	cmd := m.setBaseOperation(squash.NewOperation(m.context, selected, squash.WithFiles(intent.Files)))
 	return tea.Batch(cmd, m.updateSelection())
 }
 
@@ -665,7 +721,7 @@ func (m *Model) startRebase(intent intents.OpenRebase) tea.Cmd {
 	}
 
 	source := rebaseSourceFromIntent(intent.Source)
-	return m.activateOperation(rebase.NewOperation(m.context, selected, source, intent.Target))
+	return m.setBaseOperation(rebase.NewOperation(m.context, selected, source, intent.Target))
 }
 
 func (m *Model) startRevert(intent intents.OpenRevert) tea.Cmd {
@@ -677,7 +733,7 @@ func (m *Model) startRevert(intent intents.OpenRevert) tea.Cmd {
 		return nil
 	}
 
-	return m.activateOperation(revert.NewOperation(m.context, selected, intent.Target))
+	return m.setBaseOperation(revert.NewOperation(m.context, selected, intent.Target))
 }
 
 func rebaseSourceFromIntent(source intents.RebaseSource) rebase.Source {
@@ -700,7 +756,7 @@ func (m *Model) startDuplicate(intent intents.OpenDuplicate) tea.Cmd {
 		return nil
 	}
 
-	return m.activateOperation(duplicate.NewOperation(m.context, selected, intents.ModeTargetDestination))
+	return m.setBaseOperation(duplicate.NewOperation(m.context, selected, intents.ModeTargetDestination))
 }
 
 func (m *Model) startSetParents(intent intents.OpenSetParents) tea.Cmd {
@@ -712,7 +768,7 @@ func (m *Model) startSetParents(intent intents.OpenSetParents) tea.Cmd {
 		return nil
 	}
 
-	return m.activateOperation(set_parents.NewModel(m.context, commit))
+	return m.setBaseOperation(set_parents.NewModel(m.context, commit))
 }
 
 func (m *Model) startNew(intent intents.StartNew) tea.Cmd {
@@ -768,7 +824,7 @@ func (m *Model) startAbandon(intent intents.OpenAbandon) tea.Cmd {
 	if len(selected.Revisions) == 0 {
 		return nil
 	}
-	return m.activateOperation(abandon.NewOperation(m.context, selected))
+	return m.setBaseOperation(abandon.NewOperation(m.context, selected))
 }
 
 func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
@@ -880,7 +936,7 @@ func (m *Model) startEvolog(intent intents.OpenEvolog) tea.Cmd {
 		return nil
 	}
 	model := evolog.NewOperation(m.context, commit)
-	return m.activateOperation(model)
+	return m.setBaseOperation(model)
 }
 
 func (m *Model) startInlineDescribe(intent intents.OpenInlineDescribe) tea.Cmd {
@@ -891,7 +947,7 @@ func (m *Model) startInlineDescribe(intent intents.OpenInlineDescribe) tea.Cmd {
 	if commit == nil {
 		return nil
 	}
-	return m.activateOperation(describe.NewOperation(m.context, commit))
+	return m.setBaseOperation(describe.NewOperation(m.context, commit))
 }
 
 func (m *Model) showDiff(intent intents.ShowDiff) tea.Cmd {
@@ -1001,21 +1057,11 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	// Set selections
 	m.displayContextRenderer.SetSelections(m.context.GetSelectedRevisions())
 
-	// Find the base operation (first non-Default) for inline markers.
-	// Fall back to the default operation so the renderer never sees a nil op.
-	baseOpIndex := 0
-	renderOp := m.opStack[0]
-	for i, op := range m.opStack {
-		if _, isDefault := op.(*operations.Default); !isDefault {
-			baseOpIndex = i
-			renderOp = op
-			break
-		}
-	}
+	renderOp := m.baseOperation()
 
 	// Find SegmentRenderer from the top of the stack (e.g. ace_jump)
 	var segRenderer operations.SegmentRenderer
-	if sr, ok := m.currentOp().(operations.SegmentRenderer); ok {
+	if sr, ok := m.activeModel().(operations.SegmentRenderer); ok {
 		segRenderer = sr
 	}
 
@@ -1032,10 +1078,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.ensureCursorView,
 	)
 
-	// Render only stacked child overlays above the base operation. The base
-	// operation is already rendered through DisplayContextRenderer.
-	for _, op := range m.opStack[baseOpIndex+1:] {
-		op.ViewRect(dl, box)
+	// Render transient layers over the base operation.
+	for _, layer := range m.layers {
+		layer.ViewRect(dl, box)
 	}
 
 	// Reset the flag after ensuring cursor is visible
@@ -1129,7 +1174,7 @@ func (m *Model) search(startIndex int, backward bool) int {
 }
 
 func (m *Model) CurrentOperation() operations.Operation {
-	return m.currentOp()
+	return m.activeOperation()
 }
 
 func (m *Model) GetCommitIds() []string {
@@ -1145,7 +1190,8 @@ func New(c *appContext.MainContext) *Model {
 		context:       c,
 		rows:          nil,
 		offScreenRows: nil,
-		opStack:       []operations.Operation{operations.NewDefault()},
+		baseOp:        operations.NewDefault(),
+		layers:        nil,
 		cursor:        0,
 		textStyle:     common.DefaultPalette.Get("revisions text"),
 		dimmedStyle:   common.DefaultPalette.Get("revisions dimmed"),

@@ -52,7 +52,7 @@ var searchableRows = []parser.Row{
 func TestQuickSearch_ClearIntentClearsSearch(t *testing.T) {
 	model := &Model{
 		quickSearch: "test",
-		opStack:     []operations.Operation{operations.NewDefault()},
+		baseOp:      operations.NewDefault(),
 		rows:        []parser.Row{{Commit: &jj.Commit{ChangeId: "test123"}}},
 	}
 
@@ -90,7 +90,7 @@ func TestQuickSearch_UpdatesSelection(t *testing.T) {
 func TestScopes_ExposeQuickSearchScopeWhenSearchActive(t *testing.T) {
 	model := &Model{
 		quickSearch: "match",
-		opStack:     []operations.Operation{operations.NewDefault()},
+		baseOp:      operations.NewDefault(),
 	}
 
 	scopes := model.Scopes()
