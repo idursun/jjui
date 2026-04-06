@@ -9,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
@@ -40,6 +41,29 @@ func TestHandleIntent_RevisionsModeOpeners(t *testing.T) {
 	_, handled = model.HandleIntent(intents.OpenDuplicate{})
 	assert.True(t, handled, "open_duplicate should be handled by revisions")
 	assert.Equal(t, "duplicate", model.CurrentOperation().Name())
+}
+
+func TestHandleIntent_OpenRebaseSeedsTrackedSelection(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+	model.updateGraphRows(rows, "a")
+
+	_, handled := model.HandleIntent(intents.OpenRebase{})
+	assert.True(t, handled, "open_rebase should be handled by revisions")
+
+	op, ok := model.CurrentOperation().(*rebase.Operation)
+	if !assert.True(t, ok, "current operation should be rebase") {
+		return
+	}
+
+	selected := model.SelectedRevision()
+	if !assert.NotNil(t, selected, "revisions should have a selected revision") {
+		return
+	}
+
+	if assert.NotNil(t, op.To, "rebase target should be seeded when opened via HandleIntent") {
+		assert.Equal(t, selected.GetChangeId(), op.To.GetChangeId())
+	}
 }
 
 type confirmationTrackingOp struct {

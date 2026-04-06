@@ -579,6 +579,19 @@ func (m *Model) startBookmarkSet() tea.Cmd {
 	return m.op.Init()
 }
 
+func (m *Model) activateOperation(op operations.Operation) tea.Cmd {
+	m.op = op
+
+	var cmds []tea.Cmd
+	cmds = append(cmds, m.op.Init())
+	if cur := m.SelectedRevision(); cur != nil {
+		if tracked, ok := m.op.(operations.TracksSelectedRevision); ok {
+			cmds = append(cmds, tracked.SetSelectedRevision(cur))
+		}
+	}
+	return tea.Batch(cmds...)
+}
+
 func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
 	if !intent.KeepSelections {
 		m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
@@ -596,8 +609,7 @@ func (m *Model) openDetails(_ intents.OpenDetails) tea.Cmd {
 		return nil
 	}
 	model := details.NewOperation(m.context, m.SelectedRevision())
-	m.op = model
-	return m.op.Init()
+	return m.activateOperation(model)
 }
 
 func (m *Model) startSquash(intent intents.OpenSquash) tea.Cmd {
@@ -616,8 +628,8 @@ func (m *Model) startSquash(intent intents.OpenSquash) tea.Cmd {
 	} else if m.cursor < len(m.rows)-1 {
 		m.SetCursor(m.cursor + 1)
 	}
-	m.op = squash.NewOperation(m.context, selected, squash.WithFiles(intent.Files))
-	return tea.Batch(m.op.Init(), m.updateSelection())
+	cmd := m.activateOperation(squash.NewOperation(m.context, selected, squash.WithFiles(intent.Files)))
+	return tea.Batch(cmd, m.updateSelection())
 }
 
 func (m *Model) startRebase(intent intents.OpenRebase) tea.Cmd {
@@ -630,8 +642,7 @@ func (m *Model) startRebase(intent intents.OpenRebase) tea.Cmd {
 	}
 
 	source := rebaseSourceFromIntent(intent.Source)
-	m.op = rebase.NewOperation(m.context, selected, source, intent.Target)
-	return m.op.Init()
+	return m.activateOperation(rebase.NewOperation(m.context, selected, source, intent.Target))
 }
 
 func (m *Model) startRevert(intent intents.OpenRevert) tea.Cmd {
@@ -643,8 +654,7 @@ func (m *Model) startRevert(intent intents.OpenRevert) tea.Cmd {
 		return nil
 	}
 
-	m.op = revert.NewOperation(m.context, selected, intent.Target)
-	return m.op.Init()
+	return m.activateOperation(revert.NewOperation(m.context, selected, intent.Target))
 }
 
 func rebaseSourceFromIntent(source intents.RebaseSource) rebase.Source {
@@ -667,8 +677,7 @@ func (m *Model) startDuplicate(intent intents.OpenDuplicate) tea.Cmd {
 		return nil
 	}
 
-	m.op = duplicate.NewOperation(m.context, selected, intents.ModeTargetDestination)
-	return m.op.Init()
+	return m.activateOperation(duplicate.NewOperation(m.context, selected, intents.ModeTargetDestination))
 }
 
 func (m *Model) startSetParents(intent intents.OpenSetParents) tea.Cmd {
@@ -680,8 +689,7 @@ func (m *Model) startSetParents(intent intents.OpenSetParents) tea.Cmd {
 		return nil
 	}
 
-	m.op = set_parents.NewModel(m.context, commit)
-	return m.op.Init()
+	return m.activateOperation(set_parents.NewModel(m.context, commit))
 }
 
 func (m *Model) startNew(intent intents.StartNew) tea.Cmd {
@@ -737,8 +745,7 @@ func (m *Model) startAbandon(intent intents.OpenAbandon) tea.Cmd {
 	if len(selected.Revisions) == 0 {
 		return nil
 	}
-	m.op = abandon.NewOperation(m.context, selected)
-	return m.op.Init()
+	return m.activateOperation(abandon.NewOperation(m.context, selected))
 }
 
 func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
@@ -850,8 +857,7 @@ func (m *Model) startEvolog(intent intents.OpenEvolog) tea.Cmd {
 		return nil
 	}
 	model := evolog.NewOperation(m.context, commit)
-	m.op = model
-	return m.op.Init()
+	return m.activateOperation(model)
 }
 
 func (m *Model) startInlineDescribe(intent intents.OpenInlineDescribe) tea.Cmd {
