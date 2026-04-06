@@ -19,7 +19,7 @@ var (
 	_ operations.Operation         = (*Operation)(nil)
 	_ operations.EmbeddedOperation = (*Operation)(nil)
 	_ common.Editable              = (*Operation)(nil)
-	_ routing.LayerProvider        = (*Operation)(nil)
+	_ routing.ScopeProvider        = (*Operation)(nil)
 )
 
 var stashed *stashedDescription = nil
@@ -44,10 +44,10 @@ func (o *Operation) IsFocused() bool {
 	return true
 }
 
-func (o *Operation) Layers() []routing.Layer {
-	return []routing.Layer{
+func (o *Operation) Scopes() []routing.Scope {
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeInlineDescribe,
+			Name:      actions.ScopeInlineDescribe,
 			AllowLeak: false,
 			Handler:   o,
 		},

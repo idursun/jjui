@@ -54,13 +54,13 @@ func (s ScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 	return s
 }
 
-func (m *Model) Layers() []routing.Layer {
+func (m *Model) Scopes() []routing.Scope {
 	if !m.Visible() {
 		return nil
 	}
-	return []routing.Layer{
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeUiPreview,
+			Name:      actions.ScopeUiPreview,
 			AllowLeak: true,
 			Handler:   m,
 		},

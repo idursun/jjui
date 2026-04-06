@@ -60,10 +60,10 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Layers() []routing.Layer {
-	return []routing.Layer{
+func (m *Model) Scopes() []routing.Scope {
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeCommandHistory,
+			Name:      actions.ScopeCommandHistory,
 			AllowLeak: false,
 			Handler:   m,
 		},

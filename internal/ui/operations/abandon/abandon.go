@@ -22,7 +22,7 @@ var (
 	_ operations.Operation       = (*Operation)(nil)
 	_ operations.SegmentRenderer = (*Operation)(nil)
 	_ common.Focusable           = (*Operation)(nil)
-	_ routing.LayerProvider      = (*Operation)(nil)
+	_ routing.ScopeProvider      = (*Operation)(nil)
 )
 
 type selectionType int
@@ -56,10 +56,10 @@ func (a *Operation) IsFocused() bool {
 	return true
 }
 
-func (a *Operation) Layers() []routing.Layer {
-	return []routing.Layer{
+func (a *Operation) Scopes() []routing.Scope {
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeAbandon,
+			Name:      actions.ScopeAbandon,
 			AllowLeak: true,
 			Handler:   a,
 		},

@@ -136,24 +136,24 @@ func (i item) ShortCut() string {
 	return i.key
 }
 
-func (m *Model) Layers() []routing.Layer {
+func (m *Model) Scopes() []routing.Scope {
 	if m.IsEditing() {
-		return []routing.Layer{
+		return []routing.Scope{
 			{
-				Scope:     actions.ScopeBookmarks + ".filter",
+				Name:      actions.ScopeBookmarks + ".filter",
 				AllowLeak: false,
 				Handler:   m,
 			},
 			{
-				Scope:     actions.ScopeBookmarks,
+				Name:      actions.ScopeBookmarks,
 				AllowLeak: false,
 				Handler:   m,
 			},
 		}
 	}
-	return []routing.Layer{
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeBookmarks,
+			Name:      actions.ScopeBookmarks,
 			AllowLeak: true,
 			Handler:   m,
 		},

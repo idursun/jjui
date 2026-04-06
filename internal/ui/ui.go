@@ -77,7 +77,7 @@ func (m *Model) Init() tea.Cmd {
 	return tea.Batch(m.revisions.Init(), m.scheduleAutoRefresh())
 }
 
-func (m *Model) closeTopLayer(msg common.CloseViewMsg) (tea.Cmd, bool) {
+func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
 	if m.diff != nil {
 		m.diff = nil
 		return nil, true
@@ -96,7 +96,7 @@ func (m *Model) closeTopLayer(msg common.CloseViewMsg) (tea.Cmd, bool) {
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if closeMsg, ok := msg.(common.CloseViewMsg); ok {
-		if cmd, handled := m.closeTopLayer(closeMsg); handled {
+		if cmd, handled := m.closeTopScope(closeMsg); handled {
 			return cmd
 		}
 	}
@@ -136,8 +136,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case tea.KeyMsg:
 		if m.resolver != nil {
-			layers := m.dispatchLayers()
-			result := m.resolver.ResolveKey(msg, layers)
+			scopes := m.dispatchScopes()
+			result := m.resolver.ResolveKey(msg, scopes)
 			if result.Pending {
 				m.setSequenceStatusHelp(result.Continuations)
 				return nil
@@ -147,17 +147,17 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				return luaCmd(result.LuaScript)
 			}
 			if result.Intent != nil {
-				start := slices.IndexFunc(layers, func(layer routing.Layer) bool {
-					return string(layer.Scope) == result.Scope
+				start := slices.IndexFunc(scopes, func(scope routing.Scope) bool {
+					return string(scope.Name) == result.Scope
 				})
 				if start < 0 {
 					return nil
 				}
-				if cmd, handled := routing.RouteIntent(layers[start:], result.Intent); handled {
+				if cmd, handled := routing.RouteIntent(scopes[start:], result.Intent); handled {
 					return cmd
 				}
-				if !layers[start].AllowLeak {
-					return m.updateBlockingLayer(layers[start], msg)
+				if !scopes[start].AllowLeak {
+					return m.updateBlockingScope(scopes[start], msg)
 				}
 				return nil
 			}
@@ -165,9 +165,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				return nil
 			}
 
-			for _, layer := range layers {
-				if !layer.AllowLeak {
-					return m.updateBlockingLayer(layer, msg)
+			for _, scope := range scopes {
+				if !scope.AllowLeak {
+					return m.updateBlockingScope(scope, msg)
 				}
 			}
 			return nil
@@ -228,8 +228,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return luaCmd(result.LuaScript)
 		}
 		if result.Intent != nil {
-			layers := m.dispatchLayers()
-			cmd, _ := routing.RouteIntent(layers, result.Intent)
+			scopes := m.dispatchScopes()
+			cmd, _ := routing.RouteIntent(scopes, result.Intent)
 			return cmd
 		}
 		return nil
@@ -471,39 +471,34 @@ func (m *Model) scheduleAutoRefresh() tea.Cmd {
 	return nil
 }
 
-func (m *Model) dispatchLayers() []routing.Layer {
-	var layers []routing.Layer
+func (m *Model) dispatchScopes() []routing.Scope {
+	var scopes []routing.Scope
 
-	// Always-present children — each returns nil when inactive.
-	// ui.Model does NOT inspect their internal state.
 	if m.password != nil {
-		layers = append(layers, m.password.Layers()...)
+		scopes = append(scopes, m.password.Scopes()...)
 	}
-	layers = append(layers, m.status.Layers()...)
-	layers = append(layers, m.revsetModel.Layers()...)
+	scopes = append(scopes, m.status.Scopes()...)
+	scopes = append(scopes, m.revsetModel.Scopes()...)
 
-	// Content layers — ui.Model knows which content child exists (structural
-	// concern), but not what's going on inside each one.
 	if m.diff != nil {
-		layers = append(layers, m.diff.Layers()...)
+		scopes = append(scopes, m.diff.Scopes()...)
 	}
 	if m.stacked != nil {
-		layers = append(layers, m.stacked.Layers()...)
+		scopes = append(scopes, m.stacked.Scopes()...)
 	} else if m.oplog != nil {
-		layers = append(layers, m.oplog.Layers()...)
+		scopes = append(scopes, m.oplog.Scopes()...)
 	} else {
-		layers = append(layers, m.revisions.Layers()...)
+		scopes = append(scopes, m.revisions.Scopes()...)
 	}
 
-	// UI infrastructure — preview returns nil when not visible.
-	layers = append(layers, m.previewModel.Layers()...)
-	layers = append(layers, routing.Layer{
-		Scope:     scopeUi,
+	scopes = append(scopes, m.previewModel.Scopes()...)
+	scopes = append(scopes, routing.Scope{
+		Name:      scopeUi,
 		AllowLeak: false,
 		Handler:   m,
 	})
 
-	return layers
+	return scopes
 }
 
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
@@ -515,7 +510,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.Suspend:
 		return tea.Suspend, true
 
-	// --- Cancel fallback (only reached if no inner layer handled it) ---
+	// --- Cancel fallback (only reached if no inner scope handled it) ---
 	case intents.Cancel:
 		if m.stacked != nil || m.diff != nil || m.oplog != nil {
 			return common.Close, true
@@ -666,21 +661,21 @@ func (m *Model) stackedScope() (keybindings.ScopeName, bool) {
 	if m.stacked == nil {
 		return "", false
 	}
-	layers := m.stacked.Layers()
-	if len(layers) == 0 || layers[0].Scope == "" {
+	scopes := m.stacked.Scopes()
+	if len(scopes) == 0 || scopes[0].Name == "" {
 		return "", false
 	}
-	return layers[0].Scope, true
+	return scopes[0].Name, true
 }
 
-func (m *Model) updateBlockingLayer(layer routing.Layer, msg tea.KeyMsg) tea.Cmd {
-	if layer.Handler == m {
+func (m *Model) updateBlockingScope(scope routing.Scope, msg tea.KeyMsg) tea.Cmd {
+	if scope.Handler == m {
 		return nil
 	}
-	if layer.Handler == m.revsetModel {
+	if scope.Handler == m.revsetModel {
 		m.state = common.Loading
 	}
-	return layer.Handler.Update(msg)
+	return scope.Handler.Update(msg)
 }
 
 var _ tea.Model = (*wrapper)(nil)
@@ -751,7 +746,7 @@ func NewUI(c *context.MainContext) *Model {
 }
 
 func (m *Model) bindingStatusHelp() []help.Entry {
-	return help.BuildFromLayers(m.dispatchLayers(), config.Current.Bindings)
+	return help.BuildEntriesForScopes(m.dispatchScopes(), config.Current.Bindings)
 }
 
 func (m *Model) setSequenceStatusHelp(continuations []dispatch.Continuation) {

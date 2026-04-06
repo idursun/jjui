@@ -21,10 +21,10 @@ type Model struct {
 	confirmation *confirmation.Model
 }
 
-func (m *Model) Layers() []routing.Layer {
-	return []routing.Layer{
+func (m *Model) Scopes() []routing.Scope {
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeUndo,
+			Name:      actions.ScopeUndo,
 			AllowLeak: true,
 			Handler:   m,
 		},

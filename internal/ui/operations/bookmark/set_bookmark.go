@@ -20,7 +20,7 @@ import (
 
 var _ operations.Operation = (*SetBookmarkOperation)(nil)
 var _ common.Editable = (*SetBookmarkOperation)(nil)
-var _ routing.LayerProvider = (*SetBookmarkOperation)(nil)
+var _ routing.ScopeProvider = (*SetBookmarkOperation)(nil)
 
 type SetBookmarkOperation struct {
 	context         *context.MainContext
@@ -34,10 +34,10 @@ func (s *SetBookmarkOperation) IsEditing() bool {
 	return true
 }
 
-func (s *SetBookmarkOperation) Layers() []routing.Layer {
-	return []routing.Layer{
+func (s *SetBookmarkOperation) Scopes() []routing.Scope {
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeSetBookmark,
+			Name:      actions.ScopeSetBookmark,
 			AllowLeak: false,
 			Handler:   s,
 		},

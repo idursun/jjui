@@ -130,13 +130,13 @@ func TestQuickSearch_UpdatesSelection(t *testing.T) {
 	})
 }
 
-func TestLayers_ExposeQuickSearchScopeWhenSearchActive(t *testing.T) {
+func TestScopes_ExposeQuickSearchScopeWhenSearchActive(t *testing.T) {
 	model := &Model{
 		quickSearch: "match",
 		op:          operations.NewDefault(),
 	}
 
-	layers := model.Layers()
-	assert.NotEmpty(t, layers)
-	assert.Equal(t, bindings.ScopeName("revisions.quick_search"), layers[0].Scope)
+	scopes := model.Scopes()
+	assert.NotEmpty(t, scopes)
+	assert.Equal(t, bindings.ScopeName("revisions.quick_search"), scopes[0].Name)
 }

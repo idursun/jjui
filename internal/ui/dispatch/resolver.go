@@ -50,12 +50,12 @@ func newResolverWithActions(d *Dispatcher, actions []config.ActionConfig) *Resol
 }
 
 // ResolveKey resolves a key press through the full pipeline: key → binding → action → intent.
-func (r *Resolver) ResolveKey(msg tea.KeyMsg, layers []routing.Layer) Result {
+func (r *Resolver) ResolveKey(msg tea.KeyMsg, scopes []routing.Scope) Result {
 	if r.dispatcher == nil {
 		return Result{}
 	}
 
-	bindResult := r.dispatcher.Resolve(msg, layers)
+	bindResult := r.dispatcher.Resolve(msg, scopes)
 	if bindResult.Pending {
 		return Result{
 			Pending:       true,

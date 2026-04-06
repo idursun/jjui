@@ -57,8 +57,8 @@ func (d *Dispatcher) ResetSequence() {
 }
 
 // Resolve applies dispatch rules for a key in the provided layer chain.
-// Layers must be ordered from innermost to outermost.
-func (d *Dispatcher) Resolve(msg tea.KeyMsg, layers []routing.Layer) ResolveResult {
+// Scopes must be ordered from innermost to outermost.
+func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []routing.Scope) ResolveResult {
 	if msg.String() == "" {
 		return ResolveResult{}
 	}
@@ -68,7 +68,7 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, layers []routing.Layer) ResolveResu
 		return d.resolveSequenceKey(key)
 	}
 
-	seqCandidates := d.initialSequenceCandidates(key, layers)
+	seqCandidates := d.initialSequenceCandidates(key, scopes)
 	if len(seqCandidates) > 0 {
 		d.buffered = []tea.Key{key}
 		d.candidates = seqCandidates
@@ -79,9 +79,8 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, layers []routing.Layer) ResolveResu
 		}
 	}
 
-	for _, layer := range layers {
-		scope := layer.Scope
-		scopeBindings := d.bindings[scope]
+	for _, scope := range scopes {
+		scopeBindings := d.bindings[scope.Name]
 		for i := len(scopeBindings) - 1; i >= 0; i-- {
 			binding := scopeBindings[i]
 			if len(binding.Key) == 0 {
@@ -89,11 +88,11 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, layers []routing.Layer) ResolveResu
 			}
 			for _, candidateKey := range binding.Key {
 				if keyMatches(candidateKey, key) {
-					return ResolveResult{Action: binding.Action, Scope: scope, Args: bindings.CloneArgs(binding.Args), Consumed: true}
+					return ResolveResult{Action: binding.Action, Scope: scope.Name, Args: bindings.CloneArgs(binding.Args), Consumed: true}
 				}
 			}
 		}
-		if !layer.AllowLeak {
+		if !scope.AllowLeak {
 			break
 		}
 	}
@@ -155,16 +154,15 @@ func (d *Dispatcher) resolveSequenceKey(key tea.Key) ResolveResult {
 	}
 }
 
-func (d *Dispatcher) initialSequenceCandidates(key tea.Key, layers []routing.Layer) []candidate {
+func (d *Dispatcher) initialSequenceCandidates(key tea.Key, scopes []routing.Scope) []candidate {
 	var candidates []candidate
-	for _, layer := range layers {
-		scope := layer.Scope
-		for _, binding := range d.bindings[scope] {
+	for _, scope := range scopes {
+		for _, binding := range d.bindings[scope.Name] {
 			if len(binding.Seq) > 0 && keyMatches(binding.Seq[0], key) {
-				candidates = append(candidates, candidate{scope: scope, binding: binding})
+				candidates = append(candidates, candidate{scope: scope.Name, binding: binding})
 			}
 		}
-		if !layer.AllowLeak {
+		if !scope.AllowLeak {
 			break
 		}
 	}

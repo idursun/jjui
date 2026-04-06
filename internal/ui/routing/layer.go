@@ -6,36 +6,34 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 )
 
-// Layer represents one routing layer in the intent dispatch chain.
-// Layers are ordered from innermost (highest priority) to outermost.
-type Layer struct {
-	Scope keybindings.ScopeName
-
+// Scope represents one routing layer in the intent dispatch chain.
+// Scopes are ordered from innermost (highest priority) to outermost.
+type Scope struct {
+	Name      keybindings.ScopeName
 	AllowLeak bool
-
-	Handler LayerHandler
+	Handler   ScopeHandler
 }
 
-type LayerHandler interface {
+type ScopeHandler interface {
 	HandleIntent(intent intents.Intent) (tea.Cmd, bool)
 	Update(msg tea.Msg) tea.Cmd
 }
 
-type LayerProvider interface {
-	Layers() []Layer
+type ScopeProvider interface {
+	Scopes() []Scope
 }
 
-// RouteIntent walks the layer chain and delivers the intent to the first
-// handler that accepts it. The returned bool reports whether any layer
+// RouteIntent walks the scope chain and delivers the intent to the first
+// handler that accepts it. The returned bool reports whether any scope
 // handled the intent, even when the resulting command is nil. If a
-// non-leaking layer blocks the intent, routing stops and reports the
+// non-leaking scope blocks the intent, routing stops and reports the
 // intent as unhandled.
-func RouteIntent(layers []Layer, intent intents.Intent) (tea.Cmd, bool) {
-	for _, layer := range layers {
-		if cmd, handled := layer.Handler.HandleIntent(intent); handled {
+func RouteIntent(scopes []Scope, intent intents.Intent) (tea.Cmd, bool) {
+	for _, scope := range scopes {
+		if cmd, handled := scope.Handler.HandleIntent(intent); handled {
 			return cmd, true
 		}
-		if !layer.AllowLeak {
+		if !scope.AllowLeak {
 			return nil, false
 		}
 	}

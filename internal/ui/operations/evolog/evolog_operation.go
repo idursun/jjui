@@ -46,7 +46,7 @@ var _ operations.Operation = (*Operation)(nil)
 var _ operations.EmbeddedOperation = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
 var _ common.Overlay = (*Operation)(nil)
-var _ routing.LayerProvider = (*Operation)(nil)
+var _ routing.ScopeProvider = (*Operation)(nil)
 
 type Operation struct {
 	context          *context.MainContext
@@ -82,10 +82,10 @@ func (o *Operation) IsOverlay() bool {
 	return o.mode == selectMode
 }
 
-func (o *Operation) Layers() []routing.Layer {
-	return []routing.Layer{
+func (o *Operation) Scopes() []routing.Scope {
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeEvolog,
+			Name:      actions.ScopeEvolog,
 			AllowLeak: o.mode == restoreMode,
 			Handler:   o,
 		},

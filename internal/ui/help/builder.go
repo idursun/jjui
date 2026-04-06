@@ -74,18 +74,18 @@ func BuildFromBindings(
 	return entries
 }
 
-// BuildFromLayers returns short-help entries for the visible layer chain.
-func BuildFromLayers(layers []routing.Layer, bindings []config.BindingConfig) []Entry {
-	var scopes []keybindings.ScopeName
-	for _, layer := range layers {
-		if layer.Scope != "" {
-			scopes = append(scopes, layer.Scope)
+// BuildEntriesForScopes returns short-help entries for the visible layer chain.
+func BuildEntriesForScopes(scopes []routing.Scope, bindings []config.BindingConfig) []Entry {
+	var scopeNames []keybindings.ScopeName
+	for _, scope := range scopes {
+		if scope.Name != "" {
+			scopeNames = append(scopeNames, scope.Name)
 		}
-		if !layer.AllowLeak {
+		if !scope.AllowLeak {
 			break
 		}
 	}
-	return BuildFromBindings(scopes, bindings)
+	return BuildFromBindings(scopeNames, bindings)
 }
 
 // BuildFromContinuations returns sequence continuation entries, sorted for stable display.

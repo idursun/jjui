@@ -44,10 +44,10 @@ func New(msg common.TogglePasswordMsg) *Model {
 	}
 }
 
-func (m *Model) Layers() []routing.Layer {
-	return []routing.Layer{
+func (m *Model) Scopes() []routing.Scope {
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopePassword,
+			Name:      actions.ScopePassword,
 			AllowLeak: false,
 			Handler:   m,
 		},

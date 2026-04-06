@@ -105,24 +105,24 @@ func (m *Model) IsEditing() bool {
 	return m.filtering
 }
 
-func (m *Model) Layers() []routing.Layer {
+func (m *Model) Scopes() []routing.Scope {
 	if m.IsEditing() {
-		return []routing.Layer{
+		return []routing.Scope{
 			{
-				Scope:     actions.ScopeChoose + ".filter",
+				Name:      actions.ScopeChoose + ".filter",
 				AllowLeak: false,
 				Handler:   m,
 			},
 			{
-				Scope:     actions.ScopeChoose,
+				Name:      actions.ScopeChoose,
 				AllowLeak: false,
 				Handler:   m,
 			},
 		}
 	}
-	return []routing.Layer{
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeChoose,
+			Name:      actions.ScopeChoose,
 			AllowLeak: true,
 			Handler:   m,
 		},

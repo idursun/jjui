@@ -22,7 +22,7 @@ var (
 	_ operations.SegmentRenderer = (*Operation)(nil)
 	_ common.Focusable           = (*Operation)(nil)
 	_ common.Editable            = (*Operation)(nil)
-	_ routing.LayerProvider      = (*Operation)(nil)
+	_ routing.ScopeProvider      = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -41,10 +41,10 @@ func (o *Operation) IsFocused() bool {
 	return true
 }
 
-func (o *Operation) Layers() []routing.Layer {
-	return []routing.Layer{
+func (o *Operation) Scopes() []routing.Scope {
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeAceJump,
+			Name:      actions.ScopeAceJump,
 			AllowLeak: false,
 			Handler:   o,
 		},

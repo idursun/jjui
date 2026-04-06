@@ -70,10 +70,10 @@ func NewWithTitle(title string, prompt string) *Model {
 	}
 }
 
-func (m *Model) Layers() []routing.Layer {
-	return []routing.Layer{
+func (m *Model) Scopes() []routing.Scope {
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeInput,
+			Name:      actions.ScopeInput,
 			AllowLeak: false,
 			Handler:   m,
 		},

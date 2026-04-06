@@ -134,24 +134,24 @@ func (m *Model) IsFocused() bool {
 	return m.filtering
 }
 
-func (m *Model) Layers() []routing.Layer {
+func (m *Model) Scopes() []routing.Scope {
 	if m.IsEditing() {
-		return []routing.Layer{
+		return []routing.Scope{
 			{
-				Scope:     actions.ScopeHelp + ".filter",
+				Name:      actions.ScopeHelp + ".filter",
 				AllowLeak: false,
 				Handler:   m,
 			},
 			{
-				Scope:     actions.ScopeHelp,
+				Name:      actions.ScopeHelp,
 				AllowLeak: false,
 				Handler:   m,
 			},
 		}
 	}
-	return []routing.Layer{
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeHelp,
+			Name:      actions.ScopeHelp,
 			AllowLeak: true,
 			Handler:   m,
 		},

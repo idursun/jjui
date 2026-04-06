@@ -157,10 +157,10 @@ type Model struct {
 	mode viewMode
 }
 
-func (m *Model) Layers() []routing.Layer {
-	return []routing.Layer{
+func (m *Model) Scopes() []routing.Scope {
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeDiff,
+			Name:      actions.ScopeDiff,
 			AllowLeak: true,
 			Handler:   m,
 		},

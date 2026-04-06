@@ -64,7 +64,7 @@ func (m *Model) FocusKind() FocusKind {
 	return m.focusKind
 }
 
-func (m *Model) Layers() []routing.Layer {
+func (m *Model) Scopes() []routing.Scope {
 	if m.focusKind == FocusNone {
 		return nil
 	}
@@ -79,9 +79,9 @@ func (m *Model) Layers() []routing.Layer {
 	default:
 		return nil
 	}
-	return []routing.Layer{
+	return []routing.Scope{
 		{
-			Scope:     scope,
+			Name:      scope,
 			AllowLeak: false,
 			Handler:   m,
 		},

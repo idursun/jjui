@@ -35,7 +35,7 @@ var (
 	_ common.Focusable             = (*Operation)(nil)
 	_ common.Editable              = (*Operation)(nil)
 	_ common.Overlay               = (*Operation)(nil)
-	_ routing.LayerProvider        = (*Operation)(nil)
+	_ routing.ScopeProvider        = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -59,17 +59,17 @@ func (s *Operation) IsEditing() bool {
 	return s.confirmation != nil
 }
 
-func (s *Operation) Layers() []routing.Layer {
-	var ret []routing.Layer
+func (s *Operation) Scopes() []routing.Scope {
+	var ret []routing.Scope
 	if s.confirmation != nil {
-		ret = append(ret, routing.Layer{
-			Scope:     actions.ScopeDetailsConfirmation,
+		ret = append(ret, routing.Scope{
+			Name:      actions.ScopeDetailsConfirmation,
 			AllowLeak: false,
 			Handler:   s,
 		})
 	}
-	ret = append(ret, routing.Layer{
-		Scope:     actions.ScopeDetails,
+	ret = append(ret, routing.Scope{
+		Name:      actions.ScopeDetails,
 		AllowLeak: false,
 		Handler:   s,
 	})

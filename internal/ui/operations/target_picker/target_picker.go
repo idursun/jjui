@@ -35,7 +35,7 @@ type Item struct {
 	Kind ItemKind
 }
 
-var _ routing.LayerHandler = (*Model)(nil)
+var _ routing.ScopeHandler = (*Model)(nil)
 
 type Model struct {
 	context             *context.MainContext

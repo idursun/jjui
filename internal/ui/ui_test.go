@@ -35,8 +35,8 @@ func dispatchAction(model *Model, action keybindings.Action, args map[string]any
 		return luaCmd(result.LuaScript), true
 	}
 	if result.Intent != nil {
-		layers := model.dispatchLayers()
-		cmd, handled := routing.RouteIntent(layers, result.Intent)
+		scopes := model.dispatchScopes()
+		cmd, handled := routing.RouteIntent(scopes, result.Intent)
 		return cmd, handled
 	}
 	return nil, result.Consumed
@@ -193,16 +193,16 @@ func Test_UpdateStatus_FlashVisibleShowsHistoryModeAndHelp(t *testing.T) {
 	assert.Equal(t, "delete selected", entries[1].Desc)
 }
 
-func Test_DispatchLayers_UsesCommandHistoryScopeWhenOpen(t *testing.T) {
+func Test_DispatchScopes_UsesCommandHistoryScopeWhenOpen(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
 	model.Update(intents.CommandHistoryToggle{})
 
-	layers := model.dispatchLayers()
-	require.NotEmpty(t, layers)
-	assert.Equal(t, keybindings.ScopeName(actions.ScopeCommandHistory), layers[0].Scope)
+	scopes := model.dispatchScopes()
+	require.NotEmpty(t, scopes)
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeCommandHistory), scopes[0].Name)
 }
 
 func Test_HandleDispatchedAction_UsesFlashScopeWhenVisible(t *testing.T) {
@@ -505,10 +505,10 @@ func (m *scopeOnlyStackedModel) Update(msg tea.Msg) tea.Cmd {
 
 func (m *scopeOnlyStackedModel) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 
-func (m *scopeOnlyStackedModel) Layers() []routing.Layer {
-	return []routing.Layer{
+func (m *scopeOnlyStackedModel) Scopes() []routing.Scope {
+	return []routing.Scope{
 		{
-			Scope:     keybindings.ScopeName(m.scope),
+			Name:      keybindings.ScopeName(m.scope),
 			AllowLeak: false,
 			Handler:   m,
 		},
@@ -520,15 +520,15 @@ func (m *scopeOnlyStackedModel) HandleIntent(intent intents.Intent) (tea.Cmd, bo
 	return nil, true
 }
 
-func Test_DispatchLayers_UsesStackedScope(t *testing.T) {
+func Test_DispatchScopes_UsesStackedScope(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
 	model.stacked = &scopeOnlyStackedModel{scope: actions.ScopeUndo}
-	layers := model.dispatchLayers()
-	require.NotEmpty(t, layers)
-	assert.Equal(t, keybindings.ScopeName(actions.ScopeUndo), layers[0].Scope)
+	scopes := model.dispatchScopes()
+	require.NotEmpty(t, scopes)
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeUndo), scopes[0].Name)
 }
 
 func Test_HandleDispatchedAction_UsesStackedScope(t *testing.T) {
@@ -550,7 +550,7 @@ func Test_HandleDispatchedAction_UsesStackedScope(t *testing.T) {
 	}
 }
 
-func Test_Update_BlockingLayerHandledNilCmdDoesNotReceiveRawKeyAgain(t *testing.T) {
+func Test_Update_BlockingScopeHandledNilCmdDoesNotReceiveRawKeyAgain(t *testing.T) {
 	origBindings := config.Current.Bindings
 	defer func() {
 		config.Current.Bindings = origBindings
@@ -570,7 +570,7 @@ func Test_Update_BlockingLayerHandledNilCmdDoesNotReceiveRawKeyAgain(t *testing.
 	assert.Nil(t, cmd, "choose.cancel handler returns nil cmd")
 
 	_, ok := stacked.lastMsg.(intents.ChooseCancel)
-	assert.True(t, ok, "blocking layer should keep the handled intent instead of receiving the raw key")
+	assert.True(t, ok, "blocking scope should keep the handled intent instead of receiving the raw key")
 }
 
 func Test_HandleDispatchedAction_RevisionsScopedActionInRebaseMode(t *testing.T) {
@@ -1010,9 +1010,9 @@ func Test_Update_InlineDescribeDispatcherKeysWorkWhileEditing(t *testing.T) {
 
 	op := describe.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
 	model.Update(common.RestoreOperationMsg{Operation: op})
-	layers := model.dispatchLayers()
-	require.NotEmpty(t, layers)
-	require.Equal(t, keybindings.ScopeName(actions.ScopeInlineDescribe), layers[0].Scope)
+	scopes := model.dispatchScopes()
+	require.NotEmpty(t, scopes)
+	require.Equal(t, keybindings.ScopeName(actions.ScopeInlineDescribe), scopes[0].Name)
 	foundCancel := false
 	foundAccept := false
 	for _, b := range config.BindingsToRuntime(config.Current.Bindings) {

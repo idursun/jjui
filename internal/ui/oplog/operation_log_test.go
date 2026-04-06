@@ -87,11 +87,11 @@ func TestOpLogNavigateIntent(t *testing.T) {
 	assert.Equal(t, 0, m.cursor, "expected cursor to move back to 0")
 }
 
-func TestLayers_ExposeQuickSearchScopeWhenSearchActive(t *testing.T) {
+func TestScopes_ExposeQuickSearchScopeWhenSearchActive(t *testing.T) {
 	m := &Model{quickSearch: "match"}
 
-	layers := m.Layers()
-	require.Len(t, layers, 2)
-	assert.Equal(t, bindings.ScopeName(actions.ScopeOplogQuickSearch), layers[0].Scope)
-	assert.Equal(t, bindings.ScopeName(actions.ScopeOplog), layers[1].Scope)
+	scopes := m.Scopes()
+	require.Len(t, scopes, 2)
+	assert.Equal(t, bindings.ScopeName(actions.ScopeOplogQuickSearch), scopes[0].Name)
+	assert.Equal(t, bindings.ScopeName(actions.ScopeOplog), scopes[1].Name)
 }

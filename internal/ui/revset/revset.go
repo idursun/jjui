@@ -70,13 +70,13 @@ type styles struct {
 	completionBackground lipgloss.Style
 }
 
-func (m *Model) Layers() []routing.Layer {
+func (m *Model) Scopes() []routing.Scope {
 	if !m.Editing {
 		return nil
 	}
-	return []routing.Layer{
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeRevset,
+			Name:      actions.ScopeRevset,
 			AllowLeak: false,
 			Handler:   m,
 		},

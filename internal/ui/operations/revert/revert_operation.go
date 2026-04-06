@@ -39,7 +39,7 @@ var _ operations.Operation = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
 var _ common.Overlay = (*Operation)(nil)
 var _ common.Editable = (*Operation)(nil)
-var _ routing.LayerProvider = (*Operation)(nil)
+var _ routing.ScopeProvider = (*Operation)(nil)
 
 type Operation struct {
 	context        *context.MainContext
@@ -65,19 +65,19 @@ func (r *Operation) IsOverlay() bool {
 	return r.targetPicker != nil
 }
 
-func (r *Operation) Layers() []routing.Layer {
-	var ret []routing.Layer
+func (r *Operation) Scopes() []routing.Scope {
+	var ret []routing.Scope
 	if r.targetPicker != nil {
 		ret = append(ret,
-			routing.Layer{
-				Scope:     actions.ScopeTargetPicker,
+			routing.Scope{
+				Name:      actions.ScopeTargetPicker,
 				AllowLeak: false,
 				Handler:   r.targetPicker,
 			},
 		)
 	}
-	ret = append(ret, routing.Layer{
-		Scope:     actions.ScopeRevert,
+	ret = append(ret, routing.Scope{
+		Name:      actions.ScopeRevert,
 		AllowLeak: true,
 		Handler:   r,
 	})

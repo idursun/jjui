@@ -71,17 +71,17 @@ func (m *Model) HasQuickSearch() bool {
 	return m.quickSearch != ""
 }
 
-func (m *Model) Layers() []routing.Layer {
-	var ret []routing.Layer
+func (m *Model) Scopes() []routing.Scope {
+	var ret []routing.Scope
 	if m.HasQuickSearch() {
-		ret = append(ret, routing.Layer{
-			Scope:     actions.ScopeOplogQuickSearch,
+		ret = append(ret, routing.Scope{
+			Name:      actions.ScopeOplogQuickSearch,
 			AllowLeak: false,
 			Handler:   m,
 		})
 	}
-	ret = append(ret, routing.Layer{
-		Scope:     actions.ScopeOplog,
+	ret = append(ret, routing.Scope{
+		Name:      actions.ScopeOplog,
 		AllowLeak: true,
 		Handler:   m,
 	})

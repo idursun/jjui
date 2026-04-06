@@ -7,7 +7,6 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/intents"
-	"github.com/idursun/jjui/internal/ui/routing"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -33,20 +32,12 @@ func makeResolver(bindings []keybindings.Binding, configured map[keybindings.Act
 	return newResolverWithActions(d, actions)
 }
 
-func resolverScopeLayers(scopes ...keybindings.ScopeName) []routing.Layer {
-	layers := make([]routing.Layer, 0, len(scopes))
-	for _, scope := range scopes {
-		layers = append(layers, routing.Layer{Scope: scope, AllowLeak: true})
-	}
-	return layers
-}
-
 func TestResolveKey_BuiltInAction(t *testing.T) {
 	r := makeResolver([]keybindings.Binding{
 		{Action: "ui.quit", Scope: "ui", Key: []string{"q"}},
 	}, nil)
 
-	result := r.ResolveKey(keyMsg("q"), resolverScopeLayers("ui"))
+	result := r.ResolveKey(keyMsg("q"), createScopes("ui"))
 	assert.True(t, result.Consumed)
 	assert.NotNil(t, result.Intent)
 	_, isQuit := result.Intent.(intents.Quit)
@@ -59,7 +50,7 @@ func TestResolveKey_Pending(t *testing.T) {
 		{Action: "ui.quit", Scope: "ui", Seq: []string{"g", "q"}},
 	}, nil)
 
-	result := r.ResolveKey(keyMsg("g"), resolverScopeLayers("ui"))
+	result := r.ResolveKey(keyMsg("g"), createScopes("ui"))
 	assert.True(t, result.Pending)
 	assert.True(t, result.Consumed)
 	assert.Nil(t, result.Intent)
@@ -70,7 +61,7 @@ func TestResolveKey_Unmatched(t *testing.T) {
 		{Action: "ui.quit", Scope: "ui", Key: []string{"q"}},
 	}, nil)
 
-	result := r.ResolveKey(keyMsg("x"), resolverScopeLayers("ui"))
+	result := r.ResolveKey(keyMsg("x"), createScopes("ui"))
 	assert.False(t, result.Consumed)
 	assert.Nil(t, result.Intent)
 }
@@ -82,7 +73,7 @@ func TestResolveKey_ConfiguredLuaAction(t *testing.T) {
 		"my_action": {Lua: "print('hello')"},
 	})
 
-	result := r.ResolveKey(keyMsg("m"), resolverScopeLayers("ui"))
+	result := r.ResolveKey(keyMsg("m"), createScopes("ui"))
 	assert.True(t, result.Consumed)
 	assert.Nil(t, result.Intent)
 	assert.Equal(t, "print('hello')", result.LuaScript)
@@ -93,7 +84,7 @@ func TestResolveKey_BuiltInCatalogResolution(t *testing.T) {
 		{Action: "revisions.move_down", Scope: "revisions", Key: []string{"j"}},
 	}, nil)
 
-	result := r.ResolveKey(keyMsg("j"), resolverScopeLayers("revisions"))
+	result := r.ResolveKey(keyMsg("j"), createScopes("revisions"))
 	assert.True(t, result.Consumed)
 	nav, ok := result.Intent.(intents.Navigate)
 	assert.True(t, ok)
@@ -105,7 +96,7 @@ func TestResolveKey_UsesMatchedBindingScopeForRouting(t *testing.T) {
 		{Action: "revset.edit", Scope: "revisions", Key: []string{"L"}},
 	}, nil)
 
-	result := r.ResolveKey(keyMsg("L"), resolverScopeLayers("revisions", "ui"))
+	result := r.ResolveKey(keyMsg("L"), createScopes("revisions", "ui"))
 	assert.True(t, result.Consumed)
 	_, ok := result.Intent.(intents.Edit)
 	assert.True(t, ok)
@@ -130,7 +121,7 @@ func TestResolveKey_ConfiguredActionWithoutLuaIsNoop(t *testing.T) {
 		"bad_action": {},
 	})
 
-	result := r.ResolveKey(keyMsg("a"), resolverScopeLayers("ui"))
+	result := r.ResolveKey(keyMsg("a"), createScopes("ui"))
 	assert.True(t, result.Consumed)
 	assert.Nil(t, result.Intent)
 }

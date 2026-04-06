@@ -47,7 +47,7 @@ var (
 	_ common.Focusable      = (*Model)(nil)
 	_ common.Editable       = (*Model)(nil)
 	_ common.ImmediateModel = (*Model)(nil)
-	_ routing.LayerProvider = (*Model)(nil)
+	_ routing.ScopeProvider = (*Model)(nil)
 )
 
 type Model struct {
@@ -187,15 +187,15 @@ func (m *Model) HasQuickSearch() bool {
 	return m.quickSearch != ""
 }
 
-func (m *Model) Layers() []routing.Layer {
-	var ret []routing.Layer
-	if lp, ok := m.op.(routing.LayerProvider); ok {
-		ret = append(ret, lp.Layers()...)
+func (m *Model) Scopes() []routing.Scope {
+	var ret []routing.Scope
+	if lp, ok := m.op.(routing.ScopeProvider); ok {
+		ret = append(ret, lp.Scopes()...)
 	}
 
 	if m.quickSearch != "" {
-		ret = append(ret, routing.Layer{
-			Scope:     actions.ScopeQuickSearch,
+		ret = append(ret, routing.Scope{
+			Name:      actions.ScopeQuickSearch,
 			AllowLeak: !m.IsEditing() && !m.IsFocused(),
 			Handler:   m,
 		})
@@ -206,8 +206,8 @@ func (m *Model) Layers() []routing.Layer {
 		scope = ""
 	}
 
-	ret = append(ret, routing.Layer{
-		Scope:     scope,
+	ret = append(ret, routing.Scope{
+		Name:      scope,
 		AllowLeak: !m.IsEditing() && !m.IsFocused(),
 		Handler:   m,
 	})
@@ -466,7 +466,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	// Cancel has special handling: delegate to op first, then clear selections
 	if _, ok := intent.(intents.Cancel); ok {
-		if h, ok := m.op.(routing.LayerHandler); ok {
+		if h, ok := m.op.(routing.ScopeHandler); ok {
 			if cmd, handled := h.HandleIntent(intent); handled {
 				return cmd, true
 			}
@@ -500,7 +500,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	}
 
 	// Try the current operation first
-	if h, ok := m.op.(routing.LayerHandler); ok {
+	if h, ok := m.op.(routing.ScopeHandler); ok {
 		if cmd, handled := h.HandleIntent(intent); handled {
 			return cmd, true
 		}

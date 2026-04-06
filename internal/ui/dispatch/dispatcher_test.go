@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func scopeLayers(scopes ...bindings.ScopeName) []routing.Layer {
-	layers := make([]routing.Layer, 0, len(scopes))
-	for _, scope := range scopes {
-		layers = append(layers, routing.Layer{Scope: scope, AllowLeak: true})
+func createScopes(scopeNames ...bindings.ScopeName) []routing.Scope {
+	scopes := make([]routing.Scope, 0, len(scopeNames))
+	for _, scope := range scopeNames {
+		scopes = append(scopes, routing.Scope{Name: scope, AllowLeak: true})
 	}
-	return layers
+	return scopes
 }
 
 func TestValidateBindings_KeyAndSeqExclusive(t *testing.T) {
@@ -34,7 +34,7 @@ func TestDispatcher_ResolvesSingleKeyByScopePrecedence(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	result := d.Resolve(runeKey('x'), scopeLayers("revisions", "ui"))
+	result := d.Resolve(runeKey('x'), createScopes("revisions", "ui"))
 	require.True(t, result.Consumed)
 	require.False(t, result.Pending)
 	require.Equal(t, bindings.Action("inner_action"), result.Action)
@@ -47,14 +47,14 @@ func TestDispatcher_SequencePrefixWinsOverSingleKey(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	first := d.Resolve(runeKey('g'), scopeLayers("revisions"))
+	first := d.Resolve(runeKey('g'), createScopes("revisions"))
 	require.True(t, first.Consumed)
 	require.True(t, first.Pending)
 	require.Empty(t, first.Action)
 	require.Len(t, first.Continuations, 1)
 	require.Equal(t, "p", first.Continuations[0].Key)
 
-	second := d.Resolve(runeKey('p'), scopeLayers("revisions"))
+	second := d.Resolve(runeKey('p'), createScopes("revisions"))
 	require.True(t, second.Consumed)
 	require.False(t, second.Pending)
 	require.Equal(t, bindings.Action("git_push"), second.Action)
@@ -67,16 +67,16 @@ func TestDispatcher_SwallowsMismatchedContinuationAndResets(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	first := d.Resolve(runeKey('g'), scopeLayers("revisions"))
+	first := d.Resolve(runeKey('g'), createScopes("revisions"))
 	require.True(t, first.Pending)
 
-	mismatch := d.Resolve(runeKey('x'), scopeLayers("revisions"))
+	mismatch := d.Resolve(runeKey('x'), createScopes("revisions"))
 	require.True(t, mismatch.Consumed)
 	require.False(t, mismatch.Pending)
 	require.Empty(t, mismatch.Action)
 
 	// Sequence state is reset; g starts sequence mode again.
-	again := d.Resolve(runeKey('g'), scopeLayers("revisions"))
+	again := d.Resolve(runeKey('g'), createScopes("revisions"))
 	require.True(t, again.Pending)
 }
 
@@ -84,10 +84,10 @@ func TestDispatcher_CancelSequenceWithEsc(t *testing.T) {
 	d, err := NewDispatcher([]bindings.Binding{{Action: "git_push", Scope: "revisions", Seq: []string{"g", "p"}}})
 	require.NoError(t, err)
 
-	first := d.Resolve(runeKey('g'), scopeLayers("revisions"))
+	first := d.Resolve(runeKey('g'), createScopes("revisions"))
 	require.True(t, first.Pending)
 
-	cancel := d.Resolve(tea.KeyPressMsg{Code: tea.KeyEsc}, scopeLayers("revisions"))
+	cancel := d.Resolve(tea.KeyPressMsg{Code: tea.KeyEsc}, createScopes("revisions"))
 	require.True(t, cancel.Consumed)
 	require.False(t, cancel.Pending)
 	require.Empty(t, cancel.Action)
@@ -99,7 +99,7 @@ func TestDispatcher_ResolvesSpaceAliasForSingleKey(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	result := d.Resolve(runeKey(' '), scopeLayers("revisions"))
+	result := d.Resolve(runeKey(' '), createScopes("revisions"))
 	require.True(t, result.Consumed)
 	require.False(t, result.Pending)
 	require.Equal(t, bindings.Action("toggle_select"), result.Action)
@@ -111,11 +111,11 @@ func TestDispatcher_ResolvesSpaceAliasInSequence(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	first := d.Resolve(runeKey('w'), scopeLayers("ui"))
+	first := d.Resolve(runeKey('w'), createScopes("ui"))
 	require.True(t, first.Consumed)
 	require.True(t, first.Pending)
 
-	second := d.Resolve(runeKey(' '), scopeLayers("ui"))
+	second := d.Resolve(runeKey(' '), createScopes("ui"))
 	require.True(t, second.Consumed)
 	require.False(t, second.Pending)
 	require.Equal(t, bindings.Action("do_thing"), second.Action)
@@ -127,7 +127,7 @@ func TestDispatcher_ResolvesBindingArgs(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	result := d.Resolve(tea.KeyPressMsg{Code: tea.KeyEnter}, scopeLayers("revisions.squash"))
+	result := d.Resolve(tea.KeyPressMsg{Code: tea.KeyEnter}, createScopes("revisions.squash"))
 	require.True(t, result.Consumed)
 	require.False(t, result.Pending)
 	require.Equal(t, bindings.Action("apply"), result.Action)
@@ -140,19 +140,19 @@ func TestDispatcher_ResolvesThreeKeySequence(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	first := d.Resolve(runeKey('g'), scopeLayers("ui"))
+	first := d.Resolve(runeKey('g'), createScopes("ui"))
 	require.True(t, first.Consumed)
 	require.True(t, first.Pending)
 	require.Len(t, first.Continuations, 1)
 	require.Equal(t, "p", first.Continuations[0].Key)
 
-	second := d.Resolve(runeKey('p'), scopeLayers("ui"))
+	second := d.Resolve(runeKey('p'), createScopes("ui"))
 	require.True(t, second.Consumed)
 	require.True(t, second.Pending)
 	require.Len(t, second.Continuations, 1)
 	require.Equal(t, "f", second.Continuations[0].Key)
 
-	third := d.Resolve(runeKey('f'), scopeLayers("ui"))
+	third := d.Resolve(runeKey('f'), createScopes("ui"))
 	require.True(t, third.Consumed)
 	require.False(t, third.Pending)
 	require.Equal(t, bindings.Action("open_bookmarks"), third.Action)
@@ -167,7 +167,7 @@ func TestDispatcher_ResolvesFromDeepScopeChainByPrecedence(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	result := d.Resolve(runeKey('x'), scopeLayers("revisions.rebase", "quick_search", "preview", "ui"))
+	result := d.Resolve(runeKey('x'), createScopes("revisions.rebase", "quick_search", "preview", "ui"))
 	require.True(t, result.Consumed)
 	require.False(t, result.Pending)
 	require.Equal(t, bindings.Action("operation_action"), result.Action)
@@ -180,11 +180,11 @@ func TestDispatcher_SequencePrefixCollisionAcrossScopes_InnerScopeWins(t *testin
 	})
 	require.NoError(t, err)
 
-	first := d.Resolve(runeKey('g'), scopeLayers("revisions", "ui"))
+	first := d.Resolve(runeKey('g'), createScopes("revisions", "ui"))
 	require.True(t, first.Consumed)
 	require.True(t, first.Pending)
 
-	second := d.Resolve(runeKey('p'), scopeLayers("revisions", "ui"))
+	second := d.Resolve(runeKey('p'), createScopes("revisions", "ui"))
 	require.True(t, second.Consumed)
 	require.False(t, second.Pending)
 	require.Equal(t, bindings.Action("revisions_git_push"), second.Action)
@@ -197,7 +197,7 @@ func TestDispatcher_DuplicateKeySameScope_LastBindingWins(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	result := d.Resolve(runeKey('x'), scopeLayers("revisions"))
+	result := d.Resolve(runeKey('x'), createScopes("revisions"))
 	require.True(t, result.Consumed)
 	require.False(t, result.Pending)
 	require.Equal(t, bindings.Action("second_action"), result.Action)

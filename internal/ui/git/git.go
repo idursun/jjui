@@ -125,24 +125,24 @@ func (m *Model) IsEditing() bool {
 	return m.filterState == filterEditing
 }
 
-func (m *Model) Layers() []routing.Layer {
+func (m *Model) Scopes() []routing.Scope {
 	if m.IsEditing() {
-		return []routing.Layer{
+		return []routing.Scope{
 			{
-				Scope:     actions.ScopeGit + ".filter",
+				Name:      actions.ScopeGit + ".filter",
 				AllowLeak: false,
 				Handler:   m,
 			},
 			{
-				Scope:     actions.ScopeGit,
+				Name:      actions.ScopeGit,
 				AllowLeak: false,
 				Handler:   m,
 			},
 		}
 	}
-	return []routing.Layer{
+	return []routing.Scope{
 		{
-			Scope:     actions.ScopeGit,
+			Name:      actions.ScopeGit,
 			AllowLeak: true,
 			Handler:   m,
 		},
