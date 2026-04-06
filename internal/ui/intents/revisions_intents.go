@@ -76,7 +76,7 @@ type RevisionsToggleSelect struct{}
 
 func (RevisionsToggleSelect) isIntent() {}
 
-//jjui:bind scope=revisions action=quick_search_clear
+//jjui:bind scope=revisions.quick_search action=clear
 type RevisionsQuickSearchClear struct{}
 
 func (RevisionsQuickSearchClear) isIntent() {}

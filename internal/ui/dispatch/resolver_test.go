@@ -169,7 +169,7 @@ func TestDeriveScope(t *testing.T) {
 		{"revisions.move_down", "revisions"},
 		{"move_down", ""},
 		{"preview_toggle", ""},
-		{"quick_search_next", ""},
+		{"revisions.quick_search.next", "revisions.quick_search"},
 		{"revisions.rebase.apply", "revisions.rebase"},
 		{"my_action", ""},
 	}

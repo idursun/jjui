@@ -81,9 +81,9 @@ bindings = [
     { key = "shift+p", action = "ui.preview_toggle_bottom", scope = "revisions", desc = "move preview to bottom" },
 
     # revisions.quick_search
-    { key = "'", action = "revisions.quick_search_next", scope = "revisions.quick_search", desc = "next" },
-    { key = "\"", action = "revisions.quick_search_prev", scope = "revisions.quick_search", desc = "prev" },
-    { key = "esc", action = "revisions.quick_search_clear", scope = "revisions.quick_search", desc = "clear" },
+    { key = "'", action = "revisions.quick_search.next", scope = "revisions.quick_search", desc = "next" },
+    { key = "\"", action = "revisions.quick_search.prev", scope = "revisions.quick_search", desc = "prev" },
+    { key = "esc", action = "revisions.quick_search.clear", scope = "revisions.quick_search", desc = "clear" },
 
     # revisions.rebase
     { key = "enter", action = "revisions.rebase.apply", scope = "revisions.rebase", desc = "apply" },
@@ -306,9 +306,9 @@ bindings = [
     { key = "p", action = "ui.preview_toggle", scope = "oplog", desc = "toggle preview" },
     { key = "shift+p", action = "ui.preview_toggle_bottom", scope = "oplog", desc = "move preview to bottom" },
     { key = "/", action = "ui.quick_search", scope = "oplog", desc = "search" },
-    { key = "'", action = "oplog.quick_search.quick_search_next", scope = "oplog.quick_search", desc = "next" },
-    { key = "\"", action = "oplog.quick_search.quick_search_prev", scope = "oplog.quick_search", desc = "prev" },
-    { key = "esc", action = "oplog.quick_search.quick_search_clear", scope = "oplog.quick_search", desc = "clear" },
+    { key = "'", action = "oplog.quick_search.next", scope = "oplog.quick_search", desc = "next" },
+    { key = "\"", action = "oplog.quick_search.prev", scope = "oplog.quick_search", desc = "prev" },
+    { key = "esc", action = "oplog.quick_search.clear", scope = "oplog.quick_search", desc = "clear" },
 
     # undo
     { key = "h", action = "undo.prev", scope = "undo", desc = "prev" },

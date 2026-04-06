@@ -28,6 +28,7 @@ const (
 	ScopeDuplicate           = "revisions.duplicate"
 	ScopeEvolog              = "revisions.evolog"
 	ScopeInlineDescribe      = "revisions.inline_describe"
+	ScopeQuickSearch         = "revisions.quick_search"
 	ScopeQuickSearchInput    = "revisions.quick_search.input"
 	ScopeRebase              = "revisions.rebase"
 	ScopeRevert              = "revisions.revert"
@@ -229,11 +230,11 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		}
 	case ScopeOplogQuickSearch:
 		switch action {
-		case keybindings.Action("oplog.quick_search.quick_search_clear"):
+		case keybindings.Action("oplog.quick_search.clear"):
 			return intents.OpLogQuickSearchClear{}, true
-		case keybindings.Action("oplog.quick_search.quick_search_next"):
+		case keybindings.Action("oplog.quick_search.next"):
 			return intents.QuickSearchCycle{}, true
-		case keybindings.Action("oplog.quick_search.quick_search_prev"):
+		case keybindings.Action("oplog.quick_search.prev"):
 			return intents.QuickSearchCycle{Reverse: true}, true
 		}
 	case ScopePassword:
@@ -312,12 +313,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Navigate{Delta: 1, IsPage: true}, true
 		case keybindings.Action("revisions.page_up"):
 			return intents.Navigate{Delta: -1, IsPage: true}, true
-		case keybindings.Action("revisions.quick_search_clear"):
-			return intents.RevisionsQuickSearchClear{}, true
-		case keybindings.Action("revisions.quick_search_next"):
-			return intents.QuickSearchCycle{}, true
-		case keybindings.Action("revisions.quick_search_prev"):
-			return intents.QuickSearchCycle{Reverse: true}, true
 		case keybindings.Action("revisions.refresh"):
 			return intents.Refresh{}, true
 		case keybindings.Action("revisions.split"):
@@ -447,6 +442,15 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.InlineDescribeEditor{}, true
 		case keybindings.Action("revisions.inline_describe.force_accept"):
 			return intents.InlineDescribeAccept{Force: true}, true
+		}
+	case ScopeQuickSearch:
+		switch action {
+		case keybindings.Action("revisions.quick_search.clear"):
+			return intents.RevisionsQuickSearchClear{}, true
+		case keybindings.Action("revisions.quick_search.next"):
+			return intents.QuickSearchCycle{}, true
+		case keybindings.Action("revisions.quick_search.prev"):
+			return intents.QuickSearchCycle{Reverse: true}, true
 		}
 	case ScopeQuickSearchInput:
 		switch action {

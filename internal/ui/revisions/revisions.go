@@ -50,8 +50,6 @@ var (
 	_ routing.LayerProvider = (*Model)(nil)
 )
 
-const scopeQuickSearch bindings.Scope = "revisions.quick_search"
-
 type Model struct {
 	rows                   []parser.Row
 	tag                    atomic.Uint64
@@ -197,7 +195,7 @@ func (m *Model) Layers() []routing.Layer {
 
 	if m.quickSearch != "" {
 		ret = append(ret, routing.Layer{
-			Scope:     scopeQuickSearch,
+			Scope:     actions.ScopeQuickSearch,
 			AllowLeak: !m.IsEditing() && !m.IsFocused(),
 			Handler:   m,
 		})
