@@ -196,7 +196,7 @@ func (m *Model) Scopes() []dispatch.Scope {
 	if m.quickSearch != "" {
 		ret = append(ret, dispatch.Scope{
 			Name:      actions.ScopeQuickSearch,
-			AllowLeak: !m.IsEditing() && !m.IsFocused(),
+			AllowLeak: !m.IsEditing(),
 			Handler:   m,
 		})
 	}
@@ -208,7 +208,7 @@ func (m *Model) Scopes() []dispatch.Scope {
 
 	ret = append(ret, dispatch.Scope{
 		Name:      scope,
-		AllowLeak: !m.IsEditing() && !m.IsFocused(),
+		AllowLeak: !m.IsEditing(),
 		Handler:   m,
 	})
 	return ret
