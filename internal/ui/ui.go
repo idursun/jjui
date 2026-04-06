@@ -318,16 +318,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) updateStatus() {
 	mode := m.statusMode()
-	entries := m.bindingStatusHelp()
-
-	if m.sequenceHelp != nil {
-		entries = m.sequenceHelp
-	}
-
 	if mode != "" {
 		m.status.SetMode(mode)
 	}
-	m.status.SetHelp(entries)
+
+	if m.sequenceHelp != nil {
+		m.status.SetHelp(m.sequenceHelp)
+	} else {
+		m.status.SetScopes(m.dispatchScopes())
+	}
 }
 
 func (m *Model) statusMode() string {
@@ -742,16 +741,6 @@ func NewUI(c *context.MainContext) *Model {
 	return ui
 }
 
-func (m *Model) bindingStatusHelp() []help.Entry {
-	scopes := dispatch.VisibleScopes(m.dispatchScopes())
-	var scopeNames []keybindings.ScopeName
-	for _, scope := range scopes {
-		if scope.Name != "" {
-			scopeNames = append(scopeNames, scope.Name)
-		}
-	}
-	return help.BuildFromBindings(scopeNames, config.Current.Bindings)
-}
 
 func (m *Model) setSequenceStatusHelp(continuations []dispatch.Continuation) {
 	entries := help.BuildFromContinuations(continuations)

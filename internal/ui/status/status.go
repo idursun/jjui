@@ -328,7 +328,21 @@ func (m *Model) renderFuzzyOverlay(dl *render.DisplayContext, box layout.Box) {
 	m.fuzzy.ViewRect(dl, layout.Box{R: overlayRect})
 }
 
+func (m *Model) SetScopes(scopes []dispatch.Scope) {
+	var scopeNames []keybindings.ScopeName
+	for _, scope := range dispatch.VisibleScopes(scopes) {
+		if scope.Name != "" {
+			scopeNames = append(scopeNames, scope.Name)
+		}
+	}
+	m.setEntries(help.BuildFromBindings(scopeNames, config.Current.Bindings))
+}
+
 func (m *Model) SetHelp(entries []help.Entry) {
+	m.setEntries(entries)
+}
+
+func (m *Model) setEntries(entries []help.Entry) {
 	if len(m.entries) != len(entries) {
 		m.statusExpanded = false
 	}
