@@ -10,11 +10,11 @@ import (
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 var (
@@ -22,7 +22,7 @@ var (
 	_ operations.SegmentRenderer = (*Operation)(nil)
 	_ common.Focusable           = (*Operation)(nil)
 	_ common.Editable            = (*Operation)(nil)
-	_ routing.ScopeProvider      = (*Operation)(nil)
+	_ dispatch.ScopeProvider     = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -41,8 +41,8 @@ func (o *Operation) IsFocused() bool {
 	return true
 }
 
-func (o *Operation) Scopes() []routing.Scope {
-	return []routing.Scope{
+func (o *Operation) Scopes() []dispatch.Scope {
+	return []dispatch.Scope{
 		{
 			Name:      actions.ScopeAceJump,
 			AllowLeak: false,

@@ -7,7 +7,6 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/dispatch"
-	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 // Entry is a status-help key entry rendered as "key description".
@@ -75,7 +74,7 @@ func BuildFromBindings(
 }
 
 // BuildEntriesForScopes returns short-help entries for the visible layer chain.
-func BuildEntriesForScopes(scopes []routing.Scope, bindings []config.BindingConfig) []Entry {
+func BuildEntriesForScopes(scopes []dispatch.Scope, bindings []config.BindingConfig) []Entry {
 	var scopeNames []keybindings.ScopeName
 	for _, scope := range scopes {
 		if scope.Name != "" {

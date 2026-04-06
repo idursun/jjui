@@ -13,6 +13,7 @@ import (
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/diff"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/help"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -23,7 +24,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revset"
-	"github.com/idursun/jjui/internal/ui/routing"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,7 +36,7 @@ func dispatchAction(model *Model, action keybindings.Action, args map[string]any
 	}
 	if result.Intent != nil {
 		scopes := model.dispatchScopes()
-		cmd, handled := routing.RouteIntent(scopes, result.Intent)
+		cmd, handled := dispatch.RouteIntent(scopes, result.Intent)
 		return cmd, handled
 	}
 	return nil, result.Consumed
@@ -505,8 +505,8 @@ func (m *scopeOnlyStackedModel) Update(msg tea.Msg) tea.Cmd {
 
 func (m *scopeOnlyStackedModel) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 
-func (m *scopeOnlyStackedModel) Scopes() []routing.Scope {
-	return []routing.Scope{
+func (m *scopeOnlyStackedModel) Scopes() []dispatch.Scope {
+	return []dispatch.Scope{
 		{
 			Name:      keybindings.ScopeName(m.scope),
 			AllowLeak: false,

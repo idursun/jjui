@@ -10,10 +10,10 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 type EditRevSetMsg struct{}
@@ -70,11 +70,11 @@ type styles struct {
 	completionBackground lipgloss.Style
 }
 
-func (m *Model) Scopes() []routing.Scope {
+func (m *Model) Scopes() []dispatch.Scope {
 	if !m.Editing {
 		return nil
 	}
-	return []routing.Scope{
+	return []dispatch.Scope{
 		{
 			Name:      actions.ScopeRevset,
 			AllowLeak: false,

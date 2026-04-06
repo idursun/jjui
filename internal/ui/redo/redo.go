@@ -9,10 +9,10 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 var _ common.ImmediateModel = (*Model)(nil)
@@ -21,8 +21,8 @@ type Model struct {
 	confirmation *confirmation.Model
 }
 
-func (m *Model) Scopes() []routing.Scope {
-	return []routing.Scope{
+func (m *Model) Scopes() []dispatch.Scope {
+	return []dispatch.Scope{
 		{
 			Name:      actions.ScopeRedo,
 			AllowLeak: true,

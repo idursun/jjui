@@ -9,11 +9,11 @@ import (
 	"github.com/idursun/jjui/internal/jj/source"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/internal/ui/routing"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -35,7 +35,7 @@ type Item struct {
 	Kind ItemKind
 }
 
-var _ routing.ScopeHandler = (*Model)(nil)
+var _ dispatch.ScopeHandler = (*Model)(nil)
 
 type Model struct {
 	context             *context.MainContext

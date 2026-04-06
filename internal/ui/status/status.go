@@ -4,23 +4,22 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
-	"github.com/idursun/jjui/internal/ui/help"
-	"github.com/idursun/jjui/internal/ui/layout"
-	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/internal/ui/routing"
-
-	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/exec_process"
 	"github.com/idursun/jjui/internal/ui/fuzzy_files"
 	"github.com/idursun/jjui/internal/ui/fuzzy_input"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
+	"github.com/idursun/jjui/internal/ui/help"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 )
 
 var expandFallback = help.Entry{Label: "?", Desc: "expand status"}
@@ -64,7 +63,7 @@ func (m *Model) FocusKind() FocusKind {
 	return m.focusKind
 }
 
-func (m *Model) Scopes() []routing.Scope {
+func (m *Model) Scopes() []dispatch.Scope {
 	if m.focusKind == FocusNone {
 		return nil
 	}
@@ -79,7 +78,7 @@ func (m *Model) Scopes() []routing.Scope {
 	default:
 		return nil
 	}
-	return []routing.Scope{
+	return []dispatch.Scope{
 		{
 			Name:      scope,
 			AllowLeak: false,

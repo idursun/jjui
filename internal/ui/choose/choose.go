@@ -9,10 +9,10 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 type SelectedMsg struct {
@@ -105,9 +105,9 @@ func (m *Model) IsEditing() bool {
 	return m.filtering
 }
 
-func (m *Model) Scopes() []routing.Scope {
+func (m *Model) Scopes() []dispatch.Scope {
 	if m.IsEditing() {
-		return []routing.Scope{
+		return []dispatch.Scope{
 			{
 				Name:      actions.ScopeChoose + ".filter",
 				AllowLeak: false,
@@ -120,7 +120,7 @@ func (m *Model) Scopes() []routing.Scope {
 			},
 		}
 	}
-	return []routing.Scope{
+	return []dispatch.Scope{
 		{
 			Name:      actions.ScopeChoose,
 			AllowLeak: true,

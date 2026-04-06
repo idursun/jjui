@@ -12,10 +12,10 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 type updateOpLogMsg struct {
@@ -71,16 +71,16 @@ func (m *Model) HasQuickSearch() bool {
 	return m.quickSearch != ""
 }
 
-func (m *Model) Scopes() []routing.Scope {
-	var ret []routing.Scope
+func (m *Model) Scopes() []dispatch.Scope {
+	var ret []dispatch.Scope
 	if m.HasQuickSearch() {
-		ret = append(ret, routing.Scope{
+		ret = append(ret, dispatch.Scope{
 			Name:      actions.ScopeOplogQuickSearch,
 			AllowLeak: false,
 			Handler:   m,
 		})
 	}
-	ret = append(ret, routing.Scope{
+	ret = append(ret, dispatch.Scope{
 		Name:      actions.ScopeOplog,
 		AllowLeak: true,
 		Handler:   m,

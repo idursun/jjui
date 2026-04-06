@@ -6,10 +6,10 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 var _ common.ImmediateModel = (*Model)(nil)
@@ -44,8 +44,8 @@ func New(msg common.TogglePasswordMsg) *Model {
 	}
 }
 
-func (m *Model) Scopes() []routing.Scope {
-	return []routing.Scope{
+func (m *Model) Scopes() []dispatch.Scope {
+	return []dispatch.Scope{
 		{
 			Name:      actions.ScopePassword,
 			AllowLeak: false,

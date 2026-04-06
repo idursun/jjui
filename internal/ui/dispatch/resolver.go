@@ -8,7 +8,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/intents"
-	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 // Result is the outcome of full dispatch resolution.
@@ -50,7 +49,7 @@ func newResolverWithActions(d *Dispatcher, actions []config.ActionConfig) *Resol
 }
 
 // ResolveKey resolves a key press through the full pipeline: key → binding → action → intent.
-func (r *Resolver) ResolveKey(msg tea.KeyMsg, scopes []routing.Scope) Result {
+func (r *Resolver) ResolveKey(msg tea.KeyMsg, scopes []Scope) Result {
 	if r.dispatcher == nil {
 		return Result{}
 	}

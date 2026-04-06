@@ -12,10 +12,10 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 type itemCategory string
@@ -125,9 +125,9 @@ func (m *Model) IsEditing() bool {
 	return m.filterState == filterEditing
 }
 
-func (m *Model) Scopes() []routing.Scope {
+func (m *Model) Scopes() []dispatch.Scope {
 	if m.IsEditing() {
-		return []routing.Scope{
+		return []dispatch.Scope{
 			{
 				Name:      actions.ScopeGit + ".filter",
 				AllowLeak: false,
@@ -140,7 +140,7 @@ func (m *Model) Scopes() []routing.Scope {
 			},
 		}
 	}
-	return []routing.Scope{
+	return []dispatch.Scope{
 		{
 			Name:      actions.ScopeGit,
 			AllowLeak: true,

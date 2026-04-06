@@ -7,20 +7,17 @@ import (
 	"time"
 
 	"github.com/charmbracelet/x/ansi"
-
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/actionmeta"
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
+	"github.com/idursun/jjui/internal/ui/commandhistory"
 	"github.com/idursun/jjui/internal/ui/dispatch"
+	"github.com/idursun/jjui/internal/ui/flash"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/password"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/internal/ui/routing"
-
-	"github.com/idursun/jjui/internal/ui/commandhistory"
-	"github.com/idursun/jjui/internal/ui/flash"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/config"
@@ -147,13 +144,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				return luaCmd(result.LuaScript)
 			}
 			if result.Intent != nil {
-				start := slices.IndexFunc(scopes, func(scope routing.Scope) bool {
+				start := slices.IndexFunc(scopes, func(scope dispatch.Scope) bool {
 					return string(scope.Name) == result.Scope
 				})
 				if start < 0 {
 					return nil
 				}
-				if cmd, handled := routing.RouteIntent(scopes[start:], result.Intent); handled {
+				if cmd, handled := dispatch.RouteIntent(scopes[start:], result.Intent); handled {
 					return cmd
 				}
 				if !scopes[start].AllowLeak {
@@ -229,7 +226,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		if result.Intent != nil {
 			scopes := m.dispatchScopes()
-			cmd, _ := routing.RouteIntent(scopes, result.Intent)
+			cmd, _ := dispatch.RouteIntent(scopes, result.Intent)
 			return cmd
 		}
 		return nil
@@ -471,8 +468,8 @@ func (m *Model) scheduleAutoRefresh() tea.Cmd {
 	return nil
 }
 
-func (m *Model) dispatchScopes() []routing.Scope {
-	var scopes []routing.Scope
+func (m *Model) dispatchScopes() []dispatch.Scope {
+	var scopes []dispatch.Scope
 
 	if m.password != nil {
 		scopes = append(scopes, m.password.Scopes()...)
@@ -492,7 +489,7 @@ func (m *Model) dispatchScopes() []routing.Scope {
 	}
 
 	scopes = append(scopes, m.previewModel.Scopes()...)
-	scopes = append(scopes, routing.Scope{
+	scopes = append(scopes, dispatch.Scope{
 		Name:      scopeUi,
 		AllowLeak: false,
 		Handler:   m,
@@ -668,7 +665,7 @@ func (m *Model) stackedScope() (keybindings.ScopeName, bool) {
 	return scopes[0].Name, true
 }
 
-func (m *Model) updateBlockingScope(scope routing.Scope, msg tea.KeyMsg) tea.Cmd {
+func (m *Model) updateBlockingScope(scope dispatch.Scope, msg tea.KeyMsg) tea.Cmd {
 	if scope.Handler == m {
 		return nil
 	}

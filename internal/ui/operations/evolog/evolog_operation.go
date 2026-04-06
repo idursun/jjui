@@ -11,11 +11,11 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 type updateEvologMsg struct {
@@ -46,7 +46,7 @@ var _ operations.Operation = (*Operation)(nil)
 var _ operations.EmbeddedOperation = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
 var _ common.Overlay = (*Operation)(nil)
-var _ routing.ScopeProvider = (*Operation)(nil)
+var _ dispatch.ScopeProvider = (*Operation)(nil)
 
 type Operation struct {
 	context          *context.MainContext
@@ -82,8 +82,8 @@ func (o *Operation) IsOverlay() bool {
 	return o.mode == selectMode
 }
 
-func (o *Operation) Scopes() []routing.Scope {
-	return []routing.Scope{
+func (o *Operation) Scopes() []dispatch.Scope {
+	return []dispatch.Scope{
 		{
 			Name:      actions.ScopeEvolog,
 			AllowLeak: o.mode == restoreMode,

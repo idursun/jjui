@@ -13,10 +13,10 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 var _ common.ImmediateModel = (*Model)(nil)
@@ -54,11 +54,11 @@ func (s ScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 	return s
 }
 
-func (m *Model) Scopes() []routing.Scope {
+func (m *Model) Scopes() []dispatch.Scope {
 	if !m.Visible() {
 		return nil
 	}
-	return []routing.Scope{
+	return []dispatch.Scope{
 		{
 			Name:      actions.ScopeUiPreview,
 			AllowLeak: true,

@@ -14,6 +14,7 @@ import (
 
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/bindings"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
@@ -40,14 +41,13 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/evolog"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/operations/squash"
-	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 var (
-	_ common.Focusable      = (*Model)(nil)
-	_ common.Editable       = (*Model)(nil)
-	_ common.ImmediateModel = (*Model)(nil)
-	_ routing.ScopeProvider = (*Model)(nil)
+	_ common.Focusable       = (*Model)(nil)
+	_ common.Editable        = (*Model)(nil)
+	_ common.ImmediateModel  = (*Model)(nil)
+	_ dispatch.ScopeProvider = (*Model)(nil)
 )
 
 type Model struct {
@@ -187,14 +187,14 @@ func (m *Model) HasQuickSearch() bool {
 	return m.quickSearch != ""
 }
 
-func (m *Model) Scopes() []routing.Scope {
-	var ret []routing.Scope
-	if lp, ok := m.op.(routing.ScopeProvider); ok {
+func (m *Model) Scopes() []dispatch.Scope {
+	var ret []dispatch.Scope
+	if lp, ok := m.op.(dispatch.ScopeProvider); ok {
 		ret = append(ret, lp.Scopes()...)
 	}
 
 	if m.quickSearch != "" {
-		ret = append(ret, routing.Scope{
+		ret = append(ret, dispatch.Scope{
 			Name:      actions.ScopeQuickSearch,
 			AllowLeak: !m.IsEditing() && !m.IsFocused(),
 			Handler:   m,
@@ -206,7 +206,7 @@ func (m *Model) Scopes() []routing.Scope {
 		scope = ""
 	}
 
-	ret = append(ret, routing.Scope{
+	ret = append(ret, dispatch.Scope{
 		Name:      scope,
 		AllowLeak: !m.IsEditing() && !m.IsFocused(),
 		Handler:   m,
@@ -466,7 +466,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	// Cancel has special handling: delegate to op first, then clear selections
 	if _, ok := intent.(intents.Cancel); ok {
-		if h, ok := m.op.(routing.ScopeHandler); ok {
+		if h, ok := m.op.(dispatch.ScopeHandler); ok {
 			if cmd, handled := h.HandleIntent(intent); handled {
 				return cmd, true
 			}
@@ -500,7 +500,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	}
 
 	// Try the current operation first
-	if h, ok := m.op.(routing.ScopeHandler); ok {
+	if h, ok := m.op.(dispatch.ScopeHandler); ok {
 		if cmd, handled := h.HandleIntent(intent); handled {
 			return cmd, true
 		}

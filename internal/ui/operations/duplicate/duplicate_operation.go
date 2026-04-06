@@ -9,12 +9,12 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/internal/ui/routing"
 )
 
 var (
@@ -37,7 +37,7 @@ var _ operations.Operation = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
 var _ common.Overlay = (*Operation)(nil)
 var _ common.Editable = (*Operation)(nil)
-var _ routing.ScopeProvider = (*Operation)(nil)
+var _ dispatch.ScopeProvider = (*Operation)(nil)
 
 type Operation struct {
 	context      *appContext.MainContext
@@ -62,18 +62,18 @@ func (r *Operation) IsOverlay() bool {
 	return r.targetPicker != nil
 }
 
-func (r *Operation) Scopes() []routing.Scope {
-	var ret []routing.Scope
+func (r *Operation) Scopes() []dispatch.Scope {
+	var ret []dispatch.Scope
 	if r.targetPicker != nil {
 		ret = append(ret,
-			routing.Scope{
+			dispatch.Scope{
 				Name:      actions.ScopeTargetPicker,
 				AllowLeak: false,
 				Handler:   r.targetPicker,
 			},
 		)
 	}
-	ret = append(ret, routing.Scope{
+	ret = append(ret, dispatch.Scope{
 		Name:      actions.ScopeDuplicate,
 		AllowLeak: true,
 		Handler:   r,
