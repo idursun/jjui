@@ -140,22 +140,22 @@ func (m *Model) Scopes() []dispatch.Scope {
 	if m.IsEditing() {
 		return []dispatch.Scope{
 			{
-				Name:      actions.ScopeBookmarks + ".filter",
-				AllowLeak: false,
-				Handler:   m,
+				Name:    actions.ScopeBookmarks + ".filter",
+				Leak:    dispatch.LeakNone,
+				Handler: m,
 			},
 			{
-				Name:      actions.ScopeBookmarks,
-				AllowLeak: false,
-				Handler:   m,
+				Name:    actions.ScopeBookmarks,
+				Leak:    dispatch.LeakNone,
+				Handler: m,
 			},
 		}
 	}
 	return []dispatch.Scope{
 		{
-			Name:      actions.ScopeBookmarks,
-			AllowLeak: true,
-			Handler:   m,
+			Name:    actions.ScopeBookmarks,
+			Leak:    dispatch.LeakAll,
+			Handler: m,
 		},
 	}
 }

@@ -60,9 +60,10 @@ func (m *Model) Scopes() []dispatch.Scope {
 	}
 	return []dispatch.Scope{
 		{
-			Name:      actions.ScopeUiPreview,
-			AllowLeak: true,
-			Handler:   m,
+			Name:    actions.ScopeUiPreview,
+			Leak:    dispatch.LeakAll,
+			Global:  true,
+			Handler: m,
 		},
 	}
 }

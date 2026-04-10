@@ -47,9 +47,9 @@ func New(msg common.TogglePasswordMsg) *Model {
 func (m *Model) Scopes() []dispatch.Scope {
 	return []dispatch.Scope{
 		{
-			Name:      actions.ScopePassword,
-			AllowLeak: false,
-			Handler:   m,
+			Name:    actions.ScopePassword,
+			Leak:    dispatch.LeakNone,
+			Handler: m,
 		},
 	}
 }

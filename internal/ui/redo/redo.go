@@ -24,9 +24,9 @@ type Model struct {
 func (m *Model) Scopes() []dispatch.Scope {
 	return []dispatch.Scope{
 		{
-			Name:      actions.ScopeRedo,
-			AllowLeak: true,
-			Handler:   m,
+			Name:    actions.ScopeRedo,
+			Leak:    dispatch.LeakAll,
+			Handler: m,
 		},
 	}
 }

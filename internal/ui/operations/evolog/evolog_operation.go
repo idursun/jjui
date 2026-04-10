@@ -83,11 +83,15 @@ func (o *Operation) IsOverlay() bool {
 }
 
 func (o *Operation) Scopes() []dispatch.Scope {
+	leak := dispatch.LeakGlobal
+	if o.mode == restoreMode {
+		leak = dispatch.LeakAll
+	}
 	return []dispatch.Scope{
 		{
-			Name:      actions.ScopeEvolog,
-			AllowLeak: o.mode == restoreMode,
-			Handler:   o,
+			Name:    actions.ScopeEvolog,
+			Leak:    leak,
+			Handler: o,
 		},
 	}
 }

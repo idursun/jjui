@@ -63,15 +63,15 @@ func (s *Operation) Scopes() []dispatch.Scope {
 	var ret []dispatch.Scope
 	if s.confirmation != nil {
 		ret = append(ret, dispatch.Scope{
-			Name:      actions.ScopeDetailsConfirmation,
-			AllowLeak: false,
-			Handler:   s,
+			Name:    actions.ScopeDetailsConfirmation,
+			Leak:    dispatch.LeakNone,
+			Handler: s,
 		})
 	}
 	ret = append(ret, dispatch.Scope{
-		Name:      actions.ScopeDetails,
-		AllowLeak: false,
-		Handler:   s,
+		Name:    actions.ScopeDetails,
+		Leak:    dispatch.LeakGlobal,
+		Handler: s,
 	})
 	return ret
 }

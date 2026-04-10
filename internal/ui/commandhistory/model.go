@@ -63,9 +63,9 @@ func (m *Model) Init() tea.Cmd {
 func (m *Model) Scopes() []dispatch.Scope {
 	return []dispatch.Scope{
 		{
-			Name:      actions.ScopeCommandHistory,
-			AllowLeak: false,
-			Handler:   m,
+			Name:    actions.ScopeCommandHistory,
+			Leak:    dispatch.LeakGlobal,
+			Handler: m,
 		},
 	}
 }

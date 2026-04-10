@@ -186,11 +186,13 @@ func Test_UpdateStatus_FlashVisibleShowsHistoryModeAndHelp(t *testing.T) {
 
 	assert.Equal(t, "history", model.status.Mode())
 	entries := model.status.Help()
-	require.Len(t, entries, 2)
+	require.Len(t, entries, 3)
 	assert.Equal(t, "j", entries[0].Label)
 	assert.Equal(t, "move down", entries[0].Desc)
 	assert.Equal(t, "d", entries[1].Label)
 	assert.Equal(t, "delete selected", entries[1].Desc)
+	assert.Equal(t, "W", entries[2].Label)
+	assert.Equal(t, "show command history", entries[2].Desc)
 }
 
 func Test_DispatchScopes_UsesCommandHistoryScopeWhenOpen(t *testing.T) {
@@ -508,9 +510,9 @@ func (m *scopeOnlyStackedModel) ViewRect(_ *render.DisplayContext, _ layout.Box)
 func (m *scopeOnlyStackedModel) Scopes() []dispatch.Scope {
 	return []dispatch.Scope{
 		{
-			Name:      keybindings.ScopeName(m.scope),
-			AllowLeak: false,
-			Handler:   m,
+			Name:    keybindings.ScopeName(m.scope),
+			Leak:    dispatch.LeakNone,
+			Handler: m,
 		},
 	}
 }

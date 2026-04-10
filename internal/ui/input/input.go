@@ -73,9 +73,9 @@ func NewWithTitle(title string, prompt string) *Model {
 func (m *Model) Scopes() []dispatch.Scope {
 	return []dispatch.Scope{
 		{
-			Name:      actions.ScopeInput,
-			AllowLeak: false,
-			Handler:   m,
+			Name:    actions.ScopeInput,
+			Leak:    dispatch.LeakNone,
+			Handler: m,
 		},
 	}
 }

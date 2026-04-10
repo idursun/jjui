@@ -160,9 +160,9 @@ type Model struct {
 func (m *Model) Scopes() []dispatch.Scope {
 	return []dispatch.Scope{
 		{
-			Name:      actions.ScopeDiff,
-			AllowLeak: false,
-			Handler:   m,
+			Name:    actions.ScopeDiff,
+			Leak:    dispatch.LeakGlobal,
+			Handler: m,
 		},
 	}
 }

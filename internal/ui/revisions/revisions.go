@@ -274,11 +274,16 @@ func (m *Model) Scopes() []dispatch.Scope {
 		ret = append(ret, lp.Scopes()...)
 	}
 
+	leak := dispatch.LeakAll
+	if m.IsEditing() {
+		leak = dispatch.LeakNone
+	}
+
 	if m.quickSearch != "" {
 		ret = append(ret, dispatch.Scope{
-			Name:      actions.ScopeQuickSearch,
-			AllowLeak: !m.IsEditing(),
-			Handler:   m,
+			Name:    actions.ScopeQuickSearch,
+			Leak:    leak,
+			Handler: m,
 		})
 	}
 
@@ -288,9 +293,9 @@ func (m *Model) Scopes() []dispatch.Scope {
 	}
 
 	ret = append(ret, dispatch.Scope{
-		Name:      scope,
-		AllowLeak: !m.IsEditing(),
-		Handler:   m,
+		Name:    scope,
+		Leak:    leak,
+		Handler: m,
 	})
 	return ret
 }

@@ -94,8 +94,8 @@ type TargetSelectedMsg struct {
 type TargetPickerCancelMsg struct{}
 
 func (m *Model) IsFocused() bool { return true }
-func (m *Model) IsEditing() bool  { return true }
-func (m *Model) IsOverlay() bool  { return true }
+func (m *Model) IsEditing() bool { return true }
+func (m *Model) IsOverlay() bool { return true }
 
 func (m *Model) Name() string { return "target_picker" }
 
@@ -104,9 +104,9 @@ func (m *Model) Render(_ *jj.Commit, _ operations.RenderPosition) string { retur
 func (m *Model) Scopes() []dispatch.Scope {
 	return []dispatch.Scope{
 		{
-			Name:      actions.ScopeTargetPicker,
-			AllowLeak: false,
-			Handler:   m,
+			Name:    actions.ScopeTargetPicker,
+			Leak:    dispatch.LeakNone,
+			Handler: m,
 		},
 	}
 }

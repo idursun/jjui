@@ -36,9 +36,9 @@ func (s *SetBookmarkOperation) IsEditing() bool {
 func (s *SetBookmarkOperation) Scopes() []dispatch.Scope {
 	return []dispatch.Scope{
 		{
-			Name:      actions.ScopeSetBookmark,
-			AllowLeak: false,
-			Handler:   s,
+			Name:    actions.ScopeSetBookmark,
+			Leak:    dispatch.LeakNone,
+			Handler: s,
 		},
 	}
 }

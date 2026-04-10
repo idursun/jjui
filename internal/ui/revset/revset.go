@@ -76,9 +76,9 @@ func (m *Model) Scopes() []dispatch.Scope {
 	}
 	return []dispatch.Scope{
 		{
-			Name:      actions.ScopeRevset,
-			AllowLeak: false,
-			Handler:   m,
+			Name:    actions.ScopeRevset,
+			Leak:    dispatch.LeakNone,
+			Handler: m,
 		},
 	}
 }

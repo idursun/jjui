@@ -75,15 +75,15 @@ func (m *Model) Scopes() []dispatch.Scope {
 	var ret []dispatch.Scope
 	if m.HasQuickSearch() {
 		ret = append(ret, dispatch.Scope{
-			Name:      actions.ScopeOplogQuickSearch,
-			AllowLeak: false,
-			Handler:   m,
+			Name:    actions.ScopeOplogQuickSearch,
+			Leak:    dispatch.LeakNone,
+			Handler: m,
 		})
 	}
 	ret = append(ret, dispatch.Scope{
-		Name:      actions.ScopeOplog,
-		AllowLeak: true,
-		Handler:   m,
+		Name:    actions.ScopeOplog,
+		Leak:    dispatch.LeakAll,
+		Handler: m,
 	})
 	return ret
 }

@@ -59,9 +59,9 @@ func (a *Operation) IsFocused() bool {
 func (a *Operation) Scopes() []dispatch.Scope {
 	return []dispatch.Scope{
 		{
-			Name:      actions.ScopeAbandon,
-			AllowLeak: true,
-			Handler:   a,
+			Name:    actions.ScopeAbandon,
+			Leak:    dispatch.LeakAll,
+			Handler: a,
 		},
 	}
 }

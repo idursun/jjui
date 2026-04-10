@@ -9,12 +9,21 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 )
 
+type LeakPolicy int
+
+const (
+	LeakAll LeakPolicy = iota
+	LeakGlobal
+	LeakNone
+)
+
 // Scope represents one routing layer in the intent dispatch chain.
 // Scopes are ordered from innermost (highest priority) to outermost.
 type Scope struct {
-	Name      keybindings.ScopeName
-	AllowLeak bool
-	Handler   ScopeHandler
+	Name    keybindings.ScopeName
+	Leak    LeakPolicy
+	Global  bool
+	Handler ScopeHandler
 }
 
 type ScopeHandler interface {
@@ -28,8 +37,18 @@ type ScopeProvider interface {
 
 func VisibleScopes(scopes []Scope) []Scope {
 	for i, scope := range scopes {
-		if !scope.AllowLeak {
+		if scope.Leak == LeakNone {
 			return scopes[:i+1]
+		}
+		if scope.Leak == LeakGlobal {
+			result := make([]Scope, i+1)
+			copy(result, scopes[:i+1])
+			for _, s := range scopes[i+1:] {
+				if s.Global {
+					result = append(result, s)
+				}
+			}
+			return result
 		}
 	}
 	return scopes

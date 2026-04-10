@@ -153,7 +153,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				if cmd, handled := dispatch.RouteIntent(scopes[start:], result.Intent); handled {
 					return cmd
 				}
-				if !scopes[start].AllowLeak {
+				if scopes[start].Leak != dispatch.LeakAll {
 					return m.updateBlockingScope(scopes[start], msg)
 				}
 				return nil
@@ -163,7 +163,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 
 			for _, scope := range scopes {
-				if !scope.AllowLeak {
+				if scope.Leak != dispatch.LeakAll {
 					return m.updateBlockingScope(scope, msg)
 				}
 			}
@@ -489,9 +489,10 @@ func (m *Model) dispatchScopes() []dispatch.Scope {
 
 	scopes = append(scopes, m.previewModel.Scopes()...)
 	scopes = append(scopes, dispatch.Scope{
-		Name:      scopeUi,
-		AllowLeak: false,
-		Handler:   m,
+		Name:    scopeUi,
+		Leak:    dispatch.LeakNone,
+		Global:  true,
+		Handler: m,
 	})
 
 	return scopes
@@ -740,7 +741,6 @@ func NewUI(c *context.MainContext) *Model {
 	ui.initSplit()
 	return ui
 }
-
 
 func (m *Model) setSequenceStatusHelp(continuations []dispatch.Continuation) {
 	entries := help.BuildFromContinuations(continuations)

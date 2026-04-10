@@ -129,22 +129,22 @@ func (m *Model) Scopes() []dispatch.Scope {
 	if m.IsEditing() {
 		return []dispatch.Scope{
 			{
-				Name:      actions.ScopeGit + ".filter",
-				AllowLeak: false,
-				Handler:   m,
+				Name:    actions.ScopeGit + ".filter",
+				Leak:    dispatch.LeakNone,
+				Handler: m,
 			},
 			{
-				Name:      actions.ScopeGit,
-				AllowLeak: false,
-				Handler:   m,
+				Name:    actions.ScopeGit,
+				Leak:    dispatch.LeakNone,
+				Handler: m,
 			},
 		}
 	}
 	return []dispatch.Scope{
 		{
-			Name:      actions.ScopeGit,
-			AllowLeak: true,
-			Handler:   m,
+			Name:    actions.ScopeGit,
+			Leak:    dispatch.LeakAll,
+			Handler: m,
 		},
 	}
 }

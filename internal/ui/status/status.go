@@ -80,9 +80,9 @@ func (m *Model) Scopes() []dispatch.Scope {
 	}
 	return []dispatch.Scope{
 		{
-			Name:      scope,
-			AllowLeak: false,
-			Handler:   m,
+			Name:    scope,
+			Leak:    dispatch.LeakNone,
+			Handler: m,
 		},
 	}
 }

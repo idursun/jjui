@@ -11,7 +11,7 @@ import (
 func createScopes(scopeNames ...bindings.ScopeName) []Scope {
 	scopes := make([]Scope, 0, len(scopeNames))
 	for _, scope := range scopeNames {
-		scopes = append(scopes, Scope{Name: scope, AllowLeak: true})
+		scopes = append(scopes, Scope{Name: scope, Leak: LeakAll})
 	}
 	return scopes
 }

@@ -73,7 +73,6 @@ func BuildFromBindings(
 	return entries
 }
 
-
 // BuildFromContinuations returns sequence continuation entries, sorted for stable display.
 func BuildFromContinuations(continuations []dispatch.Continuation) []Entry {
 	if len(continuations) == 0 {
