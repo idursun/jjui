@@ -116,7 +116,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	rest, _ := box.CutBottom(1)
 	dl.AddDim(rest.R, render.ZOverlay)
 
-	for _, item := range m.window() {
+	for _, item := range m.visibleWindow(maxWidth, area.Dy()) {
 		content := m.renderEntry(item.entry, maxWidth, item.selected)
 		w, h := lipgloss.Size(content)
 		y -= h
@@ -148,6 +148,51 @@ func (m *Model) window() []historyItem {
 		})
 	}
 	return items
+}
+
+func (m *Model) visibleWindow(maxWidth, maxHeight int) []historyItem {
+	items := m.window()
+	if len(items) == 0 || maxHeight <= 0 {
+		return items
+	}
+
+	selected := 0
+	for i, item := range items {
+		if item.selected {
+			selected = i
+			break
+		}
+	}
+
+	heights := make([]int, len(items))
+	for i, item := range items {
+		_, heights[i] = lipgloss.Size(m.renderEntry(item.entry, maxWidth, item.selected))
+	}
+
+	start := selected
+	end := selected + 1
+	used := heights[selected]
+	if used >= maxHeight {
+		return items[start:end]
+	}
+
+	for i := selected - 1; i >= 0; i-- {
+		if used+heights[i] > maxHeight {
+			break
+		}
+		start = i
+		used += heights[i]
+	}
+
+	for i := selected + 1; i < len(items); i++ {
+		if used+heights[i] > maxHeight {
+			break
+		}
+		end = i + 1
+		used += heights[i]
+	}
+
+	return items[start:end]
 }
 
 func (m *Model) clampViewport() {

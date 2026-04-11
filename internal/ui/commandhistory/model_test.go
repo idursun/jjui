@@ -2,6 +2,7 @@ package commandhistory
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/idursun/jjui/internal/ui/common"
@@ -91,6 +92,24 @@ func TestCommandHistory_ViewOnlyShowsSelectedOutput(t *testing.T) {
 	assert.Contains(t, rendered, "older-output")
 	assert.Contains(t, rendered, "jj newer")
 	assert.NotContains(t, rendered, "newer-output")
+}
+
+func TestCommandHistory_ViewKeepsSelectedEntryVisibleWhenItExpands(t *testing.T) {
+	source := flash.New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	for i := range 6 {
+		source.AddWithCommand(fmt.Sprintf("output-%d", i), fmt.Sprintf("jj cmd %d", i), nil)
+	}
+	source.AddWithCommand(strings.Repeat("expanded line\n", 4)+"expanded line", "jj expanded", nil)
+
+	history := New(test.NewTestContext(test.NewTestCommandRunner(t)), source)
+
+	dl := render.NewDisplayContext()
+	box := layout.NewBox(layout.Rect(0, 0, 60, 12))
+	history.ViewRect(dl, box)
+	rendered := dl.RenderToString(box.R.Dx(), box.R.Dy())
+
+	assert.Contains(t, rendered, "jj expanded")
+	assert.Contains(t, rendered, "expanded line")
 }
 
 func TestCommandHistory_DeleteSelectedRemovesFromSourceAndLiveMessages(t *testing.T) {
