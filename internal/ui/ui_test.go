@@ -185,7 +185,7 @@ func Test_UpdateStatus_FlashVisibleShowsHistoryModeAndHelp(t *testing.T) {
 	model.updateStatus()
 
 	assert.Equal(t, "history", model.status.Mode())
-	entries := model.status.Help()
+	entries := help.FlatEntries(model.status.Help())
 	require.Len(t, entries, 3)
 	assert.Equal(t, "j", entries[0].Label)
 	assert.Equal(t, "move down", entries[0].Desc)
@@ -323,7 +323,7 @@ func Test_UpdateStatus_UsesBindingDeclarationOrderForRevisions(t *testing.T) {
 	model := NewUI(ctx)
 
 	model.updateStatus()
-	entries := model.status.Help()
+	entries := help.FlatEntries(model.status.Help())
 	assert.GreaterOrEqual(t, len(entries), 3)
 	assert.Equal(t, "j", entries[0].Label)
 	assert.Equal(t, "k", entries[1].Label)
@@ -345,7 +345,7 @@ func Test_UpdateStatus_IncludesAlwaysOnUiBindings(t *testing.T) {
 	model := NewUI(ctx)
 
 	model.updateStatus()
-	assert.Contains(t, model.status.Help(), help.Entry{Label: "W", Desc: "command history"})
+	assert.Contains(t, help.FlatEntries(model.status.Help()), help.Entry{Label: "W", Desc: "command history"})
 }
 
 func Test_Update_SequencePrefixBeatsSingleKeyBinding(t *testing.T) {
@@ -395,7 +395,7 @@ func Test_Update_PendingSequenceAutoExpandsStatusWithContinuations(t *testing.T)
 	assert.True(t, model.status.StatusExpanded(), "pending sequence should auto-expand status")
 
 	model.updateStatus()
-	entries := model.status.Help()
+	entries := help.FlatEntries(model.status.Help())
 	assert.NotEmpty(t, entries)
 	assert.Equal(t, "r", entries[0].Label, "pending sequence should show continuation key")
 }
@@ -964,7 +964,7 @@ func Test_UpdateStatus_RevsetEditingUsesDispatcherHelpWhenAvailable(t *testing.T
 	assert.True(t, model.revsetModel.Editing)
 
 	model.updateStatus()
-	entries := model.status.Help()
+	entries := help.FlatEntries(model.status.Help())
 	assert.NotEmpty(t, entries)
 	assert.Equal(t, "ctrl+t", entries[0].Label)
 }
@@ -988,7 +988,7 @@ func Test_UpdateStatus_CustomLuaActionUsesConfiguredDescription(t *testing.T) {
 	model := NewUI(ctx)
 
 	model.updateStatus()
-	entries := model.status.Help()
+	entries := help.FlatEntries(model.status.Help())
 	assert.NotEmpty(t, entries)
 	assert.Equal(t, "My quit", entries[0].Desc)
 }

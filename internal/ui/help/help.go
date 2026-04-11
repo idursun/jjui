@@ -94,11 +94,6 @@ var scopeOrder = []string{
 	"ui.preview",
 }
 
-type scopeGroup struct {
-	name    string
-	entries []Entry
-}
-
 type styles struct {
 	border   lipgloss.Style
 	title    lipgloss.Style
@@ -109,12 +104,12 @@ type styles struct {
 }
 
 type Model struct {
-	groups    []scopeGroup
+	groups    []ScopeGroup
 	scroll    int
 	styles    styles
 	input     textinput.Model
 	filtering bool
-	filtered  []scopeGroup
+	filtered  []ScopeGroup
 }
 
 type helpScrollMsg struct{}
@@ -223,18 +218,18 @@ func (m *Model) applyFilter() {
 		m.filtered = nil
 		return
 	}
-	var result []scopeGroup
+	var result []ScopeGroup
 	for _, group := range m.groups {
 		var matched []Entry
-		for _, e := range group.entries {
+		for _, e := range group.Entries {
 			if strings.Contains(strings.ToLower(e.Desc), query) ||
 				strings.Contains(strings.ToLower(e.Label), query) ||
-				strings.Contains(strings.ToLower(group.name), query) {
+				strings.Contains(strings.ToLower(group.Name), query) {
 				matched = append(matched, e)
 			}
 		}
 		if len(matched) > 0 {
-			result = append(result, scopeGroup{name: group.name, entries: matched})
+			result = append(result, ScopeGroup{Name: group.Name, Entries: matched})
 		}
 	}
 	m.filtered = result
@@ -296,16 +291,16 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 }
 
-func (m *Model) renderGroups(groups []scopeGroup, width int) []string {
+func (m *Model) renderGroups(groups []ScopeGroup, width int) []string {
 	var lines []string
 	for i, group := range groups {
 		if i > 0 {
 			lines = append(lines, "")
 		}
-		header := m.styles.heading.Width(width).Render("  " + group.name + " ")
+		header := m.styles.heading.Width(width).Render("  " + group.Name + " ")
 		lines = append(lines, header)
 
-		entryLines := m.renderEntries(group.entries, width)
+		entryLines := m.renderEntries(group.Entries, width)
 		lines = append(lines, entryLines...)
 	}
 	return lines
@@ -386,7 +381,7 @@ var skipScopes = map[string]bool{
 	"choose.filter": true,
 }
 
-func buildGroups(bindings []config.BindingConfig) []scopeGroup {
+func buildGroups(bindings []config.BindingConfig) []ScopeGroup {
 	byScope := make(map[string][]config.BindingConfig)
 	for _, b := range bindings {
 		scope := strings.TrimSpace(b.Scope)
@@ -396,7 +391,7 @@ func buildGroups(bindings []config.BindingConfig) []scopeGroup {
 		byScope[scope] = append(byScope[scope], b)
 	}
 
-	var groups []scopeGroup
+	var groups []ScopeGroup
 	seen := make(map[string]bool)
 
 	for _, scope := range scopeOrder {
@@ -410,7 +405,7 @@ func buildGroups(bindings []config.BindingConfig) []scopeGroup {
 			continue
 		}
 		name := scopeDisplayName(scope)
-		groups = append(groups, scopeGroup{name: name, entries: entries})
+		groups = append(groups, ScopeGroup{Name: name, Entries: entries})
 	}
 
 	// Any scopes not in scopeOrder
@@ -423,7 +418,7 @@ func buildGroups(bindings []config.BindingConfig) []scopeGroup {
 			continue
 		}
 		name := scopeDisplayName(scope)
-		groups = append(groups, scopeGroup{name: name, entries: entries})
+		groups = append(groups, ScopeGroup{Name: name, Entries: entries})
 	}
 
 	return groups

@@ -37,7 +37,6 @@ bindings = [
     # revisions
     { key = ["up", "k"], action = "revisions.move_up", scope = "revisions", desc = "up" },
     { key = ["down", "j"], action = "revisions.move_down", scope = "revisions", desc = "down" },
-    { key = "q", action = "ui.quit", scope = "revisions", desc = "quit" },
     { key = "ctrl+r", action = "revisions.refresh", scope = "revisions", desc = "refresh" },
     { key = "p", action = "ui.preview_toggle", scope = "revisions", desc = "preview" },
     { key = "shift+l", action = "revset.edit", scope = "revisions", desc = "revset", args = { clear = true } },
@@ -179,7 +178,6 @@ bindings = [
     { key = "pgdown", action = "revisions.evolog.page_down", scope = "revisions.evolog", desc = "pgdown" },
     { key = "esc", action = "revisions.evolog.cancel", scope = "revisions.evolog", desc = "cancel" },
     { key = "enter", action = "revisions.evolog.apply", scope = "revisions.evolog", desc = "apply" },
-    { key = "q", action = "ui.quit", scope = "revisions.evolog", desc = "quit" },
     { key = "d", action = "revisions.evolog.diff", scope = "revisions.evolog", desc = "diff" },
     { key = "r", action = "revisions.evolog.restore", scope = "revisions.evolog", desc = "restore" },
     { key = "p", action = "ui.preview_toggle", scope = "revisions.evolog", desc = "toggle preview" },
@@ -260,7 +258,6 @@ bindings = [
     # bookmarks
     { key = "esc", action = "bookmarks.cancel", scope = "bookmarks", desc = "cancel" },
     { key = "enter", action = "bookmarks.apply", scope = "bookmarks", desc = "apply" },
-    { key = "q", action = "ui.quit", scope = "bookmarks", desc = "quit" },
     { key = "enter", action = "bookmarks.apply", scope = "bookmarks", desc = "apply" },
     { key = "m", action = "bookmarks.bookmark_move", scope = "bookmarks", desc = "move" },
     { key = "d", action = "bookmarks.bookmark_delete", scope = "bookmarks", desc = "delete" },
@@ -280,7 +277,6 @@ bindings = [
     # git
     { key = "esc", action = "git.cancel", scope = "git", desc = "cancel" },
     { key = "enter", action = "git.apply", scope = "git", desc = "apply" },
-    { key = "q", action = "ui.quit", scope = "git", desc = "quit" },
     { key = "p", action = "git.push", scope = "git", desc = "push" },
     { key = "f", action = "git.fetch", scope = "git", desc = "fetch" },
     { key = "/", action = "git.filter", scope = "git", desc = "filter" },
@@ -298,7 +294,6 @@ bindings = [
     { key = ["down", "j"], action = "oplog.move_down", scope = "oplog", desc = "down" },
     { key = "pgup", action = "oplog.page_up", scope = "oplog", desc = "pgup" },
     { key = "pgdown", action = "oplog.page_down", scope = "oplog", desc = "pgdown" },
-    { key = "q", action = "ui.quit", scope = "oplog", desc = "quit" },
     { key = "esc", action = "oplog.close", scope = "oplog", desc = "close" },
     { key = "d", action = "oplog.diff", scope = "oplog", desc = "diff" },
     { key = "r", action = "oplog.restore", scope = "oplog", desc = "restore" },
@@ -334,7 +329,6 @@ bindings = [
     { key = ["left", "h"], action = "diff.left", scope = "diff", desc = "left" },
     { key = ["right", "l"], action = "diff.right", scope = "diff", desc = "right" },
     { key = "w", action = "diff.toggle_wrap", scope = "diff", desc = "toggle wrap" },
-    { key = "q", action = "ui.quit", scope = "diff", desc = "quit" },
     { key = "esc", action = "ui.cancel", scope = "diff", desc = "cancel" },
 
     # command history

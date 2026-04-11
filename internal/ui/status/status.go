@@ -38,7 +38,7 @@ var _ common.ImmediateModel = (*Model)(nil)
 type Model struct {
 	context         *context.MainContext
 	input           textinput.Model
-	entries         []help.Entry
+	groups          []help.ScopeGroup
 	mode            string
 	focusKind       FocusKind
 	history         map[string][]string
@@ -241,12 +241,12 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 // renderHelpBar renders the help keybindings bar when idle.
 func (m *Model) renderHelpBar(width, modeWidth int) string {
-	if len(m.entries) == 0 || m.statusExpanded {
+	if len(m.groups) == 0 || m.statusExpanded {
 		return m.styles.text.Render(" ")
 	}
 
 	availableWidth := max(0, width-modeWidth-2)
-	helpContent, truncated := m.helpView(m.entries, availableWidth)
+	helpContent, truncated := m.groupedHelpView(m.groups, availableWidth)
 	m.statusTruncated = truncated
 	return lipgloss.PlaceHorizontal(width, 0, helpContent, lipgloss.WithWhitespaceStyle(m.styles.text))
 }
@@ -254,8 +254,8 @@ func (m *Model) renderHelpBar(width, modeWidth int) string {
 // renderContent handles input display when focused
 func (m *Model) renderContent(width, modeWidth int) string {
 	var editHelp string
-	if len(m.entries) > 0 {
-		editHelp, _ = m.helpView(m.entries, 0)
+	if len(m.groups) > 0 {
+		editHelp, _ = m.groupedHelpView(m.groups, 0)
 	}
 
 	promptWidth := render.StringWidth(m.input.Prompt) + 2
@@ -265,11 +265,11 @@ func (m *Model) renderContent(width, modeWidth int) string {
 
 // renderExpandedStatus orchestrates expanded help overlay
 func (m *Model) renderExpandedStatus(dl *render.DisplayContext, box layout.Box, width int) {
-	if !m.statusExpanded || len(m.entries) == 0 || m.IsFocused() {
+	if !m.statusExpanded || len(m.groups) == 0 || m.IsFocused() {
 		return
 	}
 
-	expandedHelp, contentLineCount := m.expandedStatusView(m.entries, max(0, width-4))
+	expandedHelp, contentLineCount := m.expandedStatusView(m.groups, max(0, width-4))
 	expandedLines := strings.Split(expandedHelp, "\n")
 	startY := box.R.Min.Y - contentLineCount
 
@@ -282,9 +282,8 @@ func (m *Model) renderExpandedStatusBorder(dl *render.DisplayContext, box layout
 	if startY < 0 {
 		return
 	}
-	modeLabel := m.styles.title.Render("  " + m.mode + "  ")
-	borderLine := strings.Repeat("─", max(0, width-render.StringWidth(modeLabel)))
-	topBorder := modeLabel + m.styles.dimmed.Render(borderLine)
+	borderLine := strings.Repeat("─", max(0, width))
+	topBorder := m.styles.dimmed.Render(borderLine)
 	borderRect := layout.Rect(box.R.Min.X, startY, width, 1)
 	dl.AddDraw(borderRect, topBorder, render.ZExpandedStatus)
 }
@@ -335,18 +334,22 @@ func (m *Model) SetScopes(scopes []dispatch.Scope) {
 			scopeNames = append(scopeNames, scope.Name)
 		}
 	}
-	m.setEntries(help.BuildFromBindings(scopeNames, config.Current.Bindings))
+	m.setGroups(help.BuildGroupedFromBindings(scopeNames, config.Current.Bindings))
 }
 
 func (m *Model) SetHelp(entries []help.Entry) {
-	m.setEntries(entries)
+	if len(entries) == 0 {
+		m.setGroups(nil)
+		return
+	}
+	m.setGroups([]help.ScopeGroup{{Entries: entries}})
 }
 
-func (m *Model) setEntries(entries []help.Entry) {
-	if len(m.entries) != len(entries) {
+func (m *Model) setGroups(groups []help.ScopeGroup) {
+	if len(m.groups) != len(groups) {
 		m.statusExpanded = false
 	}
-	m.entries = entries
+	m.groups = groups
 }
 
 // StatusExpanded returns whether the help overlay is currently expanded.
@@ -377,8 +380,8 @@ func (m *Model) SetStatusExpanded(expanded bool) {
 	m.statusExpanded = expanded
 }
 
-func (m *Model) Help() []help.Entry {
-	return m.entries
+func (m *Model) Help() []help.ScopeGroup {
+	return m.groups
 }
 
 var modeDisplayNames = map[string]string{
@@ -404,22 +407,32 @@ func (m *Model) InputValue() string {
 	return m.input.Value()
 }
 
-func (m *Model) expandedStatusView(helpEntries []help.Entry, maxWidth int) (string, int) {
-	rendered, maxEntryWidth := m.collectHelpEntries(helpEntries)
-	lines := m.buildHelpGrid(rendered, maxEntryWidth, maxWidth)
-	return strings.Join(lines, "\n"), len(lines)
-}
-
-// collectHelpEntries gathers all help entries and returns them
-// along with the maximum entry width for column layout calculation.
-func (m *Model) collectHelpEntries(helpEntries []help.Entry) ([]string, int) {
-	expandKey := m.expandStatusKey(helpEntries)
+func (m *Model) expandedStatusView(groups []help.ScopeGroup, maxWidth int) (string, int) {
+	expandKey := m.expandStatusKey(groups)
 	closeHint := m.styles.shortcut.Render(expandKey+"/esc") + m.styles.dimmed.PaddingLeft(1).Render("close help")
 
+	var allLines []string
+	for i, group := range groups {
+		if i > 0 {
+			allLines = append(allLines, "")
+		}
+		if group.Name != "" {
+			header := m.styles.title.Render(group.Name)
+			allLines = append(allLines, header)
+		}
+		rendered, maxEntryWidth := m.collectGroupEntries(group.Entries)
+		lines := m.buildHelpGrid(rendered, maxEntryWidth, maxWidth)
+		allLines = append(allLines, lines...)
+	}
+	allLines = append(allLines, "", closeHint)
+	return strings.Join(allLines, "\n"), len(allLines)
+}
+
+func (m *Model) collectGroupEntries(entries []help.Entry) ([]string, int) {
 	var rendered []string
 	maxEntryWidth := 0
 
-	for _, entry := range helpEntries {
+	for _, entry := range entries {
 		if entry.Label == "" || entry.Desc == "" {
 			continue
 		}
@@ -429,11 +442,6 @@ func (m *Model) collectHelpEntries(helpEntries []help.Entry) ([]string, int) {
 			maxEntryWidth = w
 		}
 	}
-
-	if w := render.StringWidth(closeHint); w > maxEntryWidth {
-		maxEntryWidth = w
-	}
-	rendered = append(rendered, closeHint)
 
 	return rendered, maxEntryWidth
 }
@@ -466,59 +474,76 @@ func (m *Model) buildHelpGrid(entries []string, maxEntryWidth, maxWidth int) []s
 	return lines
 }
 
-func (m *Model) helpView(helpEntries []help.Entry, maxWidth int) (string, bool) {
+// groupedHelpView renders the collapsed help bar with groups separated by │.
+func (m *Model) groupedHelpView(groups []help.ScopeGroup, maxWidth int) (string, bool) {
 	separator := m.styles.dimmed.Render(" • ")
-	expandKey := m.expandStatusKey(helpEntries)
+	groupSeparator := m.styles.dimmed.Render(" │ ")
+	expandKey := m.expandStatusKey(groups)
 	moreHint := separator + m.styles.shortcut.Render(expandKey) + m.styles.dimmed.PaddingLeft(1).Render("more")
 
-	rendered, truncated := m.collectHelpEntriesWithLimit(helpEntries, maxWidth, render.StringWidth(separator), render.StringWidth(moreHint))
+	separatorWidth := render.StringWidth(separator)
+	groupSeparatorWidth := render.StringWidth(groupSeparator)
+	moreHintWidth := render.StringWidth(moreHint)
 
-	result := strings.Join(rendered, separator)
-	if truncated {
-		result += moreHint
-	}
-	return result, truncated
-}
-
-// collectHelpEntriesWithLimit gathers help entries that fit within maxWidth,
-// accounting for separators and the "more" hint when truncation occurs.
-func (m *Model) collectHelpEntriesWithLimit(helpEntries []help.Entry, maxWidth, separatorWidth, moreHintWidth int) ([]string, bool) {
-	var rendered []string
+	var result strings.Builder
 	currentWidth := 0
+	entryCount := 0
+	truncated := false
 
-	for i, entry := range helpEntries {
-		if entry.Label == "" || entry.Desc == "" {
-			continue
+	for gi, group := range groups {
+		firstInGroup := true
+		for ei, entry := range group.Entries {
+			if entry.Label == "" || entry.Desc == "" {
+				continue
+			}
+
+			e := m.styles.shortcut.Render(entry.Label) + m.styles.dimmed.PaddingLeft(1).Render(entry.Desc)
+			entryWidth := render.StringWidth(e)
+
+			addedWidth := entryWidth
+			if entryCount > 0 {
+				if firstInGroup {
+					addedWidth += groupSeparatorWidth
+				} else {
+					addedWidth += separatorWidth
+				}
+			}
+
+			isLast := gi == len(groups)-1 && ei == len(group.Entries)-1
+			reservedWidth := 0
+			if !isLast {
+				reservedWidth = moreHintWidth
+			}
+
+			if maxWidth > 0 && currentWidth+addedWidth+reservedWidth > maxWidth {
+				truncated = true
+				result.WriteString(moreHint)
+				return result.String(), truncated
+			}
+
+			if entryCount > 0 {
+				if firstInGroup {
+					result.WriteString(groupSeparator)
+				} else {
+					result.WriteString(separator)
+				}
+			}
+			result.WriteString(e)
+			currentWidth += addedWidth
+			entryCount++
+			firstInGroup = false
 		}
-
-		e := m.styles.shortcut.Render(entry.Label) + m.styles.dimmed.PaddingLeft(1).Render(entry.Desc)
-		entryWidth := render.StringWidth(e)
-
-		addedWidth := entryWidth
-		if len(rendered) > 0 {
-			addedWidth += separatorWidth
-		}
-
-		reservedWidth := 0
-		if i < len(helpEntries)-1 {
-			reservedWidth = moreHintWidth
-		}
-
-		if maxWidth > 0 && currentWidth+addedWidth+reservedWidth > maxWidth {
-			return rendered, true
-		}
-
-		rendered = append(rendered, e)
-		currentWidth += addedWidth
 	}
 
-	return rendered, false
+	return result.String(), truncated
 }
 
-func (m *Model) expandStatusKey(helpEntries []help.Entry) string {
-	for _, entry := range helpEntries {
-		if entry.Desc == "expand status" {
-			return entry.Label
+func (m *Model) expandStatusKey(groups []help.ScopeGroup) string {
+	for _, group := range groups {
+		for _, entry := range group.Entries {
+			if entry.Desc == "expand status" {
+				return entry.Label
+			}
 		}
 	}
 	return expandFallback.Label
@@ -546,7 +571,6 @@ func New(context *context.MainContext) *Model {
 	return &Model{
 		context: context,
 		input:   t,
-		entries: nil,
 		styles:  styles,
 	}
 }

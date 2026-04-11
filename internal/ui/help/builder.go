@@ -15,6 +15,21 @@ type Entry struct {
 	Desc  string
 }
 
+// ScopeGroup is a named group of help entries for a single scope.
+type ScopeGroup struct {
+	Name    string
+	Entries []Entry
+}
+
+// FlatEntries returns all entries from a slice of groups in order.
+func FlatEntries(groups []ScopeGroup) []Entry {
+	var entries []Entry
+	for _, g := range groups {
+		entries = append(entries, g.Entries...)
+	}
+	return entries
+}
+
 // BuildFromBindings returns short-help entries for the provided scope chain.
 // Scopes are expected from innermost to outermost.
 func BuildFromBindings(
@@ -71,6 +86,24 @@ func BuildFromBindings(
 	}
 
 	return entries
+}
+
+// BuildGroupedFromBindings returns help entries grouped by scope.
+func BuildGroupedFromBindings(
+	scopes []keybindings.ScopeName,
+	bindings []config.BindingConfig,
+) []ScopeGroup {
+	var groups []ScopeGroup
+	for _, scope := range scopes {
+		entries := BuildFromBindings([]keybindings.ScopeName{scope}, bindings)
+		if len(entries) > 0 {
+			groups = append(groups, ScopeGroup{
+				Name:    scopeDisplayName(string(scope)),
+				Entries: entries,
+			})
+		}
+	}
+	return groups
 }
 
 // BuildFromContinuations returns sequence continuation entries, sorted for stable display.
