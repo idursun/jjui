@@ -11,7 +11,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actionmeta"
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
-	"github.com/idursun/jjui/internal/ui/commandhistory"
 	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/flash"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -559,7 +558,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			m.stacked = nil
 			return nil, true
 		}
-		m.stacked = commandhistory.New(m.flash)
+		m.stacked = m.flash.NewHistory()
 		return m.stacked.Init(), true
 
 	// --- Activate input modes ---

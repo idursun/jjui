@@ -231,22 +231,17 @@ func (m *Model) DeleteOldest() {
 	m.messages = m.messages[1:]
 }
 
-type CommandHistoryEntry struct {
+type commandHistoryEntry struct {
 	ID      uint64
 	Command string
 	Text    string
 	Err     error
 }
 
-type CommandHistorySource interface {
-	CommandHistorySnapshot() []CommandHistoryEntry
-	DeleteCommandHistoryByID(id uint64)
-}
-
-func (m *Model) CommandHistorySnapshot() []CommandHistoryEntry {
-	out := make([]CommandHistoryEntry, 0, len(m.messageHistory))
+func (m *Model) commandHistorySnapshot() []commandHistoryEntry {
+	out := make([]commandHistoryEntry, 0, len(m.messageHistory))
 	for _, item := range m.messageHistory {
-		out = append(out, CommandHistoryEntry{
+		out = append(out, commandHistoryEntry{
 			ID:      item.id,
 			Command: item.command,
 			Text:    item.text,
@@ -256,7 +251,7 @@ func (m *Model) CommandHistorySnapshot() []CommandHistoryEntry {
 	return out
 }
 
-func (m *Model) DeleteCommandHistoryByID(id uint64) {
+func (m *Model) deleteCommandHistoryByID(id uint64) {
 	for i, item := range m.messageHistory {
 		if item.id != id {
 			continue
@@ -270,6 +265,10 @@ func (m *Model) DeleteCommandHistoryByID(id uint64) {
 func (m *Model) nextId() uint64 {
 	m.currentId = m.currentId + 1
 	return m.currentId
+}
+
+func (m *Model) NewHistory() common.StackedModel {
+	return newCommandHistory(m)
 }
 
 func New() *Model {

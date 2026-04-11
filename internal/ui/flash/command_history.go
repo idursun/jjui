@@ -1,4 +1,4 @@
-package commandhistory
+package flash
 
 import (
 	tea "charm.land/bubbletea/v2"
@@ -6,32 +6,31 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/dispatch"
-	"github.com/idursun/jjui/internal/ui/flash"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
-var _ common.StackedModel = (*Model)(nil)
+var _ common.StackedModel = (*CommandHistoryModel)(nil)
 
 type selectHistoryItemMsg struct {
 	index int
 }
 
-type Model struct {
-	source        flash.CommandHistorySource
-	items         []flash.CommandHistoryEntry
+type CommandHistoryModel struct {
+	source        *Model
+	items         []commandHistoryEntry
 	selectedIndex int
-	renderer      flash.CardRenderer
+	renderer      CardRenderer
 }
 
-func New(source flash.CommandHistorySource) *Model {
-	m := &Model{
+func newCommandHistory(source *Model) *CommandHistoryModel {
+	m := &CommandHistoryModel{
 		source:   source,
-		renderer: flash.NewCardRenderer(),
+		renderer: NewCardRenderer(),
 	}
 	if source != nil {
-		m.items = source.CommandHistorySnapshot()
+		m.items = source.commandHistorySnapshot()
 	}
 	if len(m.items) > 0 {
 		m.selectedIndex = len(m.items) - 1
@@ -40,11 +39,11 @@ func New(source flash.CommandHistorySource) *Model {
 	return m
 }
 
-func (m *Model) Init() tea.Cmd {
+func (m *CommandHistoryModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Scopes() []dispatch.Scope {
+func (m *CommandHistoryModel) Scopes() []dispatch.Scope {
 	return []dispatch.Scope{
 		{
 			Name:    actions.ScopeCommandHistory,
@@ -54,7 +53,7 @@ func (m *Model) Scopes() []dispatch.Scope {
 	}
 }
 
-func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+func (m *CommandHistoryModel) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
 	case intents.CommandHistoryNavigate:
 		if len(m.items) == 0 {
@@ -74,7 +73,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (m *Model) Update(msg tea.Msg) tea.Cmd {
+func (m *CommandHistoryModel) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
 		cmd, _ := m.HandleIntent(msg)
@@ -92,7 +91,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
+func (m *CommandHistoryModel) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	area := box.R
 	y := area.Max.Y - 1
 	maxWidth := area.Dx() - 4
@@ -111,12 +110,12 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 }
 
 type historyItem struct {
-	entry    flash.CommandHistoryEntry
+	entry    commandHistoryEntry
 	index    int
 	selected bool
 }
 
-func (m *Model) visibleWindow(maxWidth, maxHeight int) []historyItem {
+func (m *CommandHistoryModel) visibleWindow(maxWidth, maxHeight int) []historyItem {
 	if len(m.items) == 0 || maxHeight <= 0 {
 		return nil
 	}
@@ -165,7 +164,7 @@ func (m *Model) visibleWindow(maxWidth, maxHeight int) []historyItem {
 	return items
 }
 
-func (m *Model) clampSelection() {
+func (m *CommandHistoryModel) clampSelection() {
 	if len(m.items) == 0 {
 		m.selectedIndex = 0
 		return
@@ -173,7 +172,7 @@ func (m *Model) clampSelection() {
 	m.selectedIndex = min(len(m.items)-1, max(0, m.selectedIndex))
 }
 
-func (m *Model) deleteSelected() {
+func (m *CommandHistoryModel) deleteSelected() {
 	m.clampSelection()
 	if len(m.items) == 0 {
 		return
@@ -183,7 +182,7 @@ func (m *Model) deleteSelected() {
 	removed := m.items[selected]
 	m.items = append(m.items[:selected], m.items[selected+1:]...)
 	if m.source != nil {
-		m.source.DeleteCommandHistoryByID(removed.ID)
+		m.source.deleteCommandHistoryByID(removed.ID)
 	}
 
 	if len(m.items) == 0 {

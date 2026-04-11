@@ -30,7 +30,7 @@ func (r CardRenderer) RenderMessage(command, text string, commandErr error, maxW
 	return r.renderCard(command, text, commandErr, maxWidth, true, true)
 }
 
-func (r CardRenderer) RenderHistoryEntry(entry CommandHistoryEntry, maxWidth int, selected bool) string {
+func (r CardRenderer) RenderHistoryEntry(entry commandHistoryEntry, maxWidth int, selected bool) string {
 	return r.renderCard(entry.Command, entry.Text, entry.Err, maxWidth, selected, selected)
 }
 
