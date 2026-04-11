@@ -9,16 +9,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestBuildFromBindings_RespectsScopeOrderAndActionTokenDedupe(t *testing.T) {
+func TestBuildFromBindings_FiltersToScope(t *testing.T) {
 	bindings := []config.BindingConfig{
-		{Action: "git.move_down", Scope: "ui", Key: config.StringList{"j"}},
 		{Action: "revisions.move_down", Scope: "revisions", Key: config.StringList{"J"}},
 		{Action: "revisions.apply", Scope: "revisions", Key: config.StringList{"enter"}},
-		{Action: "git.apply", Scope: "ui", Key: config.StringList{"a"}},
+		{Action: "git.move_down", Scope: "ui", Key: config.StringList{"j"}},
 	}
-	scopes := []keybindings.ScopeName{"revisions", "ui"}
 
-	entries := BuildFromBindings(scopes, bindings)
+	entries := BuildFromBindings("revisions", bindings)
 	assert.Equal(t, []Entry{
 		{Label: "J", Desc: "move down"},
 		{Label: "enter", Desc: "apply"},
@@ -30,9 +28,8 @@ func TestBuildFromBindings_UsesConfiguredDescription(t *testing.T) {
 		{Action: "revisions.apply", Desc: "run operation", Scope: "revisions", Key: config.StringList{"enter"}},
 		{Action: "ui.cancel", Scope: "revisions", Key: config.StringList{"esc"}},
 	}
-	scopes := []keybindings.ScopeName{"revisions"}
 
-	entries := BuildFromBindings(scopes, bindings)
+	entries := BuildFromBindings("revisions", bindings)
 	assert.Equal(t, []Entry{
 		{Label: "enter", Desc: "run operation"},
 		{Label: "esc", Desc: "cancel"},
@@ -45,9 +42,8 @@ func TestBuildFromBindings_SameScopeLastBindingWins(t *testing.T) {
 		{Action: "revisions.move_down", Scope: "revisions", Key: config.StringList{"j"}},
 		{Action: "revisions.open_details", Scope: "revisions", Key: config.StringList{"o"}},
 	}
-	scopes := []keybindings.ScopeName{"revisions"}
 
-	entries := BuildFromBindings(scopes, bindings)
+	entries := BuildFromBindings("revisions", bindings)
 	assert.Equal(t, []Entry{
 		{Label: "j", Desc: "move down"},
 		{Label: "o", Desc: "open details"},
@@ -59,13 +55,36 @@ func TestBuildFromBindings_SameScopeDifferentActionsWithSameLeaf(t *testing.T) {
 		{Action: "revset.edit", Scope: "revisions", Key: config.StringList{"shift+l"}, Desc: "revset"},
 		{Action: "revisions.edit", Scope: "revisions", Key: config.StringList{"e"}, Desc: "edit"},
 	}
-	scopes := []keybindings.ScopeName{"revisions"}
 
-	entries := BuildFromBindings(scopes, bindings)
+	entries := BuildFromBindings("revisions", bindings)
 	assert.Equal(t, []Entry{
 		{Label: "shift+l", Desc: "revset"},
 		{Label: "e", Desc: "edit"},
 	}, entries)
+}
+
+func TestBuildGroupedFromBindings_GroupsByScope(t *testing.T) {
+	bindings := []config.BindingConfig{
+		{Action: "revisions.move_down", Scope: "revisions", Key: config.StringList{"j"}},
+		{Action: "ui.quit", Scope: "ui", Key: config.StringList{"q"}},
+	}
+	scopes := []keybindings.ScopeName{"revisions", "ui"}
+
+	groups := BuildGroupedFromBindings(scopes, bindings)
+	assert.Len(t, groups, 2)
+	assert.Equal(t, "Revisions", groups[0].Name)
+	assert.Equal(t, "Global", groups[1].Name)
+}
+
+func TestMarkOverriddenKeys_MarksOuterDuplicates(t *testing.T) {
+	groups := []ScopeGroup{
+		{Name: "Inner", Entries: []Entry{{Label: "j", Desc: "move down"}}},
+		{Name: "Outer", Entries: []Entry{{Label: "j", Desc: "scroll down"}, {Label: "q", Desc: "quit"}}},
+	}
+	MarkOverriddenKeys(groups)
+	assert.False(t, groups[0].Entries[0].Overridden)
+	assert.True(t, groups[1].Entries[0].Overridden)
+	assert.False(t, groups[1].Entries[1].Overridden)
 }
 
 func TestBuildFromContinuations_SortsAndAnnotatesNonLeaf(t *testing.T) {

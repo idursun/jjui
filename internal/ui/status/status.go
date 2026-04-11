@@ -334,7 +334,9 @@ func (m *Model) SetScopes(scopes []dispatch.Scope) {
 			scopeNames = append(scopeNames, scope.Name)
 		}
 	}
-	m.setGroups(help.BuildGroupedFromBindings(scopeNames, config.Current.Bindings))
+	groups := help.BuildGroupedFromBindings(scopeNames, config.Current.Bindings)
+	help.MarkOverriddenKeys(groups)
+	m.setGroups(groups)
 }
 
 func (m *Model) SetHelp(entries []help.Entry) {
@@ -436,7 +438,12 @@ func (m *Model) collectGroupEntries(entries []help.Entry) ([]string, int) {
 		if entry.Label == "" || entry.Desc == "" {
 			continue
 		}
-		e := m.styles.shortcut.Render(entry.Label) + m.styles.dimmed.PaddingLeft(1).Render(entry.Desc)
+		var e string
+		if entry.Overridden {
+			e = m.styles.dimmed.Strikethrough(true).Render(entry.Label + " " + entry.Desc)
+		} else {
+			e = m.styles.shortcut.Render(entry.Label) + m.styles.dimmed.PaddingLeft(1).Render(entry.Desc)
+		}
 		rendered = append(rendered, e)
 		if w := render.StringWidth(e); w > maxEntryWidth {
 			maxEntryWidth = w
@@ -493,7 +500,7 @@ func (m *Model) groupedHelpView(groups []help.ScopeGroup, maxWidth int) (string,
 	for gi, group := range groups {
 		firstInGroup := true
 		for ei, entry := range group.Entries {
-			if entry.Label == "" || entry.Desc == "" {
+			if entry.Label == "" || entry.Desc == "" || entry.Overridden {
 				continue
 			}
 
