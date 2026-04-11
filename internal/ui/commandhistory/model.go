@@ -1,8 +1,6 @@
 package commandhistory
 
 import (
-	"strings"
-
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/actions"
@@ -18,7 +16,6 @@ import (
 var _ common.StackedModel = (*Model)(nil)
 
 const historyWindowSize = 10
-const commandMarkWidth = 3
 
 type selectHistoryItemMsg struct {
 	index int
@@ -30,20 +27,14 @@ type Model struct {
 	items         []flash.CommandHistoryEntry
 	selectedIndex int
 	windowStart   int
-	successStyle  lipgloss.Style
-	errorStyle    lipgloss.Style
-	textStyle     lipgloss.Style
-	matchedStyle  lipgloss.Style
+	renderer      flash.CardRenderer
 }
 
 func New(context *context.MainContext, source flash.CommandHistorySource) *Model {
 	m := &Model{
-		context:      context,
-		source:       source,
-		successStyle: common.DefaultPalette.Get("flash success"),
-		errorStyle:   common.DefaultPalette.Get("flash error"),
-		textStyle:    common.DefaultPalette.Get("flash text"),
-		matchedStyle: common.DefaultPalette.Get("flash matched"),
+		context:  context,
+		source:   source,
+		renderer: flash.NewCardRenderer(),
 	}
 	if source != nil {
 		m.items = source.CommandHistorySnapshot()
@@ -117,7 +108,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	dl.AddDim(rest.R, render.ZOverlay)
 
 	for _, item := range m.visibleWindow(maxWidth, area.Dy()) {
-		content := m.renderEntry(item.entry, maxWidth, item.selected)
+		content := m.renderer.RenderHistoryEntry(item.entry, maxWidth, item.selected)
 		w, h := lipgloss.Size(content)
 		y -= h
 		rect := layout.Rect(area.Max.X-w, y, w, h)
@@ -166,7 +157,7 @@ func (m *Model) visibleWindow(maxWidth, maxHeight int) []historyItem {
 
 	heights := make([]int, len(items))
 	for i, item := range items {
-		_, heights[i] = lipgloss.Size(m.renderEntry(item.entry, maxWidth, item.selected))
+		_, heights[i] = lipgloss.Size(m.renderer.RenderHistoryEntry(item.entry, maxWidth, item.selected))
 	}
 
 	start := selected
@@ -230,43 +221,4 @@ func (m *Model) deleteSelected() {
 
 	m.selectedIndex = min(selected, len(m.items)-1)
 	m.clampViewport()
-}
-
-func (m *Model) renderEntry(entry flash.CommandHistoryEntry, maxWidth int, selected bool) string {
-	style := lipgloss.NewStyle()
-	if selected {
-		style = m.successStyle
-		if entry.Err != nil {
-			style = m.errorStyle
-		}
-	}
-
-	parts := []string{m.renderCommandLine(entry.Command, entry.Err)}
-	if selected {
-		if entry.Err != nil {
-			parts = append(parts, m.errorStyle.Render(entry.Err.Error()))
-		} else if entry.Text != "" {
-			parts = append(parts, style.Render(entry.Text))
-		}
-	}
-
-	content := strings.Join(parts, "\n")
-	if render.BlockWidth(content) > maxWidth {
-		content = lipgloss.NewStyle().Width(maxWidth).Render(content)
-	}
-
-	return lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder()).
-		PaddingLeft(1).
-		PaddingRight(1).
-		BorderForeground(style.GetForeground()).
-		Render(content)
-}
-
-func (m *Model) renderCommandLine(command string, commandErr error) string {
-	mark := m.successStyle.Width(commandMarkWidth).Render("✓ ")
-	if commandErr != nil {
-		mark = m.errorStyle.Width(commandMarkWidth).Render("✗ ")
-	}
-	return mark + flash.ColorizeCommand(command, m.textStyle, m.matchedStyle)
 }

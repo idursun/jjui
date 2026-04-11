@@ -41,15 +41,11 @@ type Model struct {
 	pendingCommands map[int]string
 	pendingResults  map[int]pendingResult
 	spinner         spinner.Model
-	successStyle    lipgloss.Style
-	errorStyle      lipgloss.Style
-	textStyle       lipgloss.Style
-	matchedStyle    lipgloss.Style
+	renderer        CardRenderer
 	currentId       uint64
 }
 
 const HistoryLimit = 50
-const commandMarkWidth = 3
 
 type pendingResult struct {
 	Output string
@@ -137,7 +133,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 func (m *Model) renderMessages(dl *render.DisplayContext, area layout.Rectangle, messages []flashMessage, y int) int {
 	maxWidth := area.Dx() - 4
 	for _, message := range messages {
-		content := m.renderMessageContent(message, maxWidth)
+		content := m.renderer.RenderMessage(message.command, message.text, message.error, maxWidth)
 		w, h := lipgloss.Size(content)
 		y -= h
 
@@ -150,19 +146,8 @@ func (m *Model) renderMessages(dl *render.DisplayContext, area layout.Rectangle,
 func (m *Model) renderPendingCommands(dl *render.DisplayContext, area layout.Rectangle, y int) int {
 	maxWidth := area.Dx() - 4
 	for _, cmd := range m.pendingCommands {
-		content := m.renderCommandLine(cmd, nil, true)
+		content := m.renderer.RenderRunningCommand(cmd, m.spinner.View(), maxWidth)
 		w, h := lipgloss.Size(content)
-		if w > maxWidth {
-			content = lipgloss.NewStyle().Width(maxWidth).Render(content)
-			w, h = lipgloss.Size(content)
-		}
-		content = lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder()).
-			PaddingLeft(1).
-			PaddingRight(1).
-			BorderForeground(m.textStyle.GetForeground()).
-			Render(content)
-		w, h = lipgloss.Size(content)
 		y -= h
 		rect := layout.Rect(area.Max.X-w, y, w, h)
 		dl.AddDraw(rect, content, render.ZOverlay)
@@ -179,38 +164,6 @@ func (m *Model) removeLiveMessageByID(id uint64) bool {
 		return true
 	}
 	return false
-}
-
-func (m *Model) renderMessageContent(message flashMessage, maxWidth int) string {
-	var style lipgloss.Style
-	if message.error != nil {
-		style = m.errorStyle
-	} else {
-		style = m.successStyle
-	}
-
-	var parts []string
-	if message.command != "" {
-		parts = append(parts, m.renderCommandLine(message.command, message.error, false))
-	}
-
-	var bodyText string
-	if message.error != nil {
-		bodyText = message.error.Error()
-	} else {
-		bodyText = message.text
-	}
-	if bodyText != "" {
-		parts = append(parts, style.Render(bodyText))
-	}
-
-	text := strings.Join(parts, "\n")
-	naturalContent := text
-	w, _ := lipgloss.Size(naturalContent)
-	if w > maxWidth {
-		naturalContent = lipgloss.NewStyle().Width(maxWidth).Render(text)
-	}
-	return lipgloss.NewStyle().Border(lipgloss.NormalBorder()).PaddingLeft(1).PaddingRight(1).BorderForeground(style.GetForeground()).Render(naturalContent)
 }
 
 func (m *Model) completeCommand(command string, output string, commandErr error) tea.Cmd {
@@ -242,19 +195,6 @@ func ColorizeCommand(cmd string, textStyle, matchedStyle lipgloss.Style) string 
 		}
 	}
 	return b.String()
-}
-
-func (m *Model) renderCommandLine(command string, commandErr error, running bool) string {
-	if command == "" {
-		return ""
-	}
-	mark := m.successStyle.Width(commandMarkWidth).Render("✓ ")
-	if running {
-		mark = m.textStyle.Width(commandMarkWidth).Render(m.spinner.View() + " ")
-	} else if commandErr != nil {
-		mark = m.errorStyle.Width(commandMarkWidth).Render("✗ ")
-	}
-	return mark + ColorizeCommand(command, m.textStyle, m.matchedStyle)
 }
 
 func (m *Model) add(text string, error error) uint64 {
@@ -341,10 +281,6 @@ func (m *Model) nextId() uint64 {
 }
 
 func New(context *context.MainContext) *Model {
-	successStyle := common.DefaultPalette.Get("flash success")
-	errorStyle := common.DefaultPalette.Get("flash error")
-	textStyle := common.DefaultPalette.Get("flash text")
-	matchedStyle := common.DefaultPalette.Get("flash matched")
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	return &Model{
@@ -353,10 +289,7 @@ func New(context *context.MainContext) *Model {
 		messageHistory:  make([]flashMessage, 0),
 		pendingCommands: make(map[int]string),
 		pendingResults:  make(map[int]pendingResult),
-		successStyle:    successStyle,
-		errorStyle:      errorStyle,
-		textStyle:       textStyle,
-		matchedStyle:    matchedStyle,
+		renderer:        NewCardRenderer(),
 		spinner:         s,
 	}
 }
