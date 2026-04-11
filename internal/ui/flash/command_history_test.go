@@ -127,6 +127,29 @@ func TestCommandHistory_ViewUsesAvailableHeightInsteadOfFixedWindow(t *testing.T
 	assert.Contains(t, rendered, "jj cmd 11")
 }
 
+func TestCommandHistory_ViewDoesNotClipTopBorderOnExactFit(t *testing.T) {
+	source := New()
+	source.AddWithCommand("older-output", "jj older", nil)
+	source.AddWithCommand("newer-output", "jj newer", nil)
+
+	history := newCommandHistory(source)
+	items := history.renderedItems(60-4, 100)
+	require.Len(t, items, 2)
+
+	totalHeight := 0
+	for _, item := range items {
+		totalHeight += item.h
+	}
+
+	dl := render.NewDisplayContext()
+	box := layout.NewBox(layout.Rect(0, 0, 60, totalHeight))
+	history.ViewRect(dl, box)
+	rendered := dl.RenderToString(box.R.Dx(), box.R.Dy())
+
+	firstLine := strings.Split(rendered, "\n")[0]
+	assert.Contains(t, firstLine, "┌")
+}
+
 func TestCommandHistory_DeleteSelectedRemovesFromSourceAndLiveMessages(t *testing.T) {
 	source := New()
 	source.AddWithCommand("older-output", "jj older", nil)

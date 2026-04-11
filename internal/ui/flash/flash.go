@@ -117,7 +117,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	area := box.R
-	y := area.Max.Y - 1
+	y := area.Max.Y
 	y = m.renderMessages(dl, area, m.messages, y)
 	m.renderPendingCommands(dl, area, y)
 }

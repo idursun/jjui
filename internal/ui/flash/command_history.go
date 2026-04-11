@@ -93,75 +93,76 @@ func (m *CommandHistoryModel) Update(msg tea.Msg) tea.Cmd {
 
 func (m *CommandHistoryModel) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	area := box.R
-	y := area.Max.Y - 1
+	y := area.Max.Y
 	maxWidth := area.Dx() - 4
 
 	rest, _ := box.CutBottom(1)
 	dl.AddDim(rest.R, render.ZOverlay)
 
-	for _, item := range m.visibleWindow(maxWidth, area.Dy()) {
-		content := m.renderer.RenderHistoryEntry(item.entry, maxWidth, item.selected)
-		w, h := lipgloss.Size(content)
-		y -= h
-		rect := layout.Rect(area.Max.X-w, y, w, h)
-		dl.AddDraw(rect, content, render.ZOverlay)
+	for _, item := range m.renderedItems(maxWidth, area.Dy()) {
+		y -= item.h
+		rect := layout.Rect(area.Max.X-item.w, y, item.w, item.h)
+		dl.AddDraw(rect, item.content, render.ZOverlay)
 		dl.AddInteraction(rect, selectHistoryItemMsg{index: item.index}, render.InteractionClick, render.ZOverlay)
 	}
 }
 
-type historyItem struct {
-	entry    commandHistoryEntry
-	index    int
-	selected bool
+type renderedHistoryItem struct {
+	index   int
+	content string
+	w       int
+	h       int
 }
 
-func (m *CommandHistoryModel) visibleWindow(maxWidth, maxHeight int) []historyItem {
+func (m *CommandHistoryModel) renderedItems(maxWidth, maxHeight int) []renderedHistoryItem {
 	if len(m.items) == 0 || maxHeight <= 0 {
 		return nil
 	}
 	m.clampSelection()
 
-	heights := make([]int, len(m.items))
-	for i, entry := range m.items {
-		_, heights[i] = lipgloss.Size(m.renderer.RenderHistoryEntry(entry, maxWidth, i == m.selectedIndex))
+	selected := m.renderedItem(m.selectedIndex, maxWidth)
+	if selected.h >= maxHeight {
+		return []renderedHistoryItem{selected}
 	}
 
-	start := m.selectedIndex
-	end := m.selectedIndex + 1
-	used := heights[m.selectedIndex]
-	if used >= maxHeight {
-		return []historyItem{{
-			entry:    m.items[m.selectedIndex],
-			index:    m.selectedIndex,
-			selected: true,
-		}}
-	}
-
+	used := selected.h
+	before := make([]renderedHistoryItem, 0, m.selectedIndex)
 	for i := m.selectedIndex - 1; i >= 0; i-- {
-		if used+heights[i] > maxHeight {
+		item := m.renderedItem(i, maxWidth)
+		if used+item.h > maxHeight {
 			break
 		}
-		start = i
-		used += heights[i]
+		before = append(before, item)
+		used += item.h
 	}
+
+	items := make([]renderedHistoryItem, 0, len(before)+1)
+	for i := len(before) - 1; i >= 0; i-- {
+		items = append(items, before[i])
+	}
+	items = append(items, selected)
 
 	for i := m.selectedIndex + 1; i < len(m.items); i++ {
-		if used+heights[i] > maxHeight {
+		item := m.renderedItem(i, maxWidth)
+		if used+item.h > maxHeight {
 			break
 		}
-		end = i + 1
-		used += heights[i]
+		items = append(items, item)
+		used += item.h
 	}
 
-	items := make([]historyItem, 0, end-start)
-	for i := start; i < end; i++ {
-		items = append(items, historyItem{
-			entry:    m.items[i],
-			index:    i,
-			selected: i == m.selectedIndex,
-		})
-	}
 	return items
+}
+
+func (m *CommandHistoryModel) renderedItem(index, maxWidth int) renderedHistoryItem {
+	content := m.renderer.RenderHistoryEntry(m.items[index], maxWidth, index == m.selectedIndex)
+	w, h := lipgloss.Size(content)
+	return renderedHistoryItem{
+		index:   index,
+		content: content,
+		w:       w,
+		h:       h,
+	}
 }
 
 func (m *CommandHistoryModel) clampSelection() {
