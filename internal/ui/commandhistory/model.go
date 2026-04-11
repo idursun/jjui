@@ -5,7 +5,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/flash"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -15,24 +14,19 @@ import (
 
 var _ common.StackedModel = (*Model)(nil)
 
-const historyWindowSize = 10
-
 type selectHistoryItemMsg struct {
 	index int
 }
 
 type Model struct {
-	context       *context.MainContext
 	source        flash.CommandHistorySource
 	items         []flash.CommandHistoryEntry
 	selectedIndex int
-	windowStart   int
 	renderer      flash.CardRenderer
 }
 
-func New(context *context.MainContext, source flash.CommandHistorySource) *Model {
+func New(source flash.CommandHistorySource) *Model {
 	m := &Model{
-		context:  context,
 		source:   source,
 		renderer: flash.NewCardRenderer(),
 	}
@@ -41,9 +35,8 @@ func New(context *context.MainContext, source flash.CommandHistorySource) *Model
 	}
 	if len(m.items) > 0 {
 		m.selectedIndex = len(m.items) - 1
-		m.windowStart = max(0, len(m.items)-historyWindowSize)
 	}
-	m.clampViewport()
+	m.clampSelection()
 	return m
 }
 
@@ -70,7 +63,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		// History renders oldest->newest from bottom to top, so move selection
 		// opposite to delta to keep j moving visually down and k up.
 		m.selectedIndex = min(len(m.items)-1, max(0, m.selectedIndex-intent.Delta))
-		m.clampViewport()
+		m.clampSelection()
 		return nil, true
 	case intents.CommandHistoryDeleteSelected:
 		m.deleteSelected()
@@ -91,7 +84,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		m.selectedIndex = msg.index
-		m.clampViewport()
+		m.clampSelection()
 		return nil
 	case common.CloseViewMsg:
 		return common.Close
@@ -123,13 +116,44 @@ type historyItem struct {
 	selected bool
 }
 
-func (m *Model) window() []historyItem {
-	if len(m.items) == 0 {
+func (m *Model) visibleWindow(maxWidth, maxHeight int) []historyItem {
+	if len(m.items) == 0 || maxHeight <= 0 {
 		return nil
 	}
-	m.clampViewport()
-	start := m.windowStart
-	end := min(len(m.items), start+historyWindowSize)
+	m.clampSelection()
+
+	heights := make([]int, len(m.items))
+	for i, entry := range m.items {
+		_, heights[i] = lipgloss.Size(m.renderer.RenderHistoryEntry(entry, maxWidth, i == m.selectedIndex))
+	}
+
+	start := m.selectedIndex
+	end := m.selectedIndex + 1
+	used := heights[m.selectedIndex]
+	if used >= maxHeight {
+		return []historyItem{{
+			entry:    m.items[m.selectedIndex],
+			index:    m.selectedIndex,
+			selected: true,
+		}}
+	}
+
+	for i := m.selectedIndex - 1; i >= 0; i-- {
+		if used+heights[i] > maxHeight {
+			break
+		}
+		start = i
+		used += heights[i]
+	}
+
+	for i := m.selectedIndex + 1; i < len(m.items); i++ {
+		if used+heights[i] > maxHeight {
+			break
+		}
+		end = i + 1
+		used += heights[i]
+	}
+
 	items := make([]historyItem, 0, end-start)
 	for i := start; i < end; i++ {
 		items = append(items, historyItem{
@@ -141,67 +165,16 @@ func (m *Model) window() []historyItem {
 	return items
 }
 
-func (m *Model) visibleWindow(maxWidth, maxHeight int) []historyItem {
-	items := m.window()
-	if len(items) == 0 || maxHeight <= 0 {
-		return items
-	}
-
-	selected := 0
-	for i, item := range items {
-		if item.selected {
-			selected = i
-			break
-		}
-	}
-
-	heights := make([]int, len(items))
-	for i, item := range items {
-		_, heights[i] = lipgloss.Size(m.renderer.RenderHistoryEntry(item.entry, maxWidth, item.selected))
-	}
-
-	start := selected
-	end := selected + 1
-	used := heights[selected]
-	if used >= maxHeight {
-		return items[start:end]
-	}
-
-	for i := selected - 1; i >= 0; i-- {
-		if used+heights[i] > maxHeight {
-			break
-		}
-		start = i
-		used += heights[i]
-	}
-
-	for i := selected + 1; i < len(items); i++ {
-		if used+heights[i] > maxHeight {
-			break
-		}
-		end = i + 1
-		used += heights[i]
-	}
-
-	return items[start:end]
-}
-
-func (m *Model) clampViewport() {
+func (m *Model) clampSelection() {
 	if len(m.items) == 0 {
 		m.selectedIndex = 0
-		m.windowStart = 0
 		return
 	}
 	m.selectedIndex = min(len(m.items)-1, max(0, m.selectedIndex))
-	maxStart := max(0, len(m.items)-historyWindowSize)
-	m.windowStart = min(m.selectedIndex, min(maxStart, max(0, m.windowStart)))
-	if m.selectedIndex >= m.windowStart+historyWindowSize {
-		m.windowStart = m.selectedIndex - historyWindowSize + 1
-	}
 }
 
 func (m *Model) deleteSelected() {
-	m.clampViewport()
+	m.clampSelection()
 	if len(m.items) == 0 {
 		return
 	}
@@ -215,10 +188,9 @@ func (m *Model) deleteSelected() {
 
 	if len(m.items) == 0 {
 		m.selectedIndex = 0
-		m.windowStart = 0
 		return
 	}
 
 	m.selectedIndex = min(selected, len(m.items)-1)
-	m.clampViewport()
+	m.clampSelection()
 }

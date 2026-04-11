@@ -9,7 +9,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -28,14 +27,7 @@ type flashMessage struct {
 	id      uint64
 }
 
-type FlashMessageView struct {
-	// Content might contain ANSI colour codes
-	Content string
-	Rect    layout.Rectangle
-}
-
 type Model struct {
-	context         *context.MainContext
 	messages        []flashMessage
 	messageHistory  []flashMessage // completed commands only
 	pendingCommands map[int]string
@@ -280,11 +272,10 @@ func (m *Model) nextId() uint64 {
 	return m.currentId
 }
 
-func New(context *context.MainContext) *Model {
+func New() *Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	return &Model{
-		context:         context,
 		messages:        make([]flashMessage, 0),
 		messageHistory:  make([]flashMessage, 0),
 		pendingCommands: make(map[int]string),

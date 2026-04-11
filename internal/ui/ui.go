@@ -559,7 +559,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			m.stacked = nil
 			return nil, true
 		}
-		m.stacked = commandhistory.New(m.context, m.flash)
+		m.stacked = commandhistory.New(m.flash)
 		return m.stacked.Init(), true
 
 	// --- Activate input modes ---
@@ -724,7 +724,7 @@ func (w *wrapper) View() tea.View {
 func NewUI(c *context.MainContext) *Model {
 	revisionsModel := revisions.New(c)
 	statusModel := status.New(c)
-	flashView := flash.New(c)
+	flashView := flash.New()
 	previewModel := preview.New(c)
 	revsetModel := revset.New(c)
 

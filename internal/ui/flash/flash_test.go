@@ -8,12 +8,11 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAdd_IgnoresEmptyMessages(t *testing.T) {
-	m := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	m := New()
 
 	id := m.add("   ", nil)
 
@@ -22,7 +21,7 @@ func TestAdd_IgnoresEmptyMessages(t *testing.T) {
 }
 
 func TestUpdate_AddsSuccessMessageAndSchedulesExpiry(t *testing.T) {
-	m := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	m := New()
 
 	cmd := m.Update(common.CommandCompletedMsg{Output: "  success  ", Err: nil})
 
@@ -35,7 +34,7 @@ func TestUpdate_AddsSuccessMessageAndSchedulesExpiry(t *testing.T) {
 }
 
 func TestUpdate_AddsErrorMessageWithoutExpiry(t *testing.T) {
-	m := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	m := New()
 
 	cmd := m.Update(common.CommandCompletedMsg{Output: "", Err: errors.New("boom")})
 
@@ -48,7 +47,7 @@ func TestUpdate_AddsErrorMessageWithoutExpiry(t *testing.T) {
 }
 
 func TestUpdate_ExpiresMessages(t *testing.T) {
-	m := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	m := New()
 
 	first := m.add("first", nil)
 	m.add("second", nil)
@@ -62,7 +61,7 @@ func TestUpdate_ExpiresMessages(t *testing.T) {
 }
 
 func TestView_StacksFromBottomRight(t *testing.T) {
-	m := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	m := New()
 
 	m.add("abc", nil)
 	m.add("de", nil)
@@ -89,7 +88,7 @@ func TestView_StacksFromBottomRight(t *testing.T) {
 }
 
 func TestDeleteOldest_RemovesFirstMessage(t *testing.T) {
-	m := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	m := New()
 
 	m.add("first", nil)
 	m.add("second", nil)

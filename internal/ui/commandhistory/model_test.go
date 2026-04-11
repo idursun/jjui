@@ -10,13 +10,12 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFlash_CompletionBeforeRunning_ReconcilesByCommandID(t *testing.T) {
-	source := flash.New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	source := flash.New()
 
 	cmd := source.Update(common.CommandCompletedMsg{ID: 9, Output: "ok", Err: nil})
 	assert.Nil(t, cmd)
@@ -33,7 +32,7 @@ func TestFlash_CompletionBeforeRunning_ReconcilesByCommandID(t *testing.T) {
 }
 
 func TestFlash_HistoryIsBoundedToConfiguredLimit(t *testing.T) {
-	source := flash.New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	source := flash.New()
 
 	for i := 1; i <= flash.HistoryLimit+5; i++ {
 		source.AddWithCommand(fmt.Sprintf("m-%d", i), fmt.Sprintf("jj cmd %d", i), nil)
@@ -47,7 +46,7 @@ func TestFlash_HistoryIsBoundedToConfiguredLimit(t *testing.T) {
 }
 
 func TestFlash_HistoryOnlyContainsCommandMessages(t *testing.T) {
-	source := flash.New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	source := flash.New()
 
 	source.Update(intents.AddMessage{Text: "user message"})
 	source.AddWithCommand("command output", "jj status", nil)
@@ -60,12 +59,12 @@ func TestFlash_HistoryOnlyContainsCommandMessages(t *testing.T) {
 }
 
 func TestCommandHistory_NavigationAdjustsSelection(t *testing.T) {
-	source := flash.New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	source := flash.New()
 	for i := range 6 {
 		source.AddWithCommand(fmt.Sprintf("m-%d", i), fmt.Sprintf("jj cmd %d", i), nil)
 	}
 
-	history := New(test.NewTestContext(test.NewTestCommandRunner(t)), source)
+	history := New(source)
 	assert.Equal(t, 5, history.selectedIndex)
 
 	history.Update(intents.CommandHistoryNavigate{Delta: 1})
@@ -77,11 +76,11 @@ func TestCommandHistory_NavigationAdjustsSelection(t *testing.T) {
 }
 
 func TestCommandHistory_ViewOnlyShowsSelectedOutput(t *testing.T) {
-	source := flash.New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	source := flash.New()
 	source.AddWithCommand("older-output", "jj older", nil)
 	source.AddWithCommand("newer-output", "jj newer", nil)
 
-	history := New(test.NewTestContext(test.NewTestCommandRunner(t)), source)
+	history := New(source)
 	history.Update(intents.CommandHistoryNavigate{Delta: 1}) // select older
 
 	dl := render.NewDisplayContext()
@@ -95,13 +94,13 @@ func TestCommandHistory_ViewOnlyShowsSelectedOutput(t *testing.T) {
 }
 
 func TestCommandHistory_ViewKeepsSelectedEntryVisibleWhenItExpands(t *testing.T) {
-	source := flash.New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	source := flash.New()
 	for i := range 6 {
 		source.AddWithCommand(fmt.Sprintf("output-%d", i), fmt.Sprintf("jj cmd %d", i), nil)
 	}
 	source.AddWithCommand(strings.Repeat("expanded line\n", 4)+"expanded line", "jj expanded", nil)
 
-	history := New(test.NewTestContext(test.NewTestCommandRunner(t)), source)
+	history := New(source)
 
 	dl := render.NewDisplayContext()
 	box := layout.NewBox(layout.Rect(0, 0, 60, 12))
@@ -112,12 +111,29 @@ func TestCommandHistory_ViewKeepsSelectedEntryVisibleWhenItExpands(t *testing.T)
 	assert.Contains(t, rendered, "expanded line")
 }
 
+func TestCommandHistory_ViewUsesAvailableHeightInsteadOfFixedWindow(t *testing.T) {
+	source := flash.New()
+	for i := range 12 {
+		source.AddWithCommand(fmt.Sprintf("output-%d", i), fmt.Sprintf("jj cmd %d", i), nil)
+	}
+
+	history := New(source)
+
+	dl := render.NewDisplayContext()
+	box := layout.NewBox(layout.Rect(0, 0, 60, 60))
+	history.ViewRect(dl, box)
+	rendered := dl.RenderToString(box.R.Dx(), box.R.Dy())
+
+	assert.Contains(t, rendered, "jj cmd 0")
+	assert.Contains(t, rendered, "jj cmd 11")
+}
+
 func TestCommandHistory_DeleteSelectedRemovesFromSourceAndLiveMessages(t *testing.T) {
-	source := flash.New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	source := flash.New()
 	source.AddWithCommand("older-output", "jj older", nil)
 	source.AddWithCommand("newer-output", "jj newer", nil)
 
-	history := New(test.NewTestContext(test.NewTestCommandRunner(t)), source)
+	history := New(source)
 	history.Update(intents.CommandHistoryNavigate{Delta: 1}) // select older
 	history.Update(intents.CommandHistoryDeleteSelected{})
 
@@ -133,9 +149,9 @@ func TestCommandHistory_DeleteSelectedRemovesFromSourceAndLiveMessages(t *testin
 }
 
 func TestCommandHistory_CloseReturnsCloseViewMsg(t *testing.T) {
-	source := flash.New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	source := flash.New()
 	source.AddWithCommand("output", "jj cmd", nil)
-	history := New(test.NewTestContext(test.NewTestCommandRunner(t)), source)
+	history := New(source)
 
 	cmd := history.Update(intents.CommandHistoryClose{})
 	require.NotNil(t, cmd)
