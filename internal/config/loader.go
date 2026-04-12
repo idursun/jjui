@@ -293,3 +293,42 @@ func ensureLuaRC(luaRCPath, typesPath string) (bool, error) {
 	}
 	return true, nil
 }
+
+// ResolveTheme loads the full color map for the given background mode.
+// It layers the embedded default theme, optional user theme, jj VCS colors,
+// and inline [ui.colors] overrides in the correct order.
+func ResolveTheme(isDark bool, jjColors map[string]Color) (map[string]Color, error) {
+	defaultThemeName := "default_light"
+	if isDark {
+		defaultThemeName = "default_dark"
+	}
+
+	theme, err := LoadEmbeddedTheme(defaultThemeName)
+	if err != nil {
+		return nil, fmt.Errorf("loading default theme %q: %w", defaultThemeName, err)
+	}
+
+	userThemeName := Current.UI.Theme.Light
+	if isDark {
+		userThemeName = Current.UI.Theme.Dark
+	}
+
+	if userThemeName != "" {
+		theme, err = LoadTheme(userThemeName, theme)
+		if err != nil {
+			return nil, fmt.Errorf("loading user theme %q: %w", userThemeName, err)
+		}
+	}
+
+	// Layer jj VCS colors
+	if jjColors != nil {
+		maps.Copy(theme, jjColors)
+	}
+
+	// Layer inline [ui.colors] overrides
+	if Current.UI.Colors != nil {
+		maps.Copy(theme, Current.UI.Colors)
+	}
+
+	return theme, nil
+}

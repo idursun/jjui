@@ -222,37 +222,13 @@ func run() int {
 		appContext.TerminalThemeDetected = true
 	}
 
-	var defaultThemeName string
-	if appContext.TerminalHasDarkBackground {
-		defaultThemeName = "default_dark"
-	} else {
-		defaultThemeName = "default_light"
-	}
-
-	theme, err = config.LoadEmbeddedTheme(defaultThemeName)
+	theme, err = config.ResolveTheme(appContext.TerminalHasDarkBackground, appContext.JJConfig.GetApplicableColors())
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading default theme '%s': %v\n", defaultThemeName, err)
+		fmt.Fprintf(os.Stderr, "Error loading theme: %v\n", err)
 		return 1
 	}
 
-	var userThemeName string
-	if appContext.TerminalHasDarkBackground {
-		userThemeName = config.Current.UI.Theme.Dark
-	} else {
-		userThemeName = config.Current.UI.Theme.Light
-	}
-
-	if userThemeName != "" {
-		theme, err = config.LoadTheme(userThemeName, theme)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading user theme '%s': %v\n", userThemeName, err)
-			return 1
-		}
-	}
-
 	common.DefaultPalette.Update(theme)
-	common.DefaultPalette.Update(appContext.JJConfig.GetApplicableColors())
-	common.DefaultPalette.Update(config.Current.UI.Colors)
 
 	if period >= 0 {
 		config.Current.UI.AutoRefreshInterval = period
