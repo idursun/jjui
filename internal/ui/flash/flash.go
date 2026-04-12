@@ -171,24 +171,6 @@ func (m *Model) completeCommand(command string, output string, commandErr error)
 	return nil
 }
 
-// ColorizeCommand tokenizes cmd and applies textStyle to plain tokens and
-// matchedStyle to flag tokens (those starting with "-").
-func ColorizeCommand(cmd string, textStyle, matchedStyle lipgloss.Style) string {
-	tokens := strings.Split(strings.ReplaceAll(cmd, "\n", "⏎"), " ")
-	var b strings.Builder
-	for i, token := range tokens {
-		if i > 0 {
-			b.WriteByte(' ')
-		}
-		if strings.HasPrefix(token, "-") {
-			b.WriteString(matchedStyle.Render(token))
-		} else {
-			b.WriteString(textStyle.Render(token))
-		}
-	}
-	return b.String()
-}
-
 func (m *Model) add(text string, error error) uint64 {
 	return m.AddWithCommand(text, "", error)
 }
@@ -231,44 +213,9 @@ func (m *Model) DeleteOldest() {
 	m.messages = m.messages[1:]
 }
 
-type commandHistoryEntry struct {
-	ID      uint64
-	Command string
-	Text    string
-	Err     error
-}
-
-func (m *Model) commandHistorySnapshot() []commandHistoryEntry {
-	out := make([]commandHistoryEntry, 0, len(m.messageHistory))
-	for _, item := range m.messageHistory {
-		out = append(out, commandHistoryEntry{
-			ID:      item.id,
-			Command: item.command,
-			Text:    item.text,
-			Err:     item.error,
-		})
-	}
-	return out
-}
-
-func (m *Model) deleteCommandHistoryByID(id uint64) {
-	for i, item := range m.messageHistory {
-		if item.id != id {
-			continue
-		}
-		m.messageHistory = append(m.messageHistory[:i], m.messageHistory[i+1:]...)
-		break
-	}
-	m.removeLiveMessageByID(id)
-}
-
 func (m *Model) nextId() uint64 {
 	m.currentId = m.currentId + 1
 	return m.currentId
-}
-
-func (m *Model) NewHistory() common.StackedModel {
-	return newCommandHistory(m)
 }
 
 func New() *Model {

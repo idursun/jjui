@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -13,57 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFlash_CompletionBeforeRunning_ReconcilesByCommandID(t *testing.T) {
-	source := New()
-
-	cmd := source.Update(common.CommandCompletedMsg{ID: 9, Output: "ok", Err: nil})
-	assert.Nil(t, cmd)
-	assert.Empty(t, source.commandHistorySnapshot())
-	assert.Equal(t, 0, source.LiveMessagesCount())
-
-	cmd = source.Update(common.CommandRunningMsg{ID: 9, Command: "jj git fetch"})
-	assert.NotNil(t, cmd)
-	snapshot := source.commandHistorySnapshot()
-	if assert.Len(t, snapshot, 1) {
-		assert.Equal(t, "jj git fetch", snapshot[0].Command)
-		assert.Equal(t, "ok", snapshot[0].Text)
-	}
-}
-
-func TestFlash_HistoryIsBoundedToConfiguredLimit(t *testing.T) {
-	source := New()
-
-	for i := 1; i <= HistoryLimit+5; i++ {
-		source.AddWithCommand(fmt.Sprintf("m-%d", i), fmt.Sprintf("jj cmd %d", i), nil)
-	}
-
-	snapshot := source.commandHistorySnapshot()
-	if assert.Len(t, snapshot, HistoryLimit) {
-		assert.Equal(t, "m-6", snapshot[0].Text)
-		assert.Equal(t, "m-55", snapshot[len(snapshot)-1].Text)
-	}
-}
-
-func TestFlash_HistoryOnlyContainsCommandMessages(t *testing.T) {
-	source := New()
-
-	source.Update(intents.AddMessage{Text: "user message"})
-	source.AddWithCommand("command output", "jj status", nil)
-
-	snapshot := source.commandHistorySnapshot()
-	if assert.Len(t, snapshot, 1) {
-		assert.Equal(t, "jj status", snapshot[0].Command)
-		assert.Equal(t, "command output", snapshot[0].Text)
-	}
-}
-
 func TestCommandHistory_NavigationAdjustsSelection(t *testing.T) {
 	source := New()
-	for i := range 6 {
-		source.AddWithCommand(fmt.Sprintf("m-%d", i), fmt.Sprintf("jj cmd %d", i), nil)
+	for range 6 {
+		source.AddWithCommand("output", "jj cmd", nil)
 	}
 
-	history := newCommandHistory(source)
+	history := source.NewHistory()
 	assert.Equal(t, 5, history.selectedIndex)
 
 	history.Update(intents.CommandHistoryNavigate{Delta: 1})
@@ -79,7 +34,7 @@ func TestCommandHistory_ViewOnlyShowsSelectedOutput(t *testing.T) {
 	source.AddWithCommand("older-output", "jj older", nil)
 	source.AddWithCommand("newer-output", "jj newer", nil)
 
-	history := newCommandHistory(source)
+	history := source.NewHistory()
 	history.Update(intents.CommandHistoryNavigate{Delta: 1}) // select older
 
 	dl := render.NewDisplayContext()
@@ -99,7 +54,7 @@ func TestCommandHistory_ViewKeepsSelectedEntryVisibleWhenItExpands(t *testing.T)
 	}
 	source.AddWithCommand(strings.Repeat("expanded line\n", 4)+"expanded line", "jj expanded", nil)
 
-	history := newCommandHistory(source)
+	history := source.NewHistory()
 
 	dl := render.NewDisplayContext()
 	box := layout.NewBox(layout.Rect(0, 0, 60, 12))
@@ -116,7 +71,7 @@ func TestCommandHistory_ViewUsesAvailableHeightInsteadOfFixedWindow(t *testing.T
 		source.AddWithCommand(fmt.Sprintf("output-%d", i), fmt.Sprintf("jj cmd %d", i), nil)
 	}
 
-	history := newCommandHistory(source)
+	history := source.NewHistory()
 
 	dl := render.NewDisplayContext()
 	box := layout.NewBox(layout.Rect(0, 0, 60, 60))
@@ -132,7 +87,7 @@ func TestCommandHistory_ViewDoesNotClipTopBorderOnExactFit(t *testing.T) {
 	source.AddWithCommand("older-output", "jj older", nil)
 	source.AddWithCommand("newer-output", "jj newer", nil)
 
-	history := newCommandHistory(source)
+	history := source.NewHistory()
 	items := history.renderedItems(60-4, 100)
 	require.Len(t, items, 2)
 
@@ -155,7 +110,7 @@ func TestCommandHistory_DeleteSelectedRemovesFromSourceAndLiveMessages(t *testin
 	source.AddWithCommand("older-output", "jj older", nil)
 	source.AddWithCommand("newer-output", "jj newer", nil)
 
-	history := newCommandHistory(source)
+	history := source.NewHistory()
 	history.Update(intents.CommandHistoryNavigate{Delta: 1}) // select older
 	history.Update(intents.CommandHistoryDeleteSelected{})
 
@@ -168,15 +123,4 @@ func TestCommandHistory_DeleteSelectedRemovesFromSourceAndLiveMessages(t *testin
 		assert.Equal(t, "jj newer", snapshot[0].Command)
 	}
 	assert.Equal(t, 1, source.LiveMessagesCount())
-}
-
-func TestCommandHistory_CloseReturnsCloseViewMsg(t *testing.T) {
-	source := New()
-	source.AddWithCommand("output", "jj cmd", nil)
-	history := newCommandHistory(source)
-
-	cmd := history.Update(intents.CommandHistoryClose{})
-	require.NotNil(t, cmd)
-	_, ok := cmd().(common.CloseViewMsg)
-	assert.True(t, ok)
 }

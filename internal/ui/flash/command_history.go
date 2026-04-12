@@ -17,6 +17,13 @@ type selectHistoryItemMsg struct {
 	index int
 }
 
+type commandHistoryEntry struct {
+	ID      uint64
+	Command string
+	Text    string
+	Err     error
+}
+
 type CommandHistoryModel struct {
 	source        *Model
 	items         []commandHistoryEntry
@@ -24,19 +31,19 @@ type CommandHistoryModel struct {
 	renderer      CardRenderer
 }
 
-func newCommandHistory(source *Model) *CommandHistoryModel {
-	m := &CommandHistoryModel{
-		source:   source,
+func (m *Model) NewHistory() *CommandHistoryModel {
+	history := &CommandHistoryModel{
+		source:   m,
 		renderer: NewCardRenderer(),
 	}
-	if source != nil {
-		m.items = source.commandHistorySnapshot()
+	if history.source != nil {
+		history.items = history.source.commandHistorySnapshot()
 	}
-	if len(m.items) > 0 {
-		m.selectedIndex = len(m.items) - 1
+	if len(history.items) > 0 {
+		history.selectedIndex = len(history.items) - 1
 	}
-	m.clampSelection()
-	return m
+	history.clampSelection()
+	return history
 }
 
 func (m *CommandHistoryModel) Init() tea.Cmd {
@@ -193,4 +200,28 @@ func (m *CommandHistoryModel) deleteSelected() {
 
 	m.selectedIndex = min(selected, len(m.items)-1)
 	m.clampSelection()
+}
+
+func (m *Model) commandHistorySnapshot() []commandHistoryEntry {
+	out := make([]commandHistoryEntry, 0, len(m.messageHistory))
+	for _, item := range m.messageHistory {
+		out = append(out, commandHistoryEntry{
+			ID:      item.id,
+			Command: item.command,
+			Text:    item.text,
+			Err:     item.error,
+		})
+	}
+	return out
+}
+
+func (m *Model) deleteCommandHistoryByID(id uint64) {
+	for i, item := range m.messageHistory {
+		if item.id != id {
+			continue
+		}
+		m.messageHistory = append(m.messageHistory[:i], m.messageHistory[i+1:]...)
+		break
+	}
+	m.removeLiveMessageByID(id)
 }

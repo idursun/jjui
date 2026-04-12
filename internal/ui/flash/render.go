@@ -99,5 +99,21 @@ func (r CardRenderer) renderCommandLine(command string, commandErr error, runnin
 	} else if commandErr != nil {
 		mark = r.errorStyle.Width(commandMarkWidth).Render("✗ ")
 	}
-	return mark + ColorizeCommand(command, r.textStyle, r.matchedStyle)
+	return mark + colorizeCommand(command, r.textStyle, r.matchedStyle)
+}
+
+func colorizeCommand(cmd string, textStyle, matchedStyle lipgloss.Style) string {
+	tokens := strings.Split(strings.ReplaceAll(cmd, "\n", "⏎"), " ")
+	var b strings.Builder
+	for i, token := range tokens {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+		if strings.HasPrefix(token, "-") {
+			b.WriteString(matchedStyle.Render(token))
+		} else {
+			b.WriteString(textStyle.Render(token))
+		}
+	}
+	return b.String()
 }
