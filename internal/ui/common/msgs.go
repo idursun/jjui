@@ -9,8 +9,9 @@ type (
 	CloseViewMsg struct {
 		Applied bool
 	}
-	AutoRefreshMsg struct{}
-	RefreshMsg     struct {
+	AutoRefreshMsg  struct{}
+	ThemeChangedMsg struct{}
+	RefreshMsg      struct {
 		SelectedRevision string
 		KeepSelections   bool
 	}

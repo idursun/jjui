@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/actionmeta"
@@ -112,6 +113,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return common.RefreshAndKeepSelections
 		}
 		return nil
+	case uv.DarkColorSchemeEvent:
+		return m.applyColorScheme(true)
+	case uv.LightColorSchemeEvent:
+		return m.applyColorScheme(false)
 	case tea.MouseReleaseMsg:
 		m.activeSplit = nil
 	case tea.MouseMotionMsg:
@@ -691,7 +696,7 @@ type (
 )
 
 func (w *wrapper) Init() tea.Cmd {
-	return w.ui.Init()
+	return tea.Batch(w.ui.Init(), tea.Raw(ansi.SetModeLightDark))
 }
 
 func (w *wrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -780,6 +785,21 @@ func (m *Model) initResolver() {
 		return
 	}
 	m.resolver = dispatch.NewResolver(dispatcher)
+}
+
+// applyColorScheme reloads the palette when the terminal's color scheme
+// changes (e.g. the OS switched between light and dark mode).
+func (m *Model) applyColorScheme(isDark bool) tea.Cmd {
+	if isDark == m.context.TerminalHasDarkBackground {
+		return nil
+	}
+	m.context.TerminalHasDarkBackground = isDark
+	theme, err := config.ResolveTheme(isDark, m.context.JJConfig.GetApplicableColors())
+	if err != nil {
+		return nil
+	}
+	common.DefaultPalette.Update(theme)
+	return func() tea.Msg { return common.ThemeChangedMsg{} }
 }
 
 func New(c *context.MainContext) tea.Model {

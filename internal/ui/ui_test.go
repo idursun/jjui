@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/scripting"
@@ -1332,4 +1333,34 @@ func Test_Update_SetBookmarkTypingDoesNotTogglePreview(t *testing.T) {
 
 	test.SimulateModel(model, test.Type("p"))
 	assert.True(t, model.previewModel.Visible(), "typing in set_bookmark should not toggle preview")
+}
+
+func Test_Init_EnablesModeLightDark(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	w := New(ctx)
+
+	cmd := w.Init()
+	require.NotNil(t, cmd)
+
+	// Drain the batch to collect all messages produced by Init.
+	var foundRaw bool
+	queue := []tea.Cmd{cmd}
+	for len(queue) > 0 {
+		var c tea.Cmd
+		c, queue = queue[0], queue[1:]
+		msg := c()
+		if msg == nil {
+			continue
+		}
+		switch v := msg.(type) {
+		case tea.BatchMsg:
+			queue = append(queue, v...)
+		case tea.RawMsg:
+			if v.Msg == ansi.SetModeLightDark {
+				foundRaw = true
+			}
+		}
+	}
+	assert.True(t, foundRaw)
 }
