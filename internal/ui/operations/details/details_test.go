@@ -165,6 +165,28 @@ func TestModel_Refresh_IgnoreVirtuallySelectedFiles(t *testing.T) {
 	}
 }
 
+func TestModel_HandleIntent_UpdatesSelectedFileWhenCursorMoves(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
+	defer commandRunner.Verify()
+
+	model := NewOperation(test.NewTestContext(commandRunner), Commit)
+	test.SimulateModel(model, model.Init())
+
+	selected, ok := model.context.SelectedItem.(common.SelectedFile)
+	assert.True(t, ok)
+	assert.Equal(t, "file.txt", selected.File)
+
+	cmd, handled := model.HandleIntent(intents.DetailsNavigate{Delta: 1})
+	assert.True(t, handled)
+	test.SimulateModel(model, cmd)
+
+	selected, ok = model.context.SelectedItem.(common.SelectedFile)
+	assert.True(t, ok)
+	assert.Equal(t, "newfile.txt", selected.File)
+}
+
 func TestModel_Update_Quit(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)

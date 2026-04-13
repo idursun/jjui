@@ -105,26 +105,13 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 		}
 		s.setItems(items)
 
-		// Set selection to current cursor position
-		var selectionChangedCmd tea.Cmd
-		if current := s.current(); current != nil {
-			selectionChangedCmd = s.context.SetSelectedItem(context.SelectedFile{
-				ChangeId: s.revision.GetChangeId(),
-				CommitId: s.revision.CommitId,
-				File:     current.fileName,
-			})
-		}
-		return selectionChangedCmd
+		return s.updateSelection()
 	default:
 		oldCursor := s.cursor
 		var cmds []tea.Cmd
 		cmds = append(cmds, s.internalUpdate(msg))
 		if s.cursor != oldCursor {
-			cmds = append(cmds, s.context.SetSelectedItem(context.SelectedFile{
-				ChangeId: s.revision.GetChangeId(),
-				CommitId: s.revision.CommitId,
-				File:     s.current().fileName,
-			}))
+			cmds = append(cmds, s.updateSelection())
 		}
 		return tea.Batch(cmds...)
 	}
@@ -162,11 +149,7 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 		default:
 			s.setCursor(msg.Index)
 		}
-		return s.context.SetSelectedItem(context.SelectedFile{
-			ChangeId: s.revision.GetChangeId(),
-			CommitId: s.revision.CommitId,
-			File:     s.current().fileName,
-		})
+		return s.updateSelection()
 	case FileListScrollMsg:
 		if msg.Horizontal {
 			return nil
@@ -186,6 +169,29 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 }
 
 func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	oldCursor := s.cursor
+	cmd, handled := s.handleIntentInner(intent)
+	if handled && s.cursor != oldCursor {
+		if selCmd := s.updateSelection(); selCmd != nil {
+			return tea.Batch(cmd, selCmd), true
+		}
+	}
+	return cmd, handled
+}
+
+func (s *Operation) updateSelection() tea.Cmd {
+	current := s.current()
+	if current == nil {
+		return nil
+	}
+	return s.context.SetSelectedItem(context.SelectedFile{
+		ChangeId: s.revision.GetChangeId(),
+		CommitId: s.revision.CommitId,
+		File:     current.fileName,
+	})
+}
+
+func (s *Operation) handleIntentInner(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
 	case intents.Apply:
 		if s.confirmation != nil {
