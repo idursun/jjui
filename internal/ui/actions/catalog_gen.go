@@ -263,6 +263,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.StartAceJump{}, true
 		case keybindings.Action("revisions.apply"):
 			return intents.Apply{Force: actionargs.BoolArg(args, "force", false)}, true
+		case keybindings.Action("revisions.cancel"):
+			return intents.Cancel{}, true
 		case keybindings.Action("revisions.commit"):
 			return intents.CommitWorkingCopy{}, true
 		case keybindings.Action("revisions.describe"):

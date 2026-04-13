@@ -200,6 +200,7 @@ func (ChooseCancel) isIntent() {}
 //jjui:bind scope=revisions.squash action=cancel
 //jjui:bind scope=revisions.revert action=cancel
 //jjui:bind scope=revisions.duplicate action=cancel
+//jjui:bind scope=revisions action=cancel
 //jjui:bind scope=revisions.details.confirmation action=cancel
 //jjui:bind scope=revisions.evolog action=cancel
 //jjui:bind scope=revisions.abandon action=cancel

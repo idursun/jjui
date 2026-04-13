@@ -348,6 +348,21 @@ func Test_Update_GlobalBindingsFromConfigOverrideLegacyGlobalKeys(t *testing.T) 
 	assert.True(t, model.flash.Any(), "esc should not act as global cancel when global bindings are configured")
 }
 
+func Test_Update_RevisionsEscClearsCheckedSelections_WithDefaultBindings(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	ctx.AddCheckedItem(common.SelectedRevision{ChangeId: "change-1", CommitId: "commit-1"})
+	ctx.AddCheckedItem(common.SelectedRevision{ChangeId: "change-2", CommitId: "commit-2"})
+
+	require.Len(t, ctx.CheckedItems, 2, "setup should create multiple checked revisions")
+
+	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	assert.Nil(t, cmd, "clearing checked revisions should not emit a follow-up command")
+	assert.Empty(t, ctx.CheckedItems, "esc should clear checked revisions in normal revisions mode")
+}
+
 func Test_UpdateStatus_UsesBindingDeclarationOrderForRevisions(t *testing.T) {
 	origBindings := config.Current.Bindings
 	defer func() {

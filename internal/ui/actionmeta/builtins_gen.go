@@ -107,6 +107,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.ace_jump.apply":                   {"revisions.ace_jump"},
 	"revisions.ace_jump.cancel":                  {"revisions.ace_jump"},
 	"revisions.apply":                            {"revisions"},
+	"revisions.cancel":                           {"revisions"},
 	"revisions.commit":                           {"revisions"},
 	"revisions.describe":                         {"revisions"},
 	"revisions.details.absorb":                   {"revisions.details"},

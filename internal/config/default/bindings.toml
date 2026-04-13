@@ -35,6 +35,7 @@ bindings = [
     { key = "ctrl+d", action = "ui.preview_half_page_down", scope = "ui.preview", desc = "half page down" },
 
     # revisions
+    { key = "esc", action = "revisions.cancel", scope = "revisions", desc = "clear selection" },
     { key = ["up", "k"], action = "revisions.move_up", scope = "revisions", desc = "up" },
     { key = ["down", "j"], action = "revisions.move_down", scope = "revisions", desc = "down" },
     { key = "ctrl+r", action = "revisions.refresh", scope = "revisions", desc = "refresh" },
