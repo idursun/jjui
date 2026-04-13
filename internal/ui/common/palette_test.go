@@ -264,6 +264,25 @@ func TestPaletteUpdate_InheritsWhenAttributeOmitted(t *testing.T) {
 	assert.True(t, got.GetUnderline())
 }
 
+func TestPaletteUpdate_ClearsCachedStyles(t *testing.T) {
+	p := NewPalette()
+	p.Update(map[string]config.Color{
+		"text": {Fg: Red},
+	})
+
+	// Populate the cache.
+	got := p.Get("text")
+	assert.Equal(t, lipgloss.Color("1"), got.GetForeground())
+
+	// A second Update with different colors should invalidate the cache.
+	p.Update(map[string]config.Color{
+		"text": {Fg: Blue},
+	})
+
+	got = p.Get("text")
+	assert.Equal(t, lipgloss.Color("4"), got.GetForeground())
+}
+
 func TestPaletteUpdate_ExplicitFalseOverridesInheritedAttribute(t *testing.T) {
 	p := NewPalette()
 	p.Update(map[string]config.Color{
