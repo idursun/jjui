@@ -22,6 +22,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/describe"
 	"github.com/idursun/jjui/internal/ui/operations/details"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
+	"github.com/idursun/jjui/internal/ui/operations/set_parents"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revset"
 	"github.com/idursun/jjui/test"
@@ -633,6 +634,22 @@ func Test_HandleDispatchedAction_RevisionsScopedActionInRebaseMode(t *testing.T)
 
 	_, handled := dispatchAction(model, "revisions.move_down", nil)
 	assert.True(t, handled, "revisions navigation actions should remain handled in rebase scope")
+}
+
+func Test_HandleDispatchedAction_RevisionsScopedActionInSetParentsMode(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GetParents("abc123")).SetOutput([]byte("parent1"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	op := set_parents.NewModel(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	model.Update(common.RestoreOperationMsg{Operation: op})
+	assert.False(t, model.revisions.InNormalMode(), "model should be in set parents mode")
+
+	_, handled := dispatchAction(model, "revisions.move_down", nil)
+	assert.True(t, handled, "revisions navigation actions should remain handled in set parents scope")
 }
 
 func Test_HandleIntent_EditEntersRevsetInNormalMode(t *testing.T) {

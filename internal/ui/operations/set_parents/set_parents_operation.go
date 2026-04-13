@@ -8,8 +8,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -18,6 +20,7 @@ import (
 
 var _ operations.Operation = (*Model)(nil)
 var _ common.Focusable = (*Model)(nil)
+var _ dispatch.ScopeProvider = (*Model)(nil)
 
 type Model struct {
 	context  *context.MainContext
@@ -35,6 +38,16 @@ func (m *Model) IsFocused() bool {
 
 func (m *Model) Init() tea.Cmd {
 	return nil
+}
+
+func (m *Model) Scopes() []dispatch.Scope {
+	return []dispatch.Scope{
+		{
+			Name:    actions.ScopeSetParents,
+			Leak:    dispatch.LeakAll,
+			Handler: m,
+		},
+	}
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
