@@ -54,3 +54,5 @@ evolog_command   = ["evolog", "--color", "always", "-r", "$commit_id", "-p", "-n
 oplog_command    = ["op", "show", "$operation_id", "--color", "always"]
 file_command     = ["diff", "--color", "always", "-r", "$change_id", "$file"]
 ```
+
+Preview commands are run with `COLUMNS` and `LINES` set to the current preview pane size. Width-aware tools such as `difft` and `delta` can use those values to wrap output to the preview pane instead of the outer terminal.

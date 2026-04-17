@@ -9,6 +9,16 @@ For startup configuration wiring (`setup(config)`, `config.action`, `config.bind
 
 ## Quick start
 
+For LuaLS autocomplete and basic type information, run:
+
+```shell
+jjui --install-lua-types
+```
+
+This installs generated jjui Lua API metadata into your config directory. See [config.lua](/jjui/customization/config-lua#editor-support) for details.
+
+## Define an action
+
 Define a Lua action in `config.toml` and bind it:
 
 ```toml
@@ -235,7 +245,9 @@ revset.set({ value = "trunk()" })
 
 | Function | Notes |
 |----------|-------|
-| `revisions.inline_describe.accept()` | Apply the description |
+| `revisions.inline_describe.accept({ force? })` | Apply the description |
+| `revisions.inline_describe.force_accept()` | Apply the description with force |
+| `revisions.inline_describe.new_line()` | Insert a line break |
 | `revisions.inline_describe.editor()` | Open external editor |
 | `revisions.inline_describe.cancel()` | Cancel without saving |
 

@@ -122,6 +122,17 @@ desc = "revset"
 
 All built-in action IDs and their default bindings are defined in `internal/config/default/bindings.toml` in the source repository.
 
+Some built-in actions accept arguments through `args`. For example, inline describe's `accept` action can force the operation when you intentionally want to update an immutable revision:
+
+```toml
+[[bindings]]
+action = "revisions.inline_describe.accept"
+key = "alt+shift+enter"
+scope = "revisions.inline_describe"
+desc = "force accept"
+args = { force = true }
+```
+
 ---
 
 ## Overriding built-in actions

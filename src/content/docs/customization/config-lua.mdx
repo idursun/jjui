@@ -31,6 +31,18 @@ The `config` object exposes `config.action(...)` and `config.bind(...)` for regi
 
 ---
 
+## Editor support
+
+If your editor uses [LuaLS](https://luals.github.io/), jjui can install generated type metadata for the Lua API:
+
+```shell
+jjui --install-lua-types
+```
+
+This writes `types.lua` to your jjui config directory and creates `.luarc.json` if it does not already exist. Existing `.luarc.json` files are left unchanged.
+
+---
+
 ## Runtime values
 
 These fields are available on `config` inside `setup` and are read-only:

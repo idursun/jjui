@@ -9,8 +9,45 @@ Press `enter` on a revision to open the inline description editor. The current d
 
 - `enter`: insert a new line
 - `alt+enter` or `ctrl+s`: apply — runs `jj describe` with what you've typed
+- `alt+shift+enter`: force apply — useful when intentionally updating an immutable revision
 - `alt+e`: open the description in your external editor instead
 - `esc`: cancel
+
+## Custom bindings
+
+Inline describe exposes separate actions for accepting the description and inserting a new line, so you can choose the editing style you prefer. For example, this makes `enter` accept and `shift+enter` insert a line break:
+
+```toml
+[[bindings]]
+action = "revisions.inline_describe.accept"
+key = "enter"
+scope = "revisions.inline_describe"
+
+[[bindings]]
+action = "revisions.inline_describe.new_line"
+key = "shift+enter"
+scope = "revisions.inline_describe"
+```
+
+The accept action also supports a `force` argument. This can be used from Lua to share an "ignore immutable" toggle with other operations:
+
+```lua
+local ignore_immutable = false
+
+function setup(config)
+  config.action("toggle ignore immutable", function()
+    ignore_immutable = not ignore_immutable
+    flash(ignore_immutable and "ignore immutable is turned on" or "ignore immutable is turned off")
+  end, {
+    key = "G",
+    scope = "revisions",
+  })
+
+  config.action("revisions.inline_describe.accept", function()
+    jjui.builtin.revisions.inline_describe.accept({ force = ignore_immutable })
+  end)
+end
+```
 
 ## Draft stashing
 
