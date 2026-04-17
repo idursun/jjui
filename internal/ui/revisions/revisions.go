@@ -65,6 +65,7 @@ type Model struct {
 	output                 string
 	err                    error
 	quickSearch            string
+	pendingSearch          *pendingQuickSearch
 	previousOpLogId        string
 	isLoading              bool
 	displayContextRenderer *DisplayContextRenderer
@@ -74,6 +75,15 @@ type Model struct {
 	matchedStyle           lipgloss.Style
 	ensureCursorView       bool
 	requestInFlight        bool
+}
+
+// pendingQuickSearch records a quick search that has not yet found a match in
+// the loaded rows. Once set, appendRowsBatchMsg keeps streaming and re-runs the
+// search as more rows arrive, until a match is found or the revset is
+// exhausted.
+type pendingQuickSearch struct {
+	startIndex int
+	backward   bool
 }
 
 type revisionsMsg struct {
@@ -412,9 +422,9 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		return m.popLayer()
 	case common.QuickSearchMsg:
 		m.quickSearch = strings.ToLower(string(msg))
-		m.SetCursor(m.search(0, false))
+		streamCmd := m.applyQuickSearch(0, false)
 		m.resetOperations()
-		return m.updateSelection()
+		return tea.Batch(streamCmd, m.updateSelection())
 	case common.CommandCompletedMsg:
 		m.output = msg.Output
 		m.err = msg.Err
@@ -471,6 +481,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		m.revisionToSelect = msg.selectedRevision
 		m.hasMore = true
 		m.requestInFlight = false
+		m.pendingSearch = nil
 
 		// If the revision to select is not set, use the currently selected item
 		if m.revisionToSelect == "" {
@@ -523,11 +534,25 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			m.SetCursor(0)
 		}
 
+		if m.pendingSearch != nil {
+			if idx, found := m.search(m.pendingSearch.startIndex, m.pendingSearch.backward); found {
+				m.SetCursor(idx)
+				m.pendingSearch = nil
+			} else if !m.hasMore {
+				m.pendingSearch = nil
+			}
+		}
+
 		cmds := []tea.Cmd{m.highlightChanges, m.updateSelection()}
 		if len(m.offScreenRows) > 0 {
 			cmds = append(cmds, func() tea.Msg {
 				return common.UpdateRevisionsSuccessMsg{}
 			})
+		}
+		if m.pendingSearch != nil {
+			if c := m.requestMoreRows(msg.tag); c != nil {
+				cmds = append(cmds, c)
+			}
 		}
 		return tea.Batch(cmds...)
 	}
@@ -659,10 +684,11 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		if intent.Reverse {
 			offset = -1
 		}
-		m.SetCursor(m.search(m.cursor+offset, intent.Reverse))
-		return m.updateSelection(), true
+		streamCmd := m.applyQuickSearch(m.cursor+offset, intent.Reverse)
+		return tea.Batch(streamCmd, m.updateSelection()), true
 	case intents.RevisionsQuickSearchClear:
 		m.quickSearch = ""
+		m.pendingSearch = nil
 		return nil, true
 	}
 	return nil, false
@@ -1178,12 +1204,32 @@ func (m *Model) selectRevision(revision string) int {
 	return idx
 }
 
-func (m *Model) search(startIndex int, backward bool) int {
+func (m *Model) search(startIndex int, backward bool) (int, bool) {
 	items := make([]screen.Searchable, len(m.rows))
 	for i := range m.rows {
 		items[i] = &m.rows[i]
 	}
 	return common.CircularSearch(items, m.quickSearch, startIndex, m.cursor, backward)
+}
+
+// applyQuickSearch runs the current quick search and, if no match is found in
+// the loaded rows, records a pending search so subsequent streamed batches
+// extend the search. Returns a command to request more rows when streaming is
+// needed.
+func (m *Model) applyQuickSearch(startIndex int, backward bool) tea.Cmd {
+	m.pendingSearch = nil
+	if m.quickSearch == "" {
+		return nil
+	}
+	if idx, found := m.search(startIndex, backward); found {
+		m.SetCursor(idx)
+		return nil
+	}
+	if !m.hasMore {
+		return nil
+	}
+	m.pendingSearch = &pendingQuickSearch{startIndex: startIndex, backward: backward}
+	return m.requestMoreRows(m.tag.Load())
 }
 
 func (m *Model) CurrentOperation() operations.Operation {

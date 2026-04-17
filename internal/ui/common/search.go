@@ -7,10 +7,10 @@ import (
 )
 
 // CircularSearch performs a circular search through searchable items.
-// Returns the index of the first matching item, or cursor if no match is found.
-func CircularSearch(items []screen.Searchable, query string, startIndex, cursor int, backward bool) int {
+// Returns (matchedIndex, true) when an item matches, or (cursor, false) otherwise.
+func CircularSearch(items []screen.Searchable, query string, startIndex, cursor int, backward bool) (int, bool) {
 	if query == "" {
-		return cursor
+		return cursor, false
 	}
 
 	n := len(items)
@@ -22,10 +22,10 @@ func CircularSearch(items []screen.Searchable, query string, startIndex, cursor 
 			c = (startIndex - i + n) % n
 		}
 		if matchesQuery(items[c], query) {
-			return c
+			return c, true
 		}
 	}
-	return cursor
+	return cursor, false
 }
 
 func matchesQuery(item screen.Searchable, query string) bool {
