@@ -180,3 +180,14 @@ func TestHandleIntent_CancelLeaksWithoutSelectionsInNormalMode(t *testing.T) {
 	_, handled := model.HandleIntent(intents.Cancel{})
 	assert.False(t, handled, "revisions cancel should leak when there are no selections and in normal mode")
 }
+
+func TestHandleIntent_ToggleSelectWithNoRowsDoesNotPanic(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+
+	assert.NotPanics(t, func() {
+		_, handled := model.HandleIntent(intents.RevisionsToggleSelect{})
+		assert.True(t, handled, "toggle_select should remain a handled revisions action even with no rows")
+	})
+	assert.Empty(t, ctx.CheckedItems, "toggle_select should be a no-op when there is no selected revision")
+}

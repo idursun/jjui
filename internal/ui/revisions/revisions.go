@@ -635,7 +635,10 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.OpenSetBookmark:
 		return m.startBookmarkSet(), true
 	case intents.RevisionsToggleSelect:
-		commit := m.rows[m.cursor].Commit
+		commit := m.SelectedRevision()
+		if commit == nil {
+			return nil, true
+		}
 		changeId := commit.GetChangeId()
 		item := appContext.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
 		m.context.ToggleCheckedItem(item)
