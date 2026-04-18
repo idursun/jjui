@@ -63,7 +63,7 @@ bindings = [
     { key = "alt+e", action = "revisions.force_edit", scope = "revisions", desc = "force edit" },
     { key = "c", action = "revisions.commit", scope = "revisions", desc = "commit" },
     { key = "shift+e", action = "revisions.diff_edit", scope = "revisions", desc = "diff edit" },
-    { key = "shift+a", action = "revisions.absorb", scope = "revisions", desc = "absorb" },
+    { key = "shift+a", action = "revisions.open_absorb", scope = "revisions", desc = "absorb" },
     { key = "u", action = "ui.open_undo", scope = "revisions", desc = "undo" },
     { key = "shift+u", action = "ui.open_redo", scope = "revisions", desc = "redo" },
     { key = "space", action = "revisions.toggle_select", scope = "revisions", desc = "select" },
@@ -196,6 +196,17 @@ bindings = [
     { key = "pgup", action = "revisions.page_up", scope = "revisions.abandon", desc = "pgup" },
     { key = "pgdown", action = "revisions.page_down", scope = "revisions.abandon", desc = "pgdown" },
     { key = "@", action = "revisions.jump_to_working_copy", scope = "revisions.abandon", desc = "jump to working copy" },
+
+    # revisions.absorb
+    { key = "space", action = "revisions.absorb.toggle_select", scope = "revisions.absorb", desc = "select" },
+    { key = "enter", action = "revisions.absorb.apply", scope = "revisions.absorb", desc = "apply" },
+    { key = "f", action = "revisions.absorb.ace_jump", scope = "revisions.absorb", desc = "ace jump" },
+    { key = "esc", action = "revisions.absorb.cancel", scope = "revisions.absorb", desc = "cancel" },
+    { key = ["up", "k"], action = "revisions.move_up", scope = "revisions.absorb", desc = "up" },
+    { key = ["down", "j"], action = "revisions.move_down", scope = "revisions.absorb", desc = "down" },
+    { key = "pgup", action = "revisions.page_up", scope = "revisions.absorb", desc = "pgup" },
+    { key = "pgdown", action = "revisions.page_down", scope = "revisions.absorb", desc = "pgdown" },
+    { key = "@", action = "revisions.jump_to_working_copy", scope = "revisions.absorb", desc = "jump to working copy" },
 
     # revisions.set_parents
     { key = "space", action = "revisions.set_parents.toggle_select", scope = "revisions.set_parents", desc = "select" },

@@ -204,6 +204,7 @@ func (ChooseCancel) isIntent() {}
 //jjui:bind scope=revisions.details.confirmation action=cancel
 //jjui:bind scope=revisions.evolog action=cancel
 //jjui:bind scope=revisions.abandon action=cancel
+//jjui:bind scope=revisions.absorb action=cancel
 //jjui:bind scope=revisions.set_parents action=cancel
 //jjui:bind scope=revisions.set_bookmark action=cancel
 //jjui:bind scope=revisions.inline_describe action=cancel
@@ -237,6 +238,7 @@ func (Cancel) isIntent() {}
 //jjui:bind scope=revisions.evolog action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions.abandon action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions.abandon action=force_apply set=Force:true
+//jjui:bind scope=revisions.absorb action=apply
 //jjui:bind scope=revisions.set_parents action=apply
 //jjui:bind scope=revisions.set_bookmark action=apply
 //jjui:bind scope=revisions.ace_jump action=apply

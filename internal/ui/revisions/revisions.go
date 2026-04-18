@@ -37,6 +37,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/graph"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/operations/abandon"
+	"github.com/idursun/jjui/internal/ui/operations/absorb"
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/internal/ui/operations/details"
 	"github.com/idursun/jjui/internal/ui/operations/evolog"
@@ -614,7 +615,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.startSquash(intent), true
 	case intents.OpenInlineDescribe:
 		return m.startInlineDescribe(intent), true
-	case intents.Absorb:
+	case intents.OpenAbsorb:
 		return m.startAbsorb(intent), true
 	case intents.OpenAbandon:
 		return m.startAbandon(intent), true
@@ -821,7 +822,7 @@ func (m *Model) startDiffEdit(intent intents.DiffEdit) tea.Cmd {
 	return m.context.RunInteractiveCommand(jj.DiffEdit(commit.GetChangeId()), common.Refresh)
 }
 
-func (m *Model) startAbsorb(intent intents.Absorb) tea.Cmd {
+func (m *Model) startAbsorb(intent intents.OpenAbsorb) tea.Cmd {
 	commit := intent.Selected
 	if commit == nil {
 		commit = m.SelectedRevision()
@@ -829,7 +830,7 @@ func (m *Model) startAbsorb(intent intents.Absorb) tea.Cmd {
 	if commit == nil {
 		return nil
 	}
-	return m.context.RunCommand(jj.Absorb(commit.GetChangeId()), common.Refresh)
+	return m.setBaseOperation(absorb.NewOperation(m.context, commit))
 }
 
 func (m *Model) startAbandon(intent intents.OpenAbandon) tea.Cmd {

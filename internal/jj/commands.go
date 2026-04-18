@@ -378,14 +378,22 @@ func TemplatedArgs(templatedArgs []string, replacements map[string]string) Comma
 	return args
 }
 
-func Absorb(changeId string, files ...string) CommandArgs {
+func Absorb(changeId string, into []string, files ...string) CommandArgs {
 	args := []string{"absorb", "--from", changeId, "--color", "never"}
+	for _, target := range into {
+		args = append(args, "--into", target)
+	}
 	var escapedFiles []string
 	for _, file := range files {
 		escapedFiles = append(escapedFiles, EscapeFileName(file))
 	}
 	args = append(args, escapedFiles...)
 	return args
+}
+
+func AbsorbDefaultTargets(source string) CommandArgs {
+	revset := fmt.Sprintf("mutable() & ::%s", source)
+	return GetIdsFromRevset(revset)
 }
 
 func OpLogId(snapshot bool) CommandArgs {

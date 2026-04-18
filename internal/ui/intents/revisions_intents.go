@@ -101,6 +101,7 @@ const (
 //jjui:bind scope=revisions.squash action=jump_to_working_copy set=Target:TargetWorkingCopy
 //jjui:bind scope=revisions.duplicate action=jump_to_working_copy set=Target:TargetWorkingCopy
 //jjui:bind scope=revisions.abandon action=jump_to_working_copy set=Target:TargetWorkingCopy
+//jjui:bind scope=revisions.absorb action=jump_to_working_copy set=Target:TargetWorkingCopy
 //jjui:bind scope=revisions.set_parents action=jump_to_working_copy set=Target:TargetWorkingCopy
 type Navigate struct {
 	Delta       int              // +N down, -N up
@@ -142,12 +143,17 @@ type DiffEdit struct {
 
 func (DiffEdit) isIntent() {}
 
-//jjui:bind scope=revisions action=absorb
-type Absorb struct {
+//jjui:bind scope=revisions action=open_absorb
+type OpenAbsorb struct {
 	Selected *jj.Commit
 }
 
-func (Absorb) isIntent() {}
+func (OpenAbsorb) isIntent() {}
+
+//jjui:bind scope=revisions.absorb action=toggle_select
+type AbsorbToggleSelect struct{}
+
+func (AbsorbToggleSelect) isIntent() {}
 
 //jjui:bind scope=revisions action=open_abandon
 type OpenAbandon struct {

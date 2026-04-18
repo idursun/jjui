@@ -20,6 +20,7 @@ type FileSearchToggle struct{}
 
 func (FileSearchToggle) isIntent() {}
 
+//jjui:bind scope=revisions.absorb action=ace_jump
 //jjui:bind scope=revisions.rebase action=ace_jump
 //jjui:bind scope=revisions.squash action=ace_jump
 //jjui:bind scope=revisions.duplicate action=ace_jump

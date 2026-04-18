@@ -279,7 +279,7 @@ func (s *Operation) handleIntentInner(intent intents.Intent) (tea.Cmd, bool) {
 			[]string{"Are you sure you want to absorb changes from the selected files?"},
 			confirmation.WithStylePrefix("revisions"),
 			confirmation.WithOption("Yes",
-				s.context.RunCommand(jj.Absorb(s.revision.GetChangeId(), selectedFiles...), common.Refresh, confirmation.Close),
+				s.context.RunCommand(jj.Absorb(s.revision.GetChangeId(), nil, selectedFiles...), common.Refresh, confirmation.Close),
 				key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 			confirmation.WithOption("No",
 				confirmation.Close,

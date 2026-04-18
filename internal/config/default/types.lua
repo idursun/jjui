@@ -194,6 +194,7 @@ function wait_refresh() end
 
 ---@class jjui.revisions
 ---@field abandon jjui.revisions.abandon
+---@field absorb jjui.revisions.absorb
 ---@field ace_jump jjui.revisions.ace_jump
 ---@field details jjui.revisions.details
 ---@field duplicate jjui.revisions.duplicate
@@ -206,7 +207,6 @@ function wait_refresh() end
 ---@field set_parents jjui.revisions.set_parents
 ---@field squash jjui.revisions.squash
 ---@field target_picker jjui.revisions.target_picker
----@field absorb fun()
 ---@field ace_jump fun()
 ---@field apply fun(args: {force?: boolean})
 ---@field cancel fun()
@@ -224,6 +224,7 @@ function wait_refresh() end
 ---@field move_up fun()
 ---@field new fun()
 ---@field open_abandon fun()
+---@field open_absorb fun()
 ---@field open_details fun()
 ---@field open_duplicate fun()
 ---@field open_evolog fun()
@@ -248,6 +249,14 @@ function wait_refresh() end
 ---@field force_apply fun()
 ---@field jump_to_working_copy fun()
 ---@field select_descendants fun()
+---@field toggle_select fun()
+---@field close fun()
+
+---@class jjui.revisions.absorb
+---@field ace_jump fun()
+---@field apply fun()
+---@field cancel fun()
+---@field jump_to_working_copy fun()
 ---@field toggle_select fun()
 ---@field close fun()
 

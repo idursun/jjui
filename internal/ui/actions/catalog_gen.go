@@ -22,6 +22,7 @@ const (
 	ScopeRedo                = "redo"
 	ScopeRevisions           = "revisions"
 	ScopeAbandon             = "revisions.abandon"
+	ScopeAbsorb              = "revisions.absorb"
 	ScopeAceJump             = "revisions.ace_jump"
 	ScopeDetails             = "revisions.details"
 	ScopeDetailsConfirmation = "revisions.details.confirmation"
@@ -257,8 +258,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		}
 	case ScopeRevisions:
 		switch action {
-		case keybindings.Action("revisions.absorb"):
-			return intents.Absorb{}, true
 		case keybindings.Action("revisions.ace_jump"):
 			return intents.StartAceJump{}, true
 		case keybindings.Action("revisions.apply"):
@@ -293,6 +292,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.StartNew{}, true
 		case keybindings.Action("revisions.open_abandon"):
 			return intents.OpenAbandon{}, true
+		case keybindings.Action("revisions.open_absorb"):
+			return intents.OpenAbsorb{}, true
 		case keybindings.Action("revisions.open_details"):
 			return intents.OpenDetails{}, true
 		case keybindings.Action("revisions.open_duplicate"):
@@ -340,6 +341,19 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.AbandonSelectDescendants{}, true
 		case keybindings.Action("revisions.abandon.toggle_select"):
 			return intents.AbandonToggleSelect{}, true
+		}
+	case ScopeAbsorb:
+		switch action {
+		case keybindings.Action("revisions.absorb.ace_jump"):
+			return intents.StartAceJump{}, true
+		case keybindings.Action("revisions.absorb.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("revisions.absorb.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("revisions.absorb.jump_to_working_copy"):
+			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
+		case keybindings.Action("revisions.absorb.toggle_select"):
+			return intents.AbsorbToggleSelect{}, true
 		}
 	case ScopeAceJump:
 		switch action {
