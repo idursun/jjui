@@ -83,7 +83,7 @@ This produces `catalog_gen.go` and `builtins_gen.go`. A staleness test will fail
 - Configuration handling is in the `internal/config/` directory
 - Default configuration and key bindings are in the `internal/config/default` directory
 - Operations (rebase, squash, split, etc.) are implemented as operations the `internal/ui/operations/` directory
-- Set `DEBUG=1` environment variable for printing debug messages to `debug.log` file
+- Set `JJUI_DEBUG=1` environment variable for printing debug messages to `debug.log` file
 
 ## Contributing Documentation
 
