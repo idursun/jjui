@@ -3,8 +3,10 @@ package ui
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -1335,7 +1337,41 @@ func Test_Update_SetBookmarkTypingDoesNotTogglePreview(t *testing.T) {
 	assert.True(t, model.previewModel.Visible(), "typing in set_bookmark should not toggle preview")
 }
 
-func Test_Init_EnablesModeLightDark(t *testing.T) {
+// withShortColorSchemePoll temporarily shortens the polling interval so
+// tests don't have to wait the full default duration for tea.Tick to fire.
+func withShortColorSchemePoll(t *testing.T) {
+	t.Helper()
+	orig := colorSchemePollInterval
+	colorSchemePollInterval = time.Millisecond
+	t.Cleanup(func() { colorSchemePollInterval = orig })
+}
+
+// drainCmds expands a Cmd tree, invoking each leaf Cmd and feeding the
+// resulting tea.BatchMsg back through the queue. visit is called once for
+// every non-batch leaf Cmd (with the Cmd itself and the message it produced,
+// which may be nil). Stop draining by returning false.
+func drainCmds(root tea.Cmd, visit func(c tea.Cmd, msg tea.Msg) bool) {
+	queue := []tea.Cmd{root}
+	for len(queue) > 0 {
+		var c tea.Cmd
+		c, queue = queue[0], queue[1:]
+		if c == nil {
+			continue
+		}
+		msg := c()
+		if batch, ok := msg.(tea.BatchMsg); ok {
+			queue = append(queue, batch...)
+			continue
+		}
+		if !visit(c, msg) {
+			return
+		}
+	}
+}
+
+func Test_Init_EnablesMode2031AndStartsPolling(t *testing.T) {
+	withShortColorSchemePoll(t)
+
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
 	w := New(ctx)
@@ -1343,24 +1379,77 @@ func Test_Init_EnablesModeLightDark(t *testing.T) {
 	cmd := w.Init()
 	require.NotNil(t, cmd)
 
-	// Drain the batch to collect all messages produced by Init.
-	var foundRaw bool
-	queue := []tea.Cmd{cmd}
-	for len(queue) > 0 {
-		var c tea.Cmd
-		c, queue = queue[0], queue[1:]
-		msg := c()
-		if msg == nil {
-			continue
-		}
+	var foundEnable2031, foundProbe2031, foundPollTick bool
+
+	drainCmds(cmd, func(c tea.Cmd, msg tea.Msg) bool {
 		switch v := msg.(type) {
-		case tea.BatchMsg:
-			queue = append(queue, v...)
 		case tea.RawMsg:
-			if v.Msg == ansi.SetModeLightDark {
-				foundRaw = true
+			switch v.Msg {
+			case ansi.SetModeLightDark:
+				foundEnable2031 = true
+			case ansi.RequestModeLightDark:
+				foundProbe2031 = true
 			}
+		case colorSchemePollTickMsg:
+			foundPollTick = true
 		}
-	}
-	assert.True(t, foundRaw)
+		return true
+	})
+
+	assert.True(t, foundEnable2031)
+	assert.True(t, foundProbe2031)
+	assert.True(t, foundPollTick)
+}
+
+func Test_PollTick_RequestsBackgroundColorAndRearms(t *testing.T) {
+	withShortColorSchemePoll(t)
+
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	cmd := model.Update(colorSchemePollTickMsg{})
+	require.NotNil(t, cmd)
+
+	wantRequestPC := reflect.ValueOf(tea.RequestBackgroundColor).Pointer()
+
+	var foundRequest, foundRearm bool
+	drainCmds(cmd, func(c tea.Cmd, msg tea.Msg) bool {
+		if reflect.ValueOf(c).Pointer() == wantRequestPC {
+			foundRequest = true
+			return true
+		}
+		if _, ok := msg.(colorSchemePollTickMsg); ok {
+			foundRearm = true
+		}
+		return true
+	})
+	assert.True(t, foundRequest)
+	assert.True(t, foundRearm)
+}
+
+func Test_PollTick_StopsWhenMode2031Supported(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	model.Update(tea.ModeReportMsg{Mode: ansi.ModeLightDark, Value: ansi.ModeSet})
+	assert.True(t, model.mode2031Supported)
+
+	cmd := model.Update(colorSchemePollTickMsg{})
+	assert.Nil(t, cmd)
+}
+
+func Test_PollTick_ContinuesWhenMode2031NotRecognized(t *testing.T) {
+	withShortColorSchemePoll(t)
+
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	model.Update(tea.ModeReportMsg{Mode: ansi.ModeLightDark, Value: ansi.ModeNotRecognized})
+	assert.False(t, model.mode2031Supported)
+
+	cmd := model.Update(colorSchemePollTickMsg{})
+	assert.NotNil(t, cmd, "polling should continue when mode 2031 is not recognized")
 }
