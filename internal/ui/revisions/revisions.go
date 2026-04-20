@@ -186,12 +186,21 @@ func (m *Model) popLayer() tea.Cmd {
 	return m.updateSelection()
 }
 
+func (m *Model) clearCheckedItemsForBaseOperation() {
+	switch m.baseOp.(type) {
+	case *details.Operation:
+		m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedFile]())
+	}
+}
+
 func (m *Model) resetOperations() {
+	m.clearCheckedItemsForBaseOperation()
 	m.baseOp = operations.NewDefault()
 	m.layers = nil
 }
 
 func (m *Model) setBaseOperation(op operations.Operation) tea.Cmd {
+	m.clearCheckedItemsForBaseOperation()
 	m.baseOp = op
 	m.layers = nil
 
@@ -395,8 +404,12 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		return m.updateSelection()
 	case common.RestoreOperationMsg:
 		if op, ok := msg.Operation.(operations.Operation); ok {
+			m.clearCheckedItemsForBaseOperation()
 			m.baseOp = op
 			m.layers = nil
+			if syncer, ok := op.(operations.CheckedItemsSynchronizer); ok {
+				syncer.SyncCheckedItems()
+			}
 			return m.updateSelection()
 		}
 		m.resetOperations()

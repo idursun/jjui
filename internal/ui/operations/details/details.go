@@ -30,12 +30,13 @@ type updateCommitStatusMsg struct {
 }
 
 var (
-	_ operations.Operation         = (*Operation)(nil)
-	_ operations.EmbeddedOperation = (*Operation)(nil)
-	_ common.Focusable             = (*Operation)(nil)
-	_ common.Editable              = (*Operation)(nil)
-	_ common.Overlay               = (*Operation)(nil)
-	_ dispatch.ScopeProvider       = (*Operation)(nil)
+	_ operations.Operation                = (*Operation)(nil)
+	_ operations.EmbeddedOperation        = (*Operation)(nil)
+	_ operations.CheckedItemsSynchronizer = (*Operation)(nil)
+	_ common.Focusable                    = (*Operation)(nil)
+	_ common.Editable                     = (*Operation)(nil)
+	_ common.Overlay                      = (*Operation)(nil)
+	_ dispatch.ScopeProvider              = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -130,7 +131,7 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 			prevCursor := s.cursor
 			s.setCursor(msg.Index)
 			s.rangeSelect(prevCursor, msg.Index)
-			s.syncCheckedItems()
+			s.SyncCheckedItems()
 		case msg.Ctrl:
 			s.setCursor(msg.Index)
 			if current := s.current(); current != nil {
@@ -406,7 +407,7 @@ func (s *Operation) Name() string {
 	return "details"
 }
 
-func (s *Operation) syncCheckedItems() {
+func (s *Operation) SyncCheckedItems() {
 	s.context.ClearCheckedItems(reflect.TypeFor[context.SelectedFile]())
 	for _, f := range s.files {
 		if f.selected {

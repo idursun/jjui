@@ -36,6 +36,10 @@ type TracksSelectedRevision interface {
 	SetSelectedRevision(commit *jj.Commit) tea.Cmd
 }
 
+type CheckedItemsSynchronizer interface {
+	SyncCheckedItems()
+}
+
 type SegmentRenderer interface {
 	RenderSegment(currentStyle lipgloss.Style, segment *screen.Segment, row parser.Row) string
 }

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -1173,16 +1174,12 @@ func Test_Update_InlineDescribeDispatcherKeysWorkWhileEditing(t *testing.T) {
 	assert.NotNil(t, cmd, "alt+enter should trigger inline_describe_accept via dispatcher")
 }
 
-func Test_Update_DetailsCancelPrecedenceOverFlashDismissal(t *testing.T) {
-	origBindings := config.Current.Bindings
-	defer func() {
-		config.Current.Bindings = origBindings
-	}()
-	config.Current.Bindings = []config.BindingConfig{
-		{Action: "revisions.details.cancel", Scope: "revisions.details", Key: config.StringList{"h"}},
-	}
+func Test_Update_DetailsCloseClearsSelectedFiles(t *testing.T) {
+	const statusOutput = "false false $\nM file.txt\nA newfile.txt\n"
 
 	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte(statusOutput))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -1190,14 +1187,40 @@ func Test_Update_DetailsCancelPrecedenceOverFlashDismissal(t *testing.T) {
 
 	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
 	model.Update(common.RestoreOperationMsg{Operation: op})
+	test.SimulateModel(model, op.Init())
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
 
-	model.Update(intents.AddMessage{Text: "flash", Sticky: true})
-	require.True(t, model.flash.Any(), "flash should be visible before cancel")
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	require.Len(t, ctx.CheckedItems, 1, "details selection should be tracked before close")
 
-	test.SimulateModel(model, test.Type("h"))
-	assert.True(t, model.revisions.InNormalMode(), "details cancel should close details operation")
-	assert.True(t, model.flash.Any(), "details cancel should not dismiss flash first")
+	test.SimulateModel(model, test.Press(tea.KeyEsc))
+	assert.True(t, model.revisions.InNormalMode(), "esc should close details")
+	assert.Empty(t, ctx.CheckedItems, "closing details should clear selected files from context")
+}
+
+func Test_Update_RestoreDetailsOperationResyncsSelectedFiles(t *testing.T) {
+	const statusOutput = "false false $\nM file.txt\nA newfile.txt\n"
+
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte(statusOutput))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	model.Update(common.RestoreOperationMsg{Operation: op})
+	test.SimulateModel(model, op.Init())
+
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	require.Len(t, ctx.CheckedItems, 1, "details selection should be tracked before close")
+
+	model.Update(common.CloseViewMsg{})
+	assert.Empty(t, ctx.CheckedItems, "closing details should clear selected files from context")
+
+	model.Update(common.RestoreOperationMsg{Operation: op})
+	assert.Len(t, ctx.CheckedItems, 1, "restoring details should resync checked files from the operation state")
 }
 
 func Test_Update_DetailsEscClosesOperation(t *testing.T) {
@@ -1251,6 +1274,37 @@ func Test_Update_DetailsEscClosesOperation_WithDefaultBindings(t *testing.T) {
 
 	model.Update(closeMsg)
 	assert.True(t, model.revisions.InNormalMode(), "default details esc should close details operation")
+}
+
+func Test_Update_CommandErrorAfterClosingDetailsWithSelectedFiles_AllowsEscToDismissFlash(t *testing.T) {
+	const statusOutput = "false false $\nM file.txt\nA newfile.txt\n"
+
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte(statusOutput))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	model.Update(common.RestoreOperationMsg{Operation: op})
+	test.SimulateModel(model, op.Init())
+	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
+
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	require.Len(t, ctx.CheckedItems, 1, "details selection should be tracked before close")
+
+	model.Update(common.CloseViewMsg{})
+	model.Update(common.CommandCompletedMsg{Err: errors.New("split failed")})
+
+	assert.True(t, model.revisions.InNormalMode(), "closing details should return to revisions")
+	assert.True(t, model.flash.Any(), "command failure should surface as a flash message")
+	assert.Empty(t, ctx.CheckedItems, "selected files should be cleared when leaving details")
+
+	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	assert.Nil(t, cmd, "esc should dismiss the flash instead of being consumed by stale checked items")
+	assert.False(t, model.flash.Any(), "esc should dismiss the split error flash")
 }
 
 func Test_Update_SetBookmarkTypingDoesNotTogglePreview(t *testing.T) {

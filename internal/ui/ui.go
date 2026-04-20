@@ -512,12 +512,12 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 
 	// --- Cancel fallback (only reached if no inner scope handled it) ---
 	case intents.Cancel:
-		if m.stacked != nil || m.diff != nil || m.oplog != nil {
-			return common.Close, true
-		}
 		if m.flash.Any() {
 			m.flash.DeleteOldest()
 			return nil, true
+		}
+		if m.stacked != nil || m.diff != nil || m.oplog != nil {
+			return common.Close, true
 		}
 		if m.status.StatusExpanded() {
 			m.status.ToggleStatusExpand()
