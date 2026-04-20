@@ -12,7 +12,7 @@ import (
 func TestUpdateRevSet_WithPath(t *testing.T) {
 	model := &fuzzyFiles{
 		revset: "all()",
-		files:  []string{"file1.txt", "path/to/file2.go", "special file.txt"},
+		paths:  []string{"file1.txt", "path/to/file2.go", "special file.txt"},
 		styles: fuzzy_search.NewStyles(),
 	}
 
@@ -36,7 +36,7 @@ func TestUpdateRevSet_WithPath(t *testing.T) {
 func TestUpdateRevSet_WithPathContainingSpaces(t *testing.T) {
 	model := &fuzzyFiles{
 		revset: "all()",
-		files:  []string{"file with spaces.txt"},
+		paths:  []string{"file with spaces.txt"},
 		styles: fuzzy_search.NewStyles(),
 	}
 
@@ -57,7 +57,7 @@ func TestUpdateRevSet_WithPathContainingSpaces(t *testing.T) {
 func TestUpdateRevSet_WithPathContainingBraces(t *testing.T) {
 	model := &fuzzyFiles{
 		revset: "all()",
-		files:  []string{"file{with}braces.txt"},
+		paths:  []string{"file{with}braces.txt"},
 		styles: fuzzy_search.NewStyles(),
 	}
 
@@ -75,10 +75,27 @@ func TestUpdateRevSet_WithPathContainingBraces(t *testing.T) {
 	assert.Equal(t, "files('file{with}braces.txt')", string(updateMsg))
 }
 
+func TestUpdateRevSet_WithDirectory(t *testing.T) {
+	model := &fuzzyFiles{
+		revset: "all()",
+		paths:  []string{"path/to/"},
+		styles: fuzzy_search.NewStyles(),
+	}
+
+	model.matches = fuzzy.Matches{{Index: 0, Str: "path/to/"}}
+	model.cursor = 0
+
+	cmd := model.updateRevSet()
+	msg := cmd()
+	updateMsg, ok := msg.(common.UpdateRevSetMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "files('path/to/')", string(updateMsg))
+}
+
 func TestUpdateRevSet_NoPath(t *testing.T) {
 	model := &fuzzyFiles{
 		revset:  "all()",
-		files:   []string{},
+		paths:   []string{},
 		matches: fuzzy.Matches{},
 		styles:  fuzzy_search.NewStyles(),
 	}
@@ -95,7 +112,7 @@ func TestUpdateRevSet_NoPath(t *testing.T) {
 func TestUpdateRevSet_EmptyMatches(t *testing.T) {
 	model := &fuzzyFiles{
 		revset:  "@",
-		files:   []string{"file1.txt"},
+		paths:   []string{"file1.txt"},
 		matches: fuzzy.Matches{},
 		cursor:  0,
 		styles:  fuzzy_search.NewStyles(),
@@ -108,4 +125,20 @@ func TestUpdateRevSet_EmptyMatches(t *testing.T) {
 
 	// when matches is empty, SelectedMatch returns empty string
 	assert.Equal(t, "@", string(updateMsg))
+}
+
+func TestBuildPathEntries_IncludesDirectories(t *testing.T) {
+	entries := buildPathEntries([]byte("src/pkg/main.go\nsrc/other.go\nREADME.md\n"))
+
+	assert.Equal(t, []string{
+		"src/",
+		"src/pkg/",
+		"src/pkg/main.go",
+		"src/other.go",
+		"README.md",
+	}, entries)
+}
+
+func TestBuildPathEntries_EmptyOutput(t *testing.T) {
+	assert.Empty(t, buildPathEntries(nil))
 }

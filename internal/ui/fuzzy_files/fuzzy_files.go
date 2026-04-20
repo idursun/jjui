@@ -32,7 +32,7 @@ type fuzzyFiles struct {
 	debounceTag   int
 
 	// search state
-	files   []string
+	paths   []string
 	max     int
 	matches fuzzy.Matches
 	styles  fuzzy_search.Styles
@@ -138,7 +138,7 @@ func (fzf *fuzzyFiles) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 		// Dispatch to ui.go which handles preview scroll intents
 		return func() tea.Msg {
-			return intents.PreviewScroll{Kind: intent.Kind}
+			return intents.PreviewScroll(intent)
 		}
 	}
 	return nil
@@ -173,15 +173,15 @@ func (fzf *fuzzyFiles) SelectedMatch() int {
 }
 
 func (fzf *fuzzyFiles) Len() int {
-	return len(fzf.files)
+	return len(fzf.paths)
 }
 
 func (fzf *fuzzyFiles) String(i int) string {
-	n := len(fzf.files)
+	n := len(fzf.paths)
 	if i < 0 || i >= n {
 		return ""
 	}
-	return fzf.files[i]
+	return fzf.paths[i]
 }
 
 func (fzf *fuzzyFiles) search(input string) {
@@ -209,8 +209,8 @@ func (fzf *fuzzyFiles) viewContent() string {
 		"  ",
 		strconv.Itoa(shown),
 		"of",
-		strconv.Itoa(len(fzf.files)),
-		"files present at revision",
+		strconv.Itoa(len(fzf.paths)),
+		"paths present at revision",
 		fzf.commit.GetChangeId(),
 		" ",
 	)
@@ -224,10 +224,45 @@ func NewModel(msg common.FileSearchMsg) fuzzy_search.Model {
 		wasPreviewShown: msg.PreviewShown,
 		max:             30,
 		commit:          msg.Commit,
-		files:           strings.Split(string(msg.RawFileOut), "\n"),
+		paths:           buildPathEntries(msg.RawFileOut),
 		styles:          fuzzy_search.NewStyles(),
 	}
 	return model
+}
+
+func buildPathEntries(rawFileOut []byte) []string {
+	lines := strings.Split(string(rawFileOut), "\n")
+	entries := make([]string, 0, len(lines))
+	seen := make(map[string]struct{}, len(lines))
+
+	add := func(entry string) {
+		if entry == "" {
+			return
+		}
+		if _, ok := seen[entry]; ok {
+			return
+		}
+		seen[entry] = struct{}{}
+		entries = append(entries, entry)
+	}
+
+	for _, file := range lines {
+		if file == "" {
+			continue
+		}
+
+		// jj repo paths are slash-separated on all platforms.
+		// Add each ancestor directory (e.g. "a/b/c.go" adds "a/" then "a/b/").
+		for i := 0; i < len(file); i++ {
+			if file[i] == '/' {
+				add(file[:i+1])
+			}
+		}
+
+		add(file)
+	}
+
+	return entries
 }
 
 func fileSearchNavigateDelta(delta int) int {

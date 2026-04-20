@@ -29,11 +29,13 @@ const (
 	JJUIPrefix                  = "_PREFIX:"
 )
 
-type CommandArgs []string
-type CommandWithStdin struct {
-	Args  CommandArgs
-	Input string
-}
+type (
+	CommandArgs      []string
+	CommandWithStdin struct {
+		Args  CommandArgs
+		Input string
+	}
+)
 
 func ConfigListAll() CommandArgs {
 	return []string{"config", "list", "--color", "never", "--include-defaults", "--ignore-working-copy"}
