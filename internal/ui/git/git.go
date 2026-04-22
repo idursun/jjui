@@ -323,11 +323,6 @@ func (m *Model) executeDefaultForFilter(kind intents.GitFilterKind) tea.Cmd {
 	return nil
 }
 
-func (m *Model) filtered(filter string) tea.Cmd {
-	m.categoryFilter = filter
-	m.applyFilters(true)
-	return nil
-}
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	pw, ph := box.R.Dx(), box.R.Dy()

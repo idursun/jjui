@@ -41,7 +41,6 @@ type Model struct {
 	groups          []help.ScopeGroup
 	mode            string
 	focusKind       FocusKind
-	history         map[string][]string
 	fuzzy           fuzzy_search.Model
 	styles          styles
 	statusExpanded  bool

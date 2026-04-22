@@ -27,12 +27,10 @@ var (
 )
 
 type styles struct {
-	shortcut     lipgloss.Style
 	dimmed       lipgloss.Style
 	sourceMarker lipgloss.Style
 	targetMarker lipgloss.Style
 	changeId     lipgloss.Style
-	text         lipgloss.Style
 }
 
 var _ operations.Operation = (*Operation)(nil)
@@ -211,7 +209,6 @@ func (r *Operation) targetArg() string {
 func NewOperation(context *context.MainContext, from jj.SelectedRevisions, target intents.ModeTarget) *Operation {
 	styles := styles{
 		changeId:     common.DefaultPalette.Get("revert change_id"),
-		shortcut:     common.DefaultPalette.Get("revert shortcut"),
 		dimmed:       common.DefaultPalette.Get("revert dimmed"),
 		sourceMarker: common.DefaultPalette.Get("revert source_marker"),
 		targetMarker: common.DefaultPalette.Get("revert target_marker"),

@@ -51,7 +51,6 @@ func (s *Operation) Scopes() []dispatch.Scope {
 }
 
 type styles struct {
-	dimmed       lipgloss.Style
 	sourceMarker lipgloss.Style
 	targetMarker lipgloss.Style
 }
@@ -160,7 +159,6 @@ func WithFiles(files []string) Option {
 
 func NewOperation(context *context.MainContext, from jj.SelectedRevisions, opts ...Option) *Operation {
 	styles := styles{
-		dimmed:       common.DefaultPalette.Get("squash dimmed"),
 		sourceMarker: common.DefaultPalette.Get("squash source_marker"),
 		targetMarker: common.DefaultPalette.Get("squash target_marker"),
 	}

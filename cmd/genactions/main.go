@@ -1399,15 +1399,6 @@ func splitCanonicalActionID(canonical string) (scope string, token string) {
 	return canonical[:idx], canonical[idx+1:]
 }
 
-func actionTokenFromCanonical(canonical string) string {
-	_, token := splitCanonicalActionID(canonical)
-	return token
-}
-
-func actionScopeFromCanonical(canonical string) string {
-	scope, _ := splitCanonicalActionID(canonical)
-	return scope
-}
 
 func writeActionFunction(b *bytes.Buffer, action luaActionSpec) {
 	if len(action.Schema) == 0 {

@@ -28,7 +28,6 @@ var (
 type styles struct {
 	changeId     lipgloss.Style
 	dimmed       lipgloss.Style
-	shortcut     lipgloss.Style
 	targetMarker lipgloss.Style
 	sourceMarker lipgloss.Style
 }
