@@ -66,6 +66,7 @@ func (p *Palette) get(fields ...string) lipgloss.Style {
 
 func (p *Palette) Update(styleMap map[string]config.Color) {
 	clear(p.cache)
+	p.root = nil
 	for key, color := range styleMap {
 		p.add(key, createStyleFrom(color))
 	}

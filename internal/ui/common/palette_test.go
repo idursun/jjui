@@ -283,6 +283,24 @@ func TestPaletteUpdate_ClearsCachedStyles(t *testing.T) {
 	assert.Equal(t, lipgloss.Color("4"), got.GetForeground())
 }
 
+func TestPaletteUpdate_ClearsStaleKeysFromPreviousTheme(t *testing.T) {
+	p := NewPalette()
+	p.Update(map[string]config.Color{
+		"text":      {Fg: Red},
+		"dark only": {Fg: Green},
+	})
+
+	assert.Equal(t, lipgloss.Color("2"), p.Get("dark only").GetForeground())
+
+	// Switch to a theme that lacks the "dark only" key.
+	p.Update(map[string]config.Color{
+		"text": {Fg: Blue},
+	})
+
+	got := p.Get("dark only")
+	assert.Equal(t, lipgloss.NewStyle().GetForeground(), got.GetForeground())
+}
+
 func TestPaletteUpdate_ExplicitFalseOverridesInheritedAttribute(t *testing.T) {
 	p := NewPalette()
 	p.Update(map[string]config.Color{
