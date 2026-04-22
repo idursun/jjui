@@ -19,6 +19,10 @@ jobs:
           go fmt ./...
           go mod tidy
           git diff --exit-code
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
   test:
     strategy:
       matrix:

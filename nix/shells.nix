@@ -8,6 +8,7 @@
           # Go toolchain
           go_1_25
           gotools
+          golangci-lint
 
           jujutsu
         ];
