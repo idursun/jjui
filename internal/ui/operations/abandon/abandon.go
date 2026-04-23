@@ -41,11 +41,6 @@ type Operation struct {
 	selectedRevisions jj.SelectedRevisions
 	selections        selections
 	current           *jj.Commit
-	styles            styles
-}
-
-type styles struct {
-	sourceMarker lipgloss.Style
 }
 
 type addSelectionMsg struct {
@@ -119,11 +114,13 @@ func (a *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if pos != operations.RenderBeforeChangeId {
 		return ""
 	}
+
+	sourceMarkerStyle := common.DefaultPalette.Get("abandon source_marker")
 	if a.selections.has(commit.GetChangeId(), selectionTypeDescendants) {
-		return a.styles.sourceMarker.Render("<< abandon descendants of >>")
+		return sourceMarkerStyle.Render("<< abandon descendants of >>")
 	}
 	if a.selections.has(commit.GetChangeId(), selectionTypeRevision) {
-		return a.styles.sourceMarker.Render("<< abandon >>")
+		return sourceMarkerStyle.Render("<< abandon >>")
 	}
 	return ""
 }
@@ -155,9 +152,6 @@ func (a *Operation) Name() string {
 }
 
 func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRevisions) *Operation {
-	styles := styles{
-		sourceMarker: common.DefaultPalette.Get("abandon source_marker"),
-	}
 	selectionItems := make(map[string]selectionType, len(selectedRevisions.Revisions))
 	for _, revision := range selectedRevisions.Revisions {
 		if revision == nil {
@@ -173,7 +167,6 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 		context:           context,
 		selectedRevisions: selectedRevisions,
 		selections:        selections{items: selectionItems},
-		styles:            styles,
 	}
 }
 
