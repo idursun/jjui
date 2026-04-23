@@ -41,14 +41,6 @@ var (
 	}
 )
 
-type styles struct {
-	shortcut     lipgloss.Style
-	dimmed       lipgloss.Style
-	sourceMarker lipgloss.Style
-	targetMarker lipgloss.Style
-	changeId     lipgloss.Style
-}
-
 var (
 	_ operations.Operation   = (*Operation)(nil)
 	_ common.Focusable       = (*Operation)(nil)
@@ -64,7 +56,6 @@ type Operation struct {
 	Target         intents.ModeTarget
 	targetName     string
 	highlightedIds []string
-	styles         styles
 	SkipEmptied    bool
 }
 
@@ -184,6 +175,11 @@ func (r *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 }
 
 func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
+	changeIdStyle := common.DefaultPalette.Get("rebase change_id")
+	dimmedStyle := common.DefaultPalette.Get("rebase dimmed")
+	sourceMarkerStyle := common.DefaultPalette.Get("rebase source_marker")
+	targetMarkerStyle := common.DefaultPalette.Get("rebase target_marker")
+
 	if pos == operations.RenderBeforeChangeId {
 		changeId := commit.GetChangeId()
 		marker := ""
@@ -199,7 +195,7 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		if r.SkipEmptied && marker != "" {
 			marker += " (skip emptied)"
 		}
-		return r.styles.sourceMarker.Render(marker)
+		return sourceMarkerStyle.Render(marker)
 	}
 	expectedPos := operations.RenderPositionBefore
 	if r.Target == intents.ModeTargetBefore || r.Target == intents.ModeTargetInsert {
@@ -248,27 +244,27 @@ func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if r.Target == intents.ModeTargetInsert {
 		return lipgloss.JoinHorizontal(
 			lipgloss.Left,
-			r.styles.targetMarker.Render("<< insert >>"),
+			targetMarkerStyle.Render("<< insert >>"),
 			" ",
-			r.styles.dimmed.Render(source),
-			r.styles.changeId.Render(strings.Join(r.From.GetIds(), " ")),
-			r.styles.dimmed.Render(" between "),
-			r.styles.changeId.Render(r.InsertStart.GetChangeId()),
-			r.styles.dimmed.Render(" and "),
-			r.styles.changeId.Render(r.To.GetChangeId()),
+			dimmedStyle.Render(source),
+			changeIdStyle.Render(strings.Join(r.From.GetIds(), " ")),
+			dimmedStyle.Render(" between "),
+			changeIdStyle.Render(r.InsertStart.GetChangeId()),
+			dimmedStyle.Render(" and "),
+			changeIdStyle.Render(r.To.GetChangeId()),
 		)
 	}
 
 	return lipgloss.JoinHorizontal(
 		lipgloss.Left,
-		r.styles.targetMarker.Render("<< "+ret+" >>"),
-		r.styles.dimmed.Render(" rebase "),
-		r.styles.dimmed.Render(source),
-		r.styles.changeId.Render(strings.Join(r.From.GetIds(), " ")),
-		r.styles.dimmed.Render(" "),
-		r.styles.dimmed.Render(ret),
-		r.styles.dimmed.Render(" "),
-		r.styles.changeId.Render(r.To.GetChangeId()),
+		targetMarkerStyle.Render("<< "+ret+" >>"),
+		dimmedStyle.Render(" rebase "),
+		dimmedStyle.Render(source),
+		changeIdStyle.Render(strings.Join(r.From.GetIds(), " ")),
+		dimmedStyle.Render(" "),
+		dimmedStyle.Render(ret),
+		dimmedStyle.Render(" "),
+		changeIdStyle.Render(r.To.GetChangeId()),
 	)
 }
 
@@ -289,18 +285,10 @@ func (r *Operation) targetArg() string {
 }
 
 func NewOperation(context *context.MainContext, from jj.SelectedRevisions, source Source, target intents.ModeTarget) *Operation {
-	styles := styles{
-		changeId:     common.DefaultPalette.Get("rebase change_id"),
-		shortcut:     common.DefaultPalette.Get("rebase shortcut"),
-		dimmed:       common.DefaultPalette.Get("rebase dimmed"),
-		sourceMarker: common.DefaultPalette.Get("rebase source_marker"),
-		targetMarker: common.DefaultPalette.Get("rebase target_marker"),
-	}
 	return &Operation{
 		context: context,
 		From:    from,
 		Source:  source,
 		Target:  target,
-		styles:  styles,
 	}
 }
