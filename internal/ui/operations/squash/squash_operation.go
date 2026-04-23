@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -33,7 +32,6 @@ type Operation struct {
 	keepEmptied           bool
 	useDestinationMessage bool
 	interactive           bool
-	styles                styles
 }
 
 func (s *Operation) IsFocused() bool {
@@ -48,11 +46,6 @@ func (s *Operation) Scopes() []dispatch.Scope {
 			Handler: s,
 		},
 	}
-}
-
-type styles struct {
-	sourceMarker lipgloss.Style
-	targetMarker lipgloss.Style
 }
 
 func (s *Operation) Init() tea.Cmd {
@@ -112,6 +105,8 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if pos != operations.RenderBeforeChangeId {
 		return ""
 	}
+	sourceMarkerStyle := common.DefaultPalette.Get("squash source_marker")
+	targetMarkerStyle := common.DefaultPalette.Get("squash target_marker")
 
 	isSelected := s.current != nil && s.current.GetChangeId() == commit.GetChangeId()
 	if isSelected {
@@ -119,7 +114,7 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		if s.useDestinationMessage {
 			marker = "<< use this message >>"
 		}
-		return s.styles.targetMarker.Render(marker)
+		return targetMarkerStyle.Render(marker)
 	}
 	sourceIds := s.from.GetIds()
 	if slices.Contains(sourceIds, commit.ChangeId) {
@@ -130,7 +125,7 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		if s.interactive {
 			marker += " (interactive)"
 		}
-		return s.styles.sourceMarker.Render(marker)
+		return sourceMarkerStyle.Render(marker)
 	}
 	return ""
 }
@@ -158,14 +153,9 @@ func WithFiles(files []string) Option {
 }
 
 func NewOperation(context *context.MainContext, from jj.SelectedRevisions, opts ...Option) *Operation {
-	styles := styles{
-		sourceMarker: common.DefaultPalette.Get("squash source_marker"),
-		targetMarker: common.DefaultPalette.Get("squash target_marker"),
-	}
 	o := &Operation{
 		context: context,
 		from:    from,
-		styles:  styles,
 	}
 	for _, opt := range opts {
 		opt(o)
