@@ -2,8 +2,6 @@ package details
 
 import (
 	"fmt"
-
-	"charm.land/lipgloss/v2"
 )
 
 type status uint8
@@ -43,15 +41,3 @@ func (f item) Title() string {
 }
 func (f item) Description() string { return "" }
 func (f item) FilterValue() string { return f.name }
-
-type styles struct {
-	Added    lipgloss.Style
-	Deleted  lipgloss.Style
-	Modified lipgloss.Style
-	Renamed  lipgloss.Style
-	Copied   lipgloss.Style
-	Selected lipgloss.Style
-	Dimmed   lipgloss.Style
-	Text     lipgloss.Style
-	Conflict lipgloss.Style
-}

@@ -45,7 +45,6 @@ type Operation struct {
 	Current      *jj.Commit
 	revision     *jj.Commit
 	confirmation *confirmation.Model
-	styles       styles
 }
 
 func (s *Operation) IsOverlay() bool {
@@ -332,7 +331,8 @@ func (s *Operation) handleIntentInner(intent intents.Intent) (tea.Cmd, bool) {
 }
 
 func (s *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	background := lipgloss.NewStyle().Background(s.styles.Text.GetBackground())
+	textStyle := common.DefaultPalette.Get("revisions details text")
+	background := lipgloss.NewStyle().Background(textStyle.GetBackground())
 	dl.AddFill(box.R, ' ', background, 0)
 	s.renderIntoRect(dl, box.R)
 }
@@ -375,7 +375,8 @@ func (s *Operation) EmbeddedHeight(commit *jj.Commit, pos operations.RenderPosit
 func (s *Operation) renderIntoRect(dl *render.DisplayContext, rect layout.Rectangle) int {
 	if s.Len() == 0 {
 		// Render "No changes" message
-		content := s.styles.Dimmed.Render("No changes")
+		dimmedStyle := common.DefaultPalette.Get("revisions details dimmed")
+		content := dimmedStyle.Render("No changes")
 		dl.AddDraw(layout.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), 1), content, 0)
 		return 1
 	}
@@ -512,24 +513,11 @@ func (s *Operation) load(revision string) tea.Cmd {
 }
 
 func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation {
-	s := styles{
-		Added:    common.DefaultPalette.Get("revisions details added"),
-		Deleted:  common.DefaultPalette.Get("revisions details deleted"),
-		Modified: common.DefaultPalette.Get("revisions details modified"),
-		Renamed:  common.DefaultPalette.Get("revisions details renamed"),
-		Copied:   common.DefaultPalette.Get("revisions details copied"),
-		Selected: common.DefaultPalette.Get("revisions details selected"),
-		Dimmed:   common.DefaultPalette.Get("revisions details dimmed"),
-		Text:     common.DefaultPalette.Get("revisions details text"),
-		Conflict: common.DefaultPalette.Get("revisions details conflict"),
-	}
-
-	l := NewDetailsList(s)
+	l := NewDetailsList()
 	op := &Operation{
 		DetailsList: l,
 		context:     context,
 		revision:    selected,
-		styles:      s,
 	}
 	return op
 }

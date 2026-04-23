@@ -3,6 +3,7 @@ package details
 import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 )
@@ -28,17 +29,15 @@ type DetailsList struct {
 	listRenderer     *render.ListRenderer
 	selectedHint     string
 	unselectedHint   string
-	styles           styles
 	ensureCursorView bool
 }
 
-func NewDetailsList(styles styles) *DetailsList {
+func NewDetailsList() *DetailsList {
 	d := &DetailsList{
 		files:          []*item{},
 		cursor:         -1,
 		selectedHint:   "",
 		unselectedHint: "",
-		styles:         styles,
 	}
 	d.listRenderer = render.NewListRenderer(FileListScrollMsg{})
 	return d
@@ -111,6 +110,9 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 		return 1
 	}
 
+	selectedStyle := common.DefaultPalette.Get("revisions details selected")
+	textStyle := common.DefaultPalette.Get("revisions details text")
+
 	// Render function - renders each visible item
 	renderItem := func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
 		item := d.files[index]
@@ -118,9 +120,9 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 
 		baseStyle := d.getStatusStyle(item.status)
 		if isSelected {
-			baseStyle = d.styles.Selected.Inherit(baseStyle)
+			baseStyle = selectedStyle.Inherit(baseStyle)
 		} else {
-			baseStyle = baseStyle.Background(d.styles.Text.GetBackground())
+			baseStyle = baseStyle.Background(textStyle.GetBackground())
 		}
 		background := lipgloss.NewStyle().Background(baseStyle.GetBackground())
 		dl.AddFill(rect, ' ', background, 0)
@@ -163,11 +165,15 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 
 	tb.Styled(title, style.PaddingRight(1))
 
+	dimmedStyle := common.DefaultPalette.Get("revisions details dimmed")
+	conflictStyle := common.DefaultPalette.Get("revisions details conflict")
+	selectedStyle := common.DefaultPalette.Get("revisions details selected")
+
 	// Add conflict marker
 	if item.conflict {
-		conflictStyle := d.styles.Conflict
+		conflictStyle := conflictStyle
 		if selected {
-			conflictStyle = d.styles.Selected.Inherit(conflictStyle)
+			conflictStyle = selectedStyle.Inherit(conflictStyle)
 		}
 		tb.Styled("conflict ", conflictStyle)
 	}
@@ -181,28 +187,35 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 		}
 	}
 	if hint != "" {
-		hintStyle := d.styles.Dimmed
+		hintStyle := dimmedStyle
 		if selected {
-			hintStyle = d.styles.Selected.Inherit(hintStyle)
+			hintStyle = selectedStyle.Inherit(hintStyle)
 		}
 		tb.Styled(hint, hintStyle)
 	}
 }
 
 func (d *DetailsList) getStatusStyle(s status) lipgloss.Style {
+	addedStyle := common.DefaultPalette.Get("revisions details added")
+	deletedStyle := common.DefaultPalette.Get("revisions details deleted")
+	modifiedStyle := common.DefaultPalette.Get("revisions details modified")
+	renamedStyle := common.DefaultPalette.Get("revisions details renamed")
+	copiedStyle := common.DefaultPalette.Get("revisions details copied")
+	textStyle := common.DefaultPalette.Get("revisions details text")
+
 	switch s {
 	case Added:
-		return d.styles.Added
+		return addedStyle
 	case Deleted:
-		return d.styles.Deleted
+		return deletedStyle
 	case Modified:
-		return d.styles.Modified
+		return modifiedStyle
 	case Renamed:
-		return d.styles.Renamed
+		return renamedStyle
 	case Copied:
-		return d.styles.Copied
+		return copiedStyle
 	default:
-		return d.styles.Text
+		return textStyle
 	}
 }
 
