@@ -51,26 +51,10 @@ type Model struct {
 	History            []string
 	MaxHistoryItems    int
 	context            *appContext.MainContext
-	styles             styles
 	listRenderer       *render.ListRenderer
 	completionItems    []CompletionItem
 	selectedIndex      int
 	userInput          string // tracks what the user actually typed (separate from preview)
-}
-
-type styles struct {
-	title lipgloss.Style
-	text  lipgloss.Style
-
-	// Completion overlay styles
-	completionText       lipgloss.Style
-	completionMatched    lipgloss.Style
-	completionSelected   lipgloss.Style
-	completionTextSel    lipgloss.Style
-	completionMatchedSel lipgloss.Style
-	completionDimmedSel  lipgloss.Style
-	completionDimmed     lipgloss.Style
-	completionBackground lipgloss.Style
 }
 
 func (m *Model) Scopes() []dispatch.Scope {
@@ -95,20 +79,6 @@ func (m *Model) GetValue() string {
 }
 
 func New(context *appContext.MainContext) *Model {
-	palette := common.DefaultPalette
-	styles := styles{
-		title:                palette.Get("revset title"),
-		text:                 palette.Get("revset text"),
-		completionText:       palette.Get("revset completion text"),
-		completionMatched:    palette.Get("revset completion matched"),
-		completionSelected:   palette.Get("revset completion selected"),
-		completionTextSel:    palette.Get("revset completion selected text"),
-		completionMatchedSel: palette.Get("revset completion selected matched"),
-		completionDimmedSel:  palette.Get("revset completion selected dimmed"),
-		completionDimmed:     palette.Get("revset completion dimmed"),
-		completionBackground: palette.Get("revset completion"),
-	}
-
 	revsetAliases := context.JJConfig.RevsetAliases
 	completionProvider := NewCompletionProvider(revsetAliases)
 	autoComplete := autocompletion.New(
@@ -127,7 +97,6 @@ func New(context *appContext.MainContext) *Model {
 		completionProvider: completionProvider,
 		History:            []string{},
 		MaxHistoryItems:    50,
-		styles:             styles,
 		listRenderer:       render.NewListRenderer(completionScrollMsg{}),
 		selectedIndex:      -1, // no selection initially
 	}
@@ -355,14 +324,18 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	// Render the prompt and text input line
+
+	titleStyle := common.DefaultPalette.Get("revset title")
+	textStyle := common.DefaultPalette.Get("revset text")
+	completionDimmed := common.DefaultPalette.Get("revset completion dimmed")
+
 	tb := dl.Text(box.R.Min.X, box.R.Min.Y, render.ZFuzzyInput)
-	tb.Styled("revset: ", m.styles.title)
+	tb.Styled("revset: ", titleStyle)
 	if m.Editing {
 		// Only render the text input part, not the completions from autoComplete.View()
 		tb.Write(m.autoComplete.TextInput.View())
 	} else {
-		tb.Styled(m.context.CurrentRevset, m.styles.text)
+		tb.Styled(m.context.CurrentRevset, textStyle)
 	}
 	tb.Done()
 
@@ -378,7 +351,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		// Show "No suggestions" when there's input but no matches
 		if m.autoComplete.Value() != "" {
 			noSuggestionsRect := layout.Rect(box.R.Min.X, box.R.Max.Y, box.R.Dx(), 1)
-			noSuggestionsText := m.styles.completionDimmed.Render("No suggestions")
+			noSuggestionsText := completionDimmed.Render("No suggestions")
 			dl.AddDraw(noSuggestionsRect, noSuggestionsText, render.ZRevsetOverlay)
 		}
 		return
@@ -387,7 +360,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	// If no items but we have signature help, show it
 	if len(items) == 0 && signatureHelp != "" {
 		sigRect := layout.Rect(box.R.Min.X, box.R.Max.Y, box.R.Dx(), 1)
-		sigText := m.styles.completionDimmed.Render(signatureHelp)
+		sigText := completionDimmed.Render(signatureHelp)
 		dl.AddDraw(sigRect, sigText, render.ZRevsetOverlay)
 		return
 	}
@@ -397,7 +370,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	overlayWidth := box.R.Dx()
 	outerBox := layout.NewBox(layout.Rect(box.R.Min.X, box.R.Max.Y, overlayWidth, overlayHeight))
 	// Fill the background to prevent underlying content from showing through
-	dl.AddFill(outerBox.R, ' ', m.styles.completionBackground, render.ZRevsetOverlay-1)
+	dl.AddFill(outerBox.R, ' ', common.DefaultPalette.Get("revset completion"), render.ZRevsetOverlay-1)
+	completionText := common.DefaultPalette.Get("revset completion text")
+	completionMatched := common.DefaultPalette.Get("revset completion matched")
 
 	m.listRenderer.Render(
 		dl,
@@ -413,27 +388,29 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			isSelected := index == m.selectedIndex
 
 			item := items[index]
-			completionText := m.styles.completionText
-			completionMatched := m.styles.completionMatched
-			completionDimmed := m.styles.completionDimmed
+
+			ts := completionText
+			ms := completionMatched
+			ds := completionDimmed
+
 			if isSelected {
-				completionText = m.styles.completionTextSel
-				completionMatched = m.styles.completionMatchedSel
-				completionDimmed = m.styles.completionDimmedSel
-				dl.AddFill(rect, ' ', m.styles.completionSelected.Inherit(m.styles.completionBackground), render.ZRevsetOverlay-1)
+				ts = common.DefaultPalette.Get("revset completion selected text")
+				ms = common.DefaultPalette.Get("revset completion selected matched")
+				ds = common.DefaultPalette.Get("revset completion selected dimmed")
+				dl.AddFill(rect, ' ', common.DefaultPalette.Get("revset completion selected"), render.ZRevsetOverlay-1)
 			}
 
 			tb := dl.Text(rect.Min.X, rect.Min.Y, render.ZRevsetOverlay)
-			pillStyle := completionDimmed.Width(pillWidth).Align(lipgloss.Right)
+			pillStyle := ds.Width(pillWidth).Align(lipgloss.Right)
 			tb.Styled(pillLabel(item.Kind), pillStyle)
-			tb.Styled(" ", completionText)
-			tb.Styled(item.MatchedPart, completionMatched)
-			tb.Styled(item.RestPart, completionText)
-			tb.Styled(" ", completionText)
+			tb.Styled(" ", ts)
+			tb.Styled(item.MatchedPart, ms)
+			tb.Styled(item.RestPart, ts)
+			tb.Styled(" ", ts)
 
 			if item.SignatureHelp != "" && item.Kind != KindHistory {
 				sigDisplay := m.formatSignature(item)
-				tb.Styled(sigDisplay, completionDimmed)
+				tb.Styled(sigDisplay, ds)
 			}
 			tb.Done()
 		},
@@ -461,14 +438,10 @@ func pillLabel(kind CompletionKind) string {
 
 func (m *Model) formatSignature(item CompletionItem) string {
 	sig := item.SignatureHelp
-	// The signature format is "name(args): description"
-	// We want to show just the description or "(args): desc" if different from name
 	if _, after, ok := strings.Cut(sig, "):"); ok {
-		// Return description part after "): "
 		return strings.TrimSpace(after)
 	}
 	if _, after, ok := strings.Cut(sig, ":"); ok {
-		// Return description part after ": "
 		return strings.TrimSpace(after)
 	}
 	return sig
