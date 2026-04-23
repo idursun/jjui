@@ -56,7 +56,6 @@ type Operation struct {
 	rows             []parser.Row
 	cursor           int
 	target           *jj.Commit
-	styles           styles
 	ensureCursorView bool
 }
 
@@ -106,15 +105,6 @@ func (o *Operation) Init() tea.Cmd {
 
 func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	o.renderListToDisplayContext(dl, box.R, o.ensureCursorView)
-}
-
-type styles struct {
-	dimmedStyle   lipgloss.Style
-	commitIdStyle lipgloss.Style
-	changeIdStyle lipgloss.Style
-	markerStyle   lipgloss.Style
-	textStyle     lipgloss.Style
-	selectedStyle lipgloss.Style
 }
 
 func (o *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
@@ -234,13 +224,19 @@ func (o *Operation) updateSelection() tea.Cmd {
 
 func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
 	if o.mode == restoreMode && pos == operations.RenderPositionBefore && o.target != nil && o.target.GetChangeId() == commit.GetChangeId() {
+
+		dimmedStyle := common.DefaultPalette.Get("evolog dimmed")
+		commitIdStyle := common.DefaultPalette.Get("evolog commit_id")
+		changeIdStyle := common.DefaultPalette.Get("evolog change_id")
+		markerStyle := common.DefaultPalette.Get("evolog target_marker")
+
 		selectedCommitId := o.getSelectedEvolog().CommitId
 		return lipgloss.JoinHorizontal(0,
-			o.styles.markerStyle.Render("<< restore >>"),
-			o.styles.dimmedStyle.PaddingLeft(1).Render("restore from "),
-			o.styles.commitIdStyle.Render(selectedCommitId),
-			o.styles.dimmedStyle.Render(" into "),
-			o.styles.changeIdStyle.Render(o.target.GetChangeId()),
+			markerStyle.Render("<< restore >>"),
+			dimmedStyle.PaddingLeft(1).Render("restore from "),
+			commitIdStyle.Render(selectedCommitId),
+			dimmedStyle.Render(" into "),
+			changeIdStyle.Render(o.target.GetChangeId()),
 		)
 	}
 
@@ -291,20 +287,11 @@ func (o *Operation) load() tea.Msg {
 }
 
 func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation {
-	styles := styles{
-		dimmedStyle:   common.DefaultPalette.Get("evolog dimmed"),
-		commitIdStyle: common.DefaultPalette.Get("evolog commit_id"),
-		changeIdStyle: common.DefaultPalette.Get("evolog change_id"),
-		markerStyle:   common.DefaultPalette.Get("evolog target_marker"),
-		textStyle:     common.DefaultPalette.Get("evolog text"),
-		selectedStyle: common.DefaultPalette.Get("evolog selected"),
-	}
 	o := &Operation{
 		context:    context,
 		revision:   revision,
 		rows:       nil,
 		cursor:     0,
-		styles:     styles,
 		dlRenderer: render.NewListRenderer(EvologScrollMsg{}),
 	}
 	return o
@@ -320,6 +307,8 @@ func (o *Operation) renderListToDisplayContext(
 		dl.AddDraw(layout.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), 1), content, 0)
 		return 1
 	}
+	textStyle := common.DefaultPalette.Get("evolog text")
+	selectedStyle := common.DefaultPalette.Get("evolog selected")
 
 	totalHeight := 0
 	for _, row := range o.rows {
@@ -334,9 +323,9 @@ func (o *Operation) renderListToDisplayContext(
 	renderItem := func(dl *render.DisplayContext, index int, itemRect layout.Rectangle) {
 		row := o.rows[index]
 		isItemSelected := index == o.cursor
-		styleOverride := o.styles.textStyle
+		styleOverride := textStyle
 		if isItemSelected {
-			styleOverride = o.styles.selectedStyle
+			styleOverride = selectedStyle
 		}
 
 		y := itemRect.Min.Y
@@ -354,7 +343,7 @@ func (o *Operation) renderListToDisplayContext(
 			dl.AddDraw(lineRect, lineContent, 0)
 
 			if isItemSelected {
-				dl.AddHighlight(lineRect, o.styles.selectedStyle, 1)
+				dl.AddHighlight(lineRect, selectedStyle, 1)
 			}
 			y++
 		}
