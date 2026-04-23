@@ -42,9 +42,6 @@ type Model struct {
 	listRenderer     *render.ListRenderer
 	rows             []row
 	cursor           int
-	textStyle        lipgloss.Style
-	selectedStyle    lipgloss.Style
-	matchedStyle     lipgloss.Style
 	ensureCursorView bool
 	quickSearch      string
 }
@@ -250,12 +247,16 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return len(m.rows[index].Lines)
 	}
 
+	textStyle := common.DefaultPalette.Get("oplog text")
+	selectedStyle := common.DefaultPalette.Get("oplog selected")
+	matchedStyle := common.DefaultPalette.Get("oplog matched")
+
 	renderItem := func(dl *render.DisplayContext, index int, itemRect layout.Rectangle) {
 		row := m.rows[index]
 		isSelected := index == m.cursor
-		styleOverride := m.textStyle
+		styleOverride := textStyle
 		if isSelected {
-			styleOverride = m.selectedStyle
+			styleOverride = selectedStyle
 		}
 
 		y := itemRect.Min.Y
@@ -279,7 +280,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 						if idx > lastEnd {
 							content.WriteString(style.Render(text[lastEnd:idx]))
 						}
-						content.WriteString(m.matchedStyle.Inherit(styleOverride).Render(text[idx : idx+len(lowerSearch)]))
+						content.WriteString(matchedStyle.Inherit(styleOverride).Render(text[idx : idx+len(lowerSearch)]))
 						lastEnd = idx + len(lowerSearch)
 					}
 				} else {
@@ -326,12 +327,9 @@ func (m *Model) load() tea.Cmd {
 
 func New(context *context.MainContext) *Model {
 	m := &Model{
-		context:       context,
-		rows:          nil,
-		cursor:        0,
-		textStyle:     common.DefaultPalette.Get("oplog text"),
-		selectedStyle: common.DefaultPalette.Get("oplog selected"),
-		matchedStyle:  common.DefaultPalette.Get("oplog matched"),
+		context: context,
+		rows:    nil,
+		cursor:  0,
 	}
 	m.listRenderer = render.NewListRenderer(OpLogScrollMsg{})
 	return m
