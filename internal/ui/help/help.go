@@ -94,19 +94,9 @@ var scopeOrder = []string{
 	"ui.preview",
 }
 
-type styles struct {
-	border   lipgloss.Style
-	title    lipgloss.Style
-	heading  lipgloss.Style
-	shortcut lipgloss.Style
-	desc     lipgloss.Style
-	dimmed   lipgloss.Style
-}
-
 type Model struct {
 	groups    []ScopeGroup
 	scroll    int
-	styles    styles
 	input     textinput.Model
 	filtering bool
 	filtered  []ScopeGroup
@@ -236,6 +226,20 @@ func (m *Model) applyFilter() {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	borderStyle := common.DefaultPalette.GetBorder("help border", lipgloss.NormalBorder()).Padding(0)
+	titleStyle := common.DefaultPalette.Get("help title")
+	headingStyle := titleStyle
+	shortcutStyle := common.DefaultPalette.Get("help shortcut")
+	dimmedStyle := common.DefaultPalette.Get("help dimmed")
+	descStyle := common.DefaultPalette.Get("help desc").Inherit(dimmedStyle)
+
+	inputStyles := m.input.Styles()
+	inputStyles.Focused.Text = shortcutStyle
+	inputStyles.Focused.Placeholder = dimmedStyle
+	inputStyles.Blurred.Text = shortcutStyle
+	inputStyles.Blurred.Placeholder = dimmedStyle
+	m.input.SetStyles(inputStyles)
+
 	pw, ph := box.R.Dx(), box.R.Dy()
 	contentWidth := max(min(pw, 90)-4, 0)
 	contentHeight := max(min(ph, 50)-4, 0)
@@ -251,13 +255,13 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if contentBox.R.Dx() <= 0 || contentBox.R.Dy() <= 0 {
 		return
 	}
-	dl.AddFill(contentBox.R, ' ', m.styles.dimmed, render.ZMenuContent)
+	dl.AddFill(contentBox.R, ' ', dimmedStyle, render.ZMenuContent)
 
 	borderBase := lipgloss.NewStyle().Width(contentBox.R.Dx()).Height(contentBox.R.Dy()).Render("")
-	dl.AddDraw(frame.R, m.styles.border.Render(borderBase), render.ZMenuBorder)
+	dl.AddDraw(frame.R, borderStyle.Render(borderBase), render.ZMenuBorder)
 
 	titleBox, contentBox := contentBox.CutTop(1)
-	title := m.styles.title.Render("  Keybindings  ")
+	title := titleStyle.Render("  Keybindings  ")
 	dl.AddDraw(titleBox.R, title, render.ZMenuContent)
 
 	filterBox, contentBox := contentBox.CutTop(1)
@@ -270,7 +274,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if m.filtered != nil {
 		groups = m.filtered
 	}
-	lines := m.renderGroups(groups, contentBox.R.Dx())
+	lines := m.renderGroups(groups, contentBox.R.Dx(), headingStyle, shortcutStyle, descStyle)
 
 	// clamp scroll
 	maxScroll := max(0, len(lines)-contentBox.R.Dy())
@@ -291,22 +295,22 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 }
 
-func (m *Model) renderGroups(groups []ScopeGroup, width int) []string {
+func (m *Model) renderGroups(groups []ScopeGroup, width int, headingStyle, shortcutStyle, descStyle lipgloss.Style) []string {
 	var lines []string
 	for i, group := range groups {
 		if i > 0 {
 			lines = append(lines, "")
 		}
-		header := m.styles.heading.Width(width).Render("  " + group.Name + " ")
+		header := headingStyle.Width(width).Render("  " + group.Name + " ")
 		lines = append(lines, header)
 
-		entryLines := m.renderEntries(group.Entries, width)
+		entryLines := m.renderEntries(group.Entries, width, shortcutStyle, descStyle)
 		lines = append(lines, entryLines...)
 	}
 	return lines
 }
 
-func (m *Model) renderEntries(entries []Entry, width int) []string {
+func (m *Model) renderEntries(entries []Entry, width int, shortcutStyle, descStyle lipgloss.Style) []string {
 	maxLabelWidth := 0
 	for _, e := range entries {
 		if w := render.StringWidth(e.Label); w > maxLabelWidth {
@@ -328,8 +332,8 @@ func (m *Model) renderEntries(entries []Entry, width int) []string {
 				continue
 			}
 			e := entries[idx]
-			label := m.styles.shortcut.Width(maxLabelWidth + 1).Render(e.Label)
-			desc := m.styles.desc.Render(e.Desc)
+			label := shortcutStyle.Width(maxLabelWidth + 1).Render(e.Label)
+			desc := descStyle.Render(e.Desc)
 			entry := "  " + label + " " + desc
 			entryWidth := render.StringWidth(entry)
 			if col < numCols-1 {
@@ -345,30 +349,13 @@ func (m *Model) renderEntries(entries []Entry, width int) []string {
 func New() *Model {
 	groups := buildGroups(config.Current.Bindings)
 
-	palette := common.DefaultPalette
-	s := styles{
-		border:   palette.GetBorder("help border", lipgloss.NormalBorder()).Padding(0),
-		title:    palette.Get("help title"),
-		heading:  palette.Get("help title"),
-		shortcut: palette.Get("help shortcut"),
-		desc:     palette.Get("help desc").Inherit(palette.Get("help dimmed")),
-		dimmed:   palette.Get("help dimmed"),
-	}
-
 	ti := textinput.New()
 	ti.Placeholder = "search"
 	ti.Prompt = "/ "
 	ti.SetWidth(40)
-	ts := ti.Styles()
-	ts.Focused.Text = s.shortcut
-	ts.Focused.Placeholder = s.dimmed
-	ts.Blurred.Text = s.shortcut
-	ts.Blurred.Placeholder = s.dimmed
-	ti.SetStyles(ts)
 
 	return &Model{
 		groups: groups,
-		styles: s,
 		input:  ti,
 	}
 }
