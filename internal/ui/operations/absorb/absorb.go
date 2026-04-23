@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -30,13 +29,6 @@ type Operation struct {
 	current  *jj.Commit
 	defaults map[string]bool
 	targets  map[string]bool
-	styles   styles
-}
-
-type styles struct {
-	sourceMarker lipgloss.Style
-	targetMarker lipgloss.Style
-	dimmed       lipgloss.Style
 }
 
 func (o *Operation) IsFocused() bool {
@@ -117,15 +109,19 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if pos != operations.RenderBeforeChangeId {
 		return ""
 	}
+	sourceMarkerStyle := common.DefaultPalette.Get("absorb source_marker")
+	targetMarkerStyle := common.DefaultPalette.Get("absorb target_marker")
+	dimmedStyle := common.DefaultPalette.Get("absorb dimmed")
+
 	changeId := commit.GetChangeId()
 	if changeId == o.source.GetChangeId() {
-		return o.styles.sourceMarker.Render("<< absorb >>")
+		return sourceMarkerStyle.Render("<< absorb >>")
 	}
 	if o.targets[changeId] {
-		return o.styles.targetMarker.Render("<< into >>")
+		return targetMarkerStyle.Render("<< into >>")
 	}
 	if o.defaults[changeId] {
-		return o.styles.dimmed.Render("<< default >>")
+		return dimmedStyle.Render("<< default >>")
 	}
 	return ""
 }
@@ -135,11 +131,6 @@ func (o *Operation) Name() string {
 }
 
 func NewOperation(ctx *context.MainContext, source *jj.Commit) *Operation {
-	s := styles{
-		sourceMarker: common.DefaultPalette.Get("absorb source_marker"),
-		targetMarker: common.DefaultPalette.Get("absorb target_marker"),
-		dimmed:       common.DefaultPalette.Get("absorb dimmed"),
-	}
 	defaultIds := loadDefaultTargets(ctx, source)
 	defaults := make(map[string]bool, len(defaultIds))
 	targets := make(map[string]bool, len(defaultIds))
@@ -152,7 +143,6 @@ func NewOperation(ctx *context.MainContext, source *jj.Commit) *Operation {
 		source:   source,
 		defaults: defaults,
 		targets:  targets,
-		styles:   s,
 	}
 }
 
