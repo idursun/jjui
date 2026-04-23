@@ -11,19 +11,10 @@ import (
 const commandMarkWidth = 3
 
 type CardRenderer struct {
-	successStyle lipgloss.Style
-	errorStyle   lipgloss.Style
-	textStyle    lipgloss.Style
-	matchedStyle lipgloss.Style
 }
 
 func NewCardRenderer() CardRenderer {
-	return CardRenderer{
-		successStyle: common.DefaultPalette.Get("flash success"),
-		errorStyle:   common.DefaultPalette.Get("flash error"),
-		textStyle:    common.DefaultPalette.Get("flash text"),
-		matchedStyle: common.DefaultPalette.Get("flash matched"),
-	}
+	return CardRenderer{}
 }
 
 func (r CardRenderer) RenderMessage(command, text string, commandErr error, maxWidth int) string {
@@ -41,14 +32,16 @@ func (r CardRenderer) RenderRunningCommand(command, indicator string, maxWidth i
 	return r.wrapCard(
 		r.renderCommandLine(command, nil, true, indicator),
 		maxWidth,
-		r.textStyle,
 	)
 }
 
 func (r CardRenderer) renderCard(command, text string, commandErr error, maxWidth int, showBody bool, highlight bool) string {
-	statusStyle := r.successStyle
+	successStyle := common.DefaultPalette.Get("flash success")
+	errorStyle := common.DefaultPalette.Get("flash error")
+
+	statusStyle := successStyle
 	if commandErr != nil {
-		statusStyle = r.errorStyle
+		statusStyle = errorStyle
 	}
 
 	var parts []string
@@ -77,15 +70,19 @@ func (r CardRenderer) renderCard(command, text string, commandErr error, maxWidt
 	return r.wrapCard(strings.Join(parts, "\n"), maxWidth, borderStyle)
 }
 
-func (r CardRenderer) wrapCard(content string, maxWidth int, borderStyle lipgloss.Style) string {
+func (r CardRenderer) wrapCard(content string, maxWidth int, borderStyle ...lipgloss.Style) string {
 	if render.BlockWidth(content) > maxWidth {
 		content = lipgloss.NewStyle().Width(maxWidth).Render(content)
+	}
+	style := common.DefaultPalette.Get("flash text")
+	if len(borderStyle) > 0 && borderStyle[0].GetForeground() != nil {
+		style = borderStyle[0]
 	}
 	return lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder()).
 		PaddingLeft(1).
 		PaddingRight(1).
-		BorderForeground(borderStyle.GetForeground()).
+		BorderForeground(style.GetForeground()).
 		Render(content)
 }
 
@@ -93,13 +90,18 @@ func (r CardRenderer) renderCommandLine(command string, commandErr error, runnin
 	if command == "" {
 		return ""
 	}
-	mark := r.successStyle.Width(commandMarkWidth).Render("✓ ")
+	successStyle := common.DefaultPalette.Get("flash success")
+	errorStyle := common.DefaultPalette.Get("flash error")
+	textStyle := common.DefaultPalette.Get("flash text")
+	matchedStyle := common.DefaultPalette.Get("flash matched")
+
+	mark := successStyle.Width(commandMarkWidth).Render("✓ ")
 	if running {
-		mark = r.textStyle.Width(commandMarkWidth).Render(indicator + " ")
+		mark = textStyle.Width(commandMarkWidth).Render(indicator + " ")
 	} else if commandErr != nil {
-		mark = r.errorStyle.Width(commandMarkWidth).Render("✗ ")
+		mark = errorStyle.Width(commandMarkWidth).Render("✗ ")
 	}
-	return mark + colorizeCommand(command, r.textStyle, r.matchedStyle)
+	return mark + colorizeCommand(command, textStyle, matchedStyle)
 }
 
 func colorizeCommand(cmd string, textStyle, matchedStyle lipgloss.Style) string {
