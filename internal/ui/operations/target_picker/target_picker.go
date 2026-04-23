@@ -53,21 +53,9 @@ type Model struct {
 	input               textinput.Model
 	cursor              int
 	matches             fuzzy.Matches
-	styles              styles
 	fzfSource           *fuzzy_search.RefinedSource
 	listRenderer        *render.ListRenderer
 	ensureCursorVisible bool
-}
-
-type styles struct {
-	bookmarkPill       lipgloss.Style
-	selected           lipgloss.Style
-	selectedDimmed     lipgloss.Style
-	selectedText       lipgloss.Style
-	selectedMatchStyle lipgloss.Style
-	dimmed             lipgloss.Style
-	matchStyle         lipgloss.Style
-	border             lipgloss.Style
 }
 
 type itemsLoadedMsg struct {
@@ -115,34 +103,15 @@ func (m *Model) Scopes() []dispatch.Scope {
 }
 
 func NewModel(ctx *context.MainContext) *Model {
-	palette := common.DefaultPalette
-	text := palette.Get("picker text")
-	dimmed := palette.Get("picker dimmed")
 	ti := textinput.New()
 	ti.Prompt = "> "
-	tis := ti.Styles()
-	tis.Focused.Prompt = dimmed
-	tis.Focused.Text = text
-	tis.Blurred.Prompt = dimmed
-	tis.Blurred.Text = text
-	ti.SetStyles(tis)
 	ti.CharLimit = 0
 	ti.Focus()
 
 	m := &Model{
-		context: ctx,
-		input:   ti,
-		cursor:  0,
-		styles: styles{
-			bookmarkPill:       palette.Get("picker bookmark"),
-			selected:           palette.Get("picker selected"),
-			selectedDimmed:     palette.Get("picker selected dimmed"),
-			selectedText:       palette.Get("picker selected text"),
-			selectedMatchStyle: palette.Get("picker selected matched"),
-			dimmed:             dimmed,
-			matchStyle:         palette.Get("picker matched"),
-			border:             palette.GetBorder("picker border", lipgloss.NormalBorder()),
-		},
+		context:             ctx,
+		input:               ti,
+		cursor:              0,
 		listRenderer:        render.NewListRenderer(itemScrollMsg{}),
 		ensureCursorVisible: true,
 	}
@@ -216,18 +185,35 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
+	bookmarkPillStyle := common.DefaultPalette.Get("picker bookmark")
+	selectedStyle := common.DefaultPalette.Get("picker selected")
+	selectedDimmedStyle := common.DefaultPalette.Get("picker selected dimmed")
+	selectedTextStyle := common.DefaultPalette.Get("picker selected text")
+	selectedMatchStyle := common.DefaultPalette.Get("picker selected matched")
+	matchedStyle := common.DefaultPalette.Get("picker matched")
+	borderStyle := common.DefaultPalette.GetBorder("picker border", lipgloss.NormalBorder())
+	textStyle := common.DefaultPalette.Get("picker text")
+	dimmedStyle := common.DefaultPalette.Get("picker dimmed")
+
 	maxW := min(maxWidth, box.R.Dx())
 	maxH := min(maxHeight, box.R.Dy())
 	centeredBox := box.Center(maxW, maxH)
 
 	frame := centeredBox
 	dl.AddBackdrop(box.R, render.ZMenuBorder-1)
-	borderContent := m.styles.border.Width(frame.R.Dx()).Height(frame.R.Dy()).Render("")
+	borderContent := borderStyle.Width(frame.R.Dx()).Height(frame.R.Dy()).Render("")
 	dl.AddDraw(frame.R, borderContent, render.ZMenuBorder)
 	centeredBox = centeredBox.Inset(1)
 
 	inputBox, listBox := centeredBox.CutTop(1)
 	m.input.SetWidth(inputBox.R.Dx())
+
+	tis := m.input.Styles()
+	tis.Focused.Prompt = dimmedStyle
+	tis.Focused.Text = textStyle
+	tis.Blurred.Prompt = dimmedStyle
+	tis.Blurred.Text = textStyle
+	m.input.SetStyles(tis)
 
 	dl.AddDraw(inputBox.R, m.input.View(), render.ZMenuContent)
 
@@ -247,14 +233,14 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			y := rect.Min.Y
 
 			isSelected := index == m.cursor
-			pillStyle := m.styles.dimmed
-			lineStyle := m.styles.bookmarkPill
-			matchStyle := m.styles.matchStyle
+			pillStyle := dimmedStyle
+			lineStyle := bookmarkPillStyle
+			matchStyle := matchedStyle
 			if isSelected {
-				pillStyle = m.styles.selectedDimmed
-				lineStyle = m.styles.selectedText
-				matchStyle = m.styles.selectedMatchStyle
-				dl.AddFill(rect, ' ', m.styles.selected, render.ZMenuContent-1)
+				pillStyle = selectedDimmedStyle
+				lineStyle = selectedTextStyle
+				matchStyle = selectedMatchStyle
+				dl.AddFill(rect, ' ', selectedStyle, render.ZMenuContent-1)
 			} else {
 				matchStyle = matchStyle.Inherit(lineStyle)
 			}
