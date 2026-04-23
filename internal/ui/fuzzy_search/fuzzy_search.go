@@ -12,33 +12,16 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-type Styles struct {
-	Dimmed        lipgloss.Style
-	DimmedMatch   lipgloss.Style
-	Selected      lipgloss.Style
-	SelectedMatch lipgloss.Style
-}
-
 type Model interface {
 	fuzzy.Source
 	common.ImmediateModel
 	Max() int
 	Matches() fuzzy.Matches
 	SelectedMatch() int
-	Styles() Styles
 }
 
 type SearchMsg struct {
 	Input string
-}
-
-func NewStyles() Styles {
-	return Styles{
-		Dimmed:        common.DefaultPalette.Get("status dimmed"),
-		DimmedMatch:   common.DefaultPalette.Get("status shortcut"),
-		Selected:      common.DefaultPalette.Get("selected"),
-		SelectedMatch: common.DefaultPalette.Get("status title"),
-	}
 }
 
 func Search(input string) tea.Cmd {
@@ -63,22 +46,25 @@ func SelectedMatch(model Model) string {
 func View(fzf Model) string {
 	shown := []string{}
 	max := fzf.Max()
-	styles := fzf.Styles()
+	dimmedStyle := common.DefaultPalette.Get("status dimmed")
+	dimmedMatchStyle := common.DefaultPalette.Get("status shortcut")
+	selectedStyle := common.DefaultPalette.Get("selected")
+	selectedMatchStyle := common.DefaultPalette.Get("status title")
 	selected := fzf.SelectedMatch()
 	for i, match := range fzf.Matches() {
 		if i == max {
 			break
 		}
 		sel := " "
-		selStyle := styles.SelectedMatch
-		lineStyle := styles.Dimmed
-		matchStyle := styles.DimmedMatch
+		selStyle := selectedMatchStyle
+		lineStyle := dimmedStyle
+		matchStyle := dimmedMatchStyle
 
 		entry := fzf.String(match.Index)
 		if i == selected {
 			sel = "◆"
-			lineStyle = styles.Selected
-			matchStyle = styles.SelectedMatch
+			lineStyle = selectedStyle
+			matchStyle = selectedMatchStyle
 		}
 
 		entry = HighlightMatched(entry, match, lineStyle, matchStyle)

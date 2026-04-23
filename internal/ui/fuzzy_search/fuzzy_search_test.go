@@ -51,7 +51,6 @@ type stubModel struct {
 func (m stubModel) Max() int                                        { return len(m.matches) }
 func (m stubModel) Matches() fuzzy.Matches                          { return m.matches }
 func (m stubModel) SelectedMatch() int                              { return m.selected }
-func (m stubModel) Styles() Styles                                  { return NewStyles() }
 func (m stubModel) Init() tea.Cmd                                   { return nil }
 func (m stubModel) Update(msg tea.Msg) tea.Cmd                      { return nil }
 func (m stubModel) ViewRect(_ *render.DisplayContext, _ layout.Box) {}

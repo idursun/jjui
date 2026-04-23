@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/fuzzy_search"
 	"github.com/sahilm/fuzzy"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,7 +12,6 @@ func TestUpdateRevSet_WithPath(t *testing.T) {
 	model := &fuzzyFiles{
 		revset: "all()",
 		paths:  []string{"file1.txt", "path/to/file2.go", "special file.txt"},
-		styles: fuzzy_search.NewStyles(),
 	}
 
 	// a match being selected
@@ -37,7 +35,6 @@ func TestUpdateRevSet_WithPathContainingSpaces(t *testing.T) {
 	model := &fuzzyFiles{
 		revset: "all()",
 		paths:  []string{"file with spaces.txt"},
-		styles: fuzzy_search.NewStyles(),
 	}
 
 	model.matches = fuzzy.Matches{
@@ -58,7 +55,6 @@ func TestUpdateRevSet_WithPathContainingBraces(t *testing.T) {
 	model := &fuzzyFiles{
 		revset: "all()",
 		paths:  []string{"file{with}braces.txt"},
-		styles: fuzzy_search.NewStyles(),
 	}
 
 	model.matches = fuzzy.Matches{
@@ -79,7 +75,6 @@ func TestUpdateRevSet_WithDirectory(t *testing.T) {
 	model := &fuzzyFiles{
 		revset: "all()",
 		paths:  []string{"path/to/"},
-		styles: fuzzy_search.NewStyles(),
 	}
 
 	model.matches = fuzzy.Matches{{Index: 0, Str: "path/to/"}}
@@ -97,7 +92,6 @@ func TestUpdateRevSet_NoPath(t *testing.T) {
 		revset:  "all()",
 		paths:   []string{},
 		matches: fuzzy.Matches{},
-		styles:  fuzzy_search.NewStyles(),
 	}
 
 	cmd := model.updateRevSet()
@@ -115,7 +109,6 @@ func TestUpdateRevSet_EmptyMatches(t *testing.T) {
 		paths:   []string{"file1.txt"},
 		matches: fuzzy.Matches{},
 		cursor:  0,
-		styles:  fuzzy_search.NewStyles(),
 	}
 
 	cmd := model.updateRevSet()

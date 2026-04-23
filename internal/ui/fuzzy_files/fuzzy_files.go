@@ -35,7 +35,6 @@ type fuzzyFiles struct {
 	paths   []string
 	max     int
 	matches fuzzy.Matches
-	styles  fuzzy_search.Styles
 }
 
 var debounceDuration = 250 * time.Millisecond
@@ -156,10 +155,6 @@ func (fzf *fuzzyFiles) moveCursor(inc int) {
 	fzf.cursor = n
 }
 
-func (fzf *fuzzyFiles) Styles() fuzzy_search.Styles {
-	return fzf.styles
-}
-
 func (fzf *fuzzyFiles) Max() int {
 	return fzf.max
 }
@@ -205,7 +200,7 @@ func (fzf *fuzzyFiles) viewContent() string {
 	if shown == 0 {
 		return ""
 	}
-	title := fzf.styles.SelectedMatch.Render(
+	title := common.DefaultPalette.Get("status title").Render(
 		"  ",
 		strconv.Itoa(shown),
 		"of",
@@ -225,7 +220,6 @@ func NewModel(msg common.FileSearchMsg) fuzzy_search.Model {
 		max:             30,
 		commit:          msg.Commit,
 		paths:           buildPathEntries(msg.RawFileOut),
-		styles:          fuzzy_search.NewStyles(),
 	}
 	return model
 }
