@@ -58,7 +58,7 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if pos != operations.RenderOverDescription {
 		return ""
 	}
-	return o.renderTextarea(80, 0).View()
+	return o.resizeInput(80, 0).View()
 }
 
 func (o *Operation) CanEmbed(_ *jj.Commit, pos operations.RenderPosition) bool {
@@ -69,7 +69,7 @@ func (o *Operation) EmbeddedHeight(commit *jj.Commit, pos operations.RenderPosit
 	if !o.CanEmbed(commit, pos) {
 		return 0
 	}
-	return o.renderTextarea(width, 0).Height()
+	return o.resizeInput(width, 0).Height()
 }
 
 func (o *Operation) Name() string {
@@ -139,7 +139,14 @@ func (o *Operation) Init() tea.Cmd {
 }
 
 func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	input := o.renderTextarea(box.R.Dx(), box.R.Dy())
+	input := o.resizeInput(box.R.Dx(), box.R.Dy())
+
+	selectedStyle := common.DefaultPalette.Get("revisions selected")
+	ds := input.Styles()
+	ds.Focused.Base = selectedStyle.Underline(false).Strikethrough(false).Reverse(false).Blink(false)
+	ds.Focused.CursorLine = ds.Focused.Base
+	input.SetStyles(ds)
+
 	rect := layout.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), input.Height())
 	dl.AddDraw(rect, input.View(), 0)
 }
@@ -155,18 +162,13 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 	// clear the stashed description regardless
 	stashed = nil
 
-	selectedStyle := common.DefaultPalette.Get("revisions selected")
-
 	input := textarea.New()
 	input.CharLimit = 0
 	input.Prompt = ""
 	input.ShowLineNumbers = false
 	input.DynamicHeight = true
 	input.MinHeight = 1
-	ds := input.Styles()
-	ds.Focused.Base = selectedStyle.Underline(false).Strikethrough(false).Reverse(false).Blink(false)
-	ds.Focused.CursorLine = ds.Focused.Base
-	input.SetStyles(ds)
+
 	input.SetValue(desc)
 	input.Focus()
 
@@ -178,7 +180,7 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 	}
 }
 
-func (o *Operation) renderTextarea(width, maxHeight int) textarea.Model {
+func (o *Operation) resizeInput(width, maxHeight int) textarea.Model {
 	input := o.input
 	if width <= 0 {
 		width = 80
