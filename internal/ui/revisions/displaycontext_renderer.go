@@ -85,13 +85,9 @@ func (ir *itemRenderer) renderSegmentForLine(tb *render.TextBuilder, segment *sc
 }
 
 // NewDisplayContextRenderer creates a new DisplayContext-based renderer
-func NewDisplayContextRenderer(textStyle, dimmedStyle, selectedStyle, matchedStyle lipgloss.Style) *DisplayContextRenderer {
+func NewDisplayContextRenderer() *DisplayContextRenderer {
 	return &DisplayContextRenderer{
-		listRenderer:  render.NewListRenderer(ViewportScrollMsg{}),
-		textStyle:     textStyle,
-		dimmedStyle:   dimmedStyle,
-		selectedStyle: selectedStyle,
-		matchedStyle:  matchedStyle,
+		listRenderer: render.NewListRenderer(ViewportScrollMsg{}),
 	}
 }
 

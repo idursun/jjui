@@ -69,10 +69,6 @@ type Model struct {
 	previousOpLogId        string
 	isLoading              bool
 	displayContextRenderer *DisplayContextRenderer
-	textStyle              lipgloss.Style
-	dimmedStyle            lipgloss.Style
-	selectedStyle          lipgloss.Style
-	matchedStyle           lipgloss.Style
 	ensureCursorView       bool
 	requestInFlight        bool
 }
@@ -1073,6 +1069,16 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	textStyle := common.DefaultPalette.Get("revisions text")
+	dimmedStyle := common.DefaultPalette.Get("revisions dimmed")
+	selectedStyle := common.DefaultPalette.Get("revisions selected")
+	matchedStyle := common.DefaultPalette.Get("revisions matched")
+
+	m.displayContextRenderer.textStyle = textStyle
+	m.displayContextRenderer.dimmedStyle = dimmedStyle
+	m.displayContextRenderer.selectedStyle = selectedStyle
+	m.displayContextRenderer.matchedStyle = matchedStyle
+
 	if len(m.rows) == 0 {
 		content := ""
 		if m.isLoading {
@@ -1223,12 +1229,8 @@ func New(c *appContext.MainContext) *Model {
 		baseOp:        operations.NewDefault(),
 		layers:        nil,
 		cursor:        0,
-		textStyle:     common.DefaultPalette.Get("revisions text"),
-		dimmedStyle:   common.DefaultPalette.Get("revisions dimmed"),
-		selectedStyle: common.DefaultPalette.Get("revisions selected"),
-		matchedStyle:  common.DefaultPalette.Get("revisions matched"),
 	}
-	m.displayContextRenderer = NewDisplayContextRenderer(m.textStyle, m.dimmedStyle, m.selectedStyle, m.matchedStyle)
+	m.displayContextRenderer = NewDisplayContextRenderer()
 	return &m
 }
 

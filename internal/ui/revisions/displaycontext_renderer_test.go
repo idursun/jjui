@@ -7,7 +7,6 @@ import (
 
 	uv "github.com/charmbracelet/ultraviolet"
 
-	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -45,7 +44,7 @@ func TestDisplayContextRenderer_DetailsRendersBeforeElidedMarker(t *testing.T) {
 	test.SimulateModel(op, op.Init())
 
 	// Render just the target row with the details operation active.
-	r := NewDisplayContextRenderer(lipgloss.NewStyle(), lipgloss.NewStyle(), lipgloss.NewStyle(), lipgloss.NewStyle())
+	r := NewDisplayContextRenderer()
 	r.SetSelections(nil)
 
 	width, height := 100, 15
@@ -95,7 +94,7 @@ func TestDisplayContextRenderer_SingleRowDescriptionOverlay(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	op := describe.NewOperation(ctx, targetRow.Commit)
 
-	r := NewDisplayContextRenderer(lipgloss.NewStyle(), lipgloss.NewStyle(), lipgloss.NewStyle(), lipgloss.NewStyle())
+	r := NewDisplayContextRenderer()
 	r.SetSelections(nil)
 
 	width, height := 70, 10
