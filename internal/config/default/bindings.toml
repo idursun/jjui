@@ -166,6 +166,7 @@ bindings = [
     { key = "shift+a", action = "revisions.details.absorb", scope = "revisions.details", desc = "absorb" },
     { key = "*", action = "revisions.details.revisions_changing_file", scope = "revisions.details", desc = "revisions changing file" },
     { key = "p", action = "ui.preview_toggle", scope = "revisions.details", desc = "preview" },
+    { key = "shift+p", action = "ui.preview_toggle_bottom", scope = "revisions.details", desc = "move preview to bottom" },
     { key = ["left", "h"], action = "revisions.details.confirmation.prev", scope = "revisions.details.confirmation", desc = "prev" },
     { key = ["right", "l"], action = "revisions.details.confirmation.next", scope = "revisions.details.confirmation", desc = "next" },
     { key = "enter", action = "revisions.details.confirmation.apply", scope = "revisions.details.confirmation", desc = "apply" },
