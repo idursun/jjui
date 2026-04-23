@@ -17,28 +17,15 @@ var _ common.ImmediateModel = (*Model)(nil)
 type Model struct {
 	textInput  textinput.Model
 	passwordCh chan<- []byte
-	styles     styles
-}
-
-type styles struct {
-	border lipgloss.Style
 }
 
 func New(msg common.TogglePasswordMsg) *Model {
-	styles := styles{
-		border: common.DefaultPalette.GetBorder("password border", lipgloss.NormalBorder()).Padding(1),
-	}
 	ti := textinput.New()
 	ti.Prompt = msg.Prompt
 	ti.EchoMode = textinput.EchoPassword
-	ps := ti.Styles()
-	ps.Focused.Prompt = common.DefaultPalette.Get("password title")
-	ps.Blurred.Prompt = common.DefaultPalette.Get("password title")
-	ti.SetStyles(ps)
 	ti.Focus()
 
 	return &Model{
-		styles:     styles,
 		textInput:  ti,
 		passwordCh: msg.Password,
 	}
@@ -89,7 +76,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	v := m.styles.border.Width(max(box.R.Dx()-2, 0)).Render(m.textInput.View())
+	borderStyle := common.DefaultPalette.GetBorder("password border", lipgloss.NormalBorder()).Padding(1)
+	ps := m.textInput.Styles()
+	ps.Focused.Prompt = common.DefaultPalette.Get("password title")
+	ps.Blurred.Prompt = common.DefaultPalette.Get("password title")
+	m.textInput.SetStyles(ps)
+
+	v := borderStyle.Width(max(box.R.Dx()-2, 0)).Render(m.textInput.View())
 	box = box.Center(lipgloss.Size(v))
 	dl.AddDraw(box.R, v, render.ZPassword)
 }
