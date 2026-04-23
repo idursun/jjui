@@ -42,16 +42,8 @@ type Model struct {
 	mode            string
 	focusKind       FocusKind
 	fuzzy           fuzzy_search.Model
-	styles          styles
 	statusExpanded  bool
 	statusTruncated bool
-}
-
-type styles struct {
-	shortcut lipgloss.Style
-	dimmed   lipgloss.Style
-	text     lipgloss.Style
-	title    lipgloss.Style
 }
 
 func (m *Model) IsFocused() bool {
@@ -220,41 +212,55 @@ func (m *Model) loadEditingSuggestions() {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	shortcutStyle := common.DefaultPalette.Get("status shortcut")
+	dimmedStyle := common.DefaultPalette.Get("status dimmed")
+	textStyle := common.DefaultPalette.Get("status text")
+	titleStyle := common.DefaultPalette.Get("status title").PaddingLeft(1).PaddingRight(1)
+
+	inputStyles := m.input.Styles()
+	inputStyles.Focused.Text = textStyle
+	inputStyles.Focused.Suggestion = dimmedStyle
+	inputStyles.Focused.Placeholder = dimmedStyle
+	inputStyles.Blurred.Text = textStyle
+	inputStyles.Blurred.Suggestion = dimmedStyle
+	inputStyles.Blurred.Placeholder = dimmedStyle
+	m.input.SetStyles(inputStyles)
+
 	width := box.R.Dx()
 	modeWidth := max(10, len(m.mode)+2)
-	mode := m.styles.title.Width(modeWidth).Render(m.mode)
+	mode := titleStyle.Width(modeWidth).Render(m.mode)
 
 	var statusLine string
 	if m.IsFocused() {
-		content := m.renderContent(width, modeWidth)
-		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), content)
+		content := m.renderContent(width, modeWidth, shortcutStyle, dimmedStyle)
+		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, textStyle.Render(" "), content)
 	} else {
-		helpBar := m.renderHelpBar(width, modeWidth)
-		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, m.styles.text.Render(" "), helpBar)
+		helpBar := m.renderHelpBar(width, modeWidth, textStyle, shortcutStyle, dimmedStyle)
+		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, textStyle.Render(" "), helpBar)
 	}
 
 	dl.AddDraw(box.R, statusLine, 0)
-	m.renderExpandedStatus(dl, box, width)
+	m.renderExpandedStatus(dl, box, width, textStyle, titleStyle, shortcutStyle, dimmedStyle)
 	m.renderFuzzyOverlay(dl, box)
 }
 
 // renderHelpBar renders the help keybindings bar when idle.
-func (m *Model) renderHelpBar(width, modeWidth int) string {
+func (m *Model) renderHelpBar(width, modeWidth int, textStyle, shortcutStyle, dimmedStyle lipgloss.Style) string {
 	if len(m.groups) == 0 || m.statusExpanded {
-		return m.styles.text.Render(" ")
+		return textStyle.Render(" ")
 	}
 
 	availableWidth := max(0, width-modeWidth-2)
-	helpContent, truncated := m.groupedHelpView(m.groups, availableWidth)
+	helpContent, truncated := m.groupedHelpView(m.groups, availableWidth, shortcutStyle, dimmedStyle)
 	m.statusTruncated = truncated
-	return lipgloss.PlaceHorizontal(width, 0, helpContent, lipgloss.WithWhitespaceStyle(m.styles.text))
+	return lipgloss.PlaceHorizontal(width, 0, helpContent, lipgloss.WithWhitespaceStyle(textStyle))
 }
 
 // renderContent handles input display when focused
-func (m *Model) renderContent(width, modeWidth int) string {
+func (m *Model) renderContent(width, modeWidth int, shortcutStyle, dimmedStyle lipgloss.Style) string {
 	var editHelp string
 	if len(m.groups) > 0 {
-		editHelp, _ = m.groupedHelpView(m.groups, 0)
+		editHelp, _ = m.groupedHelpView(m.groups, 0, shortcutStyle, dimmedStyle)
 	}
 
 	promptWidth := render.StringWidth(m.input.Prompt) + 2
@@ -263,26 +269,26 @@ func (m *Model) renderContent(width, modeWidth int) string {
 }
 
 // renderExpandedStatus orchestrates expanded help overlay
-func (m *Model) renderExpandedStatus(dl *render.DisplayContext, box layout.Box, width int) {
+func (m *Model) renderExpandedStatus(dl *render.DisplayContext, box layout.Box, width int, textStyle, titleStyle, shortcutStyle, dimmedStyle lipgloss.Style) {
 	if !m.statusExpanded || len(m.groups) == 0 || m.IsFocused() {
 		return
 	}
 
-	expandedHelp, contentLineCount := m.expandedStatusView(m.groups, max(0, width-4))
+	expandedHelp, contentLineCount := m.expandedStatusView(m.groups, max(0, width-4), titleStyle, shortcutStyle, dimmedStyle)
 	expandedLines := strings.Split(expandedHelp, "\n")
 	startY := box.R.Min.Y - contentLineCount
 
-	m.renderExpandedStatusBorder(dl, box, width, startY)
-	m.renderExpandedStatusContent(dl, box, width, startY, expandedLines)
+	m.renderExpandedStatusBorder(dl, box, width, startY, dimmedStyle)
+	m.renderExpandedStatusContent(dl, box, width, startY, expandedLines, textStyle)
 }
 
 // renderExpandedStatusBorder draws the top border of expanded status
-func (m *Model) renderExpandedStatusBorder(dl *render.DisplayContext, box layout.Box, width, startY int) {
+func (m *Model) renderExpandedStatusBorder(dl *render.DisplayContext, box layout.Box, width, startY int, dimmedStyle lipgloss.Style) {
 	if startY < 0 {
 		return
 	}
 	borderLine := strings.Repeat("─", max(0, width))
-	topBorder := m.styles.dimmed.Render(borderLine)
+	topBorder := dimmedStyle.Render(borderLine)
 	borderRect := layout.Rect(box.R.Min.X, startY, width, 1)
 	dl.AddDraw(borderRect, topBorder, render.ZExpandedStatus)
 }
@@ -293,7 +299,7 @@ func (m *Model) renderExpandedStatusBorder(dl *render.DisplayContext, box layout
 // Each line is left-padded with 2 spaces and right-padded to fill the
 // available width, accounting for 4 total characters of horizontal padding
 // (2 left + 2 reserved for borders).
-func (m *Model) renderExpandedStatusContent(dl *render.DisplayContext, box layout.Box, width, startY int, lines []string) {
+func (m *Model) renderExpandedStatusContent(dl *render.DisplayContext, box layout.Box, width, startY int, lines []string, textStyle lipgloss.Style) {
 	for i, line := range lines {
 		// Position each line below the border, offset by its index
 		y := startY + 1 + i
@@ -311,7 +317,7 @@ func (m *Model) renderExpandedStatusContent(dl *render.DisplayContext, box layou
 		paddedLine := "  " + line + strings.Repeat(" ", padding)
 
 		// render the line with the text style and draw at the overlay z-index
-		contentLine := m.styles.text.Render(paddedLine)
+		contentLine := textStyle.Render(paddedLine)
 		contentRect := layout.Rect(box.R.Min.X, y, width, 1)
 		dl.AddDraw(contentRect, contentLine, render.ZExpandedStatus)
 	}
@@ -408,9 +414,9 @@ func (m *Model) InputValue() string {
 	return m.input.Value()
 }
 
-func (m *Model) expandedStatusView(groups []help.ScopeGroup, maxWidth int) (string, int) {
+func (m *Model) expandedStatusView(groups []help.ScopeGroup, maxWidth int, titleStyle, shortcutStyle, dimmedStyle lipgloss.Style) (string, int) {
 	expandKey := m.expandStatusKey(groups)
-	closeHint := m.styles.shortcut.Render(expandKey+"/esc") + m.styles.dimmed.PaddingLeft(1).Render("close help")
+	closeHint := shortcutStyle.Render(expandKey+"/esc") + dimmedStyle.PaddingLeft(1).Render("close help")
 
 	var allLines []string
 	for i, group := range groups {
@@ -418,10 +424,10 @@ func (m *Model) expandedStatusView(groups []help.ScopeGroup, maxWidth int) (stri
 			allLines = append(allLines, "")
 		}
 		if group.Name != "" {
-			header := m.styles.title.Render(group.Name)
+			header := titleStyle.Render(group.Name)
 			allLines = append(allLines, header)
 		}
-		rendered, maxEntryWidth := m.collectGroupEntries(group.Entries)
+		rendered, maxEntryWidth := m.collectGroupEntries(group.Entries, shortcutStyle, dimmedStyle)
 		lines := m.buildHelpGrid(rendered, maxEntryWidth, maxWidth)
 		allLines = append(allLines, lines...)
 	}
@@ -429,7 +435,7 @@ func (m *Model) expandedStatusView(groups []help.ScopeGroup, maxWidth int) (stri
 	return strings.Join(allLines, "\n"), len(allLines)
 }
 
-func (m *Model) collectGroupEntries(entries []help.Entry) ([]string, int) {
+func (m *Model) collectGroupEntries(entries []help.Entry, shortcutStyle, dimmedStyle lipgloss.Style) ([]string, int) {
 	var rendered []string
 	maxEntryWidth := 0
 
@@ -439,9 +445,9 @@ func (m *Model) collectGroupEntries(entries []help.Entry) ([]string, int) {
 		}
 		var e string
 		if entry.Overridden {
-			e = m.styles.dimmed.Strikethrough(true).Render(entry.Label + " " + entry.Desc)
+			e = dimmedStyle.Strikethrough(true).Render(entry.Label + " " + entry.Desc)
 		} else {
-			e = m.styles.shortcut.Render(entry.Label) + m.styles.dimmed.PaddingLeft(1).Render(entry.Desc)
+			e = shortcutStyle.Render(entry.Label) + dimmedStyle.PaddingLeft(1).Render(entry.Desc)
 		}
 		rendered = append(rendered, e)
 		if w := render.StringWidth(e); w > maxEntryWidth {
@@ -481,11 +487,11 @@ func (m *Model) buildHelpGrid(entries []string, maxEntryWidth, maxWidth int) []s
 }
 
 // groupedHelpView renders the collapsed help bar with groups separated by │.
-func (m *Model) groupedHelpView(groups []help.ScopeGroup, maxWidth int) (string, bool) {
-	separator := m.styles.dimmed.Render(" • ")
-	groupSeparator := m.styles.dimmed.Render(" │ ")
+func (m *Model) groupedHelpView(groups []help.ScopeGroup, maxWidth int, shortcutStyle, dimmedStyle lipgloss.Style) (string, bool) {
+	separator := dimmedStyle.Render(" • ")
+	groupSeparator := dimmedStyle.Render(" │ ")
 	expandKey := m.expandStatusKey(groups)
-	moreHint := separator + m.styles.shortcut.Render(expandKey) + m.styles.dimmed.PaddingLeft(1).Render("more")
+	moreHint := separator + shortcutStyle.Render(expandKey) + dimmedStyle.PaddingLeft(1).Render("more")
 
 	separatorWidth := render.StringWidth(separator)
 	groupSeparatorWidth := render.StringWidth(groupSeparator)
@@ -503,7 +509,7 @@ func (m *Model) groupedHelpView(groups []help.ScopeGroup, maxWidth int) (string,
 				continue
 			}
 
-			e := m.styles.shortcut.Render(entry.Label) + m.styles.dimmed.PaddingLeft(1).Render(entry.Desc)
+			e := shortcutStyle.Render(entry.Label) + dimmedStyle.PaddingLeft(1).Render(entry.Desc)
 			entryWidth := render.StringWidth(e)
 
 			addedWidth := entryWidth
@@ -556,27 +562,11 @@ func (m *Model) expandStatusKey(groups []help.ScopeGroup) string {
 }
 
 func New(context *context.MainContext) *Model {
-	styles := styles{
-		shortcut: common.DefaultPalette.Get("status shortcut"),
-		dimmed:   common.DefaultPalette.Get("status dimmed"),
-		text:     common.DefaultPalette.Get("status text"),
-		title:    common.DefaultPalette.Get("status title").PaddingLeft(1).PaddingRight(1),
-	}
-
 	t := textinput.New()
 	t.SetWidth(50)
-	ts := t.Styles()
-	ts.Focused.Text = styles.text
-	ts.Focused.Suggestion = styles.dimmed
-	ts.Focused.Placeholder = styles.dimmed
-	ts.Blurred.Text = styles.text
-	ts.Blurred.Suggestion = styles.dimmed
-	ts.Blurred.Placeholder = styles.dimmed
-	t.SetStyles(ts)
 
 	return &Model{
 		context: context,
 		input:   t,
-		styles:  styles,
 	}
 }
