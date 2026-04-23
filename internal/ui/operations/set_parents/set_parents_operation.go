@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -28,7 +27,6 @@ type Model struct {
 	current  *jj.Commit
 	toRemove map[string]bool
 	toAdd    []string
-	styles   styles
 	parents  []string
 }
 
@@ -60,12 +58,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
-
-type styles struct {
-	sourceMarker lipgloss.Style
-	targetMarker lipgloss.Style
-	dimmed       lipgloss.Style
-}
 
 func (m *Model) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 	m.current = commit
@@ -119,18 +111,22 @@ func (m *Model) Render(commit *jj.Commit, renderPosition operations.RenderPositi
 	if renderPosition != operations.RenderBeforeChangeId {
 		return ""
 	}
+	sourceMarker := common.DefaultPalette.Get("set_parents source_marker")
+	targetMarker := common.DefaultPalette.Get("set_parents target_marker")
+	dimmedStyle := common.DefaultPalette.Get("set_parents dimmed")
+
 	if slices.Contains(m.toAdd, commit.GetChangeId()) {
-		return m.styles.sourceMarker.Render("<< add >>")
+		return sourceMarker.Render("<< add >>")
 	}
 	if m.toRemove[commit.GetChangeId()] {
-		return m.styles.sourceMarker.Render("<< remove >>")
+		return sourceMarker.Render("<< remove >>")
 	}
 
 	if slices.Contains(m.parents, commit.CommitId) {
-		return m.styles.dimmed.Render("<< parent >>")
+		return dimmedStyle.Render("<< parent >>")
 	}
 	if commit.GetChangeId() == m.target.GetChangeId() {
-		return m.styles.targetMarker.Render("<< to >>")
+		return targetMarker.Render("<< to >>")
 	}
 	return ""
 }
@@ -140,11 +136,6 @@ func (m *Model) Name() string {
 }
 
 func NewModel(ctx *context.MainContext, to *jj.Commit) *Model {
-	styles := styles{
-		sourceMarker: common.DefaultPalette.Get("set_parents source_marker"),
-		targetMarker: common.DefaultPalette.Get("set_parents target_marker"),
-		dimmed:       common.DefaultPalette.Get("set_parents dimmed"),
-	}
 	output, err := ctx.RunCommandImmediate(jj.GetParents(to.GetChangeId()))
 	if err != nil {
 		log.Println("Failed to get parents for commit", to.GetChangeId())
@@ -156,6 +147,5 @@ func NewModel(ctx *context.MainContext, to *jj.Commit) *Model {
 		toRemove: make(map[string]bool),
 		toAdd:    []string{},
 		target:   to,
-		styles:   styles,
 	}
 }
