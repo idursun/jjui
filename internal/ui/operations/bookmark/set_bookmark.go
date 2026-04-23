@@ -108,22 +108,11 @@ func (s *SetBookmarkOperation) Name() string {
 }
 
 func NewSetBookmarkOperation(context *context.MainContext, changeId string) *SetBookmarkOperation {
-	dimmedStyle := common.DefaultPalette.Get("revisions dimmed").Inline(true)
-	textStyle := common.DefaultPalette.Get("revisions text").Inline(true)
 	t := textinput.New()
 	t.ShowSuggestions = true
 	t.CharLimit = 120
 	t.Prompt = ""
-	s := textinput.DefaultDarkStyles()
-	s.Focused.Text = textStyle
-	s.Focused.Prompt = textStyle
-	s.Focused.Suggestion = dimmedStyle
-	s.Focused.Placeholder = dimmedStyle
-	s.Blurred.Text = textStyle
-	s.Blurred.Prompt = textStyle
-	s.Blurred.Suggestion = dimmedStyle
-	s.Blurred.Placeholder = dimmedStyle
-	t.SetStyles(s)
+
 	t.SetValue("")
 	t.Focus()
 
@@ -138,6 +127,19 @@ func NewSetBookmarkOperation(context *context.MainContext, changeId string) *Set
 }
 
 func (s *SetBookmarkOperation) viewContent() string {
+	dimmedStyle := common.DefaultPalette.Get("revisions dimmed").Inline(true)
+	textStyle := common.DefaultPalette.Get("revisions text").Inline(true)
+	styles := s.name.Styles()
+	styles.Focused.Text = textStyle
+	styles.Focused.Prompt = textStyle
+	styles.Focused.Suggestion = dimmedStyle
+	styles.Focused.Placeholder = dimmedStyle
+	styles.Blurred.Text = textStyle
+	styles.Blurred.Prompt = textStyle
+	styles.Blurred.Suggestion = dimmedStyle
+	styles.Blurred.Placeholder = dimmedStyle
+	s.name.SetStyles(styles)
+
 	return s.name.View()
 }
 
