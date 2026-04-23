@@ -73,7 +73,6 @@ func (fzf *model) handleIntent(intent intents.Intent) tea.Cmd {
 
 func (fzf *model) suggestEnabled() bool { return fzf.suggestMode != config.SuggestModeOff }
 
-
 func (fzf *model) moveCursor(inc int) {
 	l := min(len(fzf.matches), fzf.max)
 	if !fzf.suggestEnabled() {

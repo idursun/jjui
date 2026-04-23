@@ -323,7 +323,6 @@ func (m *Model) executeDefaultForFilter(kind intents.GitFilterKind) tea.Cmd {
 	return nil
 }
 
-
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	pw, ph := box.R.Dx(), box.R.Dy()
 	contentWidth := max(min(pw, 80)-4, 0)
