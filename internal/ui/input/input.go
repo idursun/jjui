@@ -27,17 +27,10 @@ type Model struct {
 	input  textinput.Model
 	title  string
 	prompt string
-	styles styles
 }
 
 func (m *Model) IsFocused() bool {
 	return true
-}
-
-type styles struct {
-	border lipgloss.Style
-	text   lipgloss.Style
-	title  lipgloss.Style
 }
 
 func New() *Model {
@@ -45,19 +38,10 @@ func New() *Model {
 }
 
 func NewWithTitle(title string, prompt string) *Model {
-	styles := styles{
-		border: common.DefaultPalette.GetBorder("input border", lipgloss.RoundedBorder()),
-		text:   common.DefaultPalette.Get("input text"),
-		title:  common.DefaultPalette.Get("input title"),
-	}
 	ti := textinput.New()
 	ti.SetWidth(40)
 	ti.Focus()
 	ti.Prompt = prompt
-	is := ti.Styles()
-	is.Focused.Prompt = styles.text
-	is.Blurred.Prompt = styles.text
-	ti.SetStyles(is)
 	if ti.Prompt == "" {
 		ti.Prompt = "> "
 	}
@@ -66,7 +50,6 @@ func NewWithTitle(title string, prompt string) *Model {
 		input:  ti,
 		title:  title,
 		prompt: prompt,
-		styles: styles,
 	}
 }
 
@@ -115,15 +98,24 @@ func (m *Model) selectCurrent() tea.Cmd {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	borderStyle := common.DefaultPalette.GetBorder("input border", lipgloss.RoundedBorder())
+	textStyle := common.DefaultPalette.Get("input text")
+	titleStyle := common.DefaultPalette.Get("input title")
+
 	var rows []string
 	if m.title != "" {
-		rows = append(rows, m.styles.title.Render(m.title))
+		rows = append(rows, titleStyle.Render(m.title))
 	}
+	is := m.input.Styles()
+	is.Focused.Prompt = textStyle
+	is.Blurred.Prompt = textStyle
+	m.input.SetStyles(is)
+
 	m.input.SetWidth(min(box.R.Dx()-2, 40))
 	rows = append(rows, m.input.View())
 
 	content := lipgloss.JoinVertical(0, rows...)
-	content = m.styles.border.Padding(0, 1).Render(content)
+	content = borderStyle.Padding(0, 1).Render(content)
 	box = box.Center(lipgloss.Size(content))
 	dl.AddBackdrop(box.R, render.ZDialogs)
 	dl.AddDraw(box.R, content, render.ZDialogs)
