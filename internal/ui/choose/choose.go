@@ -43,21 +43,12 @@ type Model struct {
 	filteredOptions     []string
 	selected            int
 	title               string
-	styles              styles
 	listRenderer        *render.ListRenderer
 	ensureCursorVisible bool
 	filterable          bool
 	filtering           bool
 	ordered             bool
 	input               textinput.Model
-}
-
-type styles struct {
-	border   lipgloss.Style
-	text     lipgloss.Style
-	title    lipgloss.Style
-	selected lipgloss.Style
-	input    lipgloss.Style
 }
 
 const maxVisibleItems = 20
@@ -81,17 +72,10 @@ func NewWithOptions(options []string, title string, filterable bool, ordered boo
 		options:         options,
 		filteredOptions: options,
 		title:           title,
-		styles: styles{
-			border:   common.DefaultPalette.GetBorder("choose border", lipgloss.RoundedBorder()),
-			text:     common.DefaultPalette.Get("choose text"),
-			title:    common.DefaultPalette.Get("choose title"),
-			selected: common.DefaultPalette.Get("choose selected"),
-			input:    common.DefaultPalette.Get("choose input"),
-		},
-		listRenderer: render.NewListRenderer(itemScrollMsg{}),
-		filterable:   filterable,
-		ordered:      ordered,
-		input:        ti,
+		listRenderer:    render.NewListRenderer(itemScrollMsg{}),
+		filterable:      filterable,
+		ordered:         ordered,
+		input:           ti,
 	}
 	m.listRenderer.Z = render.ZMenuContent
 	return m
@@ -253,6 +237,21 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.listRenderer = render.NewListRenderer(itemScrollMsg{})
 	}
 
+	borderStyle := common.DefaultPalette.GetBorder("choose border", lipgloss.RoundedBorder())
+	textStyle := common.DefaultPalette.Get("choose text")
+	titleStyle := common.DefaultPalette.Get("choose title")
+	selectedStyle := common.DefaultPalette.Get("choose selected")
+	inputStyle := common.DefaultPalette.Get("choose input")
+
+	inputStyles := m.input.Styles()
+	inputStyles.Focused.Text = inputStyle
+	inputStyles.Focused.Prompt = inputStyle
+	inputStyles.Focused.Placeholder = inputStyle
+	inputStyles.Blurred.Text = inputStyle
+	inputStyles.Blurred.Prompt = inputStyle
+	inputStyles.Blurred.Placeholder = inputStyle
+	m.input.SetStyles(inputStyles)
+
 	maxContentWidth := max(box.R.Dx()-2, 0)
 	maxContentHeight := max(box.R.Dy()-2, 0)
 	if maxContentWidth <= 0 || maxContentHeight <= 0 {
@@ -311,19 +310,19 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	borderBase := lipgloss.NewStyle().Width(contentBox.R.Dx()).Height(contentBox.R.Dy()).Render("")
-	dl.AddDraw(frame.R, m.styles.border.Render(borderBase), render.ZMenuBorder)
+	dl.AddDraw(frame.R, borderStyle.Render(borderBase), render.ZMenuBorder)
 
 	listBox := contentBox
 	if titleHeight > 0 {
 		var titleBox layout.Box
 		titleBox, listBox = contentBox.CutTop(1)
-		dl.AddDraw(titleBox.R, m.styles.title.Render(m.title), render.ZMenuContent)
+		dl.AddDraw(titleBox.R, titleStyle.Render(m.title), render.ZMenuContent)
 	}
 
 	if inputHeight > 0 {
 		var inputBox layout.Box
 		inputBox, listBox = listBox.CutTop(1)
-		dl.AddDraw(inputBox.R, m.styles.input.Render(m.input.View()), render.ZMenuContent)
+		dl.AddDraw(inputBox.R, inputStyle.Render(m.input.View()), render.ZMenuContent)
 	}
 
 	if listBox.R.Dx() <= 0 || listBox.R.Dy() <= 0 {
@@ -343,9 +342,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			if index < 0 || index >= itemCount || rect.Dx() <= 0 || rect.Dy() <= 0 {
 				return
 			}
-			style := m.styles.text
+			style := textStyle
 			if index == m.selected {
-				style = m.styles.selected
+				style = selectedStyle
 			}
 			label := m.filteredOptions[index]
 			if m.ordered && index < 9 {
