@@ -48,8 +48,9 @@ type (
 		Ordered bool
 	}
 	ShowInputMsg struct {
-		Title  string
-		Prompt string
+		Title        string
+		Prompt       string
+		InitialValue string
 	}
 	ExecProcessCompletedMsg struct {
 		Err error
@@ -77,8 +78,13 @@ type (
 	RestoreOperationMsg struct {
 		Operation any
 	}
-	StartAceJumpMsg     struct{}
-	OpenTargetPickerMsg struct{}
+	StartSetBookmarkMsg struct {
+		Revision                  string
+		ReturnFocusToBookmarkView bool
+	}
+	FocusBookmarkViewMsg struct{}
+	StartAceJumpMsg      struct{}
+	OpenTargetPickerMsg  struct{}
 )
 
 type State int
@@ -99,6 +105,12 @@ func CloseApplied() tea.Msg {
 func RestoreOperation(op any) tea.Cmd {
 	return func() tea.Msg {
 		return RestoreOperationMsg{Operation: op}
+	}
+}
+
+func FocusBookmarkView() tea.Cmd {
+	return func() tea.Msg {
+		return FocusBookmarkViewMsg{}
 	}
 }
 

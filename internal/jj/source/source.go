@@ -61,10 +61,13 @@ func (s BookmarkSource) Fetch(runner Runner) ([]Item, error) {
 		if b.Name == "" {
 			continue
 		}
-		if b.Local != nil {
+		if b.Local != nil && b.Local.Present {
 			items = append(items, Item{Name: b.Name, Kind: KindBookmark})
 		}
 		for _, remote := range b.Remotes {
+			if !remote.Present {
+				continue
+			}
 			items = append(items, Item{Name: fmt.Sprintf("%s@%s", b.Name, remote.Remote), Kind: KindBookmark})
 		}
 	}

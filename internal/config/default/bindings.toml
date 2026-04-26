@@ -5,6 +5,8 @@ bindings = [
     { key = "?", action = "ui.expand_status", scope = "ui", desc = "expand status help" },
     { key = "f1", action = "ui.open_help", scope = "ui", desc = "help" },
     { key = "ctrl+z", action = "ui.suspend", scope = "ui", desc = "suspend" },
+    { key = "shift+x", action = "ui.toggle_bookmark_view", scope = "ui", desc = "bookmark view" },
+    { key = "tab", action = "ui.focus_next_pane", scope = "ui", desc = "next pane" },
 
     # help
     { key = "esc", action = "help.cancel", scope = "help", desc = "close" },
@@ -233,6 +235,16 @@ bindings = [
     { key = "tab", action = "revisions.set_bookmark.autocomplete", scope = "revisions.set_bookmark", desc = "autocomplete" },
     { key = "shift+tab", action = "revisions.set_bookmark.autocomplete_back", scope = "revisions.set_bookmark", desc = "autocomplete back" },
 
+    # revisions.bookmark_move
+    { key = "esc", action = "revisions.bookmark_move.cancel", scope = "revisions.bookmark_move", desc = "cancel" },
+    { key = "enter", action = "revisions.bookmark_move.apply", scope = "revisions.bookmark_move", desc = "apply" },
+    { key = "alt+enter", action = "revisions.bookmark_move.force_apply", scope = "revisions.bookmark_move", desc = "force apply" },
+    { key = ["up", "k"], action = "revisions.move_up", scope = "revisions.bookmark_move", desc = "up" },
+    { key = ["down", "j"], action = "revisions.move_down", scope = "revisions.bookmark_move", desc = "down" },
+    { key = "pgup", action = "revisions.page_up", scope = "revisions.bookmark_move", desc = "pgup" },
+    { key = "pgdown", action = "revisions.page_down", scope = "revisions.bookmark_move", desc = "pgdown" },
+    { key = "@", action = "revisions.jump_to_working_copy", scope = "revisions.bookmark_move", desc = "jump to working copy" },
+
     # revisions.target_picker
     { key = "esc", action = "revisions.target_picker.cancel", scope = "revisions.target_picker", desc = "cancel" },
     { key = "enter", action = "revisions.target_picker.apply", scope = "revisions.target_picker", desc = "apply" },
@@ -287,6 +299,36 @@ bindings = [
     { key = "pgdown", action = "bookmarks.page_down", scope = "bookmarks", desc = "pgdown" },
     { key = "esc", action = "bookmarks.cancel", scope = "bookmarks.filter", desc = "cancel" },
     { key = "enter", action = "bookmarks.apply", scope = "bookmarks.filter", desc = "apply" },
+
+    # bookmark_view
+    { key = ["up", "k"], action = "bookmark_view.move_up", scope = "bookmark_view", desc = "up" },
+    { key = ["down", "j"], action = "bookmark_view.move_down", scope = "bookmark_view", desc = "down" },
+    { key = ["pgup", "shift+k"], action = "bookmark_view.page_up", scope = "bookmark_view", desc = "page up" },
+    { key = ["pgdown", "shift+j"], action = "bookmark_view.page_down", scope = "bookmark_view", desc = "page down" },
+    { key = "space", action = "bookmark_view.toggle_select", scope = "bookmark_view", desc = "select" },
+    { key = "/", action = "bookmark_view.filter", scope = "bookmark_view", desc = "filter" },
+    { key = "enter", action = "bookmark_view.toggle_expand", scope = "bookmark_view", desc = "expand" },
+    { key = "alt+enter", action = "bookmark_view.reveal", scope = "bookmark_view", desc = "reveal" },
+    { key = "shift+l", action = "bookmark_view.reveal_in_revisions", scope = "bookmark_view", desc = "show" },
+    { key = "e", action = "bookmark_view.edit", scope = "bookmark_view", desc = "edit" },
+    { key = "n", action = "bookmark_view.new", scope = "bookmark_view", desc = "new" },
+    { key = "r", action = "bookmark_view.rename", scope = "bookmark_view", desc = "rename" },
+    { key = "d", action = "bookmark_view.delete", scope = "bookmark_view", desc = "delete" },
+    { key = "f", action = "bookmark_view.forget", scope = "bookmark_view", desc = "forget" },
+    { key = "shift+f", action = "bookmark_view.fetch", scope = "bookmark_view", desc = "fetch" },
+    { key = "c", action = "bookmark_view.create", scope = "bookmark_view", desc = "create" },
+    { key = "m", action = "bookmark_view.move", scope = "bookmark_view", desc = "move" },
+    { key = "shift+p", action = "bookmark_view.push", scope = "bookmark_view", desc = "push" },
+    { key = "t", action = "bookmark_view.track", scope = "bookmark_view", desc = "track" },
+    { key = "u", action = "bookmark_view.untrack", scope = "bookmark_view", desc = "untrack" },
+    { key = "esc", action = "bookmark_view.cancel", scope = "bookmark_view", desc = "cancel" },
+    { key = ["left", "h"], action = "bookmark_view.confirmation.prev", scope = "bookmark_view.confirmation", desc = "prev" },
+    { key = ["right", "l"], action = "bookmark_view.confirmation.next", scope = "bookmark_view.confirmation", desc = "next" },
+    { key = "enter", action = "bookmark_view.confirmation.apply", scope = "bookmark_view.confirmation", desc = "apply" },
+    { key = "alt+enter", action = "bookmark_view.confirmation.apply", scope = "bookmark_view.confirmation", desc = "force apply", args = { force = true } },
+    { key = "esc", action = "bookmark_view.confirmation.cancel", scope = "bookmark_view.confirmation", desc = "cancel" },
+    { key = "enter", action = "bookmark_view.apply", scope = "bookmark_view.filter", desc = "apply" },
+    { key = "esc", action = "bookmark_view.cancel", scope = "bookmark_view.filter", desc = "cancel" },
 
     # git
     { key = "esc", action = "git.cancel", scope = "git", desc = "cancel" },
