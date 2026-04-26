@@ -1453,3 +1453,41 @@ func Test_PollTick_ContinuesWhenMode2031NotRecognized(t *testing.T) {
 	cmd := model.Update(colorSchemePollTickMsg{})
 	assert.NotNil(t, cmd, "polling should continue when mode 2031 is not recognized")
 }
+
+func Test_ResumeMsg_ReEnablesMode2031AndQueriesBackground(t *testing.T) {
+	withShortColorSchemePoll(t)
+
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	cmd := model.Update(tea.ResumeMsg{})
+	require.NotNil(t, cmd)
+
+	wantRequestPC := reflect.ValueOf(tea.RequestBackgroundColor).Pointer()
+
+	var foundEnable2031, foundProbe2031, foundBgRequest, foundPollTick bool
+	drainCmds(cmd, func(c tea.Cmd, msg tea.Msg) bool {
+		if reflect.ValueOf(c).Pointer() == wantRequestPC {
+			foundBgRequest = true
+			return true
+		}
+		switch v := msg.(type) {
+		case tea.RawMsg:
+			switch v.Msg {
+			case ansi.SetModeLightDark:
+				foundEnable2031 = true
+			case ansi.RequestModeLightDark:
+				foundProbe2031 = true
+			}
+		case colorSchemePollTickMsg:
+			foundPollTick = true
+		}
+		return true
+	})
+
+	assert.True(t, foundEnable2031, "resume should re-enable mode 2031")
+	assert.True(t, foundBgRequest, "resume should re-query background color")
+	assert.False(t, foundProbe2031, "resume should not re-probe mode 2031 support; the initial probe result still applies")
+	assert.False(t, foundPollTick, "resume should not restart polling; the existing poll loop survives suspension")
+}

@@ -124,6 +124,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return common.RefreshAndKeepSelections
 		}
 		return nil
+	case tea.ResumeMsg:
+		// common.Suspend disables mode 2031 on the way out, reenable it on resume.
+		// Also re-query the background color in case the theme changed while suspended.
+		return tea.Batch(
+			tea.Raw(ansi.SetModeLightDark),
+			tea.RequestBackgroundColor,
+		)
 	case uv.DarkColorSchemeEvent:
 		return m.applyColorScheme(true)
 	case uv.LightColorSchemeEvent:
@@ -531,7 +538,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.Quit:
 		return common.Quit(), true
 	case intents.Suspend:
-		return tea.Suspend, true
+		return common.Suspend(), true
 
 	// --- Cancel fallback (only reached if no inner scope handled it) ---
 	case intents.Cancel:

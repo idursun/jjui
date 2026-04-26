@@ -101,6 +101,11 @@ func Quit() tea.Cmd {
 	return tea.Sequence(tea.Raw(ansi.ResetModeLightDark), tea.Quit)
 }
 
+func Suspend() tea.Cmd {
+	// disable mode 2031 push notifications before suspending
+	return tea.Sequence(tea.Raw(ansi.ResetModeLightDark), tea.Suspend)
+}
+
 func CloseApplied() tea.Msg {
 	return CloseViewMsg{Applied: true}
 }
