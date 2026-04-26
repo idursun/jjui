@@ -87,6 +87,76 @@ func TestQuickSearch_UpdatesSelection(t *testing.T) {
 	})
 }
 
+func TestQuickSearch_StreamsUntilMatchFound(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+	model.updateGraphRows(append([]parser.Row(nil), searchableRows[:2]...), "first")
+	model.offScreenRows = append([]parser.Row(nil), model.rows...)
+	model.hasMore = true
+
+	model.quickSearch = "third"
+	model.applyQuickSearch(0, false)
+	assert.NotNil(t, model.pendingSearch, "pending search should be recorded when match is missing and more rows remain")
+	assert.Equal(t, 0, model.cursor, "cursor should not move until the match is found")
+
+	test.SimulateModel(model, model.Update(appendRowsBatchMsg{
+		rows:    []parser.Row{searchableRows[2]},
+		hasMore: false,
+		tag:     0,
+	}))
+
+	assert.Nil(t, model.pendingSearch, "pending search should clear once the match is found")
+	assert.Equal(t, 2, model.cursor, "cursor should move to the streamed match")
+}
+
+func TestQuickSearch_StopsWhenStreamExhausted(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+	model.updateGraphRows(append([]parser.Row(nil), searchableRows[:2]...), "first")
+	model.offScreenRows = append([]parser.Row(nil), model.rows...)
+	model.hasMore = true
+
+	model.quickSearch = "no-such-query"
+	model.applyQuickSearch(0, false)
+	assert.NotNil(t, model.pendingSearch)
+	initialCursor := model.cursor
+
+	test.SimulateModel(model, model.Update(appendRowsBatchMsg{
+		rows:    []parser.Row{searchableRows[2]},
+		hasMore: false,
+		tag:     0,
+	}))
+
+	assert.Nil(t, model.pendingSearch, "pending search should clear when the stream is exhausted")
+	assert.Equal(t, initialCursor, model.cursor, "cursor should not move when no match exists")
+}
+
+func TestQuickSearch_DoesNotStreamWhenNoMoreRows(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+	model.updateGraphRows(append([]parser.Row(nil), searchableRows[:2]...), "first")
+	model.hasMore = false
+
+	model.quickSearch = "no-such-query"
+	model.applyQuickSearch(0, false)
+
+	assert.Nil(t, model.pendingSearch, "no pending search should be recorded when the stream has already ended")
+}
+
+func TestQuickSearch_ClearCancelsPendingSearch(t *testing.T) {
+	model := &Model{
+		quickSearch:   "test",
+		pendingSearch: &pendingQuickSearch{startIndex: 0},
+		baseOp:        operations.NewDefault(),
+		rows:          []parser.Row{{Commit: &jj.Commit{ChangeId: "test123"}}},
+	}
+
+	_ = model.internalUpdate(intents.RevisionsQuickSearchClear{})
+
+	assert.Equal(t, "", model.quickSearch)
+	assert.Nil(t, model.pendingSearch, "clearing the quick search should also drop any pending streamed search")
+}
+
 func TestScopes_ExposeQuickSearchScopeWhenSearchActive(t *testing.T) {
 	model := &Model{
 		quickSearch: "match",
