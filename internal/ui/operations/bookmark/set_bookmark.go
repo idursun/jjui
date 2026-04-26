@@ -107,13 +107,14 @@ func (s *SetBookmarkOperation) Name() string {
 	return "set bookmark"
 }
 
-func NewSetBookmarkOperation(context *context.MainContext, changeId string) *SetBookmarkOperation {
+func NewSetBookmarkOperation(context *context.MainContext, changeId string, initialValue string) *SetBookmarkOperation {
 	t := textinput.New()
 	t.ShowSuggestions = true
 	t.CharLimit = 120
 	t.Prompt = ""
 
-	t.SetValue("")
+	t.SetValue(initialValue)
+	t.CursorEnd()
 	t.Focus()
 
 	op := &SetBookmarkOperation{

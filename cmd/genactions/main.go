@@ -809,10 +809,10 @@ func validateSetValueType(fieldType, value string, enums map[string][]enumValueM
 		if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
 			return nil
 		}
-		if isStringArg(value) {
+		if isStringArg(value) || isOptionalStringArg(value) {
 			return nil
 		}
-		return fmt.Errorf("expected quoted string or $string(...), got %q", value)
+		return fmt.Errorf("expected quoted string, $string(...), or $string?(...), got %q", value)
 	default:
 		if argName, ok := parseEnumArg(value); ok {
 			if len(enums[fieldType]) == 0 {
@@ -852,6 +852,10 @@ func isStringArg(value string) bool {
 	return strings.HasPrefix(value, "$string(") && strings.HasSuffix(value, ")")
 }
 
+func isOptionalStringArg(value string) bool {
+	return strings.HasPrefix(value, "$string?(") && strings.HasSuffix(value, ")")
+}
+
 func parseArgRef(fieldType, value string, enums map[string][]enumValueMeta) (name string, typ string, required bool, ok bool) {
 	if isBoolArg(value) {
 		name := strings.TrimSuffix(strings.TrimPrefix(value, "$bool("), ")")
@@ -865,6 +869,13 @@ func parseArgRef(fieldType, value string, enums map[string][]enumValueMeta) (nam
 			return "", "", false, false
 		}
 		return argName, enumSchemaForType(fieldType, enums), true, true
+	}
+	if isOptionalStringArg(value) {
+		name := strings.TrimSuffix(strings.TrimPrefix(value, "$string?("), ")")
+		if name == "" {
+			return "", "", false, false
+		}
+		return name, "string", false, true
 	}
 	if isStringArg(value) {
 		name := strings.TrimSuffix(strings.TrimPrefix(value, "$string("), ")")
@@ -980,6 +991,10 @@ func renderValue(fieldType, value string, enums map[string][]enumValueMeta) stri
 		name := strings.TrimSuffix(strings.TrimPrefix(value, "$string("), ")")
 		return fmt.Sprintf("actionargs.StringArg(args, %q, \"\")", name)
 	}
+	if isOptionalStringArg(value) {
+		name := strings.TrimSuffix(strings.TrimPrefix(value, "$string?("), ")")
+		return fmt.Sprintf("actionargs.StringArg(args, %q, \"\")", name)
+	}
 	if argName, ok := parseEnumArg(value); ok && len(enums[fieldType]) > 0 {
 		return fmt.Sprintf("enumArg%s(args, %q)", toCamel(fieldType), argName)
 	}
@@ -1004,7 +1019,7 @@ func rulesUseActionArgs(rules []bindRule) bool {
 			if strings.HasPrefix(value, "$bool(") && strings.HasSuffix(value, ")") {
 				return true
 			}
-			if isStringArg(value) {
+			if isStringArg(value) || isOptionalStringArg(value) {
 				return true
 			}
 		}

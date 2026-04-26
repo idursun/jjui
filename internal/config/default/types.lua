@@ -231,7 +231,7 @@ function wait_refresh() end
 ---@field open_inline_describe fun()
 ---@field open_rebase fun()
 ---@field open_revert fun()
----@field open_set_bookmark fun()
+---@field open_set_bookmark fun(args: {value?: string})
 ---@field open_set_parents fun()
 ---@field open_squash fun()
 ---@field page_down fun()

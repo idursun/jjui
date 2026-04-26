@@ -77,8 +77,10 @@ type OpenGit struct{}
 
 func (OpenGit) isIntent() {}
 
-//jjui:bind scope=revisions action=open_set_bookmark
-type OpenSetBookmark struct{}
+//jjui:bind scope=revisions action=open_set_bookmark set=Value:$string?(value)
+type OpenSetBookmark struct {
+	Value string
+}
 
 func (OpenSetBookmark) isIntent() {}
 

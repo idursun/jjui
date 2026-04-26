@@ -303,6 +303,9 @@ var builtInActionArgSchemas = map[string]map[string]string{
 	"revisions.inline_describe.accept": {
 		"force": "bool",
 	},
+	"revisions.open_set_bookmark": {
+		"value": "string",
+	},
 	"revisions.rebase.apply": {
 		"force": "bool",
 	},

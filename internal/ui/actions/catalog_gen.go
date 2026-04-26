@@ -307,7 +307,7 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.open_revert"):
 			return intents.OpenRevert{}, true
 		case keybindings.Action("revisions.open_set_bookmark"):
-			return intents.OpenSetBookmark{}, true
+			return intents.OpenSetBookmark{Value: actionargs.StringArg(args, "value", "")}, true
 		case keybindings.Action("revisions.open_set_parents"):
 			return intents.OpenSetParents{}, true
 		case keybindings.Action("revisions.open_squash"):

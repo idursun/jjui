@@ -643,7 +643,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.OpenSetParents:
 		return m.startSetParents(intent), true
 	case intents.OpenSetBookmark:
-		return m.startBookmarkSet(), true
+		return m.startBookmarkSet(intent), true
 	case intents.RevisionsToggleSelect:
 		commit := m.SelectedRevision()
 		if commit == nil {
@@ -681,12 +681,12 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (m *Model) startBookmarkSet() tea.Cmd {
+func (m *Model) startBookmarkSet(intent intents.OpenSetBookmark) tea.Cmd {
 	rev := m.SelectedRevision()
 	if rev == nil {
 		return nil
 	}
-	return m.setBaseOperation(bookmark.NewSetBookmarkOperation(m.context, rev.GetChangeId()))
+	return m.setBaseOperation(bookmark.NewSetBookmarkOperation(m.context, rev.GetChangeId(), intent.Value))
 }
 
 func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
