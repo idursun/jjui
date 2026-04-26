@@ -430,7 +430,7 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions) *Model {
 	items := m.createMenuItems()
 	m.items = items
 	m.filteredItems = items
-	m.filterInput = textinput.New()
+	m.filterInput = common.TextInputNew()
 	m.filterInput.Prompt = "Filter: "
 	gfis := m.filterInput.Styles()
 	gfis.Focused.Prompt = m.menuStyles.matched.PaddingLeft(1)

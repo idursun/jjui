@@ -110,7 +110,7 @@ func (s *SetBookmarkOperation) Name() string {
 func NewSetBookmarkOperation(context *context.MainContext, changeId string) *SetBookmarkOperation {
 	dimmedStyle := common.DefaultPalette.Get("revisions dimmed").Inline(true)
 	textStyle := common.DefaultPalette.Get("revisions text").Inline(true)
-	t := textinput.New()
+	t := common.TextInputNew()
 	t.ShowSuggestions = true
 	t.CharLimit = 120
 	t.Prompt = ""

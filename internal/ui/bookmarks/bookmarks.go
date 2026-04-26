@@ -598,7 +598,7 @@ func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string) *M
 	}
 	m.listRenderer.Z = render.ZMenuContent
 
-	m.filterInput = textinput.New()
+	m.filterInput = common.TextInputNew()
 	m.filterInput.Prompt = "Filter: "
 	fis := m.filterInput.Styles()
 	fis.Focused.Prompt = m.menuStyles.matched.PaddingLeft(1)

@@ -28,7 +28,7 @@ func New(msg common.TogglePasswordMsg) *Model {
 	styles := styles{
 		border: common.DefaultPalette.GetBorder("password border", lipgloss.NormalBorder()).Padding(1),
 	}
-	ti := textinput.New()
+	ti := common.TextInputNew()
 	ti.Prompt = msg.Prompt
 	ti.EchoMode = textinput.EchoPassword
 	ps := ti.Styles()
