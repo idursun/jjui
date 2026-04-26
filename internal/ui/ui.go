@@ -529,7 +529,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 
 	// --- Quit / Suspend ---
 	case intents.Quit:
-		return tea.Quit, true
+		return common.Quit(), true
 	case intents.Suspend:
 		return tea.Suspend, true
 

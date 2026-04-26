@@ -152,7 +152,7 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
 	case intents.Quit:
-		return tea.Quit, true
+		return common.Quit(), true
 	case intents.Cancel:
 		return common.Close, true
 	case intents.EvologNavigate:

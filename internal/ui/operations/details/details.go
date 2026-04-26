@@ -215,7 +215,7 @@ func (s *Operation) handleIntentInner(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.DetailsClose:
 		return common.Close, true
 	case intents.Quit:
-		return tea.Quit, true
+		return common.Quit(), true
 	case intents.Refresh:
 		return common.Refresh, true
 	case intents.DetailsDiff:
