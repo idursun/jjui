@@ -35,4 +35,3 @@ func TestSetBookmarkModel_Prefill(t *testing.T) {
 	test.SimulateModel(op, test.Type("feature"))
 	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
 }
-
