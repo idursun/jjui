@@ -729,10 +729,12 @@ func (m *Model) startSquash(intent intents.OpenSquash) tea.Cmd {
 	// Reset file-level selection left over from details so updateSelection
 	// (and subsequent navigations) can update the revision-level selection.
 	if cur := m.SelectedRevision(); cur != nil {
-		m.context.SelectedItem = appContext.SelectedRevision{
+		item := appContext.SelectedRevision{
 			ChangeId: cur.GetChangeId(),
 			CommitId: cur.CommitId,
 		}
+		m.context.SelectedItem = item
+		return tea.Batch(cmd, common.SelectionChanged(item))
 	}
 	return tea.Batch(cmd, m.updateSelection())
 }

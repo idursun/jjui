@@ -85,6 +85,36 @@ func TestModel_Navigate(t *testing.T) {
 	assert.Equal(t, "a", model.SelectedRevision().ChangeId)
 }
 
+func TestModel_OpenSquashEmitsSelectionChangedForTargetRevision(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GetParent(jj.NewSelectedRevisions(rows[0].Commit))).SetOutput([]byte("9"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := New(ctx)
+	model.updateGraphRows(rows, "a")
+	ctx.SelectedItem = common.SelectedRevision{
+		ChangeId: rows[0].Commit.GetChangeId(),
+		CommitId: rows[0].Commit.CommitId,
+	}
+
+	var gotTargetSelection bool
+	cmd := model.Update(intents.OpenSquash{})
+	test.SimulateModel(model, cmd, func(msg tea.Msg) {
+		selection, ok := msg.(common.SelectionChangedMsg)
+		if !ok {
+			return
+		}
+		gotTargetSelection = selection.Item.Equal(common.SelectedRevision{
+			ChangeId: rows[1].Commit.GetChangeId(),
+			CommitId: rows[1].Commit.CommitId,
+		})
+	})
+
+	assert.Equal(t, 1, model.Cursor(), "opening squash should move the cursor to the target revision")
+	assert.True(t, gotTargetSelection, "opening squash should refresh observers for the target revision")
+}
+
 func TestModel_RenderImmediateInNormalMode(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
