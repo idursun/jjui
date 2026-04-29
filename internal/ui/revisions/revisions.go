@@ -486,7 +486,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		if m.revisionToSelect == "" {
 			switch selected := m.context.SelectedItem.(type) {
 			case appContext.SelectedRevision:
-				m.revisionToSelect = selected.CommitId
+				m.revisionToSelect = selected.ChangeId
 			case appContext.SelectedFile:
 				m.revisionToSelect = selected.CommitId
 			}
