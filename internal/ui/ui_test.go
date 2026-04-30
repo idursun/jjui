@@ -3,6 +3,8 @@ package ui
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -745,6 +747,87 @@ func Test_HandleIntent_EditEntersRevsetInNormalMode(t *testing.T) {
 	assert.True(t, handled)
 	assert.NotNil(t, cmd)
 	assert.True(t, model.revsetModel.IsEditing())
+}
+
+func Test_HandleIntent_ChangeThemeUpdatesCurrentMode(t *testing.T) {
+	setupThemeTestConfig(t)
+
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	ctx.TerminalHasDarkBackground = true
+	model := NewUI(ctx)
+
+	cmd, handled := model.HandleIntent(intents.ChangeTheme{Name: "runtime_dark"})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	_, ok := cmd().(common.ThemeChangedMsg)
+	require.True(t, ok)
+
+	assert.Equal(t, "runtime_dark", config.Current.UI.Theme.Dark)
+	assert.Equal(t, "", config.Current.UI.Theme.Light)
+}
+
+func Test_HandleIntent_ChangeThemeUpdatesLightModeWhenActive(t *testing.T) {
+	setupThemeTestConfig(t)
+
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	ctx.TerminalHasDarkBackground = false
+	model := NewUI(ctx)
+
+	cmd, handled := model.HandleIntent(intents.ChangeTheme{Name: "runtime_light"})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	_, ok := cmd().(common.ThemeChangedMsg)
+	require.True(t, ok)
+
+	assert.Equal(t, "", config.Current.UI.Theme.Dark)
+	assert.Equal(t, "runtime_light", config.Current.UI.Theme.Light)
+}
+
+func Test_HandleIntent_ChangeThemeRollsBackOnLoadError(t *testing.T) {
+	setupThemeTestConfig(t)
+	config.Current.UI.Theme.Dark = "runtime_dark"
+	config.Current.UI.Theme.Light = "runtime_light"
+
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	ctx.TerminalHasDarkBackground = true
+	model := NewUI(ctx)
+
+	cmd, handled := model.HandleIntent(intents.ChangeTheme{Name: "missing_theme"})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	msg := cmd()
+	flash, ok := msg.(intents.AddMessage)
+	require.True(t, ok)
+	assert.Error(t, flash.Err)
+
+	assert.Equal(t, "runtime_dark", config.Current.UI.Theme.Dark)
+	assert.Equal(t, "runtime_light", config.Current.UI.Theme.Light)
+}
+
+func setupThemeTestConfig(t *testing.T) {
+	t.Helper()
+	origTheme := config.Current.UI.Theme
+	t.Cleanup(func() { config.Current.UI.Theme = origTheme })
+	config.Current.UI.Theme = config.ThemeConfig{}
+
+	configDir := t.TempDir()
+	t.Setenv("JJUI_CONFIG_DIR", configDir)
+	themesDir := filepath.Join(configDir, "themes")
+	require.NoError(t, os.MkdirAll(themesDir, 0o755))
+	for _, name := range []string{"runtime_dark", "runtime_light", "runtime_both"} {
+		themePath := filepath.Join(themesDir, name+".toml")
+		require.NoError(t, os.WriteFile(themePath, []byte(`title = { fg = "blue" }
+`), 0o644))
+	}
 }
 
 func Test_Update_RevsetScopedConfiguredActionDispatchesWhileEditing(t *testing.T) {

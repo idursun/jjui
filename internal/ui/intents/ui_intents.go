@@ -35,6 +35,13 @@ type Suspend struct{}
 
 func (Suspend) isIntent() {}
 
+//jjui:bind scope=ui action=change_theme set=Name:$string(name)
+type ChangeTheme struct {
+	Name string
+}
+
+func (ChangeTheme) isIntent() {}
+
 //jjui:bind scope=ui action=expand_status
 type ExpandStatusToggle struct{}
 

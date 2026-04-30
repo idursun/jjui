@@ -245,6 +245,7 @@ var builtInActionScopes = map[string][]string{
 	"status.input.page_down":                     {"status.input"},
 	"status.input.page_up":                       {"status.input"},
 	"ui.cancel":                                  {"ui"},
+	"ui.change_theme":                            {"ui"},
 	"ui.exec_jj":                                 {"ui"},
 	"ui.exec_shell":                              {"ui"},
 	"ui.expand_status":                           {"ui"},
@@ -333,6 +334,9 @@ var builtInActionArgSchemas = map[string]map[string]string{
 	"revset.set": {
 		"value": "string",
 	},
+	"ui.change_theme": {
+		"name": "string",
+	},
 	"ui.preview.show": {
 		"content": "string",
 	},
@@ -346,6 +350,7 @@ var builtInActionRequiredArgs = map[string][]string{
 	"revisions.rebase.set_target":    {"target"},
 	"revisions.revert.set_target":    {"target"},
 	"revset.set":                     {"value"},
+	"ui.change_theme":                {"name"},
 	"ui.preview.show":                {"content"},
 }
 

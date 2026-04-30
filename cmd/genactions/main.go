@@ -1144,6 +1144,13 @@ var luaHandWrittenFunctions = []luaFunctionSpec{
 		FieldType:   "fun(text_or_options: string|{text: string, error?: boolean, sticky?: boolean})",
 	},
 	{
+		Comment:     "Change the active runtime theme",
+		ParamDocs:   []string{"---@param name string Theme name"},
+		Declaration: "function set_theme(name) end",
+		FieldName:   "set_theme",
+		FieldType:   "fun(name: string)",
+	},
+	{
 		Comment:     "Copy text to the system clipboard",
 		ParamDocs:   []string{"---@param text string Text to copy"},
 		ReturnDocs:  []string{"---@return boolean? ok True on success", "---@return string? error The error message (nil on success)"},

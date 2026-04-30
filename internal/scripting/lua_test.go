@@ -10,6 +10,7 @@ import (
 
 	"github.com/idursun/jjui/internal/ui/common"
 	uicontext "github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/intents"
 )
 
 func strPtr(v string) *string {
@@ -332,6 +333,34 @@ func TestWaitHelpers_AccessViaTopLevelAndJjuiNamespace(t *testing.T) {
 	assert.Equal(t, "function", vals[1].String())
 	assert.Equal(t, "function", vals[2].String())
 	assert.Equal(t, "function", vals[3].String())
+}
+
+func TestSetThemeDispatchesChangeThemeIntent(t *testing.T) {
+	ctx := setupVM(t)
+
+	runner, cmd, err := RunScript(ctx, `set_theme("runtime_dark")`)
+	require.NoError(t, err)
+	require.NotNil(t, runner)
+	require.NotNil(t, cmd)
+
+	msg := cmd()
+	intent, ok := msg.(intents.ChangeTheme)
+	require.True(t, ok)
+	assert.Equal(t, "runtime_dark", intent.Name)
+}
+
+func TestSetThemeAccessibleViaJjuiNamespace(t *testing.T) {
+	ctx := setupVM(t)
+
+	runner, cmd, err := RunScript(ctx, `jjui.set_theme("runtime_light")`)
+	require.NoError(t, err)
+	require.NotNil(t, runner)
+	require.NotNil(t, cmd)
+
+	msg := cmd()
+	intent, ok := msg.(intents.ChangeTheme)
+	require.True(t, ok)
+	assert.Equal(t, "runtime_light", intent.Name)
 }
 
 func runWaitingScript(t *testing.T, script string) (*uicontext.MainContext, *Runner) {

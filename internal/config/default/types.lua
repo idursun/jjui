@@ -40,6 +40,10 @@ function jj(...) end
 ---@param text_or_options string|{text: string, error?: boolean, sticky?: boolean} Message text or options table
 function flash(text_or_options) end
 
+---Change the active runtime theme
+---@param name string Theme name
+function set_theme(name) end
+
 ---Copy text to the system clipboard
 ---@param text string Text to copy
 ---@return boolean? ok True on success
@@ -419,6 +423,7 @@ function wait_refresh() end
 ---@class jjui.ui
 ---@field preview jjui.ui.preview
 ---@field cancel fun()
+---@field change_theme fun(value?: string|{name: string})
 ---@field exec_jj fun()
 ---@field exec_shell fun()
 ---@field expand_status fun()
@@ -477,6 +482,7 @@ function wait_refresh() end
 ---@field jj_interactive fun(...: string|string[])
 ---@field jj fun(...: string|string[]): string?, string?
 ---@field flash fun(text_or_options: string|{text: string, error?: boolean, sticky?: boolean})
+---@field set_theme fun(name: string)
 ---@field copy_to_clipboard fun(text: string): boolean?, string?
 ---@field exec_shell fun(command: string)
 ---@field split_lines fun(text: string, keepEmpty?: boolean): string[]

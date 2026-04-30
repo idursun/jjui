@@ -518,6 +518,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return common.Quit(), true
 	case intents.Suspend:
 		return common.Suspend(), true
+	case intents.ChangeTheme:
+		return m.changeTheme(intent), true
 
 	// --- Cancel fallback (only reached if no inner scope handled it) ---
 	case intents.Cancel:
@@ -676,6 +678,38 @@ func (m *Model) handleScriptMsg(msg tea.Msg) tea.Cmd {
 	}
 	m.scriptRunners = m.scriptRunners[:top]
 	return tea.Sequence(cmd, actionCompleted(frame.completionID))
+}
+
+func (m *Model) changeTheme(intent intents.ChangeTheme) tea.Cmd {
+	name := strings.TrimSpace(intent.Name)
+	if name == "" {
+		err := fmt.Errorf("theme name is required")
+		return intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err})
+	}
+
+	oldDark := config.Current.UI.Theme.Dark
+	oldLight := config.Current.UI.Theme.Light
+
+	if m.context.TerminalHasDarkBackground {
+		config.Current.UI.Theme.Dark = name
+	} else {
+		config.Current.UI.Theme.Light = name
+	}
+
+	if err := m.validateRuntimeThemeChange(); err != nil {
+		config.Current.UI.Theme.Dark = oldDark
+		config.Current.UI.Theme.Light = oldLight
+		return intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err})
+	}
+
+	cmd := m.reloadActiveTheme()
+	log.Printf("theme changed to %q", name)
+	return cmd
+}
+
+func (m *Model) validateRuntimeThemeChange() error {
+	_, err := config.ResolveTheme(m.context.TerminalHasDarkBackground, m.context.JJConfig.GetApplicableColors())
+	return err
 }
 
 func (m *Model) stackedScope() (keybindings.ScopeName, bool) {
@@ -839,9 +873,13 @@ func (m *Model) applyColorScheme(isDark bool) tea.Cmd {
 	}
 	log.Printf("color scheme changed to %s", scheme)
 	m.context.TerminalHasDarkBackground = isDark
-	theme, err := config.ResolveTheme(isDark, m.context.JJConfig.GetApplicableColors())
+	return m.reloadActiveTheme()
+}
+
+func (m *Model) reloadActiveTheme() tea.Cmd {
+	theme, err := config.ResolveTheme(m.context.TerminalHasDarkBackground, m.context.JJConfig.GetApplicableColors())
 	if err != nil {
-		log.Printf("failed to resolve %s theme: %v", scheme, err)
+		log.Printf("failed to resolve theme: %v", err)
 		return nil
 	}
 	common.DefaultPalette.Update(theme)

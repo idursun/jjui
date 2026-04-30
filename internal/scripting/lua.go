@@ -314,6 +314,10 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		}
 		return yieldStep(L, step{cmd: intents.Invoke(intent)})
 	})
+	setThemeFn := L.NewFunction(func(L *lua.LState) int {
+		name := L.CheckString(1)
+		return yieldStep(L, step{cmd: intents.Invoke(intents.ChangeTheme{Name: name})})
+	})
 	copyToClipboardFn := L.NewFunction(func(L *lua.LState) int {
 		text := L.CheckString(1)
 		if err := clipboard.WriteAll(text); err != nil {
@@ -418,6 +422,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	root.RawSetString("jj_interactive", jjInteractiveFn)
 	root.RawSetString("jj", jjFn)
 	root.RawSetString("flash", flashFn)
+	root.RawSetString("set_theme", setThemeFn)
 	root.RawSetString("copy_to_clipboard", copyToClipboardFn)
 	root.RawSetString("exec_shell", execShellFn)
 	root.RawSetString("split_lines", splitLinesFn)
@@ -445,6 +450,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	L.SetGlobal("jj_interactive", jjInteractiveFn)
 	L.SetGlobal("jj", jjFn)
 	L.SetGlobal("flash", flashFn)
+	L.SetGlobal("set_theme", setThemeFn)
 	L.SetGlobal("copy_to_clipboard", copyToClipboardFn)
 	L.SetGlobal("exec_shell", execShellFn)
 	L.SetGlobal("split_lines", splitLinesFn)
