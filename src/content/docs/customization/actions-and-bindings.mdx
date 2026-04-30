@@ -89,6 +89,22 @@ config.bind({
 | `desc` | no | Label shown in the help/status bar |
 | `args` | no | Arguments for built-in actions |
 
+When a custom TOML action is bound to a key in only one scope, the binding fields can be declared directly on the `[[actions]]` block instead of using a separate `[[bindings]]` block:
+
+```toml
+[[actions]]
+name = "copy-change-id"
+lua = '''
+local id = context.change_id()
+if id then copy_to_clipboard(id) end
+'''
+key = "Y"
+scope = "revisions"
+desc = "copy change id"
+```
+
+In this form, omit `action`; jjui uses the action's `name` for the generated binding. When `key` or `seq` is set on an action, `scope` is required. Use separate `[[bindings]]` blocks for built-in actions or when one action needs multiple bindings.
+
 `key` accepts a single key or a list of alternatives:
 
 ```toml
