@@ -183,7 +183,7 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 	hint := ""
 	if d.showHint() {
 		hint = d.unselectedHint
-		if item.selected || (index == d.cursor) {
+		if item.selected || (!d.hasSelectedItems() && index == d.cursor) {
 			hint = d.selectedHint
 		}
 	}
@@ -245,4 +245,13 @@ func (d *DetailsList) Len() int {
 
 func (d *DetailsList) showHint() bool {
 	return d.selectedHint != "" || d.unselectedHint != ""
+}
+
+func (d *DetailsList) hasSelectedItems() bool {
+	for _, item := range d.files {
+		if item.selected {
+			return true
+		}
+	}
+	return false
 }

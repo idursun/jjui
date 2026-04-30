@@ -83,6 +83,23 @@ func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
 	test.SimulateModel(model, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
+func TestModel_Update_SplitHintsFollowCheckedFiles(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
+	defer commandRunner.Verify()
+
+	model := NewOperation(test.NewTestContext(commandRunner), Commit)
+	test.SimulateModel(model, model.Init())
+
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsSplit{} })
+
+	rendered := test.RenderImmediate(model, 100, 20)
+	assert.Contains(t, rendered, "file.txt stays as is")
+	assert.Contains(t, rendered, "newfile.txt moves to the new revision")
+}
+
 func TestModel_Update_ParallelSplitsSelectedFiles(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.Snapshot())
