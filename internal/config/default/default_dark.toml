@@ -13,6 +13,7 @@ error = "red"
 "confirmation dimmed" = "white"
 "help title" = { fg = "green", bold = true }
 "revisions details selected" = { bg = "bright black", bold = true }
+"revisions details selected dimmed" = { fg = "bright cyan" }
 "revisions matched" = { underline = false, reverse = true }
 "oplog matched" = { underline = false, reverse = true }
 "revset title" = "magenta"

@@ -168,6 +168,7 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 	dimmedStyle := common.DefaultPalette.Get("revisions details dimmed")
 	conflictStyle := common.DefaultPalette.Get("revisions details conflict")
 	selectedStyle := common.DefaultPalette.Get("revisions details selected")
+	selectedDimmedStyle := common.DefaultPalette.Get("revisions details selected dimmed")
 
 	// Add conflict marker
 	if item.conflict {
@@ -189,7 +190,7 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 	if hint != "" {
 		hintStyle := dimmedStyle
 		if selected {
-			hintStyle = selectedStyle.Inherit(hintStyle)
+			hintStyle = selectedDimmedStyle
 		}
 		tb.Styled(hint, hintStyle)
 	}
