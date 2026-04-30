@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -116,6 +117,40 @@ func (c *Config) Load(data, baseDir string) error {
 	if _, err := toml.Decode(data, overlay); err != nil {
 		return err
 	}
+	overlayActions := make([]ActionConfig, 0, len(overlay.Actions))
+	actionBindings := make([]BindingConfig, 0, len(overlay.Actions))
+	for i, action := range overlay.Actions {
+		overlayActions = append(overlayActions, ActionConfig{
+			Name: action.Name,
+			Lua:  action.Lua,
+			Args: action.Args,
+		})
+
+		hasKey := len(action.Key) > 0
+		hasSeq := len(action.Seq) > 0
+		if !hasKey && !hasSeq {
+			continue
+		}
+		if hasKey && hasSeq {
+			return fmt.Errorf("actions[%d]: must set exactly one of key or seq", i)
+		}
+		if strings.TrimSpace(action.Scope) == "" {
+			return fmt.Errorf("actions[%d]: scope is required when key or seq is set", i)
+		}
+
+		binding := BindingConfig{
+			Action: action.Name,
+			Desc:   action.Desc,
+			Scope:  action.Scope,
+		}
+		if hasKey {
+			binding.Key = action.Key
+		}
+		if hasSeq {
+			binding.Seq = action.Seq
+		}
+		actionBindings = append(actionBindings, binding)
+	}
 
 	// If a custom bindings profile is specified, use it as the base instead of built-in defaults
 	if metadata.IsDefined("bindings_profile") && c.BindingsProfile != "" && c.BindingsProfile != ":builtin" {
@@ -130,10 +165,14 @@ func (c *Config) Load(data, baseDir string) error {
 	}
 
 	if metadata.IsDefined("actions") {
-		c.Actions = append(baseActions, overlay.Actions...)
+		c.Actions = append(baseActions, overlayActions...)
+	}
+	if metadata.IsDefined("actions") && len(actionBindings) > 0 && !metadata.IsDefined("bindings") {
+		c.Bindings = append(baseBindings, actionBindings...)
 	}
 	if metadata.IsDefined("bindings") {
-		c.Bindings = append(baseBindings, overlay.Bindings...)
+		overlayBindings := append(actionBindings, overlay.Bindings...)
+		c.Bindings = append(baseBindings, overlayBindings...)
 	}
 
 	return c.ValidateBindingsAndActions()

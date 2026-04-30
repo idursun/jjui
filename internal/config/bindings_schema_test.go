@@ -37,6 +37,65 @@ seq = ["g", "g"]
 	assert.Equal(t, StringList{"g", "g"}, cfg.Bindings[1].Seq)
 }
 
+func TestLoad_ActionCanDefineBinding(t *testing.T) {
+	content := `
+[[actions]]
+name = "apply_parallel"
+desc = "Apply in parallel"
+lua = "print('apply')"
+scope = "revisions.squash"
+key = "alt+shift+enter"
+
+[[actions]]
+name = "open_git_alias"
+lua = "print('git')"
+scope = "revisions"
+seq = ["g", "g"]
+`
+
+	cfg := &Config{}
+	err := cfg.Load(content, "")
+	require.NoError(t, err)
+	require.Len(t, cfg.Actions, 2)
+	require.Len(t, cfg.Bindings, 2)
+
+	assert.Equal(t, ActionConfig{Name: "apply_parallel", Lua: "print('apply')"}, cfg.Actions[0])
+	assert.Equal(t, BindingConfig{
+		Action: "apply_parallel",
+		Desc:   "Apply in parallel",
+		Scope:  "revisions.squash",
+		Key:    StringList{"alt+shift+enter"},
+	}, cfg.Bindings[0])
+	assert.Equal(t, BindingConfig{
+		Action: "open_git_alias",
+		Scope:  "revisions",
+		Seq:    StringList{"g", "g"},
+	}, cfg.Bindings[1])
+}
+
+func TestLoad_ActionDefinedBindingComposesWithExplicitBindings(t *testing.T) {
+	content := `
+[[actions]]
+name = "custom"
+lua = "print('custom')"
+scope = "revisions"
+key = "x"
+
+[[bindings]]
+action = "custom"
+scope = "git"
+key = "x"
+`
+
+	cfg := &Config{}
+	err := cfg.Load(content, "")
+	require.NoError(t, err)
+	require.Len(t, cfg.Bindings, 2)
+
+	assert.Equal(t, BindingConfig{Action: "custom", Scope: "revisions", Key: StringList{"x"}}, cfg.Bindings[0])
+	assert.Equal(t, BindingConfig{Action: "custom", Scope: "git", Key: StringList{"x"}}, cfg.Bindings[1])
+}
+
 func TestLoad_ActionsAndBindings_ValidationErrors(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -60,6 +119,28 @@ args = { force = true }
 name = "my_action"
 `,
 			want: "lua is required",
+		},
+		{
+			name: "action binding missing scope",
+			content: `
+[[actions]]
+name = "my_action"
+lua = "print('x')"
+key = "x"
+`,
+			want: "scope is required when key or seq is set",
+		},
+		{
+			name: "action binding invalid key and seq together",
+			content: `
+[[actions]]
+name = "my_action"
+lua = "print('x')"
+scope = "revisions"
+key = "x"
+seq = ["g", "x"]
+`,
+			want: "must set exactly one of key or seq",
 		},
 		{
 			name: "binding invalid key and seq together",
