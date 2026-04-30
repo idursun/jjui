@@ -82,6 +82,15 @@ auto_refresh_interval = 0
 
 Seconds between automatic revision list refreshes. Default is `0` (disabled). Override at startup with `--period`.
 
+## Window title
+
+```toml
+[ui]
+set_window_title = true
+```
+
+Whether jjui sets the terminal window title to include the repo path. Default is `true`. Set to `false` to leave the title managed by your shell or terminal.
+
 ## Flash messages
 
 ```toml
