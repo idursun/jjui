@@ -766,7 +766,9 @@ func (w *wrapper) View() tea.View {
 		w.render = false
 	}
 	v := tea.NewView(w.cachedFrame)
-	v.WindowTitle = fmt.Sprintf("jjui - %s", w.ui.context.Location)
+	if config.Current.UI.SetWindowTitle {
+		v.WindowTitle = fmt.Sprintf("jjui - %s", w.ui.context.Location)
+	}
 	v.AltScreen = true
 	v.ReportFocus = true
 	v.MouseMode = tea.MouseModeCellMotion

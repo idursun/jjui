@@ -157,6 +157,23 @@ key = "esc"
 	})
 }
 
+func TestLoadDefaultConfig_SetsWindowTitleByDefault(t *testing.T) {
+	cfg := loadDefaultConfig()
+
+	assert.True(t, cfg.UI.SetWindowTitle)
+}
+
+func TestLoad_UISetWindowTitleCanBeDisabled(t *testing.T) {
+	cfg := loadDefaultConfig()
+
+	require.NoError(t, cfg.Load(`
+[ui]
+set_window_title = false
+`, ""))
+
+	assert.False(t, cfg.UI.SetWindowTitle)
+}
+
 func TestLoad_SeqBindingDoesNotInheritStaleKey(t *testing.T) {
 	cfg := &Config{
 		Bindings: []BindingConfig{

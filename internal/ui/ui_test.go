@@ -47,6 +47,34 @@ func dispatchAction(model *Model, action keybindings.Action, args map[string]any
 	return nil, result.Consumed
 }
 
+func TestWrapperView_SetsWindowTitleWhenEnabled(t *testing.T) {
+	origSetWindowTitle := config.Current.UI.SetWindowTitle
+	t.Cleanup(func() { config.Current.UI.SetWindowTitle = origSetWindowTitle })
+	config.Current.UI.SetWindowTitle = true
+
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.Location = "/tmp/repo"
+	w := &wrapper{ui: &Model{context: ctx}, cachedFrame: "frame"}
+
+	view := w.View()
+
+	assert.Equal(t, "jjui - /tmp/repo", view.WindowTitle)
+}
+
+func TestWrapperView_LeavesWindowTitleEmptyWhenDisabled(t *testing.T) {
+	origSetWindowTitle := config.Current.UI.SetWindowTitle
+	t.Cleanup(func() { config.Current.UI.SetWindowTitle = origSetWindowTitle })
+	config.Current.UI.SetWindowTitle = false
+
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.Location = "/tmp/repo"
+	w := &wrapper{ui: &Model{context: ctx}, cachedFrame: "frame"}
+
+	view := w.View()
+
+	assert.Empty(t, view.WindowTitle)
+}
+
 func Test_Update_PreviewScrollKeysWorkWhenVisible(t *testing.T) {
 	tests := []struct {
 		name           string
