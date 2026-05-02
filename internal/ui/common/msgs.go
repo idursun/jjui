@@ -52,6 +52,7 @@ type (
 	ShowInputMsg struct {
 		Title  string
 		Prompt string
+		Value  string
 	}
 	ExecProcessCompletedMsg struct {
 		Err error
