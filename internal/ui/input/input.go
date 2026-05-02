@@ -34,17 +34,21 @@ func (m *Model) IsFocused() bool {
 }
 
 func New() *Model {
-	return NewWithTitle("", "")
+	return NewWithTitle("", "", "")
 }
 
-func NewWithTitle(title string, prompt string) *Model {
+func NewWithTitle(title string, prompt string, value string) *Model {
 	ti := textinput.New()
 	ti.SetWidth(40)
-	ti.Focus()
 	ti.Prompt = prompt
 	if ti.Prompt == "" {
 		ti.Prompt = "> "
 	}
+	if value != "" {
+		ti.SetValue(value)
+		ti.CursorEnd()
+	}
+	ti.Focus()
 
 	return &Model{
 		input:  ti,
@@ -125,8 +129,8 @@ func newCmd(msg tea.Msg) tea.Cmd {
 	return func() tea.Msg { return msg }
 }
 
-func ShowWithTitle(title string, prompt string) tea.Cmd {
+func ShowWithTitle(title string, prompt string, value string) tea.Cmd {
 	return func() tea.Msg {
-		return common.ShowInputMsg{Title: title, Prompt: prompt}
+		return common.ShowInputMsg{Title: title, Prompt: prompt, Value: value}
 	}
 }

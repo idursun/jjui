@@ -271,7 +271,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case choose.CancelledMsg:
 		m.stacked = nil
 	case common.ShowInputMsg:
-		model := input.NewWithTitle(msg.Title, msg.Prompt)
+		model := input.NewWithTitle(msg.Title, msg.Prompt, msg.Value)
 		m.stacked = model
 		return m.stacked.Init()
 	case input.SelectedMsg, input.CancelledMsg:

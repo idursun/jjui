@@ -381,7 +381,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		return yieldStep(L, step{cmd: choose.ShowWithTitle(options, "", false), matcher: matchChoose})
 	})
 	inputFn := L.NewFunction(func(L *lua.LState) int {
-		var title, prompt string
+		var title, prompt, value string
 		if L.GetTop() == 1 {
 			if tbl, ok := L.Get(1).(*lua.LTable); ok {
 				if titleVal := tbl.RawGetString("title"); titleVal != lua.LNil {
@@ -390,10 +390,13 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 				if promptVal := tbl.RawGetString("prompt"); promptVal != lua.LNil {
 					prompt = promptVal.String()
 				}
-				return yieldStep(L, step{cmd: input.ShowWithTitle(title, prompt), matcher: matchInput})
+				if valueVal := tbl.RawGetString("value"); valueVal != lua.LNil {
+					value = valueVal.String()
+				}
+				return yieldStep(L, step{cmd: input.ShowWithTitle(title, prompt, value), matcher: matchInput})
 			}
 		}
-		return yieldStep(L, step{cmd: input.ShowWithTitle("", ""), matcher: matchInput})
+		return yieldStep(L, step{cmd: input.ShowWithTitle("", "", ""), matcher: matchInput})
 	})
 	waitCloseFn := L.NewFunction(func(L *lua.LState) int {
 		return yieldStep(L, step{matcher: matchCloseViewMsg})
