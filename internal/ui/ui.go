@@ -352,13 +352,6 @@ func (m *Model) updateStatus() {
 	m.status.Sync(m.dispatchScopes(), m.sequenceHelp)
 }
 
-func (m *Model) UpdatePreviewPosition() {
-	if m.previewModel.AutoPosition() {
-		atBottom := m.height >= m.width/2
-		m.previewModel.SetPosition(true, atBottom)
-	}
-}
-
 func (m *Model) View() string {
 	if m.width == 0 || m.height == 0 {
 		return ""
@@ -375,7 +368,10 @@ func (m *Model) View() string {
 		m.renderDiffLayout(box)
 	} else {
 		if m.previewModel.Visible() {
-			m.UpdatePreviewPosition()
+			if m.previewModel.AutoPosition() {
+				atBottom := m.height >= m.width/2
+				m.previewModel.SetPosition(true, atBottom)
+			}
 		}
 		m.syncPreviewSplitOrientation()
 		if m.oplog != nil {
