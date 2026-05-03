@@ -189,7 +189,7 @@ func Test_UpdateStatus_RevsetEditingShowsRevsetHelp(t *testing.T) {
 
 	// Activate revset editing
 	model.revsetModel.Update(revset.EditRevSetMsg{})
-	assert.True(t, model.revsetModel.Editing, "revset should be in editing mode")
+	assert.True(t, model.revsetModel.IsEditing(), "revset should be in editing mode")
 
 	// Trigger status update
 	model.updateStatus()
@@ -483,7 +483,7 @@ func Test_Update_SequencePrefixBeatsSingleKeyBinding(t *testing.T) {
 
 	// Completing sequence should trigger ui.open_revset.
 	model.Update(tea.KeyPressMsg{Text: "r", Code: 'r'})
-	assert.True(t, model.revsetModel.Editing)
+	assert.True(t, model.revsetModel.IsEditing())
 }
 
 func Test_Update_PendingSequenceAutoExpandsStatusWithContinuations(t *testing.T) {
@@ -553,10 +553,10 @@ func Test_Update_RevsetEditingInterceptsQuitKey(t *testing.T) {
 	model := NewUI(ctx)
 
 	model.Update(tea.KeyPressMsg{Text: "L", Code: 'L'})
-	assert.True(t, model.revsetModel.Editing)
+	assert.True(t, model.revsetModel.IsEditing())
 
 	cmd := model.Update(tea.KeyPressMsg{Text: "q", Code: 'q'})
-	assert.True(t, model.revsetModel.Editing, "q should be treated as text input while editing revset")
+	assert.True(t, model.revsetModel.IsEditing(), "q should be treated as text input while editing revset")
 	if cmd != nil {
 		msg := cmd()
 		_, quit := msg.(tea.QuitMsg)
@@ -732,7 +732,7 @@ func Test_HandleIntent_EditEntersRevsetInNormalMode(t *testing.T) {
 	cmd, handled := model.HandleIntent(intents.Edit{})
 	assert.True(t, handled)
 	assert.NotNil(t, cmd)
-	assert.True(t, model.revsetModel.Editing)
+	assert.True(t, model.revsetModel.IsEditing())
 }
 
 func Test_Update_RevsetScopedConfiguredActionDispatchesWhileEditing(t *testing.T) {
@@ -759,7 +759,7 @@ func Test_Update_RevsetScopedConfiguredActionDispatchesWhileEditing(t *testing.T
 	model := NewUI(ctx)
 
 	model.Update(tea.KeyPressMsg{Text: "L", Code: 'L'})
-	assert.True(t, model.revsetModel.Editing)
+	assert.True(t, model.revsetModel.IsEditing())
 
 	cmd := model.Update(tea.KeyPressMsg{Code: 't', Mod: tea.ModCtrl})
 	assert.NotNil(t, cmd, "ctrl+t should dispatch revset-scoped custom action")
@@ -788,7 +788,7 @@ func Test_Update_LuaActionDispatchesBuiltInAction(t *testing.T) {
 	assert.NotNil(t, cmd)
 
 	test.SimulateModel(model, cmd)
-	assert.True(t, model.revsetModel.Editing, "lua-dispatched revset.edit should enter revset editing")
+	assert.True(t, model.revsetModel.IsEditing(), "lua-dispatched revset.edit should enter revset editing")
 }
 
 func Test_Update_LuaRevsetSetWorksOutsideRevsetScope(t *testing.T) {
@@ -843,12 +843,12 @@ func Test_Update_LuaBuiltinActionBypassesConfiguredOverride(t *testing.T) {
 	cmd := model.Update(common.RunLuaScriptMsg{Script: `jjui.revset.edit()`})
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
-	assert.False(t, model.revsetModel.Editing, "override should replace default action behavior")
+	assert.False(t, model.revsetModel.IsEditing(), "override should replace default action behavior")
 
 	cmd = model.Update(common.RunLuaScriptMsg{Script: `jjui.builtin.revset.edit()`})
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
-	assert.True(t, model.revsetModel.Editing, "builtin action should bypass override and run default behavior")
+	assert.True(t, model.revsetModel.IsEditing(), "builtin action should bypass override and run default behavior")
 }
 
 func Test_Update_OperationScopedConfiguredActionOverridesBuiltInIntent(t *testing.T) {
@@ -1118,7 +1118,7 @@ func Test_UpdateStatus_RevsetEditingUsesDispatcherHelpWhenAvailable(t *testing.T
 	model := NewUI(ctx)
 
 	model.revsetModel.Update(revset.EditRevSetMsg{})
-	assert.True(t, model.revsetModel.Editing)
+	assert.True(t, model.revsetModel.IsEditing())
 
 	model.updateStatus()
 	entries := help.FlatEntries(model.status.Help())

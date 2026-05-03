@@ -17,7 +17,10 @@ import (
 
 type EditRevSetMsg struct{}
 
-var _ common.ImmediateModel = (*Model)(nil)
+var (
+	_ common.ImmediateModel = (*Model)(nil)
+	_ common.Editable       = (*Model)(nil)
+)
 
 type revsetMsg struct {
 	msg tea.Msg
@@ -44,7 +47,7 @@ type completionClickMsg struct {
 }
 
 type Model struct {
-	Editing            bool
+	editing            bool
 	autoComplete       *autocompletion.AutoCompletionInput
 	completionProvider *CompletionProvider
 	History            []string
@@ -56,9 +59,19 @@ type Model struct {
 	userInput          string // tracks what the user actually typed (separate from preview)
 }
 
+func (m *Model) IsEditing() bool {
+	return m.editing
+}
+
 func (m *Model) Scopes() []common.Scope {
-	if !m.Editing {
-		return nil
+	if !m.editing {
+		return []common.Scope{
+			{
+				Name:    actions.ScopeRevset,
+				Leak:    common.LeakAll,
+				Handler: m,
+			},
+		}
 	}
 	return []common.Scope{
 		{
@@ -70,7 +83,7 @@ func (m *Model) Scopes() []common.Scope {
 }
 
 func (m *Model) IsFocused() bool {
-	return m.Editing
+	return m.editing
 }
 
 func (m *Model) GetValue() string {
@@ -91,7 +104,7 @@ func New(context *appContext.MainContext) *Model {
 
 	return &Model{
 		context:            context,
-		Editing:            false,
+		editing:            false,
 		autoComplete:       autoComplete,
 		completionProvider: completionProvider,
 		History:            []string{},
@@ -161,12 +174,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case tea.KeyMsg:
-		if !m.Editing {
+		if !m.editing {
 			return nil
 		}
 	case common.UpdateRevSetMsg:
-		if m.Editing {
-			m.Editing = false
+		if m.editing {
+			m.editing = false
 		}
 		m.autoComplete.SetValue(string(msg))
 		m.userInput = string(msg)
@@ -226,7 +239,7 @@ func (m *Model) updatePreview() {
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
 	case intents.Set:
-		m.Editing = false
+		m.editing = false
 		m.autoComplete.Blur()
 		value := intent.Value
 		if strings.TrimSpace(value) == "" {
@@ -234,11 +247,11 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		}
 		return tea.Batch(common.Close, common.UpdateRevSet(value)), true
 	case intents.Reset:
-		m.Editing = false
+		m.editing = false
 		m.autoComplete.Blur()
 		return tea.Batch(common.Close, common.UpdateRevSet(m.context.DefaultRevset)), true
 	case intents.Edit:
-		m.Editing = true
+		m.editing = true
 		m.autoComplete.Focus()
 		m.completionProvider.Load(m.context.RunCommandImmediate)
 		if intent.Clear {
@@ -251,10 +264,16 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		m.updateCompletionItems()
 		return m.autoComplete.Init(), true
 	case intents.Cancel:
-		m.Editing = false
+		if !m.editing {
+			return nil, false
+		}
+		m.editing = false
 		m.autoComplete.Blur()
 		return nil, true
 	case intents.Apply:
+		if !m.editing {
+			return nil, false
+		}
 		value := intent.Value
 		if value == "" {
 			value = m.autoComplete.Value()
@@ -269,10 +288,13 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err}), true
 		}
 
-		m.Editing = false
+		m.editing = false
 		m.autoComplete.Blur()
 		return tea.Batch(common.Close, common.UpdateRevSet(value)), true
 	case intents.CompletionCycle:
+		if !m.editing {
+			return nil, false
+		}
 		if len(m.completionItems) == 0 {
 			return nil, true
 		}
@@ -291,6 +313,9 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		m.updatePreview()
 		return nil, true
 	case intents.CompletionMove:
+		if !m.editing {
+			return nil, false
+		}
 		if len(m.completionItems) == 0 {
 			return nil, true
 		}
@@ -330,7 +355,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	tb := dl.Text(box.R.Min.X, box.R.Min.Y, render.ZFuzzyInput)
 	tb.Styled("revset: ", titleStyle)
-	if m.Editing {
+	if m.editing {
 		// Only render the text input part, not the completions from autoComplete.View()
 		tb.Write(m.autoComplete.TextInput.View())
 	} else {
@@ -338,7 +363,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 	tb.Done()
 
-	if !m.Editing {
+	if !m.editing {
 		return
 	}
 

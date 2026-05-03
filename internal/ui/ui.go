@@ -254,9 +254,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return luaCmd(result.LuaScript)
 		}
 		if result.Intent != nil {
-			if result.Scope == actions.ScopeRevset {
-				return m.revsetModel.Update(result.Intent)
-			}
 			scopes := m.dispatchScopes()
 			cmd, _ := common.RouteIntent(scopes, result.Intent)
 			return cmd
@@ -473,12 +470,16 @@ func (m *Model) dispatchScopes() []common.Scope {
 	if m.password != nil {
 		scopes = append(scopes, m.password.Scopes()...)
 	}
+
 	scopes = append(scopes, m.status.Scopes()...)
-	scopes = append(scopes, m.revsetModel.Scopes()...)
+	if m.revsetModel.IsEditing() {
+		scopes = append(scopes, m.revsetModel.Scopes()...)
+	}
 
 	if m.diff != nil {
 		scopes = append(scopes, m.diff.Scopes()...)
 	}
+
 	if m.stacked != nil {
 		scopes = append(scopes, m.stacked.Scopes()...)
 	} else if m.oplog != nil {
@@ -487,6 +488,9 @@ func (m *Model) dispatchScopes() []common.Scope {
 		scopes = append(scopes, m.revisions.Scopes()...)
 	}
 
+	if !m.revsetModel.IsEditing() {
+		scopes = append(scopes, m.revsetModel.Scopes()...)
+	}
 	scopes = append(scopes, m.previewModel.Scopes()...)
 	scopes = append(scopes, common.Scope{
 		Name:    scopeUi,

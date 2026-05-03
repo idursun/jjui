@@ -112,7 +112,7 @@ func TestModel_Update_ApplyValidationErrorAndCancel(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := New(ctx)
-	model.Editing = true
+	model.editing = true
 	model.autoComplete.SetValue("invalid")
 
 	cmd := model.Update(intents.Apply{})
@@ -121,11 +121,11 @@ func TestModel_Update_ApplyValidationErrorAndCancel(t *testing.T) {
 	addMessage, ok := msg.(intents.AddMessage)
 	require.True(t, ok, "apply should report invalid revset as flash message")
 	assert.Equal(t, "invalid revset", addMessage.Text)
-	assert.True(t, model.Editing, "invalid apply should keep editing mode")
+	assert.True(t, model.editing, "invalid apply should keep editing mode")
 
 	cancelCmd := model.Update(intents.Cancel{})
 	assert.Nil(t, cancelCmd)
-	assert.False(t, model.Editing, "cancel should exit editing mode")
+	assert.False(t, model.editing, "cancel should exit editing mode")
 }
 
 func TestModel_Update_ApplyEmptyUsesDefaultRevset(t *testing.T) {
@@ -136,12 +136,12 @@ func TestModel_Update_ApplyEmptyUsesDefaultRevset(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	ctx.DefaultRevset = "assume-passed-from-cli"
 	model := New(ctx)
-	model.Editing = true
+	model.editing = true
 	model.autoComplete.SetValue("")
 
 	cmd := model.Update(intents.Apply{})
 	require.NotNil(t, cmd)
-	assert.False(t, model.Editing, "successful apply should exit editing mode")
+	assert.False(t, model.editing, "successful apply should exit editing mode")
 
 	var updated string
 	test.SimulateModel(model, cmd, func(msg tea.Msg) {
