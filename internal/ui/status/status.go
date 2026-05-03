@@ -417,21 +417,12 @@ func (m *Model) Help() []help.ScopeGroup {
 
 func modeFromScopes(scopes []dispatch.Scope) string {
 	for _, scope := range scopes {
-		if !scopeContributesMode(scope.Name) {
+		if scope.Name == "" {
 			continue
 		}
 		return modeNameForScope(scope.Name)
 	}
 	return ""
-}
-
-func scopeContributesMode(scope keybindings.ScopeName) bool {
-	switch scope {
-	case "", actions.ScopeUi, actions.ScopeUiPreview, actions.ScopePassword:
-		return false
-	default:
-		return true
-	}
 }
 
 func modeNameForScope(scope keybindings.ScopeName) string {
