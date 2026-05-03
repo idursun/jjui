@@ -607,25 +607,6 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			m.revisionsSplit.State.Shrink(config.Current.Preview.WidthIncrementPercentage)
 		}
 		return nil, true
-	case intents.PreviewScroll:
-		if !m.previewModel.Visible() {
-			return nil, true
-		}
-		switch intent.Kind {
-		case intents.PreviewScrollUp:
-			return m.previewModel.Scroll(-1), true
-		case intents.PreviewScrollDown:
-			return m.previewModel.Scroll(1), true
-		case intents.PreviewPageUp:
-			return m.previewModel.PageUp(), true
-		case intents.PreviewPageDown:
-			return m.previewModel.PageDown(), true
-		case intents.PreviewHalfPageUp:
-			return m.previewModel.HalfPageUp(), true
-		case intents.PreviewHalfPageDown:
-			return m.previewModel.HalfPageDown(), true
-		}
-		return nil, true
 
 	// --- Delegated intents ---
 	case intents.DiffShow:
