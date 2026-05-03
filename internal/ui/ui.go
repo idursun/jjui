@@ -436,7 +436,7 @@ func (m *Model) renderSplit(primary common.ImmediateModel, box layout.Box) {
 	}
 	m.revisionsSplit.Primary = primary
 	m.revisionsSplit.Secondary = m.previewModel
-	m.revisionsSplit.Render(m.displayContext, box)
+	m.revisionsSplit.ViewRect(m.displayContext, box)
 }
 
 func (m *Model) syncPreviewSplitOrientation() {

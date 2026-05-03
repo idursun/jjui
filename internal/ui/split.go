@@ -65,6 +65,10 @@ func (s *splitState) Shrink(delta float64) {
 	s.clamp()
 }
 
+var (
+	_ common.ImmediateModel = (*split)(nil)
+)
+
 type split struct {
 	State              *splitState
 	Vertical           bool
@@ -85,7 +89,15 @@ func newSplit(state *splitState, primary, secondary common.ImmediateModel) *spli
 	}
 }
 
-func (s *split) Render(dl *render.DisplayContext, box layout.Box) {
+func (s *split) Init() tea.Cmd {
+	return nil
+}
+
+func (s *split) Update(msg tea.Msg) tea.Cmd {
+	return nil
+}
+
+func (s *split) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if s.State == nil {
 		s.State = newSplitState(50)
 	}
