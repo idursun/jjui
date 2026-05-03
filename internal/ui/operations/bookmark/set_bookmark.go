@@ -10,7 +10,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -19,7 +18,7 @@ import (
 
 var _ operations.Operation = (*SetBookmarkOperation)(nil)
 var _ common.Editable = (*SetBookmarkOperation)(nil)
-var _ dispatch.ScopeProvider = (*SetBookmarkOperation)(nil)
+var _ common.ScopeProvider = (*SetBookmarkOperation)(nil)
 
 type SetBookmarkOperation struct {
 	context         *context.MainContext
@@ -33,11 +32,11 @@ func (s *SetBookmarkOperation) IsEditing() bool {
 	return true
 }
 
-func (s *SetBookmarkOperation) Scopes() []dispatch.Scope {
-	return []dispatch.Scope{
+func (s *SetBookmarkOperation) Scopes() []common.Scope {
+	return []common.Scope{
 		{
 			Name:    actions.ScopeSetBookmark,
-			Leak:    dispatch.LeakNone,
+			Leak:    common.LeakNone,
 			Handler: s,
 		},
 	}

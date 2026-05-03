@@ -10,7 +10,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -19,7 +18,7 @@ import (
 
 var _ operations.Operation = (*Model)(nil)
 var _ common.Focusable = (*Model)(nil)
-var _ dispatch.ScopeProvider = (*Model)(nil)
+var _ common.ScopeProvider = (*Model)(nil)
 
 type Model struct {
 	context  *context.MainContext
@@ -38,11 +37,11 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Scopes() []dispatch.Scope {
-	return []dispatch.Scope{
+func (m *Model) Scopes() []common.Scope {
+	return []common.Scope{
 		{
 			Name:    actions.ScopeSetParents,
-			Leak:    dispatch.LeakAll,
+			Leak:    common.LeakAll,
 			Handler: m,
 		},
 	}

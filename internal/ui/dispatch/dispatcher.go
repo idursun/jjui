@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/ui/bindings"
+	"github.com/idursun/jjui/internal/ui/common"
 )
 
 // Continuation describes possible next keys while in sequence mode.
@@ -57,7 +58,7 @@ func (d *Dispatcher) ResetSequence() {
 
 // Resolve applies dispatch rules for a key in the provided layer chain.
 // Scopes must be ordered from innermost to outermost.
-func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []Scope) ResolveResult {
+func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []common.Scope) ResolveResult {
 	if msg.String() == "" {
 		return ResolveResult{}
 	}
@@ -78,7 +79,7 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []Scope) ResolveResult {
 		}
 	}
 
-	for _, scope := range VisibleScopes(scopes) {
+	for _, scope := range common.VisibleScopes(scopes) {
 		scopeBindings := d.bindings[scope.Name]
 		for i := len(scopeBindings) - 1; i >= 0; i-- {
 			binding := scopeBindings[i]
@@ -150,9 +151,9 @@ func (d *Dispatcher) resolveSequenceKey(key tea.Key) ResolveResult {
 	}
 }
 
-func (d *Dispatcher) initialSequenceCandidates(key tea.Key, scopes []Scope) []candidate {
+func (d *Dispatcher) initialSequenceCandidates(key tea.Key, scopes []common.Scope) []candidate {
 	var candidates []candidate
-	for _, scope := range VisibleScopes(scopes) {
+	for _, scope := range common.VisibleScopes(scopes) {
 		for _, binding := range d.bindings[scope.Name] {
 			if len(binding.Seq) > 0 && keyMatches(binding.Seq[0], key) {
 				candidates = append(candidates, candidate{scope: scope.Name, binding: binding})

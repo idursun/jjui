@@ -173,16 +173,16 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				return luaCmd(result.LuaScript)
 			}
 			if result.Intent != nil {
-				start := slices.IndexFunc(scopes, func(scope dispatch.Scope) bool {
+				start := slices.IndexFunc(scopes, func(scope common.Scope) bool {
 					return string(scope.Name) == result.Scope
 				})
 				if start < 0 {
 					return nil
 				}
-				if cmd, handled := dispatch.RouteIntent(scopes[start:], result.Intent); handled {
+				if cmd, handled := common.RouteIntent(scopes[start:], result.Intent); handled {
 					return cmd
 				}
-				if scopes[start].Leak != dispatch.LeakAll {
+				if scopes[start].Leak != common.LeakAll {
 					return m.updateBlockingScope(scopes[start], msg)
 				}
 				return nil
@@ -192,7 +192,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 
 			for _, scope := range scopes {
-				if scope.Leak != dispatch.LeakAll {
+				if scope.Leak != common.LeakAll {
 					return m.updateBlockingScope(scope, msg)
 				}
 			}
@@ -258,7 +258,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				return m.revsetModel.Update(result.Intent)
 			}
 			scopes := m.dispatchScopes()
-			cmd, _ := dispatch.RouteIntent(scopes, result.Intent)
+			cmd, _ := common.RouteIntent(scopes, result.Intent)
 			return cmd
 		}
 		return nil
@@ -471,8 +471,8 @@ func (m *Model) scheduleAutoRefresh() tea.Cmd {
 	return nil
 }
 
-func (m *Model) dispatchScopes() []dispatch.Scope {
-	var scopes []dispatch.Scope
+func (m *Model) dispatchScopes() []common.Scope {
+	var scopes []common.Scope
 
 	if m.password != nil {
 		scopes = append(scopes, m.password.Scopes()...)
@@ -492,9 +492,9 @@ func (m *Model) dispatchScopes() []dispatch.Scope {
 	}
 
 	scopes = append(scopes, m.previewModel.Scopes()...)
-	scopes = append(scopes, dispatch.Scope{
+	scopes = append(scopes, common.Scope{
 		Name:    scopeUi,
-		Leak:    dispatch.LeakNone,
+		Leak:    common.LeakNone,
 		Global:  true,
 		Handler: m,
 	})
@@ -669,7 +669,7 @@ func (m *Model) stackedScope() (keybindings.ScopeName, bool) {
 	return scopes[0].Name, true
 }
 
-func (m *Model) updateBlockingScope(scope dispatch.Scope, msg tea.KeyMsg) tea.Cmd {
+func (m *Model) updateBlockingScope(scope common.Scope, msg tea.KeyMsg) tea.Cmd {
 	if scope.Handler == m {
 		return nil
 	}

@@ -6,7 +6,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -57,11 +56,11 @@ func NewWithTitle(title string, prompt string, value string) *Model {
 	}
 }
 
-func (m *Model) Scopes() []dispatch.Scope {
-	return []dispatch.Scope{
+func (m *Model) Scopes() []common.Scope {
+	return []common.Scope{
 		{
 			Name:    actions.ScopeInput,
-			Leak:    dispatch.LeakNone,
+			Leak:    common.LeakNone,
 			Handler: m,
 		},
 	}

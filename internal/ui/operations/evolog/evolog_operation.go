@@ -11,7 +11,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -46,7 +45,7 @@ var _ operations.Operation = (*Operation)(nil)
 var _ operations.EmbeddedOperation = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
 var _ common.Overlay = (*Operation)(nil)
-var _ dispatch.ScopeProvider = (*Operation)(nil)
+var _ common.ScopeProvider = (*Operation)(nil)
 
 type Operation struct {
 	context          *context.MainContext
@@ -81,12 +80,12 @@ func (o *Operation) IsOverlay() bool {
 	return o.mode == selectMode
 }
 
-func (o *Operation) Scopes() []dispatch.Scope {
-	leak := dispatch.LeakGlobal
+func (o *Operation) Scopes() []common.Scope {
+	leak := common.LeakGlobal
 	if o.mode == restoreMode {
-		leak = dispatch.LeakAll
+		leak = common.LeakAll
 	}
-	return []dispatch.Scope{
+	return []common.Scope{
 		{
 			Name:    actions.ScopeEvolog,
 			Leak:    leak,

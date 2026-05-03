@@ -14,7 +14,6 @@ import (
 
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/bindings"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
@@ -46,10 +45,10 @@ import (
 )
 
 var (
-	_ common.Focusable       = (*Model)(nil)
-	_ common.Editable        = (*Model)(nil)
-	_ common.ImmediateModel  = (*Model)(nil)
-	_ dispatch.ScopeProvider = (*Model)(nil)
+	_ common.Focusable      = (*Model)(nil)
+	_ common.Editable       = (*Model)(nil)
+	_ common.ImmediateModel = (*Model)(nil)
+	_ common.ScopeProvider  = (*Model)(nil)
 )
 
 type Model struct {
@@ -269,24 +268,24 @@ func (m *Model) HasQuickSearch() bool {
 	return m.quickSearch != ""
 }
 
-func (m *Model) Scopes() []dispatch.Scope {
-	var ret []dispatch.Scope
+func (m *Model) Scopes() []common.Scope {
+	var ret []common.Scope
 	for i := len(m.layers) - 1; i >= 0; i-- {
-		if lp, ok := m.layers[i].(dispatch.ScopeProvider); ok {
+		if lp, ok := m.layers[i].(common.ScopeProvider); ok {
 			ret = append(ret, lp.Scopes()...)
 		}
 	}
-	if lp, ok := m.baseOperation().(dispatch.ScopeProvider); ok {
+	if lp, ok := m.baseOperation().(common.ScopeProvider); ok {
 		ret = append(ret, lp.Scopes()...)
 	}
 
-	leak := dispatch.LeakAll
+	leak := common.LeakAll
 	if m.IsEditing() {
-		leak = dispatch.LeakNone
+		leak = common.LeakNone
 	}
 
 	if m.quickSearch != "" {
-		ret = append(ret, dispatch.Scope{
+		ret = append(ret, common.Scope{
 			Name:    actions.ScopeQuickSearch,
 			Leak:    leak,
 			Handler: m,
@@ -298,7 +297,7 @@ func (m *Model) Scopes() []dispatch.Scope {
 		scope = ""
 	}
 
-	ret = append(ret, dispatch.Scope{
+	ret = append(ret, common.Scope{
 		Name:    scope,
 		Leak:    leak,
 		Handler: m,
@@ -578,7 +577,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	// Cancel has special handling: delegate to op first, then clear selections
 	if _, ok := intent.(intents.Cancel); ok {
-		if h, ok := m.activeModel().(dispatch.ScopeHandler); ok {
+		if h, ok := m.activeModel().(common.ScopeHandler); ok {
 			if cmd, handled := h.HandleIntent(intent); handled {
 				return cmd, true
 			}
@@ -610,7 +609,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	}
 
 	// Try the current operation first
-	if h, ok := m.activeModel().(dispatch.ScopeHandler); ok {
+	if h, ok := m.activeModel().(common.ScopeHandler); ok {
 		if cmd, handled := h.HandleIntent(intent); handled {
 			return cmd, true
 		}

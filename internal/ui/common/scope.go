@@ -1,4 +1,4 @@
-package dispatch
+package common
 
 import (
 	"strings"

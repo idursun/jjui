@@ -5,7 +5,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -50,11 +49,11 @@ func (m *CommandHistoryModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m *CommandHistoryModel) Scopes() []dispatch.Scope {
-	return []dispatch.Scope{
+func (m *CommandHistoryModel) Scopes() []common.Scope {
+	return []common.Scope{
 		{
 			Name:    actions.ScopeCommandHistory,
-			Leak:    dispatch.LeakGlobal,
+			Leak:    common.LeakGlobal,
 			Handler: m,
 		},
 	}

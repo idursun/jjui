@@ -17,7 +17,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -36,7 +35,7 @@ var (
 	_ common.Focusable                    = (*Operation)(nil)
 	_ common.Editable                     = (*Operation)(nil)
 	_ common.Overlay                      = (*Operation)(nil)
-	_ dispatch.ScopeProvider              = (*Operation)(nil)
+	_ common.ScopeProvider                = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -59,18 +58,18 @@ func (s *Operation) IsEditing() bool {
 	return s.confirmation != nil
 }
 
-func (s *Operation) Scopes() []dispatch.Scope {
-	var ret []dispatch.Scope
+func (s *Operation) Scopes() []common.Scope {
+	var ret []common.Scope
 	if s.confirmation != nil {
-		ret = append(ret, dispatch.Scope{
+		ret = append(ret, common.Scope{
 			Name:    actions.ScopeDetailsConfirmation,
-			Leak:    dispatch.LeakNone,
+			Leak:    common.LeakNone,
 			Handler: s,
 		})
 	}
-	ret = append(ret, dispatch.Scope{
+	ret = append(ret, common.Scope{
 		Name:    actions.ScopeDetails,
-		Leak:    dispatch.LeakGlobal,
+		Leak:    common.LeakGlobal,
 		Handler: s,
 	})
 	return ret

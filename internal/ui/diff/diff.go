@@ -7,7 +7,6 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -157,11 +156,11 @@ type Model struct {
 	mode viewMode
 }
 
-func (m *Model) Scopes() []dispatch.Scope {
-	return []dispatch.Scope{
+func (m *Model) Scopes() []common.Scope {
+	return []common.Scope{
 		{
 			Name:    actions.ScopeDiff,
-			Leak:    dispatch.LeakGlobal,
+			Leak:    common.LeakGlobal,
 			Handler: m,
 		},
 	}

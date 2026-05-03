@@ -11,7 +11,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -22,7 +21,7 @@ var (
 	_ operations.Operation       = (*Operation)(nil)
 	_ operations.SegmentRenderer = (*Operation)(nil)
 	_ common.Focusable           = (*Operation)(nil)
-	_ dispatch.ScopeProvider     = (*Operation)(nil)
+	_ common.ScopeProvider       = (*Operation)(nil)
 )
 
 type selectionType int
@@ -51,11 +50,11 @@ func (a *Operation) IsFocused() bool {
 	return true
 }
 
-func (a *Operation) Scopes() []dispatch.Scope {
-	return []dispatch.Scope{
+func (a *Operation) Scopes() []common.Scope {
+	return []common.Scope{
 		{
 			Name:    actions.ScopeAbandon,
-			Leak:    dispatch.LeakAll,
+			Leak:    common.LeakAll,
 			Handler: a,
 		},
 	}

@@ -10,7 +10,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -28,7 +27,7 @@ var (
 
 var _ operations.Operation = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
-var _ dispatch.ScopeProvider = (*Operation)(nil)
+var _ common.ScopeProvider = (*Operation)(nil)
 
 type Operation struct {
 	context        *context.MainContext
@@ -44,11 +43,11 @@ func (r *Operation) IsFocused() bool {
 	return true
 }
 
-func (r *Operation) Scopes() []dispatch.Scope {
-	return []dispatch.Scope{
+func (r *Operation) Scopes() []common.Scope {
+	return []common.Scope{
 		{
 			Name:    actions.ScopeRevert,
-			Leak:    dispatch.LeakAll,
+			Leak:    common.LeakAll,
 			Handler: r,
 		},
 	}

@@ -13,7 +13,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -117,25 +116,25 @@ func (i item) ShortCut() string {
 	return i.key
 }
 
-func (m *Model) Scopes() []dispatch.Scope {
+func (m *Model) Scopes() []common.Scope {
 	if m.IsEditing() {
-		return []dispatch.Scope{
+		return []common.Scope{
 			{
 				Name:    actions.ScopeBookmarks + ".filter",
-				Leak:    dispatch.LeakNone,
+				Leak:    common.LeakNone,
 				Handler: m,
 			},
 			{
 				Name:    actions.ScopeBookmarks,
-				Leak:    dispatch.LeakNone,
+				Leak:    common.LeakNone,
 				Handler: m,
 			},
 		}
 	}
-	return []dispatch.Scope{
+	return []common.Scope{
 		{
 			Name:    actions.ScopeBookmarks,
-			Leak:    dispatch.LeakAll,
+			Leak:    common.LeakAll,
 			Handler: m,
 		},
 	}

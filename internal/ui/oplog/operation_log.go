@@ -12,7 +12,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -68,18 +67,18 @@ func (m *Model) HasQuickSearch() bool {
 	return m.quickSearch != ""
 }
 
-func (m *Model) Scopes() []dispatch.Scope {
-	var ret []dispatch.Scope
+func (m *Model) Scopes() []common.Scope {
+	var ret []common.Scope
 	if m.HasQuickSearch() {
-		ret = append(ret, dispatch.Scope{
+		ret = append(ret, common.Scope{
 			Name:    actions.ScopeOplogQuickSearch,
-			Leak:    dispatch.LeakNone,
+			Leak:    common.LeakNone,
 			Handler: m,
 		})
 	}
-	ret = append(ret, dispatch.Scope{
+	ret = append(ret, common.Scope{
 		Name:    actions.ScopeOplog,
-		Leak:    dispatch.LeakAll,
+		Leak:    common.LeakAll,
 		Handler: m,
 	})
 	return ret

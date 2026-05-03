@@ -5,13 +5,14 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/ui/bindings"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/stretchr/testify/require"
 )
 
-func createScopes(scopeNames ...bindings.ScopeName) []Scope {
-	scopes := make([]Scope, 0, len(scopeNames))
+func createScopes(scopeNames ...bindings.ScopeName) []common.Scope {
+	scopes := make([]common.Scope, 0, len(scopeNames))
 	for _, scope := range scopeNames {
-		scopes = append(scopes, Scope{Name: scope, Leak: LeakAll})
+		scopes = append(scopes, common.Scope{Name: scope, Leak: common.LeakAll})
 	}
 	return scopes
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/common/autocompletion"
 	appContext "github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -57,14 +56,14 @@ type Model struct {
 	userInput          string // tracks what the user actually typed (separate from preview)
 }
 
-func (m *Model) Scopes() []dispatch.Scope {
+func (m *Model) Scopes() []common.Scope {
 	if !m.Editing {
 		return nil
 	}
-	return []dispatch.Scope{
+	return []common.Scope{
 		{
 			Name:    actions.ScopeRevset,
-			Leak:    dispatch.LeakNone,
+			Leak:    common.LeakNone,
 			Handler: m,
 		},
 	}

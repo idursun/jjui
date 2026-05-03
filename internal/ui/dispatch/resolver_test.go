@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/config"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/stretchr/testify/assert"
 )
@@ -166,7 +167,7 @@ func TestDeriveScope(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.action), func(t *testing.T) {
-			got := DeriveScope(tt.action)
+			got := common.DeriveScope(tt.action)
 			assert.Equal(t, tt.want, got)
 		})
 	}

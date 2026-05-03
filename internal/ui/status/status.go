@@ -11,7 +11,6 @@ import (
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/exec_process"
 	"github.com/idursun/jjui/internal/ui/fuzzy_files"
 	"github.com/idursun/jjui/internal/ui/fuzzy_input"
@@ -54,7 +53,7 @@ func (m *Model) FocusKind() FocusKind {
 	return m.focusKind
 }
 
-func (m *Model) Scopes() []dispatch.Scope {
+func (m *Model) Scopes() []common.Scope {
 	if m.focusKind == FocusNone {
 		return nil
 	}
@@ -69,10 +68,10 @@ func (m *Model) Scopes() []dispatch.Scope {
 	default:
 		return nil
 	}
-	return []dispatch.Scope{
+	return []common.Scope{
 		{
 			Name:    scope,
-			Leak:    dispatch.LeakNone,
+			Leak:    common.LeakNone,
 			Handler: m,
 		},
 	}
@@ -332,12 +331,12 @@ func (m *Model) renderFuzzyOverlay(dl *render.DisplayContext, box layout.Box) {
 	m.fuzzy.ViewRect(dl, layout.Box{R: overlayRect})
 }
 
-func (m *Model) SetScopes(scopes []dispatch.Scope) {
+func (m *Model) SetScopes(scopes []common.Scope) {
 	m.setModeFromScopes(scopes)
 	m.setHelpFromScopes(scopes)
 }
 
-func (m *Model) Sync(scopes []dispatch.Scope, sequenceHelp []help.Entry) {
+func (m *Model) Sync(scopes []common.Scope, sequenceHelp []help.Entry) {
 	m.setModeFromScopes(scopes)
 	if sequenceHelp != nil {
 		m.SetHelp(sequenceHelp)
@@ -346,9 +345,9 @@ func (m *Model) Sync(scopes []dispatch.Scope, sequenceHelp []help.Entry) {
 	m.setHelpFromScopes(scopes)
 }
 
-func (m *Model) setHelpFromScopes(scopes []dispatch.Scope) {
+func (m *Model) setHelpFromScopes(scopes []common.Scope) {
 	var scopeNames []keybindings.ScopeName
-	for _, scope := range dispatch.VisibleScopes(scopes) {
+	for _, scope := range common.VisibleScopes(scopes) {
 		if scope.Name != "" {
 			scopeNames = append(scopeNames, scope.Name)
 		}
@@ -358,11 +357,11 @@ func (m *Model) setHelpFromScopes(scopes []dispatch.Scope) {
 	m.setGroups(groups)
 }
 
-func (m *Model) setModeFromScopes(scopes []dispatch.Scope) {
+func (m *Model) setModeFromScopes(scopes []common.Scope) {
 	if m.IsFocused() {
 		return
 	}
-	mode := modeFromScopes(dispatch.VisibleScopes(scopes))
+	mode := modeFromScopes(common.VisibleScopes(scopes))
 	if mode != "" {
 		m.SetMode(mode)
 	}
@@ -415,7 +414,7 @@ func (m *Model) Help() []help.ScopeGroup {
 	return m.groups
 }
 
-func modeFromScopes(scopes []dispatch.Scope) string {
+func modeFromScopes(scopes []common.Scope) string {
 	for _, scope := range scopes {
 		if scope.Name == "" {
 			continue

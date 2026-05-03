@@ -7,6 +7,7 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 )
 
@@ -49,7 +50,7 @@ func newResolverWithActions(d *Dispatcher, actions []config.ActionConfig) *Resol
 }
 
 // ResolveKey resolves a key press through the full pipeline: key → binding → action → intent.
-func (r *Resolver) ResolveKey(msg tea.KeyMsg, scopes []Scope) Result {
+func (r *Resolver) ResolveKey(msg tea.KeyMsg, scopes []common.Scope) Result {
 	if r.dispatcher == nil {
 		return Result{}
 	}
@@ -120,6 +121,6 @@ func (r *Resolver) resolveFromCatalog(action keybindings.Action, args map[string
 		return nil, "", false
 	}
 
-	scope := DeriveScope(action)
+	scope := common.DeriveScope(action)
 	return intent, scope, true
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -21,11 +20,11 @@ type Model struct {
 	confirmation *confirmation.Model
 }
 
-func (m *Model) Scopes() []dispatch.Scope {
-	return []dispatch.Scope{
+func (m *Model) Scopes() []common.Scope {
+	return []common.Scope{
 		{
 			Name:    actions.ScopeRedo,
-			Leak:    dispatch.LeakNone,
+			Leak:    common.LeakNone,
 			Handler: m,
 		},
 	}

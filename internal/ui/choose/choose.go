@@ -9,7 +9,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -89,25 +88,25 @@ func (m *Model) IsEditing() bool {
 	return m.filtering
 }
 
-func (m *Model) Scopes() []dispatch.Scope {
+func (m *Model) Scopes() []common.Scope {
 	if m.IsEditing() {
-		return []dispatch.Scope{
+		return []common.Scope{
 			{
 				Name:    actions.ScopeChoose + ".filter",
-				Leak:    dispatch.LeakNone,
+				Leak:    common.LeakNone,
 				Handler: m,
 			},
 			{
 				Name:    actions.ScopeChoose,
-				Leak:    dispatch.LeakNone,
+				Leak:    common.LeakNone,
 				Handler: m,
 			},
 		}
 	}
-	return []dispatch.Scope{
+	return []common.Scope{
 		{
 			Name:    actions.ScopeChoose,
-			Leak:    dispatch.LeakAll,
+			Leak:    common.LeakAll,
 			Handler: m,
 		},
 	}

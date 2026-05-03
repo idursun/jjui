@@ -8,7 +8,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -19,7 +18,7 @@ var (
 	_ operations.Operation         = (*Operation)(nil)
 	_ operations.EmbeddedOperation = (*Operation)(nil)
 	_ common.Editable              = (*Operation)(nil)
-	_ dispatch.ScopeProvider       = (*Operation)(nil)
+	_ common.ScopeProvider         = (*Operation)(nil)
 )
 
 var stashed *stashedDescription = nil
@@ -44,11 +43,11 @@ func (o *Operation) IsFocused() bool {
 	return true
 }
 
-func (o *Operation) Scopes() []dispatch.Scope {
-	return []dispatch.Scope{
+func (o *Operation) Scopes() []common.Scope {
+	return []common.Scope{
 		{
 			Name:    actions.ScopeInlineDescribe,
-			Leak:    dispatch.LeakNone,
+			Leak:    common.LeakNone,
 			Handler: o,
 		},
 	}

@@ -12,7 +12,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -106,25 +105,25 @@ func (m *Model) IsEditing() bool {
 	return m.filterState == filterEditing
 }
 
-func (m *Model) Scopes() []dispatch.Scope {
+func (m *Model) Scopes() []common.Scope {
 	if m.IsEditing() {
-		return []dispatch.Scope{
+		return []common.Scope{
 			{
 				Name:    actions.ScopeGit + ".filter",
-				Leak:    dispatch.LeakNone,
+				Leak:    common.LeakNone,
 				Handler: m,
 			},
 			{
 				Name:    actions.ScopeGit,
-				Leak:    dispatch.LeakNone,
+				Leak:    common.LeakNone,
 				Handler: m,
 			},
 		}
 	}
-	return []dispatch.Scope{
+	return []common.Scope{
 		{
 			Name:    actions.ScopeGit,
-			Leak:    dispatch.LeakGlobal,
+			Leak:    common.LeakGlobal,
 			Handler: m,
 		},
 	}

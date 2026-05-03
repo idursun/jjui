@@ -11,7 +11,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -39,12 +38,12 @@ type Item struct {
 }
 
 var (
-	_ operations.Operation   = (*Model)(nil)
-	_ dispatch.ScopeProvider = (*Model)(nil)
-	_ dispatch.ScopeHandler  = (*Model)(nil)
-	_ common.Focusable       = (*Model)(nil)
-	_ common.Editable        = (*Model)(nil)
-	_ common.Overlay         = (*Model)(nil)
+	_ operations.Operation = (*Model)(nil)
+	_ common.ScopeProvider = (*Model)(nil)
+	_ common.ScopeHandler  = (*Model)(nil)
+	_ common.Focusable     = (*Model)(nil)
+	_ common.Editable      = (*Model)(nil)
+	_ common.Overlay       = (*Model)(nil)
 )
 
 type Model struct {
@@ -92,11 +91,11 @@ func (m *Model) Name() string { return "target_picker" }
 
 func (m *Model) Render(_ *jj.Commit, _ operations.RenderPosition) string { return "" }
 
-func (m *Model) Scopes() []dispatch.Scope {
-	return []dispatch.Scope{
+func (m *Model) Scopes() []common.Scope {
+	return []common.Scope{
 		{
 			Name:    actions.ScopeTargetPicker,
-			Leak:    dispatch.LeakNone,
+			Leak:    common.LeakNone,
 			Handler: m,
 		},
 	}
