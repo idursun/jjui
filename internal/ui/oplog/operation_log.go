@@ -192,7 +192,8 @@ func (m *Model) search(startIndex int, backward bool) int {
 	for i := range m.rows {
 		items[i] = &m.rows[i]
 	}
-	return common.CircularSearch(items, m.quickSearch, startIndex, m.cursor, backward)
+	idx, _ := common.CircularSearch(items, m.quickSearch, startIndex, m.cursor, backward)
+	return idx
 }
 
 func (m *Model) close() tea.Cmd {

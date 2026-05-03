@@ -49,6 +49,7 @@ func TestCircularSearch(t *testing.T) {
 		cursor     int
 		backward   bool
 		want       int
+		wantFound  bool
 	}{
 		{
 			name:       "empty query returns cursor",
@@ -56,6 +57,7 @@ func TestCircularSearch(t *testing.T) {
 			startIndex: 0,
 			cursor:     2,
 			want:       2,
+			wantFound:  false,
 		},
 		{
 			name:       "forward match from start",
@@ -63,6 +65,7 @@ func TestCircularSearch(t *testing.T) {
 			startIndex: 0,
 			cursor:     0,
 			want:       1,
+			wantFound:  true,
 		},
 		{
 			name:       "forward wraps around",
@@ -70,6 +73,7 @@ func TestCircularSearch(t *testing.T) {
 			startIndex: 3,
 			cursor:     0,
 			want:       4,
+			wantFound:  true,
 		},
 		{
 			name:       "backward match",
@@ -78,6 +82,7 @@ func TestCircularSearch(t *testing.T) {
 			cursor:     0,
 			backward:   true,
 			want:       1,
+			wantFound:  true,
 		},
 		{
 			name:       "backward wraps around",
@@ -86,6 +91,7 @@ func TestCircularSearch(t *testing.T) {
 			cursor:     0,
 			backward:   true,
 			want:       3,
+			wantFound:  true,
 		},
 		{
 			name:       "no match returns cursor",
@@ -93,6 +99,7 @@ func TestCircularSearch(t *testing.T) {
 			startIndex: 0,
 			cursor:     2,
 			want:       2,
+			wantFound:  false,
 		},
 		{
 			name:       "case insensitive match",
@@ -100,13 +107,15 @@ func TestCircularSearch(t *testing.T) {
 			startIndex: 0,
 			cursor:     0,
 			want:       2,
+			wantFound:  true,
 		},
 		{
-			name:       "match spanning multiple segments",
+			name:       "query spanning multiple segments does not match",
 			query:      "hello world",
 			startIndex: 0,
 			cursor:     0,
 			want:       0,
+			wantFound:  false,
 		},
 	}
 
@@ -119,11 +128,12 @@ func TestCircularSearch(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			searchItems := items
-			if tt.name == "match spanning multiple segments" {
+			if tt.name == "query spanning multiple segments does not match" {
 				searchItems = spanItems
 			}
-			got := CircularSearch(searchItems, tt.query, tt.startIndex, tt.cursor, tt.backward)
+			got, found := CircularSearch(searchItems, tt.query, tt.startIndex, tt.cursor, tt.backward)
 			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.wantFound, found)
 		})
 	}
 }
