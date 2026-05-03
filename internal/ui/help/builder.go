@@ -95,7 +95,7 @@ func BuildGroupedFromBindings(
 		entries := BuildFromBindings(scope, bindings)
 		if len(entries) > 0 {
 			groups = append(groups, ScopeGroup{
-				Name:    scopeDisplayName(string(scope)),
+				Name:    ScopeDisplayName(string(scope)),
 				Entries: entries,
 			})
 		}

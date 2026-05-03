@@ -333,6 +333,20 @@ func (m *Model) renderFuzzyOverlay(dl *render.DisplayContext, box layout.Box) {
 }
 
 func (m *Model) SetScopes(scopes []dispatch.Scope) {
+	m.setModeFromScopes(scopes)
+	m.setHelpFromScopes(scopes)
+}
+
+func (m *Model) Sync(scopes []dispatch.Scope, sequenceHelp []help.Entry) {
+	m.setModeFromScopes(scopes)
+	if sequenceHelp != nil {
+		m.SetHelp(sequenceHelp)
+		return
+	}
+	m.setHelpFromScopes(scopes)
+}
+
+func (m *Model) setHelpFromScopes(scopes []dispatch.Scope) {
 	var scopeNames []keybindings.ScopeName
 	for _, scope := range dispatch.VisibleScopes(scopes) {
 		if scope.Name != "" {
@@ -342,6 +356,16 @@ func (m *Model) SetScopes(scopes []dispatch.Scope) {
 	groups := help.BuildGroupedFromBindings(scopeNames, config.Current.Bindings)
 	help.MarkOverriddenKeys(groups)
 	m.setGroups(groups)
+}
+
+func (m *Model) setModeFromScopes(scopes []dispatch.Scope) {
+	if m.IsFocused() {
+		return
+	}
+	mode := modeFromScopes(dispatch.VisibleScopes(scopes))
+	if mode != "" {
+		m.SetMode(mode)
+	}
 }
 
 func (m *Model) SetHelp(entries []help.Entry) {
@@ -391,18 +415,32 @@ func (m *Model) Help() []help.ScopeGroup {
 	return m.groups
 }
 
-var modeDisplayNames = map[string]string{
-	"normal":          "revisions",
-	"inline_describe": "describe",
+func modeFromScopes(scopes []dispatch.Scope) string {
+	for _, scope := range scopes {
+		if !scopeContributesMode(scope.Name) {
+			continue
+		}
+		return modeNameForScope(scope.Name)
+	}
+	return ""
+}
+
+func scopeContributesMode(scope keybindings.ScopeName) bool {
+	switch scope {
+	case "", actions.ScopeUi, actions.ScopeUiPreview, actions.ScopePassword:
+		return false
+	default:
+		return true
+	}
+}
+
+func modeNameForScope(scope keybindings.ScopeName) string {
+	return strings.ToLower(help.ScopeDisplayName(string(scope)))
 }
 
 func (m *Model) SetMode(mode string) {
 	if !m.IsFocused() {
-		if display, ok := modeDisplayNames[mode]; ok {
-			m.mode = display
-		} else {
-			m.mode = mode
-		}
+		m.mode = mode
 	}
 }
 

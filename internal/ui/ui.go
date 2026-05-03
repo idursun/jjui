@@ -349,36 +349,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) updateStatus() {
-	mode := m.statusMode()
-	if mode != "" {
-		m.status.SetMode(mode)
-	}
-
-	if m.sequenceHelp != nil {
-		m.status.SetHelp(m.sequenceHelp)
-	} else {
-		m.status.SetScopes(m.dispatchScopes())
-	}
-}
-
-func (m *Model) statusMode() string {
-	if scope, ok := m.stackedScope(); ok {
-		if scope == actions.ScopeCommandHistory {
-			return "history"
-		}
-		return string(scope)
-	}
-
-	switch {
-	case m.diff != nil:
-		return "diff"
-	case m.oplog != nil:
-		return "oplog"
-	case m.revsetModel.Editing:
-		return "revset"
-	default:
-		return m.revisions.CurrentOperation().Name()
-	}
+	m.status.Sync(m.dispatchScopes(), m.sequenceHelp)
 }
 
 func (m *Model) UpdatePreviewPosition() {

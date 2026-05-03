@@ -31,9 +31,9 @@ var scopeDisplayNames = map[string]string{
 	"revisions.duplicate":            "Duplicate",
 	"revisions.abandon":              "Abandon",
 	"revisions.set_parents":          "Set Parents",
-	"revisions.details":              "File Details",
-	"revisions.details.confirmation": "File Details Confirmation",
-	"revisions.evolog":               "Evolution Log",
+	"revisions.details":              "Details",
+	"revisions.details.confirmation": "Details Confirmation",
+	"revisions.evolog":               "Evolog",
 	"revisions.inline_describe":      "Inline Describe",
 	"revisions.set_bookmark":         "Set Bookmark",
 	"revisions.target_picker":        "Target Picker",
@@ -44,12 +44,12 @@ var scopeDisplayNames = map[string]string{
 	"bookmarks.filter":               "Bookmarks Filter",
 	"git":                            "Git",
 	"git.filter":                     "Git Filter",
-	"oplog":                          "Operation Log",
-	"oplog.quick_search":             "Operation Log Search",
-	"diff":                           "Diff Viewer",
+	"oplog":                          "Oplog",
+	"oplog.quick_search":             "Oplog Search",
+	"diff":                           "Diff",
 	"undo":                           "Undo",
 	"redo":                           "Redo",
-	"revset":                         "Revset Editor",
+	"revset":                         "Revset",
 	"command_history":                "Command History",
 	"file_search":                    "File Search",
 	"status.input":                   "Status Input",
@@ -391,7 +391,7 @@ func buildGroups(bindings []config.BindingConfig) []ScopeGroup {
 		if len(entries) == 0 {
 			continue
 		}
-		name := scopeDisplayName(scope)
+		name := ScopeDisplayName(scope)
 		groups = append(groups, ScopeGroup{Name: name, Entries: entries})
 	}
 
@@ -404,7 +404,7 @@ func buildGroups(bindings []config.BindingConfig) []ScopeGroup {
 		if len(entries) == 0 {
 			continue
 		}
-		name := scopeDisplayName(scope)
+		name := ScopeDisplayName(scope)
 		groups = append(groups, ScopeGroup{Name: name, Entries: entries})
 	}
 
@@ -439,7 +439,7 @@ func bindingsToEntries(bindings []config.BindingConfig) []Entry {
 	return entries
 }
 
-func scopeDisplayName(scope string) string {
+func ScopeDisplayName(scope string) string {
 	if name, ok := scopeDisplayNames[scope]; ok {
 		return name
 	}

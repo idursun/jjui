@@ -217,7 +217,7 @@ func Test_UpdateStatus_FlashVisibleShowsHistoryModeAndHelp(t *testing.T) {
 	model.Update(intents.CommandHistoryToggle{})
 	model.updateStatus()
 
-	assert.Equal(t, "history", model.status.Mode())
+	assert.Equal(t, "command history", model.status.Mode())
 	entries := help.FlatEntries(model.status.Help())
 	require.Len(t, entries, 3)
 	assert.Equal(t, "j", entries[0].Label)
