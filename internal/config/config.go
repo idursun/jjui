@@ -110,8 +110,9 @@ type UIConfig struct {
 	SetWindowTitle bool             `toml:"set_window_title"`
 	// TODO(ilyagr): It might make sense to rename this to `auto_refresh_period` to match `--period` option
 	// once we have a mechanism to deprecate the old name softly.
-	AutoRefreshInterval        int `toml:"auto_refresh_interval"`
-	FlashMessageDisplaySeconds int `toml:"flash_message_display_seconds"`
+	AutoRefreshInterval        int  `toml:"auto_refresh_interval"`
+	FlashMessageDisplaySeconds int  `toml:"flash_message_display_seconds"`
+	MouseSupport               bool `toml:"mouse_support"`
 }
 
 func GetExpiringFlashMessageTimeout(c *Config) time.Duration {

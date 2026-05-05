@@ -724,6 +724,9 @@ func (w *wrapper) View() tea.View {
 	v.AltScreen = true
 	v.ReportFocus = true
 	v.MouseMode = tea.MouseModeCellMotion
+	if !config.Current.UI.MouseSupport {
+		v.MouseMode = tea.MouseModeNone
+	}
 	return v
 }
 

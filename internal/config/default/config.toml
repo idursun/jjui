@@ -7,6 +7,7 @@ bindings_profile = ":builtin"
   set_window_title = true
   auto_refresh_interval = 0
   flash_message_display_seconds = 4 # 0 means display until manually dismissed
+  mouse_support = true
   [ui.colors]
 
 [suggest]
