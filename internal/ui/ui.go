@@ -53,7 +53,7 @@ type Model struct {
 	status           *status.Model
 	password         *password.Model
 	context          *context.MainContext
-	scriptRunner     *scripting.Runner
+	scriptRunners    []scriptFrame
 	sequenceHelp     []help.Entry
 	sequenceAutoOpen bool
 	resolver         *dispatch.Resolver
@@ -67,6 +67,11 @@ type Model struct {
 	// mode2031Supported is set when the terminal confirms it supports
 	// mode 2031 push. Once true, the OSC 11 polling loop stops.
 	mode2031Supported bool
+}
+
+type scriptFrame struct {
+	runner       *scripting.Runner
+	completionID string
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -222,25 +227,31 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.revsetModel.Update(msg)
 		return common.Refresh
 	case common.RunLuaScriptMsg:
-		if m.scriptRunner != nil && !m.scriptRunner.Done() {
+		if msg.CompletionID == "" && m.scriptRunning() {
 			err := fmt.Errorf("lua script is already running")
 			return intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err})
 		}
 		runner, cmd, err := scripting.RunScript(m.context, msg.Script)
 		if err != nil {
-			return func() tea.Msg {
+			return tea.Sequence(func() tea.Msg {
 				return common.CommandCompletedMsg{Err: err}
-			}
+			}, actionCompleted(msg.CompletionID))
 		}
-		m.scriptRunner = runner
-		if cmd == nil && (runner == nil || runner.Done()) {
-			m.scriptRunner = nil
+		if runner != nil && !runner.Done() {
+			m.scriptRunners = append(m.scriptRunners, scriptFrame{
+				runner:       runner,
+				completionID: msg.CompletionID,
+			})
+			return cmd
 		}
-		return cmd
+		return tea.Sequence(cmd, actionCompleted(msg.CompletionID))
 	case common.DispatchActionMsg:
 		if actionmeta.IsBuiltInAction(msg.Action) {
 			if err := actionmeta.ValidateBuiltInActionArgs(msg.Action, msg.Args); err != nil {
-				return intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err})
+				return tea.Sequence(
+					intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err}),
+					actionCompleted(msg.CompletionID),
+				)
 			}
 		}
 		action := keybindings.Action(strings.TrimSpace(msg.Action))
@@ -251,14 +262,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			result = m.resolver.ResolveAction(action, msg.Args)
 		}
 		if result.LuaScript != "" {
-			return luaCmd(result.LuaScript)
+			return luaCmdWithCompletion(result.LuaScript, msg.CompletionID)
 		}
 		if result.Intent != nil {
 			scopes := m.dispatchScopes()
 			cmd, _ := common.RouteIntent(scopes, result.Intent)
-			return cmd
+			return tea.Sequence(cmd, actionCompleted(msg.CompletionID))
 		}
-		return nil
+		return actionCompleted(msg.CompletionID)
 	case common.ShowChooseMsg:
 		model := choose.NewWithOptions(msg.Options, msg.Title, msg.Filter, msg.Ordered)
 		m.stacked = model
@@ -323,12 +334,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		cmds = append(cmds, m.stacked.Update(msg))
 	}
 
-	if m.scriptRunner != nil {
-		if cmd := m.scriptRunner.HandleMsg(msg); cmd != nil {
+	if len(m.scriptRunners) > 0 {
+		if cmd := m.handleScriptMsg(msg); cmd != nil {
 			cmds = append(cmds, cmd)
-		}
-		if m.scriptRunner.Done() {
-			m.scriptRunner = nil
 		}
 	}
 
@@ -634,9 +642,40 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 }
 
 func luaCmd(script string) tea.Cmd {
+	return luaCmdWithCompletion(script, "")
+}
+
+func luaCmdWithCompletion(script string, completionID string) tea.Cmd {
 	return func() tea.Msg {
-		return common.RunLuaScriptMsg{Script: script}
+		return common.RunLuaScriptMsg{Script: script, CompletionID: completionID}
 	}
+}
+
+func actionCompleted(id string) tea.Cmd {
+	if id == "" {
+		return nil
+	}
+	return func() tea.Msg {
+		return common.ActionCompletedMsg{ID: id}
+	}
+}
+
+func (m *Model) scriptRunning() bool {
+	return len(m.scriptRunners) > 0
+}
+
+func (m *Model) handleScriptMsg(msg tea.Msg) tea.Cmd {
+	if len(m.scriptRunners) == 0 {
+		return nil
+	}
+	top := len(m.scriptRunners) - 1
+	frame := m.scriptRunners[top]
+	cmd := frame.runner.HandleMsg(msg)
+	if !frame.runner.Done() {
+		return cmd
+	}
+	m.scriptRunners = m.scriptRunners[:top]
+	return tea.Sequence(cmd, actionCompleted(frame.completionID))
 }
 
 func (m *Model) stackedScope() (keybindings.ScopeName, bool) {

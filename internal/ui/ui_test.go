@@ -996,7 +996,7 @@ func Test_Update_LuaInputEscCancelsAndFinishesScript(t *testing.T) {
 	cmd := model.Update(common.RunLuaScriptMsg{Script: `local name = input("name")`})
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
-	require.NotNil(t, model.scriptRunner, "script should wait for input")
+	require.NotEmpty(t, model.scriptRunners, "script should wait for input")
 	require.NotNil(t, model.stacked, "input view should be stacked")
 
 	cmd = model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
@@ -1004,7 +1004,7 @@ func Test_Update_LuaInputEscCancelsAndFinishesScript(t *testing.T) {
 	test.SimulateModel(model, cmd)
 
 	assert.Nil(t, model.stacked, "input should close after esc")
-	assert.Nil(t, model.scriptRunner, "script should finish after input cancel")
+	assert.Empty(t, model.scriptRunners, "script should finish after input cancel")
 }
 
 func Test_Update_LuaChooseEscViaUiCancelFinishesScript(t *testing.T) {
@@ -1027,7 +1027,7 @@ func Test_Update_LuaChooseEscViaUiCancelFinishesScript(t *testing.T) {
 	cmd := model.Update(common.RunLuaScriptMsg{Script: `local choice = choose({"a", "b"})`})
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
-	require.NotNil(t, model.scriptRunner, "script should wait for choose")
+	require.NotEmpty(t, model.scriptRunners, "script should wait for choose")
 	require.NotNil(t, model.stacked, "choose view should be stacked")
 
 	cmd = model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
@@ -1035,7 +1035,7 @@ func Test_Update_LuaChooseEscViaUiCancelFinishesScript(t *testing.T) {
 	test.SimulateModel(model, cmd)
 
 	assert.Nil(t, model.stacked, "choose should close after esc")
-	assert.Nil(t, model.scriptRunner, "script should finish after choose cancel")
+	assert.Empty(t, model.scriptRunners, "script should finish after choose cancel")
 }
 
 func Test_Update_LuaActionRejectsInvalidBuiltInArgs(t *testing.T) {
@@ -1052,6 +1052,49 @@ func Test_Update_LuaActionRejectsInvalidBuiltInArgs(t *testing.T) {
 
 	test.SimulateModel(model, cmd)
 	assert.True(t, model.flash.Any(), "invalid canonical action args should surface an error flash message")
+	assert.Empty(t, model.scriptRunners, "script should finish after invalid action args are reported")
+}
+
+func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing.T) {
+	const statusOutput = "false false $\nM file.txt\n"
+	const logOutput = "○  _PREFIX:child_PREFIX:childcommit \x1b[1m\x1b[38;5;5mchild\x1b[0m \x1b[38;5;3mauthor\x1b[39m \x1b[38;5;6m2026-05-05\x1b[39m \x1b[1m\x1b[38;5;4mchildcommit\x1b[0m\n○  _PREFIX:parent_PREFIX:parentcommit \x1b[1m\x1b[38;5;5mparent\x1b[0m \x1b[38;5;3mauthor\x1b[39m \x1b[38;5;6m2026-05-05\x1b[39m \x1b[1m\x1b[38;5;4mparentcommit\x1b[0m\n"
+
+	origLogBatching := config.Current.Revisions.LogBatching
+	defer func() {
+		config.Current.Revisions.LogBatching = origLogBatching
+	}()
+	config.Current.Revisions.LogBatching = false
+
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	commandRunner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log)).SetOutput([]byte(logOutput))
+	commandRunner.Expect(jj.GetParent(jj.NewSelectedRevisions(&jj.Commit{ChangeId: "child", CommitId: "childcommit"}))).SetOutput([]byte("parentcommit"))
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status("parent")).SetOutput([]byte(statusOutput))
+	defer commandRunner.Verify()
+
+	require.NoError(t, scripting.InitVM(ctx))
+	defer scripting.CloseVM(ctx)
+	model := NewUI(ctx)
+	test.SimulateModel(model, model.revisions.Update(common.RefreshMsg{SelectedRevision: "child"}))
+	require.NotNil(t, model.revisions.SelectedRevision())
+	require.Equal(t, "child", model.revisions.SelectedRevision().GetChangeId())
+
+	model.Update(common.RestoreOperationMsg{Operation: details.NewOperation(ctx, model.revisions.SelectedRevision())})
+	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
+
+	cmd := model.Update(common.RunLuaScriptMsg{Script: `
+		revisions.details.close()
+		revisions.jump_to_parent()
+		revisions.open_details()
+	`})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	require.NotNil(t, model.revisions.SelectedRevision())
+	assert.Equal(t, "parent", model.revisions.SelectedRevision().GetChangeId())
+	assert.Equal(t, "details", model.revisions.CurrentOperation().Name())
+	assert.Empty(t, model.scriptRunners)
 }
 
 func Test_Update_ExecHistoryUpDownNavigationInStatusInputScope(t *testing.T) {

@@ -66,12 +66,17 @@ type (
 	}
 	ShowPreview     bool
 	RunLuaScriptMsg struct {
-		Script string
+		Script       string
+		CompletionID string
 	}
 	DispatchActionMsg struct {
-		Action  string
-		Args    map[string]any
-		BuiltIn bool
+		Action       string
+		Args         map[string]any
+		BuiltIn      bool
+		CompletionID string
+	}
+	ActionCompletedMsg struct {
+		ID string
 	}
 	TogglePasswordMsg struct {
 		Prompt   string

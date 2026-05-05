@@ -3,7 +3,9 @@ package scripting
 import (
 	stdcontext "context"
 	"fmt"
+	"strconv"
 	"strings"
+	"sync/atomic"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
@@ -34,6 +36,8 @@ type Runner struct {
 	resumeArgs []lua.LValue
 	done       bool
 }
+
+var nextActionCompletionID atomic.Uint64
 
 func RunScript(ctx *uicontext.MainContext, src string) (*Runner, tea.Cmd, error) {
 	L, err := vmFromContext(ctx)
@@ -503,13 +507,15 @@ func generatedActionFn(L *lua.LState, canonical string, builtIn bool) *lua.LFunc
 		} else {
 			args = optionalLuaMapArg(L, 1)
 		}
+		completionID := strconv.FormatUint(nextActionCompletionID.Add(1), 10)
 		return yieldStep(L, step{cmd: func() tea.Msg {
 			return common.DispatchActionMsg{
-				Action:  canonical,
-				Args:    args,
-				BuiltIn: builtIn,
+				Action:       canonical,
+				Args:         args,
+				BuiltIn:      builtIn,
+				CompletionID: completionID,
 			}
-		}})
+		}, matcher: matchActionCompleted(completionID)})
 	})
 }
 
@@ -675,6 +681,13 @@ func matchCloseViewMsg(msg tea.Msg) (bool, []lua.LValue) {
 		return true, []lua.LValue{lua.LBool(closeMsg.Applied)}
 	}
 	return false, nil
+}
+
+func matchActionCompleted(id string) func(tea.Msg) (bool, []lua.LValue) {
+	return func(msg tea.Msg) (bool, []lua.LValue) {
+		completed, ok := msg.(common.ActionCompletedMsg)
+		return ok && completed.ID == id, nil
+	}
 }
 
 func matchChoose(msg tea.Msg) (bool, []lua.LValue) {
