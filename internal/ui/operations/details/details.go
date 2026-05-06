@@ -12,6 +12,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -222,7 +223,16 @@ func (s *Operation) handleIntentInner(intent intents.Intent) (tea.Cmd, bool) {
 			return nil, true
 		}
 		return func() tea.Msg {
-			output, _ := s.context.RunCommandImmediate(jj.Diff(s.revision.GetChangeId(), selected.fileName))
+			args := jj.TemplatedArgs(
+				config.Current.Preview.FileCommand,
+				map[string]string{
+					jj.RevsetPlaceholder:   s.context.CurrentRevset,
+					jj.ChangeIdPlaceholder: s.revision.GetChangeId(),
+					jj.CommitIdPlaceholder: s.revision.CommitId,
+					jj.FilePlaceholder:     selected.fileName,
+				},
+			)
+			output, _ := s.context.RunCommandImmediate(args)
 			return intents.DiffShow{Content: string(output)}
 		}, true
 	case intents.DetailsSplit:

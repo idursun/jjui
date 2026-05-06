@@ -985,9 +985,16 @@ func (m *Model) showDiff(intent intents.ShowDiff) tea.Cmd {
 	if commit == nil {
 		return nil
 	}
-	changeId := commit.GetChangeId()
 	return func() tea.Msg {
-		output, _ := m.context.RunCommandImmediate(jj.Diff(changeId, ""))
+		args := jj.TemplatedArgs(
+			config.Current.Preview.RevisionCommand,
+			map[string]string{
+				jj.RevsetPlaceholder:   m.context.CurrentRevset,
+				jj.ChangeIdPlaceholder: commit.GetChangeId(),
+				jj.CommitIdPlaceholder: commit.CommitId,
+			},
+		)
+		output, _ := m.context.RunCommandImmediate(args)
 		return intents.DiffShow{Content: string(output)}
 	}
 }
