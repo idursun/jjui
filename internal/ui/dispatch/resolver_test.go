@@ -92,6 +92,88 @@ func TestResolveKey_BuiltInCatalogResolution(t *testing.T) {
 	assert.Equal(t, 1, nav.Delta)
 }
 
+func TestResolveKey_DefaultEmacsListNavigationAliases(t *testing.T) {
+	runtimeBindings := config.BindingsToRuntime(config.Current.Bindings)
+	r := makeResolver(runtimeBindings, nil)
+
+	tests := []struct {
+		name       string
+		scope      keybindings.ScopeName
+		key        tea.KeyPressMsg
+		assertions func(t *testing.T, intent intents.Intent)
+	}{
+		{
+			name:  "ctrl+p moves revset completions up",
+			scope: "revset",
+			key:   tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl},
+			assertions: func(t *testing.T, intent intents.Intent) {
+				nav, ok := intent.(intents.CompletionMove)
+				assert.True(t, ok)
+				assert.Equal(t, -1, nav.Delta)
+			},
+		},
+		{
+			name:  "ctrl+n moves revset completions down",
+			scope: "revset",
+			key:   tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl},
+			assertions: func(t *testing.T, intent intents.Intent) {
+				nav, ok := intent.(intents.CompletionMove)
+				assert.True(t, ok)
+				assert.Equal(t, 1, nav.Delta)
+			},
+		},
+		{
+			name:  "ctrl+p moves file search up",
+			scope: "file_search",
+			key:   tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl},
+			assertions: func(t *testing.T, intent intents.Intent) {
+				nav, ok := intent.(intents.FileSearchNavigate)
+				assert.True(t, ok)
+				assert.Equal(t, 1, nav.Delta)
+			},
+		},
+		{
+			name:  "ctrl+n moves file search down",
+			scope: "file_search",
+			key:   tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl},
+			assertions: func(t *testing.T, intent intents.Intent) {
+				nav, ok := intent.(intents.FileSearchNavigate)
+				assert.True(t, ok)
+				assert.Equal(t, -1, nav.Delta)
+			},
+		},
+		{
+			name:  "ctrl+p moves target picker up",
+			scope: "revisions.target_picker",
+			key:   tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl},
+			assertions: func(t *testing.T, intent intents.Intent) {
+				nav, ok := intent.(intents.TargetPickerNavigate)
+				assert.True(t, ok)
+				assert.Equal(t, -1, nav.Delta)
+			},
+		},
+		{
+			name:  "ctrl+n moves target picker down",
+			scope: "revisions.target_picker",
+			key:   tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl},
+			assertions: func(t *testing.T, intent intents.Intent) {
+				nav, ok := intent.(intents.TargetPickerNavigate)
+				assert.True(t, ok)
+				assert.Equal(t, 1, nav.Delta)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := r.ResolveKey(tt.key, createScopes(tt.scope))
+			assert.True(t, result.Consumed)
+			assert.Equal(t, string(tt.scope), result.Scope)
+			tt.assertions(t, result.Intent)
+		})
+	}
+}
+
 func TestResolveKey_UsesMatchedBindingScopeForRouting(t *testing.T) {
 	r := makeResolver([]keybindings.Binding{
 		{Action: "revset.edit", Scope: "revisions", Key: []string{"L"}},

@@ -23,8 +23,8 @@ bindings = [
     { key = "enter", action = "revset.apply", scope = "revset", desc = "apply" },
     { key = "tab", action = "revset.autocomplete", scope = "revset", desc = "autocomplete" },
     { key = "shift+tab", action = "revset.autocomplete_back", scope = "revset", desc = "autocomplete back" },
-    { key = "up", action = "revset.move_up", scope = "revset", desc = "up" },
-    { key = "down", action = "revset.move_down", scope = "revset", desc = "down" },
+    { key = ["up", "ctrl+p"], action = "revset.move_up", scope = "revset", desc = "up" },
+    { key = ["down", "ctrl+n"], action = "revset.move_down", scope = "revset", desc = "down" },
 
     # preview
     { key = "ctrl+h", action = "ui.preview_expand", scope = "ui.preview", desc = "expand preview" },
@@ -239,8 +239,8 @@ bindings = [
     { key = "esc", action = "revisions.target_picker.cancel", scope = "revisions.target_picker", desc = "cancel" },
     { key = "enter", action = "revisions.target_picker.apply", scope = "revisions.target_picker", desc = "apply" },
     { key = "alt+enter", action = "revisions.target_picker.apply", scope = "revisions.target_picker", desc = "force apply", args = { force = true } },
-    { key = "up", action = "revisions.target_picker.move_up", scope = "revisions.target_picker", desc = "up" },
-    { key = "down", action = "revisions.target_picker.move_down", scope = "revisions.target_picker", desc = "down" },
+    { key = ["up", "ctrl+p"], action = "revisions.target_picker.move_up", scope = "revisions.target_picker", desc = "up" },
+    { key = ["down", "ctrl+n"], action = "revisions.target_picker.move_down", scope = "revisions.target_picker", desc = "down" },
     { key = "tab", action = "revisions.target_picker.autocomplete", scope = "revisions.target_picker", desc = "autocomplete" },
     { key = "shift+tab", action = "revisions.target_picker.autocomplete_back", scope = "revisions.target_picker", desc = "autocomplete back" },
 
@@ -264,8 +264,8 @@ bindings = [
     { key = "enter", action = "file_search.apply", scope = "file_search", desc = "apply" },
     { key = "ctrl+t", action = "file_search.toggle", scope = "file_search", desc = "toggle" },
     { key = "alt+e", action = "file_search.edit", scope = "file_search", desc = "edit" },
-    { key = "up", action = "file_search.move_up", scope = "file_search", desc = "up" },
-    { key = "down", action = "file_search.move_down", scope = "file_search", desc = "down" },
+    { key = ["up", "ctrl+p"], action = "file_search.move_up", scope = "file_search", desc = "up" },
+    { key = ["down", "ctrl+n"], action = "file_search.move_down", scope = "file_search", desc = "down" },
     { key = ["ctrl+u", "pgup"], action = "file_search.page_up", scope = "file_search", desc = "pgup" },
     { key = ["ctrl+d", "pgdown"], action = "file_search.page_down", scope = "file_search", desc = "pgdown" },
     { key = "ctrl+b", action = "file_search.preview_half_page_up", scope = "file_search", desc = "preview half up" },

@@ -496,10 +496,10 @@ func (m *Model) dispatchScopes() []common.Scope {
 		scopes = append(scopes, m.revisions.Scopes()...)
 	}
 
+	scopes = append(scopes, m.previewModel.Scopes()...)
 	if !m.revsetModel.IsEditing() {
 		scopes = append(scopes, m.revsetModel.Scopes()...)
 	}
-	scopes = append(scopes, m.previewModel.Scopes()...)
 	scopes = append(scopes, common.Scope{
 		Name:    scopeUi,
 		Leak:    common.LeakNone,
