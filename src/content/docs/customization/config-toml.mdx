@@ -23,6 +23,41 @@ You can also set a custom directory with the `JJUI_CONFIG_DIR` environment varia
 
 ---
 
+## Customizing jj inside jjui
+
+`jjui` sets the `JJUI` environment variable before invoking `jj`. You can use `jj`'s [conditional config syntax](https://docs.jj-vcs.dev/latest/config/#conditional-variables) to apply different `jj` settings only when commands are run from inside `jjui`.
+
+This is useful when you want `jj` to behave one way in your shell and another way in `jjui`.
+
+### Enable a diff formatter only in jjui
+
+```toml
+[[--scope]]
+--when.environments = ["JJUI"]
+[--scope.ui]
+diff-formatter = "delta"
+```
+
+### Use a different pager in jjui
+
+```toml
+[[--scope]]
+--when.environments = ["JJUI"]
+[--scope.ui]
+pager = ["less", "-FRX"]
+```
+
+### Disable pagination in jjui
+
+```toml
+[[--scope]]
+--when.environments = ["JJUI"]
+[--scope.ui]
+paginate = "never"
+```
+
+Add these snippets to your `jj` configuration, not to `jjui`'s `config.toml`.
+
 ## Revisions
 
 Override the default log template or revset:
