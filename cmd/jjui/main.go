@@ -88,6 +88,8 @@ func main() {
 }
 
 func run() int {
+	// so that sub processes know they are spawn by jjui, good for `jj` condition variables
+	os.Setenv("JJUI", "1")
 	askpassServer := askpass.NewUnstartedServer("JJUI")
 	if askpassServer.IsSubprocess() {
 		return 0
