@@ -85,6 +85,40 @@ func TestModel_Navigate(t *testing.T) {
 	assert.Equal(t, "a", model.SelectedRevision().ChangeId)
 }
 
+func TestModel_SelectRevision_UsesExactMatchBeforePrefixFallback(t *testing.T) {
+	model := &Model{
+		rows: []parser.Row{
+			{Commit: &jj.Commit{ChangeId: "66d", CommitId: "111"}},
+			{Commit: &jj.Commit{ChangeId: "66d7", CommitId: "222"}},
+		},
+	}
+
+	assert.Equal(t, 1, model.selectRevision("66d7"))
+}
+
+func TestModel_SelectRevision_UsesLongestPrefixFallback(t *testing.T) {
+	model := &Model{
+		rows: []parser.Row{
+			{Commit: &jj.Commit{ChangeId: "66d", CommitId: "111"}},
+			{Commit: &jj.Commit{ChangeId: "66", CommitId: "2222"}},
+		},
+	}
+
+	assert.Equal(t, 0, model.selectRevision("66d7"))
+	assert.Equal(t, 1, model.selectRevision("2222abcd"))
+}
+
+func TestModel_SelectRevision_RejectsAmbiguousLongestPrefixFallback(t *testing.T) {
+	model := &Model{
+		rows: []parser.Row{
+			{Commit: &jj.Commit{ChangeId: "66", CommitId: "111"}},
+			{Commit: &jj.Commit{ChangeId: "77", CommitId: "66"}},
+		},
+	}
+
+	assert.Equal(t, -1, model.selectRevision("66abc"))
+}
+
 func TestModel_OpenSquashEmitsSelectionChangedForTargetRevision(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.GetParent(jj.NewSelectedRevisions(rows[0].Commit))).SetOutput([]byte("9"))

@@ -1199,7 +1199,33 @@ func (m *Model) selectRevision(revision string) int {
 		}
 		return eqFold(row.Commit.GetChangeId()) || eqFold(row.Commit.ChangeId) || eqFold(row.Commit.CommitId)
 	})
-	return idx
+	if idx != -1 || revision == "@" {
+		return idx
+	}
+
+	bestIdx := -1
+	bestLen := 0
+	ambiguous := false
+	for i, row := range m.rows {
+		for _, candidate := range []string{row.Commit.GetChangeId(), row.Commit.ChangeId, row.Commit.CommitId} {
+			if candidate == "" || !strings.HasPrefix(strings.ToLower(revision), strings.ToLower(candidate)) {
+				continue
+			}
+			candidateLen := len(candidate)
+			switch {
+			case candidateLen > bestLen:
+				bestIdx = i
+				bestLen = candidateLen
+				ambiguous = false
+			case candidateLen == bestLen && bestIdx != i:
+				ambiguous = true
+			}
+		}
+	}
+	if ambiguous {
+		return -1
+	}
+	return bestIdx
 }
 
 func (m *Model) search(startIndex int, backward bool) int {
