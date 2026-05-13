@@ -50,7 +50,15 @@ type HighlightEffect struct {
 }
 
 func (e HighlightEffect) Apply(buf uv.Screen) {
-	bgColor := toAnsiColor(e.Style.GetBackground())
+	background := e.Style.GetBackground()
+	if background == nil {
+		return
+	}
+	if _, isNoColor := background.(lipgloss.NoColor); isNoColor {
+		return
+	}
+
+	bgColor := toAnsiColor(background)
 
 	iterateCells(buf, e.Rect, func(cell *uv.Cell) *uv.Cell {
 		if cell == nil {

@@ -104,6 +104,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	borderStyle := common.DefaultPalette.GetBorder("input border", lipgloss.RoundedBorder())
 	textStyle := common.DefaultPalette.Get("input text")
 	titleStyle := common.DefaultPalette.Get("input title")
+	surfaceStyle := common.DefaultPalette.Get("input")
 
 	var rows []string
 	if m.title != "" {
@@ -121,7 +122,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	content = borderStyle.Padding(0, 1).Render(content)
 	box = box.Center(lipgloss.Size(content))
 	dl.AddBackdrop(box.R, render.ZDialogs)
+	dl.AddFill(box.R, ' ', surfaceStyle, render.ZDialogs)
 	dl.AddDraw(box.R, content, render.ZDialogs)
+	dl.AddPaint(box.R, surfaceStyle, render.ZDialogs)
 }
 
 func newCmd(msg tea.Msg) tea.Cmd {

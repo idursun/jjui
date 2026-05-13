@@ -303,7 +303,9 @@ func (o *Operation) renderListToDisplayContext(
 ) int {
 	if len(o.rows) == 0 {
 		content := "loading"
-		dl.AddDraw(layout.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), 1), content, 0)
+		lineRect := layout.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), 1)
+		dl.AddFill(lineRect, ' ', common.DefaultPalette.Get("evolog text"), 0)
+		dl.AddDraw(lineRect, content, 0, render.PreserveBackground())
 		return 1
 	}
 	textStyle := common.DefaultPalette.Get("evolog text")
@@ -339,11 +341,8 @@ func (o *Operation) renderListToDisplayContext(
 			}
 			lineContent := lipgloss.PlaceHorizontal(itemRect.Dx(), 0, content.String(), lipgloss.WithWhitespaceStyle(styleOverride))
 			lineRect := layout.Rect(itemRect.Min.X, y, itemRect.Dx(), 1)
-			dl.AddDraw(lineRect, lineContent, 0)
-
-			if isItemSelected {
-				dl.AddHighlight(lineRect, selectedStyle, 1)
-			}
+			dl.AddFill(lineRect, ' ', styleOverride, 0)
+			dl.AddDraw(lineRect, lineContent, 0, render.PreserveBackground())
 			y++
 		}
 	}

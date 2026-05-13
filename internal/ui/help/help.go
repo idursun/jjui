@@ -254,7 +254,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if contentBox.R.Dx() <= 0 || contentBox.R.Dy() <= 0 {
 		return
 	}
-	dl.AddFill(contentBox.R, ' ', dimmedStyle, render.ZMenuContent)
+	surfaceRect := contentBox.R
+	dl.AddFill(surfaceRect, ' ', dimmedStyle, render.ZMenuContent)
 
 	borderBase := lipgloss.NewStyle().Width(contentBox.R.Dx()).Height(contentBox.R.Dy()).Render("")
 	dl.AddDraw(frame.R, borderStyle.Render(borderBase), render.ZMenuBorder)
@@ -292,6 +293,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		rect := layout.Rect(contentBox.R.Min.X, y, contentBox.R.Dx(), 1)
 		dl.AddDraw(rect, line, render.ZMenuContent)
 	}
+	dl.AddPaint(surfaceRect, dimmedStyle, render.ZMenuContent)
 }
 
 func (m *Model) renderGroups(groups []ScopeGroup, width int, headingStyle, shortcutStyle, descStyle lipgloss.Style) []string {

@@ -10,4 +10,17 @@ type Draw struct {
 	Rect    layout.Rectangle // The area to draw in
 	Content string           // Rendered ANSI string (from lipgloss, etc.)
 	Z       int              // Z-index for layering (lower = back, higher = front)
+	Options DrawOptions
+}
+
+type DrawOptions struct {
+	PreserveBackground bool
+}
+
+type DrawOption func(*DrawOptions)
+
+func PreserveBackground() DrawOption {
+	return func(opts *DrawOptions) {
+		opts.PreserveBackground = true
+	}
 }

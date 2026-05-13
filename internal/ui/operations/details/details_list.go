@@ -110,7 +110,6 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 		return 1
 	}
 
-	selectedStyle := common.DefaultPalette.Get("revisions details selected")
 	textStyle := common.DefaultPalette.Get("revisions details text")
 
 	// Render function - renders each visible item
@@ -118,10 +117,8 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 		item := d.files[index]
 		isSelected := index == d.cursor
 
-		baseStyle := d.getStatusStyle(item.status)
-		if isSelected {
-			baseStyle = selectedStyle.Inherit(baseStyle)
-		} else {
+		baseStyle := d.getStatusStyle(item.status, isSelected)
+		if !isSelected {
 			baseStyle = baseStyle.Background(textStyle.GetBackground())
 		}
 		background := lipgloss.NewStyle().Background(baseStyle.GetBackground())
@@ -167,16 +164,15 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 
 	dimmedStyle := common.DefaultPalette.Get("revisions details dimmed")
 	conflictStyle := common.DefaultPalette.Get("revisions details conflict")
-	selectedStyle := common.DefaultPalette.Get("revisions details selected")
 	selectedDimmedStyle := common.DefaultPalette.Get("revisions details selected dimmed")
 
 	// Add conflict marker
 	if item.conflict {
-		conflictStyle := conflictStyle
+		conflictMarkerStyle := conflictStyle
 		if selected {
-			conflictStyle = selectedStyle.Inherit(conflictStyle)
+			conflictMarkerStyle = common.DefaultPalette.Get("revisions details selected conflict")
 		}
-		tb.Styled("conflict ", conflictStyle)
+		tb.Styled("conflict ", conflictMarkerStyle)
 	}
 
 	// Add hint
@@ -196,27 +192,27 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 	}
 }
 
-func (d *DetailsList) getStatusStyle(s status) lipgloss.Style {
-	addedStyle := common.DefaultPalette.Get("revisions details added")
-	deletedStyle := common.DefaultPalette.Get("revisions details deleted")
-	modifiedStyle := common.DefaultPalette.Get("revisions details modified")
-	renamedStyle := common.DefaultPalette.Get("revisions details renamed")
-	copiedStyle := common.DefaultPalette.Get("revisions details copied")
-	textStyle := common.DefaultPalette.Get("revisions details text")
-
+func (d *DetailsList) getStatusStyle(s status, selected bool) lipgloss.Style {
+	prefix := "revisions details"
+	if selected {
+		prefix += " selected"
+	}
 	switch s {
 	case Added:
-		return addedStyle
+		return common.DefaultPalette.Get(prefix + " added")
 	case Deleted:
-		return deletedStyle
+		return common.DefaultPalette.Get(prefix + " deleted")
 	case Modified:
-		return modifiedStyle
+		return common.DefaultPalette.Get(prefix + " modified")
 	case Renamed:
-		return renamedStyle
+		return common.DefaultPalette.Get(prefix + " renamed")
 	case Copied:
-		return copiedStyle
+		return common.DefaultPalette.Get(prefix + " copied")
 	default:
-		return textStyle
+		if selected {
+			return common.DefaultPalette.Get("revisions details selected")
+		}
+		return common.DefaultPalette.Get("revisions details text")
 	}
 }
 

@@ -3,10 +3,15 @@ package details
 import (
 	"testing"
 
+	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/idursun/jjui/test"
@@ -204,6 +209,35 @@ func TestModel_HandleIntent_UpdatesSelectedFileWhenCursorMoves(t *testing.T) {
 	assert.Equal(t, "newfile.txt", selected.File)
 }
 
+func TestDetailsList_SelectedRowsUseStatusSpecificSelectedStyles(t *testing.T) {
+	originalPalette := common.DefaultPalette
+	palette := common.NewPalette()
+	palette.Update(map[string]config.Color{
+		"revisions details text":            {Fg: "#ffffff", Bg: "#000000"},
+		"revisions details selected":        {Bg: "#220044", Bold: boolPtr(true)},
+		"revisions details selected added":  {Fg: "#55ff99", Bg: "#220044", Bold: boolPtr(true)},
+		"revisions details selected dimmed": {Fg: "#ccccff", Bg: "#220044"},
+	})
+	common.DefaultPalette = palette
+	defer func() { common.DefaultPalette = originalPalette }()
+
+	list := NewDetailsList()
+	list.files = []*item{{status: Added, name: "new.txt", fileName: "new.txt"}}
+	list.cursor = 0
+
+	dl := render.NewDisplayContext()
+	list.RenderFileList(dl, layout.NewBox(layout.Rect(0, 0, 20, 1)))
+
+	buf := uv.NewScreenBuffer(20, 1)
+	dl.Render(buf)
+
+	cell := buf.CellAt(0, 0)
+	wantFg, wantBg := renderExpectedCellColors(t,
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#55ff99")).Background(lipgloss.Color("#220044")).Render("A"))
+	assert.Equal(t, wantFg, cell.Style.Fg)
+	assert.Equal(t, wantBg, cell.Style.Bg)
+}
+
 func TestModel_Update_Quit(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
@@ -213,6 +247,18 @@ func TestModel_Update_Quit(t *testing.T) {
 	})
 
 	assert.Contains(t, msgs, tea.QuitMsg{})
+}
+
+func boolPtr(v bool) *bool { return &v }
+
+func renderExpectedCellColors(t *testing.T, content string) (any, any) {
+	t.Helper()
+	dl := render.NewDisplayContext()
+	dl.AddDraw(layout.Rect(0, 0, 1, 1), content, 0)
+	buf := uv.NewScreenBuffer(1, 1)
+	dl.Render(buf)
+	cell := buf.CellAt(0, 0)
+	return cell.Style.Fg, cell.Style.Bg
 }
 
 func TestModel_createListItems(t *testing.T) {

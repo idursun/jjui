@@ -43,6 +43,7 @@ func (v *defaultView) scrollHorizontal(delta int, viewportWidth int) {
 func (v *defaultView) ViewRect(dl *render.DisplayContext, box layout.Box, scrollY int) {
 	width := box.R.Dx()
 	height := box.R.Dy()
+	surfaceStyle := common.DefaultPalette.Get("diff")
 	buf := render.NewScreenBuffer(width, height)
 	firstLine := max(0, scrollY)
 	lineW := max(width, v.maxLineWidth)
@@ -55,7 +56,8 @@ func (v *defaultView) ViewRect(dl *render.DisplayContext, box layout.Box, scroll
 		ss.Wrap = false
 		ss.Draw(buf, uv.Rect(-v.scrollX, i, lineW, 1))
 	}
-	dl.AddDraw(box.R, buf.Render(), 0)
+	dl.AddFill(box.R, ' ', surfaceStyle, 0)
+	dl.AddDraw(box.R, buf.Render(), 0, render.PreserveBackground())
 }
 
 type wrappedView struct {
@@ -120,6 +122,7 @@ func (v *wrappedView) scrollHorizontal(_ int, _ int) {}
 func (v *wrappedView) ViewRect(dl *render.DisplayContext, box layout.Box, scrollY int) {
 	width := box.R.Dx()
 	height := box.R.Dy()
+	surfaceStyle := common.DefaultPalette.Get("diff")
 	v.ensureIndex(width)
 	buf := render.NewScreenBuffer(width, height)
 	firstLine, skip := v.firstLine(scrollY, width)
@@ -140,7 +143,8 @@ func (v *wrappedView) ViewRect(dl *render.DisplayContext, box layout.Box, scroll
 		destY += visibleRows
 		skip = 0
 	}
-	dl.AddDraw(box.R, buf.Render(), 0)
+	dl.AddFill(box.R, ' ', surfaceStyle, 0)
+	dl.AddDraw(box.R, buf.Render(), 0, render.PreserveBackground())
 }
 
 var _ common.ImmediateModel = (*Model)(nil)

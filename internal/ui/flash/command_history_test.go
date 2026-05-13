@@ -5,6 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -123,4 +126,52 @@ func TestCommandHistory_DeleteSelectedRemovesFromSourceAndLiveMessages(t *testin
 		assert.Equal(t, "jj newer", snapshot[0].Command)
 	}
 	assert.Equal(t, 1, source.LiveMessagesCount())
+}
+
+func TestCommandHistory_ViewFillsHistoryCardsBackground(t *testing.T) {
+	originalPalette := common.DefaultPalette
+	palette := common.NewPalette()
+	palette.Update(map[string]config.Color{
+		"flash text":    {Fg: "#ffffff", Bg: "#112244"},
+		"flash success": {Fg: "#eafff2", Bg: "#1b5f46"},
+		"flash matched": {Fg: "#ffee88", Bg: "#112244"},
+	})
+	common.DefaultPalette = palette
+	defer func() { common.DefaultPalette = originalPalette }()
+
+	source := New()
+	source.AddWithCommand("older-output", "jj older", nil)
+	source.AddWithCommand("newer-output", "jj newer", nil)
+
+	history := source.NewHistory()
+	dl := render.NewDisplayContext()
+	box := layout.NewBox(layout.Rect(0, 0, 60, 12))
+	history.ViewRect(dl, box)
+
+	buf := uv.NewScreenBuffer(box.R.Dx(), box.R.Dy())
+	dl.Render(buf)
+
+	foundCardCell := false
+	var borderBg any
+	for y := 0; y < box.R.Dy(); y++ {
+		for x := 0; x < box.R.Dx(); x++ {
+			cell := buf.CellAt(x, y)
+			if cell == nil {
+				continue
+			}
+			if cell.Content == "┌" {
+				borderBg = cell.Style.Bg
+				assert.NotNil(t, cell.Style.Bg, "history card border should inherit a themed background")
+				foundCardCell = true
+			}
+			if cell.Content == "j" {
+				assert.NotNil(t, cell.Style.Bg, "history card cells should inherit a themed background")
+				if borderBg != nil {
+					assert.Equal(t, borderBg, cell.Style.Bg, "history command text should use the same surface background as the card")
+				}
+				foundCardCell = true
+			}
+		}
+	}
+	assert.True(t, foundCardCell, "expected to find at least one rendered history card cell")
 }

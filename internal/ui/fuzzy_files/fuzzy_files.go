@@ -192,7 +192,10 @@ func (fzf *fuzzyFiles) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 	_, h := lipgloss.Size(content)
 	rect := layout.Rect(box.R.Min.X, box.R.Max.Y-h, box.R.Dx(), h)
+	background := common.DefaultPalette.Get("status text")
+	dl.AddFill(rect, ' ', background, render.ZFuzzyOverlay)
 	dl.AddDraw(rect, content, render.ZFuzzyOverlay)
+	dl.AddHighlight(rect, background, render.ZFuzzyOverlay)
 }
 
 func (fzf *fuzzyFiles) viewContent() string {

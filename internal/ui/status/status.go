@@ -226,6 +226,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.input.SetStyles(inputStyles)
 
 	width := box.R.Dx()
+	dl.AddFill(box.R, ' ', textStyle, 0)
 	modeWidth := max(10, len(m.mode)+2)
 	mode := titleStyle.Width(modeWidth).Render(m.mode)
 
@@ -277,8 +278,12 @@ func (m *Model) renderExpandedStatus(dl *render.DisplayContext, box layout.Box, 
 	expandedLines := strings.Split(expandedHelp, "\n")
 	startY := box.R.Min.Y - contentLineCount
 
+	background := lipgloss.NewStyle().Background(textStyle.GetBackground())
+	backgroundRect := layout.Rect(box.R.Min.X, startY, width, contentLineCount+1)
+	dl.AddFill(backgroundRect, ' ', background, render.ZExpandedStatus)
 	m.renderExpandedStatusBorder(dl, box, width, startY, dimmedStyle)
 	m.renderExpandedStatusContent(dl, box, width, startY, expandedLines, textStyle)
+	dl.AddPaint(backgroundRect, background, render.ZExpandedStatus)
 }
 
 // renderExpandedStatusBorder draws the top border of expanded status
@@ -312,10 +317,8 @@ func (m *Model) renderExpandedStatusContent(dl *render.DisplayContext, box layou
 		// subtract 4 for: 2 chars left padding + 2 chars border space
 		padding := max(0, width-render.StringWidth(line)-4)
 
-		// padded line: 2-space indent + content + right padding
 		paddedLine := "  " + line + strings.Repeat(" ", padding)
 
-		// render the line with the text style and draw at the overlay z-index
 		contentLine := textStyle.Render(paddedLine)
 		contentRect := layout.Rect(box.R.Min.X, y, width, 1)
 		dl.AddDraw(contentRect, contentLine, render.ZExpandedStatus)

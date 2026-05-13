@@ -392,7 +392,11 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		}
 
 		lineRect := layout.Rect(rect.Min.X, y, rect.Dx(), 1)
-		dl.AddFill(lineRect, ' ', lipgloss.NewStyle(), 0)
+		fillStyle := r.textStyle
+		if isSelected && line.Flags&parser.Highlightable == parser.Highlightable {
+			fillStyle = r.selectedStyle
+		}
+		dl.AddFill(lineRect, ' ', fillStyle, 0)
 		tb := dl.Text(lineRect.Min.X, lineRect.Min.Y, 0)
 		ir.renderLine(tb, line)
 		tb.Done()
@@ -617,7 +621,7 @@ func (r *DisplayContextRenderer) renderOperationLine(
 	gutter parser.GraphGutter,
 	line string,
 ) {
-	dl.AddFill(rect, ' ', lipgloss.NewStyle(), 0)
+	dl.AddFill(rect, ' ', r.textStyle, 0)
 	tb := dl.Text(rect.Min.X, rect.Min.Y, 0)
 	// Render gutter with text style (matching original behavior)
 	for _, segment := range gutter.Segments {

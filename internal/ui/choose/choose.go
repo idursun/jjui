@@ -237,6 +237,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	borderStyle := common.DefaultPalette.GetBorder("choose border", lipgloss.RoundedBorder())
+	surfaceStyle := common.DefaultPalette.Get("choose")
 	textStyle := common.DefaultPalette.Get("choose text")
 	titleStyle := common.DefaultPalette.Get("choose title")
 	selectedStyle := common.DefaultPalette.Get("choose selected")
@@ -307,6 +308,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if contentBox.R.Dx() <= 0 || contentBox.R.Dy() <= 0 {
 		return
 	}
+	dl.AddFill(contentBox.R, ' ', surfaceStyle, render.ZMenuContent)
 
 	borderBase := lipgloss.NewStyle().Width(contentBox.R.Dx()).Height(contentBox.R.Dy()).Render("")
 	dl.AddDraw(frame.R, borderStyle.Render(borderBase), render.ZMenuBorder)
@@ -316,12 +318,14 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		var titleBox layout.Box
 		titleBox, listBox = contentBox.CutTop(1)
 		dl.AddDraw(titleBox.R, titleStyle.Render(m.title), render.ZMenuContent)
+		dl.AddPaint(titleBox.R, titleStyle, render.ZMenuContent)
 	}
 
 	if inputHeight > 0 {
 		var inputBox layout.Box
 		inputBox, listBox = listBox.CutTop(1)
 		dl.AddDraw(inputBox.R, inputStyle.Render(m.input.View()), render.ZMenuContent)
+		dl.AddPaint(inputBox.R, inputStyle, render.ZMenuContent)
 	}
 
 	if listBox.R.Dx() <= 0 || listBox.R.Dy() <= 0 {
@@ -351,6 +355,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			}
 			line := style.Padding(0, 1).Width(rect.Dx()).Render(label)
 			dl.AddDraw(rect, line, render.ZMenuContent)
+			dl.AddPaint(rect, style, render.ZMenuContent)
 		},
 		func(index int, _ tea.Mouse) tea.Msg { return itemClickMsg{Index: index} },
 	)

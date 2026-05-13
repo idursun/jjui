@@ -368,6 +368,8 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
 	remoteSelectedStyle := common.DefaultPalette.Get("git menu selected")
 	noRemoteStyle := common.DefaultPalette.Get("git error")
 
+	dl.AddFill(lineBox.R, ' ', menuTextStyle, render.ZMenuContent)
+
 	// Render above menu content
 	tb := dl.Text(lineBox.R.Min.X, lineBox.R.Min.Y, render.ZMenuContent+1).
 		Styled(" ", menuTextStyle).

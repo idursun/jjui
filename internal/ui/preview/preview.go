@@ -210,9 +210,11 @@ func (m *Model) SetContent(content string) {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	surfaceStyle := common.DefaultPalette.Get("preview")
 	m.view.SetWidth(box.R.Dx())
 	m.view.SetHeight(box.R.Dy())
-	dl.AddDraw(box.R, m.view.View(), render.ZPreview)
+	dl.AddFill(box.R, ' ', surfaceStyle, render.ZPreview)
+	dl.AddDraw(box.R, m.view.View(), render.ZPreview, render.PreserveBackground())
 
 	scrollRect := layout.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), box.R.Dy())
 	dl.AddInteraction(scrollRect, ScrollMsg{}, render.InteractionScroll, render.ZPreview)
