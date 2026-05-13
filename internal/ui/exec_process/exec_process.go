@@ -2,6 +2,7 @@ package exec_process
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -13,6 +14,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	shellwords "github.com/mattn/go-shellwords"
 )
 
 func ExecMsgFromLine(prompt string, line string) common.ExecMsg {
@@ -35,7 +37,15 @@ func ExecLine(ctx *context.MainContext, msg common.ExecMsg) tea.Cmd {
 	replacements := ctx.CreateReplacements()
 	switch msg.Mode {
 	case common.ExecJJ:
-		args := strings.Fields(msg.Line)
+		args, err := shellwords.Parse(msg.Line)
+		if err != nil {
+			return func() tea.Msg {
+				return common.ExecProcessCompletedMsg{
+					Err: fmt.Errorf("parsing command line: %w", err),
+					Msg: msg,
+				}
+			}
+		}
 		args = jj.TemplatedArgs(args, replacements)
 		return execProgram("jj", args, ctx.Location, nil, msg)
 	case common.ExecShell:
