@@ -8,6 +8,7 @@ require (
 	charm.land/lipgloss/v2 v2.0.3
 	github.com/BurntSushi/toml v1.6.0
 	github.com/atotto/clipboard v0.1.4
+	github.com/mattn/go-shellwords v1.0.13
 	github.com/sahilm/fuzzy v0.1.1
 	github.com/stretchr/testify v1.11.1
 	github.com/yuin/gopher-lua v1.1.2
