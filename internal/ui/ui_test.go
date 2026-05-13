@@ -686,6 +686,18 @@ func Test_Update_BlockingScopeHandledNilCmdDoesNotReceiveRawKeyAgain(t *testing.
 	assert.True(t, ok, "blocking scope should keep the handled intent instead of receiving the raw key")
 }
 
+func Test_Update_AceJumpBeforeFirstRenderDoesNotPanicOnRawKey(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	model.Update(intents.StartAceJump{})
+
+	assert.NotPanics(t, func() {
+		model.Update(tea.KeyPressMsg{Text: "x", Code: 'x'})
+	})
+}
+
 func Test_HandleDispatchedAction_RevisionsScopedActionInRebaseMode(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)

@@ -44,6 +44,9 @@ func (j *AceJump) Append(rowIdx int, id string, bindIdx int) {
 }
 
 func (j *AceJump) First() *AceKey {
+	if j == nil || len(j.ace) == 0 {
+		return nil
+	}
 	return j.ace[0]
 }
 

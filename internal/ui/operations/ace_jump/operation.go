@@ -98,6 +98,9 @@ func (o *Operation) Init() tea.Cmd {
 }
 
 func (o *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
+	if o.aceJump == nil {
+		return nil
+	}
 	if found := o.aceJump.Narrow(msg); found != nil {
 		o.setCursor(found.RowIdx)
 		o.aceJump = nil
