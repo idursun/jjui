@@ -265,6 +265,7 @@ func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
 			// The preview subprocess does not run in a pane-sized PTY, so let
 			// width-sensitive tools like `jj diff` see the preview size via the
 			// conventional terminal size environment variables.
+			"DFT_WIDTH=" + strconv.Itoa(m.view.Width()), // diftastic
 			"COLUMNS=" + strconv.Itoa(m.view.Width()),
 			"LINES=" + strconv.Itoa(m.view.Height()),
 		}
