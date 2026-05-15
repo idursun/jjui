@@ -55,6 +55,7 @@ type Model struct {
 	rows                   []parser.Row
 	tag                    atomic.Uint64
 	revisionToSelect       string
+	revisionToSelectPrefix bool
 	offScreenRows          []parser.Row
 	streamer               *graph.GraphStreamer
 	hasMore                bool
@@ -478,6 +479,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		m.streamer = msg.streamer
 		m.offScreenRows = nil
 		m.revisionToSelect = msg.selectedRevision
+		m.revisionToSelectPrefix = msg.selectedRevision != ""
 		m.hasMore = true
 		m.requestInFlight = false
 
@@ -519,17 +521,33 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 
 		currentSelectedRevision := m.SelectedRevision()
 		m.rows = m.offScreenRows
+		matched := false
 		if m.revisionToSelect != "" {
-			m.SetCursor(m.selectRevision(m.revisionToSelect))
+			idx := -1
+			if m.revisionToSelectPrefix {
+				idx = m.selectRevision(m.revisionToSelect)
+			} else {
+				idx = m.selectRevisionExact(m.revisionToSelect)
+			}
+			if idx != -1 {
+				m.SetCursor(idx)
+				matched = true
+			}
 			m.revisionToSelect = ""
+			m.revisionToSelectPrefix = false
 		}
 
-		if m.cursor == -1 && currentSelectedRevision != nil {
-			m.SetCursor(m.selectRevision(currentSelectedRevision.GetChangeId()))
+		if !matched && currentSelectedRevision != nil {
+			if idx := m.selectRevisionExact(currentSelectedRevision.GetChangeId()); idx != -1 {
+				m.SetCursor(idx)
+				matched = true
+			}
 		}
 
-		if (m.cursor < 0 || m.cursor >= len(m.rows)) && len(m.rows) > 0 {
-			m.SetCursor(0)
+		if !matched && len(m.rows) > 0 {
+			if m.cursor < 0 || m.cursor >= len(m.rows) {
+				m.SetCursor(0)
+			}
 		}
 
 		cmds := []tea.Cmd{m.highlightChanges, m.updateSelection()}
@@ -1051,21 +1069,28 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 	}
 
 	currentSelectedRevision := selectedRevision
+	allowPrefix := selectedRevision != ""
 	if cur := m.SelectedRevision(); currentSelectedRevision == "" && cur != nil {
 		currentSelectedRevision = cur.GetChangeId()
 	}
 	m.rows = rows
 
 	if len(m.rows) > 0 {
-		m.SetCursor(m.selectRevision(currentSelectedRevision))
-		if m.cursor == -1 {
-			m.SetCursor(m.selectRevision("@"))
+		idx := -1
+		if allowPrefix {
+			idx = m.selectRevision(currentSelectedRevision)
+		} else {
+			idx = m.selectRevisionExact(currentSelectedRevision)
 		}
-		if m.cursor == -1 {
-			m.SetCursor(0)
+		if idx == -1 {
+			idx = m.selectRevision("@")
 		}
+		if idx == -1 {
+			idx = 0
+		}
+		m.SetCursor(idx)
 	} else {
-		m.SetCursor(0)
+		m.cursor = 0
 	}
 }
 
@@ -1188,17 +1213,21 @@ func streamingWarningCmd(output string, err error) tea.Cmd {
 	return intents.Invoke(intents.AddMessage{Text: output, Err: err})
 }
 
-func (m *Model) selectRevision(revision string) int {
+func (m *Model) selectRevisionExact(revision string) int {
 	eqFold := func(other string) bool {
 		return strings.EqualFold(other, revision)
 	}
 
-	idx := slices.IndexFunc(m.rows, func(row parser.Row) bool {
+	return slices.IndexFunc(m.rows, func(row parser.Row) bool {
 		if revision == "@" {
 			return row.Commit.IsWorkingCopy
 		}
 		return eqFold(row.Commit.GetChangeId()) || eqFold(row.Commit.ChangeId) || eqFold(row.Commit.CommitId)
 	})
+}
+
+func (m *Model) selectRevision(revision string) int {
+	idx := m.selectRevisionExact(revision)
 	if idx != -1 || revision == "@" {
 		return idx
 	}

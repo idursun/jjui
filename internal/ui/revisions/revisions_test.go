@@ -119,6 +119,35 @@ func TestModel_SelectRevision_RejectsAmbiguousLongestPrefixFallback(t *testing.T
 	assert.Equal(t, -1, model.selectRevision("66abc"))
 }
 
+func TestModel_UpdateGraphRows_DoesNotPrefixMatchImplicitCurrentSelection(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+	model.updateGraphRows([]parser.Row{
+		{Commit: &jj.Commit{ChangeId: "66d7"}},
+		{Commit: &jj.Commit{ChangeId: "66d"}},
+	}, "66d7")
+
+	model.updateGraphRows([]parser.Row{
+		{Commit: &jj.Commit{ChangeId: "other"}},
+		{Commit: &jj.Commit{ChangeId: "66d"}},
+	}, "")
+
+	assert.Equal(t, 0, model.Cursor(), "removed current revision must not prefix-match a similarly-starting revision")
+	assert.Equal(t, "other", model.SelectedRevision().ChangeId)
+}
+
+func TestModel_UpdateGraphRows_AllowsPrefixMatchForExplicitSelection(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+
+	model.updateGraphRows([]parser.Row{
+		{Commit: &jj.Commit{ChangeId: "66d"}},
+		{Commit: &jj.Commit{ChangeId: "other"}},
+	}, "66d7")
+
+	assert.Equal(t, 0, model.Cursor())
+}
+
 func TestModel_OpenSquashEmitsSelectionChangedForTargetRevision(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.GetParent(jj.NewSelectedRevisions(rows[0].Commit))).SetOutput([]byte("9"))
