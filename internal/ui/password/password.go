@@ -22,6 +22,7 @@ func New(msg common.TogglePasswordMsg) *Model {
 	ti := textinput.New()
 	ti.Prompt = msg.Prompt
 	ti.EchoMode = textinput.EchoPassword
+	ti.SetVirtualCursor(false)
 	ti.Focus()
 
 	return &Model{
@@ -87,4 +88,5 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	dl.AddFill(box.R, ' ', surfaceStyle, render.ZPassword)
 	dl.AddDraw(box.R, v, render.ZPassword)
 	dl.AddPaint(box.R, surfaceStyle, render.ZPassword)
+	dl.SetCursorInRect(m.textInput.Cursor(), box.R, 2, 2)
 }

@@ -358,6 +358,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if m.editing {
 		// Only render the text input part, not the completions from autoComplete.View()
 		tb.Write(m.autoComplete.TextInput.View())
+		dl.SetCursorInRect(m.autoComplete.TextInput.Cursor(), box.R, render.StringWidth("revset: "), 0)
 	} else {
 		tb.Styled(m.context.CurrentRevset, textStyle)
 	}

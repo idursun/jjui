@@ -1,7 +1,6 @@
 package describe
 
 import (
-	"charm.land/bubbles/v2/cursor"
 	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/jj"
@@ -78,11 +77,6 @@ func (o *Operation) Name() string {
 func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
-	case cursor.BlinkMsg:
-		// ignore cursor blink messages to prevent unnecessary rendering and height
-		// recalculations
-		o.input, cmd = o.input.Update(msg)
-		return cmd
 	case intents.Intent:
 		cmd, _ := o.HandleIntent(msg)
 		return cmd
@@ -148,6 +142,7 @@ func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	rect := layout.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), input.Height())
 	dl.AddDraw(rect, input.View(), 0)
+	dl.SetCursorInRect(input.Cursor(), rect, 0, 0)
 }
 
 func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation {
@@ -167,6 +162,7 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 	input.ShowLineNumbers = false
 	input.DynamicHeight = true
 	input.MinHeight = 1
+	input.SetVirtualCursor(false)
 
 	input.SetValue(desc)
 	input.Focus()

@@ -66,6 +66,7 @@ func New(provider CompletionProvider, options ...Option) *AutoCompletionInput {
 	ti.Focus()
 	ti.Prompt = ""
 	ti.ShowSuggestions = true
+	ti.SetVirtualCursor(false)
 
 	m := &AutoCompletionInput{
 		TextInput:          ti,

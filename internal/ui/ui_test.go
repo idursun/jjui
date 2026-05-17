@@ -21,6 +21,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/help"
+	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
@@ -48,6 +49,8 @@ func dispatchAction(model *Model, action keybindings.Action, args map[string]any
 	return nil, result.Consumed
 }
 
+const testLogOutput = "○  _PREFIX:abc123_PREFIX:def456 \x1b[1m\x1b[38;5;5mchild\x1b[0m \x1b[38;5;3mauthor\x1b[39m \x1b[38;5;6m2026-05-05\x1b[39m \x1b[1m\x1b[38;5;4mdef456\x1b[0m\n"
+
 func TestWrapperView_SetsWindowTitleWhenEnabled(t *testing.T) {
 	origSetWindowTitle := config.Current.UI.SetWindowTitle
 	t.Cleanup(func() { config.Current.UI.SetWindowTitle = origSetWindowTitle })
@@ -74,6 +77,54 @@ func TestWrapperView_LeavesWindowTitleEmptyWhenDisabled(t *testing.T) {
 	view := w.View()
 
 	assert.Empty(t, view.WindowTitle)
+}
+
+func TestWrapperView_ForwardsCursorFromRenderedFrame(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.width = 80
+	model.height = 20
+	model.stacked = input.NewWithTitle("Prompt", "Text: ", "")
+
+	w := &wrapper{ui: model, render: true}
+	view := w.View()
+
+	require.NotNil(t, view.Cursor)
+	require.NotNil(t, model.frameCursor)
+	assert.Equal(t, model.frameCursor.Position, view.Cursor.Position)
+}
+
+func TestWrapperView_ClearsCursorWhenInlineDescribeCloses(t *testing.T) {
+	origLogBatching := config.Current.Revisions.LogBatching
+	defer func() {
+		config.Current.Revisions.LogBatching = origLogBatching
+	}()
+	config.Current.Revisions.LogBatching = false
+
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	commandRunner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log)).SetOutput([]byte(testLogOutput))
+	commandRunner.Expect(jj.GetDescription("abc123")).SetOutput([]byte("old desc"))
+	defer commandRunner.Verify()
+
+	model := NewUI(ctx)
+	model.width = 100
+	model.height = 20
+	test.SimulateModel(model, model.revisions.Update(common.RefreshMsg{SelectedRevision: "abc123"}))
+	require.NotNil(t, model.revisions.SelectedRevision())
+
+	op := describe.NewOperation(ctx, model.revisions.SelectedRevision())
+	model.Update(common.RestoreOperationMsg{Operation: op})
+
+	w := &wrapper{ui: model, render: true}
+	view := w.View()
+	require.NotNil(t, view.Cursor)
+
+	model.Update(common.CloseViewMsg{})
+	w.render = true
+	view = w.View()
+	assert.Nil(t, view.Cursor)
 }
 
 func Test_Update_PreviewScrollKeysWorkWhenVisible(t *testing.T) {

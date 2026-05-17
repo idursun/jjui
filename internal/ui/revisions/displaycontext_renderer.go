@@ -26,6 +26,7 @@ type DisplayContextRenderer struct {
 // itemRenderer is a helper for rendering individual revision items
 type itemRenderer struct {
 	renderer        *DisplayContextRenderer
+	dl              *render.DisplayContext
 	row             parser.Row
 	isHighlighted   bool
 	op              operations.Operation
@@ -256,6 +257,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 	// Create an item renderer for this item
 	ir := itemRenderer{
 		renderer:        r,
+		dl:              dl,
 		row:             item,
 		isHighlighted:   isSelected,
 		op:              operation,
@@ -398,7 +400,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		}
 		dl.AddFill(lineRect, ' ', fillStyle, 0)
 		tb := dl.Text(lineRect.Min.X, lineRect.Min.Y, 0)
-		ir.renderLine(tb, line)
+		ir.renderLine(tb, line, lineRect.Min.X, lineRect.Min.Y)
 		tb.Done()
 		y++
 	}
@@ -553,25 +555,35 @@ func renderedHeight(content string) int {
 }
 
 // renderLine writes a line into a TextBuilder (helper for itemRenderer)
-func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRowLine) {
+func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRowLine, x, y int) {
+	currentX := 0
+	write := func(content string) {
+		tb.Write(content)
+		currentX += render.StringWidth(content)
+	}
+	writeStyled := func(content string, style lipgloss.Style) {
+		tb.Styled(content, style)
+		currentX += render.StringWidth(content)
+	}
+
 	// Only highlight lines with the Highlightable flag
 	lineIsHighlightable := line.Flags&parser.Highlightable == parser.Highlightable
 
 	// Render gutter (no tracer support for now)
 	for _, segment := range line.Gutter.Segments {
 		style := segment.Style.Inherit(ir.renderer.textStyle)
-		tb.Styled(segment.Text, style)
+		writeStyled(segment.Text, style)
 	}
 
 	// Add checkbox and operation content before ChangeID
 	if line.Flags&parser.Revision == parser.Revision {
 		if ir.isChecked {
-			tb.Styled("✓ ", ir.renderer.selectedStyle)
+			writeStyled("✓ ", ir.renderer.selectedStyle)
 		}
 		if ir.op != nil {
 			beforeChangeID := ir.op.Render(ir.row.Commit, operations.RenderBeforeChangeId)
 			if beforeChangeID != "" {
-				tb.Write(beforeChangeID)
+				write(beforeChangeID)
 			}
 		}
 	}
@@ -589,7 +601,12 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 	beforeCommitIDRendered := false
 	for _, segment := range line.Segments {
 		if beforeCommitID != "" && !beforeCommitIDRendered && strings.HasPrefix(segment.Text, ir.row.Commit.CommitId) {
-			tb.Write(beforeCommitID)
+			if cursorProvider, ok := ir.op.(operations.InlineCursorProvider); ok {
+				if cursor := cursorProvider.InlineCursor(ir.row.Commit, operations.RenderBeforeCommitId); cursor != nil {
+					ir.dl.SetCursorAt(cursor, x+currentX, y)
+				}
+			}
+			write(beforeCommitID)
 			beforeCommitIDRendered = true
 		}
 
@@ -597,20 +614,26 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 		if ir.segmentRenderer != nil {
 			rendered := ir.segmentRenderer.RenderSegment(style, segment, ir.row)
 			if rendered != "" {
-				tb.Write(rendered)
+				write(rendered)
 				continue
 			}
 		}
 		ir.renderSegmentForLine(tb, segment, lineIsHighlightable)
+		currentX += render.StringWidth(segment.Text)
 	}
 	if beforeCommitID != "" && !beforeCommitIDRendered {
 		// Add a space before blinking cursor for aesthetics
-		tb.Write(" " + beforeCommitID)
+		if cursorProvider, ok := ir.op.(operations.InlineCursorProvider); ok {
+			if cursor := cursorProvider.InlineCursor(ir.row.Commit, operations.RenderBeforeCommitId); cursor != nil {
+				ir.dl.SetCursorAt(cursor, x+currentX+render.StringWidth(" "), y)
+			}
+		}
+		write(" " + beforeCommitID)
 	}
 
 	// Add affected marker
 	if line.Flags&parser.Revision == parser.Revision && ir.row.IsAffected {
-		tb.Styled(" (affected by last operation)", ir.renderer.dimmedStyle)
+		writeStyled(" (affected by last operation)", ir.renderer.dimmedStyle)
 	}
 }
 

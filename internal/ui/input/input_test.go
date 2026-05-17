@@ -3,6 +3,10 @@ package input
 import (
 	"testing"
 
+	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,6 +60,29 @@ func TestModel_View_OnlyInput(t *testing.T) {
 	require.NotEmpty(t, output)
 
 	assert.Contains(t, output, "> ")
+}
+
+func TestModel_ViewRect_SetsAbsoluteCursorPosition(t *testing.T) {
+	model := NewWithTitle("Enter text", "Text: ", "abc")
+	dl := render.NewDisplayContext()
+	box := layout.NewBox(layout.Rect(0, 0, 80, 20))
+
+	model.ViewRect(dl, box)
+
+	cursor := dl.Cursor()
+	require.NotNil(t, cursor)
+
+	borderStyle := common.DefaultPalette.GetBorder("input border", lipgloss.RoundedBorder())
+	titleStyle := common.DefaultPalette.Get("input title")
+	rows := []string{titleStyle.Render(model.title), model.input.View()}
+	content := lipgloss.JoinVertical(0, rows...)
+	content = borderStyle.Padding(0, 1).Render(content)
+	centered := box.Center(lipgloss.Size(content))
+	relative := model.input.Cursor()
+	require.NotNil(t, relative)
+
+	assert.Equal(t, centered.R.Min.X+2+relative.Position.X, cursor.Position.X)
+	assert.Equal(t, centered.R.Min.Y+2+relative.Position.Y, cursor.Position.Y)
 }
 
 func TestModel_SelectCurrent_WithText(t *testing.T) {

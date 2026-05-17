@@ -16,6 +16,7 @@ type DisplayContext struct {
 	draws        []drawOp
 	effects      []effectOp
 	interactions []interactionOp
+	cursor       *tea.Cursor
 	orderCounter int
 }
 
@@ -119,6 +120,41 @@ func (dl *DisplayContext) AddInteractionFn(rect layout.Rectangle, fn func(tea.Mo
 		},
 		order: dl.nextOrder(),
 	})
+}
+
+// SetCursor sets the real terminal cursor for the current frame.
+func (dl *DisplayContext) SetCursor(cursor *tea.Cursor) {
+	if cursor == nil {
+		dl.cursor = nil
+		return
+	}
+	cursorCopy := *cursor
+	dl.cursor = &cursorCopy
+}
+
+// SetCursorAt sets the frame cursor after offsetting it to an absolute position.
+func (dl *DisplayContext) SetCursorAt(cursor *tea.Cursor, x, y int) {
+	if cursor == nil {
+		return
+	}
+	cursorCopy := *cursor
+	cursorCopy.Position.X += x
+	cursorCopy.Position.Y += y
+	dl.cursor = &cursorCopy
+}
+
+// SetCursorInRect sets the frame cursor relative to a rectangle origin plus any local offsets.
+func (dl *DisplayContext) SetCursorInRect(cursor *tea.Cursor, rect layout.Rectangle, dx, dy int) {
+	dl.SetCursorAt(cursor, rect.Min.X+dx, rect.Min.Y+dy)
+}
+
+// Cursor returns the real terminal cursor for the current frame.
+func (dl *DisplayContext) Cursor() *tea.Cursor {
+	if dl.cursor == nil {
+		return nil
+	}
+	cursorCopy := *dl.cursor
+	return &cursorCopy
 }
 
 // Render executes all operations in the display context to the given screen.

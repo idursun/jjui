@@ -89,6 +89,7 @@ func (s *SetBookmarkOperation) ViewRect(dl *render.DisplayContext, box layout.Bo
 	w, h := lipgloss.Size(content)
 	rect := layout.Rect(box.R.Min.X, box.R.Min.Y, w, h)
 	dl.AddDraw(rect, content, 0)
+	dl.SetCursorInRect(s.name.Cursor(), rect, 0, 0)
 }
 
 func (s *SetBookmarkOperation) IsFocused() bool {
@@ -102,6 +103,13 @@ func (s *SetBookmarkOperation) Render(commit *jj.Commit, pos operations.RenderPo
 	return s.viewContent() + s.name.Styles().Focused.Text.Render(" ")
 }
 
+func (s *SetBookmarkOperation) InlineCursor(commit *jj.Commit, pos operations.RenderPosition) *tea.Cursor {
+	if pos != operations.RenderBeforeCommitId || commit.GetChangeId() != s.revision {
+		return nil
+	}
+	return s.name.Cursor()
+}
+
 func (s *SetBookmarkOperation) Name() string {
 	return "set bookmark"
 }
@@ -111,6 +119,7 @@ func NewSetBookmarkOperation(context *context.MainContext, changeId string, init
 	t.ShowSuggestions = true
 	t.CharLimit = 120
 	t.Prompt = ""
+	t.SetVirtualCursor(false)
 
 	t.SetValue(initialValue)
 	t.CursorEnd()

@@ -43,3 +43,7 @@ type CheckedItemsSynchronizer interface {
 type SegmentRenderer interface {
 	RenderSegment(currentStyle lipgloss.Style, segment *screen.Segment, row parser.Row) string
 }
+
+type InlineCursorProvider interface {
+	InlineCursor(commit *jj.Commit, pos RenderPosition) *tea.Cursor
+}

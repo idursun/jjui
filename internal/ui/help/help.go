@@ -267,6 +267,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	filterBox, contentBox := contentBox.CutTop(1)
 	filterLine := "  " + m.input.View()
 	dl.AddDraw(filterBox.R, filterLine, render.ZMenuContent)
+	dl.SetCursorInRect(m.input.Cursor(), filterBox.R, render.StringWidth("  "), 0)
 
 	_, contentBox = contentBox.CutTop(1)
 
@@ -354,6 +355,7 @@ func New() *Model {
 	ti.Placeholder = "search"
 	ti.Prompt = "/ "
 	ti.SetWidth(40)
+	ti.SetVirtualCursor(false)
 
 	return &Model{
 		groups: groups,

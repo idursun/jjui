@@ -500,6 +500,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.filterInput.SetStyles(fis)
 		m.filterInput.SetWidth(max(contentBox.R.Dx()-2, 0))
 		dl.AddDraw(filterBox.R, m.filterInput.View(), render.ZMenuContent)
+		dl.SetCursorInRect(m.filterInput.Cursor(), filterBox.R, 0, 0)
 	} else {
 		m.renderFilterView(dl, filterBox)
 	}
@@ -588,6 +589,7 @@ func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string) *M
 
 	m.filterInput = textinput.New()
 	m.filterInput.Prompt = "Filter: "
+	m.filterInput.SetVirtualCursor(false)
 	m.applyFilters(true)
 
 	return m

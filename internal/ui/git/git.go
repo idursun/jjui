@@ -349,6 +349,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.filterInput.SetStyles(gfis)
 		m.filterInput.SetWidth(max(contentBox.R.Dx()-2, 0))
 		dl.AddDraw(filterBox.R, m.filterInput.View(), render.ZMenuContent)
+		dl.SetCursorInRect(m.filterInput.Cursor(), filterBox.R, 0, 0)
 	} else {
 		m.renderFilterView(dl, filterBox)
 	}
@@ -421,6 +422,7 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions) *Model {
 	m.filteredItems = items
 	m.filterInput = textinput.New()
 	m.filterInput.Prompt = "Filter: "
+	m.filterInput.SetVirtualCursor(false)
 	m.applyFilters(true)
 
 	return m

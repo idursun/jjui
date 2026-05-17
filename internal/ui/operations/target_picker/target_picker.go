@@ -105,6 +105,7 @@ func NewModel(ctx *context.MainContext) *Model {
 	ti := textinput.New()
 	ti.Prompt = "> "
 	ti.CharLimit = 0
+	ti.SetVirtualCursor(false)
 	ti.Focus()
 
 	m := &Model{
@@ -215,6 +216,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.input.SetStyles(tis)
 
 	dl.AddDraw(inputBox.R, m.input.View(), render.ZMenuContent)
+	dl.SetCursorInRect(m.input.Cursor(), inputBox.R, 0, 0)
 
 	m.listRenderer.Render(
 		dl,

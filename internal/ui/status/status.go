@@ -240,6 +240,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	dl.AddDraw(box.R, statusLine, 0)
+	if m.IsFocused() {
+		dl.SetCursorInRect(m.input.Cursor(), box.R, modeWidth+1, 0)
+	}
 	m.renderExpandedStatus(dl, box, width, textStyle, titleStyle, shortcutStyle, dimmedStyle)
 	m.renderFuzzyOverlay(dl, box)
 }
@@ -595,6 +598,7 @@ func (m *Model) expandStatusKey(groups []help.ScopeGroup) string {
 func New(context *context.MainContext) *Model {
 	t := textinput.New()
 	t.SetWidth(50)
+	t.SetVirtualCursor(false)
 
 	return &Model{
 		context: context,

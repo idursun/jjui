@@ -9,7 +9,10 @@ import (
 
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/internal/ui/operations/describe"
 	"github.com/idursun/jjui/internal/ui/operations/details"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -109,4 +112,33 @@ func TestDisplayContextRenderer_SingleRowDescriptionOverlay(t *testing.T) {
 	// The overlay content should appear in the rendered output.
 	assert.Contains(t, out, overlayContent,
 		"describe overlay should render for single-line commits")
+}
+
+func TestDisplayContextRenderer_SetBookmarkRegistersInlineCursor(t *testing.T) {
+	row := parser.Row{
+		Commit: &jj.Commit{ChangeId: "abc123", CommitId: "def456"},
+		Lines: []*parser.GraphRowLine{
+			{
+				Gutter:   parser.GraphGutter{Segments: []*screen.Segment{{Text: "|"}}},
+				Segments: []*screen.Segment{{Text: "def456 bookmark target"}},
+				Flags:    parser.Revision,
+			},
+		},
+	}
+
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	op := bookmark.NewSetBookmarkOperation(ctx, "abc123", "main")
+
+	r := NewDisplayContextRenderer()
+	dl := render.NewDisplayContext()
+	viewRect := layout.NewBox(layout.Rect(5, 3, 60, 5))
+	r.Render(dl, []parser.Row{row}, 0, viewRect, op, nil, false, "", true)
+
+	cursor := dl.Cursor()
+	require.NotNil(t, cursor)
+
+	inlineCursor := op.InlineCursor(row.Commit, operations.RenderBeforeCommitId)
+	require.NotNil(t, inlineCursor)
+	assert.Equal(t, viewRect.R.Min.X+1+inlineCursor.Position.X, cursor.Position.X)
+	assert.Equal(t, viewRect.R.Min.Y+inlineCursor.Position.Y, cursor.Position.Y)
 }

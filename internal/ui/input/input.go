@@ -40,6 +40,7 @@ func NewWithTitle(title string, prompt string, value string) *Model {
 	ti := textinput.New()
 	ti.SetWidth(40)
 	ti.Prompt = prompt
+	ti.SetVirtualCursor(false)
 	if ti.Prompt == "" {
 		ti.Prompt = "> "
 	}
@@ -125,6 +126,11 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	dl.AddFill(box.R, ' ', surfaceStyle, render.ZDialogs)
 	dl.AddDraw(box.R, content, render.ZDialogs)
 	dl.AddPaint(box.R, surfaceStyle, render.ZDialogs)
+	cursorY := 1
+	if m.title != "" {
+		cursorY++
+	}
+	dl.SetCursorInRect(m.input.Cursor(), box.R, 2, cursorY)
 }
 
 func newCmd(msg tea.Msg) tea.Cmd {

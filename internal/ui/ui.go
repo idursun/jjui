@@ -59,6 +59,7 @@ type Model struct {
 	resolver         *dispatch.Resolver
 	stacked          common.StackedModel
 	displayContext   *render.DisplayContext
+	frameCursor      *tea.Cursor
 	width            int
 	height           int
 	revisionsSplit   *split
@@ -401,6 +402,7 @@ func (m *Model) View() string {
 
 	m.displayContext.Render(screenBuf)
 	finalView := screenBuf.Render()
+	m.frameCursor = m.displayContext.Cursor()
 	return strings.ReplaceAll(finalView, "\r", "")
 }
 
@@ -743,6 +745,7 @@ type (
 		scheduledNextFrame bool
 		render             bool
 		cachedFrame        string
+		cachedCursor       *tea.Cursor
 	}
 )
 
@@ -788,9 +791,11 @@ func (w *wrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (w *wrapper) View() tea.View {
 	if w.render {
 		w.cachedFrame = w.ui.View()
+		w.cachedCursor = w.ui.frameCursor
 		w.render = false
 	}
 	v := tea.NewView(w.cachedFrame)
+	v.Cursor = w.cachedCursor
 	if config.Current.UI.SetWindowTitle {
 		v.WindowTitle = fmt.Sprintf("jjui - %s", w.ui.context.Location)
 	}
