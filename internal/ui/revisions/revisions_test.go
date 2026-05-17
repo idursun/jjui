@@ -85,40 +85,6 @@ func TestModel_Navigate(t *testing.T) {
 	assert.Equal(t, "a", model.SelectedRevision().ChangeId)
 }
 
-func TestModel_SelectRevision_UsesExactMatchBeforePrefixFallback(t *testing.T) {
-	model := &Model{
-		rows: []parser.Row{
-			{Commit: &jj.Commit{ChangeId: "66d", CommitId: "111"}},
-			{Commit: &jj.Commit{ChangeId: "66d7", CommitId: "222"}},
-		},
-	}
-
-	assert.Equal(t, 1, model.selectRevision("66d7"))
-}
-
-func TestModel_SelectRevision_UsesLongestPrefixFallback(t *testing.T) {
-	model := &Model{
-		rows: []parser.Row{
-			{Commit: &jj.Commit{ChangeId: "66d", CommitId: "111"}},
-			{Commit: &jj.Commit{ChangeId: "66", CommitId: "2222"}},
-		},
-	}
-
-	assert.Equal(t, 0, model.selectRevision("66d7"))
-	assert.Equal(t, 1, model.selectRevision("2222abcd"))
-}
-
-func TestModel_SelectRevision_RejectsAmbiguousLongestPrefixFallback(t *testing.T) {
-	model := &Model{
-		rows: []parser.Row{
-			{Commit: &jj.Commit{ChangeId: "66", CommitId: "111"}},
-			{Commit: &jj.Commit{ChangeId: "77", CommitId: "66"}},
-		},
-	}
-
-	assert.Equal(t, -1, model.selectRevision("66abc"))
-}
-
 func TestModel_UpdateGraphRows_DoesNotPrefixMatchImplicitCurrentSelection(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
@@ -136,7 +102,7 @@ func TestModel_UpdateGraphRows_DoesNotPrefixMatchImplicitCurrentSelection(t *tes
 	assert.Equal(t, "other", model.SelectedRevision().ChangeId)
 }
 
-func TestModel_UpdateGraphRows_AllowsPrefixMatchForExplicitSelection(t *testing.T) {
+func TestModel_UpdateGraphRows_DoesNotPrefixMatchExplicitSelection(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
 
@@ -145,7 +111,102 @@ func TestModel_UpdateGraphRows_AllowsPrefixMatchForExplicitSelection(t *testing.
 		{Commit: &jj.Commit{ChangeId: "other"}},
 	}, "66d7")
 
-	assert.Equal(t, 0, model.Cursor())
+	assert.Equal(t, 0, model.Cursor(), "explicit selection should fall back to the first row when the exact revision is gone")
+	assert.Equal(t, "66d", model.SelectedRevision().ChangeId)
+}
+
+func TestModel_NavigateTo(t *testing.T) {
+	tests := []struct {
+		name         string
+		initialRows  []parser.Row
+		initial      string
+		changeID     string
+		resolved     []byte
+		resolveErr   error
+		wantSelected string
+	}{
+		{
+			name:         "uses exact local change id without resolver",
+			initialRows:  rows,
+			initial:      "a",
+			changeID:     "b",
+			wantSelected: "b",
+		},
+		{
+			name:         "uses exact local commit id without resolver",
+			initialRows:  rows,
+			initial:      "a",
+			changeID:     "9",
+			wantSelected: "b",
+		},
+		{
+			name:         "resolves full commit id through jj",
+			initialRows:  rows,
+			initial:      "a",
+			changeID:     "full-commit",
+			resolved:     []byte("b;9"),
+			wantSelected: "b",
+		},
+		{
+			name:         "resolves full change id through jj",
+			initialRows:  rows,
+			initial:      "a",
+			changeID:     "full-change",
+			resolved:     []byte("b;9"),
+			wantSelected: "b",
+		},
+		{
+			name: "does not use prefix matching",
+			initialRows: []parser.Row{
+				{Commit: &jj.Commit{ChangeId: "66d", CommitId: "111"}},
+				{Commit: &jj.Commit{ChangeId: "other", CommitId: "222"}},
+			},
+			initial:      "other",
+			changeID:     "66d7",
+			resolved:     []byte("missing;missing"),
+			wantSelected: "other",
+		},
+		{
+			name:         "no move when resolved revision not loaded",
+			initialRows:  rows,
+			initial:      "a",
+			changeID:     "full-change",
+			resolved:     []byte("missing;missingcommit"),
+			wantSelected: "a",
+		},
+		{
+			name:         "no move when resolver errors",
+			initialRows:  rows,
+			initial:      "a",
+			changeID:     "ambiguous",
+			resolveErr:   assert.AnError,
+			wantSelected: "a",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			commandRunner := test.NewTestCommandRunner(t)
+			if tc.resolved != nil || tc.resolveErr != nil {
+				expectation := commandRunner.Expect(jj.ResolveRevisionID(tc.changeID))
+				if tc.resolved != nil {
+					expectation.SetOutput(tc.resolved)
+				}
+				if tc.resolveErr != nil {
+					expectation.SetError(tc.resolveErr)
+				}
+			}
+			defer commandRunner.Verify()
+
+			ctx := test.NewTestContext(commandRunner)
+			model := New(ctx)
+			model.updateGraphRows(tc.initialRows, tc.initial)
+
+			test.SimulateModel(model, model.Update(intents.Navigate{ChangeID: tc.changeID}))
+
+			assert.Equal(t, tc.wantSelected, model.SelectedRevision().ChangeId)
+		})
+	}
 }
 
 func TestModel_OpenSquashEmitsSelectionChangedForTargetRevision(t *testing.T) {

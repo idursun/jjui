@@ -55,7 +55,6 @@ type Model struct {
 	rows                   []parser.Row
 	tag                    atomic.Uint64
 	revisionToSelect       string
-	revisionToSelectPrefix bool
 	offScreenRows          []parser.Row
 	streamer               *graph.GraphStreamer
 	hasMore                bool
@@ -479,7 +478,6 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		m.streamer = msg.streamer
 		m.offScreenRows = nil
 		m.revisionToSelect = msg.selectedRevision
-		m.revisionToSelectPrefix = msg.selectedRevision != ""
 		m.hasMore = true
 		m.requestInFlight = false
 
@@ -523,18 +521,11 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		m.rows = m.offScreenRows
 		matched := false
 		if m.revisionToSelect != "" {
-			idx := -1
-			if m.revisionToSelectPrefix {
-				idx = m.selectRevision(m.revisionToSelect)
-			} else {
-				idx = m.selectRevisionExact(m.revisionToSelect)
-			}
-			if idx != -1 {
+			if idx := m.selectRevisionExact(m.revisionToSelect); idx != -1 {
 				m.SetCursor(idx)
 				matched = true
 			}
 			m.revisionToSelect = ""
-			m.revisionToSelectPrefix = false
 		}
 
 		if !matched && currentSelectedRevision != nil {
@@ -736,7 +727,7 @@ func (m *Model) startSquash(intent intents.OpenSquash) tea.Cmd {
 	}
 
 	parent, _ := m.context.RunCommandImmediate(jj.GetParent(selected))
-	parentIdx := m.selectRevision(string(parent))
+	parentIdx := m.selectRevisionExact(string(parent))
 	if parentIdx != -1 {
 		m.SetCursor(parentIdx)
 	} else if m.cursor < len(m.rows)-1 {
@@ -886,10 +877,10 @@ func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
 		allowStream = *intent.AllowStream
 	}
 
-	if intent.ChangeID != "" || intent.FallbackID != "" {
-		idx := m.selectRevision(intent.ChangeID)
-		if idx == -1 && intent.FallbackID != "" {
-			idx = m.selectRevision(intent.FallbackID)
+	if intent.ChangeID != "" {
+		idx := m.selectRevisionExact(intent.ChangeID)
+		if idx == -1 {
+			idx = m.resolveNavigationRevision(intent.ChangeID)
 		}
 		if idx == -1 {
 			return nil
@@ -905,14 +896,14 @@ func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
 		m.ensureCursorView = ensureView
 		return m.updateSelection()
 	case intents.TargetWorkingCopy:
-		if idx := m.selectRevision("@"); idx != -1 {
+		if idx := m.selectRevisionExact("@"); idx != -1 {
 			m.SetCursor(idx)
 		}
 		m.ensureCursorView = ensureView
 		return m.updateSelection()
 	case intents.TargetChild:
 		immediate, _ := m.context.RunCommandImmediate(jj.GetFirstChild(m.SelectedRevision()))
-		if idx := m.selectRevision(string(immediate)); idx != -1 {
+		if idx := m.selectRevisionExact(string(immediate)); idx != -1 {
 			m.SetCursor(idx)
 		}
 		m.ensureCursorView = ensureView
@@ -959,6 +950,21 @@ func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
 	m.SetCursor(newCursor)
 	m.ensureCursorView = ensureView
 	return m.updateSelection()
+}
+
+func (m *Model) resolveNavigationRevision(revision string) int {
+	output, err := m.context.RunCommandImmediate(jj.ResolveRevisionID(revision))
+	if err != nil {
+		return -1
+	}
+
+	parts := strings.SplitN(string(output), ";", 2)
+	for _, candidate := range parts {
+		if idx := m.selectRevisionExact(strings.TrimSpace(candidate)); idx != -1 {
+			return idx
+		}
+	}
+	return -1
 }
 
 func (m *Model) startDescribe(intent intents.Describe) tea.Cmd {
@@ -1069,21 +1075,15 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 	}
 
 	currentSelectedRevision := selectedRevision
-	allowPrefix := selectedRevision != ""
 	if cur := m.SelectedRevision(); currentSelectedRevision == "" && cur != nil {
 		currentSelectedRevision = cur.GetChangeId()
 	}
 	m.rows = rows
 
 	if len(m.rows) > 0 {
-		idx := -1
-		if allowPrefix {
-			idx = m.selectRevision(currentSelectedRevision)
-		} else {
-			idx = m.selectRevisionExact(currentSelectedRevision)
-		}
+		idx := m.selectRevisionExact(currentSelectedRevision)
 		if idx == -1 {
-			idx = m.selectRevision("@")
+			idx = m.selectRevisionExact("@")
 		}
 		if idx == -1 {
 			idx = 0
@@ -1226,37 +1226,6 @@ func (m *Model) selectRevisionExact(revision string) int {
 	})
 }
 
-func (m *Model) selectRevision(revision string) int {
-	idx := m.selectRevisionExact(revision)
-	if idx != -1 || revision == "@" {
-		return idx
-	}
-
-	bestIdx := -1
-	bestLen := 0
-	ambiguous := false
-	for i, row := range m.rows {
-		for _, candidate := range []string{row.Commit.GetChangeId(), row.Commit.ChangeId, row.Commit.CommitId} {
-			if candidate == "" || !strings.HasPrefix(strings.ToLower(revision), strings.ToLower(candidate)) {
-				continue
-			}
-			candidateLen := len(candidate)
-			switch {
-			case candidateLen > bestLen:
-				bestIdx = i
-				bestLen = candidateLen
-				ambiguous = false
-			case candidateLen == bestLen && bestIdx != i:
-				ambiguous = true
-			}
-		}
-	}
-	if ambiguous {
-		return -1
-	}
-	return bestIdx
-}
-
 func (m *Model) search(startIndex int, backward bool) int {
 	items := make([]screen.Searchable, len(m.rows))
 	for i := range m.rows {
@@ -1306,7 +1275,7 @@ func (m *Model) rangeSelect(to int) {
 
 func (m *Model) jumpToParent(revisions jj.SelectedRevisions) {
 	immediate, _ := m.context.RunCommandImmediate(jj.GetParent(revisions))
-	parentIndex := m.selectRevision(string(immediate))
+	parentIndex := m.selectRevisionExact(string(immediate))
 	if parentIndex != -1 {
 		m.SetCursor(parentIndex)
 	}

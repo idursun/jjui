@@ -465,6 +465,11 @@ func GetIdsFromRevset(revset string) CommandArgs {
 	return []string{"log", "-r", revset, "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", template}
 }
 
+func ResolveRevisionID(revision string) CommandArgs {
+	const template = `change_id.shortest() ++ ";" ++ commit_id.shortest() ++ "\n"`
+	return []string{"log", "-r", revision, "-n", "1", "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", template}
+}
+
 func RevsetValidate(revset string) CommandArgs {
 	return []string{"log", "-r", revset, "-n", "1", "--ignore-working-copy"}
 }
