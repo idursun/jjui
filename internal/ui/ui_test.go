@@ -127,6 +127,29 @@ func TestWrapperView_ClearsCursorWhenInlineDescribeCloses(t *testing.T) {
 	assert.Nil(t, view.Cursor)
 }
 
+func TestWrapperUpdate_ExecMsgRefreshesCachedCursorBeforeExec(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.width = 80
+	model.height = 20
+	model.stacked = input.NewWithTitle("Prompt", "Text: ", "")
+
+	w := &wrapper{ui: model, render: true}
+	view := w.View()
+	require.NotNil(t, view.Cursor)
+
+	// Simulate the state after Apply cleared focus but before tea.Exec releases
+	// and restores the terminal.
+	model.stacked = nil
+
+	updated, cmd := w.Update(common.ExecMsg{Line: "log", Mode: common.ExecJJ})
+	require.NotNil(t, cmd)
+
+	view = updated.(*wrapper).View()
+	assert.Nil(t, view.Cursor)
+}
+
 func Test_Update_PreviewScrollKeysWorkWhenVisible(t *testing.T) {
 	tests := []struct {
 		name           string

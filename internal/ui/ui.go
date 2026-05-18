@@ -779,6 +779,14 @@ func (w *wrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	cmd = w.ui.Update(msg)
+	if _, ok := msg.(common.ExecMsg); ok {
+		// Force a fresh frame before Bubble Tea releases/restores the terminal
+		// for tea.Exec. Otherwise RestoreTerminal can repaint using the last
+		// cached cursor-bearing frame from the command prompt.
+		w.render = true
+		w.scheduledNextFrame = false
+		return w, cmd
+	}
 	if !w.scheduledNextFrame {
 		w.scheduledNextFrame = true
 		return w, tea.Batch(cmd, tea.Tick(time.Millisecond*8, func(t time.Time) tea.Msg {
