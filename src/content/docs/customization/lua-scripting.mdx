@@ -102,9 +102,12 @@ Args can be passed as individual strings or as a single table of strings.
 | `choose(option1, option2, ...)` | string or nil | Show a picker; returns the selected value or nil if cancelled |
 | `choose({ options, title?, filter?, ordered? })` | string or nil | Table form |
 | `input({ title?, prompt? })` | string or nil | Show a text input dialog; returns the entered text or nil |
+| `set_theme(name)` | — | Switch the active theme at runtime |
 | `copy_to_clipboard(text)` | `(true, nil)` or `(nil, err)` | Copy to system clipboard |
 | `split_lines(text, keep_empty?)` | string[] | Split on newlines; strips `\r`; skips empty lines by default |
 | `exec_shell(command)` | — | Run a shell command line; yields until done |
+
+`set_theme(name)` changes the currently active theme immediately. This is exposed to Lua for custom workflows and plugins, but it is not wired to the UI by default, so you need to call it from your own action, binding, or startup logic.
 
 ---
 
