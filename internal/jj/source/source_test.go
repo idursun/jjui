@@ -30,6 +30,30 @@ func TestFunctionSource(t *testing.T) {
 	assert.True(t, found, "expected 'ancestors' function")
 }
 
+func TestFunctionSource_GeneratesStructuredSignatures(t *testing.T) {
+	s := FunctionSource{}
+	items, err := s.Fetch(nil)
+	assert.NoError(t, err)
+
+	byName := map[string]Item{}
+	for _, item := range items {
+		byName[item.Name] = item
+	}
+
+	assert.Equal(t, "all(): All visible commits and ancestors of commits explicitly mentioned", byName["all"].SignatureHelp)
+	assert.Equal(t, "ancestors(x[, depth]): Returns the ancestors of x limited to the given depth", byName["ancestors"].SignatureHelp)
+	assert.Equal(t, "untracked_remote_bookmarks([name_pattern[, [remote=]remote_pattern]]): All untracked remote bookmark targets", byName["untracked_remote_bookmarks"].SignatureHelp)
+}
+
+func TestFunctionMap(t *testing.T) {
+	functions := FunctionMap()
+	fn, ok := functions["untracked_remote_bookmarks"]
+	assert.True(t, ok)
+	assert.Len(t, fn.Arguments, 2)
+	assert.True(t, fn.Arguments[1].Named)
+	assert.Equal(t, CompletionRemote, fn.Arguments[1].CompletionSource)
+}
+
 func TestAliasSource(t *testing.T) {
 	aliases := map[string]string{
 		"my_alias()":  "mine()",
@@ -106,6 +130,7 @@ func TestSourceFetchError(t *testing.T) {
 	}{
 		{"BookmarkSource", BookmarkSource{}},
 		{"TagSource", TagSource{}},
+		{"RemoteSource", RemoteSource{}},
 	}
 
 	for _, tc := range sources {
@@ -133,6 +158,20 @@ func TestTagSource(t *testing.T) {
 	assert.Equal(t, "v1.0.0", items[0].Name)
 	assert.Equal(t, "v1.1.0", items[1].Name)
 	assert.Equal(t, "v2.0.0", items[2].Name)
+}
+
+func TestRemoteSource(t *testing.T) {
+	mockRunner := func(args []string) ([]byte, error) {
+		return []byte("origin https://example.com/repo.git\nupstream https://example.com/upstream.git\n"), nil
+	}
+
+	s := RemoteSource{}
+	items, err := s.Fetch(mockRunner)
+	assert.NoError(t, err)
+	assert.Equal(t, []Item{
+		{Name: "origin", Kind: KindRemote},
+		{Name: "upstream", Kind: KindRemote},
+	}, items)
 }
 
 func TestParseTagListOutput(t *testing.T) {

@@ -61,8 +61,8 @@ func TestGetCompletions(t *testing.T) {
 		{"ancestors", "ancestors("},
 		{"ancestors(visible_", "visible_heads()"},
 		{"author", "author("},
-		{"author(m", "mine()"},
-		{"author( m", "mine()"},
+		{"ancestors(m", "mine()"},
+		{"ancestors( m", "mine()"},
 		{"present(@) | m", "mine()"},
 	}
 	for _, test := range tests {
@@ -73,4 +73,120 @@ func TestGetCompletions(t *testing.T) {
 			assert.True(t, found, "Expected suggestion '%s' not found for input: '%s'", test.expected, test.input)
 		})
 	}
+}
+
+func TestGetCompletionItems_FunctionArgumentCompletions(t *testing.T) {
+	provider := NewCompletionProvider(nil)
+	remoteListCalls := 0
+	provider.Load(func(args []string) ([]byte, error) {
+		switch args[0] {
+		case "bookmark", "tag":
+			return nil, nil
+		case "git":
+			remoteListCalls++
+			return []byte("origin\nupstream\n"), nil
+		default:
+			return nil, nil
+		}
+	})
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+		kind     CompletionKind
+	}{
+		{
+			name:     "freeform pattern suggests matching named argument",
+			input:    "untracked_remote_bookmarks(re",
+			expected: "remote=",
+			kind:     KindArgument,
+		},
+		{
+			name:     "second positional slot suggests matching named argument",
+			input:    "untracked_remote_bookmarks(foo, re",
+			expected: "remote=",
+			kind:     KindArgument,
+		},
+		{
+			name:     "second positional slot suggests remote names",
+			input:    "untracked_remote_bookmarks(foo, o",
+			expected: "origin",
+			kind:     KindRemote,
+		},
+		{
+			name:     "named remote value suggests remote names",
+			input:    "untracked_remote_bookmarks(foo, remote=o",
+			expected: "origin",
+			kind:     KindRemote,
+		},
+		{
+			name:     "empty named remote value suggests all remote names",
+			input:    "untracked_remote_bookmarks(foo, remote=",
+			expected: "origin",
+			kind:     KindRemote,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			items := provider.GetCompletionItems(test.input, nil)
+			index := slices.IndexFunc(items, func(item CompletionItem) bool {
+				return item.InsertText == test.expected && item.Kind == test.kind
+			})
+			assert.NotEqual(t, -1, index, "expected completion %q in %+v", test.expected, items)
+		})
+	}
+	provider.GetCompletionItems("untracked_remote_bookmarks(foo, remote=u", nil)
+	assert.Equal(t, 1, remoteListCalls, "remote completions should be cached after first load")
+}
+
+func TestGetCompletionItems_LoadRefreshesRemoteCompletions(t *testing.T) {
+	provider := NewCompletionProvider(nil)
+
+	provider.Load(func(args []string) ([]byte, error) {
+		switch args[0] {
+		case "bookmark", "tag":
+			return nil, nil
+		case "git":
+			return []byte("origin\n"), nil
+		default:
+			return nil, nil
+		}
+	})
+	assert.Contains(t, completionInsertTexts(provider.GetCompletionItems("remote_bookmarks(remote=o", nil)), "origin")
+
+	provider.Load(func(args []string) ([]byte, error) {
+		switch args[0] {
+		case "bookmark", "tag":
+			return nil, nil
+		case "git":
+			return []byte("upstream\n"), nil
+		default:
+			return nil, nil
+		}
+	})
+	items := provider.GetCompletionItems("remote_bookmarks(remote=u", nil)
+	assert.Contains(t, completionInsertTexts(items), "upstream")
+	assert.NotContains(t, completionInsertTexts(items), "origin")
+}
+
+func TestGetCompletionItems_FreeformArgumentDoesNotSuggestRevsets(t *testing.T) {
+	provider := NewCompletionProvider(nil)
+	items := provider.GetCompletionItems("author(m", nil)
+	assert.Empty(t, items)
+}
+
+func TestGetCompletionItems_DoesNotSuggestAlreadyUsedNamedArgument(t *testing.T) {
+	provider := NewCompletionProvider(nil)
+	items := provider.GetCompletionItems("remote_bookmarks(remote=origin, ", nil)
+	assert.NotContains(t, completionInsertTexts(items), "remote=")
+}
+
+func completionInsertTexts(items []CompletionItem) []string {
+	texts := make([]string, len(items))
+	for i, item := range items {
+		texts[i] = item.InsertText
+	}
+	return texts
 }

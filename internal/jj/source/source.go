@@ -16,6 +16,7 @@ const (
 	KindHistory
 	KindBookmark
 	KindTag
+	KindRemote
 )
 
 // Item represents a completion/picker item from any source.
@@ -83,6 +84,22 @@ func (s TagSource) Fetch(runner Runner) ([]Item, error) {
 	items := make([]Item, len(names))
 	for i, name := range names {
 		items[i] = Item{Name: name, Kind: KindTag}
+	}
+	return items, nil
+}
+
+// RemoteSource loads Git remote names.
+type RemoteSource struct{}
+
+func (s RemoteSource) Fetch(runner Runner) ([]Item, error) {
+	output, err := runner(jj.GitRemoteList())
+	if err != nil {
+		return nil, err
+	}
+	remotes := jj.ParseRemoteListOutput(string(output))
+	items := make([]Item, 0, len(remotes))
+	for _, remote := range remotes {
+		items = append(items, Item{Name: remote, Kind: KindRemote})
 	}
 	return items, nil
 }

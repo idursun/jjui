@@ -72,6 +72,83 @@ func TestModel_View_ShowsSignatureHelpForPreviewedFunctionCompletion(t *testing.
 	assert.NotContains(t, rendered, "function au")
 }
 
+func TestModel_Update_CommitsArgumentCompletionAndShowsRemoteValues(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll())
+	commandRunner.Expect(jj.TagList())
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin\nupstream\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := New(ctx)
+	model.Update(intents.Edit{})
+	model.autoComplete.SetValue("untracked_remote_bookmarks(re")
+	model.userInput = "untracked_remote_bookmarks(re"
+	model.updateCompletionItems()
+
+	cmd := model.Update(intents.CompletionCycle{})
+	require.Nil(t, cmd)
+
+	assert.Equal(t, "untracked_remote_bookmarks(remote=", model.userInput)
+	assert.Equal(t, "untracked_remote_bookmarks(remote=", model.autoComplete.Value())
+	assert.NotEmpty(t, model.completionItems)
+	assert.Equal(t, KindRemote, model.completionItems[0].Kind)
+	assert.Equal(t, "origin", model.completionItems[0].InsertText)
+}
+
+func TestModel_Update_CyclesPreviewedBookmarkCompletionsUntilInputChanges(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := New(ctx)
+	model.editing = true
+	model.userInput = "fe"
+	model.autoComplete.SetValue("fe")
+	model.completionItems = []CompletionItem{
+		{Name: "feature-a", InsertText: "feature-a", ReplaceStart: 0, Kind: KindBookmark, MatchedPart: "fe", RestPart: "ature-a"},
+		{Name: "feature-b", InsertText: "feature-b", ReplaceStart: 0, Kind: KindBookmark, MatchedPart: "fe", RestPart: "ature-b"},
+	}
+
+	cmd := model.Update(intents.CompletionCycle{})
+	require.Nil(t, cmd)
+	assert.Equal(t, "feature-a", model.autoComplete.Value())
+	assert.Equal(t, "fe", model.userInput)
+	require.Len(t, model.completionItems, 2)
+
+	cmd = model.Update(intents.CompletionCycle{})
+	require.Nil(t, cmd)
+	assert.Equal(t, "feature-b", model.autoComplete.Value())
+	assert.Equal(t, "fe", model.userInput)
+	require.Len(t, model.completionItems, 2)
+}
+
+func TestModel_View_ShowsRemoteCompletionsWhilePreviewingRemoteValue(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := New(ctx)
+	model.editing = true
+	model.userInput = "remote_bookmarks(remote="
+	model.autoComplete.SetValue("remote_bookmarks(remote=origin")
+	model.autoComplete.SignatureHelp = "remote_bookmarks([name_pattern[, [remote=]remote_pattern]]): All remote bookmark targets"
+	model.selectedIndex = 0
+	model.completionItems = []CompletionItem{
+		{Name: "origin", InsertText: "origin", ReplaceStart: len(model.userInput), Kind: KindRemote},
+		{Name: "upstream", InsertText: "upstream", ReplaceStart: len(model.userInput), Kind: KindRemote},
+	}
+
+	dl := render.NewDisplayContext()
+	model.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 100, 1)))
+	buf := render.NewScreenBuffer(100, 5)
+	dl.Render(buf)
+	rendered := buf.Render()
+	assert.Contains(t, rendered, "remote")
+	assert.Contains(t, rendered, "origin")
+	assert.NotContains(t, rendered, "All remote bookmark targets")
+}
+
 func TestModel_ApplyCompletion(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()

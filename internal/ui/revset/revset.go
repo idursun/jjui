@@ -230,6 +230,10 @@ func (m *Model) updatePreview() {
 	}
 
 	item := m.completionItems[m.selectedIndex]
+	if item.Kind == KindArgument {
+		m.selectCompletionItem(item)
+		return
+	}
 	previewValue := m.applyCompletion(m.userInput, item)
 
 	m.autoComplete.SetValue(previewValue)
@@ -371,7 +375,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	// Check if we have completions to show or signature help
 	items := m.completionItems
 	signatureHelp := m.autoComplete.SignatureHelp
-	previewingSignature := m.autoComplete.Value() != m.userInput && signatureHelp != ""
+	previewingSignature := m.previewingSignatureCompletion() && signatureHelp != ""
 
 	if len(items) == 0 && signatureHelp == "" {
 		// Show "No suggestions" when there's input but no matches
@@ -445,6 +449,21 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.listRenderer.RegisterScroll(dl, outerBox)
 }
 
+func (m *Model) previewingSignatureCompletion() bool {
+	if m.autoComplete.Value() == m.userInput {
+		return false
+	}
+	if m.selectedIndex < 0 || m.selectedIndex >= len(m.completionItems) {
+		return false
+	}
+	switch m.completionItems[m.selectedIndex].Kind {
+	case KindFunction, KindAlias:
+		return true
+	default:
+		return false
+	}
+}
+
 func pillLabel(kind CompletionKind) string {
 	switch kind {
 	case KindFunction:
@@ -457,6 +476,10 @@ func pillLabel(kind CompletionKind) string {
 		return "bookmark"
 	case KindTag:
 		return "tag"
+	case KindRemote:
+		return "remote"
+	case KindArgument:
+		return "argument"
 	default:
 		return ""
 	}
@@ -478,19 +501,20 @@ func (m *Model) applyCompletion(input string, item CompletionItem) string {
 		return item.Name
 	}
 
-	paren := ""
-	if item.Kind == KindFunction {
-		if !item.HasParameters {
-			paren = "()"
-		} else {
-			paren = "("
+	insertText := item.InsertText
+	if insertText == "" {
+		insertText = item.Name
+		if item.Kind == KindFunction {
+			if item.HasParameters {
+				insertText += "("
+			} else {
+				insertText += "()"
+			}
 		}
+		item.ReplaceStart, _ = m.completionProvider.GetLastToken(input)
 	}
-	completionText := item.Name + paren
-
-	lastTokenIndex, _ := m.completionProvider.GetLastToken(input)
-	if lastTokenIndex > 0 {
-		return input[:lastTokenIndex] + completionText
+	if item.ReplaceStart < 0 || item.ReplaceStart > len(input) {
+		item.ReplaceStart = len(input)
 	}
-	return completionText
+	return input[:item.ReplaceStart] + insertText
 }
