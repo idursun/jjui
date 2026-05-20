@@ -371,6 +371,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	// Check if we have completions to show or signature help
 	items := m.completionItems
 	signatureHelp := m.autoComplete.SignatureHelp
+	previewingSignature := m.autoComplete.Value() != m.userInput && signatureHelp != ""
 
 	if len(items) == 0 && signatureHelp == "" {
 		// Show "No suggestions" when there's input but no matches
@@ -383,7 +384,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	// If no items but we have signature help, show it
-	if len(items) == 0 && signatureHelp != "" {
+	if (len(items) == 0 || previewingSignature) && signatureHelp != "" {
 		sigRect := layout.Rect(box.R.Min.X, box.R.Max.Y, box.R.Dx(), 1)
 		sigText := completionDimmed.Render(signatureHelp)
 		dl.AddDraw(sigRect, sigText, render.ZRevsetOverlay)

@@ -8,6 +8,8 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,6 +46,30 @@ func TestModel_View_DisplaysCurrentRevset(t *testing.T) {
 	ctx.DefaultRevset = "default"
 	model := New(ctx)
 	assert.Contains(t, test.RenderImmediate(model, 80, 5), ctx.CurrentRevset)
+}
+
+func TestModel_View_ShowsSignatureHelpForPreviewedFunctionCompletion(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := New(ctx)
+	model.editing = true
+	model.userInput = "au"
+	model.autoComplete.SetValue("au")
+	model.updateCompletionItems()
+
+	cmd := model.Update(intents.CompletionCycle{})
+	require.Nil(t, cmd)
+
+	dl := render.NewDisplayContext()
+	model.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 100, 1)))
+	buf := render.NewScreenBuffer(100, 5)
+	dl.Render(buf)
+	rendered := buf.Render()
+	assert.Contains(t, rendered, "author(")
+	assert.Contains(t, rendered, "author(pattern)")
+	assert.NotContains(t, rendered, "function au")
 }
 
 func TestModel_ApplyCompletion(t *testing.T) {
