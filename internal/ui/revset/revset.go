@@ -442,6 +442,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 				tb.Styled(sigDisplay, ds)
 			}
 			tb.Done()
+			if isSelected {
+				dl.AddPaint(rect, common.DefaultPalette.Get("revset completion selected"), render.ZRevsetOverlay)
+			}
 		},
 		func(index int, _ tea.Mouse) tea.Msg { return completionClickMsg{index: index} },
 	)

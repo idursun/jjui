@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -70,6 +72,43 @@ func TestModel_View_KeepsCompletionListForPreviewedFunctionCompletion(t *testing
 	assert.Contains(t, rendered, "author(")
 	assert.Contains(t, rendered, "function")
 	assert.NotContains(t, rendered, "author(pattern)")
+}
+
+func TestModel_View_SelectedCompletionPaintsTextBackground(t *testing.T) {
+	originalPalette := common.DefaultPalette
+	palette := common.NewPalette()
+	palette.Update(map[string]config.Color{
+		"revset completion":                  {Bg: "black"},
+		"revset completion text":             {Fg: "green"},
+		"revset completion matched":          {Fg: "green", Bold: boolPtr(true)},
+		"revset completion selected":         {Bg: "blue", Bold: boolPtr(true)},
+		"revset completion selected text":    {Fg: "bright green"},
+		"revset completion selected matched": {Bold: boolPtr(true)},
+		"revset completion selected dimmed":  {Fg: "bright cyan"},
+	})
+	common.DefaultPalette = palette
+	defer func() { common.DefaultPalette = originalPalette }()
+
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.editing = true
+	model.selectedIndex = 0
+	model.completionItems = []CompletionItem{{
+		Kind:        KindFunction,
+		MatchedPart: "au",
+		RestPart:    "thor",
+	}}
+
+	dl := render.NewDisplayContext()
+	model.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 40, 1)))
+	buf := render.NewScreenBuffer(40, 2)
+	dl.Render(buf)
+
+	cell := buf.CellAt(pillWidth+1, 1)
+	_, wantBg := renderExpectedCellColors(t, lipgloss.NewStyle().Background(lipgloss.Color("4")).Render("a"))
+	assert.Equal(t, wantBg, cell.Style.Bg)
 }
 
 func TestModel_Update_CommitsArgumentCompletionAndShowsRemoteValues(t *testing.T) {
@@ -253,4 +292,16 @@ func TestModel_Update_ApplyEmptyUsesDefaultRevset(t *testing.T) {
 		}
 	})
 	assert.Equal(t, ctx.DefaultRevset, updated, "empty apply should resolve to default revset")
+}
+
+func boolPtr(v bool) *bool { return &v }
+
+func renderExpectedCellColors(t *testing.T, content string) (any, any) {
+	t.Helper()
+	dl := render.NewDisplayContext()
+	dl.AddDraw(layout.Rect(0, 0, 1, 1), content, 0)
+	buf := render.NewScreenBuffer(1, 1)
+	dl.Render(buf)
+	cell := buf.CellAt(0, 0)
+	return cell.Style.Fg, cell.Style.Bg
 }
