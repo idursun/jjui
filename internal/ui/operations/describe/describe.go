@@ -91,7 +91,7 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
 	case intents.Cancel:
 		unsavedDescription := o.input.Value()
-		if o.originalDesc == "" {
+		if o.originalDesc == "" && unsavedDescription != "" {
 			stashed = &stashedDescription{
 				revision:    o.revision,
 				description: unsavedDescription,
