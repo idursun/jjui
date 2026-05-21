@@ -48,7 +48,7 @@ func TestModel_View_DisplaysCurrentRevset(t *testing.T) {
 	assert.Contains(t, test.RenderImmediate(model, 80, 5), ctx.CurrentRevset)
 }
 
-func TestModel_View_ShowsSignatureHelpForPreviewedFunctionCompletion(t *testing.T) {
+func TestModel_View_KeepsCompletionListForPreviewedFunctionCompletion(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
 
@@ -59,7 +59,7 @@ func TestModel_View_ShowsSignatureHelpForPreviewedFunctionCompletion(t *testing.
 	model.autoComplete.SetValue("au")
 	model.updateCompletionItems()
 
-	cmd := model.Update(intents.CompletionCycle{})
+	cmd := model.Update(intents.CompletionMove{Delta: 1})
 	require.Nil(t, cmd)
 
 	dl := render.NewDisplayContext()
@@ -68,8 +68,8 @@ func TestModel_View_ShowsSignatureHelpForPreviewedFunctionCompletion(t *testing.
 	dl.Render(buf)
 	rendered := buf.Render()
 	assert.Contains(t, rendered, "author(")
-	assert.Contains(t, rendered, "author(pattern)")
-	assert.NotContains(t, rendered, "function au")
+	assert.Contains(t, rendered, "function")
+	assert.NotContains(t, rendered, "author(pattern)")
 }
 
 func TestModel_Update_CommitsArgumentCompletionAndShowsRemoteValues(t *testing.T) {

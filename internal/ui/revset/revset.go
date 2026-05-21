@@ -375,7 +375,6 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	// Check if we have completions to show or signature help
 	items := m.completionItems
 	signatureHelp := m.autoComplete.SignatureHelp
-	previewingSignature := m.previewingSignatureCompletion() && signatureHelp != ""
 
 	if len(items) == 0 && signatureHelp == "" {
 		// Show "No suggestions" when there's input but no matches
@@ -388,7 +387,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	// If no items but we have signature help, show it
-	if (len(items) == 0 || previewingSignature) && signatureHelp != "" {
+	if len(items) == 0 && signatureHelp != "" {
 		sigRect := layout.Rect(box.R.Min.X, box.R.Max.Y, box.R.Dx(), 1)
 		sigText := completionDimmed.Render(signatureHelp)
 		dl.AddDraw(sigRect, sigText, render.ZRevsetOverlay)
@@ -447,21 +446,6 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		func(index int, _ tea.Mouse) tea.Msg { return completionClickMsg{index: index} },
 	)
 	m.listRenderer.RegisterScroll(dl, outerBox)
-}
-
-func (m *Model) previewingSignatureCompletion() bool {
-	if m.autoComplete.Value() == m.userInput {
-		return false
-	}
-	if m.selectedIndex < 0 || m.selectedIndex >= len(m.completionItems) {
-		return false
-	}
-	switch m.completionItems[m.selectedIndex].Kind {
-	case KindFunction, KindAlias:
-		return true
-	default:
-		return false
-	}
 }
 
 func pillLabel(kind CompletionKind) string {
