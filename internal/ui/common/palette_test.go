@@ -107,6 +107,42 @@ func TestPalette_Get(t *testing.T) {
 			},
 			want: lipgloss.NewStyle().Underline(true),
 		},
+		{
+			name: "selected substyle inherits semantic style before selected state",
+			args: args{
+				selector: "menu selected shortcut",
+				styles: map[string]lipgloss.Style{
+					"selected":      lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan)),
+					"menu selected": lipgloss.NewStyle().Background(lipgloss.Color(Black)).Bold(true),
+					"menu shortcut": lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)),
+				},
+			},
+			want: lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)).Background(lipgloss.Color(Black)).Bold(true),
+		},
+		{
+			name: "partial exact selected substyle preserves semantic foreground",
+			args: args{
+				selector: "bookmarks menu selected shortcut",
+				styles: map[string]lipgloss.Style{
+					"shortcut":               lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)),
+					"menu selected":          lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan)).Background(lipgloss.Color(Black)).Bold(true),
+					"menu selected shortcut": lipgloss.NewStyle().Background(lipgloss.Color(Blue)),
+				},
+			},
+			want: lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)).Background(lipgloss.Color(Blue)).Bold(true),
+		},
+		{
+			name: "exact selected substyle overrides semantic fallback",
+			args: args{
+				selector: "menu selected shortcut",
+				styles: map[string]lipgloss.Style{
+					"menu selected":          lipgloss.NewStyle().Background(lipgloss.Color(Black)),
+					"menu shortcut":          lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)),
+					"menu selected shortcut": lipgloss.NewStyle().Foreground(lipgloss.Color(Green)),
+				},
+			},
+			want: lipgloss.NewStyle().Foreground(lipgloss.Color(Green)).Background(lipgloss.Color(Black)),
+		},
 	}
 
 	for _, tt := range tests {

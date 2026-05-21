@@ -96,6 +96,8 @@ func (p *Palette) Get(selector string) lipgloss.Style {
 	length := len(fields)
 
 	finalStyle := lipgloss.NewStyle()
+	var deferredSelectedStyles [][]string
+	deferSelectedStyles := hasSelectedSubstyle(fields)
 	// for a selector like "a b c", we want to inherit styles from the most specific to the least specific
 	// first pass: "a b c", "a b", "a"
 	// second pass: "b c", "b"
@@ -103,12 +105,45 @@ func (p *Palette) Get(selector string) lipgloss.Style {
 	start := 0
 	for start < length {
 		for end := length; end > start; end-- {
-			finalStyle = finalStyle.Inherit(p.get(fields[start:end]...))
+			selectorFields := fields[start:end]
+			if deferSelectedStyles && selectorFields[len(selectorFields)-1] == "selected" {
+				deferredSelectedStyles = append(deferredSelectedStyles, selectorFields)
+				continue
+			}
+			finalStyle = finalStyle.Inherit(p.get(selectorFields...))
+			if semanticFields := withoutSelectedModifier(selectorFields); len(semanticFields) > 0 {
+				finalStyle = finalStyle.Inherit(p.get(semanticFields...))
+			}
 		}
 		start++
 	}
+	for _, selectorFields := range deferredSelectedStyles {
+		finalStyle = finalStyle.Inherit(p.get(selectorFields...))
+	}
 	p.cache[selector] = finalStyle
 	return finalStyle
+}
+
+func hasSelectedSubstyle(fields []string) bool {
+	for i, field := range fields {
+		if field == "selected" && i < len(fields)-1 {
+			return true
+		}
+	}
+	return false
+}
+
+func withoutSelectedModifier(fields []string) []string {
+	for i, field := range fields {
+		if field != "selected" || i == len(fields)-1 {
+			continue
+		}
+		result := make([]string, 0, len(fields)-1)
+		result = append(result, fields[:i]...)
+		result = append(result, fields[i+1:]...)
+		return result
+	}
+	return nil
 }
 
 func (p *Palette) GetBorder(selector string, border lipgloss.Border) lipgloss.Style {
