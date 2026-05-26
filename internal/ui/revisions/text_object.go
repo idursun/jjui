@@ -76,12 +76,24 @@ func inlineTextObjects(row parser.Row, line *parser.GraphRowLine, lineIndex int)
 	bookmarkIndex := 0
 	bookmarkPlaceholderX := x
 	var inlineDescription *revisionTextObject
+	seenCommitID := false
 
 	for _, segment := range line.Segments {
 		text := segment.Text
 		trimmed := strings.TrimSpace(text)
 		width := render.StringWidth(text)
-		if trimmed == "" || isCommitIdentifier(row, trimmed) || isDimmed(segment.Style) {
+		if trimmed == "" {
+			x += width
+			continue
+		}
+		if isCommitIdentifier(row, trimmed) {
+			if strings.HasPrefix(trimmed, row.Commit.CommitId) {
+				seenCommitID = true
+			}
+			x += width
+			continue
+		}
+		if isDimmed(segment.Style) {
 			x += width
 			continue
 		}
@@ -101,6 +113,10 @@ func inlineTextObjects(row parser.Row, line *parser.GraphRowLine, lineIndex int)
 		case fieldOrdinal == 0:
 			// In compact templates without author/date metadata, the subject can
 			// appear inline before the commit id. Treat that as description.
+			desc := newRevisionTextObject(row, textObjectDescription, trimmed, 0, lineIndex, x+leadingSpaceWidth(text), render.StringWidth(trimmed))
+			inlineDescription = &desc
+		case seenCommitID && inlineDescription == nil:
+			// Single-line templates can put the description after the commit id.
 			desc := newRevisionTextObject(row, textObjectDescription, trimmed, 0, lineIndex, x+leadingSpaceWidth(text), render.StringWidth(trimmed))
 			inlineDescription = &desc
 		}
@@ -179,22 +195,24 @@ func isCommitIdentifier(row parser.Row, text string) bool {
 }
 
 func isDimmed(style lipgloss.Style) bool {
-	return style.GetFaint() || styleColor(style) == "8"
+	return styleForeground(style) == "8"
 }
 
 func isDefaultAuthorStyle(style lipgloss.Style) bool {
-	return !style.GetBold() && styleColor(style) == "3"
+	return styleForeground(style) == "3"
 }
 
 func isDefaultDateStyle(style lipgloss.Style) bool {
-	return !style.GetBold() && styleColor(style) == "6"
+	color := styleForeground(style)
+	return color == "6" || color == "14"
 }
 
 func isDefaultBookmarkStyle(style lipgloss.Style) bool {
-	return !style.GetBold() && styleColor(style) == "5"
+	color := styleForeground(style)
+	return color == "5" || color == "13"
 }
 
-func styleColor(style lipgloss.Style) string {
+func styleForeground(style lipgloss.Style) string {
 	if fg := style.GetForeground(); fg != nil {
 		return fmt.Sprint(fg)
 	}

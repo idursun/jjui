@@ -51,7 +51,7 @@ lua = """
 name = "revisions.object_bookmark_reachable"
 desc = "reachable from focused bookmark"
 scope = "revisions.bookmark"
-key = "t"
+key = "shift+r"
 lua = """
 local obj = context.object()
 if obj == nil or obj.kind ~= "bookmark" then

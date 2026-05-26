@@ -55,6 +55,57 @@ func TestTextObjectsForRowIncludesPlaceholderBookmark(t *testing.T) {
 	assert.Equal(t, textObjectDescription, objects[4].Kind)
 }
 
+func TestTextObjectsForCurrentRowRecognizesBrightMetadata(t *testing.T) {
+	row := textObjectTestRow()
+	row.Lines[0].Segments = []*screen.Segment{
+		{Text: "abc", Style: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("13"))},
+		{Text: " rest", Style: lipgloss.NewStyle().Foreground(lipgloss.Color("8"))},
+		{Text: " user@example.com ", Style: lipgloss.NewStyle().Foreground(lipgloss.Color("3"))},
+		{Text: "3 weeks ago ", Style: lipgloss.NewStyle().Foreground(lipgloss.Color("14"))},
+		{Text: "current-bookmark ", Style: lipgloss.NewStyle().Foreground(lipgloss.Color("13"))},
+		{Text: "def", Style: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))},
+	}
+
+	objects := textObjectsForRow(row)
+
+	require.Len(t, objects, 5)
+	assert.Equal(t, textObjectBookmark, objects[3].Kind)
+	assert.Equal(t, "current-bookmark", objects[3].Value)
+	assert.Greater(t, objects[3].x, objects[2].x)
+	assert.Equal(t, textObjectDescription, objects[4].Kind)
+	assert.Equal(t, "subject line", objects[4].Value)
+}
+
+func TestTextObjectsForSingleLineDescriptionAfterCommitID(t *testing.T) {
+	row := textObjectTestRow()
+	row.Lines = []*parser.GraphRowLine{
+		{
+			Gutter: parser.GraphGutter{Segments: []*screen.Segment{
+				{Text: "○"},
+				{Text: " "},
+			}},
+			Segments: []*screen.Segment{
+				{Text: "abc", Style: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("13"))},
+				{Text: " rest", Style: lipgloss.NewStyle().Foreground(lipgloss.Color("8"))},
+				{Text: " user@example.com ", Style: lipgloss.NewStyle().Foreground(lipgloss.Color("3"))},
+				{Text: "3 weeks ago ", Style: lipgloss.NewStyle().Foreground(lipgloss.Color("14"))},
+				{Text: "def", Style: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))},
+				{Text: " subject line"},
+			},
+			Flags: parser.Revision | parser.Highlightable,
+		},
+	}
+
+	objects := textObjectsForRow(row)
+
+	require.Len(t, objects, 5)
+	assert.Equal(t, textObjectBookmark, objects[3].Kind)
+	assert.Equal(t, "", objects[3].Value)
+	assert.Equal(t, textObjectDescription, objects[4].Kind)
+	assert.Equal(t, "subject line", objects[4].Value)
+	assert.Greater(t, objects[4].x, objects[3].x)
+}
+
 func TestTextObjectNavigationUpdatesFocusedObject(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
