@@ -283,11 +283,14 @@ function wait_refresh() end
 
 ---@class jjui.revisions.details
 ---@field confirmation jjui.revisions.details.confirmation
+---@field file jjui.revisions.details.file
 ---@field absorb fun()
 ---@field cancel fun()
 ---@field diff fun()
 ---@field move_down fun()
 ---@field move_up fun()
+---@field object_next fun()
+---@field object_prev fun()
 ---@field page_down fun()
 ---@field page_up fun()
 ---@field quit fun()
@@ -308,6 +311,10 @@ function wait_refresh() end
 ---@field next fun()
 ---@field prev fun()
 ---@field close fun()
+
+---@class jjui.revisions.details.file
+---@field object_next fun()
+---@field object_prev fun()
 
 ---@class jjui.revisions.duplicate
 ---@field ace_jump fun()

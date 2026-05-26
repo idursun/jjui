@@ -8,6 +8,16 @@ import (
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
+const (
+	detailsObjectFile = "file"
+)
+
+type detailsTextObject struct {
+	common.FocusedObject
+	x     int
+	width int
+}
+
 type FileClickedMsg struct {
 	Index int
 	Ctrl  bool
@@ -24,12 +34,14 @@ func (f FileListScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 }
 
 type DetailsList struct {
-	files            []*item
-	cursor           int
-	listRenderer     *render.ListRenderer
-	selectedHint     string
-	unselectedHint   string
-	ensureCursorView bool
+	files              []*item
+	cursor             int
+	listRenderer       *render.ListRenderer
+	selectedHint       string
+	unselectedHint     string
+	ensureCursorView   bool
+	focusedObjectKind  string
+	focusedObjectIndex int
 }
 
 func NewDetailsList() *DetailsList {
@@ -50,6 +62,13 @@ func (d *DetailsList) setItems(files []*item) {
 	}
 	if d.cursor < 0 {
 		d.cursor = 0
+	}
+	if len(d.files) == 0 {
+		d.focusedObjectKind = ""
+		d.focusedObjectIndex = 0
+	} else if d.focusedObjectKind == "" {
+		d.focusedObjectKind = detailsObjectFile
+		d.focusedObjectIndex = 0
 	}
 	d.listRenderer.SetScrollOffset(0)
 	d.ensureCursorView = true
@@ -92,6 +111,71 @@ func (d *DetailsList) setCursor(index int) {
 	}
 }
 
+func (d *DetailsList) navigateFocusedObject(delta int) {
+	if delta == 0 {
+		delta = 1
+	}
+	objects := d.textObjectsForCurrentItem("", "")
+	if len(objects) == 0 {
+		d.focusedObjectKind = ""
+		d.focusedObjectIndex = 0
+		return
+	}
+	current := d.focusedTextObjectIndex(objects)
+	next := (current + delta) % len(objects)
+	if next < 0 {
+		next += len(objects)
+	}
+	d.focusedObjectKind = objects[next].Kind
+	d.focusedObjectIndex = objects[next].Index
+}
+
+func (d *DetailsList) focusedTextObjectIndex(objects []detailsTextObject) int {
+	for i := range objects {
+		if objects[i].Kind == d.focusedObjectKind && objects[i].Index == d.focusedObjectIndex {
+			return i
+		}
+	}
+	for i := range objects {
+		if objects[i].Kind == d.focusedObjectKind {
+			return i
+		}
+	}
+	return 0
+}
+
+func (d *DetailsList) currentFocusedTextObject(changeID, commitID string) *detailsTextObject {
+	objects := d.textObjectsForCurrentItem(changeID, commitID)
+	if len(objects) == 0 {
+		return nil
+	}
+	idx := d.focusedTextObjectIndex(objects)
+	return &objects[idx]
+}
+
+func (d *DetailsList) textObjectsForCurrentItem(changeID, commitID string) []detailsTextObject {
+	current := d.current()
+	if current == nil {
+		return nil
+	}
+	fileX := 3
+	return []detailsTextObject{{
+		FocusedObject: common.FocusedObject{
+			Kind:     detailsObjectFile,
+			Value:    current.fileName,
+			ChangeId: changeID,
+			CommitId: commitID,
+			Index:    0,
+		},
+		x:     fileX,
+		width: max(render.StringWidth(current.name), 1),
+	}}
+}
+
+func (d *DetailsList) hasFocusedObject() bool {
+	return d.focusedObjectKind != ""
+}
+
 func (d *DetailsList) current() *item {
 	if len(d.files) == 0 {
 		return nil
@@ -127,6 +211,11 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 		tb := dl.Text(rect.Min.X, rect.Min.Y, 0)
 		d.renderItemContent(tb, item, index, baseStyle, isSelected)
 		tb.Done()
+		if isSelected && d.hasFocusedObject() {
+			if obj := d.currentFocusedTextObject("", ""); obj != nil {
+				dl.SetCursorAt(detailsObjectCursor(), rect.Min.X+obj.x, rect.Min.Y)
+			}
+		}
 	}
 
 	clickMsg := func(index int, mouse tea.Mouse) render.ClickMessage {

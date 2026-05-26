@@ -67,6 +67,13 @@ func (s *Operation) Scopes() []common.Scope {
 			Handler: s,
 		})
 	}
+	if s.confirmation == nil && s.hasFocusedObject() {
+		ret = append(ret, common.Scope{
+			Name:    actions.ScopeDetails + ".file",
+			Leak:    common.LeakAll,
+			Handler: s,
+		})
+	}
 	ret = append(ret, common.Scope{
 		Name:    actions.ScopeDetails,
 		Leak:    common.LeakGlobal,
@@ -103,6 +110,7 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 			}
 		}
 		s.setItems(items)
+		s.updateFocusedObject()
 
 		return s.updateSelection()
 	default:
@@ -110,6 +118,7 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 		var cmds []tea.Cmd
 		cmds = append(cmds, s.internalUpdate(msg))
 		if s.cursor != oldCursor {
+			s.updateFocusedObject()
 			cmds = append(cmds, s.updateSelection())
 		}
 		return tea.Batch(cmds...)
@@ -171,6 +180,7 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	oldCursor := s.cursor
 	cmd, handled := s.handleIntentInner(intent)
 	if handled && s.cursor != oldCursor {
+		s.updateFocusedObject()
 		if selCmd := s.updateSelection(); selCmd != nil {
 			return tea.Batch(cmd, selCmd), true
 		}
@@ -210,7 +220,12 @@ func (s *Operation) handleIntentInner(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.DetailsNavigate:
 		s.navigate(intent.Delta, intent.IsPage)
 		return nil, true
+	case intents.DetailsObjectFocus:
+		s.navigateFocusedObject(intent.Delta)
+		s.updateFocusedObject()
+		return nil, true
 	case intents.DetailsClose:
+		s.context.FocusedObject = nil
 		return common.Close, true
 	case intents.Quit:
 		return common.Quit(), true
@@ -327,6 +342,21 @@ func (s *Operation) handleIntentInner(intent intents.Intent) (tea.Cmd, bool) {
 		return nil, true
 	}
 	return nil, false
+}
+
+func (s *Operation) updateFocusedObject() {
+	if !s.hasFocusedObject() || s.revision == nil {
+		s.context.FocusedObject = nil
+		return
+	}
+	obj := s.currentFocusedTextObject(s.revision.GetChangeId(), s.revision.CommitId)
+	if obj == nil {
+		s.context.FocusedObject = nil
+		return
+	}
+	s.focusedObjectKind = obj.Kind
+	s.focusedObjectIndex = obj.Index
+	s.context.FocusedObject = &obj.FocusedObject
 }
 
 func (s *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {

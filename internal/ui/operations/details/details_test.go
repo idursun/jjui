@@ -209,6 +209,58 @@ func TestModel_HandleIntent_UpdatesSelectedFileWhenCursorMoves(t *testing.T) {
 	assert.Equal(t, "newfile.txt", selected.File)
 }
 
+func TestModel_Init_FocusesCurrentFileObject(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
+	defer commandRunner.Verify()
+
+	model := NewOperation(test.NewTestContext(commandRunner), Commit)
+	test.SimulateModel(model, model.Init())
+
+	assert.NotNil(t, model.context.FocusedObject)
+	assert.Equal(t, detailsObjectFile, model.context.FocusedObject.Kind)
+	assert.Equal(t, "file.txt", model.context.FocusedObject.Value)
+	assert.Equal(t, Revision, model.context.FocusedObject.ChangeId)
+	assert.Equal(t, Revision, model.context.FocusedObject.CommitId)
+
+	scopes := model.Scopes()
+	assert.Equal(t, "revisions.details.file", string(scopes[0].Name))
+}
+
+func TestModel_HandleIntent_UpdatesFocusedFileObjectWhenCursorMoves(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
+	defer commandRunner.Verify()
+
+	model := NewOperation(test.NewTestContext(commandRunner), Commit)
+	test.SimulateModel(model, model.Init())
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsObjectFocus{Delta: 1} })
+
+	cmd, handled := model.HandleIntent(intents.DetailsNavigate{Delta: 1})
+	assert.True(t, handled)
+	test.SimulateModel(model, cmd)
+
+	assert.NotNil(t, model.context.FocusedObject)
+	assert.Equal(t, "newfile.txt", model.context.FocusedObject.Value)
+}
+
+func TestDetailsList_RenderFileListPlacesCursorOnFocusedFileObject(t *testing.T) {
+	list := NewDetailsList()
+	list.files = []*item{{status: Modified, name: "file.txt", fileName: "file.txt"}}
+	list.cursor = 0
+	list.focusedObjectKind = detailsObjectFile
+
+	dl := render.NewDisplayContext()
+	list.RenderFileList(dl, layout.NewBox(layout.Rect(10, 2, 40, 1)))
+
+	cursor := dl.Cursor()
+	assert.NotNil(t, cursor)
+	assert.Equal(t, 13, cursor.Position.X)
+	assert.Equal(t, 2, cursor.Position.Y)
+}
+
 func TestDetailsList_SelectedRowsUseStatusSpecificSelectedStyles(t *testing.T) {
 	originalPalette := common.DefaultPalette
 	palette := common.NewPalette()

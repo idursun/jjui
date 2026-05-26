@@ -27,6 +27,7 @@ const (
 	ScopeBookmark            = "revisions.bookmark"
 	ScopeDetails             = "revisions.details"
 	ScopeDetailsConfirmation = "revisions.details.confirmation"
+	ScopeDetailsFile         = "revisions.details.file"
 	ScopeDuplicate           = "revisions.duplicate"
 	ScopeEvolog              = "revisions.evolog"
 	ScopeInlineDescribe      = "revisions.inline_describe"
@@ -394,6 +395,10 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.DetailsNavigate{Delta: 1}, true
 		case keybindings.Action("revisions.details.move_up"):
 			return intents.DetailsNavigate{Delta: -1}, true
+		case keybindings.Action("revisions.details.object_next"):
+			return intents.DetailsObjectFocus{Delta: 1}, true
+		case keybindings.Action("revisions.details.object_prev"):
+			return intents.DetailsObjectFocus{Delta: -1}, true
 		case keybindings.Action("revisions.details.page_down"):
 			return intents.DetailsNavigate{Delta: 1, IsPage: true}, true
 		case keybindings.Action("revisions.details.page_up"):
@@ -429,6 +434,13 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.OptionSelect{Delta: 1}, true
 		case keybindings.Action("revisions.details.confirmation.prev"):
 			return intents.OptionSelect{Delta: -1}, true
+		}
+	case ScopeDetailsFile:
+		switch action {
+		case keybindings.Action("revisions.details.file.object_next"):
+			return intents.DetailsObjectFocus{Delta: 1}, true
+		case keybindings.Action("revisions.details.file.object_prev"):
+			return intents.DetailsObjectFocus{Delta: -1}, true
 		}
 	case ScopeDuplicate:
 		switch action {

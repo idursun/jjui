@@ -11,6 +11,16 @@ type DetailsNavigate struct {
 
 func (DetailsNavigate) isIntent() {}
 
+//jjui:bind scope=revisions.details action=object_next set=Delta:1
+//jjui:bind scope=revisions.details action=object_prev set=Delta:-1
+//jjui:bind scope=revisions.details.file action=object_next set=Delta:1
+//jjui:bind scope=revisions.details.file action=object_prev set=Delta:-1
+type DetailsObjectFocus struct {
+	Delta int
+}
+
+func (DetailsObjectFocus) isIntent() {}
+
 //jjui:bind scope=revisions.details action=cancel
 type DetailsClose struct{}
 
