@@ -62,6 +62,8 @@ var baseFunctions = []FunctionDefinition{
 	revsetFunc("descendants", "Returns the descendants of x limited to the given depth", revsetArg("x"), optionalNumberArg("depth")),
 	revsetFunc("description", "Commits that have a description matching the given string pattern", freeformArg("pattern")),
 	revsetFunc("diff_lines", "Commits containing diffs matching the given text pattern line by line", freeformArg("text"), optionalFreeformArg("files")),
+	revsetFunc("diff_lines_added", "Commits containing added diff lines matching the given text pattern", freeformArg("text"), optionalFreeformArg("files")),
+	revsetFunc("diff_lines_removed", "Commits containing removed diff lines matching the given text pattern", freeformArg("text"), optionalFreeformArg("files")),
 	revsetFunc("divergent", "Commits that are divergent"),
 	revsetFunc("empty", "Commits modifying no files"),
 	revsetFunc("exactly", "Evaluates x, and errors if it is not of exactly size count", revsetArg("x"), numberArg("count")),
