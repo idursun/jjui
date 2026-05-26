@@ -275,7 +275,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	filterBox, contentBox := contentBox.CutTop(1)
 	filterLine := "  " + m.input.View()
 	dl.AddDraw(filterBox.R, filterLine, render.ZMenuContent)
-	dl.SetCursorInRect(m.input.Cursor(), filterBox.R, render.StringWidth("  "), 0)
+	dl.SetInputCursorInRect(m.input.Cursor(), filterBox.R, render.StringWidth("  "), 0)
 
 	_, contentBox = contentBox.CutTop(1)
 

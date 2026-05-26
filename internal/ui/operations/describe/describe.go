@@ -142,7 +142,7 @@ func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	rect := layout.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), input.Height())
 	dl.AddDraw(rect, input.View(), 0)
-	dl.SetCursorInRect(input.Cursor(), rect, 0, 0)
+	dl.SetInputCursorInRect(input.Cursor(), rect, 0, 0)
 }
 
 func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation {

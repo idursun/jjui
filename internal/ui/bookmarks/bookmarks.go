@@ -500,7 +500,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.filterInput.SetStyles(fis)
 		m.filterInput.SetWidth(max(contentBox.R.Dx()-2, 0))
 		dl.AddDraw(filterBox.R, m.filterInput.View(), render.ZMenuContent)
-		dl.SetCursorInRect(m.filterInput.Cursor(), filterBox.R, 0, 0)
+		dl.SetInputCursorInRect(m.filterInput.Cursor(), filterBox.R, 0, 0)
 	} else {
 		m.renderFilterView(dl, filterBox)
 	}

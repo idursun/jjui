@@ -216,7 +216,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.input.SetStyles(tis)
 
 	dl.AddDraw(inputBox.R, m.input.View(), render.ZMenuContent)
-	dl.SetCursorInRect(m.input.Cursor(), inputBox.R, 0, 0)
+	dl.SetInputCursorInRect(m.input.Cursor(), inputBox.R, 0, 0)
 
 	m.listRenderer.Render(
 		dl,

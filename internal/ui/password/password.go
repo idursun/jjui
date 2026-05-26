@@ -88,5 +88,5 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	dl.AddFill(box.R, ' ', surfaceStyle, render.ZPassword)
 	dl.AddDraw(box.R, v, render.ZPassword)
 	dl.AddPaint(box.R, surfaceStyle, render.ZPassword)
-	dl.SetCursorInRect(m.textInput.Cursor(), box.R, 2, 2)
+	dl.SetInputCursorInRect(m.textInput.Cursor(), box.R, 2, 2)
 }

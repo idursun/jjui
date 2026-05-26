@@ -89,7 +89,7 @@ func (s *SetBookmarkOperation) ViewRect(dl *render.DisplayContext, box layout.Bo
 	w, h := lipgloss.Size(content)
 	rect := layout.Rect(box.R.Min.X, box.R.Min.Y, w, h)
 	dl.AddDraw(rect, content, 0)
-	dl.SetCursorInRect(s.name.Cursor(), rect, 0, 0)
+	dl.SetInputCursorInRect(s.name.Cursor(), rect, 0, 0)
 }
 
 func (s *SetBookmarkOperation) IsFocused() bool {

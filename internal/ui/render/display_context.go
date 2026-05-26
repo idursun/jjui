@@ -17,6 +17,7 @@ type DisplayContext struct {
 	effects      []effectOp
 	interactions []interactionOp
 	cursor       *tea.Cursor
+	cursorPrio   int
 	orderCounter int
 }
 
@@ -124,12 +125,21 @@ func (dl *DisplayContext) AddInteractionFn(rect layout.Rectangle, fn func(tea.Mo
 
 // SetCursor sets the real terminal cursor for the current frame.
 func (dl *DisplayContext) SetCursor(cursor *tea.Cursor) {
+	dl.setCursor(cursor, 0)
+}
+
+func (dl *DisplayContext) setCursor(cursor *tea.Cursor, priority int) {
 	if cursor == nil {
 		dl.cursor = nil
+		dl.cursorPrio = 0
+		return
+	}
+	if dl.cursor != nil && priority < dl.cursorPrio {
 		return
 	}
 	cursorCopy := *cursor
 	dl.cursor = &cursorCopy
+	dl.cursorPrio = priority
 }
 
 // SetCursorAt sets the frame cursor after offsetting it to an absolute position.
@@ -140,12 +150,25 @@ func (dl *DisplayContext) SetCursorAt(cursor *tea.Cursor, x, y int) {
 	cursorCopy := *cursor
 	cursorCopy.Position.X += x
 	cursorCopy.Position.Y += y
-	dl.cursor = &cursorCopy
+	dl.setCursor(&cursorCopy, 0)
 }
 
 // SetCursorInRect sets the frame cursor relative to a rectangle origin plus any local offsets.
 func (dl *DisplayContext) SetCursorInRect(cursor *tea.Cursor, rect layout.Rectangle, dx, dy int) {
 	dl.SetCursorAt(cursor, rect.Min.X+dx, rect.Min.Y+dy)
+}
+
+// SetInputCursorInRect sets the frame cursor for an active text editor.
+// Input cursors take precedence over passive navigation cursors that may be
+// rendered later in the frame.
+func (dl *DisplayContext) SetInputCursorInRect(cursor *tea.Cursor, rect layout.Rectangle, dx, dy int) {
+	if cursor == nil {
+		return
+	}
+	cursorCopy := *cursor
+	cursorCopy.Position.X += rect.Min.X + dx
+	cursorCopy.Position.Y += rect.Min.Y + dy
+	dl.setCursor(&cursorCopy, 100)
 }
 
 // Cursor returns the real terminal cursor for the current frame.

@@ -327,7 +327,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		inputBox, listBox = listBox.CutTop(1)
 		dl.AddDraw(inputBox.R, inputStyle.Render(m.input.View()), render.ZMenuContent)
 		dl.AddPaint(inputBox.R, inputStyle, render.ZMenuContent)
-		dl.SetCursorInRect(m.input.Cursor(), inputBox.R, 0, 0)
+		dl.SetInputCursorInRect(m.input.Cursor(), inputBox.R, 0, 0)
 	}
 
 	if listBox.R.Dx() <= 0 || listBox.R.Dy() <= 0 {

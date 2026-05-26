@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -22,6 +23,21 @@ func TestDisplayContext_AddDraw(t *testing.T) {
 
 	if dl.draws[0].Content != "test" {
 		t.Errorf("AddDraw: expected content 'test', got '%s'", dl.draws[0].Content)
+	}
+}
+
+func TestDisplayContext_InputCursorWinsOverLaterNavigationCursor(t *testing.T) {
+	dl := NewDisplayContext()
+	inputCursor := tea.NewCursor(0, 0)
+	navCursor := tea.NewCursor(0, 0)
+
+	dl.SetInputCursorInRect(inputCursor, layout.Rect(10, 1, 20, 1), 2, 0)
+	dl.SetCursorAt(navCursor, 3, 4)
+
+	cursor := dl.Cursor()
+	if assert.NotNil(t, cursor) {
+		assert.Equal(t, 12, cursor.Position.X)
+		assert.Equal(t, 1, cursor.Position.Y)
 	}
 }
 

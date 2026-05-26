@@ -130,7 +130,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if m.title != "" {
 		cursorY++
 	}
-	dl.SetCursorInRect(m.input.Cursor(), box.R, 2, cursorY)
+	dl.SetInputCursorInRect(m.input.Cursor(), box.R, 2, cursorY)
 }
 
 func newCmd(msg tea.Msg) tea.Cmd {

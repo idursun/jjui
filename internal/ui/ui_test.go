@@ -129,6 +129,36 @@ func TestWrapperView_ReplacesInlineDescribeCursorWhenInlineDescribeCloses(t *tes
 	assert.NotEqual(t, inlineCursor, view.Cursor.Position)
 }
 
+func TestWrapperView_RevsetEditorCursorWinsOverRevisionObjectCursor(t *testing.T) {
+	origLogBatching := config.Current.Revisions.LogBatching
+	defer func() {
+		config.Current.Revisions.LogBatching = origLogBatching
+	}()
+	config.Current.Revisions.LogBatching = false
+
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	commandRunner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log)).SetOutput([]byte(testLogOutput))
+	commandRunner.Expect(jj.BookmarkListAll())
+	commandRunner.Expect(jj.TagList())
+	defer commandRunner.Verify()
+
+	model := NewUI(ctx)
+	model.width = 100
+	model.height = 20
+	test.SimulateModel(model, model.revisions.Update(common.RefreshMsg{SelectedRevision: "abc123"}))
+	cmd, handled := model.revsetModel.HandleIntent(intents.Edit{Clear: true})
+	require.True(t, handled)
+	test.SimulateModel(model.revsetModel, cmd)
+
+	w := &wrapper{ui: model, render: true}
+	view := w.View()
+
+	require.NotNil(t, view.Cursor)
+	assert.Equal(t, 0, view.Cursor.Position.Y)
+	assert.Equal(t, render.StringWidth("revset: "), view.Cursor.Position.X)
+}
+
 func TestWrapperUpdate_ExecMsgRefreshesCachedCursorBeforeExec(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)

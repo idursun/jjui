@@ -241,7 +241,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	dl.AddDraw(box.R, statusLine, 0)
 	if m.IsFocused() {
-		dl.SetCursorInRect(m.input.Cursor(), box.R, modeWidth+1, 0)
+		dl.SetInputCursorInRect(m.input.Cursor(), box.R, modeWidth+1, 0)
 	}
 	m.renderExpandedStatus(dl, box, width, textStyle, titleStyle, shortcutStyle, dimmedStyle)
 	m.renderFuzzyOverlay(dl, box)
