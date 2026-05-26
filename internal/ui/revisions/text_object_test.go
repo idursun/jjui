@@ -55,6 +55,24 @@ func TestTextObjectsForRowIncludesPlaceholderBookmark(t *testing.T) {
 	assert.Equal(t, textObjectDescription, objects[4].Kind)
 }
 
+func TestTextObjectsForRowRecognizesBookmarkStartingWithChangeID(t *testing.T) {
+	row := textObjectTestRow()
+	row.Commit.ChangeId = "exp"
+	row.Lines[0].Segments = []*screen.Segment{
+		{Text: "exp", Style: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("5"))},
+		{Text: " exp/text-objects ", Style: lipgloss.NewStyle().Foreground(lipgloss.Color("5"))},
+		{Text: "def", Style: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("4"))},
+	}
+
+	objects := textObjectsForRow(row)
+
+	require.Len(t, objects, 3)
+	assert.Equal(t, textObjectGraph, objects[0].Kind)
+	assert.Equal(t, textObjectBookmark, objects[1].Kind)
+	assert.Equal(t, "exp/text-objects", objects[1].Value)
+	assert.Equal(t, textObjectDescription, objects[2].Kind)
+}
+
 func TestTextObjectsForCurrentRowRecognizesBrightMetadata(t *testing.T) {
 	row := textObjectTestRow()
 	row.Lines[0].Segments = []*screen.Segment{

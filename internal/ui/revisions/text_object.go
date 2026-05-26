@@ -189,9 +189,9 @@ func lineText(line *parser.GraphRowLine) (string, int) {
 }
 
 func isCommitIdentifier(row parser.Row, text string) bool {
-	return strings.HasPrefix(text, row.Commit.ChangeId) ||
-		strings.HasPrefix(text, row.Commit.GetChangeId()) ||
-		strings.HasPrefix(text, row.Commit.CommitId)
+	return text == row.Commit.ChangeId ||
+		text == row.Commit.GetChangeId() ||
+		text == row.Commit.CommitId
 }
 
 func isDimmed(style lipgloss.Style) bool {
