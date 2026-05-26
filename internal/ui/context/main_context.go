@@ -23,7 +23,8 @@ type SelectedOperation = common.SelectedOperation
 
 type MainContext struct {
 	CommandRunner
-	SelectedItem              SelectedItem   // Single item where cursor is hover.
+	SelectedItem              SelectedItem // Single item where cursor is hover.
+	FocusedObject             *common.FocusedObject
 	CheckedItems              []SelectedItem // Items checked ✓ by the user.
 	Location                  string
 	JJConfig                  *config.JJConfig

@@ -35,3 +35,18 @@ func TestSetBookmarkModel_Prefill(t *testing.T) {
 	test.SimulateModel(op, test.Type("feature"))
 	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
 }
+
+func TestRenameBookmarkOperation_Prefill(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkRename("old-name", "new-name"))
+	defer commandRunner.Verify()
+
+	op := NewRenameBookmarkOperation(test.NewTestContext(commandRunner), "revision", "old-name")
+	test.SimulateModel(op, op.Init())
+	if got := op.name.Value(); got != "old-name" {
+		t.Fatalf("expected prefilled value %q, got %q", "old-name", got)
+	}
+	op.name.SetValue("")
+	test.SimulateModel(op, test.Type("new-name"))
+	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
+}

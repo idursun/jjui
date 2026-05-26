@@ -50,3 +50,11 @@ func (s SelectedCommit) Equal(other SelectedItem) bool {
 	}
 	return false
 }
+
+type FocusedObject struct {
+	Kind     string
+	Value    string
+	ChangeId string
+	CommitId string
+	Index    int
+}

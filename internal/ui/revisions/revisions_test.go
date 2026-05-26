@@ -4,16 +4,20 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common"
+	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	bookmarkops "github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestModel_highlightChanges(t *testing.T) {
@@ -314,6 +318,143 @@ func TestModel_OperationIntents(t *testing.T) {
 			assert.Contains(t, rendered, tc.expected)
 		})
 	}
+}
+
+func TestModel_BookmarkCreateStartsInlineSetBookmarkOnPlaceholder(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListMovable("a"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := New(ctx)
+	model.updateGraphRows(rows, "a")
+	model.focusedObjectKind = textObjectBookmark
+
+	test.SimulateModel(model, model.Update(intents.BookmarkCreate{}))
+
+	_, ok := model.CurrentOperation().(*bookmarkops.SetBookmarkOperation)
+	require.True(t, ok)
+}
+
+func TestModel_BookmarkCreateStartsInlineSetBookmarkOnExistingBookmark(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListMovable("abc"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := New(ctx)
+	model.rows = []parser.Row{textObjectTestRow()}
+	model.focusedObjectKind = textObjectBookmark
+	model.focusedObjectIndex = 1
+
+	test.SimulateModel(model, model.Update(intents.BookmarkCreate{}))
+
+	_, ok := model.CurrentOperation().(*bookmarkops.SetBookmarkOperation)
+	require.True(t, ok)
+}
+
+func TestModel_BookmarkRenameStartsInlineRenameForLocalBookmark(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("feature;.;false;false;false;def\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := modelFocusedOnBookmark(ctx, "feature")
+
+	test.SimulateModel(model, model.Update(intents.BookmarkRename{}))
+
+	_, ok := model.CurrentOperation().(*bookmarkops.RenameBookmarkOperation)
+	require.True(t, ok)
+}
+
+func TestModel_BookmarkDeleteRunsCommandForLocalBookmark(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("feature;.;false;false;false;def\n"))
+	commandRunner.Expect(jj.BookmarkDelete("feature"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := modelFocusedOnBookmark(ctx, "feature")
+
+	runFirstBatchCommand(t, model.Update(intents.BookmarkDelete{}))
+}
+
+func TestModel_BookmarkTrackRunsCommandForUntrackedRemoteBookmark(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("feature;origin;false;false;false;def\n"))
+	commandRunner.Expect(jj.BookmarkTrack("feature", "origin"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := modelFocusedOnBookmark(ctx, "feature@origin")
+
+	runFirstBatchCommand(t, model.Update(intents.BookmarkTrack{}))
+}
+
+func TestModel_BookmarkUntrackRunsCommandForTrackedRemoteBookmark(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("feature;origin;true;false;false;def\n"))
+	commandRunner.Expect(jj.BookmarkUntrack("feature", "origin"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := modelFocusedOnBookmark(ctx, "feature@origin")
+
+	runFirstBatchCommand(t, model.Update(intents.BookmarkUntrack{}))
+}
+
+func TestModel_BookmarkTrackMatchesRemoteDisplayNamesWithAtSigns(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("feat@team;origin@backup;false;false;false;def\n"))
+	commandRunner.Expect(jj.BookmarkTrack("feat@team", "origin@backup"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := modelFocusedOnBookmark(ctx, "feat@team@origin@backup")
+
+	runFirstBatchCommand(t, model.Update(intents.BookmarkTrack{}))
+}
+
+func TestModel_InvalidBookmarkActionFlashesWithoutCommand(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("feature;origin;true;false;false;def\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := modelFocusedOnBookmark(ctx, "feature@origin")
+
+	var gotFlash bool
+	test.SimulateModel(model, model.Update(intents.BookmarkRename{}), func(msg tea.Msg) {
+		if flash, ok := msg.(intents.AddMessage); ok {
+			gotFlash = flash.Text != ""
+		}
+	})
+
+	assert.True(t, gotFlash)
+}
+
+func modelFocusedOnBookmark(ctx *appContext.MainContext, value string) *Model {
+	model := New(ctx)
+	row := textObjectTestRow()
+	row.Lines[0].Segments = []*screen.Segment{
+		{Text: "abc", Style: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("5"))},
+		{Text: " " + value + " ", Style: lipgloss.NewStyle().Foreground(lipgloss.Color("5"))},
+		{Text: "def", Style: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("4"))},
+	}
+	model.rows = []parser.Row{row}
+	model.focusedObjectKind = textObjectBookmark
+	return model
+}
+
+func runFirstBatchCommand(t *testing.T, cmd tea.Cmd) {
+	t.Helper()
+	require.NotNil(t, cmd)
+	msg := cmd()
+	batch, ok := msg.(tea.BatchMsg)
+	require.True(t, ok, "expected a batch command, got %T", msg)
+	require.NotEmpty(t, batch)
+	require.NotNil(t, batch[0])
+	batch[0]()
 }
 
 func TestModel_ForwardsOperationIntentToFocusedOperation(t *testing.T) {

@@ -46,3 +46,18 @@ lua = """
  jjui.builtin.revisions.toggle_select()
  jjui.builtin.revisions.jump_to_parent()
  """
+
+[[actions]]
+name = "revisions.object_bookmark_reachable"
+desc = "reachable from focused bookmark"
+scope = "revisions.bookmark"
+key = "t"
+lua = """
+local obj = context.object()
+if obj == nil or obj.kind ~= "bookmark" then
+  flash("Focus a bookmark first")
+  return
+end
+
+revset.set("reachable(" .. obj.value .. ", trunk()..)")
+"""

@@ -76,6 +76,39 @@ type RevisionsToggleSelect struct{}
 
 func (RevisionsToggleSelect) isIntent() {}
 
+//jjui:bind scope=revisions action=object_next set=Delta:1
+//jjui:bind scope=revisions action=object_prev set=Delta:-1
+type RevisionsObjectFocus struct {
+	Delta int
+}
+
+func (RevisionsObjectFocus) isIntent() {}
+
+//jjui:bind scope=revisions.bookmark action=create
+type BookmarkCreate struct{}
+
+func (BookmarkCreate) isIntent() {}
+
+//jjui:bind scope=revisions.bookmark action=rename
+type BookmarkRename struct{}
+
+func (BookmarkRename) isIntent() {}
+
+//jjui:bind scope=revisions.bookmark action=delete
+type BookmarkDelete struct{}
+
+func (BookmarkDelete) isIntent() {}
+
+//jjui:bind scope=revisions.bookmark action=track
+type BookmarkTrack struct{}
+
+func (BookmarkTrack) isIntent() {}
+
+//jjui:bind scope=revisions.bookmark action=untrack
+type BookmarkUntrack struct{}
+
+func (BookmarkUntrack) isIntent() {}
+
 //jjui:bind scope=revisions.quick_search action=clear
 type RevisionsQuickSearchClear struct{}
 

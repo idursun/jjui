@@ -24,6 +24,7 @@ const (
 	ScopeAbandon             = "revisions.abandon"
 	ScopeAbsorb              = "revisions.absorb"
 	ScopeAceJump             = "revisions.ace_jump"
+	ScopeBookmark            = "revisions.bookmark"
 	ScopeDetails             = "revisions.details"
 	ScopeDetailsConfirmation = "revisions.details.confirmation"
 	ScopeDuplicate           = "revisions.duplicate"
@@ -290,6 +291,10 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Navigate{Delta: -1}, true
 		case keybindings.Action("revisions.new"):
 			return intents.StartNew{}, true
+		case keybindings.Action("revisions.object_next"):
+			return intents.RevisionsObjectFocus{Delta: 1}, true
+		case keybindings.Action("revisions.object_prev"):
+			return intents.RevisionsObjectFocus{Delta: -1}, true
 		case keybindings.Action("revisions.open_abandon"):
 			return intents.OpenAbandon{}, true
 		case keybindings.Action("revisions.open_absorb"):
@@ -361,6 +366,19 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Apply{}, true
 		case keybindings.Action("revisions.ace_jump.cancel"):
 			return intents.Cancel{}, true
+		}
+	case ScopeBookmark:
+		switch action {
+		case keybindings.Action("revisions.bookmark.create"):
+			return intents.BookmarkCreate{}, true
+		case keybindings.Action("revisions.bookmark.delete"):
+			return intents.BookmarkDelete{}, true
+		case keybindings.Action("revisions.bookmark.rename"):
+			return intents.BookmarkRename{}, true
+		case keybindings.Action("revisions.bookmark.track"):
+			return intents.BookmarkTrack{}, true
+		case keybindings.Action("revisions.bookmark.untrack"):
+			return intents.BookmarkUntrack{}, true
 		}
 	case ScopeDetails:
 		switch action {

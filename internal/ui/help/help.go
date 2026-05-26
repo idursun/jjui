@@ -24,6 +24,10 @@ var scopeDisplayNames = map[string]string{
 	"ui":                             "Global",
 	"ui.preview":                     "Preview",
 	"revisions":                      "Revisions",
+	"revisions.author":               "Revision Author",
+	"revisions.date":                 "Revision Date",
+	"revisions.bookmark":             "Revision Bookmark",
+	"revisions.description":          "Revision Description",
 	"revisions.rebase":               "Rebase",
 	"revisions.squash":               "Squash",
 	"revisions.revert":               "Revert",
@@ -61,6 +65,10 @@ var scopeDisplayNames = map[string]string{
 // scopeOrder defines the display order of scopes in the help view.
 var scopeOrder = []string{
 	"revisions",
+	"revisions.author",
+	"revisions.date",
+	"revisions.bookmark",
+	"revisions.description",
 	"revisions.rebase",
 	"revisions.squash",
 	"revisions.revert",

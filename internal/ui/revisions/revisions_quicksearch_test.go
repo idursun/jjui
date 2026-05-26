@@ -15,6 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type fakeOperation struct {
+	operations.Default
+}
+
 var searchableRows = []parser.Row{
 	{
 		Commit: &jj.Commit{ChangeId: "first", CommitId: "111"},
@@ -96,4 +100,28 @@ func TestScopes_ExposeQuickSearchScopeWhenSearchActive(t *testing.T) {
 	scopes := model.Scopes()
 	assert.NotEmpty(t, scopes)
 	assert.Equal(t, bindings.ScopeName("revisions.quick_search"), scopes[0].Name)
+}
+
+func TestScopes_ExposeFocusedObjectScopeInNormalMode(t *testing.T) {
+	model := &Model{
+		focusedObjectKind: textObjectBookmark,
+		baseOp:            operations.NewDefault(),
+	}
+
+	scopes := model.Scopes()
+
+	assert.Len(t, scopes, 1)
+	assert.Equal(t, bindings.ScopeName("revisions.bookmark"), scopes[0].Name)
+}
+
+func TestScopes_DoNotExposeFocusedObjectScopeOutsideNormalMode(t *testing.T) {
+	model := &Model{
+		focusedObjectKind: textObjectBookmark,
+		baseOp:            &fakeOperation{},
+	}
+
+	scopes := model.Scopes()
+
+	assert.Len(t, scopes, 1)
+	assert.Empty(t, scopes[0].Name)
 }

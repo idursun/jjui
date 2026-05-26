@@ -1094,6 +1094,7 @@ const luaHandWrittenClasses = `---@class jjui.revisions
 ---@field default fun(): string Get default revset string
 
 ---@class jjui.context
+---@field object fun(): {kind: string, value: string, change_id: string, commit_id: string, index: integer}? Get focused revision text object
 ---@field change_id fun(): string? Get selected item's change ID
 ---@field commit_id fun(): string? Get selected item's commit ID
 ---@field file fun(): string? Get selected file path

@@ -95,7 +95,7 @@ func TestWrapperView_ForwardsCursorFromRenderedFrame(t *testing.T) {
 	assert.Equal(t, model.frameCursor.Position, view.Cursor.Position)
 }
 
-func TestWrapperView_ClearsCursorWhenInlineDescribeCloses(t *testing.T) {
+func TestWrapperView_ReplacesInlineDescribeCursorWhenInlineDescribeCloses(t *testing.T) {
 	origLogBatching := config.Current.Revisions.LogBatching
 	defer func() {
 		config.Current.Revisions.LogBatching = origLogBatching
@@ -120,11 +120,13 @@ func TestWrapperView_ClearsCursorWhenInlineDescribeCloses(t *testing.T) {
 	w := &wrapper{ui: model, render: true}
 	view := w.View()
 	require.NotNil(t, view.Cursor)
+	inlineCursor := view.Cursor.Position
 
 	model.Update(common.CloseViewMsg{})
 	w.render = true
 	view = w.View()
-	assert.Nil(t, view.Cursor)
+	require.NotNil(t, view.Cursor)
+	assert.NotEqual(t, inlineCursor, view.Cursor.Position)
 }
 
 func TestWrapperUpdate_ExecMsgRefreshesCachedCursorBeforeExec(t *testing.T) {

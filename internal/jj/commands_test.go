@@ -16,3 +16,7 @@ func TestBookmarkPatternCommandsUseExactStringPatterns(t *testing.T) {
 	assert.Equal(t, CommandArgs{"bookmark", "track", `exact:"1.3.63-+-json-length-\"fix\"\\branch"`, "--remote", `exact:"origin+backup"`}, BookmarkTrack(name, remote))
 	assert.Equal(t, CommandArgs{"bookmark", "untrack", `exact:"1.3.63-+-json-length-\"fix\"\\branch"`, "--remote", `exact:"origin+backup"`}, BookmarkUntrack(name, remote))
 }
+
+func TestBookmarkRenameUsesLiteralOldName(t *testing.T) {
+	assert.Equal(t, CommandArgs{"bookmark", "rename", "test", "test2"}, BookmarkRename("test", "test2"))
+}

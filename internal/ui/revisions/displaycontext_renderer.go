@@ -108,6 +108,7 @@ func (r *DisplayContextRenderer) Render(
 	isOverlay bool,
 	quickSearch string,
 	ensureCursorVisible bool,
+	focusedObject *revisionTextObject,
 ) {
 	if len(items) == 0 {
 		return
@@ -126,7 +127,7 @@ func (r *DisplayContextRenderer) Render(
 		isSelected := index == cursor
 
 		// Render the item content
-		r.renderItemToDisplayContext(dl, item, rect, isSelected, operation, segmentRenderer, quickSearch)
+		r.renderItemToDisplayContext(dl, item, rect, isSelected, operation, segmentRenderer, quickSearch, focusedObject)
 
 		// Add highlights for selected item (only for Highlightable lines)
 		if isSelected {
@@ -251,6 +252,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 	operation operations.Operation,
 	segmentRenderer operations.SegmentRenderer,
 	quickSearch string,
+	focusedObject *revisionTextObject,
 ) {
 	y := rect.Min.Y
 
@@ -402,6 +404,9 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		tb := dl.Text(lineRect.Min.X, lineRect.Min.Y, 0)
 		ir.renderLine(tb, line, lineRect.Min.X, lineRect.Min.Y)
 		tb.Done()
+		if isSelected && focusedObject != nil && focusedObject.line == i {
+			dl.SetCursorAt(textObjectCursor(), lineRect.Min.X+focusedObject.x, lineRect.Min.Y)
+		}
 		y++
 	}
 

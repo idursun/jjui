@@ -53,7 +53,7 @@ func TestDisplayContextRenderer_DetailsRendersBeforeElidedMarker(t *testing.T) {
 	width, height := 100, 15
 	dl := render.NewDisplayContext()
 	viewRect := layout.NewBox(layout.Rect(0, 0, width, height))
-	r.Render(dl, []parser.Row{targetRow}, 0, viewRect, op, nil, false, "", true)
+	r.Render(dl, []parser.Row{targetRow}, 0, viewRect, op, nil, false, "", true, nil)
 
 	screen := uv.NewScreenBuffer(width, height)
 	dl.Render(screen)
@@ -103,7 +103,7 @@ func TestDisplayContextRenderer_SingleRowDescriptionOverlay(t *testing.T) {
 	width, height := 70, 10
 	dl := render.NewDisplayContext()
 	viewRect := layout.NewBox(layout.Rect(0, 0, width, height))
-	r.Render(dl, []parser.Row{targetRow}, 0, viewRect, op, nil, false, "", true)
+	r.Render(dl, []parser.Row{targetRow}, 0, viewRect, op, nil, false, "", true, nil)
 
 	buf := uv.NewScreenBuffer(width, height)
 	dl.Render(buf)
@@ -132,7 +132,7 @@ func TestDisplayContextRenderer_SetBookmarkRegistersInlineCursor(t *testing.T) {
 	r := NewDisplayContextRenderer()
 	dl := render.NewDisplayContext()
 	viewRect := layout.NewBox(layout.Rect(5, 3, 60, 5))
-	r.Render(dl, []parser.Row{row}, 0, viewRect, op, nil, false, "", true)
+	r.Render(dl, []parser.Row{row}, 0, viewRect, op, nil, false, "", true, nil)
 
 	cursor := dl.Cursor()
 	require.NotNil(t, cursor)

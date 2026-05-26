@@ -70,6 +70,8 @@ type Model struct {
 	displayContextRenderer *DisplayContextRenderer
 	ensureCursorView       bool
 	requestInFlight        bool
+	focusedObjectKind      string
+	focusedObjectIndex     int
 }
 
 type revisionsMsg struct {
@@ -295,6 +297,8 @@ func (m *Model) Scopes() []common.Scope {
 	var scope bindings.ScopeName = actions.ScopeRevisions
 	if !m.InNormalMode() {
 		scope = ""
+	} else if objectScope := m.focusedObjectScope(); objectScope != "" {
+		scope = objectScope
 	}
 
 	ret = append(ret, common.Scope{
@@ -303,6 +307,21 @@ func (m *Model) Scopes() []common.Scope {
 		Handler: m,
 	})
 	return ret
+}
+
+func (m *Model) focusedObjectScope() bindings.ScopeName {
+	switch m.focusedObjectKind {
+	case textObjectAuthor:
+		return bindings.ScopeName(actions.ScopeRevisions + ".author")
+	case textObjectDate:
+		return bindings.ScopeName(actions.ScopeRevisions + ".date")
+	case textObjectBookmark:
+		return bindings.ScopeName(actions.ScopeRevisions + ".bookmark")
+	case textObjectDescription:
+		return bindings.ScopeName(actions.ScopeRevisions + ".description")
+	default:
+		return ""
+	}
 }
 
 func (m *Model) SelectedRevision() *jj.Commit {
@@ -652,6 +671,16 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.startSetParents(intent), true
 	case intents.OpenSetBookmark:
 		return m.startBookmarkSet(intent), true
+	case intents.BookmarkCreate:
+		return m.startBookmarkCreate(), true
+	case intents.BookmarkRename:
+		return m.startBookmarkRename(), true
+	case intents.BookmarkDelete:
+		return m.deleteFocusedBookmark(), true
+	case intents.BookmarkTrack:
+		return m.trackFocusedBookmark(), true
+	case intents.BookmarkUntrack:
+		return m.untrackFocusedBookmark(), true
 	case intents.RevisionsToggleSelect:
 		commit := m.SelectedRevision()
 		if commit == nil {
@@ -663,6 +692,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return nil, true
 	case intents.Navigate:
 		return m.navigate(intent), true
+	case intents.RevisionsObjectFocus:
+		return m.navigateFocusedObject(intent.Delta), true
 	case intents.Describe:
 		return m.startDescribe(intent), true
 	case intents.OpenEvolog:
@@ -695,6 +726,95 @@ func (m *Model) startBookmarkSet(intent intents.OpenSetBookmark) tea.Cmd {
 		return nil
 	}
 	return m.setBaseOperation(bookmark.NewSetBookmarkOperation(m.context, rev.GetChangeId(), intent.Value))
+}
+
+func (m *Model) startBookmarkCreate() tea.Cmd {
+	rev := m.SelectedRevision()
+	if rev == nil {
+		return nil
+	}
+	return m.setBaseOperation(bookmark.NewSetBookmarkOperation(m.context, rev.GetChangeId(), ""))
+}
+
+func (m *Model) startBookmarkRename() tea.Cmd {
+	obj := m.focusedBookmarkObject()
+	if obj == nil || obj.Value == "" {
+		return flashMessage("Focus a local bookmark to rename")
+	}
+	bookmarkInfo, remote, ok := m.resolveFocusedBookmark(obj.Value)
+	if !ok || bookmarkInfo.Local == nil || remote != nil {
+		return flashMessage("Focus a local bookmark to rename")
+	}
+	return m.setBaseOperation(bookmark.NewRenameBookmarkOperation(m.context, obj.ChangeId, bookmarkInfo.Name))
+}
+
+func (m *Model) deleteFocusedBookmark() tea.Cmd {
+	obj := m.focusedBookmarkObject()
+	if obj == nil || obj.Value == "" {
+		return flashMessage("Focus a local bookmark to delete")
+	}
+	bookmarkInfo, remote, ok := m.resolveFocusedBookmark(obj.Value)
+	if !ok || bookmarkInfo.Local == nil || remote != nil {
+		return flashMessage("Focus a local bookmark to delete")
+	}
+	return m.context.RunCommand(jj.BookmarkDelete(bookmarkInfo.Name), common.Refresh)
+}
+
+func (m *Model) trackFocusedBookmark() tea.Cmd {
+	obj := m.focusedBookmarkObject()
+	if obj == nil || obj.Value == "" {
+		return flashMessage("Focus an untracked remote bookmark to track")
+	}
+	bookmarkInfo, remote, ok := m.resolveFocusedBookmark(obj.Value)
+	if !ok || remote == nil || remote.Tracked {
+		return flashMessage("Focus an untracked remote bookmark to track")
+	}
+	return m.context.RunCommand(jj.BookmarkTrack(bookmarkInfo.Name, remote.Remote), common.Refresh)
+}
+
+func (m *Model) untrackFocusedBookmark() tea.Cmd {
+	obj := m.focusedBookmarkObject()
+	if obj == nil || obj.Value == "" {
+		return flashMessage("Focus a tracked remote bookmark to untrack")
+	}
+	bookmarkInfo, remote, ok := m.resolveFocusedBookmark(obj.Value)
+	if !ok || remote == nil || !remote.Tracked {
+		return flashMessage("Focus a tracked remote bookmark to untrack")
+	}
+	return m.context.RunCommand(jj.BookmarkUntrack(bookmarkInfo.Name, remote.Remote), common.Refresh)
+}
+
+func (m *Model) focusedBookmarkObject() *common.FocusedObject {
+	obj := m.currentFocusedTextObject()
+	if obj == nil || obj.Kind != textObjectBookmark {
+		return nil
+	}
+	return &obj.FocusedObject
+}
+
+func (m *Model) resolveFocusedBookmark(displayName string) (jj.Bookmark, *jj.BookmarkRemote, bool) {
+	output, err := m.context.RunCommandImmediate(jj.BookmarkListAll())
+	if err != nil {
+		return jj.Bookmark{}, nil, false
+	}
+	bookmarks := jj.ParseBookmarkListOutput(string(output))
+	for i := range bookmarks {
+		b := bookmarks[i]
+		if b.Local != nil && b.Name == displayName {
+			return b, nil, true
+		}
+		for remoteIndex := range b.Remotes {
+			remote := &b.Remotes[remoteIndex]
+			if b.Name+"@"+remote.Remote == displayName {
+				return b, remote, true
+			}
+		}
+	}
+	return jj.Bookmark{}, nil, false
+}
+
+func flashMessage(text string) tea.Cmd {
+	return intents.Invoke(intents.AddMessage{Text: text})
 }
 
 func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
@@ -1033,12 +1153,77 @@ func (m *Model) updateSelection() tea.Cmd {
 		return nil
 	}
 	if selectedRevision := m.SelectedRevision(); selectedRevision != nil {
+		m.updateFocusedObject()
 		return m.context.SetSelectedItem(appContext.SelectedRevision{
 			ChangeId: selectedRevision.GetChangeId(),
 			CommitId: selectedRevision.CommitId,
 		})
 	}
+	m.context.FocusedObject = nil
 	return nil
+}
+
+func (m *Model) navigateFocusedObject(delta int) tea.Cmd {
+	if delta == 0 {
+		delta = 1
+	}
+	objects := m.textObjectsForSelectedRow()
+	if len(objects) == 0 {
+		m.context.FocusedObject = nil
+		return nil
+	}
+
+	current := m.focusedTextObjectIndex(objects)
+	next := (current + delta) % len(objects)
+	if next < 0 {
+		next += len(objects)
+	}
+
+	m.focusedObjectKind = objects[next].Kind
+	m.focusedObjectIndex = objects[next].Index
+	m.context.FocusedObject = &objects[next].FocusedObject
+	return nil
+}
+
+func (m *Model) updateFocusedObject() {
+	obj := m.currentFocusedTextObject()
+	if obj == nil {
+		m.context.FocusedObject = nil
+		return
+	}
+	m.focusedObjectKind = obj.Kind
+	m.focusedObjectIndex = obj.Index
+	m.context.FocusedObject = &obj.FocusedObject
+}
+
+func (m *Model) currentFocusedTextObject() *revisionTextObject {
+	objects := m.textObjectsForSelectedRow()
+	if len(objects) == 0 {
+		return nil
+	}
+	idx := m.focusedTextObjectIndex(objects)
+	return &objects[idx]
+}
+
+func (m *Model) focusedTextObjectIndex(objects []revisionTextObject) int {
+	for i := range objects {
+		if objects[i].Kind == m.focusedObjectKind && objects[i].Index == m.focusedObjectIndex {
+			return i
+		}
+	}
+	for i := range objects {
+		if objects[i].Kind == m.focusedObjectKind {
+			return i
+		}
+	}
+	return 0
+}
+
+func (m *Model) textObjectsForSelectedRow() []revisionTextObject {
+	if m.cursor < 0 || m.cursor >= len(m.rows) {
+		return nil
+	}
+	return textObjectsForRow(m.rows[m.cursor])
 }
 
 func (m *Model) highlightChanges() tea.Msg {
@@ -1128,6 +1313,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	// Render to DisplayContext
+	focusedObject := m.currentFocusedTextObject()
 	m.displayContextRenderer.Render(
 		dl,
 		m.rows,
@@ -1138,6 +1324,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.IsOverlay(),
 		m.quickSearch,
 		m.ensureCursorView,
+		focusedObject,
 	)
 
 	// Render transient layers over the base operation.
@@ -1248,12 +1435,13 @@ func (m *Model) GetCommitIds() []string {
 
 func New(c *appContext.MainContext) *Model {
 	m := Model{
-		context:       c,
-		rows:          nil,
-		offScreenRows: nil,
-		baseOp:        operations.NewDefault(),
-		layers:        nil,
-		cursor:        0,
+		context:           c,
+		rows:              nil,
+		offScreenRows:     nil,
+		baseOp:            operations.NewDefault(),
+		layers:            nil,
+		cursor:            0,
+		focusedObjectKind: textObjectGraph,
 	}
 	m.displayContextRenderer = NewDisplayContextRenderer()
 	return &m

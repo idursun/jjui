@@ -13,6 +13,7 @@
 ---@field default fun(): string Get default revset string
 
 ---@class jjui.context
+---@field object fun(): {kind: string, value: string, change_id: string, commit_id: string, index: integer}? Get focused revision text object
 ---@field change_id fun(): string? Get selected item's change ID
 ---@field commit_id fun(): string? Get selected item's commit ID
 ---@field file fun(): string? Get selected file path
@@ -200,6 +201,7 @@ function wait_refresh() end
 ---@field abandon jjui.revisions.abandon
 ---@field absorb jjui.revisions.absorb
 ---@field ace_jump jjui.revisions.ace_jump
+---@field bookmark jjui.revisions.bookmark
 ---@field details jjui.revisions.details
 ---@field duplicate jjui.revisions.duplicate
 ---@field evolog jjui.revisions.evolog
@@ -227,6 +229,8 @@ function wait_refresh() end
 ---@field move_down fun()
 ---@field move_up fun()
 ---@field new fun()
+---@field object_next fun()
+---@field object_prev fun()
 ---@field open_abandon fun()
 ---@field open_absorb fun()
 ---@field open_details fun()
@@ -268,6 +272,13 @@ function wait_refresh() end
 ---@field apply fun()
 ---@field cancel fun()
 ---@field close fun()
+
+---@class jjui.revisions.bookmark
+---@field create fun()
+---@field delete fun()
+---@field rename fun()
+---@field track fun()
+---@field untrack fun()
 
 ---@class jjui.revisions.details
 ---@field confirmation jjui.revisions.details.confirmation

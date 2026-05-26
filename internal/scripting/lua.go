@@ -201,6 +201,19 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	}))
 
 	contextTable := L.NewTable()
+	contextTable.RawSetString("object", L.NewFunction(func(L *lua.LState) int {
+		if ctx.FocusedObject == nil {
+			return 0
+		}
+		tbl := L.NewTable()
+		tbl.RawSetString("kind", lua.LString(ctx.FocusedObject.Kind))
+		tbl.RawSetString("value", lua.LString(ctx.FocusedObject.Value))
+		tbl.RawSetString("change_id", lua.LString(ctx.FocusedObject.ChangeId))
+		tbl.RawSetString("commit_id", lua.LString(ctx.FocusedObject.CommitId))
+		tbl.RawSetString("index", lua.LNumber(ctx.FocusedObject.Index))
+		L.Push(tbl)
+		return 1
+	}))
 	contextTable.RawSetString("change_id", L.NewFunction(func(L *lua.LState) int {
 		switch item := ctx.SelectedItem.(type) {
 		case uicontext.SelectedRevision:

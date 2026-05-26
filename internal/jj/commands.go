@@ -192,6 +192,10 @@ func BookmarkMove(revision string, bookmark string, extraFlags ...string) Comman
 	return args
 }
 
+func BookmarkRename(oldName string, newName string) CommandArgs {
+	return []string{"bookmark", "rename", oldName, newName}
+}
+
 func BookmarkDelete(name string) CommandArgs {
 	return []string{"bookmark", "delete", exactStringPattern(name)}
 }

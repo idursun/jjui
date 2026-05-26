@@ -97,6 +97,33 @@ func TestContext_ChangeId(t *testing.T) {
 	}
 }
 
+func TestContext_Object(t *testing.T) {
+	ctx := &uicontext.MainContext{
+		FocusedObject: &common.FocusedObject{
+			Kind:     "bookmark",
+			Value:    "feature",
+			ChangeId: "abc",
+			CommitId: "def",
+			Index:    1,
+		},
+	}
+
+	vals := runScriptAndGetGlobals(t, ctx, `
+		obj = context.object()
+		kind = obj.kind
+		value = obj.value
+		change = obj.change_id
+		commit = obj.commit_id
+		index = obj.index
+	`, "kind", "value", "change", "commit", "index")
+
+	assert.Equal(t, lua.LString("bookmark"), vals[0])
+	assert.Equal(t, lua.LString("feature"), vals[1])
+	assert.Equal(t, lua.LString("abc"), vals[2])
+	assert.Equal(t, lua.LString("def"), vals[3])
+	assert.Equal(t, lua.LNumber(1), vals[4])
+}
+
 func TestContext_CommitId(t *testing.T) {
 	tests := []struct {
 		name string
