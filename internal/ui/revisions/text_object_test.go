@@ -126,6 +126,22 @@ func TestTextObjectNavigationUpdatesFocusedObject(t *testing.T) {
 	assert.Equal(t, 1, ctx.FocusedObject.Index)
 }
 
+func TestFocusGraphObjectMovesBackToGlyph(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+	model.rows = []parser.Row{textObjectTestRow()}
+	model.focusedObjectKind = textObjectDescription
+	model.updateFocusedObject()
+	require.NotNil(t, ctx.FocusedObject)
+	require.Equal(t, textObjectDescription, ctx.FocusedObject.Kind)
+
+	model.focusGraphObject()
+
+	require.NotNil(t, ctx.FocusedObject)
+	assert.Equal(t, textObjectGraph, ctx.FocusedObject.Kind)
+	assert.Equal(t, bindings.ScopeName(""), model.focusedObjectScope())
+}
+
 func TestTextObjectNavigationCanFocusPlaceholderBookmark(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
@@ -153,6 +169,8 @@ func TestNavigatePreservesFocusedTextObjectAcrossRows(t *testing.T) {
 	row1 := textObjectTestRow()
 	row2 := textObjectTestRow()
 	row2.Commit = &jj.Commit{ChangeId: "xyz", CommitId: "uvw"}
+	row2.Lines[0].Segments[0].Text = "xyz"
+	row2.Lines[0].Segments[len(row2.Lines[0].Segments)-1].Text = "uvw"
 	model.rows = []parser.Row{row1, row2}
 	model.focusedObjectKind = textObjectBookmark
 	model.focusedObjectIndex = 1

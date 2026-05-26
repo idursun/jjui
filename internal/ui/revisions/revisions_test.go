@@ -284,6 +284,21 @@ func TestModel_ViewRectOnlyRendersStackedChildren(t *testing.T) {
 	assert.Equal(t, 1, child.viewRectCalls)
 }
 
+func TestModel_ViewRectDoesNotOverwriteEditingOperationCursorWithFocusedObject(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+	model.rows = []parser.Row{textObjectTestRow()}
+	model.focusedObjectKind = textObjectGraph
+	model.baseOp = bookmarkops.NewSetBookmarkOperation(ctx, "abc", "new-bookmark")
+
+	dl := render.NewDisplayContext()
+	model.ViewRect(dl, layout.NewBox(layout.Rect(5, 3, 80, 8)))
+
+	cursor := dl.Cursor()
+	require.NotNil(t, cursor)
+	assert.NotEqual(t, 5, cursor.Position.X, "editing cursor should not be overwritten by focused revision object")
+}
+
 func TestModel_OperationIntents(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -84,6 +84,11 @@ type RevisionsObjectFocus struct {
 
 func (RevisionsObjectFocus) isIntent() {}
 
+//jjui:bind scope=revisions action=object_graph
+type RevisionsObjectGraph struct{}
+
+func (RevisionsObjectGraph) isIntent() {}
+
 //jjui:bind scope=revisions.bookmark action=create
 type BookmarkCreate struct{}
 

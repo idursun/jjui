@@ -694,6 +694,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.navigate(intent), true
 	case intents.RevisionsObjectFocus:
 		return m.navigateFocusedObject(intent.Delta), true
+	case intents.RevisionsObjectGraph:
+		return m.focusGraphObject(), true
 	case intents.Describe:
 		return m.startDescribe(intent), true
 	case intents.OpenEvolog:
@@ -1185,6 +1187,18 @@ func (m *Model) navigateFocusedObject(delta int) tea.Cmd {
 	return nil
 }
 
+func (m *Model) focusGraphObject() tea.Cmd {
+	objects := m.textObjectsForSelectedRow()
+	if len(objects) == 0 {
+		m.context.FocusedObject = nil
+		return nil
+	}
+	m.focusedObjectKind = textObjectGraph
+	m.focusedObjectIndex = 0
+	m.updateFocusedObject()
+	return nil
+}
+
 func (m *Model) updateFocusedObject() {
 	obj := m.currentFocusedTextObject()
 	if obj == nil {
@@ -1313,7 +1327,10 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	// Render to DisplayContext
-	focusedObject := m.currentFocusedTextObject()
+	var focusedObject *revisionTextObject
+	if !m.IsEditing() {
+		focusedObject = m.currentFocusedTextObject()
+	}
 	m.displayContextRenderer.Render(
 		dl,
 		m.rows,

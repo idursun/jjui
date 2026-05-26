@@ -229,6 +229,7 @@ function wait_refresh() end
 ---@field move_down fun()
 ---@field move_up fun()
 ---@field new fun()
+---@field object_graph fun()
 ---@field object_next fun()
 ---@field object_prev fun()
 ---@field open_abandon fun()

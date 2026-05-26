@@ -172,6 +172,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.move_down":                        {"revisions"},
 	"revisions.move_up":                          {"revisions"},
 	"revisions.new":                              {"revisions"},
+	"revisions.object_graph":                     {"revisions"},
 	"revisions.object_next":                      {"revisions"},
 	"revisions.object_prev":                      {"revisions"},
 	"revisions.open_abandon":                     {"revisions"},
