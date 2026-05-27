@@ -412,6 +412,22 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	waitRefreshFn := L.NewFunction(func(L *lua.LState) int {
 		return yieldStep(L, step{matcher: matchUpdateRevisionsSuccess})
 	})
+	changeDirFn := L.NewFunction(func(L *lua.LState) int {
+		path := L.CheckString(1)
+		prev := ctx.Location
+		ctx.ChangeDirectory(path)
+		out, err := ctx.RunCommandImmediate([]string{"root"})
+		if err != nil {
+			ctx.ChangeDirectory(prev)
+			L.Push(lua.LNil)
+			L.Push(lua.LString("not a jj repo: " + path))
+			return 2
+		}
+		ctx.ChangeDirectory(strings.TrimSpace(string(out)))
+		L.Push(lua.LBool(true))
+		L.Push(lua.LNil)
+		return 2
+	})
 
 	// make sure we have a `jjui` namespace
 	root := L.NewTable()
@@ -430,6 +446,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	root.RawSetString("input", inputFn)
 	root.RawSetString("wait_close", waitCloseFn)
 	root.RawSetString("wait_refresh", waitRefreshFn)
+	root.RawSetString("change_dir", changeDirFn)
 	builtinRoot := L.NewTable()
 	root.RawSetString("builtin", builtinRoot)
 	registerGeneratedActionAPI(L, root, false)
@@ -458,6 +475,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	L.SetGlobal("input", inputFn)
 	L.SetGlobal("wait_close", waitCloseFn)
 	L.SetGlobal("wait_refresh", waitRefreshFn)
+	L.SetGlobal("change_dir", changeDirFn)
 }
 
 func registerGeneratedActionAPI(L *lua.LState, root *lua.LTable, builtIn bool) {

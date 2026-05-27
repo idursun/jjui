@@ -126,6 +126,13 @@ func (ctx *MainContext) CreateReplacements() map[string]string {
 	return replacements
 }
 
+func (ctx *MainContext) ChangeDirectory(path string) {
+	ctx.Location = path
+	if runner, ok := ctx.CommandRunner.(*MainCommandRunner); ok {
+		runner.Location = path
+	}
+}
+
 func (ctx *MainContext) ToggleCheckedItem(item SelectedRevision) {
 	for i, checked := range ctx.CheckedItems {
 		if checked.Equal(item) {
