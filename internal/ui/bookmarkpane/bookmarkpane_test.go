@@ -352,7 +352,7 @@ func TestOpen_DeletedLocalBookmarkShowsDeletedState(t *testing.T) {
 	assert.Contains(t, dl.RenderToString(80, 10), "deleted")
 }
 
-func TestRevealInRevisions_ReturnsMessage(t *testing.T) {
+func TestRevealInRevisions_ReturnsUpdateRevset(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
 	defer commandRunner.Verify()
@@ -363,10 +363,9 @@ func TestRevealInRevisions_ReturnsMessage(t *testing.T) {
 
 	cmd := model.Update(intents.BookmarkPaneSetRevset{})
 	require.NotNil(t, cmd)
-	msg, ok := cmd().(ShowBookmarkInRevisionsMsg)
+	msg, ok := cmd().(common.UpdateRevSetMsg)
 	require.True(t, ok)
-	assert.Equal(t, "main", msg.Target)
-	assert.Equal(t, "abc123", msg.CommitID)
+	assert.Equal(t, common.UpdateRevSetMsg("::main"), msg)
 }
 
 func TestCancel_ClearsSelectionsBeforeClosingPane(t *testing.T) {

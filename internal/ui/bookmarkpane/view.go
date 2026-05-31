@@ -98,6 +98,13 @@ func (m *Model) RenderConfirmationOverlay(dl *render.DisplayContext, box layout.
 	m.renderConfirmation(dl, box)
 }
 
+func (m *Model) RenderOverlay(dl *render.DisplayContext, box layout.Box) {
+	if !m.Visible() {
+		return
+	}
+	m.RenderConfirmationOverlay(dl, box)
+}
+
 func (m *Model) renderListRow(dl *render.DisplayContext, index int, rect layout.Rectangle) {
 	if index < 0 || index >= len(m.visibleRows) {
 		return
@@ -111,7 +118,7 @@ func (m *Model) renderListRow(dl *render.DisplayContext, index int, rect layout.
 	if !ok {
 		return
 	}
-	if index == m.cursor && m.focused {
+	if index == m.cursor && m.Focused() {
 		dl.AddHighlight(rect, m.styles.selected, render.ZMenuContent+1)
 	}
 

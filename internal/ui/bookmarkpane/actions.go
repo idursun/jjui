@@ -67,10 +67,18 @@ func (m *Model) showSelectedInRevisions() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	commitID := m.selectedCommitID()
-	return func() tea.Msg {
-		return ShowBookmarkInRevisionsMsg{Target: target, CommitID: commitID}
+	return ShowTargetInRevisions(target, m.selectedCommitID())
+}
+
+func ShowTargetInRevisions(target, commitID string) tea.Cmd {
+	revision := target
+	if revision == "" {
+		revision = commitID
 	}
+	if revision == "" {
+		return nil
+	}
+	return common.UpdateRevSet(fmt.Sprintf("::%s", revision))
 }
 
 func (m *Model) editSelected() tea.Cmd {

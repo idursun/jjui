@@ -40,38 +40,35 @@ import (
 	"github.com/idursun/jjui/internal/ui/redo"
 	"github.com/idursun/jjui/internal/ui/revisions"
 	"github.com/idursun/jjui/internal/ui/revset"
+	"github.com/idursun/jjui/internal/ui/split"
 	"github.com/idursun/jjui/internal/ui/status"
 	"github.com/idursun/jjui/internal/ui/undo"
 )
 
 type Model struct {
-	revisions                                 *revisions.Model
-	oplog                                     *oplog.Model
-	revsetModel                               *revset.Model
-	previewModel                              *preview.Model
-	diff                                      *diff.Model
-	flash                                     *flash.Model
-	state                                     common.State
-	status                                    *status.Model
-	password                                  *password.Model
-	context                                   *context.MainContext
-	scriptRunners                             []scriptFrame
-	sequenceHelp                              []help.Entry
-	sequenceAutoOpen                          bool
-	resolver                                  *dispatch.Resolver
-	stacked                                   common.StackedModel
-	displayContext                            *render.DisplayContext
-	frameCursor                               *tea.Cursor
-	width                                     int
-	height                                    int
-	activeSplit                               *split
-	previewSplit                              *split
-	bookmarkSplit                             *split
-	secondaryPaneActive                       secondaryPaneKind
-	secondaryRestoreOnClose                   secondaryPaneKind
-	bookmarkPaneFocused                       bool
-	bookmarkPane                              *bookmarkpane.Model
-	restoreFocusToBookmarkPaneAfterRevisionOp bool
+	revisions        *revisions.Model
+	oplog            *oplog.Model
+	revsetModel      *revset.Model
+	previewModel     *preview.Model
+	diff             *diff.Model
+	flash            *flash.Model
+	state            common.State
+	status           *status.Model
+	password         *password.Model
+	context          *context.MainContext
+	scriptRunners    []scriptFrame
+	sequenceHelp     []help.Entry
+	sequenceAutoOpen bool
+	resolver         *dispatch.Resolver
+	stacked          common.StackedModel
+	displayContext   *render.DisplayContext
+	frameCursor      *tea.Cursor
+	width            int
+	height           int
+	splitPanel       *split.SplitPanel
+	activeSplit      *split.Split
+	bookmarkPane     *bookmarkpane.Model
+	restorePaneFocus bool
 
 	// mode2031Supported is set when the terminal confirms it supports
 	// mode 2031 push. Once true, the OSC 11 polling loop stops.
@@ -85,10 +82,7 @@ type scriptFrame struct {
 
 type triggerAutoRefreshMsg struct{}
 
-const (
-	scopeUi                   keybindings.ScopeName = "ui"
-	scopeBookmarkPaneInactive keybindings.ScopeName = "bookmark_pane.inactive"
-)
+const scopeUi keybindings.ScopeName = "ui"
 
 // colorSchemePollInterval is how often to poll the terminal for its
 // current light/dark mode.
@@ -112,26 +106,19 @@ func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
 		m.oplog = nil
 		return common.SelectionChanged(m.context.SelectedItem), true
 	}
-	if m.bookmarkVisible() && m.bookmarkPaneFocused {
-		return m.closeBookmarkPane(), true
+	if m.bookmarkPane != nil {
+		if cmd, handled := m.bookmarkPane.CloseFocused(); handled {
+			return cmd, true
+		}
 	}
 	return nil, false
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
+	defer m.syncFocus()
+
 	if closeMsg, ok := msg.(common.CloseViewMsg); ok {
 		if cmd, handled := m.closeTopScope(closeMsg); handled {
-			return cmd
-		}
-		if m.restoreFocusToBookmarkPaneAfterRevisionOp && !m.bookmarkPaneFocused {
-			cmd := m.revisions.Update(closeMsg)
-			if m.bookmarkPaneRevisionOperationActive() {
-				return cmd
-			}
-			m.restoreFocusToBookmarkPaneAfterRevisionOp = false
-			if m.bookmarkVisible() {
-				m.focusBookmarkPane()
-			}
 			return cmd
 		}
 	}
@@ -210,6 +197,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				if start < 0 {
 					return nil
 				}
+				if _, ok := result.Intent.(intents.Cancel); ok && result.Scope == actions.ScopeBookmarkPane && m.panelCancelShouldPreempt() {
+					if cmd, handled := m.dismissRootInterruptions(); handled {
+						return cmd
+					}
+				}
 				if cmd, handled := common.RouteIntent(scopes[start:], result.Intent); handled {
 					return cmd
 				}
@@ -243,13 +235,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.syncBookmarkPaneContext()
 	case common.SelectionChangedMsg:
 		m.syncBookmarkPaneContext()
-	case bookmarkpane.ItemClickedMsg, bookmarkpane.PaneClickedMsg:
-		if m.bookmarkVisible() {
-			m.focusBookmarkPane()
-		}
 	case revisions.ItemClickedMsg, revisions.PaneClickedMsg:
-		if m.bookmarkVisible() {
-			m.setBookmarkPaneFocused(false)
+		if m.splitPanel.SecondaryVisible() {
+			m.splitPanel.FocusPrimary()
 		}
 	case common.StartSetBookmarkMsg:
 		return m.revisions.Update(intents.OpenSetBookmark{Revision: msg.Revision})
@@ -324,37 +312,27 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case input.SelectedMsg, input.CancelledMsg:
 		m.stacked = nil
 	case bookmarkpane.RevealRevisionMsg:
-		cmd := m.revisions.RevealRevision(msg.CommitID)
-		if m.bookmarkVisible() && m.bookmarkPaneFocused {
-			m.focusNextPane()
-		}
-		return cmd
-	case bookmarkpane.ShowBookmarkInRevisionsMsg:
-		return m.showBookmarkTarget(msg.Target, msg.CommitID)
+		m.splitPanel.FocusPrimary()
+		return m.revisions.RevealRevision(msg.CommitID)
+	case bookmarkpane.PaneClickedMsg, bookmarkpane.ItemClickedMsg:
+		m.splitPanel.FocusSecondary()
 	case bookmarkpane.BeginMoveBookmarkMsg:
 		op := bookmarkop.NewMoveBookmarkOperation(m.context, msg.Name)
-		m.restoreFocusToBookmarkPaneAfterRevisionOp = m.bookmarkVisible() && m.bookmarkPaneFocused
+		m.restorePaneFocus = true
+		m.splitPanel.FocusPrimary()
 		cmds = append(cmds, common.RestoreOperation(op))
-		if m.bookmarkVisible() && m.bookmarkPaneFocused {
-			m.focusNextPane()
-		}
 		return tea.Batch(cmds...)
 	case bookmarkpane.BeginCreateBookmarkMsg:
 		op := bookmarkop.NewCreateBookmarkOperation(m.context)
-		m.restoreFocusToBookmarkPaneAfterRevisionOp = m.bookmarkVisible() && m.bookmarkPaneFocused
+		m.restorePaneFocus = true
+		m.splitPanel.FocusPrimary()
 		cmds = append(cmds, common.RestoreOperation(op))
-		if m.bookmarkVisible() && m.bookmarkPaneFocused {
-			m.focusNextPane()
-		}
 		return tea.Batch(cmds...)
 	case common.ShowPreview:
 		if bool(msg) {
-			if m.bookmarkVisible() {
-				cmds = append(cmds, m.closeBookmarkPane())
-			}
-			m.showPreview()
+			m.splitPanel.ShowPreview()
 		} else {
-			m.hidePreview()
+			m.splitPanel.HidePreview()
 		}
 		cmds = append(cmds, common.SelectionChanged(m.context.SelectedItem))
 		return tea.Batch(cmds...)
@@ -371,7 +349,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			//   - if the user denies the request on the device, a new prompt automatically happen "Enter PIN for ...
 			m.password = password.New(msg)
 		}
-	case SplitDragMsg:
+	case split.SplitDragMsg:
 		m.activeSplit = msg.Split
 		if m.activeSplit != nil {
 			m.activeSplit.DragTo(msg.X, msg.Y)
@@ -419,6 +397,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		cmds = append(cmds, m.revisions.Update(msg))
 	}
 
+	if m.restorePaneFocus && m.revisions.InNormalMode() {
+		m.restorePaneFocus = false
+		if m.bookmarkPane != nil && m.bookmarkPane.Visible() {
+			m.splitPanel.FocusSecondary()
+		}
+	}
+
 	if m.previewModel.Visible() {
 		cmds = append(cmds, m.previewModel.Update(msg))
 	}
@@ -445,13 +430,11 @@ func (m *Model) View() string {
 	if m.diff != nil {
 		m.renderDiffLayout(box)
 	} else {
-		if m.previewVisible() {
-			if m.previewModel.AutoPosition() {
-				atBottom := m.height >= m.width/2
-				m.previewModel.SetPosition(true, atBottom)
+		if m.splitPanel.SecondaryVisible() && m.splitPanel.State != nil {
+			if m.splitPanel.State.AutoPosition {
+				m.splitPanel.State.AtBottom = m.height >= m.width/2
 			}
 		}
-		m.syncPreviewSplitOrientation()
 		if m.oplog != nil {
 			m.renderOpLogLayout(box)
 		} else {
@@ -468,8 +451,8 @@ func (m *Model) View() string {
 		m.flash.ViewRect(m.displayContext, flashBox)
 	}
 
-	if m.bookmarkVisible() && m.bookmarkPane != nil {
-		m.bookmarkPane.RenderConfirmationOverlay(m.displayContext, box)
+	if m.bookmarkPane != nil {
+		m.bookmarkPane.RenderOverlay(m.displayContext, box)
 	}
 
 	if m.password != nil {
@@ -490,7 +473,7 @@ func (m *Model) renderDiffLayout(box layout.Box) {
 
 func (m *Model) renderOpLogLayout(box layout.Box) {
 	m.renderWithStatus(box, func(content layout.Box) {
-		m.renderSplit(m.oplog, content)
+		m.splitPanel.Render(m.displayContext, content, m.oplog)
 	})
 }
 
@@ -500,7 +483,7 @@ func (m *Model) renderRevisionsLayout(box layout.Box) {
 		return
 	}
 	m.revsetModel.ViewRect(m.displayContext, rows[0])
-	m.renderSplit(m.revisions, rows[1])
+	m.splitPanel.Render(m.displayContext, rows[1], m.revisions)
 	m.status.ViewRect(m.displayContext, rows[2])
 }
 
@@ -541,21 +524,17 @@ func (m *Model) dispatchScopes() []common.Scope {
 
 	if m.stacked != nil {
 		scopes = append(scopes, m.stacked.Scopes()...)
-	} else if m.bookmarkVisible() && m.bookmarkPaneFocused {
-		scopes = append(scopes, m.bookmarkPaneScopes()...)
+	} else if m.bookmarkPane != nil && m.splitPanel.FocusedSecondary() {
+		if paneScopes := m.bookmarkPane.FocusedScopes(); len(paneScopes) > 0 {
+			scopes = append(scopes, paneScopes...)
+		}
 	} else if m.oplog != nil {
 		scopes = append(scopes, m.oplog.Scopes()...)
 	} else {
 		scopes = append(scopes, m.revisions.Scopes()...)
 	}
-	// Keep pane-switching shortcuts ahead of revset bindings while revisions are focused,
-	// without exposing the full bookmark_pane scope and shadowing revision shortcuts.
-	if m.bookmarkVisible() && !m.bookmarkPaneFocused {
-		scopes = append(scopes, common.Scope{
-			Name:    scopeBookmarkPaneInactive,
-			Leak:    common.LeakAll,
-			Handler: m,
-		})
+	if m.bookmarkPane != nil {
+		scopes = append(scopes, m.bookmarkPane.InactiveScopes()...)
 	}
 	scopes = append(scopes, m.previewModel.Scopes()...)
 	if !m.revsetModel.IsEditing() {
@@ -572,7 +551,7 @@ func (m *Model) dispatchScopes() []common.Scope {
 }
 
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
-	if cmd, handled := m.handleBookmarkPaneIntent(intent); handled {
+	if cmd, handled := m.handlePanelIntent(intent); handled {
 		return cmd, true
 	}
 
@@ -660,48 +639,31 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 
 	// --- Preview controls ---
 	case intents.PreviewToggle:
-		var closeCmd tea.Cmd
-		restorePreview := m.secondaryRestoreOnClose == secondaryPanePreview
-		if m.bookmarkVisible() {
-			closeCmd = m.closeBookmarkPane()
-			if restorePreview {
-				return tea.Batch(closeCmd, common.SelectionChanged(m.context.SelectedItem)), true
-			}
-		}
-		m.togglePreview()
-		return tea.Batch(closeCmd, common.SelectionChanged(m.context.SelectedItem)), true
+		m.splitPanel.TogglePreview()
+		return common.SelectionChanged(m.context.SelectedItem), true
 	case intents.PreviewToggleBottom:
-		var closeCmd tea.Cmd
-		restorePreview := m.secondaryRestoreOnClose == secondaryPanePreview
-		if m.bookmarkVisible() {
-			closeCmd = m.closeBookmarkPane()
-			if restorePreview {
-				previewPos := m.previewModel.AtBottom()
-				m.previewModel.SetPosition(false, !previewPos)
-				return closeCmd, true
-			}
+		if m.splitPanel.State != nil {
+			m.splitPanel.State.TogglePosition()
 		}
-		previewPos := m.previewModel.AtBottom()
-		m.previewModel.SetPosition(false, !previewPos)
-		if m.previewVisible() {
-			return closeCmd, true
-		}
-		m.showPreview()
-		return tea.Batch(closeCmd, common.SelectionChanged(m.context.SelectedItem)), true
-	case intents.PreviewExpand:
-		if !m.previewVisible() {
+		if m.previewModel.Visible() {
 			return nil, true
 		}
-		if m.previewSplit != nil && m.previewSplit.State != nil {
-			m.previewSplit.State.Expand(config.Current.Preview.WidthIncrementPercentage)
+		m.splitPanel.ShowPreview()
+		return common.SelectionChanged(m.context.SelectedItem), true
+	case intents.PreviewExpand:
+		if !m.previewModel.Visible() {
+			return nil, true
+		}
+		if m.splitPanel.State != nil {
+			m.splitPanel.State.Expand(config.Current.Preview.WidthIncrementPercentage)
 		}
 		return nil, true
 	case intents.PreviewShrink:
-		if !m.previewVisible() {
+		if !m.previewModel.Visible() {
 			return nil, true
 		}
-		if m.previewSplit != nil && m.previewSplit.State != nil {
-			m.previewSplit.State.Shrink(config.Current.Preview.WidthIncrementPercentage)
+		if m.splitPanel.State != nil {
+			m.splitPanel.State.Shrink(config.Current.Preview.WidthIncrementPercentage)
 		}
 		return nil, true
 
@@ -712,13 +674,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		}
 		return m.diff.Update(intent), true
 	case intents.PreviewShow:
-		if m.bookmarkVisible() {
-			closeCmd := m.closeBookmarkPane()
-			m.showPreview()
-			return tea.Batch(closeCmd, m.previewModel.Update(intent)), true
-		}
-		if !m.previewVisible() {
-			m.showPreview()
+		if !m.previewModel.Visible() {
+			m.splitPanel.ShowPreview()
 		}
 		return m.previewModel.Update(intent), true
 
@@ -726,67 +683,9 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.ExpandStatusToggle:
 		m.status.ToggleStatusExpand()
 		return nil, true
-	case intents.ToggleBookmarkPane:
-		if m.bookmarkVisible() {
-			return m.closeBookmarkPane(), true
-		}
-		return m.openBookmarkPane(), true
-	case intents.FocusNextPane:
-		if !m.bookmarkVisible() {
-			return nil, true
-		}
-		m.focusNextPane()
-		return nil, true
 	}
 
 	return nil, false
-}
-
-func (m *Model) bookmarkPaneScopes() []common.Scope {
-	if !m.bookmarkVisible() || !m.bookmarkPaneFocused {
-		return nil
-	}
-
-	leak := common.LeakGlobal
-	if m.bookmarkPane != nil && m.bookmarkPane.IsEditing() {
-		leak = common.LeakNone
-	}
-
-	return []common.Scope{
-		{
-			Name:    m.bookmarkPane.ScopeName(),
-			Leak:    leak,
-			Handler: m,
-		},
-	}
-}
-
-func (m *Model) handleBookmarkPaneIntent(intent intents.Intent) (tea.Cmd, bool) {
-	if !m.bookmarkVisible() || !m.bookmarkPaneFocused {
-		return nil, false
-	}
-
-	if _, ok := intent.(intents.Cancel); ok {
-		switch {
-		case m.flash.Any():
-			m.flash.DeleteOldest()
-			return nil, true
-		case m.status.StatusExpanded():
-			m.status.ToggleStatusExpand()
-			return nil, true
-		}
-	}
-
-	return m.bookmarkPane.HandleIntent(intent)
-}
-
-func (m *Model) bookmarkPaneRevisionOperationActive() bool {
-	switch m.revisions.CurrentOperation().(type) {
-	case *bookmarkop.MoveBookmarkOperation, *bookmarkop.CreateBookmarkOperation, *bookmarkop.SetBookmarkOperation:
-		return true
-	default:
-		return false
-	}
 }
 
 func luaCmd(script string) tea.Cmd {
@@ -871,9 +770,6 @@ func (m *Model) stackedScope() (keybindings.ScopeName, bool) {
 
 func (m *Model) updateBlockingScope(scope common.Scope, msg tea.KeyMsg) tea.Cmd {
 	if scope.Handler == m {
-		if m.bookmarkVisible() && m.bookmarkPaneFocused && m.bookmarkPane != nil && scope.Name == m.bookmarkPane.ScopeName() {
-			return m.bookmarkPane.Update(msg)
-		}
 		return nil
 	}
 	if scope.Handler == m.revsetModel {
@@ -969,8 +865,6 @@ func NewUI(c *context.MainContext) *Model {
 	flashView := flash.New()
 	previewModel := preview.New(c)
 	revsetModel := revset.New(c)
-	bookmarkPaneModel := bookmarkpane.NewModel(c)
-
 	ui := &Model{
 		context:      c,
 		state:        common.Loading,
@@ -979,10 +873,9 @@ func NewUI(c *context.MainContext) *Model {
 		status:       statusModel,
 		revsetModel:  revsetModel,
 		flash:        flashView,
-		bookmarkPane: bookmarkPaneModel,
 	}
+	ui.initSplitPanel()
 	ui.initResolver()
-	ui.initSplit()
 	return ui
 }
 

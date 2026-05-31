@@ -23,11 +23,6 @@ type RevealRevisionMsg struct {
 	CommitID string
 }
 
-type ShowBookmarkInRevisionsMsg struct {
-	Target   string
-	CommitID string
-}
-
 type BeginMoveBookmarkMsg struct {
 	Name string
 }
@@ -96,6 +91,8 @@ type styles struct {
 	childGuide         lipgloss.Style
 }
 
+const inactiveScopeName keybindings.ScopeName = "bookmark_pane.inactive"
+
 type Model struct {
 	context              *context.MainContext
 	visible              bool
@@ -132,18 +129,10 @@ var (
 func (m *Model) Init() tea.Cmd { return nil }
 
 func (m *Model) Scopes() []common.Scope {
-	if !m.visible || !m.focused {
-		return nil
-	}
-
-	return []common.Scope{{
-		Name:    m.ScopeName(),
-		Leak:    common.LeakNone,
-		Handler: m,
-	}}
+	return m.FocusedScopes()
 }
 
-func NewModel(c *context.MainContext) *Model {
+func New(c *context.MainContext) *Model {
 	palette := common.DefaultPalette
 	s := styles{
 		title:              palette.Get("title"),
@@ -183,9 +172,19 @@ func NewModel(c *context.MainContext) *Model {
 	return m
 }
 
+func NewModel(c *context.MainContext) *Model {
+	return New(c)
+}
+
 func (m *Model) Visible() bool { return m.visible }
 
-func (m *Model) IsFocused() bool { return m.focused }
+func (m *Model) SetVisible(visible bool) {
+	m.visible = visible
+}
+
+func (m *Model) Focused() bool { return m != nil && m.visible && m.focused }
+
+func (m *Model) IsFocused() bool { return m.Focused() }
 
 func (m *Model) IsEditing() bool { return m.filterState == filterEditing || m.confirmation != nil }
 
@@ -244,9 +243,39 @@ func (m *Model) SetFocused(focused bool) {
 	}
 }
 
+func (m *Model) FocusPane() bool {
+	if !m.Visible() {
+		return false
+	}
+	if m.Focused() {
+		return true
+	}
+	m.SetFocused(true)
+	return true
+}
+
+func (m *Model) FocusPrimary() {
+	if m == nil || !m.Focused() {
+		return
+	}
+	m.SetFocused(false)
+}
+
+func (m *Model) ToggleFocus() bool {
+	if !m.Visible() {
+		return false
+	}
+	if m.Focused() {
+		m.FocusPrimary()
+	} else {
+		m.FocusPane()
+	}
+	return true
+}
+
 func (m *Model) Open() tea.Cmd {
 	m.visible = true
-	m.focused = true
+	m.SetFocused(false)
 	m.clearConfirmation()
 	m.pendingSelectionHint = ""
 	m.selectionMode = selectionResetTop
@@ -255,18 +284,51 @@ func (m *Model) Open() tea.Cmd {
 	m.ensureCursorVisible = true
 	m.listRenderer.StartLine = 0
 	m.clearSelections()
+	m.FocusPane()
 	return m.loadRows
 }
 
-func (m *Model) Close() {
+func (m *Model) Close() tea.Cmd {
 	m.visible = false
-	m.focused = false
+	m.SetFocused(false)
 	m.clearConfirmation()
 	m.lastListHeight = 0
 	m.clearSelections()
-	if m.filterState == filterEditing {
-		m.finishFilterEditing()
+	return nil
+}
+
+func (m *Model) CloseFocused() (tea.Cmd, bool) {
+	if !m.Focused() {
+		return nil, false
 	}
+	return m.Close(), true
+}
+
+func (m *Model) FocusedScopes() []common.Scope {
+	if !m.Focused() {
+		return nil
+	}
+
+	leak := common.LeakGlobal
+	if m.IsEditing() {
+		leak = common.LeakNone
+	}
+	return []common.Scope{{
+		Name:    m.ScopeName(),
+		Leak:    leak,
+		Handler: m,
+	}}
+}
+
+func (m *Model) InactiveScopes() []common.Scope {
+	if !m.Visible() || m.Focused() {
+		return nil
+	}
+	return []common.Scope{{
+		Name:    inactiveScopeName,
+		Leak:    common.LeakAll,
+		Handler: m,
+	}}
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
@@ -298,7 +360,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		m.selectionMode = selectionPreserve
 		return nil
+	case PaneClickedMsg:
+		m.FocusPane()
+		return nil
 	case ItemClickedMsg:
+		m.FocusPane()
 		if m.confirmation != nil {
 			return nil
 		}
@@ -308,6 +374,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case RemoteClickedMsg:
+		m.FocusPane()
 		if m.confirmation != nil {
 			return nil
 		}
@@ -371,6 +438,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	if !m.Focused() {
+		return nil, false
+	}
+	return m.handleBookmarkIntent(intent)
+}
+
+func (m *Model) handleBookmarkIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
 	case intents.Apply:
 		if m.confirmation != nil {
