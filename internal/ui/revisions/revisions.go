@@ -908,6 +908,14 @@ func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
 		}
 		m.ensureCursorView = ensureView
 		return m.updateSelection()
+	case intents.TargetTop:
+		m.SetCursor(0)
+		m.ensureCursorView = ensureView
+		return m.updateSelection()
+	case intents.TargetBottom:
+		m.SetCursor(len(m.rows) - 1)
+		m.ensureCursorView = ensureView
+		return m.updateSelection()
 	}
 
 	delta := intent.Delta
