@@ -278,6 +278,10 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Apply{Force: true}, true
 		case keybindings.Action("revisions.force_edit"):
 			return intents.StartEdit{IgnoreImmutable: true}, true
+		case keybindings.Action("revisions.go_to_bottom"):
+			return intents.GoToBottom{}, true
+		case keybindings.Action("revisions.go_to_top"):
+			return intents.GoToTop{}, true
 		case keybindings.Action("revisions.jump_to_children"):
 			return intents.Navigate{Target: intents.TargetChild}, true
 		case keybindings.Action("revisions.jump_to_parent"):
