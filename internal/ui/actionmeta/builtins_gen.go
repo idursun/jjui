@@ -164,6 +164,8 @@ var builtInActionScopes = map[string][]string{
 	"revisions.evolog.restore":                   {"revisions.evolog"},
 	"revisions.force_apply":                      {"revisions"},
 	"revisions.force_edit":                       {"revisions"},
+	"revisions.go_to_bottom":                     {"revisions"},
+	"revisions.go_to_top":                        {"revisions"},
 	"revisions.inline_describe.accept":           {"revisions.inline_describe"},
 	"revisions.inline_describe.cancel":           {"revisions.inline_describe"},
 	"revisions.inline_describe.editor":           {"revisions.inline_describe"},

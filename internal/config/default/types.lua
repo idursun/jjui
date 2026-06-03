@@ -226,6 +226,8 @@ function wait_refresh() end
 ---@field edit fun()
 ---@field force_apply fun()
 ---@field force_edit fun()
+---@field go_to_bottom fun()
+---@field go_to_top fun()
 ---@field jump_to_children fun()
 ---@field jump_to_parent fun()
 ---@field jump_to_working_copy fun()
