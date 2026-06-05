@@ -7,36 +7,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestChangeDirectory(t *testing.T) {
+func TestChangeWorkspace(t *testing.T) {
 	runner := &MainCommandRunner{Location: "/old/path"}
 	ctx := &MainContext{
 		Location:      "/old/path",
 		CommandRunner: runner,
 	}
 
-	ctx.ChangeDirectory("/new/path")
+	ctx.ChangeWorkspace("/new/path")
 
 	assert.Equal(t, "/new/path", ctx.Location)
 	assert.Equal(t, "/new/path", runner.Location)
 }
 
-func TestChangeDirectory_UpdatesBothLocations(t *testing.T) {
+func TestChangeWorkspace_UpdatesBothLocations(t *testing.T) {
 	runner := &MainCommandRunner{Location: "/a"}
 	ctx := &MainContext{
 		Location:      "/a",
 		CommandRunner: runner,
 	}
 
-	ctx.ChangeDirectory("/b")
+	ctx.ChangeWorkspace("/b")
 	assert.Equal(t, "/b", ctx.Location)
 	assert.Equal(t, "/b", runner.Location)
 
-	ctx.ChangeDirectory("/c")
+	ctx.ChangeWorkspace("/c")
 	assert.Equal(t, "/c", ctx.Location)
 	assert.Equal(t, "/c", runner.Location)
 }
 
-func TestChangeDirectory_NonMainCommandRunner(t *testing.T) {
+func TestChangeWorkspace_NonMainCommandRunner(t *testing.T) {
 	// If the runner is not a *MainCommandRunner, ctx.Location still updates
 	// but the runner's location is unaffected (no panic).
 	ctx := &MainContext{
@@ -45,7 +45,7 @@ func TestChangeDirectory_NonMainCommandRunner(t *testing.T) {
 	}
 
 	require.NotPanics(t, func() {
-		ctx.ChangeDirectory("/new")
+		ctx.ChangeWorkspace("/new")
 	})
 	assert.Equal(t, "/new", ctx.Location)
 }
