@@ -1,7 +1,6 @@
 package preview
 
 import (
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -21,13 +20,10 @@ import (
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
-	context             *context.MainContext
-	view                viewport.Model
-	previewVisible      bool
-	previewAutoPosition bool
-	previewAtBottom     bool
-	contentItem         common.SelectedItem // item which we are currently showing the preview for
-	content             string
+	view        viewport.Model
+	content     string
+	contentItem common.SelectedItem
+	context     *context.MainContext
 }
 
 const (
@@ -56,9 +52,6 @@ func (s ScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 }
 
 func (m *Model) Scopes() []common.Scope {
-	if !m.Visible() {
-		return nil
-	}
 	return []common.Scope{
 		{
 			Name:    actions.ScopeUiPreview,
@@ -95,35 +88,8 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Visible() bool {
-	return m.previewVisible
-}
-
-func (m *Model) SetVisible(visible bool) {
-	m.previewVisible = visible
-	if m.previewVisible {
-		m.reset()
-	}
-}
-
-func (m *Model) ToggleVisible() {
-	m.previewVisible = !m.previewVisible
-	if m.previewVisible {
-		m.reset()
-	}
-}
-
-func (m *Model) SetPosition(autoPos bool, atBottom bool) {
-	m.previewAutoPosition = autoPos
-	m.previewAtBottom = atBottom
-}
-
-func (m *Model) AutoPosition() bool {
-	return m.previewAutoPosition
-}
-
-func (m *Model) AtBottom() bool {
-	return m.previewAtBottom
+func (m *Model) OnShow() {
+	m.reset()
 }
 
 func (m *Model) YOffset() int {
@@ -279,23 +245,7 @@ func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
 }
 
 func New(context *context.MainContext) *Model {
-	previewAutoPosition := false
-	previewAtBottom := false
-	previewPositionCfg, err := config.GetPreviewPosition(config.Current)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if previewPositionCfg == config.PreviewPositionAuto {
-		previewAutoPosition = true
-	} else if previewPositionCfg == config.PreviewPositionBottom {
-		previewAtBottom = true
-	}
-
 	return &Model{
-		context:             context,
-		previewAutoPosition: previewAutoPosition,
-		previewAtBottom:     previewAtBottom,
-		previewVisible:      config.Current.Preview.ShowAtStart,
+		context: context,
 	}
 }

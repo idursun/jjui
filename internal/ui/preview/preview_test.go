@@ -122,7 +122,6 @@ func TestModel_View(t *testing.T) {
 
 			model := New(ctx)
 
-			model.previewAtBottom = tc.atBottom
 			model.SetContent(tc.content)
 			if tc.scrollBy.X > 0 {
 				model.ScrollHorizontal(tc.scrollBy.X)
