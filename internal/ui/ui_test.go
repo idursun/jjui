@@ -29,12 +29,30 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/details"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/operations/set_parents"
+	"github.com/idursun/jjui/internal/ui/preview"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revset"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func activePreview(t *testing.T, model *Model) *preview.Model {
+	t.Helper()
+	content := model.splitContainer.ActiveContent()
+	previewModel, ok := content.(*preview.Model)
+	require.True(t, ok, "expected active split content to be Preview")
+	return previewModel
+}
+
+func showPreview(t *testing.T, model *Model) *preview.Model {
+	t.Helper()
+	if model.splitContainer.ActiveID() == "" {
+		_, handled := model.handleSplitIntent(intents.PreviewToggle{})
+		require.True(t, handled)
+	}
+	return activePreview(t, model)
+}
 
 func dispatchAction(model *Model, action keybindings.Action, args map[string]any) (tea.Cmd, bool) {
 	result := model.resolver.ResolveAction(action, args)
@@ -184,31 +202,31 @@ func Test_Update_PreviewScrollKeysWorkWhenVisible(t *testing.T) {
 			ctx := test.NewTestContext(commandRunner)
 
 			model := NewUI(ctx)
-			model.previewModel.SetVisible(true)
+			previewModel := showPreview(t, model)
 
 			var content strings.Builder
 			for range 100 {
 				content.WriteString("line content here\n")
 			}
-			model.previewModel.SetContent(content.String())
+			previewModel.SetContent(content.String())
 
 			// Force internal view port to have a size
-			model.previewModel.ViewRect(render.NewDisplayContext(), layout.NewBox(layout.Rect(0, 0, 100, 50)))
+			previewModel.ViewRect(render.NewDisplayContext(), layout.NewBox(layout.Rect(0, 0, 100, 50)))
 
-			initialYOffset := model.previewModel.YOffset()
+			initialYOffset := previewModel.YOffset()
 
 			// Send the key message
 			model.Update(tc.key)
 
-			newYOffset := model.previewModel.YOffset()
+			newYOffset := previewModel.YOffset()
 			if tc.expectedScroll > 0 {
 				assert.Greater(t, newYOffset, initialYOffset, "expected scroll down for key %s", tc.name)
 			} else {
 				// For scroll up, we need content scrolled down first
-				model.previewModel.Scroll(50) // scroll down first
-				scrolledYOffset := model.previewModel.YOffset()
+				previewModel.Scroll(50) // scroll down first
+				scrolledYOffset := previewModel.YOffset()
 				model.Update(tc.key)
-				newYOffset = model.previewModel.YOffset()
+				newYOffset = previewModel.YOffset()
 				assert.Less(t, newYOffset, scrolledYOffset, "expected scroll up for key %s", tc.name)
 			}
 		})
@@ -239,11 +257,13 @@ func Test_Update_PreviewResizeKeysWorkWhenVisible(t *testing.T) {
 			ctx := test.NewTestContext(commandRunner)
 
 			model := NewUI(ctx)
-			model.previewModel.SetVisible(true)
+			showPreview(t, model)
 
-			initialWidth := model.revisionsSplit.State.Percent
+			initialWidth, ok := model.splitContainer.ActivePercent()
+			assert.True(t, ok)
 			model.Update(tc.key)
-			newWidth := model.revisionsSplit.State.Percent
+			newWidth, ok := model.splitContainer.ActivePercent()
+			assert.True(t, ok)
 
 			if tc.expectedResize > 0 {
 				assert.Greater(t, newWidth, initialWidth, "expected preview to expand for key %s", tc.name)
@@ -1114,8 +1134,8 @@ func Test_Update_DispatchedPreviewShowUpdatesVisiblePreview(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.previewModel.SetVisible(true)
-	model.previewModel.SetContent("old")
+	previewModel := showPreview(t, model)
+	previewModel.SetContent("old")
 
 	cmd := model.Update(common.DispatchActionMsg{
 		Action:  "ui.preview.show",
@@ -1123,7 +1143,7 @@ func Test_Update_DispatchedPreviewShowUpdatesVisiblePreview(t *testing.T) {
 		BuiltIn: true,
 	})
 	require.Nil(t, cmd)
-	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(model.previewModel, 20, 3)))
+	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(previewModel, 20, 3)))
 }
 
 func Test_Update_DispatchedPreviewShowOpensHiddenPreview(t *testing.T) {
@@ -1132,8 +1152,6 @@ func Test_Update_DispatchedPreviewShowOpensHiddenPreview(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.previewModel.SetContent("old")
-	model.previewModel.SetVisible(false)
 
 	cmd := model.Update(common.DispatchActionMsg{
 		Action:  "ui.preview.show",
@@ -1141,8 +1159,8 @@ func Test_Update_DispatchedPreviewShowOpensHiddenPreview(t *testing.T) {
 		BuiltIn: true,
 	})
 	require.Nil(t, cmd)
-	assert.True(t, model.previewModel.Visible())
-	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(model.previewModel, 20, 3)))
+	assert.True(t, model.splitContainer.ActiveID() != "")
+	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(activePreview(t, model), 20, 3)))
 }
 
 func Test_Update_LuaInputEscCancelsAndFinishesScript(t *testing.T) {
@@ -1564,7 +1582,7 @@ func Test_Update_SetBookmarkTypingDoesNotTogglePreview(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.previewModel.SetVisible(true)
+	showPreview(t, model)
 
 	op := bookmark.NewSetBookmarkOperation(ctx, "abc123", "")
 	test.SimulateModel(op, op.Init())
@@ -1573,7 +1591,7 @@ func Test_Update_SetBookmarkTypingDoesNotTogglePreview(t *testing.T) {
 	require.True(t, model.revisions.IsEditing(), "set bookmark should be editing")
 
 	test.SimulateModel(model, test.Type("p"))
-	assert.True(t, model.previewModel.Visible(), "typing in set_bookmark should not toggle preview")
+	assert.True(t, model.splitContainer.ActiveID() != "", "typing in set_bookmark should not toggle preview")
 }
 
 // withShortColorSchemePoll temporarily shortens the polling interval so
