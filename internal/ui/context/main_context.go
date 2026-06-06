@@ -15,11 +15,13 @@ import (
 )
 
 // SelectedItem type aliases to break circular dependencies
-type SelectedItem = common.SelectedItem
-type SelectedRevision = common.SelectedRevision
-type SelectedCommit = common.SelectedCommit
-type SelectedFile = common.SelectedFile
-type SelectedOperation = common.SelectedOperation
+type (
+	SelectedItem      = common.SelectedItem
+	SelectedRevision  = common.SelectedRevision
+	SelectedCommit    = common.SelectedCommit
+	SelectedFile      = common.SelectedFile
+	SelectedOperation = common.SelectedOperation
+)
 
 type MainContext struct {
 	CommandRunner
@@ -124,6 +126,13 @@ func (ctx *MainContext) CreateReplacements() map[string]string {
 	}
 
 	return replacements
+}
+
+func (ctx *MainContext) ChangeWorkspace(path string) {
+	ctx.Location = path
+	if runner, ok := ctx.CommandRunner.(*MainCommandRunner); ok {
+		runner.Location = path
+	}
 }
 
 func (ctx *MainContext) ToggleCheckedItem(item SelectedRevision) {
