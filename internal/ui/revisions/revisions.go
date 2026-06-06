@@ -73,6 +73,7 @@ type Model struct {
 	ensureCursorView       bool
 	requestInFlight        bool
 	checkedRevisions       map[string]appContext.SelectedRevision
+	focused                bool
 }
 
 type revisionReloadState struct {
@@ -96,6 +97,8 @@ type ItemClickedMsg struct {
 	Ctrl  bool
 	Alt   bool
 }
+
+type PaneClickedMsg struct{}
 
 type ViewportScrollMsg struct {
 	Delta      int
@@ -248,7 +251,11 @@ func (m *Model) IsFocused() bool {
 	if focusable, ok := m.baseOperation().(common.Focusable); ok {
 		return focusable.IsFocused()
 	}
-	return false
+	return m.focused
+}
+
+func (m *Model) SetFocused(focused bool) {
+	m.focused = focused
 }
 
 func (m *Model) baseOperationRendersEmbedded() bool {
@@ -788,11 +795,15 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 }
 
 func (m *Model) startBookmarkSet(intent intents.OpenSetBookmark) tea.Cmd {
-	rev := m.SelectedRevision()
-	if rev == nil {
-		return nil
+	revision := intent.Revision
+	if revision == "" {
+		rev := m.SelectedRevision()
+		if rev == nil {
+			return nil
+		}
+		revision = rev.GetChangeId()
 	}
-	return m.setBaseOperation(bookmark.NewSetBookmarkOperation(m.context, rev.GetChangeId(), intent.Value))
+	return m.setBaseOperation(bookmark.NewSetBookmarkOperation(m.context, revision, intent.Value))
 }
 
 func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
@@ -1188,6 +1199,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.displayContextRenderer.selectedStyle = selectedStyle
 	m.displayContextRenderer.matchedStyle = matchedStyle
 
+	dl.AddInteraction(box.R, PaneClickedMsg{}, render.InteractionClick, -1)
+
 	if len(m.rows) == 0 {
 		content := ""
 		if m.isLoading {
@@ -1201,6 +1214,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	// Set selections
 	m.displayContextRenderer.SetSelections(m.checkedRevisionMap())
+	m.displayContextRenderer.SetSelectionFocused(m.focused)
 
 	renderOp := m.baseOperation()
 
@@ -1344,6 +1358,17 @@ func (m *Model) GetCommitIds() []string {
 	return commitIds
 }
 
+// RevealRevision is used in the bookmark pane to reveal the revision
+// associated with a bookmark in the revision list
+func (m *Model) RevealRevision(revision string) tea.Cmd {
+	index := m.selectRevisionExact(revision)
+	if index < 0 {
+		return nil
+	}
+	m.SetCursor(index)
+	return nil
+}
+
 func New(c *appContext.MainContext) *Model {
 	m := Model{
 		context:          c,
@@ -1353,6 +1378,7 @@ func New(c *appContext.MainContext) *Model {
 		layers:           nil,
 		cursor:           0,
 		checkedRevisions: make(map[string]appContext.SelectedRevision),
+		focused:          true,
 	}
 	m.displayContextRenderer = NewDisplayContextRenderer()
 	return &m

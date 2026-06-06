@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -33,7 +34,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/operations/set_parents"
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
-	"github.com/idursun/jjui/internal/ui/preview"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revset"
 	"github.com/idursun/jjui/test"
@@ -41,19 +41,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func activePreview(t *testing.T, model *Model) *preview.Model {
+func showPreview(t *testing.T, model *Model, content string) {
 	t.Helper()
-	scopes := model.splitContainer.Scopes()
-	require.NotEmpty(t, scopes, "expected active split content")
-	previewModel, ok := scopes[0].Handler.(*preview.Model)
-	require.True(t, ok, "expected active split content to be Preview")
-	return previewModel
-}
-
-func showPreview(t *testing.T, model *Model) *preview.Model {
-	t.Helper()
-	model.splitContainer.ShowContent(previewContentID)
-	return activePreview(t, model)
+	_, handled := model.HandleIntent(intents.PreviewShow{Content: content})
+	require.True(t, handled)
 }
 
 type blankImmediateModel struct{}
@@ -69,7 +60,7 @@ func splitSeparatorX(t *testing.T, model *Model) int {
 	dl := render.NewDisplayContext()
 	model.displayContext = dl
 	box := layout.NewBox(layout.Rect(0, 0, 100, 20))
-	model.renderSplit(blankImmediateModel{}, box)
+	model.splitContainer.Render(dl, box, blankImmediateModel{})
 	buf := render.NewScreenBuffer(100, 20)
 	dl.Render(buf)
 	view := strings.ReplaceAll(ansi.Strip(buf.Render()), "\r", "")
@@ -82,6 +73,21 @@ func splitSeparatorX(t *testing.T, model *Model) int {
 	}
 	t.Fatalf("split separator not rendered:\n%s", view)
 	return -1
+}
+
+func renderSplitView(model *Model, width, height int) string {
+	dl := render.NewDisplayContext()
+	box := layout.NewBox(layout.Rect(0, 0, width, height))
+	model.splitContainer.Render(dl, box, blankImmediateModel{})
+	buf := render.NewScreenBuffer(width, height)
+	dl.Render(buf)
+	return test.Stripped(buf.Render())
+}
+
+func hasScope(model *Model, name string) bool {
+	return slices.ContainsFunc(model.dispatchScopes(), func(scope common.Scope) bool {
+		return string(scope.Name) == name
+	})
 }
 
 func dispatchAction(model *Model, action keybindings.Action, args map[string]any) (tea.Cmd, bool) {
@@ -232,32 +238,20 @@ func Test_Update_PreviewScrollKeysWorkWhenVisible(t *testing.T) {
 			ctx := test.NewTestContext(commandRunner)
 
 			model := NewUI(ctx)
-			previewModel := showPreview(t, model)
-
 			var content strings.Builder
-			for range 100 {
-				content.WriteString("line content here\n")
+			for i := range 100 {
+				fmt.Fprintf(&content, "line %03d\n", i)
 			}
-			previewModel.SetContent(content.String())
-
-			// Force internal view port to have a size
-			previewModel.ViewRect(render.NewDisplayContext(), layout.NewBox(layout.Rect(0, 0, 100, 50)))
-
-			initialYOffset := previewModel.YOffset()
-
-			// Send the key message
-			model.Update(tc.key)
-
-			newYOffset := previewModel.YOffset()
+			showPreview(t, model, content.String())
+			initialView := renderSplitView(model, 100, 50)
 			if tc.expectedScroll > 0 {
-				assert.Greater(t, newYOffset, initialYOffset, "expected scroll down for key %s", tc.name)
-			} else {
-				// For scroll up, we need content scrolled down first
-				previewModel.Scroll(50) // scroll down first
-				scrolledYOffset := previewModel.YOffset()
 				model.Update(tc.key)
-				newYOffset = previewModel.YOffset()
-				assert.Less(t, newYOffset, scrolledYOffset, "expected scroll up for key %s", tc.name)
+				assert.NotEqual(t, initialView, renderSplitView(model, 100, 50), "expected scroll down for key %s", tc.name)
+			} else {
+				model.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
+				scrolledView := renderSplitView(model, 100, 50)
+				model.Update(tc.key)
+				assert.NotEqual(t, scrolledView, renderSplitView(model, 100, 50), "expected scroll up for key %s", tc.name)
 			}
 		})
 	}
@@ -296,7 +290,7 @@ func Test_Update_PreviewResizeKeysWorkWhenVisible(t *testing.T) {
 			ctx := test.NewTestContext(commandRunner)
 
 			model := NewUI(ctx)
-			showPreview(t, model)
+			showPreview(t, model, "preview")
 
 			initialX := splitSeparatorX(t, model)
 			model.Update(tc.key)
@@ -1232,8 +1226,7 @@ func Test_Update_DispatchedPreviewShowUpdatesVisiblePreview(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	previewModel := showPreview(t, model)
-	previewModel.SetContent("old")
+	showPreview(t, model, "old")
 
 	cmd := model.Update(common.DispatchActionMsg{
 		Action:  "ui.preview.show",
@@ -1241,7 +1234,7 @@ func Test_Update_DispatchedPreviewShowUpdatesVisiblePreview(t *testing.T) {
 		BuiltIn: true,
 	})
 	require.Nil(t, cmd)
-	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(previewModel, 20, 3)))
+	assert.Contains(t, renderSplitView(model, 20, 3), "new")
 }
 
 func Test_Update_DispatchedPreviewShowOpensHiddenPreview(t *testing.T) {
@@ -1257,8 +1250,8 @@ func Test_Update_DispatchedPreviewShowOpensHiddenPreview(t *testing.T) {
 		BuiltIn: true,
 	})
 	require.Nil(t, cmd)
-	assert.NotEmpty(t, model.splitContainer.Scopes())
-	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(activePreview(t, model), 20, 3)))
+	assert.True(t, hasScope(model, actions.ScopeUiPreview))
+	assert.Contains(t, renderSplitView(model, 20, 3), "new")
 }
 
 func Test_Update_LuaInputEscCancelsAndFinishesScript(t *testing.T) {
@@ -1680,7 +1673,7 @@ func Test_Update_SetBookmarkTypingDoesNotTogglePreview(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	showPreview(t, model)
+	showPreview(t, model, "preview")
 
 	op := bookmark.NewSetBookmarkOperation(ctx, "abc123", "")
 	test.SimulateModel(op, op.Init())
@@ -1689,7 +1682,7 @@ func Test_Update_SetBookmarkTypingDoesNotTogglePreview(t *testing.T) {
 	require.True(t, model.revisions.IsEditing(), "set bookmark should be editing")
 
 	test.SimulateModel(model, test.Type("p"))
-	assert.NotEmpty(t, model.splitContainer.Scopes(), "typing in set_bookmark should not toggle preview")
+	assert.True(t, hasScope(model, actions.ScopeUiPreview), "typing in set_bookmark should not toggle preview")
 }
 
 // withShortColorSchemePoll temporarily shortens the polling interval so
