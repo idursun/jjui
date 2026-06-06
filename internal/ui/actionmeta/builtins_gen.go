@@ -8,6 +8,36 @@ import (
 )
 
 var builtInActionScopes = map[string][]string{
+	"bookmark_pane.apply":                        {"bookmark_pane"},
+	"bookmark_pane.cancel":                       {"bookmark_pane"},
+	"bookmark_pane.confirmation.apply":           {"bookmark_pane.confirmation"},
+	"bookmark_pane.confirmation.cancel":          {"bookmark_pane.confirmation"},
+	"bookmark_pane.confirmation.next":            {"bookmark_pane.confirmation"},
+	"bookmark_pane.confirmation.prev":            {"bookmark_pane.confirmation"},
+	"bookmark_pane.create":                       {"bookmark_pane"},
+	"bookmark_pane.cycle_remotes":                {"bookmark_pane"},
+	"bookmark_pane.cycle_remotes_back":           {"bookmark_pane"},
+	"bookmark_pane.delete":                       {"bookmark_pane"},
+	"bookmark_pane.edit":                         {"bookmark_pane"},
+	"bookmark_pane.fetch":                        {"bookmark_pane"},
+	"bookmark_pane.filter.apply":                 {"bookmark_pane.filter"},
+	"bookmark_pane.filter.cancel":                {"bookmark_pane.filter"},
+	"bookmark_pane.forget":                       {"bookmark_pane"},
+	"bookmark_pane.move":                         {"bookmark_pane"},
+	"bookmark_pane.move_down":                    {"bookmark_pane"},
+	"bookmark_pane.move_up":                      {"bookmark_pane"},
+	"bookmark_pane.new":                          {"bookmark_pane"},
+	"bookmark_pane.open_filter":                  {"bookmark_pane"},
+	"bookmark_pane.page_down":                    {"bookmark_pane"},
+	"bookmark_pane.page_up":                      {"bookmark_pane"},
+	"bookmark_pane.push":                         {"bookmark_pane"},
+	"bookmark_pane.rename":                       {"bookmark_pane"},
+	"bookmark_pane.set_revset":                   {"bookmark_pane"},
+	"bookmark_pane.show_in_revision":             {"bookmark_pane"},
+	"bookmark_pane.toggle_expand":                {"bookmark_pane"},
+	"bookmark_pane.toggle_select":                {"bookmark_pane"},
+	"bookmark_pane.track":                        {"bookmark_pane"},
+	"bookmark_pane.untrack":                      {"bookmark_pane"},
 	"bookmarks.apply":                            {"bookmarks"},
 	"bookmarks.bookmark_delete":                  {"bookmarks"},
 	"bookmarks.bookmark_forget":                  {"bookmarks"},
@@ -112,6 +142,10 @@ var builtInActionScopes = map[string][]string{
 	"revisions.ace_jump.apply":                   {"revisions.ace_jump"},
 	"revisions.ace_jump.cancel":                  {"revisions.ace_jump"},
 	"revisions.apply":                            {"revisions"},
+	"revisions.bookmark_target.ace_jump":         {"revisions.bookmark_target"},
+	"revisions.bookmark_target.apply":            {"revisions.bookmark_target"},
+	"revisions.bookmark_target.cancel":           {"revisions.bookmark_target"},
+	"revisions.bookmark_target.force_apply":      {"revisions.bookmark_target"},
 	"revisions.cancel":                           {"revisions"},
 	"revisions.commit":                           {"revisions"},
 	"revisions.describe":                         {"revisions"},
@@ -256,6 +290,7 @@ var builtInActionScopes = map[string][]string{
 	"ui.exec_shell":                              {"ui"},
 	"ui.expand_status":                           {"ui"},
 	"ui.file_search_toggle":                      {"ui"},
+	"ui.focus_next_pane":                         {"ui"},
 	"ui.open_bookmarks":                          {"ui"},
 	"ui.open_command_history":                    {"ui"},
 	"ui.open_git":                                {"ui"},
@@ -276,6 +311,7 @@ var builtInActionScopes = map[string][]string{
 	"ui.quick_search":                            {"ui"},
 	"ui.quit":                                    {"ui"},
 	"ui.suspend":                                 {"ui"},
+	"ui.toggle_bookmark_pane":                    {"ui"},
 	"undo.apply":                                 {"undo"},
 	"undo.cancel":                                {"undo"},
 	"undo.next":                                  {"undo"},
@@ -283,6 +319,9 @@ var builtInActionScopes = map[string][]string{
 }
 
 var builtInActionArgSchemas = map[string]map[string]string{
+	"bookmark_pane.confirmation.apply": {
+		"force": "bool",
+	},
 	"diff.show": {
 		"content": "string",
 	},
@@ -290,6 +329,9 @@ var builtInActionArgSchemas = map[string]map[string]string{
 		"force": "bool",
 	},
 	"revisions.apply": {
+		"force": "bool",
+	},
+	"revisions.bookmark_target.apply": {
 		"force": "bool",
 	},
 	"revisions.details.confirmation.apply": {
