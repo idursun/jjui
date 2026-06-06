@@ -552,7 +552,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return nil, true
 		}
 		out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
-		return common.FileSearch(m.context.CurrentRevset, m.previewContentVisible(), rev, out), true
+		return common.FileSearch(m.context.CurrentRevset, rev, out), true
 
 	// --- Split controls ---
 	case intents.PreviewToggle, intents.PreviewToggleBottom, intents.PreviewExpand, intents.PreviewShrink, intents.PreviewShow:
