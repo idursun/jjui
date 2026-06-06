@@ -182,10 +182,16 @@ func (fzf *fuzzyFiles) String(i int) string {
 func (fzf *fuzzyFiles) search(input string) {
 	src := &fuzzy_search.RefinedSource{Source: fzf}
 	fzf.cursor = 0
-	fzf.matches = src.Search(input, fzf.max)
+	// Generate all candidate matches; the display is capped to max in the view.
+	fzf.matches = src.Search(input, fzf.Len())
 }
 
 func (fzf *fuzzyFiles) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	// Cap the list height to half of the available view height.
+	// Reserve one line for the title.
+	if desired := box.R.Dy()/2 - 1; desired > 0 {
+		fzf.max = desired
+	}
 	content := fzf.viewContent()
 	if content == "" {
 		return
