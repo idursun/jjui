@@ -59,10 +59,9 @@ type (
 		Msg ExecMsg
 	}
 	FileSearchMsg struct {
-		Revset       string
-		PreviewShown bool
-		Commit       *jj.Commit
-		RawFileOut   []byte // raw output from `jj file list`
+		Revset     string
+		Commit     *jj.Commit
+		RawFileOut []byte // raw output from `jj file list`
 	}
 	ShowPreview     bool
 	RunLuaScriptMsg struct {
@@ -160,13 +159,12 @@ func UpdateRevSet(revset string) tea.Cmd {
 	}
 }
 
-func FileSearch(revset string, preview bool, commit *jj.Commit, rawFileOut []byte) tea.Cmd {
+func FileSearch(revset string, commit *jj.Commit, rawFileOut []byte) tea.Cmd {
 	return func() tea.Msg {
 		return FileSearchMsg{
-			Commit:       commit,
-			RawFileOut:   rawFileOut,
-			Revset:       revset,
-			PreviewShown: preview,
+			Commit:     commit,
+			RawFileOut: rawFileOut,
+			Revset:     revset,
 		}
 	}
 }

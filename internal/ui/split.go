@@ -1,241 +1,164 @@
 package ui
 
 import (
-	"strings"
+	"log"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
-	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/preview"
+	"github.com/idursun/jjui/internal/ui/split"
 )
 
-type splitState struct {
-	Percent    float64
-	MinPercent float64
-	MaxPercent float64
-}
+const previewContentID = "preview"
 
-func newSplitState(percent float64) *splitState {
-	s := &splitState{
-		Percent:    percent,
-		MinPercent: 10,
-		MaxPercent: 95,
+// initSplitContainer wires the preview pane into the reusable SplitContainer
+// using the preview-specific config (placement, width, show-at-start).
+func (m *Model) initSplitContainer() {
+	m.splitContainer = split.NewSplitContainer()
+
+	state := split.NewSplitState(config.Current.Preview.WidthPercentage)
+	previewPositionCfg, err := config.GetPreviewPosition(config.Current)
+	if err != nil {
+		log.Fatal(err)
 	}
-	s.clamp()
-	return s
+	state.SetPlacement(splitPlacementFromPreviewConfig(previewPositionCfg))
+	m.registerSplitContent(previewContentID, preview.New(m.context), state, config.Current.Preview.ShowAtStart)
 }
 
-func (s *splitState) clamp() {
-	if s.Percent < s.MinPercent {
-		s.Percent = s.MinPercent
-	}
-	if s.Percent > s.MaxPercent {
-		s.Percent = s.MaxPercent
-	}
-}
-
-func (s *splitState) DragTo(box layout.Box, vertical bool, x, y int) bool {
-	old := s.Percent
-	if vertical {
-		total := box.R.Dy()
-		if total <= 0 {
-			return false
-		}
-		distanceFromBottom := box.R.Max.Y - y
-		s.Percent = float64(distanceFromBottom*100) / float64(total)
-	} else {
-		total := box.R.Dx()
-		if total <= 0 {
-			return false
-		}
-		distanceFromRight := box.R.Max.X - x
-		s.Percent = float64(distanceFromRight*100) / float64(total)
-	}
-	s.clamp()
-	return s.Percent != old
-}
-
-func (s *splitState) Expand(delta float64) {
-	s.Percent += delta
-	s.clamp()
-}
-
-func (s *splitState) Shrink(delta float64) {
-	s.Percent -= delta
-	s.clamp()
-}
-
-var (
-	_ common.ImmediateModel = (*split)(nil)
-)
-
-type split struct {
-	State              *splitState
-	Vertical           bool
-	Primary            common.ImmediateModel
-	Secondary          common.ImmediateModel
-	SeparatorVisible   bool
-	SeparatorThickness int
-	lastBox            layout.Box
-	hasLastBox         bool
-}
-
-func newSplit(state *splitState, primary, secondary common.ImmediateModel) *split {
-	return &split{
-		State:            state,
-		Primary:          primary,
-		Secondary:        secondary,
-		SeparatorVisible: true,
-	}
-}
-
-func (s *split) Init() tea.Cmd {
-	return nil
-}
-
-func (s *split) Update(msg tea.Msg) tea.Cmd {
-	return nil
-}
-
-func (s *split) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	if s.State == nil {
-		s.State = newSplitState(50)
-	}
-	s.lastBox = box
-	s.hasLastBox = true
-
-	primaryVisible := isVisible(s.Primary)
-	secondaryVisible := isVisible(s.Secondary)
-
-	switch {
-	case primaryVisible && secondaryVisible:
-		s.renderBoth(dl, box)
-	case primaryVisible:
-		s.Primary.ViewRect(dl, box)
-	case secondaryVisible:
-		s.Secondary.ViewRect(dl, box)
-	}
-}
-
-func (s *split) renderBoth(dl *render.DisplayContext, box layout.Box) {
-	primaryPercent := 100 - s.State.Percent
-	thickness := s.SeparatorThickness
-	if thickness <= 0 {
-		thickness = 1
-	}
-	if !s.SeparatorVisible {
-		thickness = 0
-	}
-	if s.Vertical {
-		if box.R.Dy() <= 0 {
-			return
-		}
-		if thickness >= box.R.Dy() {
-			thickness = 0
-		}
-		usable := box.R.Dy() - thickness
-		splitBox := box
-		if thickness > 0 {
-			splitBox.R.Max.Y = splitBox.R.Min.Y + usable
-		}
-		boxes := splitBox.V(layout.Percent(primaryPercent), layout.Fill(1))
-		if len(boxes) < 2 {
-			return
-		}
-		if thickness > 0 {
-			sepRect := layout.Rect(box.R.Min.X, boxes[0].R.Max.Y, box.R.Dx(), thickness)
-			secondaryBox := boxes[1]
-			secondaryBox.R.Min.Y += thickness
-			secondaryBox.R.Max.Y += thickness
-			s.Primary.ViewRect(dl, boxes[0])
-			s.Secondary.ViewRect(dl, secondaryBox)
-			dl.AddInteraction(sepRect, SplitDragMsg{Split: s}, render.InteractionDrag, 0)
-			drawRect, content := separatorContent(sepRect, s.Vertical)
-			if drawRect.Dx() > 0 && drawRect.Dy() > 0 && content != "" {
-				dl.AddDraw(drawRect, content, render.ZPreview)
-			}
-			return
-		}
-		s.Primary.ViewRect(dl, boxes[0])
-		s.Secondary.ViewRect(dl, boxes[1])
+// registerSplitContent registers a piece of content with the split container
+// and optionally shows it immediately. It is the generic seam through which
+// app-specific content (preview and future panes) is wired in.
+func (m *Model) registerSplitContent(id string, content split.SplitContent, state *split.SplitState, showAtStart bool) {
+	if m.splitContainer == nil {
 		return
 	}
+	m.splitContainer.RegisterContent(id, content, state)
+	if showAtStart {
+		m.splitContainer.SetVisible(id, true)
+	}
+}
 
-	if box.R.Dx() <= 0 {
-		return
+func splitPlacementFromPreviewConfig(position config.PreviewPosition) split.Placement {
+	switch position {
+	case config.PreviewPositionBottom:
+		return split.PlacementBottom
+	case config.PreviewPositionRight:
+		return split.PlacementRight
+	default:
+		return split.PlacementAuto
 	}
-	if thickness >= box.R.Dx() {
-		thickness = 0
+}
+
+// selectionChanged emits a SelectionChangedMsg for the currently selected
+// item. It is fired whenever the preview becomes visible so the freshly shown
+// pane loads content for the current selection instead of staying empty until
+// the next cursor move.
+func (m *Model) selectionChanged() tea.Cmd {
+	if m.context == nil {
+		return nil
 	}
-	usable := box.R.Dx() - thickness
-	splitBox := box
-	if thickness > 0 {
-		splitBox.R.Max.X = splitBox.R.Min.X + usable
+	return common.SelectionChanged(m.context.SelectedItem)
+}
+
+func (m *Model) handleSplitMsg(msg tea.Msg) (tea.Cmd, bool) {
+	if m.splitContainer == nil {
+		return nil, false
 	}
-	boxes := splitBox.H(layout.Percent(primaryPercent), layout.Fill(1))
-	if len(boxes) < 2 {
-		return
+	switch msg := msg.(type) {
+	case common.ShowPreview:
+		m.splitContainer.SetVisible(previewContentID, bool(msg))
+		return m.selectionChanged(), true
+	case split.SplitDragMsg:
+		m.splitContainer.StartDrag(msg)
+		return nil, false
 	}
-	if thickness > 0 {
-		sepRect := layout.Rect(boxes[0].R.Max.X, box.R.Min.Y, thickness, box.R.Dy())
-		secondaryBox := boxes[1]
-		secondaryBox.R.Min.X += thickness
-		secondaryBox.R.Max.X += thickness
-		s.Primary.ViewRect(dl, boxes[0])
-		s.Secondary.ViewRect(dl, secondaryBox)
-		dl.AddInteraction(sepRect, SplitDragMsg{Split: s}, render.InteractionDrag, 0)
-		drawRect, content := separatorContent(sepRect, s.Vertical)
-		if drawRect.Dx() > 0 && drawRect.Dy() > 0 && content != "" {
-			dl.AddDraw(drawRect, content, render.ZPreview)
+	return nil, false
+}
+
+func (m *Model) handleSplitIntent(intent intents.Intent) (tea.Cmd, bool) {
+	if m.splitContainer == nil {
+		return nil, false
+	}
+	switch msg := intent.(type) {
+	case intents.PreviewToggle:
+		m.splitContainer.SetContent(previewContentID)
+		return m.selectionChanged(), true
+	case intents.PreviewToggleBottom:
+		if !m.splitContainer.IsVisible(previewContentID) {
+			m.splitContainer.SetContent(previewContentID)
+			m.splitContainer.ToggleActivePosition()
+			return m.selectionChanged(), true
 		}
+		m.splitContainer.ToggleActivePosition()
+		return nil, true
+	case intents.PreviewExpand:
+		if m.splitContainer.IsVisible(previewContentID) {
+			m.splitContainer.ResizeActive(config.Current.Preview.WidthIncrementPercentage)
+		}
+		return nil, true
+	case intents.PreviewShrink:
+		if m.splitContainer.IsVisible(previewContentID) {
+			m.splitContainer.ResizeActive(-config.Current.Preview.WidthIncrementPercentage)
+		}
+		return nil, true
+	case intents.PreviewShow:
+		if !m.splitContainer.IsVisible(previewContentID) {
+			m.splitContainer.SetContent(previewContentID)
+		}
+		content := m.splitContainer.ActiveContent()
+		if content == nil {
+			return nil, true
+		}
+		return content.Update(msg), true
+	}
+	return nil, false
+}
+
+func (m *Model) updateSplit(msg tea.Msg) tea.Cmd {
+	if m.splitContainer == nil {
+		return nil
+	}
+	return m.splitContainer.Update(msg)
+}
+
+func (m *Model) splitScopes() []common.Scope {
+	if m.splitContainer == nil {
+		return nil
+	}
+	return m.splitContainer.Scopes()
+}
+
+func (m *Model) renderSplit(primary common.ImmediateModel, box layout.Box) {
+	if m.splitContainer == nil {
+		primary.ViewRect(m.displayContext, box)
 		return
 	}
-	s.Primary.ViewRect(dl, boxes[0])
-	s.Secondary.ViewRect(dl, boxes[1])
+	m.splitContainer.Render(m.displayContext, box, primary)
 }
 
-func (s *split) DragTo(x, y int) bool {
-	if s == nil || s.State == nil || !s.hasLastBox {
-		return false
+func (m *Model) updateSplitAutoPosition() {
+	if m.splitContainer == nil {
+		return
 	}
-	return s.State.DragTo(s.lastBox, s.Vertical, x, y)
+	m.splitContainer.SetActiveAutoPosition(m.height >= m.width/2)
 }
 
-type SplitDragMsg struct {
-	Split *split
-	X     int
-	Y     int
-}
-
-func (m SplitDragMsg) SetDragStart(x, y int) tea.Msg {
-	m.X = x
-	m.Y = y
-	return m
-}
-
-func isVisible(m common.ImmediateModel) bool {
-	if m == nil {
-		return false
+func (m *Model) handleSplitMouseMsg(msg tea.Msg) (tea.Cmd, bool) {
+	if m.splitContainer == nil {
+		return nil, false
 	}
-	if v, ok := m.(interface{ Visible() bool }); ok {
-		return v.Visible()
+	switch msg := msg.(type) {
+	case tea.MouseReleaseMsg:
+		m.splitContainer.EndDrag()
+		return nil, false
+	case tea.MouseMotionMsg:
+		mouse := msg.Mouse()
+		if m.splitContainer.DragTo(mouse.X, mouse.Y) {
+			return nil, true
+		}
 	}
-	return true
-}
-
-func separatorContent(sepRect layout.Rectangle, vertical bool) (layout.Rectangle, string) {
-	if sepRect.Dx() <= 0 || sepRect.Dy() <= 0 {
-		return layout.Rectangle{}, ""
-	}
-	if vertical {
-		centerY := sepRect.Min.Y + sepRect.Dy()/2
-		drawRect := layout.Rect(sepRect.Min.X, centerY, sepRect.Dx(), 1)
-		return drawRect, strings.Repeat("─", drawRect.Dx())
-	}
-	centerX := sepRect.Min.X + sepRect.Dx()/2
-	drawRect := layout.Rect(centerX, sepRect.Min.Y, 1, sepRect.Dy())
-	if drawRect.Dy() == 1 {
-		return drawRect, "│"
-	}
-	return drawRect, strings.Repeat("│\n", drawRect.Dy()-1) + "│"
+	return nil, false
 }

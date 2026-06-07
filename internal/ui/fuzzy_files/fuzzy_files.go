@@ -21,9 +21,8 @@ import (
 
 type fuzzyFiles struct {
 	// restore
-	revset          string
-	commit          *jj.Commit
-	wasPreviewShown bool
+	revset string
+	commit *jj.Commit
 
 	cursor int
 	// enabled with ctrl+t again
@@ -104,10 +103,7 @@ func (fzf *fuzzyFiles) handleIntent(intent intents.Intent) tea.Cmd {
 		fzf.moveCursor(intent.Delta)
 		return skipSearch
 	case intents.FileSearchCancel:
-		return tea.Batch(
-			common.UpdateRevSet(fzf.revset),
-			newCmd(common.ShowPreview(fzf.wasPreviewShown)),
-		)
+		return common.UpdateRevSet(fzf.revset)
 	case intents.FileSearchEdit:
 		path := fuzzy_search.SelectedMatch(fzf)
 		return newCmd(common.ExecMsg{
@@ -224,11 +220,10 @@ func (fzf *fuzzyFiles) viewContent() string {
 
 func NewModel(msg common.FileSearchMsg) fuzzy_search.Model {
 	model := &fuzzyFiles{
-		revset:          msg.Revset,
-		wasPreviewShown: msg.PreviewShown,
-		max:             30,
-		commit:          msg.Commit,
-		paths:           buildPathEntries(msg.RawFileOut),
+		revset: msg.Revset,
+		max:    30,
+		commit: msg.Commit,
+		paths:  buildPathEntries(msg.RawFileOut),
 	}
 	return model
 }
