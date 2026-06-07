@@ -17,6 +17,7 @@ import (
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
+	"github.com/idursun/jjui/internal/ui/bookmarkpane"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/git"
@@ -30,6 +31,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/operations/set_parents"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/revisions"
 	"github.com/idursun/jjui/internal/ui/revset"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
@@ -184,7 +186,7 @@ func Test_Update_PreviewScrollKeysWorkWhenVisible(t *testing.T) {
 			ctx := test.NewTestContext(commandRunner)
 
 			model := NewUI(ctx)
-			model.previewModel.SetVisible(true)
+			model.splitPanel.ShowPreview()
 
 			var content strings.Builder
 			for range 100 {
@@ -239,11 +241,11 @@ func Test_Update_PreviewResizeKeysWorkWhenVisible(t *testing.T) {
 			ctx := test.NewTestContext(commandRunner)
 
 			model := NewUI(ctx)
-			model.previewModel.SetVisible(true)
+			model.splitPanel.ShowPreview()
 
-			initialWidth := model.revisionsSplit.State.Percent
+			initialWidth := model.splitPanel.State.Percent
 			model.Update(tc.key)
-			newWidth := model.revisionsSplit.State.Percent
+			newWidth := model.splitPanel.State.Percent
 
 			if tc.expectedResize > 0 {
 				assert.Greater(t, newWidth, initialWidth, "expected preview to expand for key %s", tc.name)
@@ -377,6 +379,655 @@ func TestRedoDialogRawConfirmationKeysStillWork(t *testing.T) {
 	assert.False(t, ok, "pressing n should close the redo confirmation")
 }
 
+func Test_ToggleBookmarkPane_OpensFocusedPaneAndTabReturnsFocusToRevisions(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.NotNil(t, model.bookmarkPane)
+	assert.True(t, model.bookmarkPane.Visible())
+	assert.True(t, model.bookmarkPane.Focused())
+	assert.False(t, model.revisions.IsFocused())
+	require.NotEmpty(t, model.dispatchScopes())
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeBookmarkPane), model.dispatchScopes()[0].Name)
+
+	model.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	assert.False(t, model.bookmarkPane.Focused())
+	assert.True(t, model.revisions.IsFocused())
+	require.NotEmpty(t, model.dispatchScopes())
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeRevisions), model.dispatchScopes()[0].Name)
+
+	model.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	assert.True(t, model.bookmarkPane.Focused())
+	assert.False(t, model.revisions.IsFocused())
+
+	model.Update(intents.ToggleBookmarkPane{})
+	assert.False(t, model.bookmarkPane.Visible())
+}
+
+func Test_BookmarkPaneShortcutsDoNotShadowRevisionsWhenRevisionsFocused(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	model.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	require.False(t, model.bookmarkPane.Focused())
+	require.True(t, model.revisions.IsFocused())
+
+	result := model.resolver.ResolveKey(tea.KeyPressMsg{Text: "r", Code: 'r'}, model.dispatchScopes())
+	_, ok := result.Intent.(intents.OpenRebase)
+	assert.True(t, ok, "revision shortcuts should win while revisions are focused")
+}
+
+func Test_BookmarkPaneCancel_ClosesPaneAndRestoresRevisionFocus(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Visible())
+	require.True(t, model.bookmarkPane.Focused())
+	require.False(t, model.revisions.IsFocused())
+
+	cmd, handled := model.bookmarkPane.HandleIntent(intents.Cancel{})
+	require.True(t, handled)
+	test.SimulateModel(model, cmd)
+
+	assert.False(t, model.bookmarkPane.Visible())
+	assert.False(t, model.bookmarkPane.Visible())
+	assert.True(t, model.revisions.IsFocused())
+}
+
+func Test_BookmarkPaneShowInRevision_FocusesRevisionsPane(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Visible())
+	require.True(t, model.bookmarkPane.Focused())
+	require.False(t, model.revisions.IsFocused())
+	model.bookmarkPane.SetVisibleCommitIDs([]string{"abc123"})
+
+	test.SimulateModel(model, model.Update(intents.BookmarkPaneShowInRevision{}))
+
+	assert.False(t, model.bookmarkPane.Focused())
+	assert.True(t, model.revisions.IsFocused())
+	require.NotEmpty(t, model.dispatchScopes())
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeRevisions), model.dispatchScopes()[0].Name)
+}
+
+func Test_BookmarkPaneMouseClickOnRevisionsPane_FocusesRevisions(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.Update(tea.WindowSizeMsg{Width: 100, Height: 20})
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Focused())
+	require.False(t, model.revisions.IsFocused())
+
+	_ = model.View()
+	test.SimulateModel(model, model.Update(tea.MouseClickMsg{X: 10, Y: 2, Button: tea.MouseLeft}))
+
+	assert.False(t, model.bookmarkPane.Focused())
+	assert.True(t, model.revisions.IsFocused())
+}
+
+func Test_BookmarkPaneMouseClickOnBookmarkPane_FocusesBookmarkPane(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.Update(tea.WindowSizeMsg{Width: 100, Height: 20})
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	test.SimulateModel(model, model.Update(intents.FocusNextPane{}))
+	require.False(t, model.bookmarkPane.Focused())
+	require.True(t, model.revisions.IsFocused())
+
+	_ = model.View()
+	test.SimulateModel(model, model.Update(tea.MouseClickMsg{X: 80, Y: 2, Button: tea.MouseLeft}))
+
+	assert.True(t, model.bookmarkPane.Focused())
+	assert.False(t, model.revisions.IsFocused())
+}
+
+func Test_BookmarkPaneBookmarkRowClick_FocusesBookmarkPane(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	test.SimulateModel(model, model.Update(intents.FocusNextPane{}))
+	require.False(t, model.bookmarkPane.Focused())
+	require.True(t, model.revisions.IsFocused())
+
+	test.SimulateModel(model, func() tea.Msg { return bookmarkpane.ItemClickedMsg{Index: 0} })
+
+	assert.True(t, model.bookmarkPane.Focused())
+	assert.False(t, model.revisions.IsFocused())
+}
+
+func Test_BookmarkPaneRevisionRowClick_FocusesRevisions(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Focused())
+	require.False(t, model.revisions.IsFocused())
+
+	test.SimulateModel(model, func() tea.Msg { return revisions.ItemClickedMsg{Index: 0} })
+
+	assert.False(t, model.bookmarkPane.Focused())
+	assert.True(t, model.revisions.IsFocused())
+}
+
+func Test_BookmarkPaneConfirmation_UsesConfirmationScopeAndCancelKeepsPaneOpen(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	cmd, handled := model.HandleIntent(intents.BookmarkPaneDelete{})
+	require.True(t, handled)
+	test.SimulateModel(model, cmd)
+
+	require.NotEmpty(t, model.dispatchScopes())
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeBookmarkPaneConfirmation), model.dispatchScopes()[0].Name)
+
+	cmd, handled = model.HandleIntent(intents.Cancel{})
+	require.True(t, handled)
+	test.SimulateModel(model, cmd)
+
+	assert.True(t, model.bookmarkPane.Visible())
+	assert.True(t, model.bookmarkPane.Focused())
+	require.NotEmpty(t, model.dispatchScopes())
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeBookmarkPane), model.dispatchScopes()[0].Name)
+}
+
+func Test_SplitViewPositionSharedByPreviewAndBookmarkPane(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(""))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.splitPanel.State.SetPosition(config.PreviewPositionRight)
+
+	_ = model.Update(intents.PreviewToggleBottom{})
+	assert.True(t, model.previewModel.Visible())
+	assert.True(t, model.splitPanel.State.AtBottom)
+	assert.False(t, model.splitPanel.State.AutoPosition)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	assert.True(t, model.bookmarkPane.Visible())
+	assert.False(t, model.previewModel.Visible())
+	assert.True(t, model.splitPanel.State.AtBottom)
+}
+
+func Test_ToggleBookmarkPane_HidesPreviewAndDoesNotRestoreOnClose(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(""))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.splitPanel.ShowPreview()
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	assert.True(t, model.bookmarkPane.Visible())
+	assert.False(t, model.previewModel.Visible())
+
+	model.Update(intents.ToggleBookmarkPane{})
+	assert.False(t, model.bookmarkPane.Visible())
+	assert.False(t, model.previewModel.Visible())
+}
+
+func Test_BookmarkPaneEscDismissesFlashBeforeClosingPane(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Visible())
+
+	model.Update(intents.AddMessage{Text: "flash", Sticky: true})
+	require.True(t, model.flash.Any())
+
+	test.SimulateModel(model, test.Press(tea.KeyEscape))
+	assert.False(t, model.flash.Any(), "esc should dismiss flash first")
+	assert.True(t, model.bookmarkPane.Visible(), "bookmark pane should remain open after dismissing flash")
+}
+
+func Test_BookmarkPaneEscClosesStackedInputBeforeDismissingFlash(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Visible())
+
+	model.Update(intents.AddMessage{Text: "flash", Sticky: true})
+	require.True(t, model.flash.Any())
+
+	cmd := model.Update(common.ShowInputMsg{Title: "Rename bookmark", Value: "main"})
+	test.SimulateModel(model, cmd)
+	_, ok := model.stacked.(*input.Model)
+	require.True(t, ok)
+
+	test.SimulateModel(model, test.Press(tea.KeyEscape))
+	assert.Nil(t, model.stacked, "esc should close the stacked input first")
+	assert.True(t, model.flash.Any(), "flash should still be present after closing the stacked input")
+}
+
+func Test_BookmarkPaneEscCollapsesExpandedStatusBeforeClosingPane(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Visible())
+
+	model.status.SetStatusExpanded(true)
+	require.True(t, model.status.StatusExpanded())
+
+	test.SimulateModel(model, test.Press(tea.KeyEscape))
+	assert.False(t, model.status.StatusExpanded(), "esc should collapse expanded status first")
+	assert.True(t, model.bookmarkPane.Visible(), "bookmark pane should remain open while status collapses")
+}
+
+func Test_BookmarkPaneEscClearsSelectionsBeforeClosingPane(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nfeature;.;true;false;false;false;def456\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Visible())
+
+	cmd, handled := model.HandleIntent(intents.BookmarkPaneToggleSelect{})
+	require.True(t, handled)
+	test.SimulateModel(model, cmd)
+	assert.True(t, model.bookmarkPane.Visible())
+
+	test.SimulateModel(model, test.Press(tea.KeyEscape))
+	assert.True(t, model.bookmarkPane.Visible(), "first esc should clear bookmark selections")
+	assert.True(t, model.bookmarkPane.Focused())
+
+	test.SimulateModel(model, test.Press(tea.KeyEscape))
+	assert.False(t, model.bookmarkPane.Visible(), "second esc should close the pane once selections are cleared")
+}
+
+func Test_BookmarkPaneClose_KeepsRevsetAfterShowInRevisions(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	ctx.CurrentRevset = "all()"
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	showMsg, ok := bookmarkpane.ShowTargetInRevisions("main", "abc123")().(common.UpdateRevSetMsg)
+	require.True(t, ok)
+	model.Update(showMsg)
+	assert.Equal(t, "::main", ctx.CurrentRevset)
+
+	cmd := model.Update(intents.ToggleBookmarkPane{})
+	assert.Nil(t, cmd, "closing bookmark pane should not produce a revset restore command")
+	assert.Equal(t, "::main", ctx.CurrentRevset)
+}
+
+func Test_PreviewShow_ClosesBookmarkPaneAndShowsPreview(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(""))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Visible())
+	require.False(t, model.previewModel.Visible())
+
+	test.SimulateModel(model, model.Update(intents.PreviewShow{Content: "preview"}))
+	assert.False(t, model.bookmarkPane.Visible(), "preview show should close the bookmark pane")
+	assert.True(t, model.previewModel.Visible(), "preview should become the active pane")
+}
+
+func Test_BookmarkPaneMove_StartsRevisionOperationAndShiftsFocus(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Focused())
+
+	cmd := model.bookmarkPane.Update(intents.BookmarkPaneMove{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	assert.False(t, model.bookmarkPane.Focused())
+	assert.True(t, model.revisions.IsFocused())
+	_, ok := model.revisions.CurrentOperation().(*bookmark.MoveBookmarkOperation)
+	require.True(t, ok)
+}
+
+func Test_BookmarkPaneMove_CancelRestoresFocusToBookmarkPane(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Focused())
+
+	cmd := model.bookmarkPane.Update(intents.BookmarkPaneMove{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	op, ok := model.revisions.CurrentOperation().(*bookmark.MoveBookmarkOperation)
+	require.True(t, ok)
+	test.SimulateModel(model, op.Update(intents.Cancel{}))
+
+	assert.True(t, model.bookmarkPane.Focused())
+	assert.False(t, model.revisions.IsFocused())
+}
+
+func Test_BookmarkPaneMove_EscapeCancelsViaBindings(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	cmd := model.bookmarkPane.Update(intents.BookmarkPaneMove{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	test.SimulateModel(model, test.Press(tea.KeyEscape))
+
+	assert.True(t, model.bookmarkPane.Focused())
+	assert.False(t, model.revisions.IsFocused())
+}
+
+func Test_BookmarkPaneMove_AceJumpBindingPreservesMoveOperation(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	cmd := model.bookmarkPane.Update(intents.BookmarkPaneMove{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+	_, ok := model.revisions.CurrentOperation().(*bookmark.MoveBookmarkOperation)
+	require.True(t, ok)
+
+	test.SimulateModel(model, test.Press('f'))
+	assert.Equal(t, "ace jump", model.revisions.CurrentOperation().Name())
+
+	test.SimulateModel(model, test.Press(tea.KeyEscape))
+	_, ok = model.revisions.CurrentOperation().(*bookmark.MoveBookmarkOperation)
+	assert.True(t, ok)
+	assert.False(t, model.bookmarkPane.Focused())
+	assert.True(t, model.revisions.IsFocused())
+}
+
+func Test_BookmarkPaneMove_EnterAppliesViaBindings(t *testing.T) {
+	origBatching := config.Current.Revisions.LogBatching
+	defer func() {
+		config.Current.Revisions.LogBatching = origBatching
+	}()
+	config.Current.Revisions.LogBatching = false
+
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
+	commandRunner.Expect(jj.BookmarkMove("abc123", "main"))
+	commandRunner.Expect(jj.Log("", config.Current.Limit, "")).SetOutput([]byte(""))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	cmd := model.bookmarkPane.Update(intents.BookmarkPaneMove{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+	moveOp, ok := model.revisions.CurrentOperation().(*bookmark.MoveBookmarkOperation)
+	require.True(t, ok)
+	test.SimulateModel(model, moveOp.SetSelectedRevision(&jj.Commit{ChangeId: "abc123", CommitId: "abc123"}))
+
+	test.SimulateModel(model, test.Press(tea.KeyEnter))
+
+	assert.True(t, model.bookmarkPane.Focused())
+	assert.False(t, model.revisions.IsFocused())
+}
+
+func Test_BookmarkPaneMove_AltEnterForceAppliesViaBindings(t *testing.T) {
+	origBatching := config.Current.Revisions.LogBatching
+	defer func() {
+		config.Current.Revisions.LogBatching = origBatching
+	}()
+	config.Current.Revisions.LogBatching = false
+
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
+	commandRunner.Expect(jj.BookmarkMove("abc123", "main", "--allow-backwards"))
+	commandRunner.Expect(jj.Log("", config.Current.Limit, "")).SetOutput([]byte(""))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	cmd := model.bookmarkPane.Update(intents.BookmarkPaneMove{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+	moveOp, ok := model.revisions.CurrentOperation().(*bookmark.MoveBookmarkOperation)
+	require.True(t, ok)
+	test.SimulateModel(model, moveOp.SetSelectedRevision(&jj.Commit{ChangeId: "abc123", CommitId: "abc123"}))
+
+	test.SimulateModel(model, func() tea.Msg {
+		return tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModAlt}
+	})
+
+	assert.True(t, model.bookmarkPane.Focused())
+	assert.False(t, model.revisions.IsFocused())
+}
+
+func Test_BookmarkPaneCreate_StartsRevisionOperationAndShiftsFocus(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Focused())
+
+	cmd := model.bookmarkPane.Update(intents.BookmarkPaneCreate{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	assert.False(t, model.bookmarkPane.Focused())
+	assert.True(t, model.revisions.IsFocused())
+	_, ok := model.revisions.CurrentOperation().(*bookmark.CreateBookmarkOperation)
+	require.True(t, ok)
+}
+
+func Test_BookmarkPaneCreate_CancelRestoresFocusToBookmarkPane(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Focused())
+
+	cmd := model.bookmarkPane.Update(intents.BookmarkPaneCreate{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	createOp, ok := model.revisions.CurrentOperation().(*bookmark.CreateBookmarkOperation)
+	require.True(t, ok)
+	test.SimulateModel(model, createOp.Update(intents.Cancel{}))
+
+	assert.True(t, model.bookmarkPane.Focused())
+	assert.False(t, model.revisions.IsFocused())
+}
+
+func Test_BookmarkPaneCreate_EscapeCancelsViaBindings(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	cmd := model.bookmarkPane.Update(intents.BookmarkPaneCreate{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	test.SimulateModel(model, test.Press(tea.KeyEscape))
+
+	assert.True(t, model.bookmarkPane.Focused())
+	assert.False(t, model.revisions.IsFocused())
+}
+
+func Test_BookmarkPaneCreate_ApplyStartsSetBookmarkOperation(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
+	commandRunner.Expect(jj.BookmarkListMovable("abc123")).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Focused())
+
+	cmd := model.bookmarkPane.Update(intents.BookmarkPaneCreate{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	createOp, ok := model.revisions.CurrentOperation().(*bookmark.CreateBookmarkOperation)
+	require.True(t, ok)
+	test.SimulateModel(model, createOp.SetSelectedRevision(&jj.Commit{ChangeId: "abc123", CommitId: "abc123"}))
+	test.SimulateModel(model, createOp.Update(intents.Apply{}))
+
+	_, ok = model.revisions.CurrentOperation().(*bookmark.SetBookmarkOperation)
+	require.True(t, ok)
+	assert.False(t, model.bookmarkPane.Focused())
+	assert.True(t, model.revisions.IsFocused())
+}
+
+func Test_BookmarkPaneCreate_EnterAppliesViaBindings(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nsecond;.;true;false;false;false;def456\n"))
+	commandRunner.Expect(jj.BookmarkListMovable("abc123")).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	cmd := model.bookmarkPane.Update(intents.BookmarkPaneCreate{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+	createOp, ok := model.revisions.CurrentOperation().(*bookmark.CreateBookmarkOperation)
+	require.True(t, ok)
+	test.SimulateModel(model, createOp.SetSelectedRevision(&jj.Commit{ChangeId: "abc123", CommitId: "abc123"}))
+
+	test.SimulateModel(model, test.Press(tea.KeyEnter))
+
+	_, ok = model.revisions.CurrentOperation().(*bookmark.SetBookmarkOperation)
+	require.True(t, ok)
+	assert.False(t, model.bookmarkPane.Focused())
+	assert.True(t, model.revisions.IsFocused())
+}
+
+func Test_SetBookmarkFromRevisions_DoesNotRestoreBookmarkPaneFocus(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkListMovable("abc123")).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Focused())
+	test.SimulateModel(model, model.Update(intents.FocusNextPane{}))
+	require.False(t, model.bookmarkPane.Focused())
+	require.True(t, model.revisions.IsFocused())
+
+	test.SimulateModel(model, func() tea.Msg {
+		return intents.OpenSetBookmark{Revision: "abc123"}
+	})
+	_, ok := model.revisions.CurrentOperation().(*bookmark.SetBookmarkOperation)
+	require.True(t, ok)
+
+	test.SimulateModel(model, test.Press(tea.KeyEscape))
+
+	assert.False(t, model.bookmarkPane.Focused())
+	assert.True(t, model.revisions.IsFocused())
+}
+
 // this test verifies that when `git` is activated and `status` is expanded,
 // pressing `esc` closes expanded `status`
 func Test_GitWithExpandedStatus_EscClosesStackedFirst(t *testing.T) {
@@ -447,6 +1098,33 @@ func Test_Update_GitFilteredShortcutKeysDoNotLeakToRevisions(t *testing.T) {
 
 	cmd := model.Update(key)
 	assert.NotNil(t, cmd, "git model should receive raw shortcut key and produce command")
+}
+
+func Test_Update_BookmarkPaneFilterEditingDoesNotLeakShortcutKeys(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.Update(tea.WindowSizeMsg{Width: 100, Height: 20})
+
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, model.bookmarkPane.Visible())
+	require.True(t, model.bookmarkPane.Focused())
+
+	model.Update(tea.KeyPressMsg{Text: "/", Code: '/'})
+	require.NotEmpty(t, model.dispatchScopes())
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeBookmarkPaneFilter), model.dispatchScopes()[0].Name)
+
+	key := tea.KeyPressMsg{Text: "r", Code: 'r'}
+	result := model.resolver.ResolveKey(key, model.dispatchScopes())
+	assert.Nil(t, result.Intent, "bookmark filter text should bypass bookmark shortcuts and fall through as raw input")
+	assert.False(t, result.Consumed, "bookmark filter text should remain unbound at resolver level")
+
+	model.Update(key)
+	assert.Contains(t, model.View(), "Filter: r")
+	assert.Nil(t, model.stacked, "typing in bookmark filter should not trigger bookmark operations")
 }
 
 func Test_Update_GlobalBindingsFromConfigOverrideLegacyGlobalKeys(t *testing.T) {
@@ -1564,9 +2242,10 @@ func Test_Update_SetBookmarkTypingDoesNotTogglePreview(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.previewModel.SetVisible(true)
+	model.splitPanel.ShowPreview()
 
 	op := bookmark.NewSetBookmarkOperation(ctx, "abc123", "")
+
 	test.SimulateModel(op, op.Init())
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	require.False(t, model.revisions.InNormalMode(), "set bookmark operation should be active")

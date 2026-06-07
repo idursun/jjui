@@ -1,241 +1,101 @@
 package ui
 
 import (
-	"strings"
+	"log"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/layout"
-	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/bookmarkpane"
+	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/split"
 )
 
-type splitState struct {
-	Percent    float64
-	MinPercent float64
-	MaxPercent float64
+func (m *Model) initSplitPanel() {
+	state := split.NewSplitState(config.Current.Preview.WidthPercentage)
+	previewPositionCfg, err := config.GetPreviewPosition(config.Current)
+	if err != nil {
+		log.Fatal(err)
+	}
+	state.SetPosition(previewPositionCfg)
+	m.bookmarkPane = bookmarkpane.New(m.context)
+	m.splitPanel = split.NewSplitPanel(state, m.bookmarkPane, m.previewModel)
 }
 
-func newSplitState(percent float64) *splitState {
-	s := &splitState{
-		Percent:    percent,
-		MinPercent: 10,
-		MaxPercent: 95,
-	}
-	s.clamp()
-	return s
-}
-
-func (s *splitState) clamp() {
-	if s.Percent < s.MinPercent {
-		s.Percent = s.MinPercent
-	}
-	if s.Percent > s.MaxPercent {
-		s.Percent = s.MaxPercent
-	}
-}
-
-func (s *splitState) DragTo(box layout.Box, vertical bool, x, y int) bool {
-	old := s.Percent
-	if vertical {
-		total := box.R.Dy()
-		if total <= 0 {
-			return false
+func (m *Model) handlePanelIntent(intent intents.Intent) (tea.Cmd, bool) {
+	if _, ok := intent.(intents.Cancel); ok && m.panelCancelShouldPreempt() {
+		if cmd, handled := m.dismissRootInterruptions(); handled {
+			return cmd, true
 		}
-		distanceFromBottom := box.R.Max.Y - y
-		s.Percent = float64(distanceFromBottom*100) / float64(total)
-	} else {
-		total := box.R.Dx()
-		if total <= 0 {
-			return false
+	}
+	if m.bookmarkPane != nil {
+		if cmd, handled := m.bookmarkPane.HandleIntent(intent); handled {
+			return cmd, true
 		}
-		distanceFromRight := box.R.Max.X - x
-		s.Percent = float64(distanceFromRight*100) / float64(total)
 	}
-	s.clamp()
-	return s.Percent != old
-}
-
-func (s *splitState) Expand(delta float64) {
-	s.Percent += delta
-	s.clamp()
-}
-
-func (s *splitState) Shrink(delta float64) {
-	s.Percent -= delta
-	s.clamp()
-}
-
-var (
-	_ common.ImmediateModel = (*split)(nil)
-)
-
-type split struct {
-	State              *splitState
-	Vertical           bool
-	Primary            common.ImmediateModel
-	Secondary          common.ImmediateModel
-	SeparatorVisible   bool
-	SeparatorThickness int
-	lastBox            layout.Box
-	hasLastBox         bool
-}
-
-func newSplit(state *splitState, primary, secondary common.ImmediateModel) *split {
-	return &split{
-		State:            state,
-		Primary:          primary,
-		Secondary:        secondary,
-		SeparatorVisible: true,
+	switch intent.(type) {
+	case intents.ToggleBookmarkPane:
+		if m.bookmarkPane.Visible() {
+			return m.closeBookmarkPane(), true
+		}
+		return m.openBookmarkPane(), true
+	case intents.FocusNextPane:
+		m.splitPanel.ToggleFocus()
+		return nil, true
 	}
+	return nil, false
 }
 
-func (s *split) Init() tea.Cmd {
-	return nil
+func (m *Model) panelCancelShouldPreempt() bool {
+	return m.bookmarkPane != nil && m.bookmarkPane.Focused() && !m.bookmarkPane.IsEditing()
 }
 
-func (s *split) Update(msg tea.Msg) tea.Cmd {
-	return nil
-}
-
-func (s *split) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	if s.State == nil {
-		s.State = newSplitState(50)
-	}
-	s.lastBox = box
-	s.hasLastBox = true
-
-	primaryVisible := isVisible(s.Primary)
-	secondaryVisible := isVisible(s.Secondary)
-
+func (m *Model) dismissRootInterruptions() (tea.Cmd, bool) {
 	switch {
-	case primaryVisible && secondaryVisible:
-		s.renderBoth(dl, box)
-	case primaryVisible:
-		s.Primary.ViewRect(dl, box)
-	case secondaryVisible:
-		s.Secondary.ViewRect(dl, box)
+	case m.flash.Any():
+		m.flash.DeleteOldest()
+		return nil, true
+	case m.status.StatusExpanded():
+		m.status.ToggleStatusExpand()
+		return nil, true
+	default:
+		return nil, false
 	}
 }
 
-func (s *split) renderBoth(dl *render.DisplayContext, box layout.Box) {
-	primaryPercent := 100 - s.State.Percent
-	thickness := s.SeparatorThickness
-	if thickness <= 0 {
-		thickness = 1
+func (m *Model) openBookmarkPane() tea.Cmd {
+	if m.bookmarkPane == nil {
+		return nil
 	}
-	if !s.SeparatorVisible {
-		thickness = 0
+	m.syncBookmarkPaneContext()
+	m.splitPanel.OpenBookmark()
+	m.splitPanel.FocusSecondary()
+	return m.bookmarkPane.Open()
+}
+
+func (m *Model) closeBookmarkPane() tea.Cmd {
+	if m.bookmarkPane == nil {
+		return nil
 	}
-	if s.Vertical {
-		if box.R.Dy() <= 0 {
-			return
-		}
-		if thickness >= box.R.Dy() {
-			thickness = 0
-		}
-		usable := box.R.Dy() - thickness
-		splitBox := box
-		if thickness > 0 {
-			splitBox.R.Max.Y = splitBox.R.Min.Y + usable
-		}
-		boxes := splitBox.V(layout.Percent(primaryPercent), layout.Fill(1))
-		if len(boxes) < 2 {
-			return
-		}
-		if thickness > 0 {
-			sepRect := layout.Rect(box.R.Min.X, boxes[0].R.Max.Y, box.R.Dx(), thickness)
-			secondaryBox := boxes[1]
-			secondaryBox.R.Min.Y += thickness
-			secondaryBox.R.Max.Y += thickness
-			s.Primary.ViewRect(dl, boxes[0])
-			s.Secondary.ViewRect(dl, secondaryBox)
-			dl.AddInteraction(sepRect, SplitDragMsg{Split: s}, render.InteractionDrag, 0)
-			drawRect, content := separatorContent(sepRect, s.Vertical)
-			if drawRect.Dx() > 0 && drawRect.Dy() > 0 && content != "" {
-				dl.AddDraw(drawRect, content, render.ZPreview)
-			}
-			return
-		}
-		s.Primary.ViewRect(dl, boxes[0])
-		s.Secondary.ViewRect(dl, boxes[1])
+	m.splitPanel.CloseBookmark()
+	return m.bookmarkPane.Close()
+}
+
+func (m *Model) syncBookmarkPaneContext() {
+	if m.bookmarkPane == nil {
 		return
 	}
-
-	if box.R.Dx() <= 0 {
-		return
+	if selected := m.revisions.SelectedRevision(); selected != nil {
+		m.bookmarkPane.SetCurrentCommitID(selected.CommitId)
+	} else {
+		m.bookmarkPane.SetCurrentCommitID("")
 	}
-	if thickness >= box.R.Dx() {
-		thickness = 0
-	}
-	usable := box.R.Dx() - thickness
-	splitBox := box
-	if thickness > 0 {
-		splitBox.R.Max.X = splitBox.R.Min.X + usable
-	}
-	boxes := splitBox.H(layout.Percent(primaryPercent), layout.Fill(1))
-	if len(boxes) < 2 {
-		return
-	}
-	if thickness > 0 {
-		sepRect := layout.Rect(boxes[0].R.Max.X, box.R.Min.Y, thickness, box.R.Dy())
-		secondaryBox := boxes[1]
-		secondaryBox.R.Min.X += thickness
-		secondaryBox.R.Max.X += thickness
-		s.Primary.ViewRect(dl, boxes[0])
-		s.Secondary.ViewRect(dl, secondaryBox)
-		dl.AddInteraction(sepRect, SplitDragMsg{Split: s}, render.InteractionDrag, 0)
-		drawRect, content := separatorContent(sepRect, s.Vertical)
-		if drawRect.Dx() > 0 && drawRect.Dy() > 0 && content != "" {
-			dl.AddDraw(drawRect, content, render.ZPreview)
-		}
-		return
-	}
-	s.Primary.ViewRect(dl, boxes[0])
-	s.Secondary.ViewRect(dl, boxes[1])
+	m.bookmarkPane.SetVisibleCommitIDs(m.revisions.GetCommitIds())
 }
 
-func (s *split) DragTo(x, y int) bool {
-	if s == nil || s.State == nil || !s.hasLastBox {
-		return false
+func (m *Model) syncFocus() {
+	focused := m.splitPanel.FocusedSecondary()
+	m.revisions.SetFocused(!focused)
+	if m.bookmarkPane != nil {
+		m.bookmarkPane.SetFocused(focused)
 	}
-	return s.State.DragTo(s.lastBox, s.Vertical, x, y)
-}
-
-type SplitDragMsg struct {
-	Split *split
-	X     int
-	Y     int
-}
-
-func (m SplitDragMsg) SetDragStart(x, y int) tea.Msg {
-	m.X = x
-	m.Y = y
-	return m
-}
-
-func isVisible(m common.ImmediateModel) bool {
-	if m == nil {
-		return false
-	}
-	if v, ok := m.(interface{ Visible() bool }); ok {
-		return v.Visible()
-	}
-	return true
-}
-
-func separatorContent(sepRect layout.Rectangle, vertical bool) (layout.Rectangle, string) {
-	if sepRect.Dx() <= 0 || sepRect.Dy() <= 0 {
-		return layout.Rectangle{}, ""
-	}
-	if vertical {
-		centerY := sepRect.Min.Y + sepRect.Dy()/2
-		drawRect := layout.Rect(sepRect.Min.X, centerY, sepRect.Dx(), 1)
-		return drawRect, strings.Repeat("─", drawRect.Dx())
-	}
-	centerX := sepRect.Min.X + sepRect.Dx()/2
-	drawRect := layout.Rect(centerX, sepRect.Min.Y, 1, sepRect.Dy())
-	if drawRect.Dy() == 1 {
-		return drawRect, "│"
-	}
-	return drawRect, strings.Repeat("│\n", drawRect.Dy()-1) + "│"
 }

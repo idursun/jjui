@@ -8,6 +8,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -15,12 +16,13 @@ import (
 
 // DisplayContextRenderer renders the revisions list using the DisplayContext approach
 type DisplayContextRenderer struct {
-	listRenderer  *render.ListRenderer
-	selections    map[string]bool
-	textStyle     lipgloss.Style
-	dimmedStyle   lipgloss.Style
-	selectedStyle lipgloss.Style
-	matchedStyle  lipgloss.Style
+	listRenderer   *render.ListRenderer
+	selections     map[string]bool
+	textStyle      lipgloss.Style
+	dimmedStyle    lipgloss.Style
+	selectedStyle  lipgloss.Style
+	matchedStyle   lipgloss.Style
+	selectionFocus bool
 }
 
 // itemRenderer is a helper for rendering individual revision items
@@ -88,13 +90,22 @@ func (ir *itemRenderer) renderSegmentForLine(tb *render.TextBuilder, segment *sc
 // NewDisplayContextRenderer creates a new DisplayContext-based renderer
 func NewDisplayContextRenderer() *DisplayContextRenderer {
 	return &DisplayContextRenderer{
-		listRenderer: render.NewListRenderer(ViewportScrollMsg{}),
+		listRenderer:   render.NewListRenderer(ViewportScrollMsg{}),
+		textStyle:      common.DefaultPalette.Get("revisions text"),
+		dimmedStyle:    common.DefaultPalette.Get("revisions dimmed"),
+		selectedStyle:  common.DefaultPalette.Get("revisions selected"),
+		matchedStyle:   common.DefaultPalette.Get("revisions matched"),
+		selectionFocus: true,
 	}
 }
 
 // SetSelections sets the selected revisions for rendering checkboxes
 func (r *DisplayContextRenderer) SetSelections(selections map[string]bool) {
 	r.selections = selections
+}
+
+func (r *DisplayContextRenderer) SetSelectionFocused(focused bool) {
+	r.selectionFocus = focused
 }
 
 // Render renders the revisions list to a DisplayContext
@@ -116,14 +127,14 @@ func (r *DisplayContextRenderer) Render(
 	// Measure function - calculates height for each item
 	measure := func(index int) int {
 		item := items[index]
-		isSelected := index == cursor
+		isSelected := index == cursor && r.selectionFocus
 		return r.calculateItemHeight(item, isSelected, operation, viewRect.R.Dx())
 	}
 
 	// Render function - renders each visible item
 	renderItem := func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
 		item := items[index]
-		isSelected := index == cursor
+		isSelected := index == cursor && r.selectionFocus
 
 		// Render the item content
 		r.renderItemToDisplayContext(dl, item, rect, isSelected, operation, segmentRenderer, quickSearch)
