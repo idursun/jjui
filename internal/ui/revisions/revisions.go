@@ -54,7 +54,7 @@ var (
 type Model struct {
 	rows                   []parser.Row
 	tag                    atomic.Uint64
-	revisionToSelect       string
+	pendingReload          revisionReloadState
 	offScreenRows          []parser.Row
 	streamer               *graph.GraphStreamer
 	hasMore                bool
@@ -70,6 +70,12 @@ type Model struct {
 	displayContextRenderer *DisplayContextRenderer
 	ensureCursorView       bool
 	requestInFlight        bool
+}
+
+type revisionReloadState struct {
+	tag              uint64
+	selectedRevision string
+	keepSelections   bool
 }
 
 type revisionsMsg struct {
@@ -100,16 +106,15 @@ func (v ViewportScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 }
 
 type updateRevisionsMsg struct {
-	rows             []parser.Row
-	selectedRevision string
+	rows []parser.Row
+	tag  uint64
 }
 
 type streamingReadyMsg struct {
-	streamer         *graph.GraphStreamer
-	selectedRevision string
-	tag              uint64
-	err              error
-	output           string
+	streamer *graph.GraphStreamer
+	tag      uint64
+	err      error
+	output   string
 }
 
 type appendRowsBatchMsg struct {
@@ -445,8 +450,16 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			SelectedRevision: msg.SelectedRevision,
 		}), m.activeModel().Update(msg))
 	case updateRevisionsMsg:
+		if msg.tag != m.tag.Load() {
+			return nil
+		}
 		m.isLoading = false
-		m.updateGraphRows(msg.rows, msg.selectedRevision)
+		reloadState := revisionReloadState{}
+		if m.pendingReload.tag == msg.tag {
+			reloadState = m.pendingReload
+			m.pendingReload = revisionReloadState{}
+		}
+		m.updateGraphRows(msg.rows, reloadState.selectedRevision, !reloadState.keepSelections)
 		return tea.Batch(m.highlightChanges, m.updateSelection(), func() tea.Msg {
 			return common.UpdateRevisionsSuccessMsg{}
 		})
@@ -477,19 +490,18 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 
 		m.streamer = msg.streamer
 		m.offScreenRows = nil
-		m.revisionToSelect = msg.selectedRevision
 		m.hasMore = true
 		m.requestInFlight = false
 
 		// If the revision to select is not set, use the currently selected item
-		if m.revisionToSelect == "" {
+		if m.pendingReload.tag == msg.tag && m.pendingReload.selectedRevision == "" {
 			switch selected := m.context.SelectedItem.(type) {
 			case appContext.SelectedRevision:
-				m.revisionToSelect = selected.ChangeId
+				m.pendingReload.selectedRevision = selected.ChangeId
 			case appContext.SelectedFile:
-				m.revisionToSelect = selected.CommitId
+				m.pendingReload.selectedRevision = selected.CommitId
 			case appContext.SelectedCommit:
-				m.revisionToSelect = selected.CommitId
+				m.pendingReload.selectedRevision = selected.CommitId
 			}
 		}
 		log.Println("Starting streaming revisions with tag:", msg.tag)
@@ -519,27 +531,37 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			m.streamer.Close()
 		}
 
+		reloadState := revisionReloadState{}
+		if m.pendingReload.tag == msg.tag {
+			reloadState = m.pendingReload
+			m.pendingReload = revisionReloadState{}
+		}
 		currentSelectedRevision := m.SelectedRevision()
 		m.rows = m.offScreenRows
-		matched := false
-		if m.revisionToSelect != "" {
-			if idx := m.selectRevisionExact(m.revisionToSelect); idx != -1 {
-				m.SetCursor(idx)
-				matched = true
+		targetCursor := -1
+		if reloadState.selectedRevision != "" {
+			if idx := m.selectRevisionExact(reloadState.selectedRevision); idx != -1 {
+				targetCursor = idx
 			}
-			m.revisionToSelect = ""
 		}
 
-		if !matched && currentSelectedRevision != nil {
+		if targetCursor == -1 && currentSelectedRevision != nil {
 			if idx := m.selectRevisionExact(currentSelectedRevision.GetChangeId()); idx != -1 {
-				m.SetCursor(idx)
-				matched = true
+				targetCursor = idx
 			}
 		}
 
-		if !matched && len(m.rows) > 0 {
+		if targetCursor == -1 && len(m.rows) > 0 {
 			if m.cursor < 0 || m.cursor >= len(m.rows) {
-				m.SetCursor(0)
+				targetCursor = 0
+			}
+		}
+
+		if targetCursor != -1 {
+			if reloadState.keepSelections {
+				m.cursor = targetCursor
+			} else {
+				m.SetCursor(targetCursor)
 			}
 		}
 
@@ -704,11 +726,16 @@ func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
 		m.context.ClearCheckedItems(reflect.TypeFor[appContext.SelectedRevision]())
 	}
 	m.isLoading = true
-	if config.Current.Revisions.LogBatching {
-		currentTag := m.tag.Add(1)
-		return m.loadStreaming(m.context.CurrentRevset, intent.SelectedRevision, currentTag)
+	currentTag := m.tag.Add(1)
+	m.pendingReload = revisionReloadState{
+		tag:              currentTag,
+		selectedRevision: intent.SelectedRevision,
+		keepSelections:   intent.KeepSelections,
 	}
-	return m.load(m.context.CurrentRevset, intent.SelectedRevision)
+	if config.Current.Revisions.LogBatching {
+		return m.loadStreaming(m.context.CurrentRevset, currentTag)
+	}
+	return m.load(m.context.CurrentRevset, currentTag)
 }
 
 func (m *Model) openDetails(_ intents.OpenDetails) tea.Cmd {
@@ -1079,7 +1106,7 @@ func (m *Model) highlightChanges() tea.Msg {
 	return nil
 }
 
-func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
+func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string, requestCursorView bool) {
 	if rows == nil {
 		rows = []parser.Row{}
 	}
@@ -1098,7 +1125,11 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string) {
 		if idx == -1 {
 			idx = 0
 		}
-		m.SetCursor(idx)
+		if requestCursorView {
+			m.SetCursor(idx)
+		} else {
+			m.cursor = idx
+		}
 	} else {
 		m.cursor = 0
 	}
@@ -1159,7 +1190,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.ensureCursorView = false
 }
 
-func (m *Model) load(revset string, selectedRevision string) tea.Cmd {
+func (m *Model) load(revset string, tag uint64) tea.Cmd {
 	return func() tea.Msg {
 		output, err := m.context.RunCommandImmediate(jj.Log(revset, config.Current.Limit, m.context.JJConfig.Templates.Log))
 		if err != nil {
@@ -1169,11 +1200,14 @@ func (m *Model) load(revset string, selectedRevision string) tea.Cmd {
 			}
 		}
 		rows := parser.ParseRows(bytes.NewReader(output))
-		return updateRevisionsMsg{rows, selectedRevision}
+		return updateRevisionsMsg{
+			rows: rows,
+			tag:  tag,
+		}
 	}
 }
 
-func (m *Model) loadStreaming(revset string, selectedRevision string, tag uint64) tea.Cmd {
+func (m *Model) loadStreaming(revset string, tag uint64) tea.Cmd {
 	return func() tea.Msg {
 		if m.tag.Load() != tag {
 			return nil
@@ -1191,11 +1225,10 @@ func (m *Model) loadStreaming(revset string, selectedRevision string, tag uint64
 		}
 
 		return streamingReadyMsg{
-			streamer:         streamer,
-			selectedRevision: selectedRevision,
-			tag:              tag,
-			err:              err,
-			output:           errMsg,
+			streamer: streamer,
+			tag:      tag,
+			err:      err,
+			output:   errMsg,
 		}
 	}
 }
@@ -1209,7 +1242,11 @@ func (m *Model) requestMoreRows(tag uint64) tea.Cmd {
 	streamer := m.streamer
 	return func() tea.Msg {
 		batch := streamer.RequestMore()
-		return appendRowsBatchMsg{batch.Rows, batch.HasMore, tag}
+		return appendRowsBatchMsg{
+			rows:    batch.Rows,
+			hasMore: batch.HasMore,
+			tag:     tag,
+		}
 	}
 }
 

@@ -77,7 +77,7 @@ func (o *viewRectTrackingOp) Name() string { return o.name }
 func TestModel_Navigate(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 
 	test.SimulateModel(model, model.Update(intents.Navigate{Delta: 1}))
 	assert.Equal(t, "b", model.SelectedRevision().ChangeId)
@@ -91,12 +91,12 @@ func TestModel_UpdateGraphRows_DoesNotPrefixMatchImplicitCurrentSelection(t *tes
 	model.updateGraphRows([]parser.Row{
 		{Commit: &jj.Commit{ChangeId: "66d7"}},
 		{Commit: &jj.Commit{ChangeId: "66d"}},
-	}, "66d7")
+	}, "66d7", true)
 
 	model.updateGraphRows([]parser.Row{
 		{Commit: &jj.Commit{ChangeId: "other"}},
 		{Commit: &jj.Commit{ChangeId: "66d"}},
-	}, "")
+	}, "", true)
 
 	assert.Equal(t, 0, model.Cursor(), "removed current revision must not prefix-match a similarly-starting revision")
 	assert.Equal(t, "other", model.SelectedRevision().ChangeId)
@@ -109,7 +109,7 @@ func TestModel_UpdateGraphRows_DoesNotPrefixMatchExplicitSelection(t *testing.T)
 	model.updateGraphRows([]parser.Row{
 		{Commit: &jj.Commit{ChangeId: "66d"}},
 		{Commit: &jj.Commit{ChangeId: "other"}},
-	}, "66d7")
+	}, "66d7", true)
 
 	assert.Equal(t, 0, model.Cursor(), "explicit selection should fall back to the first row when the exact revision is gone")
 	assert.Equal(t, "66d", model.SelectedRevision().ChangeId)
@@ -200,7 +200,7 @@ func TestModel_NavigateTo(t *testing.T) {
 
 			ctx := test.NewTestContext(commandRunner)
 			model := New(ctx)
-			model.updateGraphRows(tc.initialRows, tc.initial)
+			model.updateGraphRows(tc.initialRows, tc.initial, true)
 
 			test.SimulateModel(model, model.Update(intents.Navigate{ChangeID: tc.changeID}))
 
@@ -216,7 +216,7 @@ func TestModel_OpenSquashEmitsSelectionChangedForTargetRevision(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := New(ctx)
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 	ctx.SelectedItem = common.SelectedRevision{
 		ChangeId: rows[0].Commit.GetChangeId(),
 		CommitId: rows[0].Commit.CommitId,
@@ -243,12 +243,15 @@ func TestModel_UpdateRevisionsPreservesEvologSelection(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
 	model.baseOp = &viewRectTrackingOp{name: "evolog"}
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 	ctx.SelectedItem = common.SelectedCommit{
 		CommitId: "9",
 	}
 
-	cmd := model.Update(updateRevisionsMsg{rows: rows, selectedRevision: "9"})
+	const tag uint64 = 1
+	model.tag.Store(tag)
+	model.pendingReload = revisionReloadState{tag: tag, selectedRevision: "9"}
+	cmd := model.Update(updateRevisionsMsg{rows: rows, tag: tag})
 	test.SimulateModel(model, cmd)
 
 	selected, ok := ctx.SelectedItem.(common.SelectedCommit)
@@ -260,7 +263,7 @@ func TestModel_UpdateRevisionsRefreshesDetailsSelection(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
 	model.baseOp = &viewRectTrackingOp{name: "details"}
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 	ctx.SelectedItem = common.SelectedFile{
 		ChangeId: "a",
 		CommitId: "8",
@@ -278,7 +281,10 @@ func TestModel_UpdateRevisionsRefreshesDetailsSelection(t *testing.T) {
 		},
 	}
 
-	cmd := model.Update(updateRevisionsMsg{rows: newRows, selectedRevision: "a"})
+	const tag uint64 = 1
+	model.tag.Store(tag)
+	model.pendingReload = revisionReloadState{tag: tag, selectedRevision: "a"}
+	cmd := model.Update(updateRevisionsMsg{rows: newRows, tag: tag})
 	test.SimulateModel(model, cmd)
 
 	selected, ok := ctx.SelectedItem.(common.SelectedFile)
@@ -288,10 +294,26 @@ func TestModel_UpdateRevisionsRefreshesDetailsSelection(t *testing.T) {
 	assert.Equal(t, "file.txt", selected.File)
 }
 
+func TestModel_UpdateRevisionsPreservesViewportOnKeepSelectionRefresh(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+	model.updateGraphRows(rows, "a", true)
+	model.ensureCursorView = false
+
+	const tag uint64 = 1
+	model.tag.Store(tag)
+	model.pendingReload = revisionReloadState{tag: tag, selectedRevision: "a", keepSelections: true}
+	cmd := model.Update(updateRevisionsMsg{rows: rows, tag: tag})
+	test.SimulateModel(model, cmd)
+
+	assert.Equal(t, 0, model.Cursor())
+	assert.False(t, model.ensureCursorView, "keep-selection refresh should not request cursor recentering")
+}
+
 func TestModel_RenderImmediateInNormalMode(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 
 	assert.NotPanics(t, func() {
 		rendered := test.RenderImmediate(model, 100, 20)
@@ -302,7 +324,7 @@ func TestModel_RenderImmediateInNormalMode(t *testing.T) {
 func TestModel_ViewRectOnlyRendersStackedChildren(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 
 	base := &viewRectTrackingOp{name: "base"}
 	child := &viewRectTrackingOp{name: "child"}
@@ -342,7 +364,7 @@ func TestModel_OperationIntents(t *testing.T) {
 			ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 
 			model := New(ctx)
-			model.updateGraphRows(rows, "a")
+			model.updateGraphRows(rows, "a", true)
 			test.SimulateModel(model, model.Update(tc.intent))
 			assert.False(t, model.InNormalMode())
 			rendered := test.RenderImmediate(model, 100, 50)
@@ -359,7 +381,7 @@ func TestModel_ForwardsOperationIntentToFocusedOperation(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := New(ctx)
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 
 	test.SimulateModel(model, model.Update(intents.OpenRebase{}))
 	assert.False(t, model.InNormalMode())
@@ -377,7 +399,7 @@ func TestModel_TargetPickerCancelClosesEditing(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := New(ctx)
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 
 	test.SimulateModel(model, model.Update(intents.OpenRebase{}))
 	test.SimulateModel(model, model.Update(intents.RebaseOpenTargetPicker{}))

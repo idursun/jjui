@@ -65,7 +65,7 @@ func TestQuickSearch_ClearIntentClearsSearch(t *testing.T) {
 func TestQuickSearch_UpdatesSelection(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
-	model.updateGraphRows(searchableRows, "first")
+	model.updateGraphRows(searchableRows, "first", true)
 
 	selectionChanged := func(cmd tea.Cmd) bool {
 		var changed bool

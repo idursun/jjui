@@ -23,21 +23,21 @@ func TestHandleIntent_RevisionsModeOpeners(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := New(ctx)
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 
 	_, handled := model.HandleIntent(intents.OpenDetails{})
 	assert.True(t, handled, "open_details should be handled by revisions")
 	assert.Equal(t, "details", model.CurrentOperation().Name())
 
 	model.Update(intents.Cancel{})
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 
 	_, handled = model.HandleIntent(intents.OpenRebase{})
 	assert.True(t, handled, "open_rebase should be handled by revisions")
 	assert.Equal(t, "rebase", model.CurrentOperation().Name())
 
 	model.Update(intents.Cancel{})
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 	_, handled = model.HandleIntent(intents.OpenDuplicate{})
 	assert.True(t, handled, "open_duplicate should be handled by revisions")
 	assert.Equal(t, "duplicate", model.CurrentOperation().Name())
@@ -46,7 +46,7 @@ func TestHandleIntent_RevisionsModeOpeners(t *testing.T) {
 func TestHandleIntent_OpenRebaseSeedsTrackedSelection(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 
 	_, handled := model.HandleIntent(intents.OpenRebase{})
 	assert.True(t, handled, "open_rebase should be handled by revisions")
@@ -99,7 +99,7 @@ func (o *confirmationTrackingOp) DesiredHeight(_ *jj.Commit, _ operations.Render
 func TestHandleIntent_DetailsConfirmationMoveDoesNotMoveRevisionsCursor(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 	model.SetCursor(0)
 
 	op := &confirmationTrackingOp{}
@@ -143,7 +143,7 @@ func (o *applyTrackingOp) DesiredHeight(_ *jj.Commit, _ operations.RenderPositio
 func TestHandleIntent_ApplyArgsFlowToOperation(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 
 	op := &applyTrackingOp{}
 	model.baseOp = op
@@ -156,7 +156,7 @@ func TestHandleIntent_ApplyArgsFlowToOperation(t *testing.T) {
 func TestHandleIntent_CancelClearsSelectionsInNormalMode(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 
 	rev := model.SelectedRevision()
 	if assert.NotNil(t, rev, "expected a selected revision in test data") {
@@ -173,7 +173,7 @@ func TestHandleIntent_CancelClearsSelectionsInNormalMode(t *testing.T) {
 func TestHandleIntent_CancelLeaksWithoutSelectionsInNormalMode(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
-	model.updateGraphRows(rows, "a")
+	model.updateGraphRows(rows, "a", true)
 
 	assert.Equal(t, 0, len(ctx.CheckedItems), "setup should start with no selected revisions")
 
