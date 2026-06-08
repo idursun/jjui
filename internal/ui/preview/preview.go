@@ -21,12 +21,13 @@ import (
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
+	context             *context.MainContext
 	view                viewport.Model
 	previewVisible      bool
 	previewAutoPosition bool
 	previewAtBottom     bool
+	contentItem         common.SelectedItem // item which we are currently showing the preview for
 	content             string
-	context             *context.MainContext
 }
 
 const (
@@ -39,7 +40,8 @@ type previewMsg struct {
 }
 
 type updatePreviewContentMsg struct {
-	Content string
+	contentItem common.SelectedItem
+	content     string
 }
 
 type ScrollMsg struct {
@@ -182,14 +184,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.SetContent(msg.Content)
 		return nil
 	case common.SelectionChangedMsg:
-		if msg.Item != nil {
-			return m.refreshPreviewForItem(msg.Item)
-		}
-		return m.refreshPreview()
+		return m.refreshPreviewForItem(m.context.SelectedItem)
 	case common.RefreshMsg:
-		return m.refreshPreview()
+		return m.refreshPreviewForItem(m.context.SelectedItem)
 	case updatePreviewContentMsg:
-		m.SetContent(msg.Content)
+		m.contentItem = msg.contentItem
+		m.SetContent(msg.content)
 		return nil
 	}
 	return nil
@@ -223,10 +223,6 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 func (m *Model) reset() {
 	m.view.SetYOffset(0)
 	m.view.SetXOffset(0)
-}
-
-func (m *Model) refreshPreview() tea.Cmd {
-	return m.refreshPreviewForItem(m.context.SelectedItem)
 }
 
 func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
@@ -267,13 +263,17 @@ func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
 			// The preview subprocess does not run in a pane-sized PTY, so let
 			// width-sensitive tools like `jj diff` see the preview size via the
 			// conventional terminal size environment variables.
-			"DFT_WIDTH=" + strconv.Itoa(m.view.Width()), // diftastic
+			"DFT_WIDTH=" + strconv.Itoa(m.view.Width()), // difftastic
 			"COLUMNS=" + strconv.Itoa(m.view.Width()),
 			"LINES=" + strconv.Itoa(m.view.Height()),
 		}
+		if m.contentItem != nil && m.contentItem.Equal(item) {
+			return nil
+		}
 		output, _ := m.context.RunCommandImmediateWithEnv(args, env)
 		return updatePreviewContentMsg{
-			Content: string(output),
+			contentItem: item,
+			content:     string(output),
 		}
 	})
 }

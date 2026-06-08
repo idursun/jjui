@@ -8,6 +8,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
@@ -159,23 +160,36 @@ func TestUpdate_PreviewShowDoesNotBreakSelectionRefresh(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	ctx.CurrentRevset = "all()"
 	model := New(ctx)
+	model.ViewRect(render.NewDisplayContext(), layout.NewBox(layout.Rect(0, 0, 80, 3)))
 
 	selected := common.SelectedRevision{ChangeId: "change", CommitId: "commit"}
+	ctx.SelectedItem = selected
 	args := jj.TemplatedArgs(config.Current.Preview.RevisionCommand, map[string]string{
 		jj.RevsetPlaceholder:       ctx.CurrentRevset,
 		jj.ChangeIdPlaceholder:     selected.ChangeId,
 		jj.CommitIdPlaceholder:     selected.CommitId,
-		jj.PreviewWidthPlaceholder: "0",
+		jj.PreviewWidthPlaceholder: "80",
 	})
-	commandRunner.Expect(args).SetOutput([]byte("auto preview"))
+	commandRunner.Expect(args).SetOutput([]byte("line 1\nline 2\nline 3\nline 4\nline 5"))
 
 	model.Update(intents.PreviewShow{Content: "manual"})
-	cmd := model.Update(common.SelectionChangedMsg{Item: selected})
+	cmd := model.Update(common.RefreshMsg{})
 	require.NotNil(t, cmd)
 
 	test.SimulateModel(model, cmd)
 
-	assert.Equal(t, "auto preview", model.content)
+	assert.Equal(t, "line 1\nline 2\nline 3\nline 4\nline 5", model.content)
+
+	model.Scroll(2)
+	assert.Equal(t, 2, model.YOffset())
+
+	cmd = model.Update(common.RefreshMsg{})
+	require.NotNil(t, cmd)
+
+	test.SimulateModel(model, cmd)
+
+	assert.Equal(t, "line 1\nline 2\nline 3\nline 4\nline 5", model.content)
+	assert.Equal(t, 2, model.YOffset())
 }
 
 func TestSetContent_ExpandsTabsUsingTabStops(t *testing.T) {
