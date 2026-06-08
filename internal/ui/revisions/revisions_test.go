@@ -239,18 +239,53 @@ func TestModel_OpenSquashEmitsSelectionChangedForTargetRevision(t *testing.T) {
 	assert.True(t, gotTargetSelection, "opening squash should refresh observers for the target revision")
 }
 
-func TestModel_StreamingRefreshFallbackSelectsRevisionChangeID(t *testing.T) {
+func TestModel_UpdateRevisionsPreservesEvologSelection(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
-	model.updateGraphRows(rows, "b")
-	ctx.SelectedItem = common.SelectedRevision{
-		ChangeId: "b",
+	model.baseOp = &viewRectTrackingOp{name: "evolog"}
+	model.updateGraphRows(rows, "a")
+	ctx.SelectedItem = common.SelectedCommit{
 		CommitId: "9",
 	}
 
-	model.internalUpdate(streamingReadyMsg{tag: model.tag.Load()})
+	cmd := model.Update(updateRevisionsMsg{rows: rows, selectedRevision: "9"})
+	test.SimulateModel(model, cmd)
 
-	assert.Equal(t, "b", model.revisionToSelect, "streaming refresh should use the stable change id, not the stale commit id")
+	selected, ok := ctx.SelectedItem.(common.SelectedCommit)
+	assert.True(t, ok, "refresh should preserve the evolog selection type while evolog is active")
+	assert.Equal(t, "9", selected.CommitId)
+}
+
+func TestModel_UpdateRevisionsRefreshesDetailsSelection(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+	model.baseOp = &viewRectTrackingOp{name: "details"}
+	model.updateGraphRows(rows, "a")
+	ctx.SelectedItem = common.SelectedFile{
+		ChangeId: "a",
+		CommitId: "8",
+		File:     "file.txt",
+	}
+
+	newRows := []parser.Row{
+		{
+			Commit: &jj.Commit{ChangeId: "a", CommitId: "10"},
+			Lines:  rows[0].Lines,
+		},
+		{
+			Commit: rows[1].Commit,
+			Lines:  rows[1].Lines,
+		},
+	}
+
+	cmd := model.Update(updateRevisionsMsg{rows: newRows, selectedRevision: "a"})
+	test.SimulateModel(model, cmd)
+
+	selected, ok := ctx.SelectedItem.(common.SelectedFile)
+	assert.True(t, ok, "refresh should keep details selection type while details is active")
+	assert.Equal(t, "a", selected.ChangeId)
+	assert.Equal(t, "10", selected.CommitId)
+	assert.Equal(t, "file.txt", selected.File)
 }
 
 func TestModel_RenderImmediateInNormalMode(t *testing.T) {

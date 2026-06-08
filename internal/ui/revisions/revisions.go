@@ -488,6 +488,8 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				m.revisionToSelect = selected.ChangeId
 			case appContext.SelectedFile:
 				m.revisionToSelect = selected.CommitId
+			case appContext.SelectedCommit:
+				m.revisionToSelect = selected.CommitId
 			}
 		}
 		log.Println("Starting streaming revisions with tag:", msg.tag)
@@ -1028,11 +1030,19 @@ func (m *Model) startSplit(intent intents.StartSplit) tea.Cmd {
 }
 
 func (m *Model) updateSelection() tea.Cmd {
-	// Don't override file-level selections (from Details panel)
-	if _, isFile := m.context.SelectedItem.(appContext.SelectedFile); isFile && !m.InNormalMode() {
-		return nil
-	}
 	if selectedRevision := m.SelectedRevision(); selectedRevision != nil {
+		if !m.InNormalMode() {
+			switch selected := m.context.SelectedItem.(type) {
+			case appContext.SelectedFile:
+				return m.context.SetSelectedItem(appContext.SelectedFile{
+					ChangeId: selectedRevision.GetChangeId(),
+					CommitId: selectedRevision.CommitId,
+					File:     selected.File,
+				})
+			case appContext.SelectedCommit:
+				return nil
+			}
+		}
 		return m.context.SetSelectedItem(appContext.SelectedRevision{
 			ChangeId: selectedRevision.GetChangeId(),
 			CommitId: selectedRevision.CommitId,
