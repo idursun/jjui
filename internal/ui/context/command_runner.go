@@ -124,7 +124,7 @@ func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, co
 				if errors.As(err, &exitError) {
 					msg := output.String()
 					if len(env) == 0 && slices.Contains([]string{"linux", "darwin"}, runtime.GOOS) {
-						msg += "\nHint: enable ssh.hijack_askpass if you expected a password prompt (e.g. ssh passphrase)"
+						msg += common.DefaultPalette.Get("dimmed").Render("\nHint: enable ssh.hijack_askpass if you expected a password prompt (e.g. ssh passphrase)")
 					}
 					err = errors.New(msg)
 				}
