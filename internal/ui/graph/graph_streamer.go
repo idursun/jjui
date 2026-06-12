@@ -29,10 +29,10 @@ type GraphStreamer struct {
 // Returns:
 // - Streamer: If stdout is successfully opened.
 // - Error: Returns the stderr output (warnings are also written to stderr).
-func NewGraphStreamer(parentCtx context.Context, runner appContext.CommandRunner, revset string, jjTemplate string) (*GraphStreamer, error) {
+func NewGraphStreamer(parentCtx context.Context, runner appContext.CommandRunner, revset string, jjTemplate string, noIntegrateOperation bool) (*GraphStreamer, error) {
 	ctx, cancel := context.WithCancel(parentCtx)
 
-	command, err := runner.RunCommandStreaming(ctx, jj.Log(revset, config.Current.Limit, jjTemplate))
+	command, err := runner.RunCommandStreaming(ctx, jj.Log(revset, config.Current.Limit, jjTemplate, noIntegrateOperation))
 	if err != nil {
 		cancel()
 		return nil, err

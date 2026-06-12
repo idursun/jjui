@@ -41,8 +41,11 @@ func ConfigListAll() CommandArgs {
 	return []string{"config", "list", "--color", "never", "--include-defaults", "--ignore-working-copy"}
 }
 
-func Log(revset string, limit int, jjTemplate string) CommandArgs {
+func Log(revset string, limit int, jjTemplate string, noIntegrateOperation bool) CommandArgs {
 	args := []string{"log", "--color", "always", "--quiet"}
+	if noIntegrateOperation {
+		args = append(args, "--no-integrate-operation")
+	}
 	if revset != "" {
 		args = append(args, "-r", revset)
 	}

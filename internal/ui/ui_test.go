@@ -104,7 +104,7 @@ func TestWrapperView_ClearsCursorWhenInlineDescribeCloses(t *testing.T) {
 
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
-	commandRunner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log)).SetOutput([]byte(testLogOutput))
+	commandRunner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log, false)).SetOutput([]byte(testLogOutput))
 	commandRunner.Expect(jj.GetDescription("abc123")).SetOutput([]byte("old desc"))
 	defer commandRunner.Verify()
 
@@ -1236,7 +1236,7 @@ func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing
 
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
-	commandRunner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log)).SetOutput([]byte(logOutput))
+	commandRunner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log, false)).SetOutput([]byte(logOutput))
 	commandRunner.Expect(jj.GetParent(jj.NewSelectedRevisions(&jj.Commit{ChangeId: "child", CommitId: "childcommit"}))).SetOutput([]byte("parentcommit"))
 	commandRunner.Expect(jj.Snapshot())
 	commandRunner.Expect(jj.Status("parent")).SetOutput([]byte(statusOutput))
