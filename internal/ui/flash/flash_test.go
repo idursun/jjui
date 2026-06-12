@@ -120,6 +120,24 @@ func TestHistory_CompletionBeforeRunning_ReconcilesByCommandID(t *testing.T) {
 	}
 }
 
+func TestHistory_EmptySuccessfulNonInteractiveCommandCompletionCreatesLiveFlash(t *testing.T) {
+	m := New()
+
+	cmd := m.Update(common.CommandRunningMsg{ID: 9, Command: "jj git fetch"})
+	assert.NotNil(t, cmd)
+
+	cmd = m.Update(common.CommandCompletedMsg{ID: 9, Output: "", Err: nil})
+	assert.NotNil(t, cmd)
+	assert.Equal(t, 1, m.LiveMessagesCount())
+
+	snapshot := m.commandHistorySnapshot()
+	if assert.Len(t, snapshot, 1) {
+		assert.Equal(t, "jj git fetch", snapshot[0].Command)
+		assert.Equal(t, "", snapshot[0].Text)
+		assert.NoError(t, snapshot[0].Err)
+	}
+}
+
 func TestHistory_IsBoundedToConfiguredLimit(t *testing.T) {
 	m := New()
 

@@ -199,12 +199,16 @@ func (m *Model) AddWithCommand(text string, command string, error error) uint64 
 
 	m.messages = append(m.messages, msg)
 	if msg.command != "" {
-		m.messageHistory = append(m.messageHistory, msg)
-		if len(m.messageHistory) > HistoryLimit {
-			m.messageHistory = append([]flashMessage(nil), m.messageHistory[len(m.messageHistory)-HistoryLimit:]...)
-		}
+		m.addHistory(msg)
 	}
 	return msg.id
+}
+
+func (m *Model) addHistory(msg flashMessage) {
+	m.messageHistory = append(m.messageHistory, msg)
+	if len(m.messageHistory) > HistoryLimit {
+		m.messageHistory = append([]flashMessage(nil), m.messageHistory[len(m.messageHistory)-HistoryLimit:]...)
+	}
 }
 
 func (m *Model) Any() bool {

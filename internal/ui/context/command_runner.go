@@ -153,25 +153,19 @@ func (a *MainCommandRunner) RunCommand(args []string, continuations ...tea.Cmd) 
 }
 
 func (a *MainCommandRunner) RunInteractiveCommand(args []string, continuation tea.Cmd) tea.Cmd {
-	id := a.nextID()
-	command := "jj " + strings.Join(args, " ")
 	c := exec.Command("jj", args...)
 	errBuffer := &bytes.Buffer{}
 	c.Stderr = errBuffer
 	c.Dir = a.Location
-	return tea.Batch(
-		func() tea.Msg {
-			return common.CommandRunningMsg{ID: id, Command: command}
-		},
-		tea.ExecProcess(c, func(err error) tea.Msg {
-			if err != nil {
-				return common.CommandCompletedMsg{ID: id, Err: errors.New(errBuffer.String())}
-			}
-			return tea.Batch(continuation, func() tea.Msg {
-				return common.CommandCompletedMsg{ID: id, Err: nil}
-			})()
-		}),
-	)
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		if err != nil {
+			return common.CommandCompletedMsg{Err: errors.New(errBuffer.String())}
+		}
+		if continuation != nil {
+			return continuation()
+		}
+		return nil
+	})
 }
 
 type StreamingCommand struct {

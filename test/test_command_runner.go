@@ -92,7 +92,16 @@ func (t *CommandRunner) RunCommand(args []string, continuations ...tea.Cmd) tea.
 }
 
 func (t *CommandRunner) RunInteractiveCommand(args []string, continuation tea.Cmd) tea.Cmd {
-	return t.RunCommand(args, continuation)
+	return func() tea.Msg {
+		_, err := t.RunCommandImmediate(args)
+		if err != nil {
+			return common.CommandCompletedMsg{Err: err}
+		}
+		if continuation != nil {
+			return continuation()
+		}
+		return nil
+	}
 }
 
 func (t *CommandRunner) Expect(args []string) *ExpectedCommand {
