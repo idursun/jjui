@@ -17,8 +17,7 @@ import (
 
 func TestHandleIntent_RevisionsModeOpeners(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Snapshot())
-	commandRunner.Expect(jj.Status("a"))
+	commandRunner.Expect(jj.Status("a", true))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)

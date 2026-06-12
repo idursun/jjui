@@ -1238,8 +1238,7 @@ func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing
 	ctx := test.NewTestContext(commandRunner)
 	commandRunner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log, false)).SetOutput([]byte(logOutput))
 	commandRunner.Expect(jj.GetParent(jj.NewSelectedRevisions(&jj.Commit{ChangeId: "child", CommitId: "childcommit"}))).SetOutput([]byte("parentcommit"))
-	commandRunner.Expect(jj.Snapshot())
-	commandRunner.Expect(jj.Status("parent")).SetOutput([]byte(statusOutput))
+	commandRunner.Expect(jj.Status("parent", true)).SetOutput([]byte(statusOutput))
 	defer commandRunner.Verify()
 
 	require.NoError(t, scripting.InitVM(ctx))
@@ -1420,8 +1419,7 @@ func Test_Update_DetailsCloseClearsSelectedFiles(t *testing.T) {
 	const statusOutput = "false false $\nM file.txt\nA newfile.txt\n"
 
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Snapshot())
-	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte(statusOutput))
+	commandRunner.Expect(jj.Status("abc123", true)).SetOutput([]byte(statusOutput))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -1444,8 +1442,7 @@ func Test_Update_RestoreDetailsOperationResyncsSelectedFiles(t *testing.T) {
 	const statusOutput = "false false $\nM file.txt\nA newfile.txt\n"
 
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Snapshot())
-	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte(statusOutput))
+	commandRunner.Expect(jj.Status("abc123", true)).SetOutput([]byte(statusOutput))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -1522,8 +1519,7 @@ func Test_Update_CommandErrorAfterClosingDetailsWithSelectedFiles_AllowsEscToDis
 	const statusOutput = "false false $\nM file.txt\nA newfile.txt\n"
 
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Snapshot())
-	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte(statusOutput))
+	commandRunner.Expect(jj.Status("abc123", true)).SetOutput([]byte(statusOutput))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)

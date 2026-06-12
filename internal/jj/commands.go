@@ -174,9 +174,15 @@ func Snapshot() CommandArgs {
 	return []string{"debug", "snapshot"}
 }
 
-func Status(revision string) CommandArgs {
+func Status(revision string, noIntegrateOperation bool) CommandArgs {
 	template := `separate(";", diff.files().map(|x| x.target().conflict())) ++ " $\n"`
-	return []string{"log", "-r", revision, "--summary", "--no-graph", "--color", "never", "--quiet", "--template", template, "--ignore-working-copy"}
+	args := []string{"log", "-r", revision, "--summary", "--no-graph", "--color", "never", "--quiet", "--template", template}
+	if noIntegrateOperation {
+		args = append(args, "--no-integrate-operation")
+	} else {
+		args = append(args, "--ignore-working-copy")
+	}
+	return args
 }
 
 func BookmarkSet(revision string, name string) CommandArgs {

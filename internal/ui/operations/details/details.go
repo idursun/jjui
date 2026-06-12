@@ -492,15 +492,12 @@ func (s *Operation) createListItems(content string, selectedFiles []string) []*i
 }
 
 func (s *Operation) load(revision string) tea.Cmd {
-	output, err := s.context.RunCommandImmediate(jj.Snapshot())
+	output, err := s.context.RunCommandImmediate(jj.Status(revision, true))
 	if err == nil {
-		output, err = s.context.RunCommandImmediate(jj.Status(revision))
-		if err == nil {
-			return func() tea.Msg {
-				summary := string(output)
-				selectedFiles := s.getSelectedFiles(false)
-				return updateCommitStatusMsg{summary, selectedFiles}
-			}
+		return func() tea.Msg {
+			summary := string(output)
+			selectedFiles := s.getSelectedFiles(false)
+			return updateCommitStatusMsg{summary, selectedFiles}
 		}
 	}
 	return func() tea.Msg {
