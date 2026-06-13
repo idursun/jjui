@@ -88,12 +88,16 @@ const (
 	TargetParent
 	TargetChild
 	TargetWorkingCopy
+	TargetTop
+	TargetBottom
 )
 
 //jjui:bind scope=revisions action=move_up set=Delta:-1
 //jjui:bind scope=revisions action=move_down set=Delta:1
 //jjui:bind scope=revisions action=page_up set=Delta:-1,IsPage:true
 //jjui:bind scope=revisions action=page_down set=Delta:1,IsPage:true
+//jjui:bind scope=revisions action=go_to_top set=Target:TargetTop
+//jjui:bind scope=revisions action=go_to_bottom set=Target:TargetBottom
 //jjui:bind scope=revisions action=jump_to_parent set=Target:TargetParent
 //jjui:bind scope=revisions action=jump_to_children set=Target:TargetChild
 //jjui:bind scope=revisions action=jump_to_working_copy set=Target:TargetWorkingCopy
