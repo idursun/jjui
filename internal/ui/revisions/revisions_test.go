@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
@@ -84,22 +83,6 @@ func TestModel_Navigate(t *testing.T) {
 	assert.Equal(t, "b", model.SelectedRevision().ChangeId)
 	test.SimulateModel(model, model.Update(intents.Navigate{Delta: -1}))
 	assert.Equal(t, "a", model.SelectedRevision().ChangeId)
-}
-
-func TestModel_AutoRefreshUsesNoIntegrateOperation(t *testing.T) {
-	origLogBatching := config.Current.Revisions.LogBatching
-	defer func() {
-		config.Current.Revisions.LogBatching = origLogBatching
-	}()
-	config.Current.Revisions.LogBatching = false
-
-	commandRunner := test.NewTestCommandRunner(t)
-	ctx := test.NewTestContext(commandRunner)
-	commandRunner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log, true))
-	defer commandRunner.Verify()
-
-	model := New(ctx)
-	test.SimulateModel(model, model.Update(common.AutoRefreshMsg{}))
 }
 
 func TestModel_UpdateGraphRows_DoesNotPrefixMatchImplicitCurrentSelection(t *testing.T) {

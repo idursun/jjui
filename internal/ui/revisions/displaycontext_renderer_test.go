@@ -36,7 +36,8 @@ func TestDisplayContextRenderer_DetailsRendersBeforeElidedMarker(t *testing.T) {
 	// Prepare details operation with a file list.
 	const statusOutput = "false $\nM file.txt\n"
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Status(targetRow.Commit.GetChangeId(), true)).SetOutput([]byte(statusOutput))
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(targetRow.Commit.GetChangeId())).SetOutput([]byte(statusOutput))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)

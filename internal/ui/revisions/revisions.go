@@ -65,6 +65,7 @@ type Model struct {
 	output                 string
 	err                    error
 	quickSearch            string
+	previousOpLogId        string
 	isLoading              bool
 	displayContextRenderer *DisplayContextRenderer
 	ensureCursorView       bool
@@ -433,10 +434,13 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		m.err = msg.Err
 		return nil
 	case common.AutoRefreshMsg:
-		return m.refresh(intents.Refresh{
-			KeepSelections:       true,
-			NoIntegrateOperation: true,
-		})
+		id, _ := m.context.RunCommandImmediate(jj.OpLogId(true))
+		currentOperationId := string(id)
+		log.Println("Previous operation ID:", m.previousOpLogId, "Current operation ID:", currentOperationId)
+		if currentOperationId != m.previousOpLogId {
+			m.previousOpLogId = currentOperationId
+			return common.RefreshAndKeepSelections
+		}
 	case common.UpdateRevisionsFailedMsg:
 		m.isLoading = false
 		return nil
@@ -729,9 +733,9 @@ func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
 		keepSelections:   intent.KeepSelections,
 	}
 	if config.Current.Revisions.LogBatching {
-		return m.loadStreaming(m.context.CurrentRevset, currentTag, intent.NoIntegrateOperation)
+		return m.loadStreaming(m.context.CurrentRevset, currentTag)
 	}
-	return m.load(m.context.CurrentRevset, currentTag, intent.NoIntegrateOperation)
+	return m.load(m.context.CurrentRevset, currentTag)
 }
 
 func (m *Model) openDetails(_ intents.OpenDetails) tea.Cmd {
@@ -1186,9 +1190,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.ensureCursorView = false
 }
 
-func (m *Model) load(revset string, tag uint64, noIntegrateOperation bool) tea.Cmd {
+func (m *Model) load(revset string, tag uint64) tea.Cmd {
 	return func() tea.Msg {
-		output, err := m.context.RunCommandImmediate(jj.Log(revset, config.Current.Limit, m.context.JJConfig.Templates.Log, noIntegrateOperation))
+		output, err := m.context.RunCommandImmediate(jj.Log(revset, config.Current.Limit, m.context.JJConfig.Templates.Log))
 		if err != nil {
 			return common.UpdateRevisionsFailedMsg{
 				Err:    err,
@@ -1203,13 +1207,13 @@ func (m *Model) load(revset string, tag uint64, noIntegrateOperation bool) tea.C
 	}
 }
 
-func (m *Model) loadStreaming(revset string, tag uint64, noIntegrateOperation bool) tea.Cmd {
+func (m *Model) loadStreaming(revset string, tag uint64) tea.Cmd {
 	return func() tea.Msg {
 		if m.tag.Load() != tag {
 			return nil
 		}
 
-		streamer, err := graph.NewGraphStreamer(context.Background(), m.context, revset, m.context.JJConfig.Templates.Log, noIntegrateOperation)
+		streamer, err := graph.NewGraphStreamer(context.Background(), m.context, revset, m.context.JJConfig.Templates.Log)
 		var errMsg string
 		if err != nil {
 			if err == io.EOF {

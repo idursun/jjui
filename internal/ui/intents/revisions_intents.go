@@ -194,9 +194,8 @@ func (SetParentsToggleSelect) isIntent() {}
 //jjui:bind scope=revisions action=refresh
 //jjui:bind scope=revisions.details action=refresh
 type Refresh struct {
-	KeepSelections       bool
-	SelectedRevision     string
-	NoIntegrateOperation bool
+	KeepSelections   bool
+	SelectedRevision string
 }
 
 func (Refresh) isIntent() {}

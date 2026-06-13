@@ -31,7 +31,8 @@ var Commit = &jj.Commit{
 
 func TestModel_Init_ExecutesStatusCommand(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Status(Revision, true)).SetOutput([]byte(StatusOutput))
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
 	defer commandRunner.Verify()
 
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
@@ -41,7 +42,8 @@ func TestModel_Init_ExecutesStatusCommand(t *testing.T) {
 
 func TestModel_Update_RestoresSelectedFiles(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Status(Revision, true)).SetOutput([]byte(StatusOutput))
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
 	commandRunner.Expect(jj.Restore(Revision, []string{"file.txt"}, false))
 	defer commandRunner.Verify()
 
@@ -56,7 +58,8 @@ func TestModel_Update_RestoresSelectedFiles(t *testing.T) {
 
 func TestModel_Update_RestoresInteractively(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Status(Revision, true)).SetOutput([]byte(StatusOutput))
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
 	commandRunner.Expect(jj.Restore(Revision, []string{"file.txt"}, true))
 	defer commandRunner.Verify()
 
@@ -71,7 +74,8 @@ func TestModel_Update_RestoresInteractively(t *testing.T) {
 
 func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Status(Revision, true)).SetOutput([]byte(StatusOutput))
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
 	commandRunner.Expect(jj.Split(Revision, []string{"file.txt"}, false, false))
 	defer commandRunner.Verify()
 
@@ -86,7 +90,8 @@ func TestModel_Update_SplitsSelectedFiles(t *testing.T) {
 
 func TestModel_Update_SplitHintsFollowCheckedFiles(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Status(Revision, true)).SetOutput([]byte(StatusOutput))
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
 	defer commandRunner.Verify()
 
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
@@ -102,7 +107,8 @@ func TestModel_Update_SplitHintsFollowCheckedFiles(t *testing.T) {
 
 func TestModel_Update_ParallelSplitsSelectedFiles(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Status(Revision, true)).SetOutput([]byte(StatusOutput))
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
 	commandRunner.Expect(jj.Split(Revision, []string{"file.txt"}, true, false))
 	defer commandRunner.Verify()
 
@@ -117,7 +123,8 @@ func TestModel_Update_ParallelSplitsSelectedFiles(t *testing.T) {
 
 func TestModel_Update_HandlesMovedFiles(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Status(Revision, true)).SetOutput([]byte("false false $\nR internal/ui/{revisions => }/file.go\nR {file => sub/newfile}\n"))
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte("false false $\nR internal/ui/{revisions => }/file.go\nR {file => sub/newfile}\n"))
 	commandRunner.Expect(jj.Restore(Revision, []string{"internal/ui/file.go", "sub/newfile"}, false))
 	defer commandRunner.Verify()
 
@@ -133,7 +140,8 @@ func TestModel_Update_HandlesMovedFiles(t *testing.T) {
 
 func TestModel_Update_HandlesMovedFilesInDeepDirectories(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Status(Revision, true)).SetOutput([]byte("false false false $\nR {src/new_file_3.md => new_file.md}\nR src/{new_file.py => renamed_py.py}\nR {src1/to_be_renamed.md => src2/renamed.md}\n"))
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte("false false false $\nR {src/new_file_3.md => new_file.md}\nR src/{new_file.py => renamed_py.py}\nR {src1/to_be_renamed.md => src2/renamed.md}\n"))
 	commandRunner.Expect(jj.Restore(Revision, []string{"new_file.md", "src/renamed_py.py", "src2/renamed.md"}, false))
 	defer commandRunner.Verify()
 
@@ -150,7 +158,8 @@ func TestModel_Update_HandlesMovedFilesInDeepDirectories(t *testing.T) {
 
 func TestModel_Update_HandlesFilenamesWithBraces(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Status(Revision, true)).SetOutput([]byte("false false $\nM file{with}braces.txt\nA another{test}.go\n"))
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte("false false $\nM file{with}braces.txt\nA another{test}.go\n"))
 	commandRunner.Expect(jj.Restore(Revision, []string{"file{with}braces.txt", "another{test}.go"}, false))
 	defer commandRunner.Verify()
 
@@ -166,7 +175,8 @@ func TestModel_Update_HandlesFilenamesWithBraces(t *testing.T) {
 
 func TestModel_Refresh_IgnoreVirtuallySelectedFiles(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Status(Revision, true)).SetOutput([]byte(StatusOutput))
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
 	defer commandRunner.Verify()
 
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
@@ -179,7 +189,8 @@ func TestModel_Refresh_IgnoreVirtuallySelectedFiles(t *testing.T) {
 
 func TestModel_HandleIntent_UpdatesSelectedFileWhenCursorMoves(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Status(Revision, true)).SetOutput([]byte(StatusOutput))
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(Revision)).SetOutput([]byte(StatusOutput))
 	defer commandRunner.Verify()
 
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)

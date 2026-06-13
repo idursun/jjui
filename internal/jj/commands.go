@@ -41,11 +41,8 @@ func ConfigListAll() CommandArgs {
 	return []string{"config", "list", "--color", "never", "--include-defaults", "--ignore-working-copy"}
 }
 
-func Log(revset string, limit int, jjTemplate string, noIntegrateOperation bool) CommandArgs {
+func Log(revset string, limit int, jjTemplate string) CommandArgs {
 	args := []string{"log", "--color", "always", "--quiet"}
-	if noIntegrateOperation {
-		args = append(args, "--no-integrate-operation")
-	}
 	if revset != "" {
 		args = append(args, "-r", revset)
 	}
@@ -170,15 +167,13 @@ func Redo() CommandArgs {
 	return []string{"redo"}
 }
 
-func Status(revision string, noIntegrateOperation bool) CommandArgs {
+func Snapshot() CommandArgs {
+	return []string{"debug", "snapshot"}
+}
+
+func Status(revision string) CommandArgs {
 	template := `separate(";", diff.files().map(|x| x.target().conflict())) ++ " $\n"`
-	args := []string{"log", "-r", revision, "--summary", "--no-graph", "--color", "never", "--quiet", "--template", template}
-	if noIntegrateOperation {
-		args = append(args, "--no-integrate-operation")
-	} else {
-		args = append(args, "--ignore-working-copy")
-	}
-	return args
+	return []string{"log", "-r", revision, "--summary", "--no-graph", "--color", "never", "--quiet", "--template", template, "--ignore-working-copy"}
 }
 
 func BookmarkSet(revision string, name string) CommandArgs {
@@ -405,6 +400,14 @@ func Absorb(changeId string, into []string, files ...string) CommandArgs {
 func AbsorbDefaultTargets(source string) CommandArgs {
 	revset := fmt.Sprintf("mutable() & ::%s", source)
 	return GetIdsFromRevset(revset)
+}
+
+func OpLogId(snapshot bool) CommandArgs {
+	args := []string{"op", "log", "--color", "never", "--quiet", "--no-graph", "--limit", "1", "--template", "id"}
+	if !snapshot {
+		args = append(args, "--ignore-working-copy")
+	}
+	return args
 }
 
 func OpLog(limit int) CommandArgs {
