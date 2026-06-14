@@ -106,6 +106,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.absorb.apply":                     {"revisions.absorb"},
 	"revisions.absorb.cancel":                    {"revisions.absorb"},
 	"revisions.absorb.jump_to_working_copy":      {"revisions.absorb"},
+	"revisions.absorb.select_descendants":        {"revisions.absorb"},
 	"revisions.absorb.toggle_select":             {"revisions.absorb"},
 	"revisions.ace_jump":                         {"revisions"},
 	"revisions.ace_jump.apply":                   {"revisions.ace_jump"},

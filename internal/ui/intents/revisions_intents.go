@@ -155,6 +155,11 @@ type AbsorbToggleSelect struct{}
 
 func (AbsorbToggleSelect) isIntent() {}
 
+//jjui:bind scope=revisions.absorb action=select_descendants
+type AbsorbSelectDescendants struct{}
+
+func (AbsorbSelectDescendants) isIntent() {}
+
 //jjui:bind scope=revisions action=open_abandon
 type OpenAbandon struct {
 	Selected jj.SelectedRevisions

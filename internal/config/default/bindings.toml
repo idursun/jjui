@@ -203,6 +203,7 @@ bindings = [
     # revisions.absorb
     { key = "space", action = "revisions.absorb.toggle_select", scope = "revisions.absorb", desc = "select" },
     { key = "enter", action = "revisions.absorb.apply", scope = "revisions.absorb", desc = "apply" },
+    { key = "s", action = "revisions.absorb.select_descendants", scope = "revisions.absorb", desc = "select descendants" },
     { key = "f", action = "revisions.absorb.ace_jump", scope = "revisions.absorb", desc = "ace jump" },
     { key = "esc", action = "revisions.absorb.cancel", scope = "revisions.absorb", desc = "cancel" },
     { key = ["up", "k"], action = "revisions.move_up", scope = "revisions.absorb", desc = "up" },

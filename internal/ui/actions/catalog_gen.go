@@ -352,6 +352,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Cancel{}, true
 		case keybindings.Action("revisions.absorb.jump_to_working_copy"):
 			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
+		case keybindings.Action("revisions.absorb.select_descendants"):
+			return intents.AbsorbSelectDescendants{}, true
 		case keybindings.Action("revisions.absorb.toggle_select"):
 			return intents.AbsorbToggleSelect{}, true
 		}

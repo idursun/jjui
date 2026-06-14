@@ -261,6 +261,7 @@ function wait_refresh() end
 ---@field apply fun()
 ---@field cancel fun()
 ---@field jump_to_working_copy fun()
+---@field select_descendants fun()
 ---@field toggle_select fun()
 ---@field close fun()
 

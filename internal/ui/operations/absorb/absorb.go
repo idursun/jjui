@@ -1,6 +1,7 @@
 package absorb
 
 import (
+	"fmt"
 	"log"
 	"slices"
 	"strings"
@@ -30,6 +31,10 @@ type Operation struct {
 	targets  map[string]bool
 }
 
+type setTargetsMsg struct {
+	targets []string
+}
+
 func (o *Operation) IsFocused() bool {
 	return true
 }
@@ -49,9 +54,16 @@ func (o *Operation) Scopes() []common.Scope {
 }
 
 func (o *Operation) Update(msg tea.Msg) tea.Cmd {
-	if intent, ok := msg.(intents.Intent); ok {
-		cmd, _ := o.HandleIntent(intent)
+	switch msg := msg.(type) {
+	case intents.Intent:
+		cmd, _ := o.HandleIntent(msg)
 		return cmd
+	case setTargetsMsg:
+		targets := make(map[string]bool, len(msg.targets))
+		for _, id := range msg.targets {
+			targets[id] = true
+		}
+		o.targets = targets
 	}
 	return nil
 }
@@ -81,6 +93,11 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			o.targets[changeId] = true
 		}
 		return nil, true
+	case intents.AbsorbSelectDescendants:
+		if o.current == nil {
+			return nil, true
+		}
+		return o.selectDescendantsCmd(o.current.GetChangeId()), true
 	case intents.Apply:
 		var into []string
 		if !equalSets(o.targets, o.defaults) {
@@ -157,19 +174,37 @@ func equalSets(a, b map[string]bool) bool {
 	return true
 }
 
+func (o *Operation) selectDescendantsCmd(changeId string) tea.Cmd {
+	sourceId := o.source.GetChangeId()
+	if changeId == "" || sourceId == "" {
+		return nil
+	}
+	revset := fmt.Sprintf("mutable() & (%s:: & ::%s)", changeId, sourceId)
+	return func() tea.Msg {
+		output, err := o.context.RunCommandImmediate(jj.GetIdsFromRevset(revset))
+		if err != nil {
+			return common.CommandCompletedMsg{Err: err}
+		}
+		return setTargetsMsg{targets: targetIdsFromOutput(output, sourceId)}
+	}
+}
+
 func loadDefaultTargets(ctx *context.MainContext, source *jj.Commit) []string {
 	output, err := ctx.RunCommandImmediate(jj.AbsorbDefaultTargets(source.GetChangeId()))
 	if err != nil {
 		log.Println("Failed to load default absorb targets for", source.GetChangeId(), err)
 		return nil
 	}
+	return targetIdsFromOutput(output, source.GetChangeId())
+}
+
+func targetIdsFromOutput(output []byte, sourceId string) []string {
 	trimmed := strings.TrimSpace(string(output))
 	if trimmed == "" {
 		return nil
 	}
 	ids := strings.Split(trimmed, "\n")
 	out := make([]string, 0, len(ids))
-	sourceId := source.GetChangeId()
 	for _, id := range ids {
 		id = strings.TrimSpace(id)
 		if id == "" || id == sourceId {

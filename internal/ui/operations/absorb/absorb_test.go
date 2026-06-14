@@ -75,6 +75,50 @@ func Test_ToggleOnExtra_AddsToTargets(t *testing.T) {
 	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
 }
 
+func Test_SelectDescendants_ReplacesTargetsWithCurrentToSourceSegment(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.AbsorbDefaultTargets("c")).SetOutput([]byte("x\ny\n"))
+	commandRunner.Expect(jj.GetIdsFromRevset("mutable() & (a:: & ::c)")).SetOutput([]byte("a\nb\nc\n"))
+	commandRunner.Expect(jj.Absorb("c", []string{"a", "b"}))
+	defer commandRunner.Verify()
+
+	op := NewOperation(test.NewTestContext(commandRunner), source)
+	test.SimulateModel(op, op.Init())
+
+	op.SetSelectedRevision(&jj.Commit{ChangeId: "a"})
+	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbSelectDescendants{} })
+
+	assert.True(t, op.targets["a"])
+	assert.True(t, op.targets["b"])
+	assert.False(t, op.targets["c"])
+	assert.False(t, op.targets["x"])
+	assert.False(t, op.targets["y"])
+
+	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
+}
+
+func Test_SelectDescendants_EmptyResultClearsTargets(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.AbsorbDefaultTargets("c")).SetOutput([]byte("x\ny\n"))
+	commandRunner.Expect(jj.GetIdsFromRevset("mutable() & (a:: & ::c)")).SetOutput([]byte(""))
+	defer commandRunner.Verify()
+
+	op := NewOperation(test.NewTestContext(commandRunner), source)
+	test.SimulateModel(op, op.Init())
+
+	op.SetSelectedRevision(&jj.Commit{ChangeId: "a"})
+	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbSelectDescendants{} })
+
+	assert.Empty(t, op.targets)
+
+	var msgs []tea.Msg
+	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} }, func(msg tea.Msg) {
+		msgs = append(msgs, msg)
+	})
+	assert.Contains(t, msgs, common.CloseViewMsg{})
+	assert.NotContains(t, msgs, common.CloseViewMsg{Applied: true})
+}
+
 func Test_ToggleOnThenOff_RestoresDefaultsAndOmitsInto(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.Absorb("c", nil))
