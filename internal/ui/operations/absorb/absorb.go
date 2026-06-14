@@ -127,7 +127,6 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	}
 	sourceMarkerStyle := common.DefaultPalette.Get("absorb source_marker")
 	targetMarkerStyle := common.DefaultPalette.Get("absorb target_marker")
-	dimmedStyle := common.DefaultPalette.Get("absorb dimmed")
 
 	changeId := commit.GetChangeId()
 	if changeId == o.source.GetChangeId() {
@@ -135,9 +134,6 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	}
 	if o.targets[changeId] {
 		return targetMarkerStyle.Render("<< into >>")
-	}
-	if o.defaults[changeId] {
-		return dimmedStyle.Render("<< default >>")
 	}
 	return ""
 }

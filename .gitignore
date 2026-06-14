@@ -38,3 +38,5 @@ result-*
 
 # direnv
 .direnv
+
+.cache/

@@ -208,24 +208,6 @@ func Test_ToggleSourceIsNoOp(t *testing.T) {
 	assert.False(t, op.targets[source.GetChangeId()])
 }
 
-func Test_RenderShowsDimmedDefaultWhenToggledOff(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	defer commandRunner.Verify()
-
-	op := newTestOperation(t, commandRunner)
-	test.SimulateModel(op, op.Init())
-
-	intoBeforeToggle := op.Render(&jj.Commit{ChangeId: "a"}, operations.RenderBeforeChangeId)
-	assert.Contains(t, intoBeforeToggle, "<< into >>")
-
-	op.SetSelectedRevision(&jj.Commit{ChangeId: "a"})
-	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbToggleSelect{} })
-
-	defaultAfterToggle := op.Render(&jj.Commit{ChangeId: "a"}, operations.RenderBeforeChangeId)
-	assert.Contains(t, defaultAfterToggle, "<< default >>")
-	assert.NotContains(t, defaultAfterToggle, "<< into >>")
-}
-
 func Test_RenderShowsSourceMarker(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
