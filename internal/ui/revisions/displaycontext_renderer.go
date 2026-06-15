@@ -143,6 +143,66 @@ func (r *DisplayContextRenderer) Render(
 		}
 	}
 
+	if operation != nil && cursor >= 0 && cursor < len(items) && viewRect.R.Dy() > 0 {
+		item := items[cursor]
+		if item.Commit != nil {
+			contentWidth := r.itemContentWidth(item, viewRect.R.Dx())
+			embeddedHeight := r.embeddedHeight(operation, item.Commit, operations.RenderPositionAfter, contentWidth)
+			embeddedOffset := 0
+
+			beforeHeight := 0
+			if before := operation.Render(item.Commit, operations.RenderPositionBefore); before != "" {
+				beforeHeight = renderedHeight(before)
+			}
+
+			if embeddedHeight > 0 {
+				// Bias the viewport upward so embedded after-views get useful space.
+				embeddedOffset = beforeHeight + len(item.Lines)
+				for i, line := range item.Lines {
+					if line.Flags&parser.Elided == parser.Elided {
+						embeddedOffset = beforeHeight + i
+						break
+					}
+				}
+			} else if embeddedHeight = r.embeddedHeight(operation, item.Commit, operations.RenderOverDescription, contentWidth); embeddedHeight > 0 {
+				// Bias the viewport upward for inline description editors too.
+				embeddedOffset = beforeHeight + len(item.Lines)
+				for i, line := range item.Lines {
+					descriptionLine := line.Flags&parser.Highlightable == parser.Highlightable &&
+						line.Flags&parser.Revision != parser.Revision
+					if descriptionLine {
+						embeddedOffset = beforeHeight + i
+						break
+					}
+				}
+			}
+
+			if embeddedHeight > 0 {
+				cursorStart := 0
+				totalLines := 0
+				for i := range items {
+					if i == cursor {
+						cursorStart = totalLines
+					}
+					totalLines += measure(i)
+				}
+
+				viewHeight := viewRect.R.Dy()
+				desiredHeight := min(embeddedHeight, max(viewHeight-embeddedOffset, 0))
+				if desiredHeight > 0 {
+					currentStart := render.ClampStartLine(r.listRenderer.StartLine, viewHeight, totalLines)
+					if currentStart <= cursorStart {
+						embeddedStart := cursorStart + embeddedOffset
+						start := max(currentStart, embeddedStart+desiredHeight-viewHeight)
+						// Keep the selected revision visible while embedded models scroll internally.
+						r.listRenderer.StartLine = render.ClampStartLine(min(start, cursorStart), viewHeight, totalLines)
+						ensureCursorVisible = false
+					}
+				}
+			}
+		}
+	}
+
 	// Use the generic list renderer
 	r.listRenderer.Render(
 		dl,
