@@ -102,10 +102,6 @@ func (o *Operation) Init() tea.Cmd {
 	return o.load
 }
 
-func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	o.renderListToDisplayContext(dl, box.R, o.ensureCursorView)
-}
-
 func (o *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
 	o.target = commit
 	return nil
@@ -296,17 +292,16 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 	return o
 }
 
-func (o *Operation) renderListToDisplayContext(
-	dl *render.DisplayContext,
-	rect layout.Rectangle,
-	ensureCursorVisible bool,
-) int {
+func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	rect := box.R
+	ensureCursorVisible := o.ensureCursorView
+
 	if len(o.rows) == 0 {
 		content := "loading"
 		lineRect := layout.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), 1)
 		dl.AddFill(lineRect, ' ', common.DefaultPalette.Get("evolog text"), 0)
 		dl.AddDraw(lineRect, content, 0, render.PreserveBackground())
-		return 1
+		return
 	}
 	textStyle := common.DefaultPalette.Get("evolog text")
 	selectedStyle := common.DefaultPalette.Get("evolog selected")
@@ -364,7 +359,6 @@ func (o *Operation) renderListToDisplayContext(
 	)
 	o.dlRenderer.RegisterScroll(dl, viewRect)
 
-	return height
 }
 
 func (o *Operation) scroll(delta int) {
