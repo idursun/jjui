@@ -91,10 +91,9 @@ func TestStatus_Update_FileSearchFocusesAndTypingUpdatesInput(t *testing.T) {
 	m := New(ctx)
 
 	cmd := m.Update(common.FileSearchMsg{
-		Revset:       "@",
-		PreviewShown: false,
-		Commit:       &jj.Commit{ChangeId: "abc123", CommitId: "def456"},
-		RawFileOut:   []byte("a.txt\nb.txt"),
+		Revset:     "@",
+		Commit:     &jj.Commit{ChangeId: "abc123", CommitId: "def456"},
+		RawFileOut: []byte("a.txt\nb.txt"),
 	})
 	assert.NotNil(t, cmd)
 	assert.Equal(t, FocusFileSearch, m.FocusKind())

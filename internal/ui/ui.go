@@ -34,10 +34,10 @@ import (
 
 	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/oplog"
-	"github.com/idursun/jjui/internal/ui/preview"
 	"github.com/idursun/jjui/internal/ui/redo"
 	"github.com/idursun/jjui/internal/ui/revisions"
 	"github.com/idursun/jjui/internal/ui/revset"
+	"github.com/idursun/jjui/internal/ui/split"
 	"github.com/idursun/jjui/internal/ui/status"
 	"github.com/idursun/jjui/internal/ui/undo"
 )
@@ -46,7 +46,6 @@ type Model struct {
 	revisions        *revisions.Model
 	oplog            *oplog.Model
 	revsetModel      *revset.Model
-	previewModel     *preview.Model
 	diff             *diff.Model
 	flash            *flash.Model
 	state            common.State
@@ -62,8 +61,7 @@ type Model struct {
 	frameCursor      *tea.Cursor
 	width            int
 	height           int
-	revisionsSplit   *split
-	activeSplit      *split
+	splitContainer   *split.SplitContainer
 
 	// mode2031Supported is set when the terminal confirms it supports
 	// mode 2031 push. Once true, the OSC 11 polling loop stops.
@@ -148,13 +146,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return tea.Batch(tea.RequestBackgroundColor, scheduleColorSchemePoll())
-	case tea.MouseReleaseMsg:
-		m.activeSplit = nil
-	case tea.MouseMotionMsg:
-		if m.activeSplit != nil {
-			mouse := msg.Mouse()
-			m.activeSplit.DragTo(mouse.X, mouse.Y)
-			return nil
+	case tea.MouseReleaseMsg, tea.MouseMotionMsg:
+		if cmd, handled := m.handleSplitMouseMsg(msg); handled {
+			return cmd
 		}
 	case tea.MouseClickMsg, tea.MouseWheelMsg:
 		if m.displayContext != nil {
@@ -286,8 +280,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case input.SelectedMsg, input.CancelledMsg:
 		m.stacked = nil
 	case common.ShowPreview:
-		m.previewModel.SetVisible(bool(msg))
-		cmds = append(cmds, common.SelectionChanged(m.context.SelectedItem))
+		if cmd, handled := m.handleSplitMsg(msg); handled {
+			cmds = append(cmds, cmd)
+		}
 		return tea.Batch(cmds...)
 	case common.TogglePasswordMsg:
 		if m.password != nil {
@@ -302,10 +297,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			//   - if the user denies the request on the device, a new prompt automatically happen "Enter PIN for ...
 			m.password = password.New(msg)
 		}
-	case SplitDragMsg:
-		m.activeSplit = msg.Split
-		if m.activeSplit != nil {
-			m.activeSplit.DragTo(msg.X, msg.Y)
+	case split.SplitDragMsg:
+		if cmd, handled := m.handleSplitMsg(msg); handled {
+			return cmd
 		}
 
 	case tea.WindowSizeMsg:
@@ -347,9 +341,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		cmds = append(cmds, m.revisions.Update(msg))
 	}
 
-	if m.previewModel.Visible() {
-		cmds = append(cmds, m.previewModel.Update(msg))
-	}
+	cmds = append(cmds, m.updateSplit(msg))
 
 	return tea.Batch(cmds...)
 }
@@ -373,13 +365,7 @@ func (m *Model) View() string {
 	if m.diff != nil {
 		m.renderDiffLayout(box)
 	} else {
-		if m.previewModel.Visible() {
-			if m.previewModel.AutoPosition() {
-				atBottom := m.height >= m.width/2
-				m.previewModel.SetPosition(true, atBottom)
-			}
-		}
-		m.syncPreviewSplitOrientation()
+		m.updateSplitAutoPosition()
 		if m.oplog != nil {
 			m.renderOpLogLayout(box)
 		} else {
@@ -437,33 +423,6 @@ func (m *Model) renderWithStatus(box layout.Box, renderContent func(layout.Box))
 	m.status.ViewRect(m.displayContext, rows[1])
 }
 
-func (m *Model) renderSplit(primary common.ImmediateModel, box layout.Box) {
-	if m.revisionsSplit == nil {
-		return
-	}
-	m.revisionsSplit.Primary = primary
-	m.revisionsSplit.Secondary = m.previewModel
-	m.revisionsSplit.ViewRect(m.displayContext, box)
-}
-
-func (m *Model) syncPreviewSplitOrientation() {
-	if m.revisionsSplit == nil {
-		return
-	}
-	vertical := m.previewModel.AtBottom()
-	m.revisionsSplit.Vertical = vertical
-}
-
-func (m *Model) initSplit() {
-	splitState := newSplitState(config.Current.Preview.WidthPercentage)
-
-	m.revisionsSplit = newSplit(
-		splitState,
-		m.revisions,
-		m.previewModel,
-	)
-}
-
 func (m *Model) scheduleAutoRefresh() tea.Cmd {
 	interval := config.Current.UI.AutoRefreshInterval
 	if interval > 0 {
@@ -498,7 +457,7 @@ func (m *Model) dispatchScopes() []common.Scope {
 		scopes = append(scopes, m.revisions.Scopes()...)
 	}
 
-	scopes = append(scopes, m.previewModel.Scopes()...)
+	scopes = append(scopes, m.splitScopes()...)
 	if !m.revsetModel.IsEditing() {
 		scopes = append(scopes, m.revsetModel.Scopes()...)
 	}
@@ -593,36 +552,11 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return nil, true
 		}
 		out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
-		return common.FileSearch(m.context.CurrentRevset, m.previewModel.Visible(), rev, out), true
+		return common.FileSearch(m.context.CurrentRevset, rev, out), true
 
-	// --- Preview controls ---
-	case intents.PreviewToggle:
-		m.previewModel.ToggleVisible()
-		return common.SelectionChanged(m.context.SelectedItem), true
-	case intents.PreviewToggleBottom:
-		previewPos := m.previewModel.AtBottom()
-		m.previewModel.SetPosition(false, !previewPos)
-		if m.previewModel.Visible() {
-			return nil, true
-		}
-		m.previewModel.ToggleVisible()
-		return common.SelectionChanged(m.context.SelectedItem), true
-	case intents.PreviewExpand:
-		if !m.previewModel.Visible() {
-			return nil, true
-		}
-		if m.revisionsSplit != nil && m.revisionsSplit.State != nil {
-			m.revisionsSplit.State.Expand(config.Current.Preview.WidthIncrementPercentage)
-		}
-		return nil, true
-	case intents.PreviewShrink:
-		if !m.previewModel.Visible() {
-			return nil, true
-		}
-		if m.revisionsSplit != nil && m.revisionsSplit.State != nil {
-			m.revisionsSplit.State.Shrink(config.Current.Preview.WidthIncrementPercentage)
-		}
-		return nil, true
+	// --- Split controls ---
+	case intents.PreviewToggle, intents.PreviewToggleBottom, intents.PreviewExpand, intents.PreviewShrink, intents.PreviewShow:
+		return m.handleSplitIntent(intent)
 
 	// --- Delegated intents ---
 	case intents.DiffShow:
@@ -630,12 +564,6 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			m.diff = diff.New("")
 		}
 		return m.diff.Update(intent), true
-	case intents.PreviewShow:
-		if !m.previewModel.Visible() {
-			m.previewModel.ToggleVisible()
-		}
-		return m.previewModel.Update(intent), true
-
 	// --- Status ---
 	case intents.ExpandStatusToggle:
 		m.status.ToggleStatusExpand()
@@ -820,20 +748,18 @@ func NewUI(c *context.MainContext) *Model {
 	revisionsModel := revisions.New(c)
 	statusModel := status.New(c)
 	flashView := flash.New()
-	previewModel := preview.New(c)
 	revsetModel := revset.New(c)
 
 	ui := &Model{
-		context:      c,
-		state:        common.Loading,
-		revisions:    revisionsModel,
-		previewModel: previewModel,
-		status:       statusModel,
-		revsetModel:  revsetModel,
-		flash:        flashView,
+		context:     c,
+		state:       common.Loading,
+		revisions:   revisionsModel,
+		status:      statusModel,
+		revsetModel: revsetModel,
+		flash:       flashView,
 	}
+	ui.initSplitContainer()
 	ui.initResolver()
-	ui.initSplit()
 	return ui
 }
 
