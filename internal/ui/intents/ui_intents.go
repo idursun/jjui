@@ -216,6 +216,7 @@ func (ChooseCancel) isIntent() {}
 //jjui:bind scope=revisions.absorb action=cancel
 //jjui:bind scope=revisions.set_parents action=cancel
 //jjui:bind scope=revisions.set_bookmark action=cancel
+//jjui:bind scope=revisions.diff_range action=cancel
 //jjui:bind scope=revisions.inline_describe action=cancel
 //jjui:bind scope=revisions.ace_jump action=cancel
 //jjui:bind scope=ui action=cancel
@@ -250,6 +251,7 @@ func (Cancel) isIntent() {}
 //jjui:bind scope=revisions.absorb action=apply
 //jjui:bind scope=revisions.set_parents action=apply
 //jjui:bind scope=revisions.set_bookmark action=apply
+//jjui:bind scope=revisions.diff_range action=apply
 //jjui:bind scope=revisions.ace_jump action=apply
 //jjui:bind scope=bookmarks action=apply
 //jjui:bind scope=git action=apply

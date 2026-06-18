@@ -201,6 +201,7 @@ function wait_refresh() end
 ---@field absorb jjui.revisions.absorb
 ---@field ace_jump jjui.revisions.ace_jump
 ---@field details jjui.revisions.details
+---@field diff_range jjui.revisions.diff_range
 ---@field duplicate jjui.revisions.duplicate
 ---@field evolog jjui.revisions.evolog
 ---@field inline_describe jjui.revisions.inline_describe
@@ -230,6 +231,7 @@ function wait_refresh() end
 ---@field open_abandon fun()
 ---@field open_absorb fun()
 ---@field open_details fun()
+---@field open_diff_range fun()
 ---@field open_duplicate fun()
 ---@field open_evolog fun()
 ---@field open_inline_describe fun()
@@ -296,6 +298,12 @@ function wait_refresh() end
 ---@field force_apply fun()
 ---@field next fun()
 ---@field prev fun()
+---@field close fun()
+
+---@class jjui.revisions.diff_range
+---@field apply fun()
+---@field cancel fun()
+---@field swap fun()
 ---@field close fun()
 
 ---@class jjui.revisions.duplicate
