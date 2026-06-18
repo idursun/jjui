@@ -191,6 +191,16 @@ type OpenSetParents struct {
 
 func (OpenSetParents) isIntent() {}
 
+//jjui:bind scope=revisions action=open_diff_range
+type OpenDiffRange struct{}
+
+func (OpenDiffRange) isIntent() {}
+
+//jjui:bind scope=revisions.diff_range action=swap
+type DiffRangeSwap struct{}
+
+func (DiffRangeSwap) isIntent() {}
+
 //jjui:bind scope=revisions.set_parents action=toggle_select
 type SetParentsToggleSelect struct{}
 

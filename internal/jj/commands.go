@@ -141,6 +141,10 @@ func Diff(revision string, fileName string, extraArgs ...string) CommandArgs {
 	return args
 }
 
+func DiffRange(from string, to string) CommandArgs {
+	return []string{"diff", "--from", from, "--to", to, "--color", "always", "--ignore-working-copy"}
+}
+
 func Restore(revision string, files []string, interactive bool) CommandArgs {
 	args := []string{"restore", "-c", revision}
 	if interactive {
