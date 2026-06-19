@@ -58,8 +58,11 @@ var rows = []parser.Row{
 }
 
 type viewRectTrackingOp struct {
-	name          string
-	viewRectCalls int
+	name             string
+	viewRectCalls    int
+	selectedRevision *jj.Commit
+	selectedFile     string
+	selectedCommit   string
 }
 
 func (o *viewRectTrackingOp) Init() tea.Cmd { return nil }
@@ -73,6 +76,29 @@ func (o *viewRectTrackingOp) ViewRect(_ *render.DisplayContext, _ layout.Box) {
 func (o *viewRectTrackingOp) Render(*jj.Commit, operations.RenderPosition) string { return "" }
 
 func (o *viewRectTrackingOp) Name() string { return o.name }
+
+func (o *viewRectTrackingOp) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
+	o.selectedRevision = commit
+	return nil
+}
+
+func (o *viewRectTrackingOp) Selection() common.SelectionSnapshot {
+	if o.selectedCommit != "" {
+		return common.SelectionSnapshot{
+			Highlighted: common.SelectedCommit{CommitId: o.selectedCommit},
+		}
+	}
+	if o.selectedFile != "" && o.selectedRevision != nil {
+		return common.SelectionSnapshot{
+			Highlighted: common.SelectedFile{
+				ChangeId: o.selectedRevision.GetChangeId(),
+				CommitId: o.selectedRevision.CommitId,
+				File:     o.selectedFile,
+			},
+		}
+	}
+	return common.SelectionSnapshot{}
+}
 
 func TestModel_Navigate(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
@@ -209,7 +235,7 @@ func TestModel_NavigateTo(t *testing.T) {
 	}
 }
 
-func TestModel_OpenSquashEmitsSelectionChangedForTargetRevision(t *testing.T) {
+func TestModel_OpenSquashSelectsTargetRevision(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.GetParent(jj.NewSelectedRevisions(rows[0].Commit))).SetOutput([]byte("9"))
 	defer commandRunner.Verify()
@@ -217,36 +243,22 @@ func TestModel_OpenSquashEmitsSelectionChangedForTargetRevision(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := New(ctx)
 	model.updateGraphRows(rows, "a", true)
-	ctx.SelectedItem = common.SelectedRevision{
-		ChangeId: rows[0].Commit.GetChangeId(),
-		CommitId: rows[0].Commit.CommitId,
-	}
 
-	var gotTargetSelection bool
 	cmd := model.Update(intents.OpenSquash{})
-	test.SimulateModel(model, cmd, func(msg tea.Msg) {
-		selection, ok := msg.(common.SelectionChangedMsg)
-		if !ok {
-			return
-		}
-		gotTargetSelection = selection.Item.Equal(common.SelectedRevision{
-			ChangeId: rows[1].Commit.GetChangeId(),
-			CommitId: rows[1].Commit.CommitId,
-		})
-	})
+	test.SimulateModel(model, cmd)
 
 	assert.Equal(t, 1, model.Cursor(), "opening squash should move the cursor to the target revision")
-	assert.True(t, gotTargetSelection, "opening squash should refresh observers for the target revision")
+	assert.True(t, model.Selection().Highlighted.Equal(common.SelectedRevision{
+		ChangeId: rows[1].Commit.GetChangeId(),
+		CommitId: rows[1].Commit.CommitId,
+	}), "opening squash should update the revisions selection snapshot")
 }
 
 func TestModel_UpdateRevisionsPreservesEvologSelection(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
-	model.baseOp = &viewRectTrackingOp{name: "evolog"}
+	model.baseOp = &viewRectTrackingOp{name: "evolog", selectedCommit: "9"}
 	model.updateGraphRows(rows, "a", true)
-	ctx.SelectedItem = common.SelectedCommit{
-		CommitId: "9",
-	}
 
 	const tag uint64 = 1
 	model.tag.Store(tag)
@@ -254,7 +266,7 @@ func TestModel_UpdateRevisionsPreservesEvologSelection(t *testing.T) {
 	cmd := model.Update(updateRevisionsMsg{rows: rows, tag: tag})
 	test.SimulateModel(model, cmd)
 
-	selected, ok := ctx.SelectedItem.(common.SelectedCommit)
+	selected, ok := model.Selection().Highlighted.(common.SelectedCommit)
 	assert.True(t, ok, "refresh should preserve the evolog selection type while evolog is active")
 	assert.Equal(t, "9", selected.CommitId)
 }
@@ -262,13 +274,8 @@ func TestModel_UpdateRevisionsPreservesEvologSelection(t *testing.T) {
 func TestModel_UpdateRevisionsRefreshesDetailsSelection(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
-	model.baseOp = &viewRectTrackingOp{name: "details"}
+	model.baseOp = &viewRectTrackingOp{name: "details", selectedFile: "file.txt"}
 	model.updateGraphRows(rows, "a", true)
-	ctx.SelectedItem = common.SelectedFile{
-		ChangeId: "a",
-		CommitId: "8",
-		File:     "file.txt",
-	}
 
 	newRows := []parser.Row{
 		{
@@ -287,7 +294,7 @@ func TestModel_UpdateRevisionsRefreshesDetailsSelection(t *testing.T) {
 	cmd := model.Update(updateRevisionsMsg{rows: newRows, tag: tag})
 	test.SimulateModel(model, cmd)
 
-	selected, ok := ctx.SelectedItem.(common.SelectedFile)
+	selected, ok := model.Selection().Highlighted.(common.SelectedFile)
 	assert.True(t, ok, "refresh should keep details selection type while details is active")
 	assert.Equal(t, "a", selected.ChangeId)
 	assert.Equal(t, "10", selected.CommitId)

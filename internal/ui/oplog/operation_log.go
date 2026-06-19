@@ -35,6 +35,7 @@ func (o OpLogScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 }
 
 var _ common.ImmediateModel = (*Model)(nil)
+var _ common.SelectionProvider = (*Model)(nil)
 
 type Model struct {
 	context          *context.MainContext
@@ -104,15 +105,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case common.QuickSearchMsg:
 		m.quickSearch = strings.ToLower(string(msg))
 		m.SetCursor(m.search(0, false))
-		return m.updateSelection()
+		return nil
 	case updateOpLogMsg:
 		m.rows = msg.Rows
-		return m.updateSelection()
+		return nil
 	case OpLogClickedMsg:
 		if msg.Index >= 0 && msg.Index < len(m.rows) {
 			m.cursor = msg.Index
 			m.ensureCursorView = true
-			return m.updateSelection()
+			return nil
 		}
 	case OpLogScrollMsg:
 		if msg.Horizontal {
@@ -141,7 +142,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			offset = -1
 		}
 		m.SetCursor(m.search(m.cursor+offset, intent.Reverse))
-		return m.updateSelection(), true
+		return nil, true
 	case intents.OpLogQuickSearchClear:
 		m.quickSearch = ""
 		return nil, true
@@ -177,14 +178,16 @@ func (m *Model) navigate(delta int, page bool) tea.Cmd {
 	}
 
 	m.SetCursor(newCursor)
-	return m.updateSelection()
+	return nil
 }
 
-func (m *Model) updateSelection() tea.Cmd {
+func (m *Model) Selection() common.SelectionSnapshot {
 	if len(m.rows) == 0 {
-		return nil
+		return common.SelectionSnapshot{}
 	}
-	return m.context.SetSelectedItem(context.SelectedOperation{OperationId: m.rows[m.cursor].OperationId})
+	return common.SelectionSnapshot{
+		Highlighted: context.SelectedOperation{OperationId: m.rows[m.cursor].OperationId},
+	}
 }
 
 func (m *Model) search(startIndex int, backward bool) int {
@@ -196,7 +199,7 @@ func (m *Model) search(startIndex int, backward bool) int {
 }
 
 func (m *Model) close() tea.Cmd {
-	return tea.Batch(common.Close, common.Refresh, common.SelectionChanged(m.context.SelectedItem))
+	return tea.Batch(common.Close, common.Refresh)
 }
 
 func (m *Model) showDiff(intent intents.OpLogShowDiff) tea.Cmd {

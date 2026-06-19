@@ -196,7 +196,7 @@ func TestModel_HandleIntent_UpdatesSelectedFileWhenCursorMoves(t *testing.T) {
 	model := NewOperation(test.NewTestContext(commandRunner), Commit)
 	test.SimulateModel(model, model.Init())
 
-	selected, ok := model.context.SelectedItem.(common.SelectedFile)
+	selected, ok := model.Selection().Highlighted.(common.SelectedFile)
 	assert.True(t, ok)
 	assert.Equal(t, "file.txt", selected.File)
 
@@ -204,7 +204,7 @@ func TestModel_HandleIntent_UpdatesSelectedFileWhenCursorMoves(t *testing.T) {
 	assert.True(t, handled)
 	test.SimulateModel(model, cmd)
 
-	selected, ok = model.context.SelectedItem.(common.SelectedFile)
+	selected, ok = model.Selection().Highlighted.(common.SelectedFile)
 	assert.True(t, ok)
 	assert.Equal(t, "newfile.txt", selected.File)
 }

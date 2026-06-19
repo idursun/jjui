@@ -46,6 +46,7 @@ var _ operations.EmbeddedOperation = (*Operation)(nil)
 var _ common.Focusable = (*Operation)(nil)
 var _ common.Overlay = (*Operation)(nil)
 var _ common.ScopeProvider = (*Operation)(nil)
+var _ common.SelectionProvider = (*Operation)(nil)
 
 type Operation struct {
 	context          *context.MainContext
@@ -113,12 +114,12 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 		o.rows = msg.rows
 		o.cursor = 0
 		o.ensureCursorView = true
-		return o.updateSelection()
+		return nil
 	case EvologClickedMsg:
 		if msg.Index >= 0 && msg.Index < len(o.rows) {
 			o.cursor = msg.Index
 			o.ensureCursorView = true
-			return o.updateSelection()
+			return nil
 		}
 	case EvologScrollMsg:
 		if msg.Horizontal {
@@ -199,22 +200,22 @@ func (o *Operation) navigate(delta int, page bool) tea.Cmd {
 	}
 
 	o.SetCursor(newCursor)
-	return o.updateSelection()
+	return nil
 }
 
 func (o *Operation) getSelectedEvolog() *jj.Commit {
 	return o.rows[o.cursor].Commit
 }
 
-func (o *Operation) updateSelection() tea.Cmd {
-	if o.rows == nil {
-		return nil
+func (o *Operation) Selection() common.SelectionSnapshot {
+	if len(o.rows) == 0 {
+		return common.SelectionSnapshot{}
 	}
 
 	selected := o.getSelectedEvolog()
-	return o.context.SetSelectedItem(context.SelectedCommit{
-		CommitId: selected.CommitId,
-	})
+	return common.SelectionSnapshot{
+		Highlighted: context.SelectedCommit{CommitId: selected.CommitId},
+	}
 }
 
 func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {

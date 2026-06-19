@@ -3,7 +3,6 @@ package revisions
 import (
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
@@ -67,23 +66,23 @@ func TestQuickSearch_UpdatesSelection(t *testing.T) {
 	model := New(ctx)
 	model.updateGraphRows(searchableRows, "first", true)
 
-	selectionChanged := func(cmd tea.Cmd) bool {
-		var changed bool
-		test.SimulateModel(model, cmd, func(msg tea.Msg) {
-			if _, ok := msg.(common.SelectionChangedMsg); ok {
-				changed = true
-			}
-		})
-		return changed
+	selectedChangeID := func() string {
+		selected, ok := model.Selection().Highlighted.(common.SelectedRevision)
+		if !ok {
+			return ""
+		}
+		return selected.ChangeId
 	}
 
 	t.Run("QuickSearchMsg", func(t *testing.T) {
-		assert.True(t, selectionChanged(model.Update(common.QuickSearchMsg("second"))))
+		test.SimulateModel(model, model.Update(common.QuickSearchMsg("second")))
+		assert.Equal(t, "second", selectedChangeID())
 	})
 
 	t.Run("QuickSearchCycle", func(t *testing.T) {
 		model.quickSearch = "match"
-		assert.True(t, selectionChanged(model.Update(intents.QuickSearchCycle{})))
+		test.SimulateModel(model, model.Update(intents.QuickSearchCycle{}))
+		assert.Equal(t, "third", selectedChangeID())
 	})
 }
 

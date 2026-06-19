@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"path"
-	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -29,13 +28,13 @@ type updateCommitStatusMsg struct {
 }
 
 var (
-	_ operations.Operation                = (*Operation)(nil)
-	_ operations.EmbeddedOperation        = (*Operation)(nil)
-	_ operations.CheckedItemsSynchronizer = (*Operation)(nil)
-	_ common.Focusable                    = (*Operation)(nil)
-	_ common.Editable                     = (*Operation)(nil)
-	_ common.Overlay                      = (*Operation)(nil)
-	_ common.ScopeProvider                = (*Operation)(nil)
+	_ operations.Operation         = (*Operation)(nil)
+	_ operations.EmbeddedOperation = (*Operation)(nil)
+	_ common.Focusable             = (*Operation)(nil)
+	_ common.Editable              = (*Operation)(nil)
+	_ common.Overlay               = (*Operation)(nil)
+	_ common.ScopeProvider         = (*Operation)(nil)
+	_ common.SelectionProvider     = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -90,28 +89,11 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 		return s.load(s.revision.GetChangeId())
 	case updateCommitStatusMsg:
 		items := s.createListItems(msg.summary, msg.selectedFiles)
-		s.context.ClearCheckedItems(reflect.TypeFor[context.SelectedFile]())
-
-		for _, it := range items {
-			if it.selected {
-				sel := context.SelectedFile{
-					ChangeId: s.revision.GetChangeId(),
-					CommitId: s.revision.CommitId,
-					File:     it.fileName,
-				}
-				s.context.AddCheckedItem(sel)
-			}
-		}
 		s.setItems(items)
-
-		return s.updateSelection()
+		return nil
 	default:
-		oldCursor := s.cursor
 		var cmds []tea.Cmd
 		cmds = append(cmds, s.internalUpdate(msg))
-		if s.cursor != oldCursor {
-			cmds = append(cmds, s.updateSelection())
-		}
 		return tea.Batch(cmds...)
 	}
 }
@@ -129,26 +111,15 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 			prevCursor := s.cursor
 			s.setCursor(msg.Index)
 			s.rangeSelect(prevCursor, msg.Index)
-			s.SyncCheckedItems()
 		case msg.Ctrl:
 			s.setCursor(msg.Index)
 			if current := s.current(); current != nil {
 				current.selected = !current.selected
-				checkedFile := context.SelectedFile{
-					ChangeId: s.revision.GetChangeId(),
-					CommitId: s.revision.CommitId,
-					File:     current.fileName,
-				}
-				if current.selected {
-					s.context.AddCheckedItem(checkedFile)
-				} else {
-					s.context.RemoveCheckedItem(checkedFile)
-				}
 			}
 		default:
 			s.setCursor(msg.Index)
 		}
-		return s.updateSelection()
+		return nil
 	case FileListScrollMsg:
 		if msg.Horizontal {
 			return nil
@@ -168,26 +139,30 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 }
 
 func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
-	oldCursor := s.cursor
 	cmd, handled := s.handleIntentInner(intent)
-	if handled && s.cursor != oldCursor {
-		if selCmd := s.updateSelection(); selCmd != nil {
-			return tea.Batch(cmd, selCmd), true
-		}
-	}
 	return cmd, handled
 }
 
-func (s *Operation) updateSelection() tea.Cmd {
+func (s *Operation) Selection() common.SelectionSnapshot {
+	var snapshot common.SelectionSnapshot
 	current := s.current()
-	if current == nil {
-		return nil
+	if current != nil {
+		snapshot.Highlighted = s.selectedFile(current.fileName)
 	}
-	return s.context.SetSelectedItem(context.SelectedFile{
+	for _, file := range s.files {
+		if file.selected {
+			snapshot.Checked = append(snapshot.Checked, s.selectedFile(file.fileName))
+		}
+	}
+	return snapshot
+}
+
+func (s *Operation) selectedFile(file string) context.SelectedFile {
+	return context.SelectedFile{
 		ChangeId: s.revision.GetChangeId(),
 		CommitId: s.revision.CommitId,
-		File:     current.fileName,
-	})
+		File:     file,
+	}
 }
 
 func (s *Operation) handleIntentInner(intent intents.Intent) (tea.Cmd, bool) {
@@ -288,20 +263,7 @@ func (s *Operation) handleIntentInner(intent intents.Intent) (tea.Cmd, bool) {
 		return s.confirmation.Init(), true
 	case intents.DetailsToggleSelect:
 		if current := s.current(); current != nil {
-			isChecked := !current.selected
-			current.selected = isChecked
-
-			checkedFile := context.SelectedFile{
-				ChangeId: s.revision.GetChangeId(),
-				CommitId: s.revision.CommitId,
-				File:     current.fileName,
-			}
-			if isChecked {
-				s.context.AddCheckedItem(checkedFile)
-			} else {
-				s.context.RemoveCheckedItem(checkedFile)
-			}
-
+			current.selected = !current.selected
 			s.navigate(1, false)
 		}
 		return nil, true
@@ -313,14 +275,7 @@ func (s *Operation) handleIntentInner(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.DetailsSelectFile:
 		for i := range s.files {
 			if s.files[i].fileName == intent.File {
-				if !s.files[i].selected {
-					s.files[i].selected = true
-					s.context.AddCheckedItem(context.SelectedFile{
-						ChangeId: s.revision.GetChangeId(),
-						CommitId: s.revision.CommitId,
-						File:     intent.File,
-					})
-				}
+				s.files[i].selected = true
 				break
 			}
 		}
@@ -405,19 +360,6 @@ func (s *Operation) renderIntoRect(dl *render.DisplayContext, rect layout.Rectan
 
 func (s *Operation) Name() string {
 	return "details"
-}
-
-func (s *Operation) SyncCheckedItems() {
-	s.context.ClearCheckedItems(reflect.TypeFor[context.SelectedFile]())
-	for _, f := range s.files {
-		if f.selected {
-			s.context.AddCheckedItem(context.SelectedFile{
-				ChangeId: s.revision.GetChangeId(),
-				CommitId: s.revision.CommitId,
-				File:     f.fileName,
-			})
-		}
-	}
 }
 
 func (s *Operation) getSelectedFiles(allowVirtualSelection bool) []string {

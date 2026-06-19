@@ -43,21 +43,17 @@ func TestOpLogCloseIntent(t *testing.T) {
 
 	hasClose := false
 	hasRefresh := false
-	hasSelectionChanged := false
 	for _, m := range msgs {
 		switch m.(type) {
 		case common.CloseViewMsg:
 			hasClose = true
 		case common.RefreshMsg:
 			hasRefresh = true
-		case common.SelectionChangedMsg:
-			hasSelectionChanged = true
 		}
 	}
 
 	assert.True(t, hasClose, "expected CloseViewMsg to be sent for OpLogClose intent")
 	assert.True(t, hasRefresh, "expected RefreshMsg to be sent for OpLogClose intent")
-	assert.True(t, hasSelectionChanged, "expected SelectionChangedMsg to be sent for OpLogClose intent")
 }
 
 func TestOpLogNavigateIntent(t *testing.T) {

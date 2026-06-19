@@ -4,6 +4,15 @@ type SelectedItem interface {
 	Equal(other SelectedItem) bool
 }
 
+type SelectionSnapshot struct {
+	Highlighted SelectedItem
+	Checked     []SelectedItem
+}
+
+type SelectionProvider interface {
+	Selection() SelectionSnapshot
+}
+
 type SelectedRevision struct {
 	ChangeId string
 	CommitId string

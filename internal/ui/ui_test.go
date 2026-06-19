@@ -531,17 +531,25 @@ func Test_Update_GlobalBindingsFromConfigOverrideLegacyGlobalKeys(t *testing.T) 
 }
 
 func Test_Update_RevisionsEscClearsCheckedSelections_WithDefaultBindings(t *testing.T) {
+	origLogBatching := config.Current.Revisions.LogBatching
+	defer func() {
+		config.Current.Revisions.LogBatching = origLogBatching
+	}()
+	config.Current.Revisions.LogBatching = false
+
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
+	commandRunner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log)).SetOutput([]byte(testLogOutput))
+	defer commandRunner.Verify()
+
 	model := NewUI(ctx)
+	test.SimulateModel(model, model.revisions.Update(common.RefreshMsg{}))
 
-	ctx.AddCheckedItem(common.SelectedRevision{ChangeId: "change-1", CommitId: "commit-1"})
-	ctx.AddCheckedItem(common.SelectedRevision{ChangeId: "change-2", CommitId: "commit-2"})
+	test.SimulateModel(model, model.Update(intents.RevisionsToggleSelect{}))
+	require.Len(t, ctx.CheckedItems, 1, "setup should create a checked revision through the root sync path")
 
-	require.Len(t, ctx.CheckedItems, 2, "setup should create multiple checked revisions")
-
-	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
-	assert.Nil(t, cmd, "clearing checked revisions should not emit a follow-up command")
+	cmd := model.Update(intents.Cancel{})
+	test.SimulateModel(model, cmd)
 	assert.Empty(t, ctx.CheckedItems, "esc should clear checked revisions in normal revisions mode")
 }
 

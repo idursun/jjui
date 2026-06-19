@@ -85,6 +85,43 @@ func (m *Model) Init() tea.Cmd {
 	return tea.Batch(m.revisions.Init(), m.scheduleAutoRefresh())
 }
 
+func (m *Model) selectionSnapshot() common.SelectionSnapshot {
+	var snapshot common.SelectionSnapshot
+	for _, provider := range m.selectionProviders() {
+		part := provider.Selection()
+		if snapshot.Highlighted == nil && part.Highlighted != nil {
+			snapshot.Highlighted = part.Highlighted
+		}
+		snapshot.Checked = append(snapshot.Checked, part.Checked...)
+	}
+	return snapshot
+}
+
+func (m *Model) selectionProviders() []common.SelectionProvider {
+	var providers []common.SelectionProvider
+	if provider, ok := m.stacked.(common.SelectionProvider); ok {
+		providers = append(providers, provider)
+	}
+	if m.oplog != nil {
+		providers = append(providers, m.oplog)
+	}
+	if m.revisions != nil {
+		providers = append(providers, m.revisions)
+	}
+	return providers
+}
+
+func (m *Model) syncSelection() tea.Cmd {
+	if m.context == nil {
+		return nil
+	}
+	return m.context.SetSelection(m.selectionSnapshot())
+}
+
+func (m *Model) withSelectionSync(cmd tea.Cmd) tea.Cmd {
+	return tea.Batch(cmd, m.syncSelection())
+}
+
 func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
 	if m.diff != nil {
 		m.diff = nil
@@ -97,7 +134,7 @@ func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
 	}
 	if m.oplog != nil {
 		m.oplog = nil
-		return common.SelectionChanged(m.context.SelectedItem), true
+		return nil, true
 	}
 	return nil, false
 }
@@ -105,7 +142,7 @@ func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if closeMsg, ok := msg.(common.CloseViewMsg); ok {
 		if cmd, handled := m.closeTopScope(closeMsg); handled {
-			return cmd
+			return m.withSelectionSync(cmd)
 		}
 	}
 
@@ -180,7 +217,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 					return nil
 				}
 				if cmd, handled := common.RouteIntent(scopes[start:], result.Intent); handled {
-					return cmd
+					return m.withSelectionSync(cmd)
 				}
 				if scopes[start].Leak != common.LeakAll {
 					return m.updateBlockingScope(scopes[start], msg)
@@ -201,7 +238,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case intents.Intent:
 		if cmd, handled := m.HandleIntent(msg); handled {
-			return cmd
+			return m.withSelectionSync(cmd)
 		}
 	case common.ExecMsg:
 		return exec_process.ExecLine(m.context, msg)
@@ -262,7 +299,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if result.Intent != nil {
 			scopes := m.dispatchScopes()
 			cmd, _ := common.RouteIntent(scopes, result.Intent)
-			return tea.Sequence(cmd, actionCompleted(msg.CompletionID))
+			return tea.Sequence(m.withSelectionSync(cmd), actionCompleted(msg.CompletionID))
 		}
 		return actionCompleted(msg.CompletionID)
 	case common.ShowChooseMsg:
@@ -315,7 +352,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		} else {
 			cmds = append(cmds, m.revisions.Update(msg))
 		}
-		return tea.Batch(cmds...)
+		return m.withSelectionSync(tea.Batch(cmds...))
 	}
 
 	cmds = append(cmds, m.revsetModel.Update(msg))
@@ -343,7 +380,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	cmds = append(cmds, m.updateSplit(msg))
 
-	return tea.Batch(cmds...)
+	return m.withSelectionSync(tea.Batch(cmds...))
 }
 
 func (m *Model) updateStatus() {
@@ -660,7 +697,7 @@ func (m *Model) updateBlockingScope(scope common.Scope, msg tea.KeyMsg) tea.Cmd 
 	if scope.Handler == m.revsetModel {
 		m.state = common.Loading
 	}
-	return scope.Handler.Update(msg)
+	return m.withSelectionSync(scope.Handler.Update(msg))
 }
 
 var _ tea.Model = (*wrapper)(nil)
