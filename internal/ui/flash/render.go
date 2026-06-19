@@ -10,8 +10,7 @@ import (
 
 const commandMarkWidth = 3
 
-type CardRenderer struct {
-}
+type CardRenderer struct{}
 
 func NewCardRenderer() CardRenderer {
 	return CardRenderer{}
@@ -54,6 +53,7 @@ func (r CardRenderer) renderCard(command, text string, commandErr error, maxWidt
 			bodyText = commandErr.Error()
 		}
 		if bodyText != "" {
+			bodyText = render.ReplayTerminalOutput(bodyText)
 			bodyStyle := lipgloss.NewStyle()
 			if highlight {
 				bodyStyle = statusStyle
@@ -89,6 +89,7 @@ func (r CardRenderer) renderCardOnSurface(command, text string, commandErr error
 			bodyText = commandErr.Error()
 		}
 		if bodyText != "" {
+			bodyText = render.ReplayTerminalOutput(bodyText)
 			parts = append(parts, withoutBackground(statusStyle).Render(bodyText))
 		}
 	}

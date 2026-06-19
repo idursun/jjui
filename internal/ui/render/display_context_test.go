@@ -6,9 +6,23 @@ import (
 
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestReplayTerminalOutput(t *testing.T) {
+	output := "git: bad configuration option        \rgit: \n" +
+		"git: terminating        \rgit: \n" +
+		"remote: failed        \rremote: \n"
+
+	assert.Equal(t,
+		"git: bad configuration option\n"+
+			"git: terminating\n"+
+			"remote: failed\n",
+		ansi.Strip(ReplayTerminalOutput(output)),
+	)
+}
 
 func TestDisplayContext_AddDraw(t *testing.T) {
 	dl := NewDisplayContext()
