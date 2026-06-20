@@ -232,7 +232,7 @@ func (r *DisplayContextRenderer) addHighlights(
 
 	// Account for operation "before" lines
 	overlayHeight := 0
-	if operation != nil {
+	if operation != nil && item.Commit != nil {
 		before := operation.Render(item.Commit, operations.RenderPositionBefore)
 		if before != "" {
 			y += strings.Count(before, "\n") + 1
@@ -278,14 +278,15 @@ func (r *DisplayContextRenderer) calculateItemHeight(
 	// Base height from the item's lines
 	height := len(item.Lines)
 
-	// Add operation height if item is selected and operation exists
-	if isSelected && operation != nil {
-		// Count lines in before section
+	if operation != nil && item.Commit != nil {
 		before := operation.Render(item.Commit, operations.RenderPositionBefore)
 		if before != "" {
 			height += renderedHeight(before)
 		}
+	}
 
+	// Add operation height if item is selected and operation exists
+	if isSelected && operation != nil {
 		contentWidth := r.itemContentWidth(item, viewWidth)
 
 		overlayHeight := r.overlayHeight(operation, item, contentWidth)
@@ -331,7 +332,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 	}
 
 	// Handle operation rendering for before section
-	if isSelected && operation != nil {
+	if operation != nil && item.Commit != nil {
 		before := operation.Render(item.Commit, operations.RenderPositionBefore)
 		if before != "" {
 			// Render before section

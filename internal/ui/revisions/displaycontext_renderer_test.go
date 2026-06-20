@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 
 	"github.com/idursun/jjui/internal/jj"
@@ -20,6 +21,26 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type beforeMarkerOperation struct {
+	changeID string
+	content  string
+}
+
+func (o beforeMarkerOperation) Init() tea.Cmd { return nil }
+
+func (o beforeMarkerOperation) Update(tea.Msg) tea.Cmd { return nil }
+
+func (o beforeMarkerOperation) ViewRect(*render.DisplayContext, layout.Box) {}
+
+func (o beforeMarkerOperation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
+	if pos == operations.RenderPositionBefore && commit.GetChangeId() == o.changeID {
+		return o.content
+	}
+	return ""
+}
+
+func (o beforeMarkerOperation) Name() string { return "before.marker" }
 
 func TestDisplayContextRenderer_DetailsRendersBeforeElidedMarker(t *testing.T) {
 	f, err := os.Open("testdata/jj-log-with-elided.log")
@@ -65,6 +86,52 @@ func TestDisplayContextRenderer_DetailsRendersBeforeElidedMarker(t *testing.T) {
 	assert.NotEqual(t, -1, filePos, "expected details list to render file.txt")
 	assert.NotEqual(t, -1, elidedPos, "expected fixture to render elided revisions marker")
 	assert.Less(t, filePos, elidedPos, "expected details list to render before elided marker")
+}
+
+func TestDisplayContextRenderer_RendersBeforePositionForNonSelectedRows(t *testing.T) {
+	rows := []parser.Row{
+		{
+			Commit: &jj.Commit{ChangeId: "source", CommitId: "111111"},
+			Lines: []*parser.GraphRowLine{
+				{
+					Gutter:   parser.GraphGutter{Segments: []*screen.Segment{{Text: "@"}}},
+					Segments: []*screen.Segment{{Text: "111111 source commit"}},
+					Flags:    parser.Revision,
+				},
+			},
+		},
+		{
+			Commit: &jj.Commit{ChangeId: "target", CommitId: "222222"},
+			Lines: []*parser.GraphRowLine{
+				{
+					Gutter:   parser.GraphGutter{Segments: []*screen.Segment{{Text: "○"}}},
+					Segments: []*screen.Segment{{Text: "222222 target commit"}},
+					Flags:    parser.Revision | parser.Highlightable,
+				},
+			},
+		},
+	}
+	rows[1].Previous = &rows[0]
+
+	r := NewDisplayContextRenderer()
+	dl := render.NewDisplayContext()
+	viewRect := layout.NewBox(layout.Rect(0, 0, 80, 5))
+	op := beforeMarkerOperation{changeID: "source", content: "<< from >>"}
+
+	r.Render(dl, rows, 1, viewRect, op, nil, false, "", true)
+
+	buf := uv.NewScreenBuffer(80, 5)
+	dl.Render(buf)
+	out := buf.Render()
+
+	markerPos := strings.Index(out, "<< from >>")
+	sourcePos := strings.Index(out, "source commit")
+	targetPos := strings.Index(out, "target commit")
+	require.NotEqual(t, -1, markerPos, "expected before marker to render for non-selected row")
+	require.NotEqual(t, -1, sourcePos, "expected source row to remain visible")
+	require.NotEqual(t, -1, targetPos, "expected target row to render after measured source height")
+	assert.Less(t, markerPos, sourcePos)
+	assert.Less(t, sourcePos, targetPos)
 }
 
 // Tests that the description overlay renders correctly even when the commit has only a single line.
