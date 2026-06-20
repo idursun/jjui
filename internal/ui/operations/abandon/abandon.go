@@ -69,6 +69,12 @@ func (a *Operation) Update(msg tea.Msg) tea.Cmd {
 	case intents.Intent:
 		cmd, _ := a.HandleIntent(msg)
 		return cmd
+	case common.SelectionChangedMsg:
+		selected, ok := msg.Item.(common.SelectedRevision)
+		if !ok {
+			return nil
+		}
+		return a.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
 	case addSelectionMsg:
 		a.selectedRevisions = msg.SelectedRevisions
 	}
@@ -104,7 +110,10 @@ func (a *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (a *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
+func (a *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
+	if a.current.Equal(commit) {
+		return nil
+	}
 	a.current = commit
 	return nil
 }
@@ -150,7 +159,7 @@ func (a *Operation) Name() string {
 	return "abandon"
 }
 
-func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRevisions) *Operation {
+func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRevisions, current *jj.Commit) *Operation {
 	selectionItems := make(map[string]selectionType, len(selectedRevisions.Revisions))
 	for _, revision := range selectedRevisions.Revisions {
 		if revision == nil {
@@ -166,6 +175,7 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 		context:           context,
 		selectedRevisions: selectedRevisions,
 		selections:        selections{items: selectionItems},
+		current:           current,
 	}
 }
 

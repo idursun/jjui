@@ -21,3 +21,16 @@ func (c Commit) GetChangeId() string {
 	}
 	return c.ChangeId
 }
+
+func (c *Commit) Equal(other *Commit) bool {
+	if c == nil || other == nil {
+		return c == nil && other == nil
+	}
+	if c.GetChangeId() != other.GetChangeId() {
+		return false
+	}
+	if c.CommitId == "" || other.CommitId == "" {
+		return true
+	}
+	return c.CommitId == other.CommitId
+}

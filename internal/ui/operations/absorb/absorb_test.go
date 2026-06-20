@@ -17,7 +17,16 @@ var source = &jj.Commit{ChangeId: "c"}
 func newTestOperation(t *testing.T, runner *test.CommandRunner) *Operation {
 	t.Helper()
 	runner.Expect(jj.AbsorbDefaultTargets("c")).SetOutput([]byte("a\nb\n"))
-	return NewOperation(test.NewTestContext(runner), source)
+	return NewOperation(test.NewTestContext(runner), source, source)
+}
+
+func selectRevision(op *Operation, commit *jj.Commit) {
+	op.Update(common.SelectionChangedMsg{
+		Item: common.SelectedRevision{
+			ChangeId: commit.GetChangeId(),
+			CommitId: commit.CommitId,
+		},
+	})
 }
 
 func Test_DefaultsLoadedIntoTargetsAndDefaults(t *testing.T) {
@@ -40,7 +49,6 @@ func Test_AcceptWithDefaults_OmitsInto(t *testing.T) {
 	op := newTestOperation(t, commandRunner)
 	test.SimulateModel(op, op.Init())
 
-	op.SetSelectedRevision(source)
 	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
 }
 
@@ -52,7 +60,7 @@ func Test_ToggleOff_PassesRemainingTargets(t *testing.T) {
 	op := newTestOperation(t, commandRunner)
 	test.SimulateModel(op, op.Init())
 
-	op.SetSelectedRevision(&jj.Commit{ChangeId: "b"})
+	selectRevision(op, &jj.Commit{ChangeId: "b"})
 	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbToggleSelect{} })
 
 	assert.False(t, op.targets["b"])
@@ -69,7 +77,7 @@ func Test_ToggleOnExtra_AddsToTargets(t *testing.T) {
 	op := newTestOperation(t, commandRunner)
 	test.SimulateModel(op, op.Init())
 
-	op.SetSelectedRevision(&jj.Commit{ChangeId: "z"})
+	selectRevision(op, &jj.Commit{ChangeId: "z"})
 	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbToggleSelect{} })
 
 	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
@@ -82,10 +90,10 @@ func Test_SelectDescendants_ReplacesTargetsWithCurrentToSourceSegment(t *testing
 	commandRunner.Expect(jj.Absorb("c", []string{"a", "b"}))
 	defer commandRunner.Verify()
 
-	op := NewOperation(test.NewTestContext(commandRunner), source)
+	op := NewOperation(test.NewTestContext(commandRunner), source, source)
 	test.SimulateModel(op, op.Init())
 
-	op.SetSelectedRevision(&jj.Commit{ChangeId: "a"})
+	selectRevision(op, &jj.Commit{ChangeId: "a"})
 	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbSelectDescendants{} })
 
 	assert.True(t, op.targets["a"])
@@ -103,10 +111,10 @@ func Test_SelectDescendants_EmptyResultClearsTargets(t *testing.T) {
 	commandRunner.Expect(jj.GetIdsFromRevset("mutable() & (a:: & ::c)")).SetOutput([]byte(""))
 	defer commandRunner.Verify()
 
-	op := NewOperation(test.NewTestContext(commandRunner), source)
+	op := NewOperation(test.NewTestContext(commandRunner), source, source)
 	test.SimulateModel(op, op.Init())
 
-	op.SetSelectedRevision(&jj.Commit{ChangeId: "a"})
+	selectRevision(op, &jj.Commit{ChangeId: "a"})
 	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbSelectDescendants{} })
 
 	assert.Empty(t, op.targets)
@@ -127,7 +135,7 @@ func Test_ToggleOnThenOff_RestoresDefaultsAndOmitsInto(t *testing.T) {
 	op := newTestOperation(t, commandRunner)
 	test.SimulateModel(op, op.Init())
 
-	op.SetSelectedRevision(&jj.Commit{ChangeId: "z"})
+	selectRevision(op, &jj.Commit{ChangeId: "z"})
 	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbToggleSelect{} })
 	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbToggleSelect{} })
 
@@ -144,7 +152,7 @@ func Test_ToggleOffThenOn_RestoresDefaultsAndOmitsInto(t *testing.T) {
 	op := newTestOperation(t, commandRunner)
 	test.SimulateModel(op, op.Init())
 
-	op.SetSelectedRevision(&jj.Commit{ChangeId: "a"})
+	selectRevision(op, &jj.Commit{ChangeId: "a"})
 	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbToggleSelect{} })
 	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbToggleSelect{} })
 
@@ -160,10 +168,10 @@ func Test_EmptyDefaultsToggleThenOff_OmitsInto(t *testing.T) {
 	commandRunner.Expect(jj.Absorb("c", nil))
 	defer commandRunner.Verify()
 
-	op := NewOperation(test.NewTestContext(commandRunner), source)
+	op := NewOperation(test.NewTestContext(commandRunner), source, source)
 	test.SimulateModel(op, op.Init())
 
-	op.SetSelectedRevision(&jj.Commit{ChangeId: "z"})
+	selectRevision(op, &jj.Commit{ChangeId: "z"})
 	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbToggleSelect{} })
 	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbToggleSelect{} })
 
@@ -180,9 +188,9 @@ func Test_AcceptWithEmptyTargets_ClosesWithoutRunning(t *testing.T) {
 	op := newTestOperation(t, commandRunner)
 	test.SimulateModel(op, op.Init())
 
-	op.SetSelectedRevision(&jj.Commit{ChangeId: "a"})
+	selectRevision(op, &jj.Commit{ChangeId: "a"})
 	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbToggleSelect{} })
-	op.SetSelectedRevision(&jj.Commit{ChangeId: "b"})
+	selectRevision(op, &jj.Commit{ChangeId: "b"})
 	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbToggleSelect{} })
 
 	assert.Empty(t, op.targets)
@@ -202,7 +210,6 @@ func Test_ToggleSourceIsNoOp(t *testing.T) {
 	op := newTestOperation(t, commandRunner)
 	test.SimulateModel(op, op.Init())
 
-	op.SetSelectedRevision(source)
 	test.SimulateModel(op, func() tea.Msg { return intents.AbsorbToggleSelect{} })
 
 	assert.False(t, op.targets[source.GetChangeId()])

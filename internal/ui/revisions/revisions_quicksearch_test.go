@@ -55,7 +55,7 @@ func TestQuickSearch_ClearIntentClearsSearch(t *testing.T) {
 		rows:        []parser.Row{{Commit: &jj.Commit{ChangeId: "test123"}}},
 	}
 
-	cmd := model.internalUpdate(intents.RevisionsQuickSearchClear{})
+	cmd := model.Update(intents.RevisionsQuickSearchClear{})
 
 	assert.Equal(t, "", model.quickSearch, "clear intent should clear quicksearch")
 	assert.Nil(t, cmd)

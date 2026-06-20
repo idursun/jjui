@@ -52,13 +52,22 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case intents.Intent:
 		cmd, _ := m.HandleIntent(msg)
 		return cmd
+	case common.SelectionChangedMsg:
+		selected, ok := msg.Item.(common.SelectedRevision)
+		if !ok {
+			return nil
+		}
+		return m.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
 	}
 	return nil
 }
 
 func (m *Model) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 
-func (m *Model) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
+func (m *Model) setSelectedRevision(commit *jj.Commit) tea.Cmd {
+	if m.current.Equal(commit) {
+		return nil
+	}
 	m.current = commit
 	return nil
 }
@@ -134,7 +143,7 @@ func (m *Model) Name() string {
 	return "set parents"
 }
 
-func NewModel(ctx *context.MainContext, to *jj.Commit) *Model {
+func NewModel(ctx *context.MainContext, to *jj.Commit, current *jj.Commit) *Model {
 	output, err := ctx.RunCommandImmediate(jj.GetParents(to.GetChangeId()))
 	if err != nil {
 		log.Println("Failed to get parents for commit", to.GetChangeId())
@@ -146,5 +155,6 @@ func NewModel(ctx *context.MainContext, to *jj.Commit) *Model {
 		toRemove: make(map[string]bool),
 		toAdd:    []string{},
 		target:   to,
+		current:  current,
 	}
 }

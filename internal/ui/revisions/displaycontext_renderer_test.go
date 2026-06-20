@@ -42,8 +42,6 @@ func TestDisplayContextRenderer_DetailsRendersBeforeElidedMarker(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	op := details.NewOperation(ctx, targetRow.Commit)
-	// Details only renders for the selected commit when Current matches it.
-	_ = op.SetSelectedRevision(targetRow.Commit)
 	test.SimulateModel(op, op.Init())
 
 	// Render just the target row with the details operation active.

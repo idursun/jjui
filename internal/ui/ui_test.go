@@ -843,6 +843,7 @@ func Test_HandleDispatchedAction_RevisionsScopedActionInRebaseMode(t *testing.T)
 	op := rebase.NewOperation(
 		ctx,
 		jj.NewSelectedRevisions(&jj.Commit{ChangeId: "abc123", CommitId: "def456"}),
+		&jj.Commit{ChangeId: "abc123", CommitId: "def456"},
 		rebase.SourceRevision,
 		intents.ModeTargetDestination,
 	)
@@ -861,7 +862,7 @@ func Test_HandleDispatchedAction_RevisionsScopedActionInSetParentsMode(t *testin
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	op := set_parents.NewModel(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	op := set_parents.NewModel(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	assert.False(t, model.revisions.InNormalMode(), "model should be in set parents mode")
 

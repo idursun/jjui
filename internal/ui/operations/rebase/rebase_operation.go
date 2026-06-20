@@ -79,7 +79,7 @@ func (r *Operation) Scopes() []common.Scope {
 }
 
 func (r *Operation) Init() tea.Cmd {
-	return nil
+	return r.refreshHighlightedIds()
 }
 
 func (r *Operation) Update(msg tea.Msg) tea.Cmd {
@@ -91,6 +91,12 @@ func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 	case updateHighlightedIdsMsg:
 		r.highlightedIds = msg.ids
 		return nil
+	case common.SelectionChangedMsg:
+		selected, ok := msg.Item.(common.SelectedRevision)
+		if !ok {
+			return nil
+		}
+		return r.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
 	case intents.Intent:
 		cmd, _ := r.HandleIntent(msg)
 		return cmd
@@ -145,8 +151,21 @@ func rebaseSourceFromIntent(source intents.RebaseSource) Source {
 	}
 }
 
-func (r *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
+func (r *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
+	if commit == nil {
+		return nil
+	}
+	if r.To.Equal(commit) {
+		return nil
+	}
 	r.To = commit
+	return r.refreshHighlightedIds()
+}
+
+func (r *Operation) refreshHighlightedIds() tea.Cmd {
+	if r.To == nil {
+		return nil
+	}
 	identifier := fmt.Sprintf("rebase-highlight-%p", r)
 
 	revset := ""
@@ -283,10 +302,11 @@ func (r *Operation) targetArg() string {
 	return ""
 }
 
-func NewOperation(context *context.MainContext, from jj.SelectedRevisions, source Source, target intents.ModeTarget) *Operation {
+func NewOperation(context *context.MainContext, from jj.SelectedRevisions, current *jj.Commit, source Source, target intents.ModeTarget) *Operation {
 	return &Operation{
 		context: context,
 		From:    from,
+		To:      current,
 		Source:  source,
 		Target:  target,
 	}

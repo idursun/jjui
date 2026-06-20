@@ -57,6 +57,12 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 		s.targetName = strings.TrimSpace(msg.Target)
 		cmd, _ := s.HandleIntent(intents.Apply{Force: msg.Force})
 		return cmd
+	case common.SelectionChangedMsg:
+		selected, ok := msg.Item.(common.SelectedRevision)
+		if !ok {
+			return nil
+		}
+		return s.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
 	case intents.Intent:
 		cmd, _ := s.HandleIntent(msg)
 		return cmd
@@ -95,7 +101,10 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 
 func (s *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 
-func (s *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
+func (s *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
+	if s.current.Equal(commit) {
+		return nil
+	}
 	s.current = commit
 	return nil
 }
@@ -151,10 +160,11 @@ func WithFiles(files []string) Option {
 	}
 }
 
-func NewOperation(context *context.MainContext, from jj.SelectedRevisions, opts ...Option) *Operation {
+func NewOperation(context *context.MainContext, from jj.SelectedRevisions, current *jj.Commit, opts ...Option) *Operation {
 	o := &Operation{
 		context: context,
 		from:    from,
+		current: current,
 	}
 	for _, opt := range opts {
 		opt(o)

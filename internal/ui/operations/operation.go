@@ -32,10 +32,6 @@ type EmbeddedOperation interface {
 	EmbeddedHeight(commit *jj.Commit, pos RenderPosition, width int) int
 }
 
-type TracksSelectedRevision interface {
-	SetSelectedRevision(commit *jj.Commit) tea.Cmd
-}
-
 type SegmentRenderer interface {
 	RenderSegment(currentStyle lipgloss.Style, segment *screen.Segment, row parser.Row) string
 }

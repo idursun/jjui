@@ -67,7 +67,15 @@ type viewRectTrackingOp struct {
 
 func (o *viewRectTrackingOp) Init() tea.Cmd { return nil }
 
-func (o *viewRectTrackingOp) Update(tea.Msg) tea.Cmd { return nil }
+func (o *viewRectTrackingOp) Update(msg tea.Msg) tea.Cmd {
+	if msg, ok := msg.(common.SelectionChangedMsg); ok {
+		selected, ok := msg.Item.(common.SelectedRevision)
+		if ok {
+			o.selectedRevision = &jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId}
+		}
+	}
+	return nil
+}
 
 func (o *viewRectTrackingOp) ViewRect(_ *render.DisplayContext, _ layout.Box) {
 	o.viewRectCalls++
@@ -76,11 +84,6 @@ func (o *viewRectTrackingOp) ViewRect(_ *render.DisplayContext, _ layout.Box) {
 func (o *viewRectTrackingOp) Render(*jj.Commit, operations.RenderPosition) string { return "" }
 
 func (o *viewRectTrackingOp) Name() string { return o.name }
-
-func (o *viewRectTrackingOp) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
-	o.selectedRevision = commit
-	return nil
-}
 
 func (o *viewRectTrackingOp) Selection() common.SelectionSnapshot {
 	if o.selectedCommit != "" {

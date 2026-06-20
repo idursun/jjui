@@ -103,7 +103,10 @@ func (o *Operation) Init() tea.Cmd {
 	return o.load
 }
 
-func (o *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
+func (o *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
+	if o.target.Equal(commit) {
+		return nil
+	}
 	o.target = commit
 	return nil
 }
@@ -128,6 +131,12 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 		o.ensureCursorView = false
 		o.scroll(msg.Delta)
 		return nil
+	case common.SelectionChangedMsg:
+		selected, ok := msg.Item.(common.SelectedRevision)
+		if !ok {
+			return nil
+		}
+		return o.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
 	case intents.Intent:
 		cmd, _ := o.HandleIntent(msg)
 		return cmd
@@ -286,6 +295,7 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 	o := &Operation{
 		context:    context,
 		revision:   revision,
+		target:     revision,
 		rows:       nil,
 		cursor:     0,
 		dlRenderer: render.NewListRenderer(EvologScrollMsg{}),

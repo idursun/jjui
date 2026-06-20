@@ -196,14 +196,7 @@ func (m *Model) setBaseOperation(op operations.Operation) tea.Cmd {
 	m.baseOp = op
 	m.layers = nil
 
-	var cmds []tea.Cmd
-	cmds = append(cmds, op.Init())
-	if cur := m.SelectedRevision(); cur != nil {
-		if tracked, ok := op.(operations.TracksSelectedRevision); ok {
-			cmds = append(cmds, tracked.SetSelectedRevision(cur))
-		}
-	}
-	return tea.Batch(cmds...)
+	return op.Init()
 }
 
 func (m *Model) baseOperation() operations.Operation {
@@ -391,29 +384,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if k, ok := msg.(revisionsMsg); ok {
 		msg = k.msg
 	}
-	cmd := m.internalUpdate(msg)
 
-	if curSelected := m.SelectedRevision(); curSelected != nil {
-		if tracked, ok := m.baseOperation().(operations.TracksSelectedRevision); ok {
-			cmd = tea.Batch(cmd, tracked.SetSelectedRevision(curSelected))
-		}
-		for _, layer := range m.layers {
-			if tracked, ok := layer.(operations.TracksSelectedRevision); ok {
-				cmd = tea.Batch(cmd, tracked.SetSelectedRevision(curSelected))
-			}
-		}
-	}
-
-	return cmd
-}
-
-func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
 		if cmd, handled := m.HandleIntent(msg); handled {
 			return cmd
 		}
 		return m.activeModel().Update(msg)
+	case common.SelectionChangedMsg:
+		return m.updateOperations(msg)
 	case ItemClickedMsg:
 		// Don't allow changing selection if the operation is editing (e.g. describe)
 		if m.IsEditing() {
@@ -495,6 +474,7 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 		if msg.tag != m.tag.Load() {
 			return nil
 		}
+		previousSelectedRevision := m.SelectedRevision()
 		m.isLoading = false
 		reloadState := revisionReloadState{}
 		if m.pendingReload.tag == msg.tag {
@@ -502,9 +482,13 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			m.pendingReload = revisionReloadState{}
 		}
 		m.updateGraphRows(msg.rows, reloadState.selectedRevision, !reloadState.keepSelections)
-		return tea.Batch(m.highlightChanges, func() tea.Msg {
+		cmds := []tea.Cmd{m.highlightChanges, func() tea.Msg {
 			return common.UpdateRevisionsSuccessMsg{}
-		})
+		}}
+		if cmd := m.operationSelectionChanged(previousSelectedRevision); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+		return tea.Batch(cmds...)
 	case streamingReadyMsg:
 		if msg.tag != m.tag.Load() {
 			if msg.streamer != nil {
@@ -613,6 +597,9 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				return common.UpdateRevisionsSuccessMsg{}
 			})
 		}
+		if cmd := m.operationSelectionChanged(currentSelectedRevision); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
 		return tea.Batch(cmds...)
 	}
 
@@ -647,6 +634,30 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	}
 
 	return nil
+}
+
+func (m *Model) updateOperations(msg tea.Msg) tea.Cmd {
+	cmds := []tea.Cmd{m.baseOperation().Update(msg)}
+	for _, layer := range m.layers {
+		cmds = append(cmds, layer.Update(msg))
+	}
+	return tea.Batch(cmds...)
+}
+
+func (m *Model) operationSelectionChanged(previous *jj.Commit) tea.Cmd {
+	current := m.SelectedRevision()
+	if current == nil {
+		return nil
+	}
+	if previous.Equal(current) {
+		return nil
+	}
+	return m.updateOperations(common.SelectionChangedMsg{
+		Item: common.SelectedRevision{
+			ChangeId: current.GetChangeId(),
+			CommitId: current.CommitId,
+		},
+	})
 }
 
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
@@ -804,7 +815,7 @@ func (m *Model) startSquash(intent intents.OpenSquash) tea.Cmd {
 	} else if m.cursor < len(m.rows)-1 {
 		m.SetCursor(m.cursor + 1)
 	}
-	return m.setBaseOperation(squash.NewOperation(m.context, selected, squash.WithFiles(intent.Files)))
+	return m.setBaseOperation(squash.NewOperation(m.context, selected, m.SelectedRevision(), squash.WithFiles(intent.Files)))
 }
 
 func (m *Model) startRebase(intent intents.OpenRebase) tea.Cmd {
@@ -817,7 +828,7 @@ func (m *Model) startRebase(intent intents.OpenRebase) tea.Cmd {
 	}
 
 	source := rebaseSourceFromIntent(intent.Source)
-	return m.setBaseOperation(rebase.NewOperation(m.context, selected, source, intent.Target))
+	return m.setBaseOperation(rebase.NewOperation(m.context, selected, m.SelectedRevision(), source, intent.Target))
 }
 
 func (m *Model) startRevert(intent intents.OpenRevert) tea.Cmd {
@@ -829,7 +840,7 @@ func (m *Model) startRevert(intent intents.OpenRevert) tea.Cmd {
 		return nil
 	}
 
-	return m.setBaseOperation(revert.NewOperation(m.context, selected, intent.Target))
+	return m.setBaseOperation(revert.NewOperation(m.context, selected, m.SelectedRevision(), intent.Target))
 }
 
 func rebaseSourceFromIntent(source intents.RebaseSource) rebase.Source {
@@ -852,7 +863,7 @@ func (m *Model) startDuplicate(intent intents.OpenDuplicate) tea.Cmd {
 		return nil
 	}
 
-	return m.setBaseOperation(duplicate.NewOperation(m.context, selected, intents.ModeTargetDestination))
+	return m.setBaseOperation(duplicate.NewOperation(m.context, selected, m.SelectedRevision(), intents.ModeTargetDestination))
 }
 
 func (m *Model) startSetParents(intent intents.OpenSetParents) tea.Cmd {
@@ -864,7 +875,7 @@ func (m *Model) startSetParents(intent intents.OpenSetParents) tea.Cmd {
 		return nil
 	}
 
-	return m.setBaseOperation(set_parents.NewModel(m.context, commit))
+	return m.setBaseOperation(set_parents.NewModel(m.context, commit, m.SelectedRevision()))
 }
 
 func (m *Model) startNew(intent intents.StartNew) tea.Cmd {
@@ -909,7 +920,7 @@ func (m *Model) startAbsorb(intent intents.OpenAbsorb) tea.Cmd {
 	if commit == nil {
 		return nil
 	}
-	return m.setBaseOperation(absorb.NewOperation(m.context, commit))
+	return m.setBaseOperation(absorb.NewOperation(m.context, commit, m.SelectedRevision()))
 }
 
 func (m *Model) startAbandon(intent intents.OpenAbandon) tea.Cmd {
@@ -920,7 +931,7 @@ func (m *Model) startAbandon(intent intents.OpenAbandon) tea.Cmd {
 	if len(selected.Revisions) == 0 {
 		return nil
 	}
-	return m.setBaseOperation(abandon.NewOperation(m.context, selected))
+	return m.setBaseOperation(abandon.NewOperation(m.context, selected, m.SelectedRevision()))
 }
 
 func (m *Model) navigate(intent intents.Navigate) tea.Cmd {

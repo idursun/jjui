@@ -87,6 +87,12 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case common.RefreshMsg:
 		return s.load(s.revision.GetChangeId())
+	case common.SelectionChangedMsg:
+		selected, ok := msg.Item.(common.SelectedRevision)
+		if !ok {
+			return nil
+		}
+		return s.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
 	case updateCommitStatusMsg:
 		items := s.createListItems(msg.summary, msg.selectedFiles)
 		s.setItems(items)
@@ -291,12 +297,17 @@ func (s *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	s.renderIntoRect(dl, box.R)
 }
 
-func (s *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
+func (s *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
+	sameCurrent := s.Current.Equal(commit)
+	sameRevision := s.revision.Equal(commit)
+	if sameCurrent && sameRevision {
+		return nil
+	}
 	s.Current = commit
 	if commit == nil {
 		return nil
 	}
-	if s.revision == nil || s.revision.GetChangeId() != commit.GetChangeId() {
+	if !sameRevision {
 		s.revision = commit
 		return s.load(commit.GetChangeId())
 	}
@@ -459,6 +470,7 @@ func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation 
 		DetailsList: l,
 		context:     context,
 		revision:    selected,
+		Current:     selected,
 	}
 	return op
 }

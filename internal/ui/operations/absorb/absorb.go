@@ -58,6 +58,12 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	case intents.Intent:
 		cmd, _ := o.HandleIntent(msg)
 		return cmd
+	case common.SelectionChangedMsg:
+		selected, ok := msg.Item.(common.SelectedRevision)
+		if !ok {
+			return nil
+		}
+		return o.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
 	case setTargetsMsg:
 		targets := make(map[string]bool, len(msg.targets))
 		for _, id := range msg.targets {
@@ -70,7 +76,10 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 
 func (o *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
 
-func (o *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
+func (o *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
+	if o.current.Equal(commit) {
+		return nil
+	}
 	o.current = commit
 	return nil
 }
@@ -142,7 +151,7 @@ func (o *Operation) Name() string {
 	return "absorb"
 }
 
-func NewOperation(ctx *context.MainContext, source *jj.Commit) *Operation {
+func NewOperation(ctx *context.MainContext, source *jj.Commit, current *jj.Commit) *Operation {
 	defaultIds := loadDefaultTargets(ctx, source)
 	defaults := make(map[string]bool, len(defaultIds))
 	targets := make(map[string]bool, len(defaultIds))
@@ -153,6 +162,7 @@ func NewOperation(ctx *context.MainContext, source *jj.Commit) *Operation {
 	return &Operation{
 		context:  ctx,
 		source:   source,
+		current:  current,
 		defaults: defaults,
 		targets:  targets,
 	}

@@ -61,6 +61,12 @@ func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 		r.targetName = strings.TrimSpace(msg.Target)
 		cmd, _ := r.HandleIntent(intents.Apply{Force: msg.Force})
 		return cmd
+	case common.SelectionChangedMsg:
+		selected, ok := msg.Item.(common.SelectedRevision)
+		if !ok {
+			return nil
+		}
+		return r.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
 	case intents.Intent:
 		cmd, _ := r.HandleIntent(msg)
 		return cmd
@@ -94,7 +100,10 @@ func (r *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (r *Operation) SetSelectedRevision(commit *jj.Commit) tea.Cmd {
+func (r *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
+	if r.To.Equal(commit) {
+		return nil
+	}
 	r.To = commit
 	return nil
 }
@@ -186,10 +195,11 @@ func (r *Operation) targetArg() string {
 	return ""
 }
 
-func NewOperation(context *appContext.MainContext, from jj.SelectedRevisions, target intents.ModeTarget) *Operation {
+func NewOperation(context *appContext.MainContext, from jj.SelectedRevisions, current *jj.Commit, target intents.ModeTarget) *Operation {
 	return &Operation{
 		context: context,
 		From:    from,
+		To:      current,
 		Target:  target,
 	}
 }
