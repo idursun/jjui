@@ -128,7 +128,7 @@ func (r CardRenderer) renderCommandLine(command string, commandErr error, runnin
 	} else if commandErr != nil {
 		mark = errorStyle.Width(commandMarkWidth).Render("✗ ")
 	}
-	return mark + colorizeCommand(command, textStyle, matchedStyle)
+	return mark + render.ColorizeCommand(command, textStyle, matchedStyle)
 }
 
 func (r CardRenderer) renderCommandLineOnSurface(command string, commandErr error, running bool, indicator string) string {
@@ -146,25 +146,9 @@ func (r CardRenderer) renderCommandLineOnSurface(command string, commandErr erro
 	} else if commandErr != nil {
 		mark = errorStyle.Width(commandMarkWidth).Render("✗ ")
 	}
-	return mark + colorizeCommand(command, textStyle, matchedStyle)
+	return mark + render.ColorizeCommand(command, textStyle, matchedStyle)
 }
 
 func withoutBackground(style lipgloss.Style) lipgloss.Style {
 	return style.UnsetBackground()
-}
-
-func colorizeCommand(cmd string, textStyle, matchedStyle lipgloss.Style) string {
-	tokens := strings.Split(strings.ReplaceAll(cmd, "\n", "⏎"), " ")
-	var b strings.Builder
-	for i, token := range tokens {
-		if i > 0 {
-			b.WriteByte(' ')
-		}
-		if strings.HasPrefix(token, "-") {
-			b.WriteString(matchedStyle.Render(token))
-		} else {
-			b.WriteString(textStyle.Render(token))
-		}
-	}
-	return b.String()
 }
