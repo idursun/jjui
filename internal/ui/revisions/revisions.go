@@ -249,6 +249,21 @@ func (m *Model) IsFocused() bool {
 	return false
 }
 
+func (m *Model) baseOperationRendersEmbedded() bool {
+	op := m.baseOperation()
+	embedded, ok := op.(operations.EmbeddedOperation)
+	if !ok {
+		return false
+	}
+	commit := m.SelectedRevision()
+	if commit == nil {
+		return false
+	}
+	return embedded.CanEmbed(commit, operations.RenderPositionBefore) ||
+		embedded.CanEmbed(commit, operations.RenderPositionAfter) ||
+		embedded.CanEmbed(commit, operations.RenderOverDescription)
+}
+
 func (m *Model) InNormalMode() bool {
 	_, isDefault := m.baseOperation().(*operations.Default)
 	return isDefault && len(m.layers) == 0
@@ -1188,9 +1203,14 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		segRenderer = sr
 	}
 
-	// Let the base operation contribute frame-level draws before the list. The
-	// list renderer still owns inline and embedded operation placement at ZBase.
-	renderOp.ViewRect(dl, box)
+	// Let the base operation contribute frame-level draws before the list unless
+	// it is rendered inside the selected revision. Embedded operations register
+	// draw and mouse state when the list renderer calls ViewRect with the row
+	// rectangle; rendering them here would register a second, viewport-relative
+	// set of interactions.
+	if !m.baseOperationRendersEmbedded() {
+		renderOp.ViewRect(dl, box)
+	}
 
 	// Render to DisplayContext
 	m.displayContextRenderer.Render(

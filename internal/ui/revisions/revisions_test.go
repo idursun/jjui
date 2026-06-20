@@ -107,6 +107,46 @@ func (o *viewRectTrackingOp) Selection() common.SelectionSnapshot {
 	return common.SelectionSnapshot{}
 }
 
+type embeddedClickMsg struct {
+	index int
+}
+
+type embeddedClickOp struct {
+	targetChangeID string
+	height         int
+}
+
+func (o embeddedClickOp) Init() tea.Cmd { return nil }
+
+func (o embeddedClickOp) Update(tea.Msg) tea.Cmd { return nil }
+
+func (o embeddedClickOp) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	for i := range o.height {
+		index := i
+		dl.AddInteractionFn(
+			layout.Rect(box.R.Min.X, box.R.Min.Y+i, box.R.Dx(), 1),
+			func(tea.MouseMsg) tea.Msg { return embeddedClickMsg{index: index} },
+			render.InteractionClick,
+			0,
+		)
+	}
+}
+
+func (o embeddedClickOp) Render(*jj.Commit, operations.RenderPosition) string { return "" }
+
+func (o embeddedClickOp) Name() string { return "embedded click" }
+
+func (o embeddedClickOp) CanEmbed(commit *jj.Commit, pos operations.RenderPosition) bool {
+	return commit != nil && commit.GetChangeId() == o.targetChangeID && pos == operations.RenderPositionAfter
+}
+
+func (o embeddedClickOp) EmbeddedHeight(commit *jj.Commit, pos operations.RenderPosition, _ int) int {
+	if !o.CanEmbed(commit, pos) {
+		return 0
+	}
+	return o.height
+}
+
 func TestModel_Navigate(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
@@ -351,6 +391,24 @@ func TestModel_ViewRectRendersBaseOperationAndStackedChildren(t *testing.T) {
 	assert.Equal(t, 1, base.viewRectCalls)
 	assert.Equal(t, 1, child.viewRectCalls)
 	assert.Equal(t, []string{"base", "child"}, order)
+}
+
+func TestModel_ViewRectEmbeddedBaseOperationDoesNotRegisterViewportClicks(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+	model.updateGraphRows(rows, "b", true)
+	model.baseOp = embeddedClickOp{targetChangeID: "b", height: 4}
+
+	dl := render.NewDisplayContext()
+	model.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 80, 10)))
+
+	msg, handled := dl.ProcessMouseEvent(tea.MouseClickMsg{
+		X:      2,
+		Y:      2,
+		Button: tea.MouseLeft,
+	})
+	assert.True(t, handled)
+	assert.Equal(t, embeddedClickMsg{index: 0}, msg)
 }
 
 func TestModel_OperationIntents(t *testing.T) {
