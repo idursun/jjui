@@ -60,6 +60,7 @@ var rows = []parser.Row{
 type viewRectTrackingOp struct {
 	name             string
 	viewRectCalls    int
+	viewRectOrder    *[]string
 	selectedRevision *jj.Commit
 	selectedFile     string
 	selectedCommit   string
@@ -79,6 +80,9 @@ func (o *viewRectTrackingOp) Update(msg tea.Msg) tea.Cmd {
 
 func (o *viewRectTrackingOp) ViewRect(_ *render.DisplayContext, _ layout.Box) {
 	o.viewRectCalls++
+	if o.viewRectOrder != nil {
+		*o.viewRectOrder = append(*o.viewRectOrder, o.name)
+	}
 }
 
 func (o *viewRectTrackingOp) Render(*jj.Commit, operations.RenderPosition) string { return "" }
@@ -331,20 +335,22 @@ func TestModel_RenderImmediateInNormalMode(t *testing.T) {
 	})
 }
 
-func TestModel_ViewRectOnlyRendersStackedChildren(t *testing.T) {
+func TestModel_ViewRectRendersBaseOperationAndStackedChildren(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)
 	model.updateGraphRows(rows, "a", true)
 
-	base := &viewRectTrackingOp{name: "base"}
-	child := &viewRectTrackingOp{name: "child"}
+	var order []string
+	base := &viewRectTrackingOp{name: "base", viewRectOrder: &order}
+	child := &viewRectTrackingOp{name: "child", viewRectOrder: &order}
 	model.baseOp = base
 	model.layers = []common.ImmediateModel{child}
 
 	_ = test.RenderImmediate(model, 100, 20)
 
-	assert.Zero(t, base.viewRectCalls)
+	assert.Equal(t, 1, base.viewRectCalls)
 	assert.Equal(t, 1, child.viewRectCalls)
+	assert.Equal(t, []string{"base", "child"}, order)
 }
 
 func TestModel_OperationIntents(t *testing.T) {

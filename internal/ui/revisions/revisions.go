@@ -1188,6 +1188,10 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		segRenderer = sr
 	}
 
+	// Let the base operation contribute frame-level draws before the list. The
+	// list renderer still owns inline and embedded operation placement at ZBase.
+	renderOp.ViewRect(dl, box)
+
 	// Render to DisplayContext
 	m.displayContextRenderer.Render(
 		dl,
