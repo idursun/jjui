@@ -1,6 +1,9 @@
 package render
 
 import (
+	"strings"
+
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/idursun/jjui/internal/ui/layout"
 )
 
@@ -23,4 +26,23 @@ func PreserveBackground() DrawOption {
 	return func(opts *DrawOptions) {
 		opts.PreserveBackground = true
 	}
+}
+
+// ReplayTerminalOutput replays captured command output through an offscreen
+// terminal buffer. Applied to the rendering of flash message and command
+// history
+func ReplayTerminalOutput(content string) string {
+	width := 1
+	for field := range strings.FieldsFuncSeq(content, func(r rune) bool {
+		return r == '\r' || r == '\n'
+	}) {
+		// finds the max width of the content
+		width = max(width, StringWidth(field))
+	}
+
+	height := strings.Count(content, "\n") + 1
+	// builds an offscreen terminal and draws the content
+	buf := NewScreenBuffer(width, height)
+	uv.NewStyledString(content).Draw(buf, layout.Rect(0, 0, width, height))
+	return buf.Render()
 }
