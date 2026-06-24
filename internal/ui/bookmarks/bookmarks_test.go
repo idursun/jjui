@@ -98,6 +98,28 @@ main;.;false;false;false;86
 	test.SimulateModel(op, func() tea.Msg { return intents.BookmarksFilter{Kind: intents.BookmarksFilterMove} })
 }
 
+func Test_FilterIntentPressedTwice_ExecutesMainShortcutWhenCursorIsElsewhere(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(""))
+	commandRunner.Expect(jj.BookmarkListMovable("abc123")).SetOutput([]byte(`
+some-other-bookmark;.;false;false;false;nearby
+main;.;false;false;false;mainCommit
+`))
+	commandRunner.Expect(jj.BookmarkMove("abc123", "main"))
+	defer commandRunner.Verify()
+
+	commit := &jj.Commit{ChangeId: "abc123", CommitId: "commit123"}
+	op := NewModel(test.NewTestContext(commandRunner), commit, []string{"commit123", "nearby", "mainCommit"})
+	test.SimulateModel(op, op.Init())
+	_ = test.RenderImmediate(op, 100, 40)
+
+	test.SimulateModel(op, func() tea.Msg { return intents.BookmarksFilter{Kind: intents.BookmarksFilterMove} })
+	assertSelectedItem(t, op, "move 'some-other-bookmark' to abc123")
+
+	test.SimulateModel(op, func() tea.Msg { return intents.BookmarksFilter{Kind: intents.BookmarksFilterMove} })
+}
+
 func Test_FilterEditing_AcceptsPasteMsg(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
@@ -110,4 +132,12 @@ func Test_FilterEditing_AcceptsPasteMsg(t *testing.T) {
 	test.SimulateModel(op, func() tea.Msg { return tea.PasteMsg{Content: "track feature"} })
 
 	assert.Equal(t, "track feature", op.filterInput.Value())
+}
+
+func assertSelectedItem(t *testing.T, op *Model, want string) {
+	t.Helper()
+
+	selected, ok := op.selectedItem()
+	assert.True(t, ok)
+	assert.Equal(t, want, selected.name)
 }

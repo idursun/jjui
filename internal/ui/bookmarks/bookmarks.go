@@ -415,10 +415,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		if m.categoryFilter == "" {
 			return nil, true
 		}
-		for _, listItem := range m.visibleItems() {
-			if listItem.key == msg.Key {
-				return m.context.RunCommand(jj.Args(listItem.args...), common.Refresh, common.CloseApplied), true
-			}
+		if cmd := m.executeShortcut(msg.Key); cmd != nil {
+			return cmd, true
 		}
 		return nil, true
 	}
@@ -426,11 +424,25 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 }
 
 func (m *Model) executeDefaultForFilter(kind intents.BookmarksFilterKind) tea.Cmd {
+	for _, listItem := range m.visibleItems() {
+		if listItem.key != "" {
+			return m.context.RunCommand(jj.Args(listItem.args...), common.Refresh, common.CloseApplied)
+		}
+	}
 	if selected, ok := m.selectedItem(); ok {
 		return m.context.RunCommand(jj.Args(selected.args...), common.Refresh, common.CloseApplied)
 	}
 	for _, listItem := range m.visibleItems() {
 		if strings.HasPrefix(listItem.FilterValue(), string(kind)) {
+			return m.context.RunCommand(jj.Args(listItem.args...), common.Refresh, common.CloseApplied)
+		}
+	}
+	return nil
+}
+
+func (m *Model) executeShortcut(key string) tea.Cmd {
+	for _, listItem := range m.visibleItems() {
+		if listItem.key == key {
 			return m.context.RunCommand(jj.Args(listItem.args...), common.Refresh, common.CloseApplied)
 		}
 	}
