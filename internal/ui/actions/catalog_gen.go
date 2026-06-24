@@ -30,6 +30,7 @@ const (
 	ScopeDuplicate           = "revisions.duplicate"
 	ScopeEvolog              = "revisions.evolog"
 	ScopeInlineDescribe      = "revisions.inline_describe"
+	ScopeNewBetween          = "revisions.new_between"
 	ScopeQuickSearch         = "revisions.quick_search"
 	ScopeQuickSearchInput    = "revisions.quick_search.input"
 	ScopeRebase              = "revisions.rebase"
@@ -305,6 +306,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.OpenEvolog{}, true
 		case keybindings.Action("revisions.open_inline_describe"):
 			return intents.OpenInlineDescribe{}, true
+		case keybindings.Action("revisions.open_new_between"):
+			return intents.OpenNewBetween{}, true
 		case keybindings.Action("revisions.open_rebase"):
 			return intents.OpenRebase{}, true
 		case keybindings.Action("revisions.open_revert"):
@@ -476,6 +479,15 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.InlineDescribeAccept{Force: true}, true
 		case keybindings.Action("revisions.inline_describe.new_line"):
 			return intents.InlineDescribeNewLine{}, true
+		}
+	case ScopeNewBetween:
+		switch action {
+		case keybindings.Action("revisions.new_between.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("revisions.new_between.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("revisions.new_between.toggle_insert_before"):
+			return intents.NewBetweenToggleInsertBefore{}, true
 		}
 	case ScopeQuickSearch:
 		switch action {

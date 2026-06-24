@@ -18,6 +18,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
 	"github.com/idursun/jjui/internal/ui/operations/diff_range"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
+	"github.com/idursun/jjui/internal/ui/operations/new_between"
 	"github.com/idursun/jjui/internal/ui/operations/revert"
 	"github.com/idursun/jjui/internal/ui/operations/set_parents"
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
@@ -768,6 +769,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.startRebase(intent), true
 	case intents.OpenDiffRange:
 		return m.setBaseOperation(diff_range.New(m.context, m.SelectedRevision(), m.SelectedRevision())), true
+	case intents.OpenNewBetween:
+		return m.setBaseOperation(new_between.New(m.context, m.SelectedRevisions(), m.SelectedRevision())), true
 	case intents.Refresh:
 		return m.refresh(intent), true
 	case intents.QuickSearchCycle:

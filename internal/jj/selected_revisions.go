@@ -1,5 +1,7 @@
 package jj
 
+import "slices"
+
 type SelectedRevisions struct {
 	Revisions []*Commit
 }
@@ -27,6 +29,36 @@ func (s SelectedRevisions) Contains(revision *Commit) bool {
 		}
 	}
 	return false
+}
+
+func (s SelectedRevisions) Toggle(revision *Commit) SelectedRevisions {
+	if revision == nil {
+		return s
+	}
+	if s.Contains(revision) {
+		return s.Remove(revision)
+	}
+	return s.Add(revision)
+}
+
+func (s SelectedRevisions) Remove(revision *Commit) SelectedRevisions {
+	if revision == nil {
+		return s
+	}
+	index := slices.IndexFunc(s.Revisions, func(candidate *Commit) bool { return candidate.GetChangeId() == revision.GetChangeId() })
+	if index != -1 {
+		s.Revisions = append(s.Revisions[:index], s.Revisions[index+1:]...)
+	}
+	return s
+}
+
+func (s SelectedRevisions) Add(revision *Commit) SelectedRevisions {
+	if revision == nil {
+		return s
+	}
+	return SelectedRevisions{
+		Revisions: append(s.Revisions, revision),
+	}
 }
 
 func (s SelectedRevisions) GetIds() []string {

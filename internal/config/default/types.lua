@@ -205,6 +205,7 @@ function wait_refresh() end
 ---@field duplicate jjui.revisions.duplicate
 ---@field evolog jjui.revisions.evolog
 ---@field inline_describe jjui.revisions.inline_describe
+---@field new_between jjui.revisions.new_between
 ---@field quick_search jjui.revisions.quick_search
 ---@field rebase jjui.revisions.rebase
 ---@field revert jjui.revisions.revert
@@ -235,6 +236,7 @@ function wait_refresh() end
 ---@field open_duplicate fun()
 ---@field open_evolog fun()
 ---@field open_inline_describe fun()
+---@field open_new_between fun()
 ---@field open_rebase fun()
 ---@field open_revert fun()
 ---@field open_set_bookmark fun(args: {value?: string})
@@ -335,6 +337,12 @@ function wait_refresh() end
 ---@field editor fun()
 ---@field force_accept fun()
 ---@field new_line fun()
+---@field close fun()
+
+---@class jjui.revisions.new_between
+---@field apply fun()
+---@field cancel fun()
+---@field toggle_insert_before fun()
 ---@field close fun()
 
 ---@class jjui.revisions.quick_search

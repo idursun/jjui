@@ -55,6 +55,7 @@ bindings = [
     { key = "alt+d", action = "revisions.open_diff_range", scope = "revisions", desc = "diff range" },
     { key = "a", action = "revisions.open_abandon", scope = "revisions", desc = "abandon" },
     { key = "n", action = "revisions.new", scope = "revisions", desc = "new" },
+    { key = "alt+n", action = "revisions.open_new_between", scope = "revisions", desc = "new between" },
     { key = "s", action = "revisions.split", scope = "revisions", desc = "split" },
     { key = "alt+s", action = "revisions.split_parallel", scope = "revisions", desc = "split parallel" },
     { key = "shift+b", action = "revisions.open_set_bookmark", scope = "revisions", desc = "set bookmark" },
@@ -247,6 +248,15 @@ bindings = [
     { key = ["down", "j"], action = "revisions.move_down", scope = "revisions.diff_range", desc = "down" },
     { key = "pgup", action = "revisions.page_up", scope = "revisions.diff_range", desc = "pgup" },
     { key = "pgdown", action = "revisions.page_down", scope = "revisions.diff_range", desc = "pgdown" },
+
+    # revisions.new_between
+    { key = "enter", action = "revisions.new_between.apply", scope = "revisions.new_between", desc = "apply" },
+    { key = "space", action = "revisions.new_between.toggle_insert_before", scope = "revisions.new_between", desc = "select before" },
+    { key = "esc", action = "revisions.new_between.cancel", scope = "revisions.new_between", desc = "cancel" },
+    { key = ["up", "k"], action = "revisions.move_up", scope = "revisions.new_between", desc = "up" },
+    { key = ["down", "j"], action = "revisions.move_down", scope = "revisions.new_between", desc = "down" },
+    { key = "pgup", action = "revisions.page_up", scope = "revisions.new_between", desc = "pgup" },
+    { key = "pgdown", action = "revisions.page_down", scope = "revisions.new_between", desc = "pgdown" },
 
     # revisions.target_picker
     { key = "esc", action = "revisions.target_picker.cancel", scope = "revisions.target_picker", desc = "cancel" },

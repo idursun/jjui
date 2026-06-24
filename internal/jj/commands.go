@@ -68,6 +68,13 @@ func New(revisions SelectedRevisions) CommandArgs {
 	return args
 }
 
+func NewInsert(insertAfter SelectedRevisions, insertBefore SelectedRevisions) CommandArgs {
+	args := []string{"new"}
+	args = append(args, insertAfter.AsPrefixedArgs("--insert-after")...)
+	args = append(args, insertBefore.AsPrefixedArgs("--insert-before")...)
+	return args
+}
+
 func CommitWorkingCopy() CommandArgs {
 	return []string{"commit"}
 }
