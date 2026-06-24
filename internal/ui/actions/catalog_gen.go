@@ -423,6 +423,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Cancel{}, true
 		case keybindings.Action("revisions.diff_range.swap"):
 			return intents.DiffRangeSwap{}, true
+		case keybindings.Action("revisions.diff_range.target_picker"):
+			return intents.DiffRangeOpenTargetPicker{}, true
 		}
 	case ScopeDuplicate:
 		switch action {

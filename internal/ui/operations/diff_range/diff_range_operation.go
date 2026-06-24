@@ -1,6 +1,8 @@
 package diff_range
 
 import (
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
@@ -10,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
@@ -22,6 +25,7 @@ type Operation struct {
 	context *appContext.MainContext
 	from    *jj.Commit
 	to      *jj.Commit
+	toName  string
 	swapped bool
 }
 
@@ -60,6 +64,10 @@ func (o *Operation) Init() tea.Cmd {
 
 func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case target_picker.TargetSelectedMsg:
+		o.toName = strings.TrimSpace(msg.Target)
+		cmd, _ := o.HandleIntent(intents.Apply{})
+		return cmd
 	case common.SelectionChangedMsg:
 		selected, ok := msg.Item.(common.SelectedRevision)
 		if !ok {
@@ -80,13 +88,15 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return common.Close, true
 	case intents.Apply:
 		command := func() tea.Msg {
-			if output, err := o.context.RunCommandImmediate(jj.DiffRange(o.from.GetChangeId(), o.to.GetChangeId())); err != nil {
+			if output, err := o.context.RunCommandImmediate(jj.DiffRange(o.from.GetChangeId(), o.targetArg())); err != nil {
 				return intents.AddMessage{Text: err.Error()}
 			} else {
 				return intents.DiffShow{Content: string(output)}
 			}
 		}
 		return tea.Sequence(common.Close, command), true
+	case intents.DiffRangeOpenTargetPicker:
+		return common.OpenTargetPicker(), true
 	case intents.DiffRangeSwap:
 		if o.from == nil || o.to == nil {
 			return nil, true
@@ -112,6 +122,13 @@ func (o *Operation) Render(commit *jj.Commit, renderPosition operations.RenderPo
 		return targetMarkerStyle.Render("<< to >>")
 	}
 	return ""
+}
+
+func (o *Operation) targetArg() string {
+	if strings.TrimSpace(o.toName) != "" {
+		return o.toName
+	}
+	return o.to.GetChangeId()
 }
 
 func (o *Operation) Name() string {

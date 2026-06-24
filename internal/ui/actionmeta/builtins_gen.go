@@ -141,6 +141,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.diff_range.apply":                 {"revisions.diff_range"},
 	"revisions.diff_range.cancel":                {"revisions.diff_range"},
 	"revisions.diff_range.swap":                  {"revisions.diff_range"},
+	"revisions.diff_range.target_picker":         {"revisions.diff_range"},
 	"revisions.duplicate.ace_jump":               {"revisions.duplicate"},
 	"revisions.duplicate.apply":                  {"revisions.duplicate"},
 	"revisions.duplicate.cancel":                 {"revisions.duplicate"},
