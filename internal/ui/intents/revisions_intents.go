@@ -201,6 +201,11 @@ type DiffRangeSwap struct{}
 
 func (DiffRangeSwap) isIntent() {}
 
+//jjui:bind scope=revisions.diff_range action=target_picker
+type DiffRangeOpenTargetPicker struct{}
+
+func (DiffRangeOpenTargetPicker) isIntent() {}
+
 //jjui:bind scope=revisions.set_parents action=toggle_select
 type SetParentsToggleSelect struct{}
 

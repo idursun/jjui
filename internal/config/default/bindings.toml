@@ -240,6 +240,7 @@ bindings = [
     # revisions.diff_range
     { key = "enter", action = "revisions.diff_range.apply", scope = "revisions.diff_range", desc = "apply" },
     { key = "x", action = "revisions.diff_range.swap", scope = "revisions.diff_range", desc = "swap" },
+    { key = "t", action = "revisions.diff_range.target_picker", scope = "revisions.diff_range", desc = "set target" },
     { key = "esc", action = "revisions.diff_range.cancel", scope = "revisions.diff_range", desc = "cancel" },
     { key = ["up", "k"], action = "revisions.move_up", scope = "revisions.diff_range", desc = "up" },
     { key = ["down", "j"], action = "revisions.move_down", scope = "revisions.diff_range", desc = "down" },
