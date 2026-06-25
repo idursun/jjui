@@ -91,6 +91,27 @@ func Test_PushChange(t *testing.T) {
 	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
 }
 
+func Test_PushSelectedBookmarks(t *testing.T) {
+	const changeId1 = "abc123"
+	const changeId2 = "def456"
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkList(changeId1)).SetOutput([]byte("feature-a;.;false;false;false;83\n"))
+	commandRunner.Expect(jj.BookmarkList(changeId2)).SetOutput([]byte("feature-b;.;false;false;false;86\n"))
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
+	commandRunner.Expect(jj.GitPush("--remote", "", "--bookmark", "feature-a", "--bookmark", "feature-b"))
+	defer commandRunner.Verify()
+
+	selected := jj.NewSelectedRevisions(&jj.Commit{ChangeId: changeId1}, &jj.Commit{ChangeId: changeId2})
+	op := NewModel(test.NewTestContext(commandRunner), selected)
+	test.SimulateModel(op, op.Init())
+	_ = test.RenderImmediate(op, 100, 40)
+
+	test.SimulateModel(op, func() tea.Msg { return intents.GitOpenFilter{} })
+	test.SimulateModel(op, test.Type("git push --bookmark feature-a --bookmark feature-b"))
+	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
+	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
+}
+
 func Test_NewModel_DoesNotPanicWithNilSelectedRevision(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
