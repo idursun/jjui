@@ -55,6 +55,7 @@ type Model struct {
 	fzfSource           *fuzzy_search.RefinedSource
 	listRenderer        *render.ListRenderer
 	ensureCursorVisible bool
+	payload             any
 }
 
 type itemsLoadedMsg struct {
@@ -77,8 +78,9 @@ func (m itemScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 }
 
 type TargetSelectedMsg struct {
-	Target string
-	Force  bool
+	Target  string
+	Force   bool
+	Payload any
 }
 
 type TargetPickerCancelMsg struct{}
@@ -101,7 +103,7 @@ func (m *Model) Scopes() []common.Scope {
 	}
 }
 
-func NewModel(ctx *context.MainContext) *Model {
+func NewModel(ctx *context.MainContext, payload any) *Model {
 	ti := textinput.New()
 	ti.Prompt = "> "
 	ti.CharLimit = 0
@@ -114,6 +116,7 @@ func NewModel(ctx *context.MainContext) *Model {
 		cursor:              0,
 		listRenderer:        render.NewListRenderer(itemScrollMsg{}),
 		ensureCursorVisible: true,
+		payload:             payload,
 	}
 	m.listRenderer.Z = render.ZMenuContent
 	return m
@@ -159,7 +162,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
 	case intents.TargetPickerCancel:
-		return TargetPickerCancelCmd(), true
+		return func() tea.Msg { return TargetPickerCancelMsg{} }, true
 	case intents.TargetPickerApply:
 		return m.accept(intent.Force), true
 	case intents.TargetPickerNavigate:
@@ -333,20 +336,12 @@ func (m *Model) cursorDown() {
 func (m *Model) accept(force bool) tea.Cmd {
 	if m.cursor >= 0 && m.cursor < len(m.matches) {
 		item := m.items[m.matches[m.cursor].Index]
-		return TargetSelectedCmd(item.Name, force)
+		return func() tea.Msg { return TargetSelectedMsg{Target: item.Name, Force: force, Payload: m.payload} }
 	}
 	if input := strings.TrimSpace(m.input.Value()); input != "" {
-		return TargetSelectedCmd(input, force)
+		return func() tea.Msg { return TargetSelectedMsg{Target: input, Force: force, Payload: m.payload} }
 	}
 	return nil
-}
-
-func TargetSelectedCmd(target string, force bool) tea.Cmd {
-	return func() tea.Msg { return TargetSelectedMsg{Target: target, Force: force} }
-}
-
-func TargetPickerCancelCmd() tea.Cmd {
-	return func() tea.Msg { return TargetPickerCancelMsg{} }
 }
 
 func (m *Model) Len() int {

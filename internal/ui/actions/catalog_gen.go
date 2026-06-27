@@ -424,7 +424,7 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.diff_range.swap"):
 			return intents.DiffRangeSwap{}, true
 		case keybindings.Action("revisions.diff_range.target_picker"):
-			return intents.DiffRangeOpenTargetPicker{}, true
+			return intents.DiffRangeOpenTargetPicker{Target: enumArgDiffArgTarget(args, "target")}, true
 		}
 	case ScopeDuplicate:
 		switch action {
@@ -698,6 +698,29 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		}
 	}
 	return nil, false
+}
+
+func enumArgDiffArgTarget(args map[string]any, name string) intents.DiffArgTarget {
+	var zero intents.DiffArgTarget
+	if args == nil {
+		return zero
+	}
+	v, ok := args[name]
+	if !ok {
+		return zero
+	}
+	s, ok := v.(string)
+	if !ok {
+		return zero
+	}
+	switch s {
+	case "to":
+		return intents.DiffArgTargetTo
+	case "from":
+		return intents.DiffArgTargetFrom
+	default:
+		return zero
+	}
 }
 
 func enumArgModeTarget(args map[string]any, name string) intents.ModeTarget {

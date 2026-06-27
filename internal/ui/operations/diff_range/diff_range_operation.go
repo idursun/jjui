@@ -22,11 +22,12 @@ var _ common.ScopeProvider = (*Operation)(nil)
 var _ common.ScopeHandler = (*Operation)(nil)
 
 type Operation struct {
-	context *appContext.MainContext
-	from    *jj.Commit
-	to      *jj.Commit
-	toName  string
-	swapped bool
+	context  *appContext.MainContext
+	from     *jj.Commit
+	to       *jj.Commit
+	toName   string
+	fromName string
+	swapped  bool
 }
 
 func (o *Operation) IsFocused() bool {
@@ -65,7 +66,15 @@ func (o *Operation) Init() tea.Cmd {
 func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case target_picker.TargetSelectedMsg:
-		o.toName = strings.TrimSpace(msg.Target)
+		switch msg.Payload {
+		case intents.DiffArgTargetFrom:
+			o.fromName = strings.TrimSpace(msg.Target)
+		case intents.DiffArgTargetTo:
+			fallthrough
+		default:
+			o.toName = strings.TrimSpace(msg.Target)
+		}
+
 		cmd, _ := o.HandleIntent(intents.Apply{})
 		return cmd
 	case common.SelectionChangedMsg:
@@ -83,12 +92,12 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
-	switch intent.(type) {
+	switch intent := intent.(type) {
 	case intents.Cancel:
 		return common.Close, true
 	case intents.Apply:
 		command := func() tea.Msg {
-			if output, err := o.context.RunCommandImmediate(jj.DiffRange(o.from.GetChangeId(), o.targetArg())); err != nil {
+			if output, err := o.context.RunCommandImmediate(jj.DiffRange(o.fromTargetArg(), o.toTargetArg())); err != nil {
 				return intents.AddMessage{Text: err.Error()}
 			} else {
 				return intents.DiffShow{Content: string(output)}
@@ -96,7 +105,7 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		}
 		return tea.Sequence(common.Close, command), true
 	case intents.DiffRangeOpenTargetPicker:
-		return common.OpenTargetPicker(), true
+		return common.OpenTargetPickerWithPayload(intent.Target), true
 	case intents.DiffRangeSwap:
 		if o.from == nil || o.to == nil {
 			return nil, true
@@ -111,12 +120,17 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {}
 
 func (o *Operation) Render(commit *jj.Commit, renderPosition operations.RenderPosition) string {
+	if o.swapped && o.from.GetChangeId() == o.to.GetChangeId() && commit.GetChangeId() == o.from.GetChangeId() {
+		goto renderTo
+	}
+
 	if renderPosition == operations.RenderPositionBefore && o.from != nil && commit.GetChangeId() == o.from.GetChangeId() {
 		sourceMarkerStyle := common.DefaultPalette.Get("diff_range source_marker")
 		dimmedStyle := common.DefaultPalette.Get("diff_range dimmed")
 		return lipgloss.JoinHorizontal(0, sourceMarkerStyle.Render("<< from >>"), dimmedStyle.Render(" excluding this revision"))
 	}
 
+renderTo:
 	if renderPosition == operations.RenderPositionBefore && o.to != nil && commit.GetChangeId() == o.to.GetChangeId() {
 		targetMarkerStyle := common.DefaultPalette.Get("diff_range target_marker").PaddingRight(1)
 		changeIdStyle := common.DefaultPalette.Get("diff_range change_id")
@@ -127,11 +141,18 @@ func (o *Operation) Render(commit *jj.Commit, renderPosition operations.RenderPo
 	return ""
 }
 
-func (o *Operation) targetArg() string {
+func (o *Operation) toTargetArg() string {
 	if strings.TrimSpace(o.toName) != "" {
 		return o.toName
 	}
 	return o.to.GetChangeId()
+}
+
+func (o *Operation) fromTargetArg() string {
+	if strings.TrimSpace(o.fromName) != "" {
+		return o.fromName
+	}
+	return o.from.GetChangeId()
 }
 
 func (o *Operation) Name() string {

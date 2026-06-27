@@ -455,7 +455,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		cmd, _ := m.HandleIntent(intents.StartAceJump{})
 		return cmd
 	case common.OpenTargetPickerMsg:
-		return m.pushLayer(target_picker.NewModel(m.context))
+		return m.pushLayer(target_picker.NewModel(m.context, msg.Payload))
 	case target_picker.TargetSelectedMsg:
 		m.popLayer()
 		return m.baseOperation().Update(msg)

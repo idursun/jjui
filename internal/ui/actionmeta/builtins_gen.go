@@ -298,6 +298,9 @@ var builtInActionArgSchemas = map[string]map[string]string{
 	"revisions.details.select_file": {
 		"file": "string",
 	},
+	"revisions.diff_range.target_picker": {
+		"target": "enum:to|from",
+	},
 	"revisions.duplicate.apply": {
 		"force": "bool",
 	},
@@ -349,15 +352,16 @@ var builtInActionArgSchemas = map[string]map[string]string{
 }
 
 var builtInActionRequiredArgs = map[string][]string{
-	"diff.show":                      {"content"},
-	"revisions.details.select_file":  {"file"},
-	"revisions.duplicate.set_target": {"target"},
-	"revisions.rebase.set_source":    {"source"},
-	"revisions.rebase.set_target":    {"target"},
-	"revisions.revert.set_target":    {"target"},
-	"revset.set":                     {"value"},
-	"ui.change_theme":                {"name"},
-	"ui.preview.show":                {"content"},
+	"diff.show":                          {"content"},
+	"revisions.details.select_file":      {"file"},
+	"revisions.diff_range.target_picker": {"target"},
+	"revisions.duplicate.set_target":     {"target"},
+	"revisions.rebase.set_source":        {"source"},
+	"revisions.rebase.set_target":        {"target"},
+	"revisions.revert.set_target":        {"target"},
+	"revset.set":                         {"value"},
+	"ui.change_theme":                    {"name"},
+	"ui.preview.show":                    {"content"},
 }
 
 func ActionScopes(action string) []string {

@@ -85,7 +85,9 @@ type (
 		Operation any
 	}
 	StartAceJumpMsg     struct{}
-	OpenTargetPickerMsg struct{}
+	OpenTargetPickerMsg struct {
+		Payload any // additional information to carry with the target picker
+	}
 )
 
 type State int
@@ -130,6 +132,12 @@ func StartAceJump() tea.Cmd {
 func OpenTargetPicker() tea.Cmd {
 	return func() tea.Msg {
 		return OpenTargetPickerMsg{}
+	}
+}
+
+func OpenTargetPickerWithPayload(payload any) tea.Cmd {
+	return func() tea.Msg {
+		return OpenTargetPickerMsg{Payload: payload}
 	}
 }
 

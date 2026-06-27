@@ -304,7 +304,7 @@ function wait_refresh() end
 ---@field apply fun()
 ---@field cancel fun()
 ---@field swap fun()
----@field target_picker fun()
+---@field target_picker fun(args: {target: "to"|"from"})
 ---@field close fun()
 
 ---@class jjui.revisions.duplicate
