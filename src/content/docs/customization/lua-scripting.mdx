@@ -106,8 +106,11 @@ Args can be passed as individual strings or as a single table of strings.
 | `copy_to_clipboard(text)` | `(true, nil)` or `(nil, err)` | Copy to system clipboard |
 | `split_lines(text, keep_empty?)` | string[] | Split on newlines; strips `\r`; skips empty lines by default |
 | `exec_shell(command)` | — | Run a shell command line; yields until done |
+| `change_workspace(path)` | `(true, nil)` or `(nil, err)` | Switch the workspace path used by subsequent `jj` commands |
 
 `set_theme(name)` changes the currently active theme immediately. This is exposed to Lua for custom workflows and plugins, but it is not wired to the UI by default, so you need to call it from your own action, binding, or startup logic.
+
+`change_workspace(path)` is also available as `jjui.change_workspace(path)`. It changes the workspace directory for command execution without reloading repo-specific jjui configuration.
 
 ---
 
@@ -171,6 +174,7 @@ revset.set({ value = "trunk()" })
 | `revisions.open_set_bookmark({ value? })` | Open bookmark input, optionally prefilled |
 | `revisions.open_set_parents()` | Enter set-parents mode |
 | `revisions.open_squash()` | Enter squash mode |
+| `revisions.open_diff_range()` | Enter diff range mode |
 
 ### revisions.rebase.*
 
@@ -233,6 +237,26 @@ revset.set({ value = "trunk()" })
 | `revisions.abandon.cancel()` |
 | `revisions.abandon.ace_jump()` |
 | `revisions.abandon.jump_to_working_copy()` |
+
+### revisions.absorb.*
+
+| Function |
+|----------|
+| `revisions.absorb.toggle_select()` |
+| `revisions.absorb.select_descendants()` |
+| `revisions.absorb.apply()` |
+| `revisions.absorb.cancel()` |
+| `revisions.absorb.ace_jump()` |
+| `revisions.absorb.jump_to_working_copy()` |
+
+### revisions.diff_range.*
+
+| Function | Args |
+|----------|------|
+| `revisions.diff_range.apply()` | |
+| `revisions.diff_range.swap()` | |
+| `revisions.diff_range.target_picker({ target })` | `"from"` or `"to"` |
+| `revisions.diff_range.cancel()` | |
 
 ### revisions.set_parents.*
 
@@ -304,7 +328,7 @@ Shown when a details operation (e.g. squash) affects multiple revisions and need
 
 ### revisions.target_picker.*
 
-Shared target picker used by rebase, squash, duplicate, and revert.
+Shared target picker used by rebase, squash, duplicate, revert, and diff range.
 
 | Function |
 |----------|

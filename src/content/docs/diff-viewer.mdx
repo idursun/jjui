@@ -1,16 +1,32 @@
 ---
 title: Diff Viewer
-description: Full-screen diff viewer for revisions, files, and operations
+description: Full-screen diff viewer for revisions, revision ranges, files, and operations
 ---
 
 The diff viewer shows a full-screen, colored diff. It opens from several places in jjui:
 
 - **Revisions**: press `d` to view the diff for the highlighted revision
+- **Revision ranges**: press `alt+d` to compare two revision states
 - **Details**: press `d` to view the diff for the selected file
 - **Evolog**: press `d` to compare with the previous evolution entry
 - **Oplog**: press `d` to view the diff for the selected operation
 
 Press `esc` or `q` to close the diff and return to the previous view.
+
+## Diff range
+
+From the Revisions view, press `alt+d` to start a range diff. The highlighted revision becomes the `--from` target, and the revision you choose next becomes the `--to` target. Press `enter` to open the result in the diff viewer.
+
+While choosing the range:
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` or arrows | Move through revisions |
+| `enter` | Show `jj diff --from <from> --to <to>` |
+| `x` | Swap the `from` and `to` targets |
+| `t` | Pick the `--to` target from bookmarks or tags |
+| `f` | Pick the `--from` target from bookmarks or tags |
+| `esc` | Cancel |
 
 ## Navigation
 

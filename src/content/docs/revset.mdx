@@ -11,13 +11,15 @@ Press `shift+l` from Revisions to open the revset editor.
 
 ## Autocomplete
 
-As soon as the editor opens, completions appear automatically — functions, aliases, bookmarks, and tags are all listed. Once you start typing a function name, the editor shows the function's signature inline.
+As soon as the editor opens, completions appear automatically — history entries, functions, aliases, bookmarks, and tags are all listed. History entries are shown first when available, but the rest of the completions remain available below them.
+
+Once you start typing a function name, the editor shows the function's signature inline. Named arguments are completed too, so functions with arguments such as `remote=` can be filled in directly from the completion list.
 
 - `tab` / `shift+tab`: cycle through completions
 
 ## History
 
-Every revset you apply during a session is saved to history. When you re-open the editor, it defaults to showing your history — use `up`/`down` or `ctrl+p`/`ctrl+n` to navigate it.
+Every revset you apply during a session is saved to history. When you re-open the editor, history is shown at the top of the completion list — use `up`/`down` or `ctrl+p`/`ctrl+n` to navigate it.
 
 ## Keys
 
