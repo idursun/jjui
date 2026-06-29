@@ -103,7 +103,8 @@ func (p *CompletionProvider) GetCompletionItems(input string, history []string) 
 	var items []CompletionItem
 
 	if input == "" {
-		// When input is empty, show history for quick access
+		// When input is empty, show history first for quick access,
+		// followed by all available completions.
 		for _, h := range history {
 			items = append(items, CompletionItem{
 				ReplaceStart: 0,
@@ -114,10 +115,6 @@ func (p *CompletionProvider) GetCompletionItems(input string, history []string) 
 				RestPart:     h,
 			})
 		}
-		if len(items) > 0 {
-			return items
-		}
-		// No history: fall through to show all available completions
 		for _, si := range p.items {
 			items = append(items, p.itemForSourceItem(si, 0, ""))
 		}
