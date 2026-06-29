@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -119,16 +118,6 @@ func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, co
 			started(c.Process.Pid)
 
 			err := c.Wait()
-			if err != nil {
-				var exitError *exec.ExitError
-				if errors.As(err, &exitError) {
-					msg := output.String()
-					if len(env) == 0 && slices.Contains([]string{"linux", "darwin"}, runtime.GOOS) {
-						msg += common.DefaultPalette.Get("dimmed").Render("\nHint: enable ssh.hijack_askpass if you expected a password prompt (e.g. ssh passphrase)")
-					}
-					err = errors.New(msg)
-				}
-			}
 			return common.CommandCompletedMsg{
 				ID:     id,
 				Output: output.String(),
