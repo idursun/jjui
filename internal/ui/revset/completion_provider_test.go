@@ -75,6 +75,25 @@ func TestGetCompletions(t *testing.T) {
 	}
 }
 
+func TestGetCompletionItems_EmptyInputShowsHistoryThenAllCompletions(t *testing.T) {
+	provider := NewCompletionProvider(map[string]string{"myalias": "mine()"})
+
+	items := provider.GetCompletionItems("", []string{"mine()", "all()"})
+
+	assert.GreaterOrEqual(t, len(items), 4)
+	assert.Equal(t, CompletionItem{ReplaceStart: 0, Name: "mine()", InsertText: "mine()", Kind: KindHistory, RestPart: "mine()"}, items[0])
+	assert.Equal(t, CompletionItem{ReplaceStart: 0, Name: "all()", InsertText: "all()", Kind: KindHistory, RestPart: "all()"}, items[1])
+
+	functionIndex := slices.IndexFunc(items[2:], func(item CompletionItem) bool {
+		return item.InsertText == "all()" && item.Kind == KindFunction
+	})
+	aliasIndex := slices.IndexFunc(items[2:], func(item CompletionItem) bool {
+		return item.InsertText == "myalias" && item.Kind == KindAlias
+	})
+	assert.NotEqual(t, -1, functionIndex, "function completions should follow history")
+	assert.NotEqual(t, -1, aliasIndex, "alias completions should follow history")
+}
+
 func TestGetCompletionItems_FunctionArgumentCompletions(t *testing.T) {
 	provider := NewCompletionProvider(nil)
 	remoteListCalls := 0
