@@ -5,28 +5,35 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/bookmarkpane"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
+	bookmarkop "github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/internal/ui/preview"
+	"github.com/idursun/jjui/internal/ui/revisions"
 	"github.com/idursun/jjui/internal/ui/split"
 )
 
-const previewContentID = "preview"
+const (
+	previewContentID  = "preview"
+	bookmarkContentID = "bookmark-pane"
+)
 
-// initSplitContainer wires split layout state and the preview split content.
 func (m *Model) initSplitContainer() {
 	state := split.NewSplitState(config.Current.Preview.WidthPercentage)
-	previewPositionCfg, err := config.GetPreviewPosition(config.Current)
+	position, err := config.GetPreviewPosition(config.Current)
 	if err != nil {
 		log.Fatal(err)
 	}
-	state.SetPlacement(splitPlacementFromPreviewConfig(previewPositionCfg))
+	state.SetPlacement(splitPlacementFromPreviewConfig(position))
 
 	m.splitContainer = split.NewSplitContainer(state)
+	m.splitContainer.OnPrimaryFocus = m.revisions.SetFocused
 	m.splitContainer.RegisterContent(previewContentID, preview.New(m.context))
+	m.splitContainer.RegisterContent(bookmarkContentID, bookmarkpane.New(m.context))
 	if config.Current.Preview.ShowAtStart {
-		m.splitContainer.ShowContent(previewContentID)
+		_, _ = m.splitContainer.ShowContent(previewContentID)
 	}
 }
 
@@ -41,49 +48,79 @@ func splitPlacementFromPreviewConfig(position config.PreviewPosition) split.Plac
 	}
 }
 
-// selectionChanged emits a SelectionChangedMsg for the currently selected
-// item. It is fired whenever the preview becomes visible so the freshly shown
-// pane loads content for the current selection instead of staying empty until
-// the next cursor move.
 func (m *Model) selectionChanged() tea.Cmd {
-	if m.context == nil {
-		return nil
-	}
 	return common.SelectionChanged(m.context.SelectedItem)
 }
 
 func (m *Model) handleSplitMsg(msg tea.Msg) (tea.Cmd, bool) {
-	if m.splitContainer == nil {
-		return nil, false
-	}
 	switch msg := msg.(type) {
 	case common.ShowPreview:
-		if m.splitContainer.ShowContent(previewContentID) {
-			return m.selectionChanged(), true
+		cmd, shown := m.splitContainer.ShowContent(previewContentID)
+		m.splitContainer.FocusPrimary()
+		if shown {
+			return tea.Batch(cmd, m.selectionChanged()), true
+		}
+		return cmd, true
+	case revisions.ItemClickedMsg, revisions.PaneClickedMsg:
+		m.splitContainer.FocusPrimary()
+	case bookmarkpane.PaneClickedMsg, bookmarkpane.ItemClickedMsg, bookmarkpane.RemoteClickedMsg:
+		if m.splitContainer.ActiveID() == bookmarkContentID {
+			m.splitContainer.FocusSplitContent()
+		}
+	case bookmarkpane.RevealRevisionMsg:
+		m.splitContainer.FocusPrimary()
+		return m.revisions.RevealRevision(msg.CommitID), true
+	case bookmarkpane.BeginMoveBookmarkMsg:
+		m.splitContainer.FocusPrimary()
+		return common.RestoreOperation(bookmarkop.NewMoveBookmarkOperation(m.context, msg.Name, m.revisions.SelectedRevision())), true
+	case bookmarkop.MoveBookmarkCancelledMsg:
+		if m.splitContainer.ActiveID() == bookmarkContentID {
+			m.splitContainer.FocusSplitContent()
 		}
 		return nil, true
+	case bookmarkpane.BeginCreateBookmarkMsg:
+		m.splitContainer.FocusPrimary()
+		return common.RestoreOperation(bookmarkop.NewCreateBookmarkOperation(m.context, m.revisions.SelectedRevision())), true
 	case split.SplitDragMsg:
 		m.splitContainer.StartDrag(msg)
-		return nil, false
 	}
 	return nil, false
 }
 
 func (m *Model) handleSplitIntent(intent intents.Intent) (tea.Cmd, bool) {
-	if m.splitContainer == nil {
-		return nil, false
+	if m.splitContainer.ContentFocused() {
+		if cmd, handled := common.RouteIntent(m.splitContainer.Scopes(nil), intent); handled {
+			return cmd, true
+		}
 	}
+
 	switch msg := intent.(type) {
-	case intents.PreviewToggle:
-		m.splitContainer.ToggleContent(previewContentID)
-		return m.selectionChanged(), true
-	case intents.PreviewToggleBottom:
-		shown := m.splitContainer.ShowContent(previewContentID)
-		m.splitContainer.TogglePosition()
-		if shown {
-			return m.selectionChanged(), true
+	case intents.ToggleBookmarkPane:
+		if m.splitContainer.ActiveID() == bookmarkContentID {
+			m.splitContainer.Close()
+			return nil, true
+		}
+		m.syncBookmarkPaneContext()
+		cmd, _ := m.splitContainer.ShowContent(bookmarkContentID)
+		m.splitContainer.FocusSplitContent()
+		return cmd, true
+	case intents.FocusNextPane:
+		if m.splitContainer.ActiveID() == bookmarkContentID {
+			m.splitContainer.ToggleFocus()
 		}
 		return nil, true
+	case intents.PreviewToggle:
+		cmd, _ := m.splitContainer.ToggleContent(previewContentID)
+		m.splitContainer.FocusPrimary()
+		return tea.Batch(cmd, m.selectionChanged()), true
+	case intents.PreviewToggleBottom:
+		cmd, shown := m.splitContainer.ShowContent(previewContentID)
+		m.splitContainer.FocusPrimary()
+		m.splitContainer.TogglePosition()
+		if shown {
+			return tea.Batch(cmd, m.selectionChanged()), true
+		}
+		return cmd, true
 	case intents.PreviewExpand:
 		m.splitContainer.Resize(config.Current.Preview.WidthIncrementPercentage)
 		return nil, true
@@ -91,54 +128,53 @@ func (m *Model) handleSplitIntent(intent intents.Intent) (tea.Cmd, bool) {
 		m.splitContainer.Resize(-config.Current.Preview.WidthIncrementPercentage)
 		return nil, true
 	case intents.PreviewShow:
-		m.splitContainer.ShowContent(previewContentID)
-		return m.splitContainer.Update(msg), true
+		cmd, _ := m.splitContainer.ShowContent(previewContentID)
+		m.splitContainer.FocusPrimary()
+		return tea.Batch(cmd, m.splitContainer.Update(msg)), true
 	}
 	return nil, false
 }
 
 func (m *Model) updateSplit(msg tea.Msg) tea.Cmd {
-	if m.splitContainer == nil {
-		return nil
+	switch msg.(type) {
+	case common.UpdateRevisionsSuccessMsg, common.SelectionChangedMsg:
+		m.syncBookmarkPaneContext()
 	}
 	return m.splitContainer.Update(msg)
 }
 
-func (m *Model) splitScopes() []common.Scope {
-	if m.splitContainer == nil {
-		return nil
-	}
-	return m.splitContainer.Scopes()
+func (m *Model) splitScopes(primary []common.Scope) []common.Scope {
+	return m.splitContainer.Scopes(primary)
 }
 
 func (m *Model) renderSplit(primary common.ImmediateModel, box layout.Box) {
-	if m.splitContainer == nil {
-		primary.ViewRect(m.displayContext, box)
-		return
-	}
 	m.splitContainer.Render(m.displayContext, box, primary)
 }
 
 func (m *Model) updateSplitAutoPosition() {
-	if m.splitContainer == nil {
-		return
-	}
 	m.splitContainer.SetAutoPosition(m.height >= m.width/2)
 }
 
-func (m *Model) handleSplitMouseMsg(msg tea.Msg) (tea.Cmd, bool) {
-	if m.splitContainer == nil {
-		return nil, false
+// The bookmark pane needs revision context for proximity sorting and for
+// deciding whether a bookmark target can be revealed in the current list.
+func (m *Model) syncBookmarkPaneContext() {
+	currentCommitID := ""
+	if selected := m.revisions.SelectedRevision(); selected != nil {
+		currentCommitID = selected.CommitId
 	}
+	m.splitContainer.UpdateContent(bookmarkContentID, bookmarkpane.RevisionContextMsg{
+		CurrentCommitID:  currentCommitID,
+		VisibleCommitIDs: m.revisions.GetCommitIds(),
+	})
+}
+
+func (m *Model) handleSplitMouseMsg(msg tea.Msg) bool {
 	switch msg := msg.(type) {
 	case tea.MouseReleaseMsg:
 		m.splitContainer.EndDrag()
-		return nil, false
 	case tea.MouseMotionMsg:
 		mouse := msg.Mouse()
-		if m.splitContainer.DragTo(mouse.X, mouse.Y) {
-			return nil, true
-		}
+		return m.splitContainer.DragTo(mouse.X, mouse.Y)
 	}
-	return nil, false
+	return false
 }
