@@ -118,6 +118,12 @@ func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, co
 			started(c.Process.Pid)
 
 			err := c.Wait()
+			if err != nil {
+				var exitError *exec.ExitError
+				if errors.As(err, &exitError) {
+					err = errors.New(output.String())
+				}
+			}
 			return common.CommandCompletedMsg{
 				ID:     id,
 				Output: output.String(),
