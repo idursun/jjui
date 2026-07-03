@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/jj/source"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
@@ -105,7 +106,7 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		}
 		return tea.Sequence(common.Close, command), true
 	case intents.DiffRangeOpenTargetPicker:
-		return common.OpenTargetPickerWithPayload(intent.Target), true
+		return common.OpenTargetPickerWithPayload(intent.Target, source.BookmarkSource{}, source.TagSource{}), true
 	case intents.DiffRangeSwap:
 		if o.from == nil || o.to == nil {
 			return nil, true

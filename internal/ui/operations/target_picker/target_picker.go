@@ -19,13 +19,6 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-type ItemKind int
-
-const (
-	KindBookmark ItemKind = iota
-	KindTag
-)
-
 const (
 	maxWidth  = 80
 	maxHeight = 20
@@ -34,7 +27,7 @@ const (
 
 type Item struct {
 	Name string
-	Kind ItemKind
+	Kind source.Kind
 }
 
 var (
@@ -56,6 +49,7 @@ type Model struct {
 	listRenderer        *render.ListRenderer
 	ensureCursorVisible bool
 	payload             any
+	sources             []source.Source
 }
 
 type itemsLoadedMsg struct {
@@ -103,7 +97,7 @@ func (m *Model) Scopes() []common.Scope {
 	}
 }
 
-func NewModel(ctx *context.MainContext, payload any) *Model {
+func NewModel(ctx *context.MainContext, payload any, sources ...source.Source) *Model {
 	ti := textinput.New()
 	ti.Prompt = "> "
 	ti.CharLimit = 0
@@ -117,6 +111,7 @@ func NewModel(ctx *context.MainContext, payload any) *Model {
 		listRenderer:        render.NewListRenderer(itemScrollMsg{}),
 		ensureCursorVisible: true,
 		payload:             payload,
+		sources:             sources,
 	}
 	m.listRenderer.Z = render.ZMenuContent
 	return m
@@ -266,12 +261,20 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.ensureCursorVisible = false
 }
 
-func (m *Model) renderPill(kind ItemKind, style lipgloss.Style) string {
+func (m *Model) renderPill(kind source.Kind, style lipgloss.Style) string {
 	switch kind {
-	case KindBookmark:
+	case source.KindBookmark:
 		return style.Width(pillWidth).Align(lipgloss.Right).Render("bookmark")
-	case KindTag:
+	case source.KindTag:
 		return style.Width(pillWidth).Align(lipgloss.Right).Render("tag")
+	case source.KindFunction:
+		return style.Width(pillWidth).Align(lipgloss.Right).Render("function")
+	case source.KindAlias:
+		return style.Width(pillWidth).Align(lipgloss.Right).Render("alias")
+	case source.KindHistory:
+		return style.Width(pillWidth).Align(lipgloss.Right).Render("history")
+	case source.KindRemote:
+		return style.Width(pillWidth).Align(lipgloss.Right).Render("remote")
 	default:
 		return strings.Repeat(" ", pillWidth)
 	}
@@ -279,14 +282,10 @@ func (m *Model) renderPill(kind ItemKind, style lipgloss.Style) string {
 
 func (m *Model) fetchItems() tea.Cmd {
 	return func() tea.Msg {
-		sourceItems := source.FetchAll(m.context.RunCommandImmediate, source.BookmarkSource{}, source.TagSource{})
+		sourceItems := source.FetchAll(m.context.RunCommandImmediate, m.sources...)
 		items := make([]Item, len(sourceItems))
 		for i, si := range sourceItems {
-			kind := KindBookmark
-			if si.Kind == source.KindTag {
-				kind = KindTag
-			}
-			items[i] = Item{Name: si.Name, Kind: kind}
+			items[i] = Item{Name: si.Name, Kind: si.Kind}
 		}
 		return itemsLoadedMsg{items: items}
 	}

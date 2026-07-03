@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/jj/source"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -82,7 +83,7 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		}
 		return tea.Batch(common.CloseApplied, s.context.RunCommand(args, continuation)), true
 	case intents.SquashOpenTargetPicker:
-		return common.OpenTargetPicker(), true
+		return common.OpenTargetPicker(source.BookmarkSource{}, source.TagSource{}), true
 	case intents.Cancel:
 		return common.Close, true
 	case intents.SquashToggleOption:

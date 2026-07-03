@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/jj/source"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
@@ -85,7 +86,7 @@ func (r *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		}
 		return nil, true
 	case intents.DuplicateOpenTargetPicker:
-		return common.OpenTargetPicker(), true
+		return common.OpenTargetPicker(source.BookmarkSource{}, source.TagSource{}), true
 	case intents.Apply:
 		if r.Target == intents.ModeTargetInsert {
 			insertAfter := r.InsertStart.GetChangeId()

@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/jj/source"
 )
 
 type (
@@ -87,6 +88,7 @@ type (
 	StartAceJumpMsg     struct{}
 	OpenTargetPickerMsg struct {
 		Payload any // additional information to carry with the target picker
+		Sources []source.Source
 	}
 )
 
@@ -129,15 +131,15 @@ func StartAceJump() tea.Cmd {
 	}
 }
 
-func OpenTargetPicker() tea.Cmd {
+func OpenTargetPicker(sources ...source.Source) tea.Cmd {
 	return func() tea.Msg {
-		return OpenTargetPickerMsg{}
+		return OpenTargetPickerMsg{Sources: sources}
 	}
 }
 
-func OpenTargetPickerWithPayload(payload any) tea.Cmd {
+func OpenTargetPickerWithPayload(payload any, sources ...source.Source) tea.Cmd {
 	return func() tea.Msg {
-		return OpenTargetPickerMsg{Payload: payload}
+		return OpenTargetPickerMsg{Payload: payload, Sources: sources}
 	}
 }
 
