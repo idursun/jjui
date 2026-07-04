@@ -145,33 +145,6 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 }
 
 func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
-	cmd, handled := s.handleIntentInner(intent)
-	return cmd, handled
-}
-
-func (s *Operation) Selection() common.SelectionSnapshot {
-	var snapshot common.SelectionSnapshot
-	current := s.current()
-	if current != nil {
-		snapshot.Highlighted = s.selectedFile(current.fileName)
-	}
-	for _, file := range s.files {
-		if file.selected {
-			snapshot.Checked = append(snapshot.Checked, s.selectedFile(file.fileName))
-		}
-	}
-	return snapshot
-}
-
-func (s *Operation) selectedFile(file string) context.SelectedFile {
-	return context.SelectedFile{
-		ChangeId: s.revision.GetChangeId(),
-		CommitId: s.revision.CommitId,
-		File:     file,
-	}
-}
-
-func (s *Operation) handleIntentInner(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
 	case intents.Apply:
 		if s.confirmation != nil {
@@ -288,6 +261,28 @@ func (s *Operation) handleIntentInner(intent intents.Intent) (tea.Cmd, bool) {
 		return nil, true
 	}
 	return nil, false
+}
+
+func (s *Operation) Selection() common.SelectionSnapshot {
+	var snapshot common.SelectionSnapshot
+	current := s.current()
+	if current != nil {
+		snapshot.Highlighted = s.selectedFile(current.fileName)
+	}
+	for _, file := range s.files {
+		if file.selected {
+			snapshot.Checked = append(snapshot.Checked, s.selectedFile(file.fileName))
+		}
+	}
+	return snapshot
+}
+
+func (s *Operation) selectedFile(file string) context.SelectedFile {
+	return context.SelectedFile{
+		ChangeId: s.revision.GetChangeId(),
+		CommitId: s.revision.CommitId,
+		File:     file,
+	}
 }
 
 func (s *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
