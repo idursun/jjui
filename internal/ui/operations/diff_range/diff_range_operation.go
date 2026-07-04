@@ -98,10 +98,11 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return common.Close, true
 	case intents.Apply:
 		command := func() tea.Msg {
-			if output, err := o.context.RunCommandImmediate(jj.DiffRange(o.fromTargetArg(), o.toTargetArg())); err != nil {
+			args := jj.DiffRange(o.fromTargetArg(), o.toTargetArg())
+			if output, err := o.context.RunCommandImmediate(args); err != nil {
 				return intents.AddMessage{Text: err.Error()}
 			} else {
-				return intents.DiffShow{Content: string(output)}
+				return intents.DiffShow{Content: string(output), Args: args}
 			}
 		}
 		return tea.Sequence(common.Close, command), true

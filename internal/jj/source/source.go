@@ -17,6 +17,7 @@ const (
 	KindBookmark
 	KindTag
 	KindRemote
+	KindFile
 )
 
 // Item represents a completion/picker item from any source.
@@ -33,6 +34,21 @@ type Runner = func([]string) ([]byte, error)
 // Source provides items for completion or selection.
 type Source interface {
 	Fetch(runner Runner) ([]Item, error)
+}
+
+type FileSource struct {
+	Files []string
+}
+
+func (s FileSource) Fetch(_ Runner) ([]Item, error) {
+	items := make([]Item, 0, len(s.Files))
+	for _, file := range s.Files {
+		if strings.TrimSpace(file) == "" {
+			continue
+		}
+		items = append(items, Item{Name: file, Kind: KindFile})
+	}
+	return items, nil
 }
 
 // FetchAll collects items from multiple sources, skipping failures.

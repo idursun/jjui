@@ -273,6 +273,8 @@ func (m *Model) renderPill(kind source.Kind, style lipgloss.Style) string {
 		return style.Width(pillWidth).Align(lipgloss.Right).Render("alias")
 	case source.KindHistory:
 		return style.Width(pillWidth).Align(lipgloss.Right).Render("history")
+	case source.KindFile:
+		return style.Width(pillWidth).Align(lipgloss.Right).Render("file")
 	case source.KindRemote:
 		return style.Width(pillWidth).Align(lipgloss.Right).Render("remote")
 	default:

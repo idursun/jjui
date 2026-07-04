@@ -42,6 +42,7 @@ var builtInActionScopes = map[string][]string{
 	"diff.scroll_down":                           {"diff"},
 	"diff.scroll_up":                             {"diff"},
 	"diff.show":                                  {"diff"},
+	"diff.target_picker":                         {"diff"},
 	"diff.toggle_wrap":                           {"diff"},
 	"file_search.apply":                          {"file_search"},
 	"file_search.cancel":                         {"file_search"},

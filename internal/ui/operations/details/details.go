@@ -3,8 +3,6 @@ package details
 import (
 	"bufio"
 	"fmt"
-	"path"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -176,8 +174,9 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return nil, true
 		}
 		return func() tea.Msg {
+			args := jj.Diff(s.revision.GetChangeId(), "")
 			output, _ := s.context.RunCommandImmediate(jj.Diff(s.revision.GetChangeId(), selected.fileName))
-			return intents.DiffShow{Content: string(output)}
+			return intents.DiffShow{Content: string(output), Args: args}
 		}, true
 	case intents.DetailsSplit:
 		selectedFiles := s.getSelectedFiles(true)
@@ -407,8 +406,12 @@ func (s *Operation) createListItems(content string, selectedFiles []string) []*i
 		if file == "" {
 			continue
 		}
+		summary, ok := jj.ParseSummaryFile(file)
+		if !ok {
+			continue
+		}
 		var status status
-		switch file[0] {
+		switch summary.Status {
 		case 'A':
 			status = Added
 		case 'D':
@@ -420,18 +423,11 @@ func (s *Operation) createListItems(content string, selectedFiles []string) []*i
 		case 'C':
 			status = Copied
 		}
-		fileName := file[2:]
-
-		actualFileName := fileName
-		if (status == Renamed || status == Copied) && strings.Contains(actualFileName, "{") {
-			re := regexp.MustCompile(`\{[^}]*? => \s*([^}]*?)\s*\}`)
-			actualFileName = path.Clean(re.ReplaceAllString(actualFileName, "$1"))
-		}
 		items = append(items, &item{
 			status:   status,
-			name:     fileName,
-			fileName: actualFileName,
-			selected: slices.ContainsFunc(selectedFiles, func(s string) bool { return s == actualFileName }),
+			name:     summary.Name,
+			fileName: summary.FileName,
+			selected: slices.ContainsFunc(selectedFiles, func(s string) bool { return s == summary.FileName }),
 			conflict: conflicts[index],
 		})
 		index++

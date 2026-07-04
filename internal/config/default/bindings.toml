@@ -368,6 +368,7 @@ bindings = [
     { key = ["left", "h"], action = "diff.left", scope = "diff", desc = "left" },
     { key = ["right", "l"], action = "diff.right", scope = "diff", desc = "right" },
     { key = "w", action = "diff.toggle_wrap", scope = "diff", desc = "toggle wrap" },
+    { key = "ctrl+t", action = "diff.target_picker", scope = "diff", desc = "target picker" },
     { key = "esc", action = "ui.cancel", scope = "diff", desc = "cancel" },
 
     # command history

@@ -50,6 +50,12 @@ func (DiffToggleWrap) isIntent() {}
 //jjui:bind scope=diff action=show set=Content:$string(content)
 type DiffShow struct {
 	Content string
+	Args    []string
 }
 
 func (DiffShow) isIntent() {}
+
+//jjui:bind scope=diff action=target_picker
+type DiffOpenTargetPicker struct{}
+
+func (DiffOpenTargetPicker) isIntent() {}

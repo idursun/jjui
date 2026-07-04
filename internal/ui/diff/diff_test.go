@@ -4,9 +4,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/jj/source"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNew_TrimsCarriageReturnsAndHandlesEmpty(t *testing.T) {
@@ -164,4 +169,104 @@ func TestTabs_WrapUsingExpandedWidth(t *testing.T) {
 
 	rendered := test.RenderImmediate(model, 5, 2)
 	assert.Equal(t, "    1\n23456", rendered)
+}
+
+func TestTargetPickerUnavailableWithoutArgs(t *testing.T) {
+	model := New("diff")
+
+	cmd := model.Update(intents.DiffOpenTargetPicker{})
+	require.NotNil(t, cmd)
+	msg, ok := cmd().(intents.AddMessage)
+	require.True(t, ok)
+	assert.Contains(t, msg.Text, "unavailable")
+}
+
+func TestTargetPickerLoadsSummaryFiles(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	args := jj.Diff("abc", "")
+	commandRunner.Expect(append(jj.Diff("abc", ""), "--summary")).SetOutput([]byte("M a.go\nA b.go\nR {old => new}/path.txt\nM a.go"))
+
+	model := NewWithContext(test.NewTestContext(commandRunner), "diff", args)
+	cmd := model.Init()
+	require.NotNil(t, cmd)
+	summaryMsg, ok := cmd().(summaryLoadedMsg)
+	require.True(t, ok)
+	require.Nil(t, model.Update(summaryMsg))
+
+	openCmd := model.Update(intents.DiffOpenTargetPicker{})
+	require.NotNil(t, openCmd)
+	openMsg, ok := openCmd().(common.OpenTargetPickerMsg)
+	require.True(t, ok)
+	require.Len(t, openMsg.Sources, 1)
+	items, err := openMsg.Sources[0].Fetch(nil)
+	require.NoError(t, err)
+	assert.Equal(t, []source.Item{
+		{Name: allFilesTargetLabel, Kind: source.KindFile},
+		{Name: "a.go", Kind: source.KindFile},
+		{Name: "b.go", Kind: source.KindFile},
+		{Name: "new/path.txt", Kind: source.KindFile},
+	}, items)
+}
+
+func TestTargetPickerSelectedAllFilesLoadsOriginalDiff(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	args := jj.Diff("abc", "")
+	commandRunner.Expect(args).SetOutput([]byte("all files diff"))
+	commandRunner.Expect(append(jj.Diff("abc", ""), "--summary")).SetOutput([]byte("M dir/a.go"))
+
+	model := NewWithContext(test.NewTestContext(commandRunner), "file diff", args)
+	initCmd := model.Init()
+	require.NotNil(t, initCmd)
+	loadedTargets, ok := initCmd().(summaryLoadedMsg)
+	require.True(t, ok)
+	require.Nil(t, model.Update(loadedTargets))
+
+	cmd := model.Update(target_picker.TargetSelectedMsg{
+		Target:  allFilesTargetLabel,
+		Payload: targetPickerPayload{},
+	})
+	require.NotNil(t, cmd)
+	loaded, ok := cmd().(fileLoadedMsg)
+	require.True(t, ok)
+
+	updateCmd := model.Update(loaded)
+	require.Nil(t, updateCmd)
+	assert.Equal(t, "all files diff", test.Stripped(test.RenderImmediate(model, 20, 3)))
+	assert.Equal(t, []string(args), model.originalArgs)
+	assert.Equal(t, "", model.currentFile)
+}
+
+func TestTargetPickerSelectedFileLoadsDiffAndKeepsOriginalArgs(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	args := jj.Diff("abc", "")
+	commandRunner.Expect(append(jj.Diff("abc", ""), jj.EscapeFileName("dir/a b.go"))).SetOutput([]byte("file diff"))
+	commandRunner.Expect(append(jj.Diff("abc", ""), "--summary")).SetOutput([]byte("M dir/a b.go"))
+
+	model := NewWithContext(test.NewTestContext(commandRunner), "initial diff", args)
+	initCmd := model.Init()
+	require.NotNil(t, initCmd)
+	loadedTargets, ok := initCmd().(summaryLoadedMsg)
+	require.True(t, ok)
+	require.Nil(t, model.Update(loadedTargets))
+
+	cmd := model.Update(target_picker.TargetSelectedMsg{
+		Target:  "dir/a b.go",
+		Payload: targetPickerPayload{},
+	})
+	require.NotNil(t, cmd)
+	loaded, ok := cmd().(fileLoadedMsg)
+	require.True(t, ok)
+
+	updateCmd := model.Update(loaded)
+	require.Nil(t, updateCmd)
+	assert.Equal(t, "file diff", test.Stripped(test.RenderImmediate(model, 20, 3)))
+	assert.Equal(t, []string(args), model.originalArgs)
+
+	summaryCmd := model.Update(intents.DiffOpenTargetPicker{})
+	require.NotNil(t, summaryCmd)
+	_, ok = summaryCmd().(common.OpenTargetPickerMsg)
+	require.True(t, ok)
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/jj/source"
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
@@ -29,6 +30,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/details"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/operations/set_parents"
+	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/preview"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revset"
@@ -1168,6 +1170,58 @@ func Test_Update_DiffEscClosesDiffAndRestoresDetails(t *testing.T) {
 	assert.Nil(t, model.diff, "diff should close after esc")
 	require.False(t, model.revisions.InNormalMode(), "details should remain active after closing diff")
 	assert.Equal(t, "details", model.revisions.CurrentOperation().Name())
+}
+
+func Test_Update_OpenTargetPickerWhileDiffActiveCreatesRootOverlay(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.diff = diff.NewWithContext(ctx, "diff content", jj.Diff("abc123", ""))
+
+	cmd := model.Update(common.OpenTargetPickerMsg{
+		Sources: []source.Source{source.FileSource{Files: []string{"a.go"}}},
+	})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	require.NotNil(t, model.stacked)
+	_, ok := model.stacked.(*target_picker.Model)
+	require.True(t, ok)
+
+	model.Update(tea.WindowSizeMsg{Width: 40, Height: 8})
+	rendered := model.View()
+	assert.Contains(t, rendered, "a.go")
+}
+
+func Test_Update_DiffTargetPickerClosesOnSelectionAndCancel(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.diff = diff.NewWithContext(ctx, "diff content", jj.Diff("abc123", ""))
+
+	cmd := model.Update(common.OpenTargetPickerMsg{
+		Sources: []source.Source{source.FileSource{Files: []string{"a.go"}}},
+	})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+	require.NotNil(t, model.stacked)
+
+	model.Update(target_picker.TargetSelectedMsg{Target: "a.go"})
+	assert.Nil(t, model.stacked)
+
+	cmd = model.Update(common.OpenTargetPickerMsg{
+		Sources: []source.Source{source.FileSource{Files: []string{"a.go"}}},
+	})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+	require.NotNil(t, model.stacked)
+
+	model.Update(target_picker.TargetPickerCancelMsg{})
+	assert.Nil(t, model.stacked)
 }
 
 func Test_Update_DispatchedPreviewShowUpdatesVisiblePreview(t *testing.T) {

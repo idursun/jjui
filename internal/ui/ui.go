@@ -33,6 +33,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/help"
 
 	"github.com/idursun/jjui/internal/ui/input"
+	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/oplog"
 	"github.com/idursun/jjui/internal/ui/redo"
 	"github.com/idursun/jjui/internal/ui/revisions"
@@ -321,6 +322,22 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			cmds = append(cmds, cmd)
 		}
 		return tea.Batch(cmds...)
+	case common.OpenTargetPickerMsg:
+		if m.diff != nil {
+			model := target_picker.NewModel(m.context, msg.Payload, msg.Sources...)
+			m.stacked = model
+			return m.stacked.Init()
+		}
+	case target_picker.TargetSelectedMsg:
+		if m.diff != nil && m.stacked != nil {
+			m.stacked = nil
+			return m.diff.Update(msg)
+		}
+	case target_picker.TargetPickerCancelMsg:
+		if m.diff != nil && m.stacked != nil {
+			m.stacked = nil
+			return nil
+		}
 	case common.TogglePasswordMsg:
 		if m.password != nil {
 			// let the current prompt clean itself
@@ -482,11 +499,15 @@ func (m *Model) dispatchScopes() []common.Scope {
 		scopes = append(scopes, m.revsetModel.Scopes()...)
 	}
 
+	if m.stacked != nil && m.diff != nil {
+		scopes = append(scopes, m.stacked.Scopes()...)
+	}
+
 	if m.diff != nil {
 		scopes = append(scopes, m.diff.Scopes()...)
 	}
 
-	if m.stacked != nil {
+	if m.stacked != nil && m.diff == nil {
 		scopes = append(scopes, m.stacked.Scopes()...)
 	} else if m.oplog != nil {
 		scopes = append(scopes, m.oplog.Scopes()...)
@@ -598,7 +619,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	// --- Delegated intents ---
 	case intents.DiffShow:
 		if m.diff == nil {
-			m.diff = diff.New("")
+			m.diff = diff.NewWithContext(m.context, "", nil)
 		}
 		return m.diff.Update(intent), true
 	// --- Status ---

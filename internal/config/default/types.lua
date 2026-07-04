@@ -120,6 +120,7 @@ function wait_refresh() end
 ---@field scroll_down fun()
 ---@field scroll_up fun()
 ---@field show fun(value?: string|{content: string})
+---@field target_picker fun()
 ---@field toggle_wrap fun()
 
 ---@class jjui.file_search

@@ -127,6 +127,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.DiffScroll{Kind: intents.DiffScrollUp}, true
 		case keybindings.Action("diff.show"):
 			return intents.DiffShow{Content: actionargs.StringArg(args, "content", "")}, true
+		case keybindings.Action("diff.target_picker"):
+			return intents.DiffOpenTargetPicker{}, true
 		case keybindings.Action("diff.toggle_wrap"):
 			return intents.DiffToggleWrap{}, true
 		}

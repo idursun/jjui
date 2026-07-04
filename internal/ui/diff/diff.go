@@ -1,14 +1,19 @@
 package diff
 
 import (
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/jj/source"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
+	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
@@ -17,6 +22,8 @@ type viewMode interface {
 	scrollHorizontal(delta int, viewportWidth int)
 	ViewRect(dl *render.DisplayContext, box layout.Box, scrollY int)
 }
+
+const allFilesTargetLabel = "(all files)"
 
 type defaultView struct {
 	lines        []string
@@ -150,6 +157,12 @@ func (v *wrappedView) ViewRect(dl *render.DisplayContext, box layout.Box, scroll
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
+	context      *appContext.MainContext
+	originalArgs []string
+	targetFiles  []string
+	targetLoaded bool
+	targetErr    error
+
 	lines        []string
 	maxLineWidth int
 
@@ -158,6 +171,19 @@ type Model struct {
 	viewportHeight int
 
 	mode viewMode
+}
+
+type targetPickerPayload struct{}
+
+type summaryLoadedMsg struct {
+	args  []string
+	files []string
+	err   error
+}
+
+type fileLoadedMsg struct {
+	content string
+	err     error
 }
 
 func (m *Model) Scopes() []common.Scope {
@@ -206,7 +232,14 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 
 	case intents.DiffShow:
 		m.SetContent(msg.Content)
-		return nil, true
+		m.originalArgs = append([]string(nil), msg.Args...)
+		m.targetFiles = nil
+		m.targetLoaded = false
+		m.targetErr = nil
+		return m.Init(), true
+
+	case intents.DiffOpenTargetPicker:
+		return m.openTargetPicker(), true
 
 	case intents.DiffScrollHorizontal:
 		switch msg.Kind {
@@ -221,7 +254,28 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 }
 
 func (m *Model) Init() tea.Cmd {
-	return nil
+	if len(m.originalArgs) == 0 || m.context == nil {
+		return nil
+	}
+	originalArgs := append([]string(nil), m.originalArgs...)
+	args := append(append([]string(nil), originalArgs...), "--summary")
+	return func() tea.Msg {
+		output, err := m.context.RunCommandImmediate(args)
+		if err != nil {
+			return summaryLoadedMsg{args: originalArgs, err: err}
+		}
+		seen := map[string]bool{}
+		var files []string
+		for _, line := range strings.Split(string(output), "\n") {
+			summary, ok := jj.ParseSummaryFile(line)
+			if !ok || summary.FileName == "" || seen[summary.FileName] {
+				continue
+			}
+			seen[summary.FileName] = true
+			files = append(files, summary.FileName)
+		}
+		return summaryLoadedMsg{args: originalArgs, files: files}
+	}
 }
 
 type ScrollMsg struct {
@@ -275,7 +329,7 @@ func (m *Model) SetContent(content string) {
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case intents.DiffScroll, intents.DiffToggleWrap, intents.DiffShow, intents.DiffScrollHorizontal:
+	case intents.DiffScroll, intents.DiffToggleWrap, intents.DiffShow, intents.DiffOpenTargetPicker, intents.DiffScrollHorizontal:
 		cmd, _ := m.HandleIntent(msg.(intents.Intent))
 		return cmd
 
@@ -286,6 +340,28 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.mode.scrollHorizontal(msg.Delta, m.viewportWidth)
 		}
 		return nil
+	case summaryLoadedMsg:
+		if !slices.Equal(msg.args, m.originalArgs) {
+			return nil
+		}
+		m.targetFiles = append([]string(nil), msg.files...)
+		m.targetLoaded = msg.err == nil
+		m.targetErr = msg.err
+		return nil
+	case fileLoadedMsg:
+		if msg.err != nil {
+			return intents.Invoke(intents.AddMessage{Text: msg.err.Error(), Err: msg.err})
+		}
+		m.SetContent(msg.content)
+		return nil
+	case target_picker.TargetSelectedMsg:
+		if _, ok := msg.Payload.(targetPickerPayload); !ok {
+			return nil
+		}
+		if msg.Target == allFilesTargetLabel {
+			msg.Target = ""
+		}
+		return m.loadFile(msg.Target)
 	}
 	return nil
 }
@@ -302,7 +378,47 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 }
 
 func New(output string) *Model {
+	return NewWithContext(nil, output, nil)
+}
+
+func NewWithContext(ctx *appContext.MainContext, output string, args []string) *Model {
 	model := &Model{}
+	model.context = ctx
+	model.originalArgs = append([]string(nil), args...)
 	model.SetContent(output)
 	return model
+}
+
+func (m *Model) openTargetPicker() tea.Cmd {
+	if len(m.originalArgs) == 0 || m.context == nil {
+		return intents.Invoke(intents.AddMessage{Text: "File picker is unavailable for this diff"})
+	}
+	if m.targetErr != nil {
+		return intents.Invoke(intents.AddMessage{Text: m.targetErr.Error(), Err: m.targetErr})
+	}
+	if !m.targetLoaded {
+		return intents.Invoke(intents.AddMessage{Text: "File picker is still loading"})
+	}
+	if len(m.targetFiles) == 0 {
+		return intents.Invoke(intents.AddMessage{Text: "No files found in diff summary"})
+	}
+	files := append([]string{allFilesTargetLabel}, m.targetFiles...)
+	return common.OpenTargetPickerWithPayload(targetPickerPayload{}, source.FileSource{Files: files})
+}
+
+func (m *Model) loadFile(file string) tea.Cmd {
+	if len(m.originalArgs) == 0 || m.context == nil {
+		return intents.Invoke(intents.AddMessage{Text: "File picker is unavailable for this diff"})
+	}
+	args := append([]string(nil), m.originalArgs...)
+	if file != "" {
+		args = append(args, jj.EscapeFileName(file))
+	}
+	return func() tea.Msg {
+		output, err := m.context.RunCommandImmediate(args)
+		if err != nil {
+			return fileLoadedMsg{err: err}
+		}
+		return fileLoadedMsg{content: string(output)}
+	}
 }

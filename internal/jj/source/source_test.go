@@ -97,6 +97,16 @@ func TestHistorySource(t *testing.T) {
 	}
 }
 
+func TestFileSource(t *testing.T) {
+	s := FileSource{Files: []string{"a.go", "", "dir/b.go"}}
+	items, err := s.Fetch(nil)
+	assert.NoError(t, err)
+	assert.Equal(t, []Item{
+		{Name: "a.go", Kind: KindFile},
+		{Name: "dir/b.go", Kind: KindFile},
+	}, items)
+}
+
 func TestBookmarkSource(t *testing.T) {
 	mockRunner := func(args []string) ([]byte, error) {
 		return []byte(`main;.;false;false;false;abc123
