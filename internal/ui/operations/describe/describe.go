@@ -132,7 +132,8 @@ func (o *Operation) Init() tea.Cmd {
 }
 
 func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	input := o.resizeInput(box.R.Dx(), box.R.Dy())
+	o.input = o.resizeInput(box.R.Dx(), box.R.Dy())
+	input := o.input
 
 	selectedStyle := common.DefaultPalette.Get("revisions selected")
 	ds := input.Styles()
