@@ -59,3 +59,11 @@ func (DiffShow) isIntent() {}
 type DiffOpenTargetPicker struct{}
 
 func (DiffOpenTargetPicker) isIntent() {}
+
+//jjui:bind scope=diff action=prev_file set=Delta:-1
+//jjui:bind scope=diff action=next_file set=Delta:1
+type DiffFileNavigate struct {
+	Delta int
+}
+
+func (DiffFileNavigate) isIntent() {}

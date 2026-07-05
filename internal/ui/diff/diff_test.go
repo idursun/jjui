@@ -264,9 +264,61 @@ func TestTargetPickerSelectedFileLoadsDiffAndKeepsOriginalArgs(t *testing.T) {
 	require.Nil(t, updateCmd)
 	assert.Equal(t, "file diff", test.Stripped(test.RenderImmediate(model, 20, 3)))
 	assert.Equal(t, []string(args), model.originalArgs)
+	assert.Equal(t, "dir/a b.go", model.currentFile)
 
 	summaryCmd := model.Update(intents.DiffOpenTargetPicker{})
 	require.NotNil(t, summaryCmd)
 	_, ok = summaryCmd().(common.OpenTargetPickerMsg)
 	require.True(t, ok)
+}
+
+func TestFileNavigateLoadsAdjacentFilesAndWraps(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	args := jj.Diff("abc", "")
+	commandRunner.Expect(append(jj.Diff("abc", ""), "--summary")).SetOutput([]byte("M a.go\nM b.go\nM c.go"))
+	commandRunner.Expect(append(jj.Diff("abc", ""), jj.EscapeFileName("c.go"))).SetOutput([]byte("c diff"))
+	commandRunner.Expect(append(jj.Diff("abc", ""), jj.EscapeFileName("a.go"))).SetOutput([]byte("a diff"))
+	commandRunner.Expect(append(jj.Diff("abc", ""), jj.EscapeFileName("b.go"))).SetOutput([]byte("b diff"))
+
+	model := NewWithContext(test.NewTestContext(commandRunner), "initial diff", args)
+	initCmd := model.Init()
+	require.NotNil(t, initCmd)
+	loadedTargets, ok := initCmd().(summaryLoadedMsg)
+	require.True(t, ok)
+	require.Nil(t, model.Update(loadedTargets))
+
+	cmd := model.Update(intents.DiffFileNavigate{Delta: -1})
+	require.NotNil(t, cmd)
+	loaded, ok := cmd().(fileLoadedMsg)
+	require.True(t, ok)
+	require.Nil(t, model.Update(loaded))
+	assert.Equal(t, "c diff", test.Stripped(test.RenderImmediate(model, 20, 3)))
+	assert.Equal(t, "c.go", model.currentFile)
+
+	cmd = model.Update(intents.DiffFileNavigate{Delta: 1})
+	require.NotNil(t, cmd)
+	loaded, ok = cmd().(fileLoadedMsg)
+	require.True(t, ok)
+	require.Nil(t, model.Update(loaded))
+	assert.Equal(t, "a diff", test.Stripped(test.RenderImmediate(model, 20, 3)))
+	assert.Equal(t, "a.go", model.currentFile)
+
+	cmd = model.Update(intents.DiffFileNavigate{Delta: 1})
+	require.NotNil(t, cmd)
+	loaded, ok = cmd().(fileLoadedMsg)
+	require.True(t, ok)
+	require.Nil(t, model.Update(loaded))
+	assert.Equal(t, "b diff", test.Stripped(test.RenderImmediate(model, 20, 3)))
+	assert.Equal(t, "b.go", model.currentFile)
+}
+
+func TestFileNavigateUnavailableWithoutArgs(t *testing.T) {
+	model := New("diff")
+
+	cmd := model.Update(intents.DiffFileNavigate{Delta: 1})
+	require.NotNil(t, cmd)
+	msg, ok := cmd().(intents.AddMessage)
+	require.True(t, ok)
+	assert.Contains(t, msg.Text, "unavailable")
 }

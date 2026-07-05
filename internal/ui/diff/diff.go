@@ -162,6 +162,7 @@ type Model struct {
 	targetFiles  []string
 	targetLoaded bool
 	targetErr    error
+	currentFile  string
 
 	lines        []string
 	maxLineWidth int
@@ -183,6 +184,7 @@ type summaryLoadedMsg struct {
 
 type fileLoadedMsg struct {
 	content string
+	file    string
 	err     error
 }
 
@@ -236,10 +238,39 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		m.targetFiles = nil
 		m.targetLoaded = false
 		m.targetErr = nil
+		m.currentFile = ""
 		return m.Init(), true
 
 	case intents.DiffOpenTargetPicker:
 		return m.openTargetPicker(), true
+
+	case intents.DiffFileNavigate:
+		if len(m.originalArgs) == 0 || m.context == nil {
+			return intents.Invoke(intents.AddMessage{Text: "File navigation is unavailable for this diff"}), true
+		}
+		if m.targetErr != nil {
+			return intents.Invoke(intents.AddMessage{Text: m.targetErr.Error(), Err: m.targetErr}), true
+		}
+		if !m.targetLoaded {
+			return intents.Invoke(intents.AddMessage{Text: "File list is still loading"}), true
+		}
+		if len(m.targetFiles) == 0 {
+			return intents.Invoke(intents.AddMessage{Text: "No files found in diff summary"}), true
+		}
+		index := slices.Index(m.targetFiles, m.currentFile)
+		if index < 0 {
+			if msg.Delta < 0 {
+				index = len(m.targetFiles) - 1
+			} else {
+				index = 0
+			}
+		} else {
+			index = (index + msg.Delta) % len(m.targetFiles)
+			if index < 0 {
+				index += len(m.targetFiles)
+			}
+		}
+		return m.loadFile(m.targetFiles[index]), true
 
 	case intents.DiffScrollHorizontal:
 		switch msg.Kind {
@@ -329,7 +360,7 @@ func (m *Model) SetContent(content string) {
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case intents.DiffScroll, intents.DiffToggleWrap, intents.DiffShow, intents.DiffOpenTargetPicker, intents.DiffScrollHorizontal:
+	case intents.DiffScroll, intents.DiffToggleWrap, intents.DiffShow, intents.DiffOpenTargetPicker, intents.DiffFileNavigate, intents.DiffScrollHorizontal:
 		cmd, _ := m.HandleIntent(msg.(intents.Intent))
 		return cmd
 
@@ -353,6 +384,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return intents.Invoke(intents.AddMessage{Text: msg.err.Error(), Err: msg.err})
 		}
 		m.SetContent(msg.content)
+		m.currentFile = msg.file
 		return nil
 	case target_picker.TargetSelectedMsg:
 		if _, ok := msg.Payload.(targetPickerPayload); !ok {
@@ -417,8 +449,8 @@ func (m *Model) loadFile(file string) tea.Cmd {
 	return func() tea.Msg {
 		output, err := m.context.RunCommandImmediate(args)
 		if err != nil {
-			return fileLoadedMsg{err: err}
+			return fileLoadedMsg{file: file, err: err}
 		}
-		return fileLoadedMsg{content: string(output)}
+		return fileLoadedMsg{content: string(output), file: file}
 	}
 }

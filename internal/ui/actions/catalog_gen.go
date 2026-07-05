@@ -115,10 +115,14 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.DiffScroll{Kind: intents.DiffMoveBottom}, true
 		case keybindings.Action("diff.move_top"):
 			return intents.DiffScroll{Kind: intents.DiffMoveTop}, true
+		case keybindings.Action("diff.next_file"):
+			return intents.DiffFileNavigate{Delta: 1}, true
 		case keybindings.Action("diff.page_down"):
 			return intents.DiffScroll{Kind: intents.DiffPageDown}, true
 		case keybindings.Action("diff.page_up"):
 			return intents.DiffScroll{Kind: intents.DiffPageUp}, true
+		case keybindings.Action("diff.prev_file"):
+			return intents.DiffFileNavigate{Delta: -1}, true
 		case keybindings.Action("diff.right"):
 			return intents.DiffScrollHorizontal{Kind: intents.DiffScrollRight}, true
 		case keybindings.Action("diff.scroll_down"):
