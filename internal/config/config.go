@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"os/exec"
 	"path"
@@ -105,14 +106,22 @@ func (t *ThemeConfig) UnmarshalTOML(data any) error {
 }
 
 type UIConfig struct {
-	Theme          ThemeConfig      `toml:"theme"`
-	Colors         map[string]Color `toml:"colors"`
-	SetWindowTitle bool             `toml:"set_window_title"`
+	Theme           ThemeConfig      `toml:"theme"`
+	BackgroundBlend float64          `toml:"background_blend"`
+	Colors          map[string]Color `toml:"colors"`
+	SetWindowTitle  bool             `toml:"set_window_title"`
 	// TODO(ilyagr): It might make sense to rename this to `auto_refresh_period` to match `--period` option
 	// once we have a mechanism to deprecate the old name softly.
 	AutoRefreshInterval        int  `toml:"auto_refresh_interval"`
 	FlashMessageDisplaySeconds int  `toml:"flash_message_display_seconds"`
 	MouseSupport               bool `toml:"mouse_support"`
+}
+
+func (u UIConfig) Validate() error {
+	if math.IsNaN(u.BackgroundBlend) || u.BackgroundBlend < 0 || u.BackgroundBlend > 1 {
+		return fmt.Errorf("invalid value for 'ui.background_blend': expected 0.0 to 1.0, got %v", u.BackgroundBlend)
+	}
+	return nil
 }
 
 func GetExpiringFlashMessageTimeout(c *Config) time.Duration {

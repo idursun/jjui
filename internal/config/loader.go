@@ -175,6 +175,10 @@ func (c *Config) Load(data, baseDir string) error {
 		c.Bindings = append(baseBindings, overlayBindings...)
 	}
 
+	if err := c.UI.Validate(); err != nil {
+		return err
+	}
+
 	return c.ValidateBindingsAndActions()
 }
 
@@ -336,7 +340,7 @@ func ensureLuaRC(luaRCPath, typesPath string) (bool, error) {
 // ResolveTheme loads the full color map for the given background mode.
 // It layers the embedded default theme, optional user theme, jj VCS colors,
 // and inline [ui.colors] overrides in the correct order.
-func ResolveTheme(isDark bool, jjColors map[string]Color) (map[string]Color, error) {
+func ResolveTheme(isDark bool, jjColors map[string]Color, terminalBackground string, terminalPalette map[int]string) (map[string]Color, error) {
 	defaultThemeName := "default_light"
 	if isDark {
 		defaultThemeName = "default_dark"
@@ -367,6 +371,10 @@ func ResolveTheme(isDark bool, jjColors map[string]Color) (map[string]Color, err
 	// Layer inline [ui.colors] overrides
 	if Current.UI.Colors != nil {
 		maps.Copy(theme, Current.UI.Colors)
+	}
+
+	if err := applyThemeBackgroundBlend(theme, Current.UI.BackgroundBlend, terminalBackground, terminalPalette); err != nil {
+		return nil, fmt.Errorf("applying theme background blend: %w", err)
 	}
 
 	return theme, nil

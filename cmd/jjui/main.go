@@ -224,7 +224,7 @@ func run() int {
 		appContext.TerminalThemeDetected = true
 	}
 
-	theme, err = config.ResolveTheme(appContext.TerminalHasDarkBackground, appContext.JJConfig.GetApplicableColors())
+	theme, err = config.ResolveTheme(appContext.TerminalHasDarkBackground, appContext.JJConfig.GetApplicableColors(), appContext.TerminalBackground, appContext.TerminalPalette)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading theme: %v\n", err)
 		return 1

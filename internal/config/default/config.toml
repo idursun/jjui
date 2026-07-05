@@ -4,6 +4,9 @@ bindings_profile = ":builtin"
 
 [ui]
   theme = ""
+  # Blend selected backgrounds toward the current surface background.
+  # Use a value from 0.0 to 1.0.
+  background_blend = 0.4
   set_window_title = true
   auto_refresh_interval = 0
   flash_message_display_seconds = 4 # 0 means display until manually dismissed

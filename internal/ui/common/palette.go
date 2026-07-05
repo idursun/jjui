@@ -185,57 +185,15 @@ func createStyleFrom(color config.Color) lipgloss.Style {
 }
 
 func parseColor(c string) color.Color {
+	if c == "" || c == "default" {
+		return lipgloss.NoColor{}
+	}
 	// if it's a hex color, return it directly
 	if len(c) == 7 && c[0] == '#' {
 		return lipgloss.Color(c)
 	}
-	// if it's an ANSI256 color, return it directly
-	if v, err := strconv.Atoi(c); err == nil {
-		if v >= 0 && v <= 255 {
-			return lipgloss.Color(c)
-		}
+	if index, ok := config.ParseANSIColorIndex(c); ok {
+		return lipgloss.Color(strconv.Itoa(index))
 	}
-	// otherwise, try to parse it as a named color
-	switch c {
-	case "black":
-		return lipgloss.Color("0")
-	case "red":
-		return lipgloss.Color("1")
-	case "green":
-		return lipgloss.Color("2")
-	case "yellow":
-		return lipgloss.Color("3")
-	case "blue":
-		return lipgloss.Color("4")
-	case "magenta":
-		return lipgloss.Color("5")
-	case "cyan":
-		return lipgloss.Color("6")
-	case "white":
-		return lipgloss.Color("7")
-	case "bright black":
-		return lipgloss.Color("8")
-	case "bright red":
-		return lipgloss.Color("9")
-	case "bright green":
-		return lipgloss.Color("10")
-	case "bright yellow":
-		return lipgloss.Color("11")
-	case "bright blue":
-		return lipgloss.Color("12")
-	case "bright magenta":
-		return lipgloss.Color("13")
-	case "bright cyan":
-		return lipgloss.Color("14")
-	case "bright white":
-		return lipgloss.Color("15")
-	default:
-		if after, ok := strings.CutPrefix(c, "ansi-color-"); ok {
-			code := after
-			if v, err := strconv.Atoi(code); err == nil && v >= 0 && v <= 255 {
-				return lipgloss.Color(code)
-			}
-		}
-		return lipgloss.NoColor{}
-	}
+	return lipgloss.NoColor{}
 }

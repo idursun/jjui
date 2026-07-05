@@ -9,6 +9,7 @@ import (
 
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/idursun/jjui/internal/config"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -29,6 +30,20 @@ func requestTerminalPalette() tea.Cmd {
 		cmds = append(cmds, tea.Raw(query))
 	}
 	return tea.Batch(cmds...)
+}
+
+func requestTerminalPaletteIfNeeded() tea.Cmd {
+	if config.Current.UI.BackgroundBlend > 0 {
+		return requestTerminalPalette()
+	}
+	return nil
+}
+
+func requestTerminalAppearance() tea.Cmd {
+	return tea.Batch(
+		tea.RequestBackgroundColor,
+		requestTerminalPaletteIfNeeded(),
+	)
 }
 
 func parseTerminalPaletteReply(event uv.UnknownOscEvent) (terminalPaletteReply, bool) {

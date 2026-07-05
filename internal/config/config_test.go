@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -30,6 +31,31 @@ light = "light-theme"
 	assert.NoError(t, err)
 	assert.Equal(t, "dark-theme", config.UI.Theme.Dark)
 	assert.Equal(t, "light-theme", config.UI.Theme.Light)
+}
+
+func TestLoad_UIBackgroundBlend(t *testing.T) {
+	content := `
+[ui]
+background_blend = 0.15
+`
+	config := &Config{}
+	err := config.Load(content, "")
+	assert.NoError(t, err)
+	assert.Equal(t, 0.15, config.UI.BackgroundBlend)
+}
+
+func TestLoad_UIBackgroundBlendRejectsInvalidValues(t *testing.T) {
+	for _, value := range []string{"1.5", "nan"} {
+		t.Run(value, func(t *testing.T) {
+			content := fmt.Sprintf(`
+[ui]
+background_blend = %s
+`, value)
+			config := &Config{}
+			err := config.Load(content, "")
+			assert.ErrorContains(t, err, "invalid value for 'ui.background_blend'")
+		})
+	}
 }
 
 func TestLoad_AutoRefreshInterval(t *testing.T) {

@@ -270,6 +270,11 @@ func TestParseColor(t *testing.T) {
 			want:  lipgloss.Color("42"),
 		},
 		{
+			name:  "default color",
+			color: "default",
+			want:  lipgloss.NoColor{},
+		},
+		{
 			name:  "invalid color",
 			color: "not-a-color",
 			want:  lipgloss.Color(""),
