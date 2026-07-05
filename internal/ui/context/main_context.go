@@ -33,6 +33,7 @@ type MainContext struct {
 	CurrentRevset             string
 	TerminalHasDarkBackground bool
 	TerminalThemeDetected     bool
+	TerminalPalette           map[int]string
 	Histories                 *config.Histories
 	ScriptVM                  *lua.LState
 }

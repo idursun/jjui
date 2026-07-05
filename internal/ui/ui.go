@@ -161,6 +161,16 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.mode2031Supported = true
 		}
 		return nil
+	case uv.UnknownOscEvent:
+		if reply, ok := parseTerminalPaletteReply(msg); ok {
+			if m.context.TerminalPalette == nil {
+				m.context.TerminalPalette = make(map[int]string)
+			}
+			m.context.TerminalPalette[reply.Slot] = reply.Hex
+			log.Printf("terminal palette reply: slot=%d color=%s raw=%q", reply.Slot, reply.Hex, reply.Raw)
+			return nil
+		}
+		return nil
 	case tea.FocusMsg:
 		if m.state == common.Ready {
 			return common.RefreshAndKeepSelections
@@ -172,6 +182,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return tea.Batch(
 			tea.Raw(ansi.SetModeLightDark),
 			tea.RequestBackgroundColor,
+			requestTerminalPalette(),
 		)
 	case uv.DarkColorSchemeEvent:
 		return m.applyColorScheme(true)
@@ -744,6 +755,7 @@ func (w *wrapper) Init() tea.Cmd {
 		// on OS theme change.
 		tea.Raw(ansi.SetModeLightDark),
 		tea.Raw(ansi.RequestModeLightDark),
+		requestTerminalPalette(),
 		// Start OSC 11 polling as a baseline for light/dark mode detection
 		scheduleColorSchemePoll(),
 	)
