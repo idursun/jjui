@@ -72,6 +72,28 @@ desc = "select all files in same directory"
 
 ---
 
+### Open the next revision's details
+
+When the details view is open, pressing `shift+j` closes it, moves down one revision, and opens the details view for the newly highlighted revision.
+
+```lua
+-- ~/.config/jjui/config.lua
+function setup(config)
+  config.action("shift details down", function()
+    revisions.details.close()
+    revisions.navigate({ by = 1 })
+    revisions.open_details()
+  end, {
+    key = "shift+j",
+    scope = "revisions.details",
+  })
+end
+```
+
+`revisions.details.close()` closes the details view before `revisions.navigate()` changes the selection in the underlying revision list.
+
+---
+
 ### Open a file at the first diff line
 
 When a file is highlighted in the details view, pressing `e` opens it in `nvim` and jumps directly to the first changed line by parsing the diff hunk header.
