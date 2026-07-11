@@ -1,7 +1,6 @@
 package scripting
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -251,32 +250,6 @@ end
 	err := RunSetup(ctx, &cfg, source)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "config.limit: expected integer, got string")
-}
-
-func TestRunSetupValidatesUIConfig(t *testing.T) {
-	tests := []struct {
-		name  string
-		value string
-	}{
-		{name: "out of range", value: "1.5"},
-		{name: "not a number", value: "0 / 0"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := setupVM(t)
-			cfg := *config.Current
-			source := fmt.Sprintf(`
-function setup(config)
-  config.ui.background_blend = %s
-end
-`, tt.value)
-
-			err := RunSetup(ctx, &cfg, source)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "invalid value for 'ui.background_blend'")
-		})
-	}
 }
 
 func TestRunSetupValidatesResultingBindings(t *testing.T) {

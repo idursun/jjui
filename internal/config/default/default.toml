@@ -1,8 +1,8 @@
+[colors]
 dimmed = "bright black"
 title = { fg = "magenta", bold = true }
 shortcut = "magenta"
 matched = "cyan"
-selected = { fg = "cyan", bg = "bright black" }
 target_marker = { fg = "black", bg = "red", bold = true }
 source_marker = { fg = "black", bg = "cyan" }
 success = "green"
@@ -27,14 +27,29 @@ error = "red"
 "revset completion selected text" = { fg = "bright green" }
 "revset completion selected matched" = { underline = true, bold = true }
 "status title" = { fg = "black", bg = "magenta", bold = true }
-"menu title" = { fg = "230", bg = "62", bold = true }
-"menu subtitle" = { fg = "230", bold = true }
 "menu matched" = { fg = "magenta", bold = true }
-"menu selected" = { fg = "cyan", bg = "default", bold = true, underline = false }
 "menu selected shortcut" = { bg = "default" }
 "picker dimmed" = { fg = "bright black" }
 "picker matched" = { underline = true }
 "picker selected" = { fg = "cyan", bg = "bright black", bold = true, underline = false }
-"picker selected dimmed" = { }
+"picker selected dimmed" = {}
 "picker selected text" = {}
 "picker selected matched" = {}
+
+[light]
+background_blend = 0.4
+
+[light.colors]
+selected = { bg = "white" }
+"menu title" = { fg = "62", bg = "230", bold = true }
+"menu subtitle" = { fg = "62", bold = true }
+"menu selected" = { fg = "cyan", bold = true, underline = false }
+
+[dark]
+background_blend = 0.4
+
+[dark.colors]
+selected = { fg = "cyan", bg = "bright black" }
+"menu title" = { fg = "230", bg = "62", bold = true }
+"menu subtitle" = { fg = "230", bold = true }
+"menu selected" = { fg = "cyan", bg = "default", bold = true, underline = false }

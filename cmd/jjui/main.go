@@ -218,19 +218,24 @@ func run() int {
 		}
 	}
 
-	var theme map[string]config.Color
+	var theme config.ResolvedTheme
 	if !appContext.TerminalThemeDetected {
 		appContext.TerminalHasDarkBackground = lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
 		appContext.TerminalThemeDetected = true
 	}
 
-	theme, err = config.ResolveTheme(appContext.TerminalHasDarkBackground, appContext.JJConfig.GetApplicableColors(), appContext.TerminalBackground, appContext.TerminalPalette)
+	theme, err = config.ResolveTheme(appContext.TerminalHasDarkBackground, appContext.JJConfig.GetApplicableColors())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading theme: %v\n", err)
 		return 1
 	}
+	if err := common.ApplyThemeBackgroundBlend(theme.Colors, theme.BackgroundBlend, appContext.TerminalBackground, appContext.TerminalPalette); err != nil {
+		fmt.Fprintf(os.Stderr, "Error applying theme: %v\n", err)
+		return 1
+	}
 
-	common.DefaultPalette.Update(theme)
+	appContext.ThemeBackgroundBlend = theme.BackgroundBlend
+	common.DefaultPalette.Update(theme.Colors)
 
 	if period >= 0 {
 		config.Current.UI.AutoRefreshInterval = period

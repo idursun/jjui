@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"maps"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -175,10 +176,6 @@ func (c *Config) Load(data, baseDir string) error {
 		c.Bindings = append(baseBindings, overlayBindings...)
 	}
 
-	if err := c.UI.Validate(); err != nil {
-		return err
-	}
-
 	return c.ValidateBindingsAndActions()
 }
 
@@ -248,34 +245,104 @@ func LoadRepoLuaConfigFile(repoRoot string) (string, error) {
 	return string(data), nil
 }
 
-func loadTheme(data []byte, base map[string]Color) (map[string]Color, error) {
+func loadTheme(data []byte, base ResolvedTheme, isDark bool) (ResolvedTheme, error) {
 	colors := make(map[string]Color)
-	maps.Copy(colors, base)
-	err := toml.Unmarshal(data, &colors)
+	maps.Copy(colors, base.Colors)
+	resolved := ResolvedTheme{Colors: colors, BackgroundBlend: base.BackgroundBlend}
+
+	structured, err := isStructuredTheme(data)
 	if err != nil {
-		return nil, err
+		return ResolvedTheme{}, err
 	}
-	return colors, nil
+	if !structured {
+		legacyColors := make(map[string]Color)
+		if err := toml.Unmarshal(data, &legacyColors); err != nil {
+			return ResolvedTheme{}, err
+		}
+		maps.Copy(resolved.Colors, legacyColors)
+		return resolved, nil
+	}
+
+	var theme Theme
+	if err := toml.Unmarshal(data, &theme); err != nil {
+		return ResolvedTheme{}, err
+	}
+	if err := theme.Validate(); err != nil {
+		return ResolvedTheme{}, err
+	}
+
+	maps.Copy(resolved.Colors, theme.Colors)
+	variant := theme.Light
+	if isDark {
+		variant = theme.Dark
+	}
+	maps.Copy(resolved.Colors, variant.Colors)
+	if variant.BackgroundBlend != nil {
+		resolved.BackgroundBlend = *variant.BackgroundBlend
+	}
+	return resolved, nil
 }
 
-func LoadEmbeddedTheme(name string) (map[string]Color, error) {
+func isStructuredTheme(data []byte) (bool, error) {
+	var raw map[string]any
+	if _, err := toml.Decode(string(data), &raw); err != nil {
+		return false, err
+	}
+	for _, key := range []string{"colors", "light", "dark"} {
+		if table, ok := raw[key].(map[string]any); ok && !isColorValue(table) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func isColorValue(table map[string]any) bool {
+	for key := range table {
+		switch key {
+		case "fg", "bg", "bold", "italic", "underline", "strikethrough", "reverse":
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func (t Theme) Validate() error {
+	if err := t.Light.Validate("light"); err != nil {
+		return err
+	}
+	return t.Dark.Validate("dark")
+}
+
+func (v ThemeVariant) Validate(name string) error {
+	if v.BackgroundBlend == nil {
+		return nil
+	}
+	value := *v.BackgroundBlend
+	if math.IsNaN(value) || value < 0 || value > 1 {
+		return fmt.Errorf("invalid value for '%s.background_blend': expected 0.0 to 1.0, got %v", name, value)
+	}
+	return nil
+}
+
+func LoadEmbeddedTheme(name string, base ResolvedTheme, isDark bool) (ResolvedTheme, error) {
 	embeddedPath := "default/" + name + ".toml"
 	data, err := configFS.ReadFile(embeddedPath)
 	if err != nil {
-		return nil, err
+		return ResolvedTheme{}, err
 	}
-	return loadTheme(data, nil)
+	return loadTheme(data, base, isDark)
 }
 
-func LoadTheme(name string, base map[string]Color) (map[string]Color, error) {
+func LoadTheme(name string, base ResolvedTheme, isDark bool) (ResolvedTheme, error) {
 	configFilePath := getConfigFilePath()
 	themeFile := filepath.Join(filepath.Dir(configFilePath), "themes", name+".toml")
 
 	data, err := os.ReadFile(themeFile)
 	if err != nil {
-		return nil, err
+		return ResolvedTheme{}, err
 	}
-	return loadTheme(data, base)
+	return loadTheme(data, base, isDark)
 }
 
 type LuaTypesInstallResult struct {
@@ -340,15 +407,11 @@ func ensureLuaRC(luaRCPath, typesPath string) (bool, error) {
 // ResolveTheme loads the full color map for the given background mode.
 // It layers the embedded default theme, optional user theme, jj VCS colors,
 // and inline [ui.colors] overrides in the correct order.
-func ResolveTheme(isDark bool, jjColors map[string]Color, terminalBackground string, terminalPalette map[int]string) (map[string]Color, error) {
-	defaultThemeName := "default_light"
-	if isDark {
-		defaultThemeName = "default_dark"
-	}
-
-	theme, err := LoadEmbeddedTheme(defaultThemeName)
+func ResolveTheme(isDark bool, jjColors map[string]Color) (ResolvedTheme, error) {
+	const defaultThemeName = "default"
+	theme, err := LoadEmbeddedTheme(defaultThemeName, ResolvedTheme{}, isDark)
 	if err != nil {
-		return nil, fmt.Errorf("loading default theme %q: %w", defaultThemeName, err)
+		return ResolvedTheme{}, fmt.Errorf("loading default theme %q: %w", defaultThemeName, err)
 	}
 
 	userThemeName := Current.UI.Theme.Light
@@ -357,24 +420,20 @@ func ResolveTheme(isDark bool, jjColors map[string]Color, terminalBackground str
 	}
 
 	if userThemeName != "" {
-		theme, err = LoadTheme(userThemeName, theme)
+		theme, err = LoadTheme(userThemeName, theme, isDark)
 		if err != nil {
-			return nil, fmt.Errorf("loading user theme %q: %w", userThemeName, err)
+			return ResolvedTheme{}, fmt.Errorf("loading user theme %q: %w", userThemeName, err)
 		}
 	}
 
 	// Layer jj VCS colors
 	if jjColors != nil {
-		maps.Copy(theme, jjColors)
+		maps.Copy(theme.Colors, jjColors)
 	}
 
 	// Layer inline [ui.colors] overrides
 	if Current.UI.Colors != nil {
-		maps.Copy(theme, Current.UI.Colors)
-	}
-
-	if err := applyThemeBackgroundBlend(theme, Current.UI.BackgroundBlend, terminalBackground, terminalPalette); err != nil {
-		return nil, fmt.Errorf("applying theme background blend: %w", err)
+		maps.Copy(theme.Colors, Current.UI.Colors)
 	}
 
 	return theme, nil

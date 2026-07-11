@@ -24,6 +24,14 @@ func TestParseTerminalPaletteReply_STTerminatedHex(t *testing.T) {
 	assert.Equal(t, "#123456", reply.Hex)
 }
 
+func TestParseTerminalPaletteReply_C1TerminatedRGB(t *testing.T) {
+	reply, ok := parseTerminalPaletteReply(uv.UnknownOscEvent("\x9d4;3;rgb:1212/3434/5656\x9c"))
+	require.True(t, ok)
+
+	assert.Equal(t, 3, reply.Slot)
+	assert.Equal(t, "#123456", reply.Hex)
+}
+
 func TestParseTerminalPaletteReply_IgnoresNonPaletteOSC(t *testing.T) {
 	_, ok := parseTerminalPaletteReply(uv.UnknownOscEvent("\x1b]11;rgb:1a1a/1b1b/2c2c\x07"))
 	assert.False(t, ok)

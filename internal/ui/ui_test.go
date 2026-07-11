@@ -1724,13 +1724,6 @@ func drainCmds(root tea.Cmd, visit func(c tea.Cmd, msg tea.Msg) bool) {
 	}
 }
 
-func withBackgroundBlend(t *testing.T, value float64) {
-	t.Helper()
-	orig := config.Current.UI.BackgroundBlend
-	config.Current.UI.BackgroundBlend = value
-	t.Cleanup(func() { config.Current.UI.BackgroundBlend = orig })
-}
-
 func inspectTerminalRefresh(cmd tea.Cmd) (themeChanged, paletteRequested, backgroundRequested bool) {
 	wantBackgroundRequest := reflect.ValueOf(tea.RequestBackgroundColor).Pointer()
 	drainCmds(cmd, func(cmd tea.Cmd, msg tea.Msg) bool {
@@ -1789,11 +1782,10 @@ func Test_Init_EnablesMode2031AndStartsPolling(t *testing.T) {
 }
 
 func Test_BackgroundColorMsg_ReloadsThemeWhenColorChangesWithinCurrentScheme(t *testing.T) {
-	withBackgroundBlend(t, 0.9)
-
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
 	ctx.TerminalHasDarkBackground = true
+	ctx.ThemeBackgroundBlend = 0.4
 	model := NewUI(ctx)
 	msg := tea.BackgroundColorMsg{Color: color.RGBA{R: 0x20, G: 0x20, B: 0x20, A: 0xff}}
 
@@ -1813,8 +1805,6 @@ func Test_BackgroundColorMsg_ReloadsThemeWhenColorChangesWithinCurrentScheme(t *
 }
 
 func Test_ColorSchemeEvent_ReloadsThemeAndTerminalPalette(t *testing.T) {
-	withBackgroundBlend(t, 0.9)
-
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
@@ -1827,7 +1817,6 @@ func Test_ColorSchemeEvent_ReloadsThemeAndTerminalPalette(t *testing.T) {
 
 func Test_Init_SkipsTerminalPaletteQueryWhenBackgroundBlendDisabled(t *testing.T) {
 	withShortColorSchemePoll(t)
-	withBackgroundBlend(t, 0)
 
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
@@ -1932,8 +1921,6 @@ func Test_ResumeMsg_ReEnablesMode2031AndQueriesBackground(t *testing.T) {
 }
 
 func Test_ResumeMsg_SkipsTerminalPaletteQueryWhenBackgroundBlendDisabled(t *testing.T) {
-	withBackgroundBlend(t, 0)
-
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)

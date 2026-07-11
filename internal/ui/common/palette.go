@@ -1,8 +1,6 @@
 package common
 
 import (
-	"image/color"
-	"strconv"
 	"strings"
 
 	"github.com/idursun/jjui/internal/config"
@@ -182,18 +180,4 @@ func createStyleFrom(color config.Color) lipgloss.Style {
 	}
 
 	return style
-}
-
-func parseColor(c string) color.Color {
-	if c == "" || c == "default" {
-		return lipgloss.NoColor{}
-	}
-	// if it's a hex color, return it directly
-	if len(c) == 7 && c[0] == '#' {
-		return lipgloss.Color(c)
-	}
-	if index, ok := config.ParseANSIColorIndex(c); ok {
-		return lipgloss.Color(strconv.Itoa(index))
-	}
-	return lipgloss.NoColor{}
 }

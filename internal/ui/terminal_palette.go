@@ -1,15 +1,14 @@
 package ui
 
 import (
+	"bytes"
 	"fmt"
 	"image/color"
 	"log"
 	"strconv"
-	"strings"
 
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/idursun/jjui/internal/config"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -32,67 +31,53 @@ func requestTerminalPalette() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func requestTerminalPaletteIfNeeded() tea.Cmd {
-	if config.Current.UI.BackgroundBlend > 0 {
+func requestTerminalPaletteIfNeeded(backgroundBlend float64) tea.Cmd {
+	if backgroundBlend > 0 {
 		return requestTerminalPalette()
 	}
 	return nil
 }
 
-func requestTerminalAppearance() tea.Cmd {
+func requestTerminalAppearance(backgroundBlend float64) tea.Cmd {
 	return tea.Batch(
 		tea.RequestBackgroundColor,
-		requestTerminalPaletteIfNeeded(),
+		requestTerminalPaletteIfNeeded(backgroundBlend),
 	)
 }
 
 func parseTerminalPaletteReply(event uv.UnknownOscEvent) (terminalPaletteReply, bool) {
 	raw := string(event)
-	payload, ok := oscPayload(raw)
-	if !ok || !strings.HasPrefix(payload, "4;") {
-		return terminalPaletteReply{}, false
+	var reply terminalPaletteReply
+	var parsed bool
+	parser := ansi.GetParser()
+	defer ansi.PutParser(parser)
+	parser.SetHandler(ansi.Handler{HandleOsc: func(command int, data []byte) {
+		if command != 4 {
+			return
+		}
+		_, payload, ok := bytes.Cut(data, []byte(";"))
+		if !ok {
+			return
+		}
+		parts := bytes.SplitN(payload, []byte(";"), 2)
+		if len(parts) != 2 {
+			return
+		}
+		slot, err := strconv.Atoi(string(parts[0]))
+		if err != nil || slot < 0 || slot >= terminalPaletteSlots {
+			return
+		}
+		hex := colorToHex(ansi.XParseColor(string(parts[1])))
+		if hex == "" {
+			return
+		}
+		reply = terminalPaletteReply{Slot: slot, Hex: hex, Raw: raw}
+		parsed = true
+	}})
+	for i := range len(raw) {
+		parser.Advance(raw[i])
 	}
-
-	parts := strings.SplitN(payload, ";", 3)
-	if len(parts) != 3 || parts[0] != "4" {
-		return terminalPaletteReply{}, false
-	}
-
-	slot, err := strconv.Atoi(parts[1])
-	if err != nil || slot < 0 || slot >= terminalPaletteSlots {
-		return terminalPaletteReply{}, false
-	}
-
-	hex := colorToHex(ansi.XParseColor(parts[2]))
-	if hex == "" {
-		return terminalPaletteReply{}, false
-	}
-
-	return terminalPaletteReply{Slot: slot, Hex: hex, Raw: raw}, true
-}
-
-func oscPayload(raw string) (string, bool) {
-	switch {
-	case strings.HasPrefix(raw, "\x1b]"):
-		raw = strings.TrimPrefix(raw, "\x1b]")
-	case strings.HasPrefix(raw, "\x9d"):
-		raw = strings.TrimPrefix(raw, "\x9d")
-	default:
-		return "", false
-	}
-
-	switch {
-	case strings.HasSuffix(raw, "\x07"):
-		raw = strings.TrimSuffix(raw, "\x07")
-	case strings.HasSuffix(raw, "\x1b\\"):
-		raw = strings.TrimSuffix(raw, "\x1b\\")
-	case strings.HasSuffix(raw, "\x9c"):
-		raw = strings.TrimSuffix(raw, "\x9c")
-	default:
-		return "", false
-	}
-
-	return raw, true
+	return reply, parsed
 }
 
 func colorToHex(c color.Color) string {

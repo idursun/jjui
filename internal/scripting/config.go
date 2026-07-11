@@ -201,9 +201,6 @@ func RunSetup(ctx *uicontext.MainContext, current *config.Config, source string)
 	if err = fromLuaTable(configTable, current); err != nil {
 		return fmt.Errorf("config.lua: setup(): %w", err)
 	}
-	if err = current.UI.Validate(); err != nil {
-		return fmt.Errorf("config.lua: setup(): %w", err)
-	}
 	if err = current.ValidateBindingsAndActions(); err != nil {
 		return fmt.Errorf("config.lua: setup(): %w", err)
 	}

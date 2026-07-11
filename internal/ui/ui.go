@@ -169,7 +169,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			previous := m.context.TerminalPalette[reply.Slot]
 			m.context.TerminalPalette[reply.Slot] = reply.Hex
 			log.Printf("terminal palette reply: slot=%d color=%s raw=%q", reply.Slot, reply.Hex, reply.Raw)
-			if config.Current.UI.BackgroundBlend > 0 && previous != reply.Hex {
+			if m.context.ThemeBackgroundBlend > 0 && previous != reply.Hex {
 				return m.reloadActiveTheme()
 			}
 			return nil
@@ -185,7 +185,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		// Also re-query the background color in case the theme changed while suspended.
 		return tea.Batch(
 			tea.Raw(ansi.SetModeLightDark),
-			requestTerminalAppearance(),
+			requestTerminalAppearance(m.context.ThemeBackgroundBlend),
 		)
 	case uv.DarkColorSchemeEvent:
 		return m.applyColorScheme(true)
@@ -710,7 +710,7 @@ func (m *Model) changeTheme(intent intents.ChangeTheme) tea.Cmd {
 }
 
 func (m *Model) validateRuntimeThemeChange() error {
-	_, err := config.ResolveTheme(m.context.TerminalHasDarkBackground, m.context.JJConfig.GetApplicableColors(), m.context.TerminalBackground, m.context.TerminalPalette)
+	_, err := m.resolveActiveTheme()
 	return err
 }
 
@@ -758,7 +758,7 @@ func (w *wrapper) Init() tea.Cmd {
 		// on OS theme change.
 		tea.Raw(ansi.SetModeLightDark),
 		tea.Raw(ansi.RequestModeLightDark),
-		requestTerminalAppearance(),
+		requestTerminalAppearance(w.ui.context.ThemeBackgroundBlend),
 		// Start OSC 11 polling as a baseline for light/dark mode detection
 		scheduleColorSchemePoll(),
 	)
@@ -885,10 +885,8 @@ func (m *Model) applyColorScheme(isDark bool) tea.Cmd {
 	}
 	log.Printf("color scheme changed to %s", scheme)
 	m.context.TerminalHasDarkBackground = isDark
-	return tea.Batch(
-		m.reloadActiveTheme(),
-		requestTerminalAppearance(),
-	)
+	cmd := m.reloadActiveTheme()
+	return tea.Batch(cmd, requestTerminalAppearance(m.context.ThemeBackgroundBlend))
 }
 
 func (m *Model) applyTerminalBackground(background string, isDark bool) tea.Cmd {
@@ -901,9 +899,12 @@ func (m *Model) applyTerminalBackground(background string, isDark bool) tea.Cmd 
 	if isDark != m.context.TerminalHasDarkBackground {
 		return m.applyColorScheme(isDark)
 	}
-	if backgroundChanged && config.Current.UI.BackgroundBlend > 0 {
+	if backgroundChanged && m.context.ThemeBackgroundBlend > 0 {
 		if hadBackground {
-			return m.reloadActiveThemeAndRequestPalette()
+			return tea.Batch(
+				m.reloadActiveTheme(),
+				requestTerminalPaletteIfNeeded(m.context.ThemeBackgroundBlend),
+			)
 		}
 		return m.reloadActiveTheme()
 	}
@@ -911,20 +912,25 @@ func (m *Model) applyTerminalBackground(background string, isDark bool) tea.Cmd 
 }
 
 func (m *Model) reloadActiveTheme() tea.Cmd {
-	theme, err := config.ResolveTheme(m.context.TerminalHasDarkBackground, m.context.JJConfig.GetApplicableColors(), m.context.TerminalBackground, m.context.TerminalPalette)
+	theme, err := m.resolveActiveTheme()
 	if err != nil {
 		log.Printf("failed to resolve theme: %v", err)
 		return nil
 	}
-	common.DefaultPalette.Update(theme)
+	m.context.ThemeBackgroundBlend = theme.BackgroundBlend
+	common.DefaultPalette.Update(theme.Colors)
 	return func() tea.Msg { return common.ThemeChangedMsg{} }
 }
 
-func (m *Model) reloadActiveThemeAndRequestPalette() tea.Cmd {
-	return tea.Batch(
-		m.reloadActiveTheme(),
-		requestTerminalPaletteIfNeeded(),
-	)
+func (m *Model) resolveActiveTheme() (config.ResolvedTheme, error) {
+	theme, err := config.ResolveTheme(m.context.TerminalHasDarkBackground, m.context.JJConfig.GetApplicableColors())
+	if err != nil {
+		return config.ResolvedTheme{}, err
+	}
+	if err := common.ApplyThemeBackgroundBlend(theme.Colors, theme.BackgroundBlend, m.context.TerminalBackground, m.context.TerminalPalette); err != nil {
+		return config.ResolvedTheme{}, fmt.Errorf("applying theme background blend: %w", err)
+	}
+	return theme, nil
 }
 
 func New(c *context.MainContext) tea.Model {

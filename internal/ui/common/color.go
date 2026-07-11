@@ -1,14 +1,48 @@
-package config
+package common
 
 import (
 	"fmt"
+	"image/color"
 	"math"
 	"slices"
 	"strconv"
 	"strings"
+
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/idursun/jjui/internal/config"
 )
 
-func applyThemeBackgroundBlend(theme map[string]Color, ratio float64, terminalBackground string, terminalPalette map[int]string) error {
+var ansiColorNames = [...]string{"black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"}
+
+func parseColor(value string) color.Color {
+	if value == "" || value == "default" {
+		return lipgloss.NoColor{}
+	}
+	if len(value) == 7 && value[0] == '#' {
+		return lipgloss.Color(value)
+	}
+
+	baseName := value
+	brightOffset := 0
+	if after, ok := strings.CutPrefix(value, "bright "); ok {
+		baseName = after
+		brightOffset = 8
+	}
+	if index := slices.Index(ansiColorNames[:], baseName); index >= 0 {
+		return ansi.BasicColor(index + brightOffset)
+	}
+
+	if after, ok := strings.CutPrefix(value, "ansi-color-"); ok {
+		value = after
+	}
+	if index, err := strconv.Atoi(value); err == nil && index >= 0 && index <= 255 {
+		return lipgloss.Color(value)
+	}
+	return lipgloss.NoColor{}
+}
+
+func ApplyThemeBackgroundBlend(theme map[string]config.Color, ratio float64, terminalBackground string, terminalPalette map[int]string) error {
 	if ratio == 0 {
 		return nil
 	}
@@ -36,7 +70,7 @@ func applyThemeBackgroundBlend(theme map[string]Color, ratio float64, terminalBa
 	return nil
 }
 
-func blendTargetColor(theme map[string]Color, selectedFields []string, terminalBackground string, terminalPalette map[int]string) string {
+func blendTargetColor(theme map[string]config.Color, selectedFields []string, terminalBackground string, terminalPalette map[int]string) string {
 	if bg := resolvedBackground(theme, withoutSelectedField(selectedFields)); bg != "" {
 		return resolveBlendTarget(bg, terminalBackground, terminalPalette)
 	}
@@ -77,7 +111,7 @@ func surfaceBorderFields(selectedFields []string) []string {
 	return borderFields
 }
 
-func resolvedBackground(theme map[string]Color, fields []string) string {
+func resolvedBackground(theme map[string]config.Color, fields []string) string {
 	length := len(fields)
 	start := 0
 	for start < length {
@@ -92,59 +126,18 @@ func resolvedBackground(theme map[string]Color, fields []string) string {
 }
 
 func blendBaseColor(value string, terminalPalette map[int]string) string {
-	if index, ok := ParseANSIColorIndex(value); ok {
+	switch color := parseColor(value).(type) {
+	case ansi.BasicColor:
+		if hex, ok := terminalPalette[int(color)]; ok {
+			return hex
+		}
+	case ansi.IndexedColor:
+		index := int(color)
 		if hex, ok := terminalPalette[index]; ok {
 			return hex
 		}
 	}
 	return value
-}
-
-// ParseANSIColorIndex resolves a named, numeric, or ansi-color-prefixed value.
-func ParseANSIColorIndex(value string) (int, bool) {
-	switch value {
-	case "black":
-		return 0, true
-	case "red":
-		return 1, true
-	case "green":
-		return 2, true
-	case "yellow":
-		return 3, true
-	case "blue":
-		return 4, true
-	case "magenta":
-		return 5, true
-	case "cyan":
-		return 6, true
-	case "white":
-		return 7, true
-	case "bright black":
-		return 8, true
-	case "bright red":
-		return 9, true
-	case "bright green":
-		return 10, true
-	case "bright yellow":
-		return 11, true
-	case "bright blue":
-		return 12, true
-	case "bright magenta":
-		return 13, true
-	case "bright cyan":
-		return 14, true
-	case "bright white":
-		return 15, true
-	}
-
-	if after, ok := strings.CutPrefix(value, "ansi-color-"); ok {
-		value = after
-	}
-	index, err := strconv.Atoi(value)
-	if err != nil || index < 0 || index > 255 {
-		return 0, false
-	}
-	return index, true
 }
 
 func blendHexColor(base, target string, ratio float64) (string, bool, error) {
@@ -173,13 +166,10 @@ func parseHexRGB(value string) ([3]uint8, bool, error) {
 	if len(value) != 7 || value[0] != '#' {
 		return rgb, false, nil
 	}
-
-	for i := range rgb {
-		channel, err := strconv.ParseUint(value[1+i*2:3+i*2], 16, 8)
-		if err != nil {
-			return rgb, true, fmt.Errorf("invalid hex color %q", value)
-		}
-		rgb[i] = uint8(channel)
+	parsed := ansi.XParseColor(value)
+	if parsed == nil {
+		return rgb, true, fmt.Errorf("invalid hex color %q", value)
 	}
-	return rgb, true, nil
+	r, g, b, _ := parsed.RGBA()
+	return [3]uint8{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8)}, true, nil
 }

@@ -35,6 +35,7 @@ type MainContext struct {
 	TerminalThemeDetected     bool
 	TerminalBackground        string
 	TerminalPalette           map[int]string
+	ThemeBackgroundBlend      float64
 	Histories                 *config.Histories
 	ScriptVM                  *lua.LState
 }
