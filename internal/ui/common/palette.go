@@ -1,6 +1,8 @@
 package common
 
 import (
+	"fmt"
+	"image/color"
 	"strings"
 
 	"github.com/idursun/jjui/internal/config"
@@ -10,92 +12,96 @@ import (
 
 var DefaultPalette = NewPalette()
 
-type node struct {
-	style    lipgloss.Style
-	children map[string]*node
+type Palette struct {
+	styles map[string]paletteStyle
+	cache  map[string]lipgloss.Style
 }
 
-type Palette struct {
-	root  *node
-	cache map[string]lipgloss.Style
+type paletteStyle struct {
+	style         lipgloss.Style
+	background    color.Color
+	backgroundSet bool
 }
 
 func NewPalette() *Palette {
 	return &Palette{
-		root:  nil,
-		cache: make(map[string]lipgloss.Style),
+		styles: make(map[string]paletteStyle),
+		cache:  make(map[string]lipgloss.Style),
 	}
 }
 
 func (p *Palette) add(key string, style lipgloss.Style) {
-	if p.root == nil {
-		p.root = &node{children: make(map[string]*node)}
+	entry := paletteStyle{style: style}
+	if _, noColor := style.GetBackground().(lipgloss.NoColor); !noColor {
+		entry.background = style.GetBackground()
+		entry.backgroundSet = true
 	}
-	current := p.root
-	prefixes := strings.FieldsSeq(key)
-	for prefix := range prefixes {
-		if child, ok := current.children[prefix]; ok {
-			current = child
-		} else {
-			child = &node{children: make(map[string]*node)}
-			current.children[prefix] = child
-			current = child
-		}
+	p.styles[config.ParseColorSelector(key).Key()] = entry
+}
+
+func (p *Palette) addColor(key string, color config.Color) {
+	style := createStyleFrom(color)
+	entry := paletteStyle{style: style}
+	if color.Bg != "" {
+		entry.background = parseColor(color.Bg)
+		entry.backgroundSet = true
 	}
-	current.style = style
+	p.styles[config.ParseColorSelector(key).Key()] = entry
 }
 
 func (p *Palette) get(fields ...string) lipgloss.Style {
-	if p.root == nil {
-		return lipgloss.NewStyle()
+	key := config.ParseColorSelector(strings.Join(fields, " ")).Key()
+	if entry, ok := p.styles[key]; ok {
+		return entry.style
 	}
+	return lipgloss.NewStyle()
+}
 
-	current := p.root
-	for _, field := range fields {
-		if child, ok := current.children[field]; ok {
-			current = child
-		} else {
-			return lipgloss.NewStyle() // Return default style if not found
-		}
-	}
-
-	return current.style
+func (p *Palette) getBackground(fields ...string) (color.Color, bool) {
+	key := config.ParseColorSelector(strings.Join(fields, " ")).Key()
+	entry, ok := p.styles[key]
+	return entry.background, ok && entry.backgroundSet
 }
 
 func (p *Palette) Update(styleMap map[string]config.Color) {
 	clear(p.cache)
-	p.root = nil
-	for key, color := range styleMap {
-		p.add(key, createStyleFrom(color))
+	clear(p.styles)
+	normalizedStyles := config.NormalizeColorSelectors(styleMap)
+	for key, color := range normalizedStyles {
+		p.addColor(key, color)
 	}
 
-	if color, ok := styleMap["diff added"]; ok {
-		p.add("added", createStyleFrom(color))
+	if color, ok := normalizedStyles["diff added"]; ok {
+		p.addColor("added", color)
 	}
-	if color, ok := styleMap["diff renamed"]; ok {
-		p.add("renamed", createStyleFrom(color))
+	if color, ok := normalizedStyles["diff renamed"]; ok {
+		p.addColor("renamed", color)
 	}
-	if color, ok := styleMap["diff copied"]; ok {
-		p.add("copied", createStyleFrom(color))
+	if color, ok := normalizedStyles["diff copied"]; ok {
+		p.addColor("copied", color)
 	}
-	if color, ok := styleMap["diff modified"]; ok {
-		p.add("modified", createStyleFrom(color))
+	if color, ok := normalizedStyles["diff modified"]; ok {
+		p.addColor("modified", color)
 	}
-	if color, ok := styleMap["diff removed"]; ok {
-		p.add("deleted", createStyleFrom(color))
+	if color, ok := normalizedStyles["diff removed"]; ok {
+		p.addColor("deleted", color)
 	}
 }
 
 func (p *Palette) Get(selector string) lipgloss.Style {
-	if style, ok := p.cache[selector]; ok {
+	parsed := config.ParseColorSelector(selector)
+	cacheKey := parsed.Key()
+	if style, ok := p.cache[cacheKey]; ok {
 		return style
 	}
-	fields := strings.Fields(selector)
+	fields := parsed.LegacyFields()
 	length := len(fields)
 
 	finalStyle := lipgloss.NewStyle()
 	var deferredSelectedStyles [][]string
 	deferSelectedStyles := hasSelectedSubstyle(fields)
+	var selectedRoleBackground color.Color
+	selectedRoleBackgroundSet := false
 	// for a selector like "a b c", we want to inherit styles from the most specific to the least specific
 	// first pass: "a b c", "a b", "a"
 	// second pass: "b c", "b"
@@ -108,17 +114,32 @@ func (p *Palette) Get(selector string) lipgloss.Style {
 				deferredSelectedStyles = append(deferredSelectedStyles, selectorFields)
 				continue
 			}
-			finalStyle = finalStyle.Inherit(p.get(selectorFields...))
+			style := p.get(selectorFields...)
+			if hasSelectedSubstyle(selectorFields) && !selectedRoleBackgroundSet {
+				selectedRoleBackground, selectedRoleBackgroundSet = p.getBackground(selectorFields...)
+			}
+			finalStyle = finalStyle.Inherit(style)
 			if semanticFields := withoutSelectedModifier(selectorFields); len(semanticFields) > 0 {
 				finalStyle = finalStyle.Inherit(p.get(semanticFields...))
 			}
 		}
 		start++
 	}
+	var selectedBackground color.Color
+	selectedBackgroundSet := false
 	for _, selectorFields := range deferredSelectedStyles {
-		finalStyle = finalStyle.Inherit(p.get(selectorFields...))
+		style := p.get(selectorFields...)
+		if !selectedBackgroundSet {
+			selectedBackground, selectedBackgroundSet = p.getBackground(selectorFields...)
+		}
+		finalStyle = finalStyle.Inherit(style)
 	}
-	p.cache[selector] = finalStyle
+	if selectedRoleBackgroundSet {
+		finalStyle = finalStyle.Background(selectedRoleBackground)
+	} else if selectedBackgroundSet {
+		finalStyle = finalStyle.Background(selectedBackground)
+	}
+	p.cache[cacheKey] = finalStyle
 	return finalStyle
 }
 
@@ -180,4 +201,80 @@ func createStyleFrom(color config.Color) lipgloss.Style {
 	}
 
 	return style
+}
+
+func ApplyThemeBackgroundBlend(theme map[string]config.Color, ratio float64, terminalBackground string, terminalPalette map[int]string) error {
+	if ratio == 0 {
+		return nil
+	}
+
+	for key, color := range theme {
+		selector := config.ParseColorSelector(key)
+		if color.Bg == "" || !selector.HasVariant(config.SelectedVariant) {
+			continue
+		}
+		fields := selector.Fields()
+		target := blendTargetColor(theme, fields, terminalBackground, terminalPalette)
+		if target == "" {
+			continue
+		}
+		base := resolvePaletteColor(color.Bg, terminalPalette)
+		blended, ok, err := blendHexColor(base, target, ratio)
+		if err != nil {
+			return fmt.Errorf("%q bg: %w", key, err)
+		}
+		if !ok {
+			continue
+		}
+		color.Bg = blended
+		theme[key] = color
+	}
+	return nil
+}
+
+func blendTargetColor(theme map[string]config.Color, fields []string, terminalBackground string, terminalPalette map[int]string) string {
+	if bg := resolvedBackground(theme, fields); bg != "" {
+		return resolveBlendTarget(bg, terminalBackground, terminalPalette)
+	}
+
+	if bg := resolvedBorderBackground(theme, fields); bg != "" {
+		return resolveBlendTarget(bg, terminalBackground, terminalPalette)
+	}
+	return terminalBackground
+}
+
+func resolveBlendTarget(value, terminalBackground string, terminalPalette map[int]string) string {
+	if value == "default" {
+		return terminalBackground
+	}
+	return resolvePaletteColor(value, terminalPalette)
+}
+
+func resolvedBorderBackground(theme map[string]config.Color, fields []string) string {
+	for start := 0; start < len(fields); start++ {
+		for end := len(fields); end > start; end-- {
+			key := strings.Join(append(append([]string(nil), fields[start:end]...), "border"), " ")
+			if color, ok := theme[key]; ok && color.Bg != "" {
+				return color.Bg
+			}
+		}
+	}
+	if color, ok := theme["border"]; ok {
+		return color.Bg
+	}
+	return ""
+}
+
+func resolvedBackground(theme map[string]config.Color, fields []string) string {
+	length := len(fields)
+	start := 0
+	for start < length {
+		for end := length; end > start; end-- {
+			if color, ok := theme[strings.Join(fields[start:end], " ")]; ok && color.Bg != "" {
+				return color.Bg
+			}
+		}
+		start++
+	}
+	return ""
 }

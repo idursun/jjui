@@ -26,9 +26,9 @@ error = "red"
 	require.NoError(t, err)
 
 	expected := map[string]Color{
-		"title":    {Fg: "blue", Bold: boolPtr(true)},
-		"selected": {Fg: "white", Bg: "blue"},
-		"error":    {Fg: "red"},
+		"title":     {Fg: "blue", Bold: boolPtr(true)},
+		":selected": {Fg: "white", Bg: "blue"},
+		"error":     {Fg: "red"},
 	}
 
 	assert.EqualExportedValues(t, expected, theme.Colors)
@@ -51,10 +51,10 @@ selected = { fg = "yellow", bg = "blue" }
 	require.NoError(t, err)
 
 	expected := map[string]Color{
-		"title":    {Fg: "magenta", Bold: boolPtr(true)},
-		"selected": {Fg: "yellow", Bg: "blue"},
-		"error":    {Fg: "red"},
-		"border":   {Fg: "white"},
+		"title":     {Fg: "magenta", Bold: boolPtr(true)},
+		":selected": {Fg: "yellow", Bg: "blue"},
+		"error":     {Fg: "red"},
+		"border":    {Fg: "white"},
 	}
 
 	assert.EqualExportedValues(t, expected, theme.Colors)
@@ -81,12 +81,12 @@ selected = { bg = "bright black" }
 	require.NoError(t, err)
 	assert.Equal(t, 0.2, light.BackgroundBlend)
 	assert.Equal(t, "magenta", light.Colors["title"].Fg)
-	assert.Equal(t, "white", light.Colors["selected"].Bg)
+	assert.Equal(t, "white", light.Colors[":selected"].Bg)
 
 	dark, err := loadTheme(themeData, ResolvedTheme{}, true)
 	require.NoError(t, err)
 	assert.Equal(t, 0.6, dark.BackgroundBlend)
-	assert.Equal(t, "bright black", dark.Colors["selected"].Bg)
+	assert.Equal(t, "bright black", dark.Colors[":selected"].Bg)
 }
 
 func TestLoadStructuredThemeExplicitZeroDisablesInheritedBlend(t *testing.T) {
@@ -102,7 +102,7 @@ func TestLoadLegacyThemeInheritsBaseBackgroundBlend(t *testing.T) {
 	theme, err := loadTheme([]byte(`selected = { bg = "blue" }`), ResolvedTheme{BackgroundBlend: 0.4}, true)
 	require.NoError(t, err)
 	assert.Equal(t, 0.4, theme.BackgroundBlend)
-	assert.Equal(t, "blue", theme.Colors["selected"].Bg)
+	assert.Equal(t, "blue", theme.Colors[":selected"].Bg)
 }
 
 func TestLoadStructuredThemeRejectsInvalidBackgroundBlend(t *testing.T) {
@@ -124,9 +124,21 @@ func TestLoadEmbeddedDefaultThemeResolvesLightAndDarkVariants(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, 0.4, light.BackgroundBlend)
-	assert.Equal(t, "white", light.Colors["selected"].Bg)
+	assert.Equal(t, "white", light.Colors[":selected"].Bg)
+	assert.Equal(t, "default", light.Colors["revset completion"].Bg)
 	assert.Equal(t, 0.4, dark.BackgroundBlend)
-	assert.Equal(t, "bright black", dark.Colors["selected"].Bg)
+	assert.Equal(t, "bright black", dark.Colors[":selected"].Bg)
+	assert.Equal(t, "black", dark.Colors["revset completion"].Bg)
+}
+
+func TestLoadThemeHigherLayerLegacySelectorOverridesCanonicalBase(t *testing.T) {
+	base := ResolvedTheme{Colors: map[string]Color{
+		"menu text:selected": {Fg: "red"},
+	}}
+	theme, err := loadTheme([]byte(`"menu selected text" = { fg = "blue" }`), base, true)
+	require.NoError(t, err)
+
+	assert.Equal(t, "blue", theme.Colors["menu text:selected"].Fg)
 }
 
 func findLastActionByName(actions []ActionConfig, name string) (ActionConfig, bool) {

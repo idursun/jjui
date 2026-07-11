@@ -246,8 +246,10 @@ func LoadRepoLuaConfigFile(repoRoot string) (string, error) {
 }
 
 func loadTheme(data []byte, base ResolvedTheme, isDark bool) (ResolvedTheme, error) {
-	colors := make(map[string]Color)
-	maps.Copy(colors, base.Colors)
+	colors := NormalizeColorSelectors(base.Colors)
+	if colors == nil {
+		colors = make(map[string]Color)
+	}
 	resolved := ResolvedTheme{Colors: colors, BackgroundBlend: base.BackgroundBlend}
 
 	structured, err := isStructuredTheme(data)
@@ -259,7 +261,7 @@ func loadTheme(data []byte, base ResolvedTheme, isDark bool) (ResolvedTheme, err
 		if err := toml.Unmarshal(data, &legacyColors); err != nil {
 			return ResolvedTheme{}, err
 		}
-		maps.Copy(resolved.Colors, legacyColors)
+		maps.Copy(resolved.Colors, NormalizeColorSelectors(legacyColors))
 		return resolved, nil
 	}
 
@@ -271,12 +273,12 @@ func loadTheme(data []byte, base ResolvedTheme, isDark bool) (ResolvedTheme, err
 		return ResolvedTheme{}, err
 	}
 
-	maps.Copy(resolved.Colors, theme.Colors)
+	maps.Copy(resolved.Colors, NormalizeColorSelectors(theme.Colors))
 	variant := theme.Light
 	if isDark {
 		variant = theme.Dark
 	}
-	maps.Copy(resolved.Colors, variant.Colors)
+	maps.Copy(resolved.Colors, NormalizeColorSelectors(variant.Colors))
 	if variant.BackgroundBlend != nil {
 		resolved.BackgroundBlend = *variant.BackgroundBlend
 	}
@@ -428,12 +430,12 @@ func ResolveTheme(isDark bool, jjColors map[string]Color) (ResolvedTheme, error)
 
 	// Layer jj VCS colors
 	if jjColors != nil {
-		maps.Copy(theme.Colors, jjColors)
+		maps.Copy(theme.Colors, NormalizeColorSelectors(jjColors))
 	}
 
 	// Layer inline [ui.colors] overrides
 	if Current.UI.Colors != nil {
-		maps.Copy(theme.Colors, Current.UI.Colors)
+		maps.Copy(theme.Colors, NormalizeColorSelectors(Current.UI.Colors))
 	}
 
 	return theme, nil

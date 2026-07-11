@@ -169,6 +169,80 @@ func TestPalette_Get(t *testing.T) {
 	}
 }
 
+func TestPaletteGet_SelectedSuffixSelectorWorksWithLegacyLookup(t *testing.T) {
+	p := NewPalette()
+	p.add("revisions text", lipgloss.NewStyle().Foreground(lipgloss.Color(White)))
+	p.add("revisions:selected", lipgloss.NewStyle().Background(lipgloss.Color(Red)))
+
+	got := p.Get("revisions selected text")
+
+	assert.Equal(t, lipgloss.Color(White), got.GetForeground())
+	assert.Equal(t, lipgloss.Color(Red), got.GetBackground())
+}
+
+func TestPaletteGet_SelectedSuffixRoleOverridesSemanticRole(t *testing.T) {
+	p := NewPalette()
+	p.add("revisions text", lipgloss.NewStyle().Foreground(lipgloss.Color(White)))
+	p.add("revisions:selected", lipgloss.NewStyle().Background(lipgloss.Color(Red)))
+	p.add("revisions text:selected", lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)))
+
+	legacy := p.Get("revisions selected text")
+	suffix := p.Get("revisions text:selected")
+
+	assert.Equal(t, lipgloss.Color(Yellow), legacy.GetForeground())
+	assert.Equal(t, lipgloss.Color(Red), legacy.GetBackground())
+	assert.Equal(t, legacy, suffix)
+}
+
+func TestPaletteGet_EmbeddedSuffixThemeWorksWithLegacyLookup(t *testing.T) {
+	theme, err := config.LoadEmbeddedTheme("default", config.ResolvedTheme{}, true)
+	assert.NoError(t, err)
+	p := NewPalette()
+	p.Update(theme.Colors)
+
+	selected := p.get("revset", "completion", "selected")
+	got := p.Get("revset completion selected text")
+
+	assert.Equal(t, lipgloss.Color("8"), selected.GetBackground())
+	assert.Equal(t, lipgloss.Color("10"), got.GetForeground())
+	assert.Equal(t, lipgloss.Color("8"), got.GetBackground())
+}
+
+func TestPaletteGet_ExplicitDefaultBackgroundStopsSelectedInheritance(t *testing.T) {
+	p := NewPalette()
+	p.Update(map[string]config.Color{
+		":selected":         {Bg: "bright black"},
+		"git menu:selected": {Bg: "default"},
+	})
+
+	got := p.Get("git menu selected text")
+
+	assert.IsType(t, lipgloss.NoColor{}, got.GetBackground())
+}
+
+func TestPaletteGet_OmittedBackgroundInheritsSelectedBackground(t *testing.T) {
+	p := NewPalette()
+	p.Update(map[string]config.Color{
+		":selected":         {Bg: "bright black"},
+		"git menu:selected": {Fg: "cyan"},
+	})
+
+	got := p.Get("git menu selected text")
+
+	assert.Equal(t, lipgloss.Color("8"), got.GetBackground())
+}
+
+func TestPaletteGet_DefaultThemeDoesNotHighlightGitOrBookmarksMenus(t *testing.T) {
+	theme, err := config.LoadEmbeddedTheme("default", config.ResolvedTheme{}, true)
+	assert.NoError(t, err)
+	p := NewPalette()
+	p.Update(theme.Colors)
+
+	assert.IsType(t, lipgloss.NoColor{}, p.Get("git menu selected text").GetBackground())
+	assert.IsType(t, lipgloss.NoColor{}, p.Get("bookmarks menu selected text").GetBackground())
+	assert.Equal(t, lipgloss.Color("8"), p.Get("other menu selected text").GetBackground())
+}
+
 func TestPalette_Update(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -7,13 +7,13 @@ target_marker = { fg = "black", bg = "red", bold = true }
 source_marker = { fg = "black", bg = "cyan" }
 success = "green"
 error = "red"
-"flash selected" = "cyan"
+"flash:selected" = "cyan"
 "confirmation text" = { fg = "magenta", bold = true }
-"confirmation selected" = { fg = "bright white", bg = "blue", bold = true }
+"confirmation:selected" = { fg = "bright white", bg = "blue", bold = true }
 "confirmation dimmed" = "white"
 "help title" = { fg = "green", bold = true }
-"revisions details selected" = { bg = "bright black", bold = true }
-"revisions details selected dimmed" = { fg = "bright cyan" }
+"revisions details:selected" = { bg = "bright black", bold = true }
+"revisions details dimmed:selected" = { fg = "bright cyan" }
 "revisions matched" = { underline = false, reverse = true }
 "oplog matched" = { underline = false, reverse = true }
 "revset title" = "magenta"
@@ -22,34 +22,37 @@ error = "red"
 "revset completion dimmed" = { fg = "bright black" }
 "revset completion text" = { fg = "green" }
 "revset completion matched" = { fg = "green", underline = true, bold = true }
-"revset completion selected" = { bg = "bright black", bold = true }
-"revset completion selected dimmed" = { fg = "bright cyan" }
-"revset completion selected text" = { fg = "bright green" }
-"revset completion selected matched" = { underline = true, bold = true }
+"revset completion:selected" = { bg = "bright black", bold = true }
+"revset completion dimmed:selected" = { fg = "bright cyan" }
+"revset completion text:selected" = { fg = "bright green" }
+"revset completion matched:selected" = { underline = true, bold = true }
 "status title" = { fg = "black", bg = "magenta", bold = true }
 "menu matched" = { fg = "magenta", bold = true }
-"menu selected shortcut" = { bg = "default" }
+"menu shortcut:selected" = { bg = "default" }
+"git menu:selected" = { bg = "default" }
+"bookmarks menu:selected" = { bg = "default" }
 "picker dimmed" = { fg = "bright black" }
 "picker matched" = { underline = true }
-"picker selected" = { fg = "cyan", bg = "bright black", bold = true, underline = false }
-"picker selected dimmed" = {}
-"picker selected text" = {}
-"picker selected matched" = {}
+"picker:selected" = { fg = "cyan", bg = "bright black", bold = true, underline = false }
+"picker dimmed:selected" = {}
+"picker text:selected" = {}
+"picker matched:selected" = {}
 
 [light]
 background_blend = 0.4
 
 [light.colors]
-selected = { bg = "white" }
+":selected" = { bg = "white" }
+"revset completion" = { bg = "default" }
 "menu title" = { fg = "62", bg = "230", bold = true }
 "menu subtitle" = { fg = "62", bold = true }
-"menu selected" = { fg = "cyan", bold = true, underline = false }
+"menu:selected" = { fg = "cyan", bold = true, underline = false }
 
 [dark]
 background_blend = 0.4
 
 [dark.colors]
-selected = { fg = "cyan", bg = "bright black" }
+":selected" = { fg = "cyan", bg = "bright black" }
 "menu title" = { fg = "230", bg = "62", bold = true }
 "menu subtitle" = { fg = "230", bold = true }
-"menu selected" = { fg = "cyan", bg = "default", bold = true, underline = false }
+"menu:selected" = { fg = "cyan", bold = true, underline = false }

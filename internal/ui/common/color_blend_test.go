@@ -34,6 +34,22 @@ func TestApplyThemeBackgroundBlend_BlendsSelectedBackgroundsTowardSurfaceBorderB
 	assert.Equal(t, "bright black", theme["ansi"].Bg)
 }
 
+func TestApplyThemeBackgroundBlend_SelectedSuffixSyntaxMatchesLegacySyntax(t *testing.T) {
+	legacy := map[string]config.Color{
+		"picker selected text": {Bg: "#363646"},
+		"picker border":        {Bg: "#202020"},
+	}
+	suffix := map[string]config.Color{
+		"picker text:selected": {Bg: "#363646"},
+		"picker border":        {Bg: "#202020"},
+	}
+
+	require.NoError(t, ApplyThemeBackgroundBlend(legacy, 0.25, "", nil))
+	require.NoError(t, ApplyThemeBackgroundBlend(suffix, 0.25, "", nil))
+
+	assert.Equal(t, legacy["picker selected text"].Bg, suffix["picker text:selected"].Bg)
+}
+
 func TestApplyThemeBackgroundBlend_UsesInheritedSurfaceBorderBackground(t *testing.T) {
 	theme := map[string]config.Color{
 		"git menu selected shortcut": {Fg: "#dcd7ba", Bg: "#363646"},

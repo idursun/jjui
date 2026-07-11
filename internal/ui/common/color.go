@@ -10,7 +10,6 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/idursun/jjui/internal/config"
 )
 
 var ansiColorNames = [...]string{"black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"}
@@ -42,90 +41,7 @@ func parseColor(value string) color.Color {
 	return lipgloss.NoColor{}
 }
 
-func ApplyThemeBackgroundBlend(theme map[string]config.Color, ratio float64, terminalBackground string, terminalPalette map[int]string) error {
-	if ratio == 0 {
-		return nil
-	}
-
-	for key, color := range theme {
-		fields := strings.Fields(key)
-		if color.Bg == "" || !slices.Contains(fields, "selected") {
-			continue
-		}
-		target := blendTargetColor(theme, fields, terminalBackground, terminalPalette)
-		if target == "" {
-			continue
-		}
-		base := blendBaseColor(color.Bg, terminalPalette)
-		blended, ok, err := blendHexColor(base, target, ratio)
-		if err != nil {
-			return fmt.Errorf("%q bg: %w", key, err)
-		}
-		if !ok {
-			continue
-		}
-		color.Bg = blended
-		theme[key] = color
-	}
-	return nil
-}
-
-func blendTargetColor(theme map[string]config.Color, selectedFields []string, terminalBackground string, terminalPalette map[int]string) string {
-	if bg := resolvedBackground(theme, withoutSelectedField(selectedFields)); bg != "" {
-		return resolveBlendTarget(bg, terminalBackground, terminalPalette)
-	}
-
-	borderFields := surfaceBorderFields(selectedFields)
-	if bg := resolvedBackground(theme, borderFields); bg != "" {
-		return resolveBlendTarget(bg, terminalBackground, terminalPalette)
-	}
-	return terminalBackground
-}
-
-func withoutSelectedField(fields []string) []string {
-	selectedIndex := slices.Index(fields, "selected")
-	if selectedIndex < 0 {
-		return nil
-	}
-	result := make([]string, 0, len(fields)-1)
-	result = append(result, fields[:selectedIndex]...)
-	result = append(result, fields[selectedIndex+1:]...)
-	return result
-}
-
-func resolveBlendTarget(value, terminalBackground string, terminalPalette map[int]string) string {
-	if value == "default" {
-		return terminalBackground
-	}
-	return blendBaseColor(value, terminalPalette)
-}
-
-func surfaceBorderFields(selectedFields []string) []string {
-	selectedIndex := slices.Index(selectedFields, "selected")
-	if selectedIndex < 0 {
-		return nil
-	}
-	borderFields := make([]string, 0, selectedIndex+1)
-	borderFields = append(borderFields, selectedFields[:selectedIndex]...)
-	borderFields = append(borderFields, "border")
-	return borderFields
-}
-
-func resolvedBackground(theme map[string]config.Color, fields []string) string {
-	length := len(fields)
-	start := 0
-	for start < length {
-		for end := length; end > start; end-- {
-			if color, ok := theme[strings.Join(fields[start:end], " ")]; ok && color.Bg != "" {
-				return color.Bg
-			}
-		}
-		start++
-	}
-	return ""
-}
-
-func blendBaseColor(value string, terminalPalette map[int]string) string {
+func resolvePaletteColor(value string, terminalPalette map[int]string) string {
 	switch color := parseColor(value).(type) {
 	case ansi.BasicColor:
 		if hex, ok := terminalPalette[int(color)]; ok {
