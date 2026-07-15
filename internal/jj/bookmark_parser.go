@@ -32,6 +32,15 @@ func (b Bookmark) IsTrackable() bool {
 	return b.Local != nil && len(b.Remotes) == 0
 }
 
+func (b Bookmark) HasRemote(remote string) bool {
+	for _, r := range b.Remotes {
+		if r.Remote == remote {
+			return true
+		}
+	}
+	return false
+}
+
 func ParseBookmarkListOutput(output string) []Bookmark {
 	lines := strings.Split(output, "\n")
 	bookmarkMap := make(map[string]*Bookmark)

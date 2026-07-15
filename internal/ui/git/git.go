@@ -639,7 +639,8 @@ func (m *Model) createMenuItems() []item {
 			if b.Conflict {
 				continue
 			}
-			if !seenBookmarks[b.Name] {
+			pushable := b.Local != nil && (len(b.Remotes) == 0 || b.HasRemote(selectedRemote))
+			if pushable && !seenBookmarks[b.Name] {
 				seenBookmarks[b.Name] = true
 				selectedBookmarks = append(selectedBookmarks, b.Name)
 			}
