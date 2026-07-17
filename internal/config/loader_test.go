@@ -131,6 +131,32 @@ func TestLoadEmbeddedDefaultThemeResolvesLightAndDarkVariants(t *testing.T) {
 	assert.Equal(t, "black", dark.Colors["revset completion"].Bg)
 }
 
+func TestResolveThemeUIBackgroundBlendOverridesTheme(t *testing.T) {
+	original := Current.UI.BackgroundBlend
+	t.Cleanup(func() { Current.UI.BackgroundBlend = original })
+
+	override := 0.4
+	Current.UI.BackgroundBlend = &override
+	theme, err := ResolveTheme(true, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 0.4, theme.BackgroundBlend)
+
+	override = 0.0
+	theme, err = ResolveTheme(true, nil)
+	require.NoError(t, err)
+	assert.Zero(t, theme.BackgroundBlend)
+}
+
+func TestResolveThemeRejectsInvalidUIBackgroundBlend(t *testing.T) {
+	original := Current.UI.BackgroundBlend
+	t.Cleanup(func() { Current.UI.BackgroundBlend = original })
+
+	override := 1.5
+	Current.UI.BackgroundBlend = &override
+	_, err := ResolveTheme(true, nil)
+	assert.ErrorContains(t, err, "invalid value for 'ui.background_blend'")
+}
+
 func TestLoadThemeHigherLayerLegacySelectorOverridesCanonicalBase(t *testing.T) {
 	base := ResolvedTheme{Colors: map[string]Color{
 		"menu text:selected": {Fg: "red"},

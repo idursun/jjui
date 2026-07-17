@@ -1743,6 +1743,12 @@ func inspectTerminalRefresh(cmd tea.Cmd) (themeChanged, paletteRequested, backgr
 	return themeChanged, paletteRequested, backgroundRequested
 }
 
+func enableBackgroundBlend(t *testing.T, value float64) {
+	original := config.Current.UI.BackgroundBlend
+	t.Cleanup(func() { config.Current.UI.BackgroundBlend = original })
+	config.Current.UI.BackgroundBlend = &value
+}
+
 func Test_Init_EnablesMode2031AndStartsPolling(t *testing.T) {
 	withShortColorSchemePoll(t)
 
@@ -1782,6 +1788,7 @@ func Test_Init_EnablesMode2031AndStartsPolling(t *testing.T) {
 }
 
 func Test_BackgroundColorMsg_ReloadsThemeWhenColorChangesWithinCurrentScheme(t *testing.T) {
+	enableBackgroundBlend(t, 0.4)
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
 	ctx.TerminalHasDarkBackground = true
@@ -1805,6 +1812,7 @@ func Test_BackgroundColorMsg_ReloadsThemeWhenColorChangesWithinCurrentScheme(t *
 }
 
 func Test_ColorSchemeEvent_ReloadsThemeAndTerminalPalette(t *testing.T) {
+	enableBackgroundBlend(t, 0.4)
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)

@@ -317,12 +317,15 @@ func (t Theme) Validate() error {
 }
 
 func (v ThemeVariant) Validate(name string) error {
-	if v.BackgroundBlend == nil {
+	return validateBackgroundBlend(name+".background_blend", v.BackgroundBlend)
+}
+
+func validateBackgroundBlend(name string, value *float64) error {
+	if value == nil {
 		return nil
 	}
-	value := *v.BackgroundBlend
-	if math.IsNaN(value) || value < 0 || value > 1 {
-		return fmt.Errorf("invalid value for '%s.background_blend': expected 0.0 to 1.0, got %v", name, value)
+	if math.IsNaN(*value) || *value < 0 || *value > 1 {
+		return fmt.Errorf("invalid value for '%s': expected 0.0 to 1.0, got %v", name, *value)
 	}
 	return nil
 }
@@ -408,7 +411,8 @@ func ensureLuaRC(luaRCPath, typesPath string) (bool, error) {
 
 // ResolveTheme loads the full color map for the given background mode.
 // It layers the embedded default theme, optional user theme, jj VCS colors,
-// and inline [ui.colors] overrides in the correct order.
+// inline [ui.colors] overrides, and an optional [ui] background_blend override
+// in the correct order.
 func ResolveTheme(isDark bool, jjColors map[string]Color) (ResolvedTheme, error) {
 	const defaultThemeName = "default"
 	theme, err := LoadEmbeddedTheme(defaultThemeName, ResolvedTheme{}, isDark)
@@ -436,6 +440,13 @@ func ResolveTheme(isDark bool, jjColors map[string]Color) (ResolvedTheme, error)
 	// Layer inline [ui.colors] overrides
 	if Current.UI.Colors != nil {
 		maps.Copy(theme.Colors, NormalizeColorSelectors(Current.UI.Colors))
+	}
+
+	if err := validateBackgroundBlend("ui.background_blend", Current.UI.BackgroundBlend); err != nil {
+		return ResolvedTheme{}, err
+	}
+	if Current.UI.BackgroundBlend != nil {
+		theme.BackgroundBlend = *Current.UI.BackgroundBlend
 	}
 
 	return theme, nil
