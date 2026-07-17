@@ -91,6 +91,55 @@ func Test_PushChange(t *testing.T) {
 	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
 }
 
+func Test_PushSelectedBookmarks(t *testing.T) {
+	const changeId1 = "abc123"
+	const changeId2 = "def456"
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkList(changeId1)).SetOutput([]byte("feature-a;.;false;false;false;83\n"))
+	commandRunner.Expect(jj.BookmarkList(changeId2)).SetOutput([]byte("feature-b;.;false;false;false;86\n"))
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
+	commandRunner.Expect(jj.GitPush("--remote", "", "--bookmark", "feature-a", "--bookmark", "feature-b"))
+	defer commandRunner.Verify()
+
+	selected := jj.NewSelectedRevisions(&jj.Commit{ChangeId: changeId1}, &jj.Commit{ChangeId: changeId2})
+	op := NewModel(test.NewTestContext(commandRunner), selected)
+	test.SimulateModel(op, op.Init())
+	_ = test.RenderImmediate(op, 100, 40)
+
+	test.SimulateModel(op, intents.Invoke(intents.GitFilter{Kind: intents.GitFilterPush}))
+	test.SimulateModel(op, intents.Invoke(intents.GitApplyShortcut{Key: "b"}))
+}
+
+func Test_PushSelectedBookmarks_SkipsRemoteOnlyAndNonMatchingRemotes(t *testing.T) {
+	const (
+		localOnOrigin   = "abc123"
+		remoteOnly      = "def456"
+		localOnUpstream = "ghi789"
+		newLocal        = "jkl012"
+	)
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkList(localOnOrigin)).SetOutput([]byte("feature-a;.;true;false;false;83\nfeature-a;origin;true;false;false;83\n"))
+	commandRunner.Expect(jj.BookmarkList(remoteOnly)).SetOutput([]byte("feature-b;origin;false;false;false;86\n"))
+	commandRunner.Expect(jj.BookmarkList(localOnUpstream)).SetOutput([]byte("feature-c;.;true;false;false;90\nfeature-c;upstream;true;false;false;90\n"))
+	commandRunner.Expect(jj.BookmarkList(newLocal)).SetOutput([]byte("feature-d;.;false;false;false;92\n"))
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin\nupstream\n"))
+	commandRunner.Expect(jj.GitPush("--remote", "origin", "--bookmark", "feature-a", "--bookmark", "feature-d"))
+	defer commandRunner.Verify()
+
+	selected := jj.NewSelectedRevisions(
+		&jj.Commit{ChangeId: localOnOrigin},
+		&jj.Commit{ChangeId: remoteOnly},
+		&jj.Commit{ChangeId: localOnUpstream},
+		&jj.Commit{ChangeId: newLocal},
+	)
+	op := NewModel(test.NewTestContext(commandRunner), selected)
+	test.SimulateModel(op, op.Init())
+	_ = test.RenderImmediate(op, 100, 40)
+
+	test.SimulateModel(op, intents.Invoke(intents.GitFilter{Kind: intents.GitFilterPush}))
+	test.SimulateModel(op, intents.Invoke(intents.GitApplyShortcut{Key: "b"}))
+}
+
 func Test_NewModel_DoesNotPanicWithNilSelectedRevision(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))

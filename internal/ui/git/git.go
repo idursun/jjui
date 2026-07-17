@@ -631,11 +631,18 @@ func (m *Model) createMenuItems() []item {
 		selectedRemote = ""
 	}
 
+	var selectedBookmarks []string
+	seenBookmarks := make(map[string]bool)
 	for _, commit := range revisions.Revisions {
 		bookmarks := loadBookmarks(m.context, commit.GetChangeId())
 		for _, b := range bookmarks {
 			if b.Conflict {
 				continue
+			}
+			pushable := b.Local != nil && (len(b.Remotes) == 0 || b.HasRemote(selectedRemote))
+			if pushable && !seenBookmarks[b.Name] {
+				seenBookmarks[b.Name] = true
+				selectedBookmarks = append(selectedBookmarks, b.Name)
 			}
 			for _, remote := range b.Remotes {
 				items = append(items, item{
@@ -677,6 +684,22 @@ func (m *Model) createMenuItems() []item {
 				command:  jj.GitPush(flags...),
 				key:      "c",
 			})
+
+		if len(selectedBookmarks) > 0 {
+			var bookmarkFlags []string
+			for _, name := range selectedBookmarks {
+				bookmarkFlags = append(bookmarkFlags, "--bookmark", name)
+			}
+			flags := append([]string{"--remote", selectedRemote}, bookmarkFlags...)
+			items = append(items,
+				item{
+					category: itemCategoryPush,
+					name:     fmt.Sprintf("git push %s --remote %s", strings.Join(bookmarkFlags, " "), selectedRemote),
+					desc:     fmt.Sprintf("Push only the selected bookmarks (%s)", strings.Join(selectedBookmarks, ", ")),
+					command:  jj.GitPush(flags...),
+					key:      "b",
+				})
+		}
 	}
 
 	for _, commit := range revisions.Revisions {
