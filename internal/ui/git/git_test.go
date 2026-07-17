@@ -110,18 +110,20 @@ func Test_PushSelectedBookmarks(t *testing.T) {
 	test.SimulateModel(op, intents.Invoke(intents.GitApplyShortcut{Key: "b"}))
 }
 
-func Test_PushSelectedBookmarks_SkipsRemoteOnlyAndNonMatchingRemotes(t *testing.T) {
+func Test_PushSelectedBookmarks_SkipsRemoteOnlyNonMatchingAndUntrackedRemotes(t *testing.T) {
 	const (
-		localOnOrigin   = "abc123"
-		remoteOnly      = "def456"
-		localOnUpstream = "ghi789"
-		newLocal        = "jkl012"
+		localOnOrigin          = "abc123"
+		remoteOnly             = "def456"
+		localOnUpstream        = "ghi789"
+		newLocal               = "jkl012"
+		localOnUntrackedOrigin = "mno345"
 	)
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkList(localOnOrigin)).SetOutput([]byte("feature-a;.;true;false;false;83\nfeature-a;origin;true;false;false;83\n"))
 	commandRunner.Expect(jj.BookmarkList(remoteOnly)).SetOutput([]byte("feature-b;origin;false;false;false;86\n"))
 	commandRunner.Expect(jj.BookmarkList(localOnUpstream)).SetOutput([]byte("feature-c;.;true;false;false;90\nfeature-c;upstream;true;false;false;90\n"))
 	commandRunner.Expect(jj.BookmarkList(newLocal)).SetOutput([]byte("feature-d;.;false;false;false;92\n"))
+	commandRunner.Expect(jj.BookmarkList(localOnUntrackedOrigin)).SetOutput([]byte("feature-e;.;false;false;false;95\nfeature-e;origin;false;false;false;95\n"))
 	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin\nupstream\n"))
 	commandRunner.Expect(jj.GitPush("--remote", "origin", "--bookmark", "feature-a", "--bookmark", "feature-d"))
 	defer commandRunner.Verify()
@@ -131,6 +133,7 @@ func Test_PushSelectedBookmarks_SkipsRemoteOnlyAndNonMatchingRemotes(t *testing.
 		&jj.Commit{ChangeId: remoteOnly},
 		&jj.Commit{ChangeId: localOnUpstream},
 		&jj.Commit{ChangeId: newLocal},
+		&jj.Commit{ChangeId: localOnUntrackedOrigin},
 	)
 	op := NewModel(test.NewTestContext(commandRunner), selected)
 	test.SimulateModel(op, op.Init())

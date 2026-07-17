@@ -32,9 +32,9 @@ func (b Bookmark) IsTrackable() bool {
 	return b.Local != nil && len(b.Remotes) == 0
 }
 
-func (b Bookmark) HasRemote(remote string) bool {
+func (b Bookmark) HasTrackedRemote(remote string) bool {
 	for _, r := range b.Remotes {
-		if r.Remote == remote {
+		if r.Remote == remote && r.Tracked {
 			return true
 		}
 	}
