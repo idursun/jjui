@@ -39,5 +39,9 @@ While choosing the range:
 | `G` | Jump to bottom |
 | `h` / `l` or left / right | Scroll horizontally |
 | `w` | Toggle line wrapping |
+| `ctrl+t` | Choose one changed file, or `(all files)` to restore the full diff |
+| `[` / `]` | Show the previous / next changed file |
 
 When line wrapping is enabled, long lines wrap within the viewport and horizontal scrolling is disabled.
+
+The `[` and `]` shortcuts wrap at either end of the changed-file list. File selection and navigation are available for revision, Details, Diff Range, and Evolog diffs. Oplog diffs and static content opened through `diff.show()` do not retain the command arguments needed to load individual files.

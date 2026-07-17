@@ -27,10 +27,13 @@ Commands shown vary based on the selected remote and any highlighted/selected re
 | `p` | `git push --remote <remote>` — push tracking bookmarks in the current revset |
 | `a` | `git push --all --deleted --remote <remote>` |
 | `c` | `git push --change <change_id> --remote <remote>` |
+| `b` | `git push --bookmark <bookmark>... --remote <remote>` — push eligible bookmarks on the selected revisions |
 | `d` | `git push --deleted --remote <remote>` |
 | `t` | `git push --tracked --remote <remote>` |
 
 Per-bookmark push commands are also generated automatically for each bookmark on the selected revisions.
+
+To push bookmarks from multiple revisions in one command, select the revisions, open the Git menu with `g`, press `p` to filter push commands, then press `b`. Eligible bookmarks are non-conflicted local bookmarks that are either new or tracked on the selected remote. Duplicate names are collapsed; remote-only bookmarks, bookmarks tracked on another remote, and bookmarks present on the selected remote but not tracked there are skipped.
 
 ## Fetch commands
 
