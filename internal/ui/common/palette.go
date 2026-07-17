@@ -143,6 +143,13 @@ func (p *Palette) Get(selector string) lipgloss.Style {
 	return finalStyle
 }
 
+func (p *Palette) GetVariant(selector string, variant config.ColorVariant, enabled bool) lipgloss.Style {
+	if !enabled {
+		return p.Get(selector)
+	}
+	return p.Get(selector + ":" + string(variant))
+}
+
 func hasSelectedSubstyle(fields []string) bool {
 	for i, field := range fields {
 		if field == "selected" && i < len(fields)-1 {

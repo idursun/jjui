@@ -17,8 +17,8 @@ func TestBlendHexColor_UsesGammaCorrectRGBBlend(t *testing.T) {
 
 func TestApplyThemeBackgroundBlend_BlendsSelectedBackgroundsTowardSurfaceBorderBackground(t *testing.T) {
 	theme := map[string]config.Color{
-		"selected":             {Fg: "#dcd7ba", Bg: "#363646"},
-		"picker selected text": {Fg: "#dcd7ba", Bg: "#363646"},
+		":selected":            {Fg: "#dcd7ba", Bg: "#363646"},
+		"picker text:selected": {Fg: "#dcd7ba", Bg: "#363646"},
 		"unselected":           {Fg: "#dcd7ba", Bg: "#363646"},
 		"ansi":                 {Fg: "#dcd7ba", Bg: "bright black"},
 		"border":               {Bg: "#202020"},
@@ -28,8 +28,8 @@ func TestApplyThemeBackgroundBlend_BlendsSelectedBackgroundsTowardSurfaceBorderB
 	err := ApplyThemeBackgroundBlend(theme, 0.25, "", nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, "#31313f", theme["selected"].Bg)
-	assert.Equal(t, "#31313f", theme["picker selected text"].Bg)
+	assert.Equal(t, "#31313f", theme[":selected"].Bg)
+	assert.Equal(t, "#31313f", theme["picker text:selected"].Bg)
 	assert.Equal(t, "#363646", theme["unselected"].Bg)
 	assert.Equal(t, "bright black", theme["ansi"].Bg)
 }
@@ -52,70 +52,70 @@ func TestApplyThemeBackgroundBlend_SelectedSuffixSyntaxMatchesLegacySyntax(t *te
 
 func TestApplyThemeBackgroundBlend_UsesInheritedSurfaceBorderBackground(t *testing.T) {
 	theme := map[string]config.Color{
-		"git menu selected shortcut": {Fg: "#dcd7ba", Bg: "#363646"},
+		"git menu shortcut:selected": {Fg: "#dcd7ba", Bg: "#363646"},
 		"menu border":                {Bg: "#202020"},
 	}
 
 	err := ApplyThemeBackgroundBlend(theme, 0.25, "", nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, "#31313f", theme["git menu selected shortcut"].Bg)
+	assert.Equal(t, "#31313f", theme["git menu shortcut:selected"].Bg)
 }
 
 func TestApplyThemeBackgroundBlend_SkipsWhenSurfaceBorderHasNoBackground(t *testing.T) {
 	theme := map[string]config.Color{
-		"selected": {Fg: "#dcd7ba", Bg: "#363646"},
-		"border":   {Fg: "#dcd7ba"},
+		":selected": {Fg: "#dcd7ba", Bg: "#363646"},
+		"border":    {Fg: "#dcd7ba"},
 	}
 
 	err := ApplyThemeBackgroundBlend(theme, 0.25, "", nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, "#363646", theme["selected"].Bg)
+	assert.Equal(t, "#363646", theme[":selected"].Bg)
 }
 
 func TestApplyThemeBackgroundBlend_PrefersSurfaceBackgroundOverBorder(t *testing.T) {
 	theme := map[string]config.Color{
 		"picker":          {Bg: "#202020"},
 		"picker border":   {Bg: "#ffffff"},
-		"picker selected": {Bg: "#808080"},
+		"picker:selected": {Bg: "#808080"},
 	}
 
 	err := ApplyThemeBackgroundBlend(theme, 0.25, "#000000", nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, "#707070", theme["picker selected"].Bg)
+	assert.Equal(t, "#707070", theme["picker:selected"].Bg)
 }
 
 func TestApplyThemeBackgroundBlend_UsesTerminalBackgroundForTransparentSurface(t *testing.T) {
 	theme := map[string]config.Color{
-		"picker selected": {Bg: "#808080"},
+		"picker:selected": {Bg: "#808080"},
 	}
 
 	err := ApplyThemeBackgroundBlend(theme, 0.25, "#202020", nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, "#707070", theme["picker selected"].Bg)
+	assert.Equal(t, "#707070", theme["picker:selected"].Bg)
 }
 
 func TestApplyThemeBackgroundBlend_ResolvesDefaultSurfaceToTerminalBackground(t *testing.T) {
 	theme := map[string]config.Color{
 		"picker":          {Bg: "default"},
 		"picker border":   {Bg: "#ffffff"},
-		"picker selected": {Bg: "#808080"},
+		"picker:selected": {Bg: "#808080"},
 	}
 
 	err := ApplyThemeBackgroundBlend(theme, 0.25, "#202020", nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, "#707070", theme["picker selected"].Bg)
+	assert.Equal(t, "#707070", theme["picker:selected"].Bg)
 }
 
 func TestApplyThemeBackgroundBlend_BlendsTerminalPaletteBackgroundsTowardSurfaceBorderBackground(t *testing.T) {
 	theme := map[string]config.Color{
-		"selected": {Fg: "#dcd7ba", Bg: "bright black"},
-		"missing":  {Fg: "#dcd7ba", Bg: "bright red"},
-		"border":   {Bg: "#202020"},
+		":selected": {Fg: "#dcd7ba", Bg: "bright black"},
+		"missing":   {Fg: "#dcd7ba", Bg: "bright red"},
+		"border":    {Bg: "#202020"},
 	}
 	terminalPalette := map[int]string{
 		8: "#808080",
@@ -124,14 +124,14 @@ func TestApplyThemeBackgroundBlend_BlendsTerminalPaletteBackgroundsTowardSurface
 	err := ApplyThemeBackgroundBlend(theme, 0.25, "", terminalPalette)
 	require.NoError(t, err)
 
-	assert.Equal(t, "#707070", theme["selected"].Bg)
+	assert.Equal(t, "#707070", theme[":selected"].Bg)
 	assert.Equal(t, "bright red", theme["missing"].Bg)
 }
 
 func TestApplyThemeBackgroundBlend_ResolvesSurfaceBorderFromTerminalPalette(t *testing.T) {
 	theme := map[string]config.Color{
-		"selected": {Fg: "#dcd7ba", Bg: "#808080"},
-		"border":   {Bg: "bright black"},
+		":selected": {Fg: "#dcd7ba", Bg: "#808080"},
+		"border":    {Bg: "bright black"},
 	}
 	terminalPalette := map[int]string{
 		8: "#202020",
@@ -140,5 +140,5 @@ func TestApplyThemeBackgroundBlend_ResolvesSurfaceBorderFromTerminalPalette(t *t
 	err := ApplyThemeBackgroundBlend(theme, 0.25, "", terminalPalette)
 	require.NoError(t, err)
 
-	assert.Equal(t, "#707070", theme["selected"].Bg)
+	assert.Equal(t, "#707070", theme[":selected"].Bg)
 }

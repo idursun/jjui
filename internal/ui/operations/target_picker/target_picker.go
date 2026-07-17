@@ -6,6 +6,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/jj/source"
 	"github.com/idursun/jjui/internal/ui/actions"
@@ -184,11 +185,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	bookmarkPillStyle := common.DefaultPalette.Get("picker bookmark")
-	selectedStyle := common.DefaultPalette.Get("picker selected")
-	selectedDimmedStyle := common.DefaultPalette.Get("picker selected dimmed")
-	selectedTextStyle := common.DefaultPalette.Get("picker selected text")
-	selectedMatchStyle := common.DefaultPalette.Get("picker selected matched")
-	matchedStyle := common.DefaultPalette.Get("picker matched")
+	selectedStyle := common.DefaultPalette.GetVariant("picker", config.SelectedVariant, true)
+	selectedTextStyle := common.DefaultPalette.GetVariant("picker text", config.SelectedVariant, true)
 	borderStyle := common.DefaultPalette.GetBorder("picker border", lipgloss.NormalBorder())
 	textStyle := common.DefaultPalette.Get("picker text")
 	dimmedStyle := common.DefaultPalette.Get("picker dimmed")
@@ -232,13 +230,11 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			y := rect.Min.Y
 
 			isSelected := index == m.cursor
-			pillStyle := dimmedStyle
+			pillStyle := common.DefaultPalette.GetVariant("picker dimmed", config.SelectedVariant, isSelected)
 			lineStyle := bookmarkPillStyle
-			matchStyle := matchedStyle
+			matchStyle := common.DefaultPalette.GetVariant("picker matched", config.SelectedVariant, isSelected)
 			if isSelected {
-				pillStyle = selectedDimmedStyle
 				lineStyle = selectedTextStyle
-				matchStyle = selectedMatchStyle
 				dl.AddFill(rect, ' ', selectedStyle, render.ZMenuContent-1)
 			} else {
 				matchStyle = matchStyle.Inherit(lineStyle)

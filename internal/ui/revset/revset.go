@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -400,9 +401,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	outerBox := layout.NewBox(layout.Rect(box.R.Min.X, box.R.Max.Y, overlayWidth, overlayHeight))
 	// Fill the background to prevent underlying content from showing through
 	dl.AddFill(outerBox.R, ' ', common.DefaultPalette.Get("revset completion"), render.ZRevsetOverlay-1)
-	completionText := common.DefaultPalette.Get("revset completion text")
-	completionMatched := common.DefaultPalette.Get("revset completion matched")
-
+	completionSelected := common.DefaultPalette.GetVariant("revset completion", config.SelectedVariant, true)
 	m.listRenderer.Render(
 		dl,
 		outerBox,
@@ -418,15 +417,12 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 			item := items[index]
 
-			ts := completionText
-			ms := completionMatched
-			ds := completionDimmed
+			ts := common.DefaultPalette.GetVariant("revset completion text", config.SelectedVariant, isSelected)
+			ms := common.DefaultPalette.GetVariant("revset completion matched", config.SelectedVariant, isSelected)
+			ds := common.DefaultPalette.GetVariant("revset completion dimmed", config.SelectedVariant, isSelected)
 
 			if isSelected {
-				ts = common.DefaultPalette.Get("revset completion selected text")
-				ms = common.DefaultPalette.Get("revset completion selected matched")
-				ds = common.DefaultPalette.Get("revset completion selected dimmed")
-				dl.AddFill(rect, ' ', common.DefaultPalette.Get("revset completion selected"), render.ZRevsetOverlay-1)
+				dl.AddFill(rect, ' ', completionSelected, render.ZRevsetOverlay-1)
 			}
 
 			tb := dl.Text(rect.Min.X, rect.Min.Y, render.ZRevsetOverlay)
@@ -443,7 +439,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			}
 			tb.Done()
 			if isSelected {
-				dl.AddPaint(rect, common.DefaultPalette.Get("revset completion selected"), render.ZRevsetOverlay)
+				dl.AddPaint(rect, completionSelected, render.ZRevsetOverlay)
 			}
 		},
 		func(index int, _ tea.Mouse) tea.Msg { return completionClickMsg{index: index} },

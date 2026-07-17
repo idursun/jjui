@@ -47,10 +47,10 @@ func TestPalette_Get(t *testing.T) {
 		{
 			name: "combined labels",
 			args: args{
-				selector: "revisions selected",
+				selector: "revisions:selected",
 				styles: map[string]lipgloss.Style{
 					"revisions": lipgloss.NewStyle().Italic(true),
-					"selected":  lipgloss.NewStyle().Background(lipgloss.Color(Black)).Bold(true),
+					":selected": lipgloss.NewStyle().Background(lipgloss.Color(Black)).Bold(true),
 				},
 			},
 			want: lipgloss.NewStyle().Background(lipgloss.Color(Black)).Bold(true).Italic(true),
@@ -110,10 +110,10 @@ func TestPalette_Get(t *testing.T) {
 		{
 			name: "selected substyle inherits semantic style before selected state",
 			args: args{
-				selector: "menu selected shortcut",
+				selector: "menu shortcut:selected",
 				styles: map[string]lipgloss.Style{
-					"selected":      lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan)),
-					"menu selected": lipgloss.NewStyle().Background(lipgloss.Color(Black)).Bold(true),
+					":selected":     lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan)),
+					"menu:selected": lipgloss.NewStyle().Background(lipgloss.Color(Black)).Bold(true),
 					"menu shortcut": lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)),
 				},
 			},
@@ -122,11 +122,11 @@ func TestPalette_Get(t *testing.T) {
 		{
 			name: "partial exact selected substyle preserves semantic foreground",
 			args: args{
-				selector: "bookmarks menu selected shortcut",
+				selector: "bookmarks menu shortcut:selected",
 				styles: map[string]lipgloss.Style{
 					"shortcut":               lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)),
-					"menu selected":          lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan)).Background(lipgloss.Color(Black)).Bold(true),
-					"menu selected shortcut": lipgloss.NewStyle().Background(lipgloss.Color(Blue)),
+					"menu:selected":          lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan)).Background(lipgloss.Color(Black)).Bold(true),
+					"menu shortcut:selected": lipgloss.NewStyle().Background(lipgloss.Color(Blue)),
 				},
 			},
 			want: lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)).Background(lipgloss.Color(Blue)).Bold(true),
@@ -134,11 +134,11 @@ func TestPalette_Get(t *testing.T) {
 		{
 			name: "exact selected substyle overrides semantic fallback",
 			args: args{
-				selector: "menu selected shortcut",
+				selector: "menu shortcut:selected",
 				styles: map[string]lipgloss.Style{
-					"menu selected":          lipgloss.NewStyle().Background(lipgloss.Color(Black)),
+					"menu:selected":          lipgloss.NewStyle().Background(lipgloss.Color(Black)),
 					"menu shortcut":          lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)),
-					"menu selected shortcut": lipgloss.NewStyle().Foreground(lipgloss.Color(Green)),
+					"menu shortcut:selected": lipgloss.NewStyle().Foreground(lipgloss.Color(Green)),
 				},
 			},
 			want: lipgloss.NewStyle().Foreground(lipgloss.Color(Green)).Background(lipgloss.Color(Black)),
@@ -215,7 +215,7 @@ func TestPaletteGet_ExplicitDefaultBackgroundStopsSelectedInheritance(t *testing
 		"git menu:selected": {Bg: "default"},
 	})
 
-	got := p.Get("git menu selected text")
+	got := p.Get("git menu text:selected")
 
 	assert.IsType(t, lipgloss.NoColor{}, got.GetBackground())
 }
@@ -227,7 +227,7 @@ func TestPaletteGet_OmittedBackgroundInheritsSelectedBackground(t *testing.T) {
 		"git menu:selected": {Fg: "cyan"},
 	})
 
-	got := p.Get("git menu selected text")
+	got := p.Get("git menu text:selected")
 
 	assert.Equal(t, lipgloss.Color("8"), got.GetBackground())
 }
@@ -238,9 +238,22 @@ func TestPaletteGet_DefaultThemeDoesNotHighlightGitOrBookmarksMenus(t *testing.T
 	p := NewPalette()
 	p.Update(theme.Colors)
 
-	assert.IsType(t, lipgloss.NoColor{}, p.Get("git menu selected text").GetBackground())
-	assert.IsType(t, lipgloss.NoColor{}, p.Get("bookmarks menu selected text").GetBackground())
-	assert.Equal(t, lipgloss.Color("8"), p.Get("other menu selected text").GetBackground())
+	assert.IsType(t, lipgloss.NoColor{}, p.Get("git menu text:selected").GetBackground())
+	assert.IsType(t, lipgloss.NoColor{}, p.Get("bookmarks menu text:selected").GetBackground())
+	assert.Equal(t, lipgloss.Color("8"), p.Get("other menu text:selected").GetBackground())
+}
+
+func TestPaletteGetVariant_AppliesVariantConditionally(t *testing.T) {
+	p := NewPalette()
+	p.Update(map[string]config.Color{
+		"picker text":          {Fg: "white"},
+		"picker text:selected": {Fg: "cyan"},
+		":selected":            {Bg: "blue"},
+	})
+
+	assert.Equal(t, lipgloss.Color("7"), p.GetVariant("picker text", config.SelectedVariant, false).GetForeground())
+	assert.Equal(t, lipgloss.Color("6"), p.GetVariant("picker text", config.SelectedVariant, true).GetForeground())
+	assert.Equal(t, lipgloss.Color("4"), p.GetVariant("", config.SelectedVariant, true).GetBackground())
 }
 
 func TestPalette_Update(t *testing.T) {

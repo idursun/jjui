@@ -250,7 +250,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	textStyle := common.DefaultPalette.Get("oplog text")
-	selectedStyle := common.DefaultPalette.Get("oplog selected")
+	selectedStyle := common.DefaultPalette.GetVariant("oplog", config.SelectedVariant, true)
 	matchedStyle := common.DefaultPalette.Get("oplog matched")
 
 	renderItem := func(dl *render.DisplayContext, index int, itemRect layout.Rectangle) {

@@ -1180,7 +1180,7 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string, requ
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	textStyle := common.DefaultPalette.Get("revisions text")
 	dimmedStyle := common.DefaultPalette.Get("revisions dimmed")
-	selectedStyle := common.DefaultPalette.Get("revisions selected")
+	selectedStyle := common.DefaultPalette.GetVariant("revisions", config.SelectedVariant, true)
 	matchedStyle := common.DefaultPalette.Get("revisions matched")
 
 	m.displayContextRenderer.textStyle = textStyle

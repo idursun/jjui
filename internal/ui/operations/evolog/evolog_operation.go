@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/actions"
@@ -316,7 +317,7 @@ func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 	textStyle := common.DefaultPalette.Get("evolog text")
-	selectedStyle := common.DefaultPalette.Get("evolog selected")
+	selectedStyle := common.DefaultPalette.GetVariant("evolog", config.SelectedVariant, true)
 
 	totalHeight := 0
 	for _, row := range o.rows {

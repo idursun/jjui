@@ -6,6 +6,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
@@ -40,11 +41,12 @@ type Option func(m *AutoCompletionInput)
 
 func WithStylePrefix(prefix string) Option {
 	return func(m *AutoCompletionInput) {
+		variantSelector := prefix
 		if prefix != "" {
 			prefix += " "
 		}
 		styles := AutoCompleteStyles{
-			Selected: common.DefaultPalette.Get(prefix + "selected"),
+			Selected: common.DefaultPalette.GetVariant(variantSelector, config.SelectedVariant, true),
 			Matched:  common.DefaultPalette.Get(prefix + "matched"),
 			Text:     common.DefaultPalette.Get(prefix + "text"),
 			Dimmed:   common.DefaultPalette.Get(prefix + "dimmed"),

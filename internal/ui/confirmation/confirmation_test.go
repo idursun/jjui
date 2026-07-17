@@ -26,9 +26,9 @@ func TestConfirmationWithoutStylePrefix(t *testing.T) {
 	palette := common.NewPalette()
 	palette.Update(map[string]config.Color{
 		"confirmation text":             {Fg: White},
-		"confirmation selected":         {Fg: Green},
+		"confirmation:selected":         {Fg: Green},
 		"details confirmation text":     {Fg: Blue},
-		"details confirmation selected": {Fg: Red},
+		"details confirmation:selected": {Fg: Red},
 	})
 
 	originalPalette := common.DefaultPalette
@@ -44,9 +44,9 @@ func TestConfirmationWithStylePrefix(t *testing.T) {
 	palette := common.NewPalette()
 	palette.Update(map[string]config.Color{
 		"confirmation text":             {Fg: White},
-		"confirmation selected":         {Fg: Green},
+		"confirmation:selected":         {Fg: Green},
 		"details confirmation text":     {Fg: Blue},
-		"details confirmation selected": {Fg: Red},
+		"details confirmation:selected": {Fg: Red},
 	})
 
 	originalPalette := common.DefaultPalette

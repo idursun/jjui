@@ -214,9 +214,9 @@ func TestDetailsList_SelectedRowsUseStatusSpecificSelectedStyles(t *testing.T) {
 	palette := common.NewPalette()
 	palette.Update(map[string]config.Color{
 		"revisions details text":            {Fg: "#ffffff", Bg: "#000000"},
-		"revisions details selected":        {Bg: "#220044", Bold: boolPtr(true)},
-		"revisions details selected added":  {Fg: "#55ff99", Bg: "#220044", Bold: boolPtr(true)},
-		"revisions details selected dimmed": {Fg: "#ccccff", Bg: "#220044"},
+		"revisions details:selected":        {Bg: "#220044", Bold: boolPtr(true)},
+		"revisions details added:selected":  {Fg: "#55ff99", Bg: "#220044", Bold: boolPtr(true)},
+		"revisions details dimmed:selected": {Fg: "#ccccff", Bg: "#220044"},
 	})
 	common.DefaultPalette = palette
 	defer func() { common.DefaultPalette = originalPalette }()

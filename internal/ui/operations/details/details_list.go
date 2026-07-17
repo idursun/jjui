@@ -3,6 +3,7 @@ package details
 import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -162,16 +163,9 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 
 	tb.Styled(title, style.PaddingRight(1))
 
-	dimmedStyle := common.DefaultPalette.Get("revisions details dimmed")
-	conflictStyle := common.DefaultPalette.Get("revisions details conflict")
-	selectedDimmedStyle := common.DefaultPalette.Get("revisions details selected dimmed")
-
 	// Add conflict marker
 	if item.conflict {
-		conflictMarkerStyle := conflictStyle
-		if selected {
-			conflictMarkerStyle = common.DefaultPalette.Get("revisions details selected conflict")
-		}
+		conflictMarkerStyle := common.DefaultPalette.GetVariant("revisions details conflict", config.SelectedVariant, selected)
 		tb.Styled("conflict ", conflictMarkerStyle)
 	}
 
@@ -184,36 +178,28 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 		}
 	}
 	if hint != "" {
-		hintStyle := dimmedStyle
-		if selected {
-			hintStyle = selectedDimmedStyle
-		}
+		hintStyle := common.DefaultPalette.GetVariant("revisions details dimmed", config.SelectedVariant, selected)
 		tb.Styled(hint, hintStyle)
 	}
 }
 
 func (d *DetailsList) getStatusStyle(s status, selected bool) lipgloss.Style {
-	prefix := "revisions details"
-	if selected {
-		prefix += " selected"
-	}
+	selector := "revisions details "
 	switch s {
 	case Added:
-		return common.DefaultPalette.Get(prefix + " added")
+		selector += "added"
 	case Deleted:
-		return common.DefaultPalette.Get(prefix + " deleted")
+		selector += "deleted"
 	case Modified:
-		return common.DefaultPalette.Get(prefix + " modified")
+		selector += "modified"
 	case Renamed:
-		return common.DefaultPalette.Get(prefix + " renamed")
+		selector += "renamed"
 	case Copied:
-		return common.DefaultPalette.Get(prefix + " copied")
+		selector += "copied"
 	default:
-		if selected {
-			return common.DefaultPalette.Get("revisions details selected")
-		}
-		return common.DefaultPalette.Get("revisions details text")
+		selector += "text"
 	}
+	return common.DefaultPalette.GetVariant(selector, config.SelectedVariant, selected)
 }
 
 // Scroll handles mouse wheel scrolling

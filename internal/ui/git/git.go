@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -366,7 +367,7 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
 	remotePromptStyle := common.DefaultPalette.Get("git title")
 	menuTextStyle := common.DefaultPalette.Get("git menu text")
 	remoteTextStyle := common.DefaultPalette.Get("git dimmed")
-	remoteSelectedStyle := common.DefaultPalette.Get("git menu selected")
+	remoteSelectedStyle := common.DefaultPalette.GetVariant("git menu", config.SelectedVariant, true)
 	noRemoteStyle := common.DefaultPalette.Get("git error")
 
 	dl.AddFill(lineBox.R, ' ', menuTextStyle, render.ZMenuContent)
@@ -589,15 +590,10 @@ func renderItem(dl *render.DisplayContext, rect layout.Rectangle, width int, sho
 		desc = desc[:width-1] + "…"
 	}
 
-	textStyle := common.DefaultPalette.Get("git menu text")
-	descStyle := common.DefaultPalette.Get("git menu dimmed")
-	shortcutStyle := common.DefaultPalette.Get("git menu shortcut")
-
-	if index == cursor {
-		textStyle = common.DefaultPalette.Get("git menu selected text")
-		descStyle = common.DefaultPalette.Get("git menu selected dimmed")
-		shortcutStyle = common.DefaultPalette.Get("git menu selected shortcut")
-	}
+	isSelected := index == cursor
+	textStyle := common.DefaultPalette.GetVariant("git menu text", config.SelectedVariant, isSelected)
+	descStyle := common.DefaultPalette.GetVariant("git menu dimmed", config.SelectedVariant, isSelected)
+	shortcutStyle := common.DefaultPalette.GetVariant("git menu shortcut", config.SelectedVariant, isSelected)
 
 	titleLine := ""
 	if shortcut != "" {

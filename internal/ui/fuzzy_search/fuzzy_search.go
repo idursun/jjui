@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/sahilm/fuzzy"
 )
@@ -48,7 +49,7 @@ func View(fzf Model) string {
 	max := fzf.Max()
 	dimmedStyle := common.DefaultPalette.Get("status dimmed")
 	dimmedMatchStyle := common.DefaultPalette.Get("status shortcut")
-	selectedStyle := common.DefaultPalette.Get("selected")
+	selectedStyle := common.DefaultPalette.GetVariant("", config.SelectedVariant, true)
 	selectedMatchStyle := common.DefaultPalette.Get("status title")
 	selected := fzf.SelectedMatch()
 	for i, match := range fzf.Matches() {

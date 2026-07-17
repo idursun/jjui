@@ -6,6 +6,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -258,7 +259,7 @@ func New(messages []string, opts ...Option) *Model {
 	m.Styles = Styles{
 		Border:   common.DefaultPalette.GetBorder(m.getStyleKey("confirmation border"), lipgloss.RoundedBorder()),
 		Text:     common.DefaultPalette.Get(m.getStyleKey("confirmation text")).PaddingRight(1),
-		Selected: common.DefaultPalette.Get(m.getStyleKey("confirmation selected")).PaddingLeft(2).PaddingRight(2),
+		Selected: common.DefaultPalette.GetVariant(m.getStyleKey("confirmation"), config.SelectedVariant, true).PaddingLeft(2).PaddingRight(2),
 		Dimmed:   common.DefaultPalette.Get(m.getStyleKey("confirmation dimmed")).PaddingLeft(2).PaddingRight(2),
 	}
 

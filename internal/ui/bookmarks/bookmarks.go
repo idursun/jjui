@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -529,7 +530,7 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
 	remotePromptStyle := common.DefaultPalette.Get("bookmarks title")
 	menuTextStyle := common.DefaultPalette.Get("bookmarks menu text")
 	remoteTextStyle := common.DefaultPalette.Get("bookmarks dimmed")
-	remoteSelectedStyle := common.DefaultPalette.Get("bookmarks menu selected")
+	remoteSelectedStyle := common.DefaultPalette.GetVariant("bookmarks menu", config.SelectedVariant, true)
 	noRemoteStyle := common.DefaultPalette.Get("bookmarks error")
 
 	dl.AddFill(lineBox.R, ' ', menuTextStyle, render.ZMenuContent)
@@ -833,15 +834,10 @@ func renderItem(dl *render.DisplayContext, rect layout.Rectangle, width int, sho
 		desc = desc[:width-1] + "…"
 	}
 
-	textStyle := common.DefaultPalette.Get("bookmarks menu text")
-	descStyle := common.DefaultPalette.Get("bookmarks menu dimmed")
-	shortcutStyle := common.DefaultPalette.Get("bookmarks menu shortcut")
-
-	if index == cursor {
-		textStyle = common.DefaultPalette.Get("bookmarks menu selected text")
-		descStyle = common.DefaultPalette.Get("bookmarks menu selected dimmed")
-		shortcutStyle = common.DefaultPalette.Get("bookmarks menu selected shortcut")
-	}
+	isSelected := index == cursor
+	textStyle := common.DefaultPalette.GetVariant("bookmarks menu text", config.SelectedVariant, isSelected)
+	descStyle := common.DefaultPalette.GetVariant("bookmarks menu dimmed", config.SelectedVariant, isSelected)
+	shortcutStyle := common.DefaultPalette.GetVariant("bookmarks menu shortcut", config.SelectedVariant, isSelected)
 
 	titleLine := ""
 	if shortcut != "" {
