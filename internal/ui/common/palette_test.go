@@ -195,7 +195,7 @@ func TestPaletteGet_SelectedSuffixRoleOverridesSemanticRole(t *testing.T) {
 }
 
 func TestPaletteGet_EmbeddedSuffixThemeWorksWithLegacyLookup(t *testing.T) {
-	theme, err := config.LoadEmbeddedTheme("default", config.ResolvedTheme{}, true)
+	theme, err := config.LoadEmbeddedTheme("default", true)
 	assert.NoError(t, err)
 	p := NewPalette()
 	p.Update(theme.Colors)
@@ -233,7 +233,7 @@ func TestPaletteGet_OmittedBackgroundInheritsSelectedBackground(t *testing.T) {
 }
 
 func TestPaletteGet_DefaultThemeDoesNotHighlightGitOrBookmarksMenus(t *testing.T) {
-	theme, err := config.LoadEmbeddedTheme("default", config.ResolvedTheme{}, true)
+	theme, err := config.LoadEmbeddedTheme("default", true)
 	assert.NoError(t, err)
 	p := NewPalette()
 	p.Update(theme.Colors)

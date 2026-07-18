@@ -22,7 +22,7 @@ selected = { fg = "white", bg = "blue" }
 error = "red"
 `)
 
-	theme, err := loadTheme(themeData, ResolvedTheme{}, false)
+	theme, err := loadTheme(themeData, false)
 	require.NoError(t, err)
 
 	expected := map[string]Color{
@@ -32,33 +32,6 @@ error = "red"
 	}
 
 	assert.EqualExportedValues(t, expected, theme.Colors)
-}
-
-func TestLoadThemeWithBase(t *testing.T) {
-	baseTheme := map[string]Color{
-		"title":    {Fg: "green", Bold: boolPtr(true)},
-		"selected": {Fg: "cyan", Bg: "black"},
-		"error":    {Fg: "red"},
-		"border":   {Fg: "white"},
-	}
-
-	partialOverride := []byte(`
-title = { fg = "magenta", bold = true }
-selected = { fg = "yellow", bg = "blue" }
-`)
-
-	theme, err := loadTheme(partialOverride, ResolvedTheme{Colors: baseTheme, BackgroundBlend: 0.4}, false)
-	require.NoError(t, err)
-
-	expected := map[string]Color{
-		"title":     {Fg: "magenta", Bold: boolPtr(true)},
-		":selected": {Fg: "yellow", Bg: "blue"},
-		"error":     {Fg: "red"},
-		"border":    {Fg: "white"},
-	}
-
-	assert.EqualExportedValues(t, expected, theme.Colors)
-	assert.Equal(t, 0.4, theme.BackgroundBlend)
 }
 
 func TestLoadStructuredThemeResolvesActiveVariant(t *testing.T) {
@@ -77,32 +50,16 @@ background_blend = 0.6
 selected = { bg = "bright black" }
 `)
 
-	light, err := loadTheme(themeData, ResolvedTheme{}, false)
+	light, err := loadTheme(themeData, false)
 	require.NoError(t, err)
 	assert.Equal(t, 0.2, light.BackgroundBlend)
 	assert.Equal(t, "magenta", light.Colors["title"].Fg)
 	assert.Equal(t, "white", light.Colors[":selected"].Bg)
 
-	dark, err := loadTheme(themeData, ResolvedTheme{}, true)
+	dark, err := loadTheme(themeData, true)
 	require.NoError(t, err)
 	assert.Equal(t, 0.6, dark.BackgroundBlend)
 	assert.Equal(t, "bright black", dark.Colors[":selected"].Bg)
-}
-
-func TestLoadStructuredThemeExplicitZeroDisablesInheritedBlend(t *testing.T) {
-	theme, err := loadTheme([]byte(`
-[light]
-background_blend = 0.0
-`), ResolvedTheme{BackgroundBlend: 0.4}, false)
-	require.NoError(t, err)
-	assert.Zero(t, theme.BackgroundBlend)
-}
-
-func TestLoadLegacyThemeInheritsBaseBackgroundBlend(t *testing.T) {
-	theme, err := loadTheme([]byte(`selected = { bg = "blue" }`), ResolvedTheme{BackgroundBlend: 0.4}, true)
-	require.NoError(t, err)
-	assert.Equal(t, 0.4, theme.BackgroundBlend)
-	assert.Equal(t, "blue", theme.Colors[":selected"].Bg)
 }
 
 func TestLoadStructuredThemeRejectsInvalidBackgroundBlend(t *testing.T) {
@@ -111,16 +68,16 @@ func TestLoadStructuredThemeRejectsInvalidBackgroundBlend(t *testing.T) {
 			_, err := loadTheme([]byte(fmt.Sprintf(`
 [dark]
 background_blend = %s
-`, value)), ResolvedTheme{}, true)
+`, value)), true)
 			assert.ErrorContains(t, err, "invalid value for 'dark.background_blend'")
 		})
 	}
 }
 
 func TestLoadEmbeddedDefaultThemeResolvesLightAndDarkVariants(t *testing.T) {
-	light, err := LoadEmbeddedTheme("default", ResolvedTheme{}, false)
+	light, err := LoadEmbeddedTheme("default", false)
 	require.NoError(t, err)
-	dark, err := LoadEmbeddedTheme("default", ResolvedTheme{}, true)
+	dark, err := LoadEmbeddedTheme("default", true)
 	require.NoError(t, err)
 
 	assert.Equal(t, 0.4, light.BackgroundBlend)
@@ -129,6 +86,58 @@ func TestLoadEmbeddedDefaultThemeResolvesLightAndDarkVariants(t *testing.T) {
 	assert.Equal(t, 0.4, dark.BackgroundBlend)
 	assert.Equal(t, "bright black", dark.Colors[":selected"].Bg)
 	assert.Equal(t, "black", dark.Colors["revset completion"].Bg)
+}
+
+func TestResolveThemeUsesDefaultThemeAsBaseWhenNoUserThemeConfigured(t *testing.T) {
+	originalUI := Current.UI
+	t.Cleanup(func() { Current.UI = originalUI })
+	Current.UI.Theme = ThemeConfig{}
+	Current.UI.Colors = map[string]Color{
+		"inline override": {Fg: "magenta"},
+	}
+	Current.UI.BackgroundBlend = nil
+
+	theme, err := ResolveTheme(true, map[string]Color{
+		"jj override": {Fg: "cyan"},
+	})
+	require.NoError(t, err)
+
+	assert.Contains(t, theme.Colors, "dimmed")
+	assert.Equal(t, "cyan", theme.Colors["jj override"].Fg)
+	assert.Equal(t, "magenta", theme.Colors["inline override"].Fg)
+	assert.Equal(t, 0.4, theme.BackgroundBlend)
+}
+
+func TestResolveThemeUsesUserThemeInsteadOfDefaultTheme(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("JJUI_CONFIG_DIR", configDir)
+	require.NoError(t, os.MkdirAll(filepath.Join(configDir, "themes"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(configDir, "themes", "custom.toml"), []byte(`
+[colors]
+"custom base" = { fg = "yellow" }
+
+[dark]
+background_blend = 0.2
+`), 0o600))
+
+	originalUI := Current.UI
+	t.Cleanup(func() { Current.UI = originalUI })
+	Current.UI.Theme = ThemeConfig{Dark: "custom"}
+	Current.UI.Colors = map[string]Color{
+		"inline override": {Fg: "magenta"},
+	}
+	Current.UI.BackgroundBlend = nil
+
+	theme, err := ResolveTheme(true, map[string]Color{
+		"jj override": {Fg: "cyan"},
+	})
+	require.NoError(t, err)
+
+	assert.NotContains(t, theme.Colors, "dimmed")
+	assert.Equal(t, "yellow", theme.Colors["custom base"].Fg)
+	assert.Equal(t, "cyan", theme.Colors["jj override"].Fg)
+	assert.Equal(t, "magenta", theme.Colors["inline override"].Fg)
+	assert.Equal(t, 0.2, theme.BackgroundBlend)
 }
 
 func TestResolveThemeUIBackgroundBlendOverridesTheme(t *testing.T) {
@@ -155,16 +164,6 @@ func TestResolveThemeRejectsInvalidUIBackgroundBlend(t *testing.T) {
 	Current.UI.BackgroundBlend = &override
 	_, err := ResolveTheme(true, nil)
 	assert.ErrorContains(t, err, "invalid value for 'ui.background_blend'")
-}
-
-func TestLoadThemeHigherLayerLegacySelectorOverridesCanonicalBase(t *testing.T) {
-	base := ResolvedTheme{Colors: map[string]Color{
-		"menu text:selected": {Fg: "red"},
-	}}
-	theme, err := loadTheme([]byte(`"menu selected text" = { fg = "blue" }`), base, true)
-	require.NoError(t, err)
-
-	assert.Equal(t, "blue", theme.Colors["menu text:selected"].Fg)
 }
 
 func findLastActionByName(actions []ActionConfig, name string) (ActionConfig, bool) {

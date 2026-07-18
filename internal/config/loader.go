@@ -245,12 +245,8 @@ func LoadRepoLuaConfigFile(repoRoot string) (string, error) {
 	return string(data), nil
 }
 
-func loadTheme(data []byte, base ResolvedTheme, isDark bool) (ResolvedTheme, error) {
-	colors := NormalizeColorSelectors(base.Colors)
-	if colors == nil {
-		colors = make(map[string]Color)
-	}
-	resolved := ResolvedTheme{Colors: colors, BackgroundBlend: base.BackgroundBlend}
+func loadTheme(data []byte, isDark bool) (ResolvedTheme, error) {
+	resolved := ResolvedTheme{Colors: make(map[string]Color)}
 
 	structured, err := isStructuredTheme(data)
 	if err != nil {
@@ -330,16 +326,16 @@ func validateBackgroundBlend(name string, value *float64) error {
 	return nil
 }
 
-func LoadEmbeddedTheme(name string, base ResolvedTheme, isDark bool) (ResolvedTheme, error) {
+func LoadEmbeddedTheme(name string, isDark bool) (ResolvedTheme, error) {
 	embeddedPath := "default/" + name + ".toml"
 	data, err := configFS.ReadFile(embeddedPath)
 	if err != nil {
 		return ResolvedTheme{}, err
 	}
-	return loadTheme(data, base, isDark)
+	return loadTheme(data, isDark)
 }
 
-func LoadTheme(name string, base ResolvedTheme, isDark bool) (ResolvedTheme, error) {
+func LoadTheme(name string, isDark bool) (ResolvedTheme, error) {
 	configFilePath := getConfigFilePath()
 	themeFile := filepath.Join(filepath.Dir(configFilePath), "themes", name+".toml")
 
@@ -347,7 +343,7 @@ func LoadTheme(name string, base ResolvedTheme, isDark bool) (ResolvedTheme, err
 	if err != nil {
 		return ResolvedTheme{}, err
 	}
-	return loadTheme(data, base, isDark)
+	return loadTheme(data, isDark)
 }
 
 type LuaTypesInstallResult struct {
@@ -410,23 +406,25 @@ func ensureLuaRC(luaRCPath, typesPath string) (bool, error) {
 }
 
 // ResolveTheme loads the full color map for the given background mode.
-// It layers the embedded default theme, optional user theme, jj VCS colors,
-// inline [ui.colors] overrides, and an optional [ui] background_blend override
-// in the correct order.
+// It selects either the embedded default theme or the configured user theme as
+// the base, then layers jj VCS colors, inline [ui.colors] overrides, and an
+// optional [ui] background_blend override in the correct order.
 func ResolveTheme(isDark bool, jjColors map[string]Color) (ResolvedTheme, error) {
-	const defaultThemeName = "default"
-	theme, err := LoadEmbeddedTheme(defaultThemeName, ResolvedTheme{}, isDark)
-	if err != nil {
-		return ResolvedTheme{}, fmt.Errorf("loading default theme %q: %w", defaultThemeName, err)
-	}
-
 	userThemeName := Current.UI.Theme.Light
 	if isDark {
 		userThemeName = Current.UI.Theme.Dark
 	}
 
-	if userThemeName != "" {
-		theme, err = LoadTheme(userThemeName, theme, isDark)
+	var theme ResolvedTheme
+	var err error
+	if userThemeName == "" {
+		const defaultThemeName = "default"
+		theme, err = LoadEmbeddedTheme(defaultThemeName, isDark)
+		if err != nil {
+			return ResolvedTheme{}, fmt.Errorf("loading default theme %q: %w", defaultThemeName, err)
+		}
+	} else {
+		theme, err = LoadTheme(userThemeName, isDark)
 		if err != nil {
 			return ResolvedTheme{}, fmt.Errorf("loading user theme %q: %w", userThemeName, err)
 		}
