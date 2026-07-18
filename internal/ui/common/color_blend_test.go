@@ -52,14 +52,14 @@ func TestApplyThemeBackgroundBlend_SelectedSuffixSyntaxMatchesLegacySyntax(t *te
 
 func TestApplyThemeBackgroundBlend_UsesInheritedSurfaceBorderBackground(t *testing.T) {
 	theme := map[string]config.Color{
-		"git menu shortcut:selected": {Fg: "#dcd7ba", Bg: "#363646"},
-		"menu border":                {Bg: "#202020"},
+		"git shortcut:selected": {Fg: "#dcd7ba", Bg: "#363646"},
+		"git border":            {Bg: "#202020"},
 	}
 
 	err := ApplyThemeBackgroundBlend(theme, 0.25, "", nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, "#31313f", theme["git menu shortcut:selected"].Bg)
+	assert.Equal(t, "#31313f", theme["git shortcut:selected"].Bg)
 }
 
 func TestApplyThemeBackgroundBlend_SkipsWhenSurfaceBorderHasNoBackground(t *testing.T) {

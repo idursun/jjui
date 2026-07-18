@@ -27,10 +27,10 @@ error = "red"
 "revset completion text:selected" = { fg = "bright green" }
 "revset completion matched:selected" = { underline = true, bold = true }
 "status title" = { fg = "black", bg = "magenta", bold = true }
-"menu matched" = { fg = "magenta", bold = true }
-"menu shortcut:selected" = { bg = "default" }
-"git menu:selected" = { bg = "default" }
-"bookmarks menu:selected" = { bg = "default" }
+"git matched" = { fg = "magenta", bold = true }
+"bookmarks matched" = { fg = "magenta", bold = true }
+"git:selected" = { fg = "cyan", bg = "default", bold = true, underline = false }
+"bookmarks:selected" = { fg = "cyan", bg = "default", bold = true, underline = false }
 "picker dimmed" = { fg = "bright black" }
 "picker matched" = { underline = true }
 "picker:selected" = { fg = "cyan", bg = "bright black", bold = true, underline = false }
@@ -44,15 +44,13 @@ background_blend = 0.4
 [light.colors]
 ":selected" = { bg = "white" }
 "revset completion" = { bg = "default" }
-"menu title" = { fg = "62", bg = "230", bold = true }
-"menu subtitle" = { fg = "62", bold = true }
-"menu:selected" = { fg = "cyan", bold = true, underline = false }
+"git title" = { fg = "62", bg = "230", bold = true }
+"bookmarks title" = { fg = "62", bg = "230", bold = true }
 
 [dark]
 background_blend = 0.4
 
 [dark.colors]
 ":selected" = { fg = "cyan", bg = "bright black" }
-"menu title" = { fg = "230", bg = "62", bold = true }
-"menu subtitle" = { fg = "230", bold = true }
-"menu:selected" = { fg = "cyan", bold = true, underline = false }
+"git title" = { fg = "230", bg = "62", bold = true }
+"bookmarks title" = { fg = "230", bg = "62", bold = true }

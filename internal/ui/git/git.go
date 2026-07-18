@@ -304,10 +304,10 @@ func (m *Model) executeDefaultForFilter(kind intents.GitFilterKind) tea.Cmd {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	menuTitleStyle := common.DefaultPalette.Get("git menu title")
-	menuTextStyle := common.DefaultPalette.Get("git menu text")
-	menuMatchedStyle := common.DefaultPalette.Get("git menu matched")
-	borderStyle := common.DefaultPalette.GetBorder("git menu border", lipgloss.NormalBorder())
+	menuTitleStyle := common.DefaultPalette.Get("git title")
+	menuTextStyle := common.DefaultPalette.Get("git text")
+	menuMatchedStyle := common.DefaultPalette.Get("git matched")
+	borderStyle := common.DefaultPalette.GetBorder("git border", lipgloss.NormalBorder())
 
 	pw, ph := box.R.Dx(), box.R.Dy()
 	contentWidth := max(min(pw, 80)-4, 0)
@@ -365,16 +365,16 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
 	}
 
 	remotePromptStyle := common.DefaultPalette.Get("git title")
-	menuTextStyle := common.DefaultPalette.Get("git menu text")
-	remoteTextStyle := common.DefaultPalette.Get("git dimmed")
-	remoteSelectedStyle := common.DefaultPalette.GetVariant("git menu", config.SelectedVariant, true)
+	remoteTextStyle := common.DefaultPalette.Get("git text")
+	remoteDimmedStyle := common.DefaultPalette.Get("git dimmed")
+	remoteSelectedStyle := common.DefaultPalette.GetVariant("git", config.SelectedVariant, true)
 	noRemoteStyle := common.DefaultPalette.Get("git error")
 
-	dl.AddFill(lineBox.R, ' ', menuTextStyle, render.ZMenuContent)
+	dl.AddFill(lineBox.R, ' ', remoteTextStyle, render.ZMenuContent)
 
 	// Render above menu content
 	tb := dl.Text(lineBox.R.Min.X, lineBox.R.Min.Y, render.ZMenuContent+1).
-		Styled(" ", menuTextStyle).
+		Styled(" ", remoteTextStyle).
 		Styled("Remotes: ", remotePromptStyle)
 
 	if len(m.remoteNames) == 0 {
@@ -383,11 +383,11 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
 	}
 
 	for idx, remoteName := range m.remoteNames {
-		style := remoteTextStyle
+		style := remoteDimmedStyle
 		if idx == m.selectedRemoteIdx {
 			style = remoteSelectedStyle
 		}
-		tb.Clickable(remoteName, style, SelectRemoteMsg{Index: idx}).Styled(" ", menuTextStyle)
+		tb.Clickable(remoteName, style, SelectRemoteMsg{Index: idx}).Styled(" ", remoteTextStyle)
 	}
 
 	tb.Done()
@@ -522,8 +522,8 @@ func (m *Model) renderFilterView(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 	width := box.R.Dx()
-	menuTextStyle := common.DefaultPalette.Get("git menu text")
-	menuMatchedStyle := common.DefaultPalette.Get("git menu matched")
+	menuTextStyle := common.DefaultPalette.Get("git text")
+	menuMatchedStyle := common.DefaultPalette.Get("git matched")
 	filterStyle := menuTextStyle.PaddingLeft(1)
 	filterValueStyle := menuMatchedStyle
 
@@ -591,9 +591,9 @@ func renderItem(dl *render.DisplayContext, rect layout.Rectangle, width int, sho
 	}
 
 	isSelected := index == cursor
-	textStyle := common.DefaultPalette.GetVariant("git menu text", config.SelectedVariant, isSelected)
-	descStyle := common.DefaultPalette.GetVariant("git menu dimmed", config.SelectedVariant, isSelected)
-	shortcutStyle := common.DefaultPalette.GetVariant("git menu shortcut", config.SelectedVariant, isSelected)
+	textStyle := common.DefaultPalette.GetVariant("git text", config.SelectedVariant, isSelected)
+	descStyle := common.DefaultPalette.GetVariant("git dimmed", config.SelectedVariant, isSelected)
+	shortcutStyle := common.DefaultPalette.GetVariant("git shortcut", config.SelectedVariant, isSelected)
 
 	titleLine := ""
 	if shortcut != "" {
