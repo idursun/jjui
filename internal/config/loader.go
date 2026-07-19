@@ -440,12 +440,22 @@ func ResolveTheme(isDark bool, jjColors map[string]Color) (ResolvedTheme, error)
 		maps.Copy(theme.Colors, NormalizeColorSelectors(Current.UI.Colors))
 	}
 
-	if err := validateBackgroundBlend("ui.background_blend", Current.UI.BackgroundBlend); err != nil {
+	if err := validateBackgroundBlendConfig(Current.UI.BackgroundBlend); err != nil {
 		return ResolvedTheme{}, err
 	}
-	if Current.UI.BackgroundBlend != nil {
-		theme.BackgroundBlend = *Current.UI.BackgroundBlend
+	if backgroundBlend := Current.UI.BackgroundBlend.Resolve(isDark); backgroundBlend != nil {
+		theme.BackgroundBlend = *backgroundBlend
 	}
 
 	return theme, nil
+}
+
+func validateBackgroundBlendConfig(value BackgroundBlendConfig) error {
+	if err := validateBackgroundBlend("ui.background_blend", value.Value); err != nil {
+		return err
+	}
+	if err := validateBackgroundBlend("ui.background_blend.light", value.Light); err != nil {
+		return err
+	}
+	return validateBackgroundBlend("ui.background_blend.dark", value.Dark)
 }

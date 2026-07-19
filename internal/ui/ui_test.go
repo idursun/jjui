@@ -1746,7 +1746,7 @@ func inspectTerminalRefresh(cmd tea.Cmd) (themeChanged, paletteRequested, backgr
 func enableBackgroundBlend(t *testing.T, value float64) {
 	original := config.Current.UI.BackgroundBlend
 	t.Cleanup(func() { config.Current.UI.BackgroundBlend = original })
-	config.Current.UI.BackgroundBlend = &value
+	config.Current.UI.BackgroundBlend = config.BackgroundBlendConfig{Value: &value}
 }
 
 func Test_Init_EnablesMode2031AndStartsPolling(t *testing.T) {

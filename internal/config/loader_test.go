@@ -95,7 +95,7 @@ func TestResolveThemeUsesDefaultThemeAsBaseWhenNoUserThemeConfigured(t *testing.
 	Current.UI.Colors = map[string]Color{
 		"inline override": {Fg: "magenta"},
 	}
-	Current.UI.BackgroundBlend = nil
+	Current.UI.BackgroundBlend = BackgroundBlendConfig{}
 
 	theme, err := ResolveTheme(true, map[string]Color{
 		"jj override": {Fg: "cyan"},
@@ -126,7 +126,7 @@ background_blend = 0.2
 	Current.UI.Colors = map[string]Color{
 		"inline override": {Fg: "magenta"},
 	}
-	Current.UI.BackgroundBlend = nil
+	Current.UI.BackgroundBlend = BackgroundBlendConfig{}
 
 	theme, err := ResolveTheme(true, map[string]Color{
 		"jj override": {Fg: "cyan"},
@@ -145,7 +145,7 @@ func TestResolveThemeUIBackgroundBlendOverridesTheme(t *testing.T) {
 	t.Cleanup(func() { Current.UI.BackgroundBlend = original })
 
 	override := 0.4
-	Current.UI.BackgroundBlend = &override
+	Current.UI.BackgroundBlend = BackgroundBlendConfig{Value: &override}
 	theme, err := ResolveTheme(true, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 0.4, theme.BackgroundBlend)
@@ -161,9 +161,35 @@ func TestResolveThemeRejectsInvalidUIBackgroundBlend(t *testing.T) {
 	t.Cleanup(func() { Current.UI.BackgroundBlend = original })
 
 	override := 1.5
-	Current.UI.BackgroundBlend = &override
+	Current.UI.BackgroundBlend = BackgroundBlendConfig{Value: &override}
 	_, err := ResolveTheme(true, nil)
 	assert.ErrorContains(t, err, "invalid value for 'ui.background_blend'")
+
+	override = -0.1
+	Current.UI.BackgroundBlend = BackgroundBlendConfig{Light: &override}
+	_, err = ResolveTheme(false, nil)
+	assert.ErrorContains(t, err, "invalid value for 'ui.background_blend.light'")
+}
+
+func TestResolveThemeUIBackgroundBlendUsesActiveModeOverride(t *testing.T) {
+	original := Current.UI.BackgroundBlend
+	t.Cleanup(func() { Current.UI.BackgroundBlend = original })
+
+	light, dark := 0.2, 0.6
+	Current.UI.BackgroundBlend = BackgroundBlendConfig{Light: &light, Dark: &dark}
+
+	theme, err := ResolveTheme(false, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 0.2, theme.BackgroundBlend)
+
+	theme, err = ResolveTheme(true, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 0.6, theme.BackgroundBlend)
+
+	Current.UI.BackgroundBlend = BackgroundBlendConfig{Light: &light}
+	theme, err = ResolveTheme(true, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 0.4, theme.BackgroundBlend)
 }
 
 func findLastActionByName(actions []ActionConfig, name string) (ActionConfig, bool) {
