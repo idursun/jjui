@@ -6,7 +6,6 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -44,21 +43,21 @@ type Styles struct {
 }
 
 type Model struct {
-	options     []option
-	selected    int
-	Styles      Styles
-	messages    []string
-	stylePrefix string
-	zIndex      int
+	options    []option
+	selected   int
+	Styles     Styles
+	messages   []string
+	styleScope string
+	zIndex     int
 }
 
 // Option is a function that configures a Model
 type Option func(*Model)
 
-// WithStylePrefix returns an Option that sets the style prefix for palette lookups
-func WithStylePrefix(prefix string) Option {
+// WithStyleScope returns an Option that sets the owning scope for palette lookups.
+func WithStyleScope(scope string) Option {
 	return func(m *Model) {
-		m.stylePrefix = prefix
+		m.styleScope = scope
 	}
 }
 
@@ -235,14 +234,6 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	tb.Done()
 }
 
-// getStyleKey prefixes the key with the style prefix if one is set
-func (m *Model) getStyleKey(key string) string {
-	if m.stylePrefix == "" {
-		return key
-	}
-	return m.stylePrefix + " " + key
-}
-
 func New(messages []string, opts ...Option) *Model {
 	m := Model{
 		messages: messages,
@@ -255,12 +246,17 @@ func New(messages []string, opts ...Option) *Model {
 		opt(&m)
 	}
 
-	// Set styles after options are applied so stylePrefix is considered
+	scope, component := m.styleScope, "confirmation"
+	if scope == "" {
+		scope, component = "confirmation", ""
+	}
+
+	// Set styles after options are applied so styleScope is considered.
 	m.Styles = Styles{
-		Border:   common.DefaultPalette.GetBorder(m.getStyleKey("confirmation border"), lipgloss.RoundedBorder()),
-		Text:     common.DefaultPalette.Get(m.getStyleKey("confirmation text")).PaddingRight(1),
-		Selected: common.DefaultPalette.GetVariant(m.getStyleKey("confirmation"), config.SelectedVariant, true).PaddingLeft(2).PaddingRight(2),
-		Dimmed:   common.DefaultPalette.Get(m.getStyleKey("confirmation dimmed")).PaddingLeft(2).PaddingRight(2),
+		Border:   common.DefaultPalette.GetBorder(scope, component, "border", false, lipgloss.RoundedBorder()),
+		Text:     common.DefaultPalette.Get(scope, component, "text", false).PaddingRight(1),
+		Selected: common.DefaultPalette.Get(scope, component, "", true).PaddingLeft(2).PaddingRight(2),
+		Dimmed:   common.DefaultPalette.Get(scope, component, "dimmed", false).PaddingLeft(2).PaddingRight(2),
 	}
 
 	return &m

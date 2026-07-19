@@ -136,8 +136,8 @@ func NewSetBookmarkOperation(context *context.MainContext, changeId string, init
 }
 
 func (s *SetBookmarkOperation) viewContent() string {
-	dimmedStyle := common.DefaultPalette.Get("revisions dimmed").Inline(true)
-	textStyle := common.DefaultPalette.Get("revisions text").Inline(true)
+	dimmedStyle := common.DefaultPalette.Get("revisions", "", "dimmed", false).Inline(true)
+	textStyle := common.DefaultPalette.Get("revisions", "", "text", false).Inline(true)
 	styles := s.name.Styles()
 	styles.Focused.Text = textStyle
 	styles.Focused.Prompt = textStyle

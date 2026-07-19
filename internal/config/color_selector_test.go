@@ -43,10 +43,3 @@ func TestParseColorSelector_LeavesUnknownStateSuffixUntouched(t *testing.T) {
 	assert.False(t, selector.HasVariant(SelectedVariant))
 	assert.Equal(t, "revisions text:focused", selector.Key())
 }
-
-func TestParseColorSelector_PreservesLegacyStatePositionForResolution(t *testing.T) {
-	selector := ParseColorSelector("revisions details selected")
-
-	assert.Equal(t, "revisions details:selected", selector.Key())
-	assert.Equal(t, []string{"revisions", "details", "selected"}, selector.LegacyFields())
-}

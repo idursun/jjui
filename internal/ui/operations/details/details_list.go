@@ -3,7 +3,6 @@ package details
 import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -111,7 +110,7 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 		return 1
 	}
 
-	textStyle := common.DefaultPalette.Get("revisions details text")
+	textStyle := common.DefaultPalette.Get("revisions", "details", "text", false)
 
 	// Render function - renders each visible item
 	renderItem := func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
@@ -165,7 +164,7 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 
 	// Add conflict marker
 	if item.conflict {
-		conflictMarkerStyle := common.DefaultPalette.GetVariant("revisions details conflict", config.SelectedVariant, selected)
+		conflictMarkerStyle := common.DefaultPalette.Get("revisions", "details", "conflict", selected)
 		tb.Styled("conflict ", conflictMarkerStyle)
 	}
 
@@ -178,28 +177,26 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 		}
 	}
 	if hint != "" {
-		hintStyle := common.DefaultPalette.GetVariant("revisions details dimmed", config.SelectedVariant, selected)
+		hintStyle := common.DefaultPalette.Get("revisions", "details", "dimmed", selected)
 		tb.Styled(hint, hintStyle)
 	}
 }
 
 func (d *DetailsList) getStatusStyle(s status, selected bool) lipgloss.Style {
-	selector := "revisions details "
+	role := "text"
 	switch s {
 	case Added:
-		selector += "added"
+		role = "added"
 	case Deleted:
-		selector += "deleted"
+		role = "deleted"
 	case Modified:
-		selector += "modified"
+		role = "modified"
 	case Renamed:
-		selector += "renamed"
+		role = "renamed"
 	case Copied:
-		selector += "copied"
-	default:
-		selector += "text"
+		role = "copied"
 	}
-	return common.DefaultPalette.GetVariant(selector, config.SelectedVariant, selected)
+	return common.DefaultPalette.Get("revisions", "details", role, selected)
 }
 
 // Scroll handles mouse wheel scrolling

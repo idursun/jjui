@@ -9,7 +9,6 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -477,10 +476,11 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
-	menuTitleStyle := common.DefaultPalette.Get("bookmarks title")
-	menuTextStyle := common.DefaultPalette.Get("bookmarks text")
-	menuMatchedStyle := common.DefaultPalette.Get("bookmarks matched")
-	borderStyle := common.DefaultPalette.GetBorder("bookmarks border", lipgloss.NormalBorder())
+	menuTitleStyle := common.DefaultPalette.Get("bookmarks", "", "title", false)
+	menuTextStyle := common.DefaultPalette.Get("bookmarks", "", "text", false)
+	inputTextStyle := common.DefaultPalette.Get("bookmarks", "input", "text", false)
+	inputMatchedStyle := common.DefaultPalette.Get("bookmarks", "input", "matched", false)
+	borderStyle := common.DefaultPalette.GetBorder("bookmarks", "", "border", false, lipgloss.NormalBorder())
 
 	dl.AddBackdrop(box.R, render.ZMenuBorder-1)
 	contentBox := frame.Inset(1)
@@ -506,10 +506,10 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	filterBox, contentBox := contentBox.CutTop(1)
 	if m.filterState == filterEditing {
 		fis := m.filterInput.Styles()
-		fis.Focused.Prompt = menuMatchedStyle.PaddingLeft(1)
-		fis.Focused.Text = menuTextStyle
-		fis.Blurred.Prompt = menuMatchedStyle.PaddingLeft(1)
-		fis.Blurred.Text = menuTextStyle
+		fis.Focused.Prompt = inputMatchedStyle.PaddingLeft(1)
+		fis.Focused.Text = inputTextStyle
+		fis.Blurred.Prompt = inputMatchedStyle.PaddingLeft(1)
+		fis.Blurred.Text = inputTextStyle
 		m.filterInput.SetStyles(fis)
 		m.filterInput.SetWidth(max(contentBox.R.Dx()-2, 0))
 		dl.AddDraw(filterBox.R, m.filterInput.View(), render.ZMenuContent)
@@ -527,11 +527,11 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
 		return
 	}
 
-	remotePromptStyle := common.DefaultPalette.Get("bookmarks title")
-	remoteTextStyle := common.DefaultPalette.Get("bookmarks text")
-	remoteDimmedStyle := common.DefaultPalette.Get("bookmarks dimmed")
-	remoteSelectedStyle := common.DefaultPalette.GetVariant("bookmarks", config.SelectedVariant, true)
-	noRemoteStyle := common.DefaultPalette.Get("bookmarks error")
+	remotePromptStyle := common.DefaultPalette.Get("bookmarks", "remote", "title", false)
+	remoteTextStyle := common.DefaultPalette.Get("bookmarks", "remote", "text", false)
+	remoteDimmedStyle := common.DefaultPalette.Get("bookmarks", "remote", "dimmed", false)
+	remoteSelectedStyle := common.DefaultPalette.Get("bookmarks", "remote", "", true)
+	noRemoteStyle := common.DefaultPalette.Get("bookmarks", "remote", "error", false)
 
 	dl.AddFill(lineBox.R, ' ', remoteTextStyle, render.ZMenuContent)
 
@@ -744,8 +744,8 @@ func (m *Model) renderFilterView(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 	width := box.R.Dx()
-	menuTextStyle := common.DefaultPalette.Get("bookmarks text")
-	menuMatchedStyle := common.DefaultPalette.Get("bookmarks matched")
+	menuTextStyle := common.DefaultPalette.Get("bookmarks", "", "text", false)
+	menuMatchedStyle := common.DefaultPalette.Get("bookmarks", "", "matched", false)
 	labelStyle := menuTextStyle.PaddingLeft(1).PaddingRight(1)
 	valueStyle := menuMatchedStyle
 
@@ -835,9 +835,9 @@ func renderItem(dl *render.DisplayContext, rect layout.Rectangle, width int, sho
 	}
 
 	isSelected := index == cursor
-	textStyle := common.DefaultPalette.GetVariant("bookmarks text", config.SelectedVariant, isSelected)
-	descStyle := common.DefaultPalette.GetVariant("bookmarks dimmed", config.SelectedVariant, isSelected)
-	shortcutStyle := common.DefaultPalette.GetVariant("bookmarks shortcut", config.SelectedVariant, isSelected)
+	textStyle := common.DefaultPalette.Get("bookmarks", "", "text", isSelected)
+	descStyle := common.DefaultPalette.Get("bookmarks", "", "dimmed", isSelected)
+	shortcutStyle := common.DefaultPalette.Get("bookmarks", "", "shortcut", isSelected)
 
 	titleLine := ""
 	if shortcut != "" {

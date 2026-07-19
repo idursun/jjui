@@ -8,7 +8,6 @@ const SelectedVariant ColorVariant = "selected"
 
 type ColorSelector struct {
 	fields            []string
-	legacyFields      []string
 	variant           ColorVariant
 	usesVariantSuffix bool
 }
@@ -43,7 +42,6 @@ func ParseColorSelector(value string) ColorSelector {
 		selector.fields = make([]string, 0, len(fields)-1)
 		selector.fields = append(selector.fields, fields[:i]...)
 		selector.fields = append(selector.fields, fields[i+1:]...)
-		selector.legacyFields = append([]string(nil), fields...)
 		selector.variant = SelectedVariant
 		return selector
 	}
@@ -69,27 +67,6 @@ func (s ColorSelector) Key() string {
 	fields := append([]string(nil), s.fields...)
 	fields[len(fields)-1] += ":" + string(s.variant)
 	return strings.Join(fields, " ")
-}
-
-// LegacyFields returns the selector in the word ordering understood by the
-// existing palette resolver. Legacy inputs retain their original state
-// position; suffix variants place the state before the final field.
-func (s ColorSelector) LegacyFields() []string {
-	if s.legacyFields != nil {
-		return append([]string(nil), s.legacyFields...)
-	}
-	fields := append([]string(nil), s.fields...)
-	if s.variant == "" {
-		return fields
-	}
-	if len(fields) <= 1 {
-		return append(fields, string(s.variant))
-	}
-
-	result := make([]string, 0, len(fields)+1)
-	result = append(result, fields[:len(fields)-1]...)
-	result = append(result, string(s.variant), fields[len(fields)-1])
-	return result
 }
 
 // NormalizeColorSelectors returns a copy keyed by normalized selectors.

@@ -119,9 +119,9 @@ func (m *Model) Render(commit *jj.Commit, renderPosition operations.RenderPositi
 	if renderPosition != operations.RenderBeforeChangeId {
 		return ""
 	}
-	sourceMarker := common.DefaultPalette.Get("set_parents source_marker")
-	targetMarker := common.DefaultPalette.Get("set_parents target_marker")
-	dimmedStyle := common.DefaultPalette.Get("set_parents dimmed")
+	sourceMarker := common.DefaultPalette.Get("set_parents", "", "source_marker", false)
+	targetMarker := common.DefaultPalette.Get("set_parents", "", "target_marker", false)
+	dimmedStyle := common.DefaultPalette.Get("set_parents", "", "dimmed", false)
 
 	if slices.Contains(m.toAdd, commit.GetChangeId()) {
 		return sourceMarker.Render("<< add >>")

@@ -114,8 +114,8 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if pos != operations.RenderBeforeChangeId {
 		return ""
 	}
-	sourceMarkerStyle := common.DefaultPalette.Get("squash source_marker")
-	targetMarkerStyle := common.DefaultPalette.Get("squash target_marker")
+	sourceMarkerStyle := common.DefaultPalette.Get("squash", "", "source_marker", false)
+	targetMarkerStyle := common.DefaultPalette.Get("squash", "", "target_marker", false)
 
 	isSelected := s.current != nil && s.current.GetChangeId() == commit.GetChangeId()
 	if isSelected {

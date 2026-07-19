@@ -76,11 +76,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	borderStyle := common.DefaultPalette.GetBorder("password border", lipgloss.NormalBorder()).Padding(1)
-	surfaceStyle := common.DefaultPalette.Get("password")
+	borderStyle := common.DefaultPalette.GetBorder("password", "", "border", false, lipgloss.NormalBorder()).Padding(1)
+	surfaceStyle := common.DefaultPalette.Get("password", "", "", false)
 	ps := m.textInput.Styles()
-	ps.Focused.Prompt = common.DefaultPalette.Get("password title")
-	ps.Blurred.Prompt = common.DefaultPalette.Get("password title")
+	ps.Focused.Prompt = common.DefaultPalette.Get("password", "", "title", false)
+	ps.Blurred.Prompt = common.DefaultPalette.Get("password", "", "title", false)
 	m.textInput.SetStyles(ps)
 
 	v := borderStyle.Width(max(box.R.Dx()-2, 0)).Render(m.textInput.View())

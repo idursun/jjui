@@ -6,7 +6,6 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
@@ -39,17 +38,13 @@ type Completion struct {
 
 type Option func(m *AutoCompletionInput)
 
-func WithStylePrefix(prefix string) Option {
+func WithStyleScope(scope string) Option {
 	return func(m *AutoCompletionInput) {
-		variantSelector := prefix
-		if prefix != "" {
-			prefix += " "
-		}
 		styles := AutoCompleteStyles{
-			Selected: common.DefaultPalette.GetVariant(variantSelector, config.SelectedVariant, true),
-			Matched:  common.DefaultPalette.Get(prefix + "matched"),
-			Text:     common.DefaultPalette.Get(prefix + "text"),
-			Dimmed:   common.DefaultPalette.Get(prefix + "dimmed"),
+			Selected: common.DefaultPalette.Get(scope, "", "", true),
+			Matched:  common.DefaultPalette.Get(scope, "", "matched", false),
+			Text:     common.DefaultPalette.Get(scope, "", "text", false),
+			Dimmed:   common.DefaultPalette.Get(scope, "", "dimmed", false),
 		}
 		m.Styles = &styles
 	}
@@ -81,7 +76,7 @@ func New(provider CompletionProvider, options ...Option) *AutoCompletionInput {
 
 	if m.Styles == nil {
 		// applies default style
-		WithStylePrefix("")(m)
+		WithStyleScope("")(m)
 	}
 	s := m.TextInput.Styles()
 	s.Focused.Text = m.Styles.Text

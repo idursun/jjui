@@ -6,7 +6,6 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/jj/source"
 	"github.com/idursun/jjui/internal/ui/actions"
@@ -184,12 +183,12 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
-	bookmarkPillStyle := common.DefaultPalette.Get("picker bookmark")
-	selectedStyle := common.DefaultPalette.GetVariant("picker", config.SelectedVariant, true)
-	selectedTextStyle := common.DefaultPalette.GetVariant("picker text", config.SelectedVariant, true)
-	borderStyle := common.DefaultPalette.GetBorder("picker border", lipgloss.NormalBorder())
-	textStyle := common.DefaultPalette.Get("picker text")
-	dimmedStyle := common.DefaultPalette.Get("picker dimmed")
+	bookmarkPillStyle := common.DefaultPalette.Get("picker", "", "bookmark", false)
+	selectedStyle := common.DefaultPalette.Get("picker", "", "", true)
+	selectedTextStyle := common.DefaultPalette.Get("picker", "", "text", true)
+	borderStyle := common.DefaultPalette.GetBorder("picker", "", "border", false, lipgloss.NormalBorder())
+	textStyle := common.DefaultPalette.Get("picker", "", "text", false)
+	dimmedStyle := common.DefaultPalette.Get("picker", "", "dimmed", false)
 
 	maxW := min(maxWidth, box.R.Dx())
 	maxH := min(maxHeight, box.R.Dy())
@@ -230,9 +229,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			y := rect.Min.Y
 
 			isSelected := index == m.cursor
-			pillStyle := common.DefaultPalette.GetVariant("picker dimmed", config.SelectedVariant, isSelected)
+			pillStyle := common.DefaultPalette.Get("picker", "", "dimmed", isSelected)
 			lineStyle := bookmarkPillStyle
-			matchStyle := common.DefaultPalette.GetVariant("picker matched", config.SelectedVariant, isSelected)
+			matchStyle := common.DefaultPalette.Get("picker", "", "matched", isSelected)
 			if isSelected {
 				lineStyle = selectedTextStyle
 				dl.AddFill(rect, ' ', selectedStyle, render.ZMenuContent-1)

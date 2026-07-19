@@ -22,7 +22,7 @@ const (
 	Blue  = "4"
 )
 
-func TestConfirmationWithoutStylePrefix(t *testing.T) {
+func TestConfirmationWithoutStyleScope(t *testing.T) {
 	palette := common.NewPalette()
 	palette.Update(map[string]config.Color{
 		"confirmation text":             {Fg: White},
@@ -40,7 +40,7 @@ func TestConfirmationWithoutStylePrefix(t *testing.T) {
 	assert.Equal(t, lipgloss.Color(Green), defaultModel.Styles.Selected.GetForeground())
 }
 
-func TestConfirmationWithStylePrefix(t *testing.T) {
+func TestConfirmationWithStyleScope(t *testing.T) {
 	palette := common.NewPalette()
 	palette.Update(map[string]config.Color{
 		"confirmation text":             {Fg: White},
@@ -55,7 +55,7 @@ func TestConfirmationWithStylePrefix(t *testing.T) {
 
 	detailsModel := New(
 		[]string{"Test message"},
-		WithStylePrefix("details"),
+		WithStyleScope("details"),
 	)
 
 	assert.Equal(t, lipgloss.Color(Blue), detailsModel.Styles.Text.GetForeground())

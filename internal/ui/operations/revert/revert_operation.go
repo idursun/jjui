@@ -115,10 +115,10 @@ func (r *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
 }
 
 func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
-	changeIdStyle := common.DefaultPalette.Get("revert change_id")
-	dimmedStyle := common.DefaultPalette.Get("revert dimmed")
-	sourceMarkerStyle := common.DefaultPalette.Get("revert source_marker")
-	targetMarkerStyle := common.DefaultPalette.Get("revert target_marker")
+	changeIdStyle := common.DefaultPalette.Get("revert", "", "change_id", false)
+	dimmedStyle := common.DefaultPalette.Get("revert", "", "dimmed", false)
+	sourceMarkerStyle := common.DefaultPalette.Get("revert", "", "source_marker", false)
+	targetMarkerStyle := common.DefaultPalette.Get("revert", "", "target_marker", false)
 
 	if pos == operations.RenderBeforeChangeId {
 		changeId := commit.GetChangeId()

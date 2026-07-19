@@ -123,7 +123,7 @@ func (a *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		return ""
 	}
 
-	sourceMarkerStyle := common.DefaultPalette.Get("abandon source_marker")
+	sourceMarkerStyle := common.DefaultPalette.Get("abandon", "", "source_marker", false)
 	if a.selections.has(commit.GetChangeId(), selectionTypeDescendants) {
 		return sourceMarkerStyle.Render("<< abandon descendants of >>")
 	}

@@ -14,7 +14,14 @@ var DefaultPalette = NewPalette()
 
 type Palette struct {
 	styles map[string]paletteStyle
-	cache  map[string]lipgloss.Style
+	cache  map[paletteCacheKey]lipgloss.Style
+}
+
+type paletteCacheKey struct {
+	scope      string
+	component  string
+	role       string
+	isSelected bool
 }
 
 type paletteStyle struct {
@@ -26,17 +33,8 @@ type paletteStyle struct {
 func NewPalette() *Palette {
 	return &Palette{
 		styles: make(map[string]paletteStyle),
-		cache:  make(map[string]lipgloss.Style),
+		cache:  make(map[paletteCacheKey]lipgloss.Style),
 	}
-}
-
-func (p *Palette) add(key string, style lipgloss.Style) {
-	entry := paletteStyle{style: style}
-	if _, noColor := style.GetBackground().(lipgloss.NoColor); !noColor {
-		entry.background = style.GetBackground()
-		entry.backgroundSet = true
-	}
-	p.styles[config.ParseColorSelector(key).Key()] = entry
 }
 
 func (p *Palette) addColor(key string, color config.Color) {
@@ -47,20 +45,6 @@ func (p *Palette) addColor(key string, color config.Color) {
 		entry.backgroundSet = true
 	}
 	p.styles[config.ParseColorSelector(key).Key()] = entry
-}
-
-func (p *Palette) get(fields ...string) lipgloss.Style {
-	key := config.ParseColorSelector(strings.Join(fields, " ")).Key()
-	if entry, ok := p.styles[key]; ok {
-		return entry.style
-	}
-	return lipgloss.NewStyle()
-}
-
-func (p *Palette) getBackground(fields ...string) (color.Color, bool) {
-	key := config.ParseColorSelector(strings.Join(fields, " ")).Key()
-	entry, ok := p.styles[key]
-	return entry.background, ok && entry.backgroundSet
 }
 
 func (p *Palette) Update(styleMap map[string]config.Color) {
@@ -88,92 +72,81 @@ func (p *Palette) Update(styleMap map[string]config.Color) {
 	}
 }
 
-func (p *Palette) Get(selector string) lipgloss.Style {
-	parsed := config.ParseColorSelector(selector)
-	cacheKey := parsed.Key()
+func (p *Palette) Get(scope, component, role string, isSelected bool) lipgloss.Style {
+	cacheKey := paletteCacheKey{
+		scope:      scope,
+		component:  component,
+		role:       role,
+		isSelected: isSelected,
+	}
 	if style, ok := p.cache[cacheKey]; ok {
 		return style
 	}
-	fields := parsed.LegacyFields()
-	length := len(fields)
+
+	baseCandidates := paletteCandidates(scope, component, role)
+	keys := make([]string, 0, len(baseCandidates)*2+1)
+	if isSelected {
+		for _, candidate := range baseCandidates {
+			keys = append(keys, candidate+":"+string(config.SelectedVariant))
+		}
+		keys = append(keys, ":"+string(config.SelectedVariant))
+	}
+	keys = append(keys, baseCandidates...)
 
 	finalStyle := lipgloss.NewStyle()
-	var deferredSelectedStyles [][]string
-	deferSelectedStyles := hasSelectedSubstyle(fields)
-	var selectedRoleBackground color.Color
-	selectedRoleBackgroundSet := false
-	// for a selector like "a b c", we want to inherit styles from the most specific to the least specific
-	// first pass: "a b c", "a b", "a"
-	// second pass: "b c", "b"
-	// third pass: "c"
-	start := 0
-	for start < length {
-		for end := length; end > start; end-- {
-			selectorFields := fields[start:end]
-			if deferSelectedStyles && selectorFields[len(selectorFields)-1] == "selected" {
-				deferredSelectedStyles = append(deferredSelectedStyles, selectorFields)
-				continue
-			}
-			style := p.get(selectorFields...)
-			if hasSelectedSubstyle(selectorFields) && !selectedRoleBackgroundSet {
-				selectedRoleBackground, selectedRoleBackgroundSet = p.getBackground(selectorFields...)
-			}
-			finalStyle = finalStyle.Inherit(style)
-			if semanticFields := withoutSelectedModifier(selectorFields); len(semanticFields) > 0 {
-				finalStyle = finalStyle.Inherit(p.get(semanticFields...))
-			}
+	var background color.Color
+	backgroundSet := false
+	for _, key := range keys {
+		entry, ok := p.styles[key]
+		if !ok {
+			continue
 		}
-		start++
-	}
-	var selectedBackground color.Color
-	selectedBackgroundSet := false
-	for _, selectorFields := range deferredSelectedStyles {
-		style := p.get(selectorFields...)
-		if !selectedBackgroundSet {
-			selectedBackground, selectedBackgroundSet = p.getBackground(selectorFields...)
+		finalStyle = finalStyle.Inherit(entry.style)
+		if !backgroundSet && entry.backgroundSet {
+			background = entry.background
+			backgroundSet = true
 		}
-		finalStyle = finalStyle.Inherit(style)
 	}
-	if selectedRoleBackgroundSet {
-		finalStyle = finalStyle.Background(selectedRoleBackground)
-	} else if selectedBackgroundSet {
-		finalStyle = finalStyle.Background(selectedBackground)
+	if backgroundSet {
+		finalStyle = finalStyle.Background(background)
 	}
 	p.cache[cacheKey] = finalStyle
 	return finalStyle
 }
 
-func (p *Palette) GetVariant(selector string, variant config.ColorVariant, enabled bool) lipgloss.Style {
-	if !enabled {
-		return p.Get(selector)
-	}
-	return p.Get(selector + ":" + string(variant))
-}
-
-func hasSelectedSubstyle(fields []string) bool {
-	for i, field := range fields {
-		if field == "selected" && i < len(fields)-1 {
-			return true
+func paletteCandidates(scope, component, role string) []string {
+	candidates := make([]string, 0, 7)
+	seen := make(map[string]struct{}, 7)
+	add := func(parts ...string) {
+		nonEmpty := parts[:0]
+		for _, part := range parts {
+			if part != "" {
+				nonEmpty = append(nonEmpty, part)
+			}
 		}
-	}
-	return false
-}
-
-func withoutSelectedModifier(fields []string) []string {
-	for i, field := range fields {
-		if field != "selected" || i == len(fields)-1 {
-			continue
+		if len(nonEmpty) == 0 {
+			return
 		}
-		result := make([]string, 0, len(fields)-1)
-		result = append(result, fields[:i]...)
-		result = append(result, fields[i+1:]...)
-		return result
+		key := strings.Join(nonEmpty, " ")
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		candidates = append(candidates, key)
 	}
-	return nil
+
+	add(scope, component, role)
+	add(scope, component)
+	add(scope, role)
+	add(scope)
+	add(component, role)
+	add(component)
+	add(role)
+	return candidates
 }
 
-func (p *Palette) GetBorder(selector string, border lipgloss.Border) lipgloss.Style {
-	style := p.Get(selector)
+func (p *Palette) GetBorder(scope, component, role string, isSelected bool, border lipgloss.Border) lipgloss.Style {
+	style := p.Get(scope, component, role, isSelected)
 	return lipgloss.NewStyle().
 		Border(border).
 		Foreground(style.GetForeground()).

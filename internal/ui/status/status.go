@@ -211,10 +211,10 @@ func (m *Model) loadEditingSuggestions() {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	shortcutStyle := common.DefaultPalette.Get("status shortcut")
-	dimmedStyle := common.DefaultPalette.Get("status dimmed")
-	textStyle := common.DefaultPalette.Get("status text")
-	titleStyle := common.DefaultPalette.Get("status title").PaddingLeft(1).PaddingRight(1)
+	shortcutStyle := common.DefaultPalette.Get("status", "", "shortcut", false)
+	dimmedStyle := common.DefaultPalette.Get("status", "", "dimmed", false)
+	textStyle := common.DefaultPalette.Get("status", "", "text", false)
+	titleStyle := common.DefaultPalette.Get("status", "", "title", false).PaddingLeft(1).PaddingRight(1)
 
 	inputStyles := m.input.Styles()
 	inputStyles.Focused.Text = textStyle

@@ -184,7 +184,7 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		s.unselectedHint = "moves to the new revision"
 		model := confirmation.New(
 			[]string{"Are you sure you want to split the selected files?"},
-			confirmation.WithStylePrefix("revisions"),
+			confirmation.WithStyleScope("revisions"),
 			confirmation.WithOption("Yes",
 				tea.Batch(s.context.RunInteractiveCommand(jj.Split(s.revision.GetChangeId(), selectedFiles, intent.IsParallel, false), common.Refresh), common.Close),
 				key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
@@ -210,7 +210,7 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		s.unselectedHint = "stays as is"
 		model := confirmation.New(
 			[]string{"Are you sure you want to restore the selected files?"},
-			confirmation.WithStylePrefix("revisions"),
+			confirmation.WithStyleScope("revisions"),
 			confirmation.WithOption("Yes",
 				tea.Batch(s.context.RunCommand(jj.Restore(s.revision.GetChangeId(), selectedFiles, false), common.Refresh), confirmation.Close),
 				key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
@@ -229,7 +229,7 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		s.unselectedHint = "stays as is"
 		model := confirmation.New(
 			[]string{"Are you sure you want to absorb changes from the selected files?"},
-			confirmation.WithStylePrefix("revisions"),
+			confirmation.WithStyleScope("revisions"),
 			confirmation.WithOption("Yes",
 				s.context.RunCommand(jj.Absorb(s.revision.GetChangeId(), nil, selectedFiles...), common.Refresh, confirmation.Close),
 				key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
@@ -285,7 +285,7 @@ func (s *Operation) selectedFile(file string) context.SelectedFile {
 }
 
 func (s *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	textStyle := common.DefaultPalette.Get("revisions details text")
+	textStyle := common.DefaultPalette.Get("revisions", "details", "text", false)
 	background := lipgloss.NewStyle().Background(textStyle.GetBackground())
 	dl.AddFill(box.R, ' ', background, 0)
 	s.renderIntoRect(dl, box.R)
@@ -334,7 +334,7 @@ func (s *Operation) EmbeddedHeight(commit *jj.Commit, pos operations.RenderPosit
 func (s *Operation) renderIntoRect(dl *render.DisplayContext, rect layout.Rectangle) int {
 	if s.Len() == 0 {
 		// Render "No changes" message
-		dimmedStyle := common.DefaultPalette.Get("revisions details dimmed")
+		dimmedStyle := common.DefaultPalette.Get("revisions", "details", "dimmed", false)
 		content := dimmedStyle.Render("No changes")
 		dl.AddDraw(layout.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), 1), content, 0)
 		return 1

@@ -3,7 +3,6 @@ package describe
 import (
 	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -136,7 +135,7 @@ func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	o.input = o.resizeInput(box.R.Dx(), box.R.Dy())
 	input := o.input
 
-	selectedStyle := common.DefaultPalette.GetVariant("revisions", config.SelectedVariant, true)
+	selectedStyle := common.DefaultPalette.Get("revisions", "", "", true)
 	ds := input.Styles()
 	ds.Focused.Base = selectedStyle.Underline(false).Strikethrough(false).Reverse(false).Blink(false)
 	ds.Focused.CursorLine = ds.Focused.Base

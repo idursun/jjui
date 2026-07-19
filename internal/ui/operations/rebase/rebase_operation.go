@@ -194,10 +194,10 @@ func (r *Operation) refreshHighlightedIds() tea.Cmd {
 }
 
 func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
-	changeIdStyle := common.DefaultPalette.Get("rebase change_id")
-	dimmedStyle := common.DefaultPalette.Get("rebase dimmed")
-	sourceMarkerStyle := common.DefaultPalette.Get("rebase source_marker")
-	targetMarkerStyle := common.DefaultPalette.Get("rebase target_marker")
+	changeIdStyle := common.DefaultPalette.Get("rebase", "", "change_id", false)
+	dimmedStyle := common.DefaultPalette.Get("rebase", "", "dimmed", false)
+	sourceMarkerStyle := common.DefaultPalette.Get("rebase", "", "source_marker", false)
+	targetMarkerStyle := common.DefaultPalette.Get("rebase", "", "target_marker", false)
 
 	if pos == operations.RenderBeforeChangeId {
 		changeId := commit.GetChangeId()

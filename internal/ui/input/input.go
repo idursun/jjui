@@ -102,10 +102,10 @@ func (m *Model) selectCurrent() tea.Cmd {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	borderStyle := common.DefaultPalette.GetBorder("input border", lipgloss.RoundedBorder())
-	textStyle := common.DefaultPalette.Get("input text")
-	titleStyle := common.DefaultPalette.Get("input title")
-	surfaceStyle := common.DefaultPalette.Get("input")
+	borderStyle := common.DefaultPalette.GetBorder("input", "", "border", false, lipgloss.RoundedBorder())
+	textStyle := common.DefaultPalette.Get("input", "", "text", false)
+	titleStyle := common.DefaultPalette.Get("input", "", "title", false)
+	surfaceStyle := common.DefaultPalette.Get("input", "", "", false)
 
 	var rows []string
 	if m.title != "" {

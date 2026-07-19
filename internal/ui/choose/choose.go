@@ -7,7 +7,6 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -238,12 +237,12 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.listRenderer = render.NewListRenderer(itemScrollMsg{})
 	}
 
-	borderStyle := common.DefaultPalette.GetBorder("choose border", lipgloss.RoundedBorder())
-	surfaceStyle := common.DefaultPalette.Get("choose")
-	textStyle := common.DefaultPalette.Get("choose text")
-	titleStyle := common.DefaultPalette.Get("choose title")
-	selectedStyle := common.DefaultPalette.GetVariant("choose", config.SelectedVariant, true)
-	inputStyle := common.DefaultPalette.Get("choose input")
+	borderStyle := common.DefaultPalette.GetBorder("choose", "", "border", false, lipgloss.RoundedBorder())
+	surfaceStyle := common.DefaultPalette.Get("choose", "", "", false)
+	textStyle := common.DefaultPalette.Get("choose", "", "text", false)
+	titleStyle := common.DefaultPalette.Get("choose", "", "title", false)
+	selectedStyle := common.DefaultPalette.Get("choose", "", "", true)
+	inputStyle := common.DefaultPalette.Get("choose", "", "input", false)
 
 	inputStyles := m.input.Styles()
 	inputStyles.Focused.Text = inputStyle
