@@ -106,7 +106,7 @@ func TestPaletteGet_BaseCandidatesFillOmittedProperties(t *testing.T) {
 	assert.True(t, got.GetItalic())
 }
 
-func TestPaletteGet_SelectedCandidatePrecedence(t *testing.T) {
+func TestPaletteGet_SelectedCandidateResolution(t *testing.T) {
 	tests := []struct {
 		name string
 		key  string
@@ -126,22 +126,46 @@ func TestPaletteGet_SelectedCandidatePrecedence(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			colors := map[string]config.Color{
-				"scope component role": {Fg: "10"},
-				":selected":            {Fg: "9"},
-			}
-			if tt.key == "scope component role" {
-				delete(colors, ":selected")
-			} else if tt.key != ":selected" {
-				colors[tt.key] = config.Color{Fg: tt.want}
-				delete(colors, ":selected")
-			} else {
-				colors[tt.key] = config.Color{Fg: tt.want}
+				tt.key: {Fg: tt.want},
 			}
 			p := NewPalette()
 			p.Update(colors)
 			assert.Equal(t, lipgloss.Color(tt.want), p.Get("scope", "component", "role", true).GetForeground())
 		})
 	}
+}
+
+func TestPaletteGet_SelectedRolePrecedence(t *testing.T) {
+	p := NewPalette()
+	p.Update(map[string]config.Color{
+		"shortcut":                          {Fg: Red},
+		"scope:selected":                    {Fg: Blue, Bg: Black},
+		"shortcut:selected":                 {Fg: Green},
+		"scope shortcut:selected":           {Fg: Yellow},
+		"scope component:selected":          {Underline: boolPtr(true)},
+		"scope component shortcut":          {Italic: boolPtr(true)},
+		"scope component shortcut:selected": {Fg: Cyan, Bold: boolPtr(true)},
+	})
+
+	got := p.Get("scope", "component", "shortcut", true)
+	assert.Equal(t, lipgloss.Color(Cyan), got.GetForeground())
+	assert.Equal(t, lipgloss.Color(Black), got.GetBackground())
+	assert.True(t, got.GetBold())
+	assert.True(t, got.GetItalic())
+	assert.True(t, got.GetUnderline())
+}
+
+func TestPaletteGet_SelectedRoleBaseOverridesBroaderSelectedProperties(t *testing.T) {
+	p := NewPalette()
+	p.Update(map[string]config.Color{
+		"shortcut":       {Fg: Red},
+		"scope:selected": {Fg: Blue, Bg: Black, Bold: boolPtr(true)},
+	})
+
+	got := p.Get("scope", "", "shortcut", true)
+	assert.Equal(t, lipgloss.Color(Red), got.GetForeground())
+	assert.Equal(t, lipgloss.Color(Black), got.GetBackground())
+	assert.True(t, got.GetBold())
 }
 
 func TestPaletteGet_SelectedCandidatesFillOmittedProperties(t *testing.T) {

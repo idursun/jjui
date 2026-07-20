@@ -86,12 +86,34 @@ func (p *Palette) Get(scope, component, role string, isSelected bool) lipgloss.S
 	baseCandidates := paletteCandidates(scope, component, role)
 	keys := make([]string, 0, len(baseCandidates)*2+1)
 	if isSelected {
+		// Role selectors remain authoritative for selected elements. Their explicit
+		// selected variants win first; broader selected selectors only fill properties
+		// that the role's selected and base styles leave unset.
+		contextCandidates := paletteCandidates(scope, component, "")
+		contextSet := make(map[string]struct{}, len(contextCandidates))
+		for _, candidate := range contextCandidates {
+			contextSet[candidate] = struct{}{}
+		}
+
+		roleCandidates := make([]string, 0, len(baseCandidates)-len(contextCandidates))
 		for _, candidate := range baseCandidates {
+			if _, ok := contextSet[candidate]; !ok {
+				roleCandidates = append(roleCandidates, candidate)
+			}
+		}
+
+		for _, candidate := range roleCandidates {
+			keys = append(keys, candidate+":"+string(config.SelectedVariant))
+		}
+		keys = append(keys, roleCandidates...)
+		for _, candidate := range contextCandidates {
 			keys = append(keys, candidate+":"+string(config.SelectedVariant))
 		}
 		keys = append(keys, ":"+string(config.SelectedVariant))
+		keys = append(keys, contextCandidates...)
+	} else {
+		keys = append(keys, baseCandidates...)
 	}
-	keys = append(keys, baseCandidates...)
 
 	finalStyle := lipgloss.NewStyle()
 	var background color.Color
