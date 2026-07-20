@@ -29,6 +29,8 @@ error = "red"
 "status title" = { fg = "black", bg = "magenta", bold = true }
 "git matched" = { fg = "magenta", bold = true }
 "bookmarks matched" = { fg = "magenta", bold = true }
+"git remote title" = { fg = "magenta", bg = "default", bold = true }
+"bookmarks remote title" = { fg = "magenta", bg = "default", bold = true }
 "git:selected" = { fg = "cyan", bg = "default", bold = true, underline = false }
 "bookmarks:selected" = { fg = "cyan", bg = "default", bold = true, underline = false }
 "picker dimmed" = { fg = "bright black" }
