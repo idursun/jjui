@@ -225,6 +225,7 @@ func TestPaletteGet_DefaultThemePreservesComponentBehavior(t *testing.T) {
 		t.Run(map[bool]string{false: "light", true: "dark"}[isDark], func(t *testing.T) {
 			theme, err := config.LoadEmbeddedTheme("default", isDark)
 			assert.NoError(t, err)
+			theme.Colors["diff removed"] = config.Color{Fg: Red}
 			p := NewPalette()
 			p.Update(theme.Colors)
 
@@ -240,6 +241,9 @@ func TestPaletteGet_DefaultThemePreservesComponentBehavior(t *testing.T) {
 			assert.IsType(t, lipgloss.NoColor{}, p.Get("bookmarks", "remote", "", true).GetBackground())
 			selectedBackground := map[bool]string{false: "7", true: "8"}[isDark]
 			assert.Equal(t, lipgloss.Color(selectedBackground), p.Get("other", "", "text", true).GetBackground())
+			selectedDeleted := p.Get("revisions", "details", "deleted", true)
+			assert.Equal(t, lipgloss.Color(Red), selectedDeleted.GetForeground())
+			assert.Equal(t, p.Get("revisions", "details", "text", true).GetBackground(), selectedDeleted.GetBackground())
 		})
 	}
 }

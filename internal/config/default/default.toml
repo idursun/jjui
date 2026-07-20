@@ -51,6 +51,6 @@ background_blend = 0.4
 background_blend = 0.4
 
 [dark.colors]
-":selected" = { fg = "cyan", bg = "bright black" }
+":selected" = { bg = "bright black" }
 "git title" = { fg = "230", bg = "62", bold = true }
 "bookmarks title" = { fg = "230", bg = "62", bold = true }
