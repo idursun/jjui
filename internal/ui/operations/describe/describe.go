@@ -135,7 +135,7 @@ func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	o.input = o.resizeInput(box.R.Dx(), box.R.Dy())
 	input := o.input
 
-	selectedStyle := common.DefaultPalette.Get("revisions selected")
+	selectedStyle := common.DefaultPalette.Get("revisions", "", "", true)
 	ds := input.Styles()
 	ds.Focused.Base = selectedStyle.Underline(false).Strikethrough(false).Reverse(false).Blink(false)
 	ds.Focused.CursorLine = ds.Focused.Base

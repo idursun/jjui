@@ -110,7 +110,7 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 		return 1
 	}
 
-	textStyle := common.DefaultPalette.Get("revisions details text")
+	textStyle := common.DefaultPalette.Get("revisions", "details", "text", false)
 
 	// Render function - renders each visible item
 	renderItem := func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
@@ -162,16 +162,9 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 
 	tb.Styled(title, style.PaddingRight(1))
 
-	dimmedStyle := common.DefaultPalette.Get("revisions details dimmed")
-	conflictStyle := common.DefaultPalette.Get("revisions details conflict")
-	selectedDimmedStyle := common.DefaultPalette.Get("revisions details selected dimmed")
-
 	// Add conflict marker
 	if item.conflict {
-		conflictMarkerStyle := conflictStyle
-		if selected {
-			conflictMarkerStyle = common.DefaultPalette.Get("revisions details selected conflict")
-		}
+		conflictMarkerStyle := common.DefaultPalette.Get("revisions", "details", "conflict", selected)
 		tb.Styled("conflict ", conflictMarkerStyle)
 	}
 
@@ -184,36 +177,26 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 		}
 	}
 	if hint != "" {
-		hintStyle := dimmedStyle
-		if selected {
-			hintStyle = selectedDimmedStyle
-		}
+		hintStyle := common.DefaultPalette.Get("revisions", "details", "dimmed", selected)
 		tb.Styled(hint, hintStyle)
 	}
 }
 
 func (d *DetailsList) getStatusStyle(s status, selected bool) lipgloss.Style {
-	prefix := "revisions details"
-	if selected {
-		prefix += " selected"
-	}
+	role := "text"
 	switch s {
 	case Added:
-		return common.DefaultPalette.Get(prefix + " added")
+		role = "added"
 	case Deleted:
-		return common.DefaultPalette.Get(prefix + " deleted")
+		role = "deleted"
 	case Modified:
-		return common.DefaultPalette.Get(prefix + " modified")
+		role = "modified"
 	case Renamed:
-		return common.DefaultPalette.Get(prefix + " renamed")
+		role = "renamed"
 	case Copied:
-		return common.DefaultPalette.Get(prefix + " copied")
-	default:
-		if selected {
-			return common.DefaultPalette.Get("revisions details selected")
-		}
-		return common.DefaultPalette.Get("revisions details text")
+		role = "copied"
 	}
+	return common.DefaultPalette.Get("revisions", "details", role, selected)
 }
 
 // Scroll handles mouse wheel scrolling

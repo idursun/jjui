@@ -50,7 +50,7 @@ func (v *defaultView) scrollHorizontal(delta int, viewportWidth int) {
 func (v *defaultView) ViewRect(dl *render.DisplayContext, box layout.Box, scrollY int) {
 	width := box.R.Dx()
 	height := box.R.Dy()
-	surfaceStyle := common.DefaultPalette.Get("diff")
+	surfaceStyle := common.DefaultPalette.Get("diff", "", "", false)
 	buf := render.NewScreenBuffer(width, height)
 	firstLine := max(0, scrollY)
 	lineW := max(width, v.maxLineWidth)
@@ -129,7 +129,7 @@ func (v *wrappedView) scrollHorizontal(_ int, _ int) {}
 func (v *wrappedView) ViewRect(dl *render.DisplayContext, box layout.Box, scrollY int) {
 	width := box.R.Dx()
 	height := box.R.Dy()
-	surfaceStyle := common.DefaultPalette.Get("diff")
+	surfaceStyle := common.DefaultPalette.Get("diff", "", "", false)
 	v.ensureIndex(width)
 	buf := render.NewScreenBuffer(width, height)
 	firstLine, skip := v.firstLine(scrollY, width)

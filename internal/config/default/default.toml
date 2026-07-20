@@ -1,0 +1,56 @@
+[colors]
+dimmed = "bright black"
+title = { fg = "magenta", bold = true }
+shortcut = "magenta"
+matched = "cyan"
+target_marker = { fg = "black", bg = "red", bold = true }
+source_marker = { fg = "black", bg = "cyan" }
+success = "green"
+error = "red"
+"flash:selected" = "cyan"
+"confirmation text" = { fg = "magenta", bold = true }
+"confirmation:selected" = { fg = "bright white", bg = "blue", bold = true }
+"confirmation dimmed" = "white"
+"help title" = { fg = "green", bold = true }
+"revisions details:selected" = { bg = "bright black", bold = true }
+"revisions details dimmed:selected" = { fg = "bright cyan" }
+"revisions matched" = { underline = false, reverse = true }
+"oplog matched" = { underline = false, reverse = true }
+"revset title" = "magenta"
+"revset text" = { fg = "green", bold = true }
+"revset completion" = { bg = "black" }
+"revset completion dimmed" = { fg = "bright black" }
+"revset completion text" = { fg = "green" }
+"revset completion matched" = { fg = "green", underline = true, bold = true }
+"revset completion:selected" = { bg = "bright black", bold = true }
+"revset completion dimmed:selected" = { fg = "bright cyan" }
+"revset completion text:selected" = { fg = "bright green" }
+"revset completion matched:selected" = { underline = true, bold = true }
+"status title" = { fg = "black", bg = "magenta", bold = true }
+"git matched" = { fg = "magenta", bold = true }
+"bookmarks matched" = { fg = "magenta", bold = true }
+"git:selected" = { fg = "cyan", bg = "default", bold = true, underline = false }
+"bookmarks:selected" = { fg = "cyan", bg = "default", bold = true, underline = false }
+"picker dimmed" = { fg = "bright black" }
+"picker matched" = { underline = true }
+"picker:selected" = { fg = "cyan", bg = "bright black", bold = true, underline = false }
+"picker dimmed:selected" = {}
+"picker text:selected" = {}
+"picker matched:selected" = {}
+
+[light]
+background_blend = 0.4
+
+[light.colors]
+":selected" = { bg = "white" }
+"revset completion" = { bg = "default" }
+"git title" = { fg = "62", bg = "230", bold = true }
+"bookmarks title" = { fg = "62", bg = "230", bold = true }
+
+[dark]
+background_blend = 0.4
+
+[dark.colors]
+":selected" = { fg = "cyan", bg = "bright black" }
+"git title" = { fg = "230", bg = "62", bold = true }
+"bookmarks title" = { fg = "230", bg = "62", bold = true }

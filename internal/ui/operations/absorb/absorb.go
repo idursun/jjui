@@ -134,8 +134,8 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if pos != operations.RenderBeforeChangeId {
 		return ""
 	}
-	sourceMarkerStyle := common.DefaultPalette.Get("absorb source_marker")
-	targetMarkerStyle := common.DefaultPalette.Get("absorb target_marker")
+	sourceMarkerStyle := common.DefaultPalette.Get("absorb", "", "source_marker", false)
+	targetMarkerStyle := common.DefaultPalette.Get("absorb", "", "target_marker", false)
 
 	changeId := commit.GetChangeId()
 	if changeId == o.source.GetChangeId() {

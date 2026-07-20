@@ -237,12 +237,12 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.listRenderer = render.NewListRenderer(itemScrollMsg{})
 	}
 
-	borderStyle := common.DefaultPalette.GetBorder("choose border", lipgloss.RoundedBorder())
-	surfaceStyle := common.DefaultPalette.Get("choose")
-	textStyle := common.DefaultPalette.Get("choose text")
-	titleStyle := common.DefaultPalette.Get("choose title")
-	selectedStyle := common.DefaultPalette.Get("choose selected")
-	inputStyle := common.DefaultPalette.Get("choose input")
+	borderStyle := common.DefaultPalette.GetBorder("choose", "", "border", false, lipgloss.RoundedBorder())
+	surfaceStyle := common.DefaultPalette.Get("choose", "", "", false)
+	textStyle := common.DefaultPalette.Get("choose", "", "text", false)
+	titleStyle := common.DefaultPalette.Get("choose", "", "title", false)
+	selectedStyle := common.DefaultPalette.Get("choose", "", "", true)
+	inputStyle := common.DefaultPalette.Get("choose", "", "input", false)
 
 	inputStyles := m.input.Styles()
 	inputStyles.Focused.Text = inputStyle

@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -21,42 +22,174 @@ selected = { fg = "white", bg = "blue" }
 error = "red"
 `)
 
-	theme, err := loadTheme(themeData, nil)
+	theme, err := loadTheme(themeData, false)
 	require.NoError(t, err)
 
 	expected := map[string]Color{
-		"title":    {Fg: "blue", Bold: boolPtr(true)},
-		"selected": {Fg: "white", Bg: "blue"},
-		"error":    {Fg: "red"},
+		"title":     {Fg: "blue", Bold: boolPtr(true)},
+		":selected": {Fg: "white", Bg: "blue"},
+		"error":     {Fg: "red"},
 	}
 
-	assert.EqualExportedValues(t, expected, theme)
+	assert.EqualExportedValues(t, expected, theme.Colors)
 }
 
-func TestLoadThemeWithBase(t *testing.T) {
-	baseTheme := map[string]Color{
-		"title":    {Fg: "green", Bold: boolPtr(true)},
-		"selected": {Fg: "cyan", Bg: "black"},
-		"error":    {Fg: "red"},
-		"border":   {Fg: "white"},
-	}
+func TestLoadStructuredThemeResolvesActiveVariant(t *testing.T) {
+	themeData := []byte(`
+[colors]
+title = "magenta"
 
-	partialOverride := []byte(`
-title = { fg = "magenta", bold = true }
-selected = { fg = "yellow", bg = "blue" }
+[light]
+background_blend = 0.2
+[light.colors]
+selected = { bg = "white" }
+
+[dark]
+background_blend = 0.6
+[dark.colors]
+selected = { bg = "bright black" }
 `)
 
-	theme, err := loadTheme(partialOverride, baseTheme)
+	light, err := loadTheme(themeData, false)
+	require.NoError(t, err)
+	assert.Equal(t, 0.2, light.BackgroundBlend)
+	assert.Equal(t, "magenta", light.Colors["title"].Fg)
+	assert.Equal(t, "white", light.Colors[":selected"].Bg)
+
+	dark, err := loadTheme(themeData, true)
+	require.NoError(t, err)
+	assert.Equal(t, 0.6, dark.BackgroundBlend)
+	assert.Equal(t, "bright black", dark.Colors[":selected"].Bg)
+}
+
+func TestLoadStructuredThemeRejectsInvalidBackgroundBlend(t *testing.T) {
+	for _, value := range []string{"1.5", "nan"} {
+		t.Run(value, func(t *testing.T) {
+			_, err := loadTheme([]byte(fmt.Sprintf(`
+[dark]
+background_blend = %s
+`, value)), true)
+			assert.ErrorContains(t, err, "invalid value for 'dark.background_blend'")
+		})
+	}
+}
+
+func TestLoadEmbeddedDefaultThemeResolvesLightAndDarkVariants(t *testing.T) {
+	light, err := LoadEmbeddedTheme("default", false)
+	require.NoError(t, err)
+	dark, err := LoadEmbeddedTheme("default", true)
 	require.NoError(t, err)
 
-	expected := map[string]Color{
-		"title":    {Fg: "magenta", Bold: boolPtr(true)},
-		"selected": {Fg: "yellow", Bg: "blue"},
-		"error":    {Fg: "red"},
-		"border":   {Fg: "white"},
-	}
+	assert.Equal(t, 0.4, light.BackgroundBlend)
+	assert.Equal(t, "white", light.Colors[":selected"].Bg)
+	assert.Equal(t, "default", light.Colors["revset completion"].Bg)
+	assert.Equal(t, 0.4, dark.BackgroundBlend)
+	assert.Equal(t, "bright black", dark.Colors[":selected"].Bg)
+	assert.Equal(t, "black", dark.Colors["revset completion"].Bg)
+}
 
-	assert.EqualExportedValues(t, expected, theme)
+func TestResolveThemeUsesDefaultThemeAsBaseWhenNoUserThemeConfigured(t *testing.T) {
+	originalUI := Current.UI
+	t.Cleanup(func() { Current.UI = originalUI })
+	Current.UI.Theme = ThemeConfig{}
+	Current.UI.Colors = map[string]Color{
+		"inline override": {Fg: "magenta"},
+	}
+	Current.UI.BackgroundBlend = BackgroundBlendConfig{}
+
+	theme, err := ResolveTheme(true, map[string]Color{
+		"jj override": {Fg: "cyan"},
+	})
+	require.NoError(t, err)
+
+	assert.Contains(t, theme.Colors, "dimmed")
+	assert.Equal(t, "cyan", theme.Colors["jj override"].Fg)
+	assert.Equal(t, "magenta", theme.Colors["inline override"].Fg)
+	assert.Equal(t, 0.4, theme.BackgroundBlend)
+}
+
+func TestResolveThemeUsesUserThemeInsteadOfDefaultTheme(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("JJUI_CONFIG_DIR", configDir)
+	require.NoError(t, os.MkdirAll(filepath.Join(configDir, "themes"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(configDir, "themes", "custom.toml"), []byte(`
+[colors]
+"custom base" = { fg = "yellow" }
+
+[dark]
+background_blend = 0.2
+`), 0o600))
+
+	originalUI := Current.UI
+	t.Cleanup(func() { Current.UI = originalUI })
+	Current.UI.Theme = ThemeConfig{Dark: "custom"}
+	Current.UI.Colors = map[string]Color{
+		"inline override": {Fg: "magenta"},
+	}
+	Current.UI.BackgroundBlend = BackgroundBlendConfig{}
+
+	theme, err := ResolveTheme(true, map[string]Color{
+		"jj override": {Fg: "cyan"},
+	})
+	require.NoError(t, err)
+
+	assert.NotContains(t, theme.Colors, "dimmed")
+	assert.Equal(t, "yellow", theme.Colors["custom base"].Fg)
+	assert.Equal(t, "cyan", theme.Colors["jj override"].Fg)
+	assert.Equal(t, "magenta", theme.Colors["inline override"].Fg)
+	assert.Equal(t, 0.2, theme.BackgroundBlend)
+}
+
+func TestResolveThemeUIBackgroundBlendOverridesTheme(t *testing.T) {
+	original := Current.UI.BackgroundBlend
+	t.Cleanup(func() { Current.UI.BackgroundBlend = original })
+
+	override := 0.4
+	Current.UI.BackgroundBlend = BackgroundBlendConfig{Value: &override}
+	theme, err := ResolveTheme(true, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 0.4, theme.BackgroundBlend)
+
+	override = 0.0
+	theme, err = ResolveTheme(true, nil)
+	require.NoError(t, err)
+	assert.Zero(t, theme.BackgroundBlend)
+}
+
+func TestResolveThemeRejectsInvalidUIBackgroundBlend(t *testing.T) {
+	original := Current.UI.BackgroundBlend
+	t.Cleanup(func() { Current.UI.BackgroundBlend = original })
+
+	override := 1.5
+	Current.UI.BackgroundBlend = BackgroundBlendConfig{Value: &override}
+	_, err := ResolveTheme(true, nil)
+	assert.ErrorContains(t, err, "invalid value for 'ui.background_blend'")
+
+	override = -0.1
+	Current.UI.BackgroundBlend = BackgroundBlendConfig{Light: &override}
+	_, err = ResolveTheme(false, nil)
+	assert.ErrorContains(t, err, "invalid value for 'ui.background_blend.light'")
+}
+
+func TestResolveThemeUIBackgroundBlendUsesActiveModeOverride(t *testing.T) {
+	original := Current.UI.BackgroundBlend
+	t.Cleanup(func() { Current.UI.BackgroundBlend = original })
+
+	light, dark := 0.2, 0.6
+	Current.UI.BackgroundBlend = BackgroundBlendConfig{Light: &light, Dark: &dark}
+
+	theme, err := ResolveTheme(false, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 0.2, theme.BackgroundBlend)
+
+	theme, err = ResolveTheme(true, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 0.6, theme.BackgroundBlend)
+
+	Current.UI.BackgroundBlend = BackgroundBlendConfig{Light: &light}
+	theme, err = ResolveTheme(true, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 0.4, theme.BackgroundBlend)
 }
 
 func findLastActionByName(actions []ActionConfig, name string) (ActionConfig, bool) {

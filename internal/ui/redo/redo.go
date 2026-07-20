@@ -55,7 +55,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	m.confirmation.Styles.Border = common.DefaultPalette.GetBorder("redo border", lipgloss.NormalBorder()).Padding(1)
+	m.confirmation.Styles.Border = common.DefaultPalette.GetBorder("redo", "", "border", false, lipgloss.NormalBorder()).Padding(1)
 	v := m.confirmation.View()
 	w, h := lipgloss.Size(v)
 	pw, ph := box.R.Dx(), box.R.Dy()
@@ -71,7 +71,7 @@ func NewModel(context *context.MainContext) *Model {
 	lastOperation := lipgloss.NewStyle().PaddingBottom(1).Render(string(output))
 	model := confirmation.New(
 		[]string{lastOperation, "Are you sure you want to redo last change?"},
-		confirmation.WithStylePrefix("redo"),
+		confirmation.WithStyleScope("redo"),
 		confirmation.WithZIndex(render.ZDialogs),
 		confirmation.WithOption("Yes", context.RunCommand(jj.Redo(), common.Refresh, common.Close), key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
 		confirmation.WithOption("No", common.Close, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),

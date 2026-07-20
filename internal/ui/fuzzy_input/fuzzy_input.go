@@ -177,7 +177,7 @@ func (fzf *model) viewContent() string {
 		strconv.Itoa(matches),
 		strconv.Itoa(fzf.Len()),
 	)
-	title = common.DefaultPalette.Get("status title").Render(title)
+	title = common.DefaultPalette.Get("status", "", "title", false).Render(title)
 	return lipgloss.JoinVertical(0, title, view)
 }
 

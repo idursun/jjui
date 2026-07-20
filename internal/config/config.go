@@ -80,6 +80,83 @@ type ThemeConfig struct {
 	Light string `toml:"light"`
 }
 
+type Theme struct {
+	Colors map[string]Color `toml:"colors"`
+	Light  ThemeVariant     `toml:"light"`
+	Dark   ThemeVariant     `toml:"dark"`
+}
+
+type ThemeVariant struct {
+	BackgroundBlend *float64         `toml:"background_blend"`
+	Colors          map[string]Color `toml:"colors"`
+}
+
+type ResolvedTheme struct {
+	Colors          map[string]Color
+	BackgroundBlend float64
+}
+
+type BackgroundBlendConfig struct {
+	Value *float64
+	Light *float64
+	Dark  *float64
+}
+
+// UnmarshalTOML accepts either a single value for both appearance modes or a
+// table containing independent light and dark values.
+func (c *BackgroundBlendConfig) UnmarshalTOML(data any) error {
+	switch value := data.(type) {
+	case float64:
+		c.Value = &value
+		c.Light = nil
+		c.Dark = nil
+	case int64:
+		converted := float64(value)
+		c.Value = &converted
+		c.Light = nil
+		c.Dark = nil
+	case map[string]any:
+		if light, ok := value["light"]; ok {
+			parsed, err := backgroundBlendValue("light", light)
+			if err != nil {
+				return err
+			}
+			c.Light = &parsed
+		}
+		if dark, ok := value["dark"]; ok {
+			parsed, err := backgroundBlendValue("dark", dark)
+			if err != nil {
+				return err
+			}
+			c.Dark = &parsed
+		}
+	default:
+		return fmt.Errorf("invalid type for 'background_blend': expected number or table, got %T", data)
+	}
+	return nil
+}
+
+func backgroundBlendValue(mode string, value any) (float64, error) {
+	switch value := value.(type) {
+	case float64:
+		return value, nil
+	case int64:
+		return float64(value), nil
+	default:
+		return 0, fmt.Errorf("invalid type for '%s' in background_blend configuration: expected number, got %T", mode, value)
+	}
+}
+
+func (c BackgroundBlendConfig) Resolve(isDark bool) *float64 {
+	if isDark && c.Dark != nil {
+		return c.Dark
+	}
+	if !isDark && c.Light != nil {
+		return c.Light
+	}
+	return c.Value
+}
+
 func (t *ThemeConfig) UnmarshalTOML(data any) error {
 	switch v := data.(type) {
 	case string:
@@ -105,9 +182,10 @@ func (t *ThemeConfig) UnmarshalTOML(data any) error {
 }
 
 type UIConfig struct {
-	Theme          ThemeConfig      `toml:"theme"`
-	Colors         map[string]Color `toml:"colors"`
-	SetWindowTitle bool             `toml:"set_window_title"`
+	Theme           ThemeConfig           `toml:"theme"`
+	Colors          map[string]Color      `toml:"colors"`
+	BackgroundBlend BackgroundBlendConfig `toml:"background_blend"`
+	SetWindowTitle  bool                  `toml:"set_window_title"`
 	// TODO(ilyagr): It might make sense to rename this to `auto_refresh_period` to match `--period` option
 	// once we have a mechanism to deprecate the old name softly.
 	AutoRefreshInterval        int  `toml:"auto_refresh_interval"`

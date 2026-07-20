@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"maps"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -244,34 +245,105 @@ func LoadRepoLuaConfigFile(repoRoot string) (string, error) {
 	return string(data), nil
 }
 
-func loadTheme(data []byte, base map[string]Color) (map[string]Color, error) {
-	colors := make(map[string]Color)
-	maps.Copy(colors, base)
-	err := toml.Unmarshal(data, &colors)
+func loadTheme(data []byte, isDark bool) (ResolvedTheme, error) {
+	resolved := ResolvedTheme{Colors: make(map[string]Color)}
+
+	structured, err := isStructuredTheme(data)
 	if err != nil {
-		return nil, err
+		return ResolvedTheme{}, err
 	}
-	return colors, nil
+	if !structured {
+		legacyColors := make(map[string]Color)
+		if err := toml.Unmarshal(data, &legacyColors); err != nil {
+			return ResolvedTheme{}, err
+		}
+		maps.Copy(resolved.Colors, NormalizeColorSelectors(legacyColors))
+		return resolved, nil
+	}
+
+	var theme Theme
+	if err := toml.Unmarshal(data, &theme); err != nil {
+		return ResolvedTheme{}, err
+	}
+	if err := theme.Validate(); err != nil {
+		return ResolvedTheme{}, err
+	}
+
+	maps.Copy(resolved.Colors, NormalizeColorSelectors(theme.Colors))
+	variant := theme.Light
+	if isDark {
+		variant = theme.Dark
+	}
+	maps.Copy(resolved.Colors, NormalizeColorSelectors(variant.Colors))
+	if variant.BackgroundBlend != nil {
+		resolved.BackgroundBlend = *variant.BackgroundBlend
+	}
+	return resolved, nil
 }
 
-func LoadEmbeddedTheme(name string) (map[string]Color, error) {
+func isStructuredTheme(data []byte) (bool, error) {
+	var raw map[string]any
+	if _, err := toml.Decode(string(data), &raw); err != nil {
+		return false, err
+	}
+	for _, key := range []string{"colors", "light", "dark"} {
+		if table, ok := raw[key].(map[string]any); ok && !isColorValue(table) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func isColorValue(table map[string]any) bool {
+	for key := range table {
+		switch key {
+		case "fg", "bg", "bold", "italic", "underline", "strikethrough", "reverse":
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func (t Theme) Validate() error {
+	if err := t.Light.Validate("light"); err != nil {
+		return err
+	}
+	return t.Dark.Validate("dark")
+}
+
+func (v ThemeVariant) Validate(name string) error {
+	return validateBackgroundBlend(name+".background_blend", v.BackgroundBlend)
+}
+
+func validateBackgroundBlend(name string, value *float64) error {
+	if value == nil {
+		return nil
+	}
+	if math.IsNaN(*value) || *value < 0 || *value > 1 {
+		return fmt.Errorf("invalid value for '%s': expected 0.0 to 1.0, got %v", name, *value)
+	}
+	return nil
+}
+
+func LoadEmbeddedTheme(name string, isDark bool) (ResolvedTheme, error) {
 	embeddedPath := "default/" + name + ".toml"
 	data, err := configFS.ReadFile(embeddedPath)
 	if err != nil {
-		return nil, err
+		return ResolvedTheme{}, err
 	}
-	return loadTheme(data, nil)
+	return loadTheme(data, isDark)
 }
 
-func LoadTheme(name string, base map[string]Color) (map[string]Color, error) {
+func LoadTheme(name string, isDark bool) (ResolvedTheme, error) {
 	configFilePath := getConfigFilePath()
 	themeFile := filepath.Join(filepath.Dir(configFilePath), "themes", name+".toml")
 
 	data, err := os.ReadFile(themeFile)
 	if err != nil {
-		return nil, err
+		return ResolvedTheme{}, err
 	}
-	return loadTheme(data, base)
+	return loadTheme(data, isDark)
 }
 
 type LuaTypesInstallResult struct {
@@ -334,40 +406,56 @@ func ensureLuaRC(luaRCPath, typesPath string) (bool, error) {
 }
 
 // ResolveTheme loads the full color map for the given background mode.
-// It layers the embedded default theme, optional user theme, jj VCS colors,
-// and inline [ui.colors] overrides in the correct order.
-func ResolveTheme(isDark bool, jjColors map[string]Color) (map[string]Color, error) {
-	defaultThemeName := "default_light"
-	if isDark {
-		defaultThemeName = "default_dark"
-	}
-
-	theme, err := LoadEmbeddedTheme(defaultThemeName)
-	if err != nil {
-		return nil, fmt.Errorf("loading default theme %q: %w", defaultThemeName, err)
-	}
-
+// It selects either the embedded default theme or the configured user theme as
+// the base, then layers jj VCS colors, inline [ui.colors] overrides, and an
+// optional [ui] background_blend override in the correct order.
+func ResolveTheme(isDark bool, jjColors map[string]Color) (ResolvedTheme, error) {
 	userThemeName := Current.UI.Theme.Light
 	if isDark {
 		userThemeName = Current.UI.Theme.Dark
 	}
 
-	if userThemeName != "" {
-		theme, err = LoadTheme(userThemeName, theme)
+	var theme ResolvedTheme
+	var err error
+	if userThemeName == "" {
+		const defaultThemeName = "default"
+		theme, err = LoadEmbeddedTheme(defaultThemeName, isDark)
 		if err != nil {
-			return nil, fmt.Errorf("loading user theme %q: %w", userThemeName, err)
+			return ResolvedTheme{}, fmt.Errorf("loading default theme %q: %w", defaultThemeName, err)
+		}
+	} else {
+		theme, err = LoadTheme(userThemeName, isDark)
+		if err != nil {
+			return ResolvedTheme{}, fmt.Errorf("loading user theme %q: %w", userThemeName, err)
 		}
 	}
 
 	// Layer jj VCS colors
 	if jjColors != nil {
-		maps.Copy(theme, jjColors)
+		maps.Copy(theme.Colors, NormalizeColorSelectors(jjColors))
 	}
 
 	// Layer inline [ui.colors] overrides
 	if Current.UI.Colors != nil {
-		maps.Copy(theme, Current.UI.Colors)
+		maps.Copy(theme.Colors, NormalizeColorSelectors(Current.UI.Colors))
+	}
+
+	if err := validateBackgroundBlendConfig(Current.UI.BackgroundBlend); err != nil {
+		return ResolvedTheme{}, err
+	}
+	if backgroundBlend := Current.UI.BackgroundBlend.Resolve(isDark); backgroundBlend != nil {
+		theme.BackgroundBlend = *backgroundBlend
 	}
 
 	return theme, nil
+}
+
+func validateBackgroundBlendConfig(value BackgroundBlendConfig) error {
+	if err := validateBackgroundBlend("ui.background_blend", value.Value); err != nil {
+		return err
+	}
+	if err := validateBackgroundBlend("ui.background_blend.light", value.Light); err != nil {
+		return err
+	}
+	return validateBackgroundBlend("ui.background_blend.dark", value.Dark)
 }

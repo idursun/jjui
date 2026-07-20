@@ -3,6 +3,7 @@ package ui
 import (
 	"errors"
 	"fmt"
+	"image/color"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
@@ -1722,6 +1724,31 @@ func drainCmds(root tea.Cmd, visit func(c tea.Cmd, msg tea.Msg) bool) {
 	}
 }
 
+func inspectTerminalRefresh(cmd tea.Cmd) (themeChanged, paletteRequested, backgroundRequested bool) {
+	wantBackgroundRequest := reflect.ValueOf(tea.RequestBackgroundColor).Pointer()
+	drainCmds(cmd, func(cmd tea.Cmd, msg tea.Msg) bool {
+		if reflect.ValueOf(cmd).Pointer() == wantBackgroundRequest {
+			backgroundRequested = true
+		}
+		if _, ok := msg.(common.ThemeChangedMsg); ok {
+			themeChanged = true
+		}
+		if raw, ok := msg.(tea.RawMsg); ok {
+			if rawMsg, ok := raw.Msg.(string); ok && strings.HasPrefix(rawMsg, "\x1b]4;") {
+				paletteRequested = true
+			}
+		}
+		return true
+	})
+	return themeChanged, paletteRequested, backgroundRequested
+}
+
+func enableBackgroundBlend(t *testing.T, value float64) {
+	original := config.Current.UI.BackgroundBlend
+	t.Cleanup(func() { config.Current.UI.BackgroundBlend = original })
+	config.Current.UI.BackgroundBlend = config.BackgroundBlendConfig{Value: &value}
+}
+
 func Test_Init_EnablesMode2031AndStartsPolling(t *testing.T) {
 	withShortColorSchemePoll(t)
 
@@ -1732,9 +1759,14 @@ func Test_Init_EnablesMode2031AndStartsPolling(t *testing.T) {
 	cmd := w.Init()
 	require.NotNil(t, cmd)
 
-	var foundEnable2031, foundProbe2031, foundPollTick bool
+	var foundEnable2031, foundProbe2031, foundBackgroundRequest, foundPollTick bool
+	wantBackgroundRequest := reflect.ValueOf(tea.RequestBackgroundColor).Pointer()
 
 	drainCmds(cmd, func(c tea.Cmd, msg tea.Msg) bool {
+		if reflect.ValueOf(c).Pointer() == wantBackgroundRequest {
+			foundBackgroundRequest = true
+			return true
+		}
 		switch v := msg.(type) {
 		case tea.RawMsg:
 			switch v.Msg {
@@ -1751,7 +1783,58 @@ func Test_Init_EnablesMode2031AndStartsPolling(t *testing.T) {
 
 	assert.True(t, foundEnable2031)
 	assert.True(t, foundProbe2031)
+	assert.True(t, foundBackgroundRequest)
 	assert.True(t, foundPollTick)
+}
+
+func Test_BackgroundColorMsg_ReloadsThemeWhenColorChangesWithinCurrentScheme(t *testing.T) {
+	enableBackgroundBlend(t, 0.4)
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	ctx.TerminalHasDarkBackground = true
+	ctx.ThemeBackgroundBlend = 0.4
+	model := NewUI(ctx)
+	msg := tea.BackgroundColorMsg{Color: color.RGBA{R: 0x20, G: 0x20, B: 0x20, A: 0xff}}
+
+	cmd := model.Update(msg)
+	require.NotNil(t, cmd)
+	themeChanged, paletteRequested, _ := inspectTerminalRefresh(cmd)
+	assert.True(t, themeChanged)
+	assert.False(t, paletteRequested, "the initial palette query is already in flight")
+	assert.Equal(t, "#202020", ctx.TerminalBackground)
+
+	assert.Nil(t, model.Update(msg), "an unchanged terminal background should not reload the theme")
+
+	msg = tea.BackgroundColorMsg{Color: color.RGBA{R: 0x30, G: 0x30, B: 0x30, A: 0xff}}
+	themeChanged, paletteRequested, _ = inspectTerminalRefresh(model.Update(msg))
+	assert.True(t, themeChanged)
+	assert.True(t, paletteRequested)
+}
+
+func Test_ColorSchemeEvent_ReloadsThemeAndTerminalPalette(t *testing.T) {
+	enableBackgroundBlend(t, 0.4)
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	themeChanged, paletteRequested, backgroundRequested := inspectTerminalRefresh(model.Update(uv.DarkColorSchemeEvent{}))
+	assert.True(t, themeChanged)
+	assert.True(t, paletteRequested)
+	assert.True(t, backgroundRequested)
+}
+
+func Test_Init_SkipsTerminalPaletteQueryWhenBackgroundBlendDisabled(t *testing.T) {
+	withShortColorSchemePoll(t)
+
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	w := New(ctx)
+
+	cmd := w.Init()
+	require.NotNil(t, cmd)
+
+	_, foundPaletteRequest, _ := inspectTerminalRefresh(cmd)
+	assert.False(t, foundPaletteRequest)
 }
 
 func Test_PollTick_RequestsBackgroundColorAndRearms(t *testing.T) {
@@ -1843,4 +1926,16 @@ func Test_ResumeMsg_ReEnablesMode2031AndQueriesBackground(t *testing.T) {
 	assert.True(t, foundBgRequest, "resume should re-query background color")
 	assert.False(t, foundProbe2031, "resume should not re-probe mode 2031 support; the initial probe result still applies")
 	assert.False(t, foundPollTick, "resume should not restart polling; the existing poll loop survives suspension")
+}
+
+func Test_ResumeMsg_SkipsTerminalPaletteQueryWhenBackgroundBlendDisabled(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	cmd := model.Update(tea.ResumeMsg{})
+	require.NotNil(t, cmd)
+
+	_, foundPaletteRequest, _ := inspectTerminalRefresh(cmd)
+	assert.False(t, foundPaletteRequest)
 }

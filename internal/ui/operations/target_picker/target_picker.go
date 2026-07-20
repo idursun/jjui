@@ -183,15 +183,12 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
-	bookmarkPillStyle := common.DefaultPalette.Get("picker bookmark")
-	selectedStyle := common.DefaultPalette.Get("picker selected")
-	selectedDimmedStyle := common.DefaultPalette.Get("picker selected dimmed")
-	selectedTextStyle := common.DefaultPalette.Get("picker selected text")
-	selectedMatchStyle := common.DefaultPalette.Get("picker selected matched")
-	matchedStyle := common.DefaultPalette.Get("picker matched")
-	borderStyle := common.DefaultPalette.GetBorder("picker border", lipgloss.NormalBorder())
-	textStyle := common.DefaultPalette.Get("picker text")
-	dimmedStyle := common.DefaultPalette.Get("picker dimmed")
+	bookmarkPillStyle := common.DefaultPalette.Get("picker", "", "bookmark", false)
+	selectedStyle := common.DefaultPalette.Get("picker", "", "", true)
+	selectedTextStyle := common.DefaultPalette.Get("picker", "", "text", true)
+	borderStyle := common.DefaultPalette.GetBorder("picker", "", "border", false, lipgloss.NormalBorder())
+	textStyle := common.DefaultPalette.Get("picker", "", "text", false)
+	dimmedStyle := common.DefaultPalette.Get("picker", "", "dimmed", false)
 
 	maxW := min(maxWidth, box.R.Dx())
 	maxH := min(maxHeight, box.R.Dy())
@@ -232,13 +229,11 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			y := rect.Min.Y
 
 			isSelected := index == m.cursor
-			pillStyle := dimmedStyle
+			pillStyle := common.DefaultPalette.Get("picker", "", "dimmed", isSelected)
 			lineStyle := bookmarkPillStyle
-			matchStyle := matchedStyle
+			matchStyle := common.DefaultPalette.Get("picker", "", "matched", isSelected)
 			if isSelected {
-				pillStyle = selectedDimmedStyle
 				lineStyle = selectedTextStyle
-				matchStyle = selectedMatchStyle
 				dl.AddFill(rect, ' ', selectedStyle, render.ZMenuContent-1)
 			} else {
 				matchStyle = matchStyle.Inherit(lineStyle)

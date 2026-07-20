@@ -43,6 +43,36 @@ auto_refresh_interval = 5000
 	assert.Equal(t, 5000, config.UI.AutoRefreshInterval)
 }
 
+func TestLoad_BackgroundBlend(t *testing.T) {
+	content := `
+[ui]
+background_blend = 0.0
+`
+	config := &Config{}
+	err := config.Load(content, "")
+	assert.NoError(t, err)
+	if assert.NotNil(t, config.UI.BackgroundBlend.Value) {
+		assert.Zero(t, *config.UI.BackgroundBlend.Value)
+	}
+}
+
+func TestLoad_BackgroundBlendVariants(t *testing.T) {
+	content := `
+[ui.background_blend]
+light = 0.2
+dark = 0.6
+`
+	config := &Config{}
+	err := config.Load(content, "")
+	assert.NoError(t, err)
+	if assert.NotNil(t, config.UI.BackgroundBlend.Light) {
+		assert.Equal(t, 0.2, *config.UI.BackgroundBlend.Light)
+	}
+	if assert.NotNil(t, config.UI.BackgroundBlend.Dark) {
+		assert.Equal(t, 0.6, *config.UI.BackgroundBlend.Dark)
+	}
+}
+
 func TestLoad_FlashMessageDisplaySeconds(t *testing.T) {
 	content := `
 [ui]

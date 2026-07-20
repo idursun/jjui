@@ -110,10 +110,10 @@ func (r *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
 }
 
 func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
-	changeIdStyle := common.DefaultPalette.Get("duplicate change_id")
-	dimmedStyle := common.DefaultPalette.Get("duplicate dimmed")
-	sourceMarker := common.DefaultPalette.Get("duplicate source_marker")
-	targetMarkerStyle := common.DefaultPalette.Get("duplicate target_marker")
+	changeIdStyle := common.DefaultPalette.Get("duplicate", "", "change_id", false)
+	dimmedStyle := common.DefaultPalette.Get("duplicate", "", "dimmed", false)
+	sourceMarker := common.DefaultPalette.Get("duplicate", "", "source_marker", false)
+	targetMarkerStyle := common.DefaultPalette.Get("duplicate", "", "target_marker", false)
 
 	if pos == operations.RenderBeforeChangeId {
 		changeId := commit.GetChangeId()

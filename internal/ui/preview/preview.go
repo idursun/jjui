@@ -176,7 +176,7 @@ func (m *Model) SetContent(content string) {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	surfaceStyle := common.DefaultPalette.Get("preview")
+	surfaceStyle := common.DefaultPalette.Get("preview", "", "", false)
 	m.view.SetWidth(box.R.Dx())
 	m.view.SetHeight(box.R.Dy())
 	dl.AddFill(box.R, ' ', surfaceStyle, render.ZPreview)

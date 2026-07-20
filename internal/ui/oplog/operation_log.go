@@ -249,9 +249,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return len(m.rows[index].Lines)
 	}
 
-	textStyle := common.DefaultPalette.Get("oplog text")
-	selectedStyle := common.DefaultPalette.Get("oplog selected")
-	matchedStyle := common.DefaultPalette.Get("oplog matched")
+	textStyle := common.DefaultPalette.Get("oplog", "", "text", false)
+	selectedStyle := common.DefaultPalette.Get("oplog", "", "", true)
+	matchedStyle := common.DefaultPalette.Get("oplog", "", "matched", false)
 
 	renderItem := func(dl *render.DisplayContext, index int, itemRect layout.Rectangle) {
 		row := m.rows[index]

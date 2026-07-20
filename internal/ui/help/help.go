@@ -225,12 +225,12 @@ func (m *Model) applyFilter() {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	borderStyle := common.DefaultPalette.GetBorder("help border", lipgloss.NormalBorder()).Padding(0)
-	titleStyle := common.DefaultPalette.Get("help title")
+	borderStyle := common.DefaultPalette.GetBorder("help", "", "border", false, lipgloss.NormalBorder()).Padding(0)
+	titleStyle := common.DefaultPalette.Get("help", "", "title", false)
 	headingStyle := titleStyle
-	shortcutStyle := common.DefaultPalette.Get("help shortcut")
-	dimmedStyle := common.DefaultPalette.Get("help dimmed")
-	descStyle := common.DefaultPalette.Get("help desc").Inherit(dimmedStyle)
+	shortcutStyle := common.DefaultPalette.Get("help", "", "shortcut", false)
+	dimmedStyle := common.DefaultPalette.Get("help", "", "dimmed", false)
+	descStyle := common.DefaultPalette.Get("help", "", "desc", false).Inherit(dimmedStyle)
 
 	inputStyles := m.input.Styles()
 	inputStyles.Focused.Text = shortcutStyle

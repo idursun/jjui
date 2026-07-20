@@ -127,16 +127,16 @@ func (o *Operation) Render(commit *jj.Commit, renderPosition operations.RenderPo
 	}
 
 	if renderPosition == operations.RenderPositionBefore && o.from != nil && commit.GetChangeId() == o.from.GetChangeId() {
-		sourceMarkerStyle := common.DefaultPalette.Get("diff_range source_marker")
-		dimmedStyle := common.DefaultPalette.Get("diff_range dimmed")
+		sourceMarkerStyle := common.DefaultPalette.Get("diff_range", "", "source_marker", false)
+		dimmedStyle := common.DefaultPalette.Get("diff_range", "", "dimmed", false)
 		return lipgloss.JoinHorizontal(0, sourceMarkerStyle.Render("<< from >>"), dimmedStyle.Render(" excluding this revision"))
 	}
 
 renderTo:
 	if renderPosition == operations.RenderPositionBefore && o.to != nil && commit.GetChangeId() == o.to.GetChangeId() {
-		targetMarkerStyle := common.DefaultPalette.Get("diff_range target_marker").PaddingRight(1)
-		changeIdStyle := common.DefaultPalette.Get("diff_range change_id")
-		dimmedStyle := common.DefaultPalette.Get("diff_range dimmed")
+		targetMarkerStyle := common.DefaultPalette.Get("diff_range", "", "target_marker", false).PaddingRight(1)
+		changeIdStyle := common.DefaultPalette.Get("diff_range", "", "change_id", false)
+		dimmedStyle := common.DefaultPalette.Get("diff_range", "", "dimmed", false)
 		commandHint := lipgloss.JoinHorizontal(0, dimmedStyle.Render(" jj diff --from "), changeIdStyle.Render(o.from.GetChangeId()), dimmedStyle.Render(" --to "), changeIdStyle.Render(o.to.GetChangeId()))
 		return lipgloss.JoinHorizontal(0, targetMarkerStyle.Render("<< to >>"), commandHint)
 	}

@@ -23,148 +23,223 @@ const (
 	White  = "7"
 )
 
-func TestPalette_Get(t *testing.T) {
-	type args struct {
-		selector string
-		styles   map[string]lipgloss.Style
-	}
-
+func TestPaletteGet_BaseCandidatePrecedence(t *testing.T) {
 	tests := []struct {
-		name string
-		args args
-		want lipgloss.Style
+		name   string
+		colors map[string]config.Color
+		want   string
 	}{
 		{
-			name: "exact match for single label",
-			args: args{
-				selector: "text",
-				styles: map[string]lipgloss.Style{
-					"text": lipgloss.NewStyle().Foreground(lipgloss.Color(White)),
-				},
+			name: "exact component role overrides all fallbacks",
+			colors: map[string]config.Color{
+				"status input text": {Fg: Red},
+				"status input":      {Fg: Blue},
+				"status text":       {Fg: Green},
+				"text":              {Fg: White},
 			},
-			want: lipgloss.NewStyle().Foreground(lipgloss.Color(White)),
+			want: Red,
 		},
 		{
-			name: "combined labels",
-			args: args{
-				selector: "revisions selected",
-				styles: map[string]lipgloss.Style{
-					"revisions": lipgloss.NewStyle().Italic(true),
-					"selected":  lipgloss.NewStyle().Background(lipgloss.Color(Black)).Bold(true),
-				},
+			name: "component base overrides scoped role",
+			colors: map[string]config.Color{
+				"status input": {Fg: Blue},
+				"status text":  {Fg: Green},
 			},
-			want: lipgloss.NewStyle().Background(lipgloss.Color(Black)).Bold(true).Italic(true),
+			want: Blue,
 		},
 		{
-			name: "non-existent label",
-			args: args{selector: "nonexistent", styles: nil},
-			want: lipgloss.NewStyle(),
-		},
-		{
-			name: "mixed existing and non-existent labels",
-			args: args{
-				selector: "text nonexistent",
-				styles: map[string]lipgloss.Style{
-					"text": lipgloss.NewStyle().Foreground(lipgloss.Color(White)),
-				},
+			name: "scope overrides generic component role",
+			colors: map[string]config.Color{
+				"status":     {Fg: Yellow},
+				"input text": {Fg: Green},
+				"text":       {Fg: White},
 			},
-			want: lipgloss.NewStyle().Foreground(lipgloss.Color(White)),
+			want: Yellow,
 		},
 		{
-			name: "empty selector",
-			args: args{selector: "", styles: nil},
-			want: lipgloss.NewStyle(),
-		},
-		{
-			name: "exact match for compound label",
-			args: args{
-				selector: "revisions text",
-				styles: map[string]lipgloss.Style{
-					"revisions text": lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan)).Background(lipgloss.Color(Green)).Italic(true),
-				},
+			name: "generic component role applies",
+			colors: map[string]config.Color{
+				"input text": {Fg: Green},
+				"input":      {Fg: Blue},
+				"text":       {Fg: White},
 			},
-			want: lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan)).Background(lipgloss.Color(Green)).Italic(true),
+			want: Green,
 		},
 		{
-			name: "attribute inheritance",
-			args: args{
-				selector: "revisions matched",
-				styles: map[string]lipgloss.Style{
-					"matched":           lipgloss.NewStyle().Underline(true),
-					"revisions matched": lipgloss.NewStyle().Underline(false),
-				},
+			name: "generic component applies before generic role",
+			colors: map[string]config.Color{
+				"input": {Fg: Blue},
+				"text":  {Fg: White},
 			},
-			want: lipgloss.NewStyle().Underline(false),
+			want: Blue,
 		},
 		{
-			name: "attribute inheritance2",
-			args: args{
-				selector: "revisions matched",
-				styles: map[string]lipgloss.Style{
-					"matched":           lipgloss.NewStyle().Underline(false),
-					"revisions matched": lipgloss.NewStyle().Underline(true),
-				},
+			name: "generic role applies",
+			colors: map[string]config.Color{
+				"text": {Fg: White},
 			},
-			want: lipgloss.NewStyle().Underline(true),
-		},
-		{
-			name: "selected substyle inherits semantic style before selected state",
-			args: args{
-				selector: "menu selected shortcut",
-				styles: map[string]lipgloss.Style{
-					"selected":      lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan)),
-					"menu selected": lipgloss.NewStyle().Background(lipgloss.Color(Black)).Bold(true),
-					"menu shortcut": lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)),
-				},
-			},
-			want: lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)).Background(lipgloss.Color(Black)).Bold(true),
-		},
-		{
-			name: "partial exact selected substyle preserves semantic foreground",
-			args: args{
-				selector: "bookmarks menu selected shortcut",
-				styles: map[string]lipgloss.Style{
-					"shortcut":               lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)),
-					"menu selected":          lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan)).Background(lipgloss.Color(Black)).Bold(true),
-					"menu selected shortcut": lipgloss.NewStyle().Background(lipgloss.Color(Blue)),
-				},
-			},
-			want: lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)).Background(lipgloss.Color(Blue)).Bold(true),
-		},
-		{
-			name: "exact selected substyle overrides semantic fallback",
-			args: args{
-				selector: "menu selected shortcut",
-				styles: map[string]lipgloss.Style{
-					"menu selected":          lipgloss.NewStyle().Background(lipgloss.Color(Black)),
-					"menu shortcut":          lipgloss.NewStyle().Foreground(lipgloss.Color(Yellow)),
-					"menu selected shortcut": lipgloss.NewStyle().Foreground(lipgloss.Color(Green)),
-				},
-			},
-			want: lipgloss.NewStyle().Foreground(lipgloss.Color(Green)).Background(lipgloss.Color(Black)),
+			want: White,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set up a palette with test styles using the add method
 			p := NewPalette()
+			p.Update(tt.colors)
+			assert.Equal(t, lipgloss.Color(tt.want), p.Get("status", "input", "text", false).GetForeground())
+		})
+	}
+}
 
-			for key, style := range tt.args.styles {
-				p.add(key, style)
+func TestPaletteGet_BaseCandidatesFillOmittedProperties(t *testing.T) {
+	p := NewPalette()
+	p.Update(map[string]config.Color{
+		"status input": {Bg: Black},
+		"status text":  {Fg: Cyan},
+		"input text":   {Underline: boolPtr(true)},
+		"text":         {Italic: boolPtr(true)},
+	})
+
+	got := p.Get("status", "input", "text", false)
+	assert.Equal(t, lipgloss.Color(Black), got.GetBackground())
+	assert.Equal(t, lipgloss.Color(Cyan), got.GetForeground())
+	assert.True(t, got.GetUnderline())
+	assert.True(t, got.GetItalic())
+}
+
+func TestPaletteGet_SelectedCandidatePrecedence(t *testing.T) {
+	tests := []struct {
+		name string
+		key  string
+		want string
+	}{
+		{name: "exact component role selected", key: "scope component role:selected", want: Red},
+		{name: "component selected", key: "scope component:selected", want: Green},
+		{name: "scoped role selected", key: "scope role:selected", want: Yellow},
+		{name: "scope selected", key: "scope:selected", want: Blue},
+		{name: "generic component role selected", key: "component role:selected", want: Cyan},
+		{name: "generic component selected", key: "component:selected", want: White},
+		{name: "generic role selected", key: "role:selected", want: "8"},
+		{name: "global selected", key: ":selected", want: "9"},
+		{name: "unselected base fallback", key: "scope component role", want: "10"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			colors := map[string]config.Color{
+				"scope component role": {Fg: "10"},
+				":selected":            {Fg: "9"},
 			}
+			if tt.key == "scope component role" {
+				delete(colors, ":selected")
+			} else if tt.key != ":selected" {
+				colors[tt.key] = config.Color{Fg: tt.want}
+				delete(colors, ":selected")
+			} else {
+				colors[tt.key] = config.Color{Fg: tt.want}
+			}
+			p := NewPalette()
+			p.Update(colors)
+			assert.Equal(t, lipgloss.Color(tt.want), p.Get("scope", "component", "role", true).GetForeground())
+		})
+	}
+}
 
-			got := p.Get(tt.args.selector)
+func TestPaletteGet_SelectedCandidatesFillOmittedProperties(t *testing.T) {
+	p := NewPalette()
+	p.Update(map[string]config.Color{
+		"git menu text:selected": {Italic: boolPtr(true)},
+		"git menu:selected":      {Bg: Blue, Underline: boolPtr(true)},
+		"git text:selected":      {Fg: Yellow},
+		"git:selected":           {Bold: boolPtr(true)},
+	})
 
-			// Compare foreground colours
-			assert.Equal(t, tt.want.GetForeground(), got.GetForeground(), "foreground color mismatch")
+	got := p.Get("git", "menu", "text", true)
+	assert.Equal(t, lipgloss.Color(Yellow), got.GetForeground())
+	assert.Equal(t, lipgloss.Color(Blue), got.GetBackground())
+	assert.True(t, got.GetBold())
+	assert.True(t, got.GetUnderline())
+	assert.True(t, got.GetItalic())
+}
 
-			// Compare background colours
-			assert.Equal(t, tt.want.GetBackground(), got.GetBackground(), "background color mismatch")
+func TestPaletteGet_ExplicitDefaultBackgroundStopsInheritance(t *testing.T) {
+	tests := []struct {
+		name       string
+		colors     map[string]config.Color
+		isSelected bool
+	}{
+		{
+			name: "base",
+			colors: map[string]config.Color{
+				"git menu": {Bg: "default"},
+				"git":      {Bg: Blue},
+			},
+		},
+		{
+			name: "selected",
+			colors: map[string]config.Color{
+				"git:selected": {Bg: "default"},
+				":selected":    {Bg: Blue},
+			},
+			isSelected: true,
+		},
+	}
 
-			// Compare style attributes
-			assert.Equal(t, tt.want.GetBold(), got.GetBold(), "bold attribute mismatch")
-			assert.Equal(t, tt.want.GetItalic(), got.GetItalic(), "italic attribute mismatch")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewPalette()
+			p.Update(tt.colors)
+			assert.IsType(t, lipgloss.NoColor{}, p.Get("git", "menu", "text", tt.isSelected).GetBackground())
+		})
+	}
+}
+
+func TestPaletteGet_ExplicitFalseOverridesInheritedTrue(t *testing.T) {
+	p := NewPalette()
+	p.Update(map[string]config.Color{
+		"matched":                   {Underline: boolPtr(true)},
+		"revisions details matched": {Underline: boolPtr(false)},
+		":selected":                 {Bold: boolPtr(true)},
+		"revisions:selected":        {Bold: boolPtr(false)},
+	})
+
+	got := p.Get("revisions", "details", "matched", true)
+	assert.False(t, got.GetUnderline())
+	assert.False(t, got.GetBold())
+}
+
+func TestPaletteGet_LegacyAndSuffixThemeSelectorsNormalizeIdentically(t *testing.T) {
+	legacy := NewPalette()
+	legacy.Update(map[string]config.Color{"revisions details selected text": {Fg: Yellow}})
+	suffix := NewPalette()
+	suffix.Update(map[string]config.Color{"revisions details text:selected": {Fg: Yellow}})
+
+	assert.Equal(t,
+		legacy.Get("revisions", "details", "text", true),
+		suffix.Get("revisions", "details", "text", true),
+	)
+}
+
+func TestPaletteGet_DefaultThemePreservesComponentBehavior(t *testing.T) {
+	for _, isDark := range []bool{false, true} {
+		t.Run(map[bool]string{false: "light", true: "dark"}[isDark], func(t *testing.T) {
+			theme, err := config.LoadEmbeddedTheme("default", isDark)
+			assert.NoError(t, err)
+			p := NewPalette()
+			p.Update(theme.Colors)
+
+			assert.Equal(t, p.Get("git", "", "title", false), p.Get("git", "remote", "title", false))
+			assert.Equal(t, p.Get("bookmarks", "", "title", false), p.Get("bookmarks", "remote", "title", false))
+			assert.Equal(t, p.Get("git", "", "matched", false), p.Get("git", "input", "matched", false))
+			assert.Equal(t, p.Get("bookmarks", "", "matched", false), p.Get("bookmarks", "input", "matched", false))
+			assert.Equal(t, p.Get("git", "", "text", false), p.Get("git", "input", "text", false))
+			assert.Equal(t, p.Get("bookmarks", "", "text", false), p.Get("bookmarks", "input", "text", false))
+			assert.IsType(t, lipgloss.NoColor{}, p.Get("git", "", "text", true).GetBackground())
+			assert.IsType(t, lipgloss.NoColor{}, p.Get("bookmarks", "", "text", true).GetBackground())
+			assert.IsType(t, lipgloss.NoColor{}, p.Get("git", "remote", "", true).GetBackground())
+			assert.IsType(t, lipgloss.NoColor{}, p.Get("bookmarks", "remote", "", true).GetBackground())
+			selectedBackground := map[bool]string{false: "7", true: "8"}[isDark]
+			assert.Equal(t, lipgloss.Color(selectedBackground), p.Get("other", "", "text", true).GetBackground())
 		})
 	}
 }
@@ -219,15 +294,15 @@ func TestPalette_Update(t *testing.T) {
 			p := NewPalette()
 			p.Update(tt.styleMap)
 
-			got := p.Get(tt.selector)
+			got := p.Get("", "", tt.selector, false)
 
 			if tt.name == "diff shortcuts" {
 				// Check that all diff shortcuts were properly added
-				assert.Equal(t, lipgloss.Color("2"), p.Get("added").GetForeground(), "added style not set correctly")
-				assert.Equal(t, lipgloss.Color("4"), p.Get("renamed").GetForeground(), "renamed style not set correctly")
-				assert.Equal(t, lipgloss.Color("4"), p.Get("copied").GetForeground(), "copied style not set correctly")
-				assert.Equal(t, lipgloss.Color("3"), p.Get("modified").GetForeground(), "modified style not set correctly")
-				assert.Equal(t, lipgloss.Color("1"), p.Get("deleted").GetForeground(), "deleted style not set correctly")
+				assert.Equal(t, lipgloss.Color("2"), p.Get("", "", "added", false).GetForeground(), "added style not set correctly")
+				assert.Equal(t, lipgloss.Color("4"), p.Get("", "", "renamed", false).GetForeground(), "renamed style not set correctly")
+				assert.Equal(t, lipgloss.Color("4"), p.Get("", "", "copied", false).GetForeground(), "copied style not set correctly")
+				assert.Equal(t, lipgloss.Color("3"), p.Get("", "", "modified", false).GetForeground(), "modified style not set correctly")
+				assert.Equal(t, lipgloss.Color("1"), p.Get("", "", "deleted", false).GetForeground(), "deleted style not set correctly")
 			} else {
 				assert.Equal(t, tt.want.GetForeground(), got.GetForeground(), "foreground color mismatch")
 				assert.Equal(t, tt.want.GetBackground(), got.GetBackground(), "background color mismatch")
@@ -270,6 +345,11 @@ func TestParseColor(t *testing.T) {
 			want:  lipgloss.Color("42"),
 		},
 		{
+			name:  "default color",
+			color: "default",
+			want:  lipgloss.NoColor{},
+		},
+		{
 			name:  "invalid color",
 			color: "not-a-color",
 			want:  lipgloss.Color(""),
@@ -296,7 +376,7 @@ func TestPaletteUpdate_InheritsWhenAttributeOmitted(t *testing.T) {
 		"revisions matched": {Fg: Cyan},
 	})
 
-	got := p.Get("revisions matched")
+	got := p.Get("revisions", "", "matched", false)
 	assert.True(t, got.GetUnderline())
 }
 
@@ -307,7 +387,7 @@ func TestPaletteUpdate_ClearsCachedStyles(t *testing.T) {
 	})
 
 	// Populate the cache.
-	got := p.Get("text")
+	got := p.Get("", "", "text", false)
 	assert.Equal(t, lipgloss.Color("1"), got.GetForeground())
 
 	// A second Update with different colors should invalidate the cache.
@@ -315,7 +395,7 @@ func TestPaletteUpdate_ClearsCachedStyles(t *testing.T) {
 		"text": {Fg: Blue},
 	})
 
-	got = p.Get("text")
+	got = p.Get("", "", "text", false)
 	assert.Equal(t, lipgloss.Color("4"), got.GetForeground())
 }
 
@@ -323,17 +403,17 @@ func TestPaletteUpdate_ClearsStaleKeysFromPreviousTheme(t *testing.T) {
 	p := NewPalette()
 	p.Update(map[string]config.Color{
 		"text":      {Fg: Red},
-		"dark only": {Fg: Green},
+		"dark_only": {Fg: Green},
 	})
 
-	assert.Equal(t, lipgloss.Color("2"), p.Get("dark only").GetForeground())
+	assert.Equal(t, lipgloss.Color("2"), p.Get("", "", "dark_only", false).GetForeground())
 
 	// Switch to a theme that lacks the "dark only" key.
 	p.Update(map[string]config.Color{
 		"text": {Fg: Blue},
 	})
 
-	got := p.Get("dark only")
+	got := p.Get("", "", "dark_only", false)
 	assert.Equal(t, lipgloss.NewStyle().GetForeground(), got.GetForeground())
 }
 
@@ -344,6 +424,6 @@ func TestPaletteUpdate_ExplicitFalseOverridesInheritedAttribute(t *testing.T) {
 		"revisions matched": {Underline: boolPtr(false)},
 	})
 
-	got := p.Get("revisions matched")
+	got := p.Get("revisions", "", "matched", false)
 	assert.False(t, got.GetUnderline())
 }

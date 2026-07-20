@@ -38,16 +38,13 @@ type Completion struct {
 
 type Option func(m *AutoCompletionInput)
 
-func WithStylePrefix(prefix string) Option {
+func WithStyleScope(scope string) Option {
 	return func(m *AutoCompletionInput) {
-		if prefix != "" {
-			prefix += " "
-		}
 		styles := AutoCompleteStyles{
-			Selected: common.DefaultPalette.Get(prefix + "selected"),
-			Matched:  common.DefaultPalette.Get(prefix + "matched"),
-			Text:     common.DefaultPalette.Get(prefix + "text"),
-			Dimmed:   common.DefaultPalette.Get(prefix + "dimmed"),
+			Selected: common.DefaultPalette.Get(scope, "", "", true),
+			Matched:  common.DefaultPalette.Get(scope, "", "matched", false),
+			Text:     common.DefaultPalette.Get(scope, "", "text", false),
+			Dimmed:   common.DefaultPalette.Get(scope, "", "dimmed", false),
 		}
 		m.Styles = &styles
 	}
@@ -79,7 +76,7 @@ func New(provider CompletionProvider, options ...Option) *AutoCompletionInput {
 
 	if m.Styles == nil {
 		// applies default style
-		WithStylePrefix("")(m)
+		WithStyleScope("")(m)
 	}
 	s := m.TextInput.Styles()
 	s.Focused.Text = m.Styles.Text

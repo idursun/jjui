@@ -95,7 +95,7 @@ func New(context *appContext.MainContext) *Model {
 	completionProvider := NewCompletionProvider(revsetAliases)
 	autoComplete := autocompletion.New(
 		completionProvider,
-		autocompletion.WithStylePrefix("revset"),
+		autocompletion.WithStyleScope("revset"),
 		autocompletion.WithCompletionsDisabled(),
 	)
 
@@ -353,9 +353,9 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
-	titleStyle := common.DefaultPalette.Get("revset title")
-	textStyle := common.DefaultPalette.Get("revset text")
-	completionDimmed := common.DefaultPalette.Get("revset completion dimmed")
+	titleStyle := common.DefaultPalette.Get("revset", "", "title", false)
+	textStyle := common.DefaultPalette.Get("revset", "", "text", false)
+	completionDimmed := common.DefaultPalette.Get("revset", "completion", "dimmed", false)
 
 	tb := dl.Text(box.R.Min.X, box.R.Min.Y, render.ZFuzzyInput)
 	tb.Styled("revset: ", titleStyle)
@@ -399,10 +399,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	overlayWidth := box.R.Dx()
 	outerBox := layout.NewBox(layout.Rect(box.R.Min.X, box.R.Max.Y, overlayWidth, overlayHeight))
 	// Fill the background to prevent underlying content from showing through
-	dl.AddFill(outerBox.R, ' ', common.DefaultPalette.Get("revset completion"), render.ZRevsetOverlay-1)
-	completionText := common.DefaultPalette.Get("revset completion text")
-	completionMatched := common.DefaultPalette.Get("revset completion matched")
-
+	dl.AddFill(outerBox.R, ' ', common.DefaultPalette.Get("revset", "completion", "", false), render.ZRevsetOverlay-1)
+	completionSelected := common.DefaultPalette.Get("revset", "completion", "", true)
 	m.listRenderer.Render(
 		dl,
 		outerBox,
@@ -418,15 +416,12 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 			item := items[index]
 
-			ts := completionText
-			ms := completionMatched
-			ds := completionDimmed
+			ts := common.DefaultPalette.Get("revset", "completion", "text", isSelected)
+			ms := common.DefaultPalette.Get("revset", "completion", "matched", isSelected)
+			ds := common.DefaultPalette.Get("revset", "completion", "dimmed", isSelected)
 
 			if isSelected {
-				ts = common.DefaultPalette.Get("revset completion selected text")
-				ms = common.DefaultPalette.Get("revset completion selected matched")
-				ds = common.DefaultPalette.Get("revset completion selected dimmed")
-				dl.AddFill(rect, ' ', common.DefaultPalette.Get("revset completion selected"), render.ZRevsetOverlay-1)
+				dl.AddFill(rect, ' ', completionSelected, render.ZRevsetOverlay-1)
 			}
 
 			tb := dl.Text(rect.Min.X, rect.Min.Y, render.ZRevsetOverlay)
@@ -443,7 +438,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			}
 			tb.Done()
 			if isSelected {
-				dl.AddPaint(rect, common.DefaultPalette.Get("revset completion selected"), render.ZRevsetOverlay)
+				dl.AddPaint(rect, completionSelected, render.ZRevsetOverlay)
 			}
 		},
 		func(index int, _ tea.Mouse) tea.Msg { return completionClickMsg{index: index} },

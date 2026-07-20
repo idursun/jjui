@@ -303,10 +303,11 @@ func (m *Model) executeDefaultForFilter(kind intents.GitFilterKind) tea.Cmd {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	menuTitleStyle := common.DefaultPalette.Get("git menu title")
-	menuTextStyle := common.DefaultPalette.Get("git menu text")
-	menuMatchedStyle := common.DefaultPalette.Get("git menu matched")
-	borderStyle := common.DefaultPalette.GetBorder("git menu border", lipgloss.NormalBorder())
+	menuTitleStyle := common.DefaultPalette.Get("git", "", "title", false)
+	menuTextStyle := common.DefaultPalette.Get("git", "", "text", false)
+	inputTextStyle := common.DefaultPalette.Get("git", "input", "text", false)
+	inputMatchedStyle := common.DefaultPalette.Get("git", "input", "matched", false)
+	borderStyle := common.DefaultPalette.GetBorder("git", "", "border", false, lipgloss.NormalBorder())
 
 	pw, ph := box.R.Dx(), box.R.Dy()
 	contentWidth := max(min(pw, 80)-4, 0)
@@ -342,10 +343,10 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	filterBox, contentBox := contentBox.CutTop(1)
 	if m.filterState == filterEditing {
 		gfis := m.filterInput.Styles()
-		gfis.Focused.Prompt = menuMatchedStyle.PaddingLeft(1)
-		gfis.Focused.Text = menuTextStyle
-		gfis.Blurred.Prompt = menuMatchedStyle.PaddingLeft(1)
-		gfis.Blurred.Text = menuTextStyle
+		gfis.Focused.Prompt = inputMatchedStyle.PaddingLeft(1)
+		gfis.Focused.Text = inputTextStyle
+		gfis.Blurred.Prompt = inputMatchedStyle.PaddingLeft(1)
+		gfis.Blurred.Text = inputTextStyle
 		m.filterInput.SetStyles(gfis)
 		m.filterInput.SetWidth(max(contentBox.R.Dx()-2, 0))
 		dl.AddDraw(filterBox.R, m.filterInput.View(), render.ZMenuContent)
@@ -363,17 +364,17 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
 		return
 	}
 
-	remotePromptStyle := common.DefaultPalette.Get("git title")
-	menuTextStyle := common.DefaultPalette.Get("git menu text")
-	remoteTextStyle := common.DefaultPalette.Get("git dimmed")
-	remoteSelectedStyle := common.DefaultPalette.Get("git menu selected")
-	noRemoteStyle := common.DefaultPalette.Get("git error")
+	remotePromptStyle := common.DefaultPalette.Get("git", "remote", "title", false)
+	remoteTextStyle := common.DefaultPalette.Get("git", "remote", "text", false)
+	remoteDimmedStyle := common.DefaultPalette.Get("git", "remote", "dimmed", false)
+	remoteSelectedStyle := common.DefaultPalette.Get("git", "remote", "", true)
+	noRemoteStyle := common.DefaultPalette.Get("git", "remote", "error", false)
 
-	dl.AddFill(lineBox.R, ' ', menuTextStyle, render.ZMenuContent)
+	dl.AddFill(lineBox.R, ' ', remoteTextStyle, render.ZMenuContent)
 
 	// Render above menu content
 	tb := dl.Text(lineBox.R.Min.X, lineBox.R.Min.Y, render.ZMenuContent+1).
-		Styled(" ", menuTextStyle).
+		Styled(" ", remoteTextStyle).
 		Styled("Remotes: ", remotePromptStyle)
 
 	if len(m.remoteNames) == 0 {
@@ -382,11 +383,11 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
 	}
 
 	for idx, remoteName := range m.remoteNames {
-		style := remoteTextStyle
+		style := remoteDimmedStyle
 		if idx == m.selectedRemoteIdx {
 			style = remoteSelectedStyle
 		}
-		tb.Clickable(remoteName, style, SelectRemoteMsg{Index: idx}).Styled(" ", menuTextStyle)
+		tb.Clickable(remoteName, style, SelectRemoteMsg{Index: idx}).Styled(" ", remoteTextStyle)
 	}
 
 	tb.Done()
@@ -521,8 +522,8 @@ func (m *Model) renderFilterView(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 	width := box.R.Dx()
-	menuTextStyle := common.DefaultPalette.Get("git menu text")
-	menuMatchedStyle := common.DefaultPalette.Get("git menu matched")
+	menuTextStyle := common.DefaultPalette.Get("git", "", "text", false)
+	menuMatchedStyle := common.DefaultPalette.Get("git", "", "matched", false)
 	filterStyle := menuTextStyle.PaddingLeft(1)
 	filterValueStyle := menuMatchedStyle
 
@@ -589,15 +590,10 @@ func renderItem(dl *render.DisplayContext, rect layout.Rectangle, width int, sho
 		desc = desc[:width-1] + "…"
 	}
 
-	textStyle := common.DefaultPalette.Get("git menu text")
-	descStyle := common.DefaultPalette.Get("git menu dimmed")
-	shortcutStyle := common.DefaultPalette.Get("git menu shortcut")
-
-	if index == cursor {
-		textStyle = common.DefaultPalette.Get("git menu selected text")
-		descStyle = common.DefaultPalette.Get("git menu selected dimmed")
-		shortcutStyle = common.DefaultPalette.Get("git menu selected shortcut")
-	}
+	isSelected := index == cursor
+	textStyle := common.DefaultPalette.Get("git", "", "text", isSelected)
+	descStyle := common.DefaultPalette.Get("git", "", "dimmed", isSelected)
+	shortcutStyle := common.DefaultPalette.Get("git", "", "shortcut", isSelected)
 
 	titleLine := ""
 	if shortcut != "" {

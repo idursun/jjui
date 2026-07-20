@@ -144,16 +144,16 @@ func (m *Model) renderPendingCommands(dl *render.DisplayContext, area layout.Rec
 		y -= h
 		rect := layout.Rect(area.Max.X-w, y, w, h)
 		dl.AddDraw(rect, content, render.ZOverlay)
-		dl.AddPaint(rect, common.DefaultPalette.Get("flash text"), render.ZOverlay)
+		dl.AddPaint(rect, common.DefaultPalette.Get("flash", "", "text", false), render.ZOverlay)
 	}
 	return y
 }
 
 func flashBackgroundStyle(err error) lipgloss.Style {
 	if err != nil {
-		return common.DefaultPalette.Get("flash error")
+		return common.DefaultPalette.Get("flash", "", "error", false)
 	}
-	return common.DefaultPalette.Get("flash success")
+	return common.DefaultPalette.Get("flash", "", "success", false)
 }
 
 func (m *Model) removeLiveMessageByID(id uint64) bool {

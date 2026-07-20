@@ -35,6 +35,7 @@ func TestToLuaTableIncludesNestedStructFields(t *testing.T) {
 	lightVal := themeTbl.RawGetString("light")
 	_, ok = lightVal.(lua.LString)
 	require.True(t, ok, "config.ui.theme.light should be a string")
+
 }
 
 func TestToLuaTable_UsesOnlyTomlTaggedFields(t *testing.T) {
