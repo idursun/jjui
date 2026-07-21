@@ -49,7 +49,7 @@ go run ./cmd/genactions
 ## Requirements
 
 - Go 1.24.2+
-- `jj` v0.36+
+- `jj` v0.37+
 
 ## Verification Expectations
 
