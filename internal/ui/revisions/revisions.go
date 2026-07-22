@@ -757,6 +757,10 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return nil, true
 	case intents.Navigate:
 		return m.navigate(intent), true
+	case intents.GoToTop:
+		return m.goToTop(), true
+	case intents.GoToBottom:
+		return m.goToBottom(), true
 	case intents.Describe:
 		return m.startDescribe(intent), true
 	case intents.OpenEvolog:
@@ -953,6 +957,24 @@ func (m *Model) startAbandon(intent intents.OpenAbandon) tea.Cmd {
 		return nil
 	}
 	return m.setBaseOperation(abandon.NewOperation(m.context, selected, m.SelectedRevision()))
+}
+
+func (m *Model) goToTop() tea.Cmd {
+	if len(m.rows) == 0 {
+		return nil
+	}
+	m.SetCursor(0)
+	m.ensureCursorView = true
+	return nil
+}
+
+func (m *Model) goToBottom() tea.Cmd {
+	if len(m.rows) == 0 {
+		return nil
+	}
+	m.SetCursor(len(m.rows) - 1)
+	m.ensureCursorView = true
+	return m.requestMoreRows(m.tag.Load())
 }
 
 func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
