@@ -9,7 +9,7 @@ We welcome contributions from the community and appreciate your help in making t
 ### Prerequisites
 
 - Go 1.24.2 or later
-- [Jujutsu version control system](https://github.com/jj-vcs/jj) v0.36 or later
+- [Jujutsu version control system](https://github.com/jj-vcs/jj) v0.37 or later
 
 ### Setting up the Development Environment
 
@@ -58,7 +58,7 @@ This process helps ensure that:
 
 - Follow standard Go conventions and formatting
 - Use `go fmt` to format your code
-- Ensure compatibility with the minimum supported `jj` version (v0.36+)
+- Ensure compatibility with the minimum supported `jj` version (v0.37+)
 
 ### Code Generation
 
