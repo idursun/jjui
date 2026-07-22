@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,7 +13,7 @@ import (
 func TestNewWithTitle(t *testing.T) {
 	options := []string{"Option 1", "Option 2", "Option 3"}
 	title := "Choose an option"
-	model := NewWithTitle(options, title, false)
+	model := NewWithTitle(options, title)
 
 	assert.NotEmpty(t, model.title)
 }
@@ -20,7 +21,7 @@ func TestNewWithTitle(t *testing.T) {
 func TestModel_View(t *testing.T) {
 	options := []string{"Option 1", "Option 2", "Option 3"}
 	title := "Choose an option"
-	model := NewWithTitle(options, title, false)
+	model := NewWithTitle(options, title)
 	test.SimulateModel(model, model.Init())
 	output := test.RenderImmediate(model, 80, 20)
 	require.NotEmpty(t, output)
@@ -33,10 +34,9 @@ func TestModel_View(t *testing.T) {
 
 func TestModel_Filter(t *testing.T) {
 	options := []string{"foo", "bar", "baz"}
-	model := NewWithTitle(options, "Filter Test", true)
+	model := NewWithTitle(options, "Filter Test")
 
-	// Simulate typing '/'
-	model.Update(tea.KeyPressMsg{Text: "/", Code: '/'})
+	model.HandleIntent(intents.ChooseOpenFilter{})
 	assert.True(t, model.filtering)
 
 	// Simulate typing 'b' — Update calls filterOptions internally
@@ -49,7 +49,7 @@ func TestModel_Filter(t *testing.T) {
 
 func TestModel_Ordered_View(t *testing.T) {
 	options := []string{"alpha", "beta", "gamma"}
-	model := NewWithOptions(options, "Ordered Test", false, true)
+	model := NewWithOptions(options, "Ordered Test", true)
 	test.SimulateModel(model, model.Init())
 	output := test.RenderImmediate(model, 80, 20)
 
@@ -60,7 +60,7 @@ func TestModel_Ordered_View(t *testing.T) {
 
 func TestModel_Ordered_DigitSelect(t *testing.T) {
 	options := []string{"alpha", "beta", "gamma"}
-	model := NewWithOptions(options, "Ordered Test", false, true)
+	model := NewWithOptions(options, "Ordered Test", true)
 
 	cmd := model.Update(tea.KeyPressMsg{Text: "2", Code: '2'})
 	require.NotNil(t, cmd)
@@ -73,7 +73,7 @@ func TestModel_Ordered_DigitSelect(t *testing.T) {
 
 func TestModel_Ordered_DigitOutOfRange(t *testing.T) {
 	options := []string{"alpha", "beta"}
-	model := NewWithOptions(options, "Ordered Test", false, true)
+	model := NewWithOptions(options, "Ordered Test", true)
 
 	cmd := model.Update(tea.KeyPressMsg{Text: "5", Code: '5'})
 	assert.Nil(t, cmd)
@@ -81,7 +81,7 @@ func TestModel_Ordered_DigitOutOfRange(t *testing.T) {
 
 func TestModel_NonOrdered_DigitIgnored(t *testing.T) {
 	options := []string{"alpha", "beta", "gamma"}
-	model := NewWithOptions(options, "Test", false, false)
+	model := NewWithOptions(options, "Test", false)
 
 	cmd := model.Update(tea.KeyPressMsg{Text: "1", Code: '1'})
 	assert.Nil(t, cmd)

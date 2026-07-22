@@ -318,7 +318,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return actionCompleted(msg.CompletionID)
 	case common.ShowChooseMsg:
-		model := choose.NewWithOptions(msg.Options, msg.Title, msg.Filter, msg.Ordered)
+		model := choose.NewWithOptions(msg.Options, msg.Title, msg.Ordered)
 		m.stacked = model
 		return m.stacked.Init()
 	case choose.SelectedMsg:

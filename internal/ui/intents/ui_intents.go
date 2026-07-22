@@ -187,6 +187,11 @@ type GitApplyShortcut struct {
 
 func (GitApplyShortcut) isIntent() {}
 
+//jjui:bind scope=choose action=filter
+type ChooseOpenFilter struct{}
+
+func (ChooseOpenFilter) isIntent() {}
+
 //jjui:bind scope=choose action=move_up set=Delta:-1
 //jjui:bind scope=choose action=move_down set=Delta:1
 type ChooseNavigate struct {

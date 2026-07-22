@@ -44,7 +44,6 @@ type Model struct {
 	title               string
 	listRenderer        *render.ListRenderer
 	ensureCursorVisible bool
-	filterable          bool
 	filtering           bool
 	ordered             bool
 	input               textinput.Model
@@ -53,17 +52,16 @@ type Model struct {
 const maxVisibleItems = 20
 
 func New(options []string) *Model {
-	return NewWithTitle(options, "", false)
+	return NewWithTitle(options, "")
 }
 
-func NewWithTitle(options []string, title string, filterable bool) *Model {
-	return NewWithOptions(options, title, filterable, false)
+func NewWithTitle(options []string, title string) *Model {
+	return NewWithOptions(options, title, false)
 }
 
-func NewWithOptions(options []string, title string, filterable bool, ordered bool) *Model {
+func NewWithOptions(options []string, title string, ordered bool) *Model {
 	ti := textinput.New()
 	ti.Prompt = "/"
-	ti.Placeholder = "filter..."
 	ti.CharLimit = 100
 	ti.SetWidth(20)
 	ti.SetVirtualCursor(false)
@@ -73,7 +71,6 @@ func NewWithOptions(options []string, title string, filterable bool, ordered boo
 		filteredOptions: options,
 		title:           title,
 		listRenderer:    render.NewListRenderer(itemScrollMsg{}),
-		filterable:      filterable,
 		ordered:         ordered,
 		input:           ti,
 	}
@@ -115,6 +112,10 @@ func (m *Model) Scopes() []common.Scope {
 
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
+	case intents.ChooseOpenFilter:
+		m.filtering = true
+		m.input.Focus()
+		return textinput.Blink, true
 	case intents.ChooseNavigate:
 		m.move(intent.Delta)
 		return nil, true
@@ -157,11 +158,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 					return m.selectCurrent()
 				}
 			}
-		}
-		if m.filterable && keyMsg.String() == "/" {
-			m.filtering = true
-			m.input.Focus()
-			return textinput.Blink
 		}
 		return nil
 	case common.CloseViewMsg:
@@ -369,18 +365,18 @@ func newCmd(msg tea.Msg) tea.Cmd {
 	return func() tea.Msg { return msg }
 }
 
-func ShowWithTitle(options []string, title string, filter bool) tea.Cmd {
+func ShowWithTitle(options []string, title string) tea.Cmd {
 	return func() tea.Msg {
-		return common.ShowChooseMsg{Options: options, Title: title, Filter: filter}
+		return common.ShowChooseMsg{Options: options, Title: title}
 	}
 }
 
-func ShowOrdered(options []string, title string, filter bool, ordered bool) tea.Cmd {
+func ShowOrdered(options []string, title string, ordered bool) tea.Cmd {
 	return func() tea.Msg {
-		return common.ShowChooseMsg{Options: options, Title: title, Filter: filter, Ordered: ordered}
+		return common.ShowChooseMsg{Options: options, Title: title, Ordered: ordered}
 	}
 }
 
 func Show(options []string) tea.Cmd {
-	return ShowWithTitle(options, "", false)
+	return ShowWithTitle(options, "")
 }

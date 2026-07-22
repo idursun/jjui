@@ -47,7 +47,6 @@ type (
 	ShowChooseMsg struct {
 		Options []string
 		Title   string
-		Filter  bool
 		Ordered bool
 	}
 	ShowInputMsg struct {

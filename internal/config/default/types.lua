@@ -61,7 +61,7 @@ function exec_shell(command) end
 function split_lines(text, keepEmpty) end
 
 ---Show a choice dialog and wait for user selection (yields)
----@param ... string|string[]|{options?: string[]|string, title?: string, filter?: boolean, ordered?: boolean} Options as variadic strings, a single array, or an options table
+---@param ... string|string[]|{options?: string[]|string, title?: string, ordered?: boolean} Options as variadic strings, a single array, or an options table
 ---@return string|nil selected The selected option, or nil if cancelled
 function choose(...) end
 
@@ -98,6 +98,7 @@ function wait_refresh() end
 ---@class jjui.choose
 ---@field apply fun()
 ---@field cancel fun()
+---@field filter fun()
 ---@field move_down fun()
 ---@field move_up fun()
 ---@field close fun()
@@ -507,7 +508,7 @@ function wait_refresh() end
 ---@field copy_to_clipboard fun(text: string): boolean?, string?
 ---@field exec_shell fun(command: string)
 ---@field split_lines fun(text: string, keepEmpty?: boolean): string[]
----@field choose fun(...: string|string[]|{options?: string[]|string, title?: string, filter?: boolean, ordered?: boolean}): string|nil
+---@field choose fun(...: string|string[]|{options?: string[]|string, title?: string, ordered?: boolean}): string|nil
 ---@field input fun(options?: {title?: string, prompt?: string}): string|nil
 ---@field wait_close fun(): boolean
 ---@field wait_refresh fun()

@@ -389,6 +389,7 @@ bindings = [
     { key = "enter", action = "password.apply", scope = "password", desc = "apply" },
 
     # choose
+    { key = "/", action = "choose.filter", scope = "choose", desc = "filter" },
     { key = ["up", "k"], action = "choose.move_up", scope = "choose", desc = "up" },
     { key = ["down", "j"], action = "choose.move_down", scope = "choose", desc = "down" },
     { key = "enter", action = "choose.apply", scope = "choose", desc = "apply" },

@@ -25,6 +25,7 @@ var builtInActionScopes = map[string][]string{
 	"bookmarks.quit":                             {"bookmarks"},
 	"choose.apply":                               {"choose"},
 	"choose.cancel":                              {"choose"},
+	"choose.filter":                              {"choose"},
 	"choose.move_down":                           {"choose"},
 	"choose.move_up":                             {"choose"},
 	"command_history.close":                      {"command_history"},

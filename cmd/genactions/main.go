@@ -1175,11 +1175,11 @@ var luaHandWrittenFunctions = []luaFunctionSpec{
 	},
 	{
 		Comment:     "Show a choice dialog and wait for user selection (yields)",
-		ParamDocs:   []string{"---@param ... string|string[]|{options?: string[]|string, title?: string, filter?: boolean, ordered?: boolean} Options as variadic strings, a single array, or an options table"},
+		ParamDocs:   []string{"---@param ... string|string[]|{options?: string[]|string, title?: string, ordered?: boolean} Options as variadic strings, a single array, or an options table"},
 		ReturnDocs:  []string{"---@return string|nil selected The selected option, or nil if cancelled"},
 		Declaration: "function choose(...) end",
 		FieldName:   "choose",
-		FieldType:   "fun(...: string|string[]|{options?: string[]|string, title?: string, filter?: boolean, ordered?: boolean}): string|nil",
+		FieldType:   "fun(...: string|string[]|{options?: string[]|string, title?: string, ordered?: boolean}): string|nil",
 	},
 	{
 		Comment:     "Show a text input dialog and wait for user input (yields)",

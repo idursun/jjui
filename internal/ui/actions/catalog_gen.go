@@ -87,6 +87,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.ChooseApply{}, true
 		case keybindings.Action("choose.cancel"):
 			return intents.ChooseCancel{}, true
+		case keybindings.Action("choose.filter"):
+			return intents.ChooseOpenFilter{}, true
 		case keybindings.Action("choose.move_down"):
 			return intents.ChooseNavigate{Delta: 1}, true
 		case keybindings.Action("choose.move_up"):
