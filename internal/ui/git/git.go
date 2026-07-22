@@ -680,22 +680,22 @@ func (m *Model) createMenuItems() []item {
 				command:  jj.GitPush(flags...),
 				key:      "c",
 			})
+	}
 
-		if len(selectedBookmarks) > 0 {
-			var bookmarkFlags []string
-			for _, name := range selectedBookmarks {
-				bookmarkFlags = append(bookmarkFlags, "--bookmark", name)
-			}
-			flags := append([]string{"--remote", selectedRemote}, bookmarkFlags...)
-			items = append(items,
-				item{
-					category: itemCategoryPush,
-					name:     fmt.Sprintf("git push %s --remote %s", strings.Join(bookmarkFlags, " "), selectedRemote),
-					desc:     fmt.Sprintf("Push only the selected bookmarks (%s)", strings.Join(selectedBookmarks, ", ")),
-					command:  jj.GitPush(flags...),
-					key:      "b",
-				})
+	if len(selectedBookmarks) > 0 {
+		var bookmarkFlags []string
+		for _, name := range selectedBookmarks {
+			bookmarkFlags = append(bookmarkFlags, "--bookmark", name)
 		}
+		flags := append([]string{"--remote", selectedRemote}, bookmarkFlags...)
+		items = append(items,
+			item{
+				category: itemCategoryPush,
+				name:     fmt.Sprintf("git push %s --remote %s", strings.Join(bookmarkFlags, " "), selectedRemote),
+				desc:     fmt.Sprintf("Push all bookmarks in selected changes (%s)", strings.Join(selectedBookmarks, ", ")),
+				command:  jj.GitPush(flags...),
+				key:      "b",
+			})
 	}
 
 	for _, commit := range revisions.Revisions {
