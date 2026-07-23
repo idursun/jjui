@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 
 	"github.com/idursun/jjui/internal/jj"
@@ -164,6 +165,7 @@ func TestDisplayContextRenderer_SingleRowDescriptionOverlay(t *testing.T) {
 
 	r := NewDisplayContextRenderer()
 	r.SetSelections(nil)
+	r.selectedStyle = lipgloss.NewStyle().Background(lipgloss.Color("4"))
 
 	width, height := 70, 10
 	dl := render.NewDisplayContext()
@@ -177,6 +179,14 @@ func TestDisplayContextRenderer_SingleRowDescriptionOverlay(t *testing.T) {
 	// The overlay content should appear in the rendered output.
 	assert.Contains(t, out, overlayContent,
 		"describe overlay should render for single-line commits")
+
+	// The overlay is appended after the single parsed revision line, so it has
+	// no source description line for a separate highlight pass to discover.
+	// Its rendered rectangle must be highlighted directly.
+	overlayCell := buf.CellAt(0, 1)
+	require.NotNil(t, overlayCell)
+	assert.NotNil(t, overlayCell.Style.Bg,
+		"describe overlay should inherit the selected revision background")
 }
 
 func TestDisplayContextRenderer_SetBookmarkRegistersInlineCursor(t *testing.T) {

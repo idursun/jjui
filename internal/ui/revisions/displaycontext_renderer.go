@@ -127,11 +127,6 @@ func (r *DisplayContextRenderer) Render(
 
 		// Render the item content
 		r.renderItemToDisplayContext(dl, item, rect, isSelected, operation, segmentRenderer, quickSearch)
-
-		// Add highlights for selected item (only for Highlightable lines)
-		if isSelected {
-			r.addHighlights(dl, item, rect, operation)
-		}
 	}
 
 	// Click message factory
@@ -218,53 +213,6 @@ func (r *DisplayContextRenderer) Render(
 	// Register scroll only when no overlay operation is active
 	if !isOverlay {
 		r.listRenderer.RegisterScroll(dl, viewRect)
-	}
-}
-
-// addHighlights adds highlight effects for lines with Highlightable flag
-func (r *DisplayContextRenderer) addHighlights(
-	dl *render.DisplayContext,
-	item parser.Row,
-	rect layout.Rectangle,
-	operation operations.Operation,
-) {
-	y := rect.Min.Y
-
-	// Account for operation "before" lines
-	overlayHeight := 0
-	if operation != nil && item.Commit != nil {
-		before := operation.Render(item.Commit, operations.RenderPositionBefore)
-		if before != "" {
-			y += strings.Count(before, "\n") + 1
-		}
-		overlayHeight = r.overlayHeight(operation, item, rect.Dx())
-	}
-	overlayRendered := false
-
-	for _, line := range item.Lines {
-		if y >= rect.Max.Y {
-			break
-		}
-
-		highlightable := line.Flags&parser.Highlightable != 0
-		descriptionLine := highlightable && line.Flags&parser.Revision == 0
-
-		if highlightable {
-			dl.AddHighlight(layout.Rect(rect.Min.X, y, rect.Dx(), 1), r.selectedStyle, 1)
-		}
-
-		// When overlay exists, render it once for the first description line, skip
-		// the rest
-		if descriptionLine && overlayHeight > 0 && !overlayRendered {
-			height := overlayHeight
-			// create a rectangle covering the overlay lines
-			rect := layout.Rect(rect.Min.X, y, rect.Dx(), height)
-			dl.AddHighlight(rect, r.selectedStyle, 1)
-			overlayRendered = true
-			continue
-		}
-
-		y++
 	}
 }
 
@@ -427,6 +375,8 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 			// (same approach as RenderPositionAfter)
 			contentRect, extended, gutterWidth := r.itemContentRect(item, rect, y)
 			if height, rendered := r.renderDescriptionOverlay(dl, operation, item, line.Gutter, contentRect, extended, gutterWidth); rendered {
+				dl.AddHighlight(layout.Rect(rect.Min.X, y, rect.Dx(), height), r.selectedStyle, 1)
+
 				// Render gutters for each line
 				for j := range height {
 					gutter := line.Gutter
@@ -460,6 +410,9 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 			fillStyle = r.selectedStyle
 		}
 		dl.AddFill(lineRect, ' ', fillStyle, 0)
+		if isSelected && line.Flags&parser.Highlightable == parser.Highlightable {
+			dl.AddHighlight(lineRect, r.selectedStyle, 1)
+		}
 		tb := dl.Text(lineRect.Min.X, lineRect.Min.Y, 0)
 		ir.renderLine(tb, line, lineRect.Min.X, lineRect.Min.Y)
 		tb.Done()
@@ -471,6 +424,8 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 	if !descriptionRendered && y < rect.Max.Y && isSelected && operation != nil {
 		contentRect, extended, gutterWidth := r.itemContentRect(item, rect, y)
 		if height, rendered := r.renderDescriptionOverlay(dl, operation, item, extended, contentRect, extended, gutterWidth); rendered {
+			dl.AddHighlight(layout.Rect(rect.Min.X, y, rect.Dx(), height), r.selectedStyle, 1)
+
 			// Render gutters for each line
 			for j := range height {
 				gutterContent := r.renderGutter(extended)
