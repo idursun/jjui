@@ -13,6 +13,7 @@ import (
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/actionmeta"
 	"github.com/idursun/jjui/internal/ui/actions"
+	"github.com/idursun/jjui/internal/ui/annotation"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/flash"
@@ -49,6 +50,7 @@ type Model struct {
 	oplog            *oplog.Model
 	revsetModel      *revset.Model
 	diff             *diff.Model
+	annotation       *annotation.Model
 	flash            *flash.Model
 	state            common.State
 	status           *status.Model
@@ -125,6 +127,10 @@ func (m *Model) withSelectionSync(cmd tea.Cmd) tea.Cmd {
 }
 
 func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
+	if m.annotation != nil {
+		m.annotation = nil
+		return nil, true
+	}
 	if m.diff != nil {
 		m.diff = nil
 		return nil, true
@@ -342,18 +348,22 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case input.SelectedMsg, input.CancelledMsg:
 		m.stacked = nil
 	case common.OpenTargetPickerMsg:
-		if m.diff != nil {
+		if m.annotation != nil || m.diff != nil {
 			model := target_picker.NewModel(m.context, msg.Payload, msg.Sources...)
 			m.stacked = model
 			return m.stacked.Init()
 		}
 	case target_picker.TargetSelectedMsg:
+		if m.annotation != nil && m.stacked != nil {
+			m.stacked = nil
+			return m.annotation.Update(msg)
+		}
 		if m.diff != nil && m.stacked != nil {
 			m.stacked = nil
 			return m.diff.Update(msg)
 		}
 	case target_picker.TargetPickerCancelMsg:
-		if m.diff != nil && m.stacked != nil {
+		if (m.annotation != nil || m.diff != nil) && m.stacked != nil {
 			m.stacked = nil
 			return nil
 		}
@@ -391,6 +401,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	cmds = append(cmds, m.flash.Update(msg))
 	if m.diff != nil {
 		cmds = append(cmds, m.diff.Update(msg))
+	}
+	if m.annotation != nil {
+		cmds = append(cmds, m.annotation.Update(msg))
 	}
 
 	if m.stacked != nil {
@@ -430,7 +443,9 @@ func (m *Model) View() string {
 	box := layout.NewBox(layout.Rect(0, 0, m.width, m.height))
 	screenBuf := render.NewScreenBuffer(m.width, m.height)
 
-	if m.diff != nil {
+	if m.annotation != nil {
+		m.renderAnnotationLayout(box)
+	} else if m.diff != nil {
 		m.renderDiffLayout(box)
 	} else {
 		m.updateSplitAutoPosition()
@@ -465,6 +480,12 @@ func (m *Model) View() string {
 func (m *Model) renderDiffLayout(box layout.Box) {
 	m.renderWithStatus(box, func(content layout.Box) {
 		m.diff.ViewRect(m.displayContext, content)
+	})
+}
+
+func (m *Model) renderAnnotationLayout(box layout.Box) {
+	m.renderWithStatus(box, func(content layout.Box) {
+		m.annotation.ViewRect(m.displayContext, content)
 	})
 }
 
@@ -515,15 +536,17 @@ func (m *Model) dispatchScopes() []common.Scope {
 		scopes = append(scopes, m.revsetModel.Scopes()...)
 	}
 
-	if m.stacked != nil && m.diff != nil {
+	if m.stacked != nil && (m.diff != nil || m.annotation != nil) {
 		scopes = append(scopes, m.stacked.Scopes()...)
 	}
 
-	if m.diff != nil {
+	if m.annotation != nil {
+		scopes = append(scopes, m.annotation.Scopes()...)
+	} else if m.diff != nil {
 		scopes = append(scopes, m.diff.Scopes()...)
 	}
 
-	if m.stacked != nil && m.diff == nil {
+	if m.stacked != nil && m.diff == nil && m.annotation == nil {
 		scopes = append(scopes, m.stacked.Scopes()...)
 	} else if m.oplog != nil {
 		scopes = append(scopes, m.splitScopes(m.oplog.Scopes())...)
@@ -565,7 +588,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			m.flash.DeleteOldest()
 			return nil, true
 		}
-		if m.stacked != nil || m.diff != nil || m.oplog != nil {
+		if m.stacked != nil || m.diff != nil || m.annotation != nil || m.oplog != nil {
 			return common.Close, true
 		}
 		if m.status.StatusExpanded() {
@@ -604,7 +627,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		m.stacked = model
 		return m.stacked.Init(), true
 	case intents.OpenHelp:
-		if m.stacked != nil || m.diff != nil {
+		if m.stacked != nil || m.diff != nil || m.annotation != nil {
 			return nil, true
 		}
 		model := help.New()
@@ -641,6 +664,12 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			m.diff = diff.NewWithContext(m.context, "", nil)
 		}
 		return m.diff.Update(intent), true
+	case intents.AnnotationShow:
+		if intent.ChangeID == "" {
+			return nil, true
+		}
+		m.annotation = annotation.New(m.context, intent.ChangeID)
+		return m.annotation.Init(), true
 	// --- Status ---
 	case intents.ExpandStatusToggle:
 		m.status.ToggleStatusExpand()

@@ -28,3 +28,27 @@ func TestFileCommandsUseTypedRepositoryPaths(t *testing.T) {
 	assert.Equal(t, CommandArgs{"squash", "--from", "source", "--into", "target", escaped}, Squash(revisions, "target", []FileName{file}, false, false, false, false))
 	assert.Equal(t, CommandArgs{"absorb", "--from", "source", "--color", "never", escaped}, Absorb("source", nil, file))
 }
+
+func TestAnnotationCommandsUseStableMachineReadableOutput(t *testing.T) {
+	assert.Equal(t,
+		CommandArgs{"diff", "-r", "abc123", "--git", "--color", "never", "--ignore-working-copy"},
+		AnnotationDiff("abc123"),
+	)
+	assert.Equal(t,
+		CommandArgs{
+			"file", "show", "-r", "abc123",
+			"--color", "never", "--no-pager", "--quiet", "--ignore-working-copy",
+			"--template", "",
+			`file:"dir/a b.go"`,
+		},
+		FileShow("abc123", "dir/a b.go"),
+	)
+	assert.Equal(t,
+		CommandArgs{
+			"log", "-r", "abc123-", "--color", "never", "--no-graph", "--quiet",
+			"--ignore-working-copy", "--template",
+			"change_id.shortest() ++ if(divergent, \"/\" ++ change_offset) ++ \"\\t\" ++ description.first_line() ++ \"\\n\"",
+		},
+		GetRevisionSummariesFromRevset("abc123-"),
+	)
+}

@@ -98,6 +98,19 @@ func TestHistorySource(t *testing.T) {
 	}
 }
 
+func TestRevisionSource(t *testing.T) {
+	entries := []string{"first-parent", "second-parent"}
+	s := RevisionSource{Entries: entries}
+	items, err := s.Fetch(nil)
+	assert.NoError(t, err)
+	assert.Len(t, items, 2)
+
+	for i, item := range items {
+		assert.Equal(t, KindRevision, item.Kind)
+		assert.Equal(t, entries[i], item.Name)
+	}
+}
+
 func TestFileSource(t *testing.T) {
 	s := FileSource{Files: []jj.FileName{jj.NewFileName("a.go"), jj.NewFileName(""), jj.NewFileName("dir/b.go")}}
 	items, err := s.Fetch(nil)

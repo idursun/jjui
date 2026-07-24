@@ -94,9 +94,36 @@ func (p *Palette) Get(scope, component, role string, isSelected bool) lipgloss.S
 }
 
 func (p *Palette) GetBlended(scope, component, role string, isSelected bool) lipgloss.Style {
+	return p.GetBlendedCustom(scope, component, role, isSelected, p.blend.ratio)
+}
+
+func (p *Palette) GetBlendedCustom(
+	scope, component, role string,
+	isSelected bool,
+	ratio float64,
+) lipgloss.Style {
 	style := p.get(scope, component, role, isSelected)
 	background, backgroundSet := p.resolveBackground(paletteKeys(scope, component, role, isSelected))
-	return p.applyBackgroundBlend(style, background, backgroundSet, scope, component)
+	return p.applyBackgroundBlend(style, background, backgroundSet, scope, component, ratio)
+}
+
+func (p *Palette) BlendBackgroundCustom(
+	style lipgloss.Style,
+	scope, component string,
+	ratio float64,
+) lipgloss.Style {
+	background, ok := resolveTerminalColor(style.GetBackground(), p.blend.terminalPalette)
+	if !ok {
+		return style
+	}
+	return p.applyBackgroundBlend(
+		style,
+		background,
+		true,
+		scope,
+		component,
+		ratio,
+	)
 }
 
 func (p *Palette) get(scope, component, role string, isSelected bool) lipgloss.Style {
@@ -177,8 +204,9 @@ func (p *Palette) applyBackgroundBlend(
 	backgroundSet bool,
 	scope string,
 	component string,
+	ratio float64,
 ) lipgloss.Style {
-	if p.blend.ratio == 0 || !backgroundSet {
+	if ratio == 0 || !backgroundSet {
 		return style
 	}
 
@@ -187,7 +215,7 @@ func (p *Palette) applyBackgroundBlend(
 		return style
 	}
 	base := resolvePaletteColor(background, p.blend.terminalPalette)
-	blended, ok, err := blendHexColor(base, target, p.blend.ratio)
+	blended, ok, err := blendHexColor(base, target, ratio)
 	if err != nil || !ok {
 		return style
 	}

@@ -7,6 +7,7 @@ require (
 	charm.land/bubbletea/v2 v2.0.8
 	charm.land/lipgloss/v2 v2.0.5
 	github.com/BurntSushi/toml v1.6.0
+	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/mattn/go-shellwords v1.0.14
 	github.com/sahilm/fuzzy v0.1.3
@@ -15,7 +16,10 @@ require (
 	golang.org/x/tools v0.48.0
 )
 
-require golang.org/x/mod v0.38.0 // indirect
+require (
+	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
+	golang.org/x/mod v0.38.0 // indirect
+)
 
 require (
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect

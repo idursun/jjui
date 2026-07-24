@@ -25,12 +25,6 @@ const (
 	pillWidth = 8
 )
 
-type Item struct {
-	Name string
-	File jj.FileName
-	Kind source.Kind
-}
-
 var (
 	_ operations.Operation = (*Model)(nil)
 	_ common.ScopeProvider = (*Model)(nil)
@@ -42,7 +36,7 @@ var (
 
 type Model struct {
 	context             *context.MainContext
-	items               []Item
+	items               []source.Item
 	input               textinput.Model
 	cursor              int
 	matches             fuzzy.Matches
@@ -54,7 +48,7 @@ type Model struct {
 }
 
 type itemsLoadedMsg struct {
-	items []Item
+	items []source.Item
 }
 
 type itemClickedMsg struct {
@@ -278,6 +272,10 @@ func (m *Model) renderPill(kind source.Kind, style lipgloss.Style) string {
 		return style.Width(pillWidth).Align(lipgloss.Right).Render("file")
 	case source.KindRemote:
 		return style.Width(pillWidth).Align(lipgloss.Right).Render("remote")
+	case source.KindComment:
+		return style.Width(pillWidth).Align(lipgloss.Right).Render("comment")
+	case source.KindRevision:
+		return style.Width(pillWidth).Align(lipgloss.Right).Render("revision")
 	default:
 		return strings.Repeat(" ", pillWidth)
 	}
@@ -285,14 +283,11 @@ func (m *Model) renderPill(kind source.Kind, style lipgloss.Style) string {
 
 func (m *Model) fetchItems() tea.Cmd {
 	return func() tea.Msg {
-		sourceItems := source.FetchAll(m.context.RunCommandImmediate, m.sources...)
-		items := make([]Item, len(sourceItems))
-		for i, si := range sourceItems {
-			name := si.Name
-			if !si.File.IsEmpty() {
-				name = si.File.Display(m.context.Location, m.context.WorkingDirectory)
+		items := source.FetchAll(m.context.RunCommandImmediate, m.sources...)
+		for i := range items {
+			if !items[i].File.IsEmpty() {
+				items[i].Name = items[i].File.Display(m.context.Location, m.context.WorkingDirectory)
 			}
-			items[i] = Item{Name: name, File: si.File, Kind: si.Kind}
 		}
 		return itemsLoadedMsg{items: items}
 	}
@@ -348,7 +343,11 @@ func (m *Model) accept(force bool) tea.Cmd {
 			}
 		}
 		return func() tea.Msg {
-			return TargetSelectedMsg{Target: item.Name, Force: force, Payload: m.payload}
+			target := item.Value
+			if target == "" {
+				target = item.Name
+			}
+			return TargetSelectedMsg{Target: target, Force: force, Payload: m.payload}
 		}
 	}
 	if input := strings.TrimSpace(m.input.Value()); input != "" {
