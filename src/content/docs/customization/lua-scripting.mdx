@@ -100,7 +100,7 @@ Args can be passed as individual strings or as a single table of strings.
 | `flash(text)` | — | Show a short status message |
 | `flash({ text, error?, sticky? })` | — | `error = true` styles as error; `sticky = true` keeps it visible |
 | `choose(option1, option2, ...)` | string or nil | Show a picker; returns the selected value or nil if cancelled |
-| `choose({ options, title?, filter?, ordered? })` | string or nil | Table form |
+| `choose({ options, title?, ordered? })` | string or nil | Table form; press `/` in any choice dialog to filter |
 | `input({ title?, prompt? })` | string or nil | Show a text input dialog; returns the entered text or nil |
 | `set_theme(name)` | — | Switch the active theme at runtime |
 | `copy_to_clipboard(text)` | `(true, nil)` or `(nil, err)` | Copy to system clipboard |

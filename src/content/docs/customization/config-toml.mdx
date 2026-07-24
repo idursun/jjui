@@ -150,8 +150,24 @@ Quick inline overrides go in `[ui.colors]`:
 
 ```toml
 [ui.colors]
-"selected" = { bg = "#303446" }
+":selected" = { bg = "#303446" }
 ```
+
+Control how strongly selected backgrounds blend toward the surrounding surface with `ui.background_blend`. Values range from `0.0` (disabled) to `1.0`:
+
+```toml
+[ui]
+background_blend = 0.4
+```
+
+You can also set separate values for light and dark terminal appearances:
+
+```toml
+[ui]
+background_blend = { light = 0.2, dark = 0.4 }
+```
+
+The config value overrides the blend value supplied by the active theme.
 
 For a full theme file, see [Themes](/jjui/customization/themes).
 
