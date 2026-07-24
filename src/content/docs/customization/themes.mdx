@@ -3,7 +3,6 @@ title: Theming jjui
 description: jjui themes specification
 ---
 
-
 Themes allow for detailed control over the application's appearance.
 
 The following configuration loads a base theme from `~/.config/jjui/themes/my-theme.toml`.
@@ -16,30 +15,34 @@ theme = "my-theme"
 
 ```toml
 # ~/.config/jjui/themes/my-theme.toml
-"selected" = { bg = "red", bold = true }
+[colors]
+":selected" = { bg = "red", bold = true }
 ```
-## Available themes.
+
+A custom theme is self-contained: unspecified styles do not inherit from jjui's built-in theme. Colors from `jj` and inline `[ui.colors]` overrides are still applied on top.
+
+## Available themes
 
 - [@vic](https://x.com/oeiuwq) maintains a collection of [462 jjui color themes generated from base16 and base64 color schemes](https://github.com/vic/tinted-jjui).
 
 ## Overriding theme colors
 
-You can still override certain parts of theme by defining the overrides inside `ui.colors` section. For example the following configuration will load the theme from `my-theme` file but will set the `selected` style's background colour to red.
+Override parts of the active theme in the `ui.colors` section. This example loads `my-theme` and sets the global selected background to red:
 
 ```toml
 [ui]
 theme = "my-theme"
 
 [ui.colors]
-"selected" = { bg = "red" }
+":selected" = { bg = "red" }
 ```
 
 > [!NOTE]
 > Theme support is actively being developed. The information on this page is subject to change as the application evolves.
 
-## Light and Dark Theme Syntax
+## Light and dark theme selection
 
-Theme configuration now allows you to choose different themes for light and dark modes. Use the following syntax in your configuration:
+Choose different theme files for light and dark terminal appearances with:
 
 ```toml
 [ui.theme]
@@ -47,23 +50,68 @@ light = "my-light-theme"
 dark = "my-dark-theme"
 ```
 
-The previous syntax is still supported, which sets both light and dark themes to the same value:
+A single name selects the same theme file for both appearances:
 
 ```toml
 [ui]
 theme = "my-theme"
 ```
 
-This flexibility allows you to customize the appearance of `jjui` for different display environments.
+jjui detects changes to the terminal appearance and reapplies the matching theme.
+
+## Light and dark variants in one theme file
+
+A structured theme can contain shared colors plus appearance-specific overrides:
+
+```toml
+# ~/.config/jjui/themes/my-theme.toml
+[colors]
+title = "magenta"
+":selected" = { bold = true }
+
+[light]
+background_blend = 0.2
+
+[light.colors]
+":selected" = { bg = "white" }
+
+[dark]
+background_blend = 0.4
+
+[dark.colors]
+":selected" = { bg = "bright black" }
+```
+
+Shared `[colors]` are loaded first, then `[light.colors]` or `[dark.colors]` overrides are applied for the current terminal appearance. Existing flat theme files remain supported.
+
+## Selected background blending
+
+Selected styles can use a blended background to maintain contrast across different terminal palettes and component surfaces. `background_blend` accepts a value from `0.0` to `1.0`; `0.0` disables blending, while higher values move the selected background closer to the surrounding surface.
+
+Set the value independently in a theme's `[light]` and `[dark]` sections, as shown above. To override the active theme from `config.toml`, set one value for both appearances:
+
+```toml
+[ui]
+background_blend = 0.4
+```
+
+Or set an override per appearance:
+
+```toml
+[ui]
+background_blend = { light = 0.2, dark = 0.4 }
+```
+
+When blending is enabled, jjui queries the terminal background and ANSI palette. It reapplies the theme when the terminal background changes.
 
 ## Style Format
 
-Themes are defined as a series of key-value pairs in a TOML file. Each entry consists of a **selector** (the key) that targets a UI element, and a **style table** (the value) that defines its appearance.
+Theme colors are keyed by a **selector** that targets a UI element. A color can be a foreground color by itself or a style table.
 
-**Example:**
 ```toml
-"selected" = { fg = "#FF8C00", bg = "#2B2B2B", bold = true }
-"border" = { fg = "bright black" }
+[colors]
+":selected" = { fg = "#FF8C00", bg = "#2B2B2B", bold = true }
+border = "bright black"
 ```
 
 ### Style Properties
@@ -78,6 +126,7 @@ The style table can contain any of the following properties:
 | `underline`     | `bool`  | If `true`, adds an underline to the text. |
 | `strikethrough` | `bool`  | If `true`, adds a strikethrough line.    |
 | `italic`        | `bool`  | If `true`, makes the text italic.         |
+| `reverse`       | `bool`  | If `true`, swaps the foreground and background. |
 
 ### Color Formats
 
@@ -89,21 +138,21 @@ Colors can be specified in one of three formats:
 
 ---
 
-## Selector Inheritance
+## Selector inheritance
 
-Style resolution uses a fallback system to apply styles. This allows you to define general styles and override them with more specific ones, reducing repetition.
+A selector combines a scope, component, role, and optional variant. For example, `revset completion text:selected` targets the `text` role in a selected completion row within the `revset` scope.
 
-You can use broad styles like `"selected"` or `"border"` to apply globally. Then you can define component-level styles like `"revisions"` to style an entire section. Then, you can use more specific selectors like `"revisions selected"` to override the appearance for a specific state within that component.
+Selected variants use a `:selected` suffix:
 
-**Resolution Example for `"revisions details selected"` selector:**
-1.  The engine looks for a `"revisions details selected"` style.
-2.  It then inherits from `"revisions details"`.
-3.  It then inherits from `"revisions"`
-3.  It then inherits from `"details selected"`.
-4.  It then inherits from `"details"`.
-5.  Finally, it inherits from the base `"selected"` style.
+```toml
+"revset completion text" = { fg = "green" }
+"revset completion text:selected" = { fg = "bright green" }
+":selected" = { bg = "bright black" }
+```
 
----
+More-specific styles take precedence, while broader selectors fill properties that were not set. This lets `:selected` provide a global selected background while a role-specific selected style overrides only its foreground.
+
+The legacy form with `selected` as a selector word, such as `"revset completion selected text"`, remains supported. Prefer the suffix form; if both spellings occur in the same theme layer, the suffix form wins.
 
 ## UI Elements & Selectors
 
@@ -113,7 +162,7 @@ These are base elements that apply throughout the application unless overridden 
 
 *   `text`: The default style for all text.
 *   `dimmed`: Less important text, such as hints, descriptions, and inactive elements.
-*   `selected`: The style for a currently highlighted or active item in a list or menu.
+*   `:selected`: The variant for a currently highlighted or active item in a list or menu.
 *   `border`: The style for borders around windows, panes, and pop-ups.
 *   `title`: The style for titles in windows, panes, and menus.
 *   `shortcut`: The style for keyboard shortcuts (e.g., `[Enter]`, `[q]`).
@@ -135,16 +184,17 @@ The input bar at the top of the screen.
 *   `revset title`: The "Revset:" label.
 *   `revset text`: The user input area. It's recommended to make this `bold`.
 *   **Completions Dropdown:**
-    *   `revset completion selected`: The highlighted item in the completions list.
+    *   `revset completion:selected`: The highlighted item in the completions list.
     *   `revset completion matched`: The part of a completion that matches the input.
     *   `revset completion dimmed`: The auto-suggested part of a completion.
+    *   Append `:selected` to a role, such as `revset completion matched:selected`, to style that role in the highlighted row.
 
 #### Revisions / Oplog (Main List View)
 
 The central list of commits or operations.
 
 *   `revisions`: The base style for the entire list area.
-*   `revisions selected`: The currently highlighted line.
+*   `revisions:selected`: The currently highlighted line.
 *   `revisions dimmed`: Hint text shown during interactive operations.
 
 #### Status (Bottom Bar)
@@ -160,16 +210,16 @@ The bar at the bottom showing the current mode and available actions.
 The pop-up list showing the evolution history for a revision.
 
 *   `evolog`: Base style for the view.
-*   `evolog selected`: The highlighted item. Can be styled differently from `revisions selected` to show which pane is active.
+*   `evolog:selected`: The highlighted item. Can be styled differently from `revisions:selected` to show which pane is active.
 
-#### Menus (Git, Bookmarks, etc.)
+#### Git and Bookmarks menus
 
-Pop-up menus for primary actions.
+The Git and Bookmarks menus use their own scopes:
 
-*   `menu`: Base style for menus. Should have a `border`.
-*   Selected item is styled with `menu selected`
-*   Filter is styled with `menu matched`. 
-*   Items use `menu shortcut`, `menu title`, and `menu dimmed` styles.
+*   `git` / `bookmarks`: Base styles.
+*   `git:selected` / `bookmarks:selected`: Selected items.
+*   `git matched` / `bookmarks matched`: Filter matches.
+*   Items also use scoped `title`, `shortcut`, `dimmed`, and `border` roles.
 
 #### Help Window
 
@@ -191,16 +241,17 @@ The small inline dialog for confirmations (e.g., "Abandon all?").
 
 *   `confirmation`: Base style for the dialog. Should have a `border`.
 *   The message uses the global `text` style.
-*   Options use `selected` (for the highlighted choice) and `dimmed` (for other choices) styles.
+*   Options use `confirmation:selected` for the highlighted choice and `confirmation dimmed` for other choices.
 
 ### Example "Fire" theme
 
 <img alt="fire theme screenshot" src="https://github.com/user-attachments/assets/36be82ac-d489-4c85-9485-05af6983f5c8" />
 
 ```toml
+[colors]
 "text" = { fg = "#F0E6D2", bg = "#1C1C1C" }
 "dimmed" = { fg = "#888888" }
-"selected" = { bg = "#4B2401", fg = "#FFD700" }
+":selected" = { bg = "#4B2401", fg = "#FFD700" }
 "border" = { fg = "#3A3A3A" }
 "title" = { fg = "#FF8C00", bold = true }
 "shortcut" = { fg = "#FFA500" }
@@ -214,28 +265,24 @@ The small inline dialog for confirmations (e.g., "Abandon all?").
 "status shortcut" = { fg = "#FFA500" }
 "status dimmed" = { fg = "#888888" }
 "revset text" = { bold = true }
-"revset completion selected" = { bg = "#4B2401", fg = "#FFD700" }
+"revset completion:selected" = { bg = "#4B2401", fg = "#FFD700" }
 "revset completion matched" = { bold = true }
 "revset completion dimmed" = { fg = "#505050" }
-"revisions selected" = { bold = true }
-"oplog selected" = { bold = true }
-"evolog selected" = { bg = "#403010", fg = "#FFD700", bold = true }
+"revisions:selected" = { bold = true }
+"oplog:selected" = { bold = true }
+"evolog:selected" = { bg = "#403010", fg = "#FFD700", bold = true }
 "help" = { bg = "#2B2B2B" }
 "help title" = { fg = "#FF8C00", bold = true, underline = true }
 "help border" = { fg = "#3A3A3A" }
-"menu" = { bg = "#2B2B2B" }
-"menu title" = { fg = "#FF8C00", bold = true }
-"menu shortcut" = { fg = "#FFA500" }
-"menu dimmed" = { fg = "#888888" }
-"menu border" = { fg = "#3A3A3A" }
-"menu selected" = { bg = "#4B2401", fg = "#FFD700" }
+"git" = { bg = "#2B2B2B" }
+"bookmarks" = { bg = "#2B2B2B" }
 "confirmation" = { bg = "#2B2B2B" }
 "confirmation text" = { fg = "#F0E6D2" }
-"confirmation selected" = { bg = "#4B2401", fg = "#FFD700" }
+"confirmation:selected" = { bg = "#4B2401", fg = "#FFD700" }
 "confirmation dimmed" = { fg = "#888888" }
 "confirmation border" = { fg = "#FF4500" }
 "undo" = { bg = "#2B2B2B" }
 "undo confirmation dimmed" = { fg = "#888888" }
-"undo confirmation selected" = { bg = "#4B2401", fg = "#FFD700" }
+"undo confirmation:selected" = { bg = "#4B2401", fg = "#FFD700" }
 "preview" = { fg = "#F0E6D2" }
 ```
