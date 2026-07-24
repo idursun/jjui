@@ -42,18 +42,26 @@ func parseColor(value string) color.Color {
 }
 
 func resolvePaletteColor(value string, terminalPalette map[int]string) string {
-	switch color := parseColor(value).(type) {
-	case ansi.BasicColor:
-		if hex, ok := terminalPalette[int(color)]; ok {
-			return hex
-		}
-	case ansi.IndexedColor:
-		index := int(color)
-		if hex, ok := terminalPalette[index]; ok {
-			return hex
-		}
+	if resolved, ok := resolveTerminalColor(parseColor(value), terminalPalette); ok {
+		return resolved
 	}
 	return value
+}
+
+func resolveTerminalColor(value color.Color, terminalPalette map[int]string) (string, bool) {
+	switch value := value.(type) {
+	case lipgloss.NoColor:
+		return "", false
+	case ansi.BasicColor:
+		resolved, ok := terminalPalette[int(value)]
+		return resolved, ok
+	case ansi.IndexedColor:
+		resolved, ok := terminalPalette[int(value)]
+		return resolved, ok
+	default:
+		r, g, b, _ := value.RGBA()
+		return fmt.Sprintf("#%02x%02x%02x", r>>8, g>>8, b>>8), true
+	}
 }
 
 func blendHexColor(base, target string, ratio float64) (string, bool, error) {

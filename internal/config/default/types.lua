@@ -83,6 +83,38 @@ function wait_close() end
 ---Yield and wait for revisions to be updated
 function wait_refresh() end
 
+---@class jjui.annotation
+---@field editor jjui.annotation.editor
+---@field add fun()
+---@field child_revision fun()
+---@field clear fun()
+---@field comment_picker fun()
+---@field copy fun()
+---@field delete fun()
+---@field half_page_down fun()
+---@field half_page_up fun()
+---@field left fun()
+---@field move_bottom fun()
+---@field move_down fun()
+---@field move_top fun()
+---@field move_up fun()
+---@field next_file fun()
+---@field page_down fun()
+---@field page_up fun()
+---@field parent_revision fun()
+---@field prev_file fun()
+---@field right fun()
+---@field select_down fun()
+---@field select_up fun()
+---@field target_picker fun()
+---@field toggle_presentation fun()
+---@field toggle_wrap fun()
+
+---@class jjui.annotation.editor
+---@field cancel fun()
+---@field save fun()
+---@field close fun()
+
 ---@class jjui.bookmark_pane
 ---@field confirmation jjui.bookmark_pane.confirmation
 ---@field filter jjui.bookmark_pane.filter
@@ -285,6 +317,7 @@ function wait_refresh() end
 ---@field new fun()
 ---@field open_abandon fun()
 ---@field open_absorb fun()
+---@field open_annotation fun()
 ---@field open_details fun()
 ---@field open_diff_range fun()
 ---@field open_duplicate fun()
@@ -547,6 +580,7 @@ function wait_refresh() end
 ---@field revisions jjui.revisions
 ---@field revset jjui.revset
 ---@field context jjui.context
+---@field annotation jjui.annotation
 ---@field bookmark_pane jjui.bookmark_pane
 ---@field bookmarks jjui.bookmarks
 ---@field choose jjui.choose
@@ -578,6 +612,7 @@ function wait_refresh() end
 ---@field wait_refresh fun()
 
 ---@class jjui.builtin
+---@field annotation jjui.annotation
 ---@field bookmark_pane jjui.bookmark_pane
 ---@field bookmarks jjui.bookmarks
 ---@field choose jjui.choose

@@ -152,6 +152,19 @@ func DiffRange(from string, to string) CommandArgs {
 	return []string{"diff", "--from", from, "--to", to, "--color", "always", "--ignore-working-copy"}
 }
 
+func AnnotationDiff(revision string) CommandArgs {
+	return []string{"diff", "-r", revision, "--git", "--color", "never", "--ignore-working-copy"}
+}
+
+func FileShow(revision string, fileName string) CommandArgs {
+	return []string{
+		"file", "show", "-r", revision,
+		"--color", "never", "--no-pager", "--quiet", "--ignore-working-copy",
+		"--template", "",
+		NewFileName(fileName).Escaped(),
+	}
+}
+
 func Restore(revision string, files []FileName, interactive bool) CommandArgs {
 	args := []string{"restore", "-c", revision}
 	if interactive {
@@ -476,6 +489,11 @@ func FilesInRevision(revision *Commit) CommandArgs {
 
 func GetIdsFromRevset(revset string) CommandArgs {
 	const template = `change_id.shortest() ++ if(divergent, "/" ++ change_offset) ++ "\n"`
+	return []string{"log", "-r", revset, "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", template}
+}
+
+func GetRevisionSummariesFromRevset(revset string) CommandArgs {
+	const template = `change_id.shortest() ++ if(divergent, "/" ++ change_offset) ++ "\t" ++ description.first_line() ++ "\n"`
 	return []string{"log", "-r", revset, "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", template}
 }
 

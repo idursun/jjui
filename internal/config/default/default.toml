@@ -39,6 +39,9 @@ error = "red"
 "picker dimmed:selected" = {}
 "picker text:selected" = {}
 "picker matched:selected" = {}
+"annotation header" = { fg = "magenta", bold = true }
+"annotation dimmed" = "bright black"
+"annotation error" = "red"
 
 [light]
 background_blend = 0.4

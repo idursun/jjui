@@ -41,6 +41,45 @@ func TestPaletteGetBlended_CanBlendNonSelectedStyle(t *testing.T) {
 	assert.Equal(t, lipgloss.Color("#707070"), palette.GetBlended("picker", "", "badge", false).GetBackground())
 }
 
+func TestPaletteGetBlendedCustom_UsesProvidedRatio(t *testing.T) {
+	palette := NewPalette()
+	palette.Update(map[string]config.Color{
+		"picker badge": {Bg: "#808080"},
+	})
+	palette.ConfigureBackgroundBlend(0.25, "#000000", nil)
+
+	assert.Equal(
+		t,
+		lipgloss.Color("#404040"),
+		palette.GetBlendedCustom("picker", "", "badge", false, 0.75).GetBackground(),
+	)
+}
+
+func TestPaletteBlendBackgroundCustom_UsesProvidedStyle(t *testing.T) {
+	palette := NewPalette()
+	palette.Update(map[string]config.Color{
+		"annotation": {Fg: "#ff0000"},
+	})
+	palette.ConfigureBackgroundBlend(0.25, "#000000", nil)
+
+	source := lipgloss.NewStyle().Background(lipgloss.Color("#00aa00"))
+	style := palette.BlendBackgroundCustom(source, "", "", 0.7)
+
+	assert.Equal(t, lipgloss.Color("#005d00"), style.GetBackground())
+	assert.IsType(t, lipgloss.NoColor{}, style.GetForeground())
+	assert.Equal(t, lipgloss.Color("#00aa00"), source.GetBackground())
+}
+
+func TestPaletteBlendBackgroundCustom_ResolvesTerminalPalette(t *testing.T) {
+	palette := NewPalette()
+	palette.ConfigureBackgroundBlend(0.25, "#000000", map[int]string{2: "#00aa00"})
+
+	source := lipgloss.NewStyle().Background(lipgloss.Color("2"))
+	style := palette.BlendBackgroundCustom(source, "annotation", "", 0.7)
+
+	assert.Equal(t, lipgloss.Color("#005d00"), style.GetBackground())
+}
+
 func TestPaletteGetBlended_SelectedSuffixSyntaxMatchesLegacySyntax(t *testing.T) {
 	legacy := NewPalette()
 	legacy.Update(map[string]config.Color{

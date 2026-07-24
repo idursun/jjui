@@ -20,6 +20,7 @@ import (
 	"github.com/idursun/jjui/internal/jj/source"
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/actions"
+	"github.com/idursun/jjui/internal/ui/annotation"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/diff"
@@ -1181,6 +1182,28 @@ func Test_Update_DispatchedDiffShowUpdatesExistingDiff(t *testing.T) {
 	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(model.diff, 20, 3)))
 }
 
+func Test_Update_AnnotationShowOpensTopLevelAnnotationView(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := NewUI(ctx)
+	commit := jj.Commit{ChangeId: "change", CommitId: "commit"}
+
+	cmd := model.Update(intents.AnnotationShow{
+		ChangeID: commit.ChangeId,
+	})
+
+	require.NotNil(t, cmd)
+	require.NotNil(t, model.annotation)
+	firstAnnotation := model.annotation
+	model.Update(common.CloseViewMsg{})
+	assert.Nil(t, model.annotation)
+
+	model.Update(intents.AnnotationShow{
+		ChangeID: commit.ChangeId,
+	})
+	require.NotNil(t, model.annotation)
+	assert.NotSame(t, firstAnnotation, model.annotation)
+}
+
 func Test_Update_DiffEscClosesDiffAndRestoresDetails(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
@@ -1257,6 +1280,29 @@ func Test_Update_DiffTargetPickerClosesOnSelectionAndCancel(t *testing.T) {
 
 	model.Update(target_picker.TargetPickerCancelMsg{})
 	assert.Nil(t, model.stacked)
+}
+
+func Test_Update_OpenTargetPickerWhileAnnotationActiveCreatesRootOverlay(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.annotation = annotation.New(ctx, "")
+
+	cmd := model.Update(common.OpenTargetPickerMsg{
+		Sources: []source.Source{source.FileSource{Files: []jj.FileName{jj.NewFileName("a.go")}}},
+	})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	require.NotNil(t, model.stacked)
+	_, ok := model.stacked.(*target_picker.Model)
+	require.True(t, ok)
+
+	model.Update(target_picker.TargetPickerCancelMsg{})
+	assert.Nil(t, model.stacked)
+	assert.NotNil(t, model.annotation)
 }
 
 func Test_Update_DispatchedPreviewShowUpdatesVisiblePreview(t *testing.T) {
