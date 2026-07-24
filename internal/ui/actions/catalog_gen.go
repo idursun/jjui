@@ -386,6 +386,12 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.DetailsClose{}, true
 		case keybindings.Action("revisions.details.diff"):
 			return intents.DetailsDiff{}, true
+		case keybindings.Action("revisions.details.filter"):
+			return intents.DetailsOpenFilter{}, true
+		case keybindings.Action("revisions.details.filter_apply"):
+			return intents.DetailsApplyFilter{}, true
+		case keybindings.Action("revisions.details.filter_cancel"):
+			return intents.DetailsCancelFilter{}, true
 		case keybindings.Action("revisions.details.move_down"):
 			return intents.DetailsNavigate{Delta: 1}, true
 		case keybindings.Action("revisions.details.move_up"):

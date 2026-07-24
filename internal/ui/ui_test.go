@@ -1634,6 +1634,40 @@ func Test_Update_DetailsEscClosesOperation_WithDefaultBindings(t *testing.T) {
 	assert.True(t, model.revisions.InNormalMode(), "default details esc should close details operation")
 }
 
+func Test_Update_DetailsFilterUsesDefaultBindingsAndClearsBeforeClose(t *testing.T) {
+	const statusOutput = "false false $\nM file.txt\nA newfile.txt\n"
+
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte(statusOutput))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	model.Update(common.RestoreOperationMsg{Operation: op})
+	test.SimulateModel(model, op.Init())
+
+	model.Update(tea.KeyPressMsg{Text: "/", Code: '/'})
+	assert.True(t, op.IsEditing())
+	for _, r := range "new" {
+		model.Update(tea.KeyPressMsg{Text: string(r), Code: r})
+	}
+	model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	assert.False(t, op.IsEditing())
+	assert.Contains(t, test.Stripped(test.RenderImmediate(op, 40, 2)), "/ new")
+
+	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	assert.Nil(t, cmd, "first esc should clear the applied filter")
+	assert.False(t, model.revisions.InNormalMode())
+	assert.NotContains(t, test.Stripped(test.RenderImmediate(op, 40, 2)), "/ new")
+
+	cmd = model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	require.NotNil(t, cmd, "second esc should close details")
+	test.SimulateModel(model, cmd)
+	assert.True(t, model.revisions.InNormalMode())
+}
+
 func Test_Update_CommandErrorAfterClosingDetailsWithSelectedFiles_AllowsEscToDismissFlash(t *testing.T) {
 	const statusOutput = "false false $\nM file.txt\nA newfile.txt\n"
 

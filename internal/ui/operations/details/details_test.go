@@ -7,7 +7,9 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
+	uiContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -127,6 +129,72 @@ func TestOperation_HandleIntentUpdatesSelectionAfterNavigation(t *testing.T) {
 	selected, ok = operation.Selection().Highlighted.(common.SelectedFile)
 	require.True(t, ok)
 	assert.Equal(t, "newfile.txt", selected.File)
+}
+
+func TestOperation_FilterLifecycle(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	t.Cleanup(commandRunner.Verify)
+	operation := loadOperation(t, commandRunner, statusOutput)
+
+	cmd, handled := operation.HandleIntent(intents.DetailsOpenFilter{})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	assert.Equal(t, filterEditing, operation.filterState)
+	assert.True(t, operation.IsEditing())
+
+	operation.Update(tea.PasteMsg{Content: "new"})
+	assert.Equal(t, 1, operation.VisibleLen())
+	require.NotNil(t, operation.current())
+	assert.Equal(t, "newfile.txt", operation.current().fileName)
+
+	_, handled = operation.HandleIntent(intents.DetailsApplyFilter{})
+	require.True(t, handled)
+	assert.Equal(t, filterApplied, operation.filterState)
+	assert.False(t, operation.IsEditing())
+	assert.Equal(t, 1, operation.VisibleLen())
+	assert.Contains(t, test.Stripped(test.RenderImmediate(operation, 40, 2)), "/ new")
+
+	_, handled = operation.HandleIntent(intents.DetailsCancelFilter{})
+	require.True(t, handled)
+	assert.Equal(t, filterOff, operation.filterState)
+	assert.Equal(t, 2, operation.VisibleLen())
+	assert.Empty(t, operation.filterInput.Value())
+}
+
+func TestOperation_FilterKeepsHiddenCheckedFilesInActions(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	t.Cleanup(commandRunner.Verify)
+	operation := loadOperation(t, commandRunner, statusOutput)
+
+	operation.files[0].selected = true
+	operation.setFilter("new", true)
+
+	assert.Equal(t, []string{"file.txt"}, operation.getSelectedFiles(true))
+	selection := operation.Selection()
+	require.Len(t, selection.Checked, 1)
+	checked, ok := selection.Checked[0].(uiContext.SelectedFile)
+	require.True(t, ok)
+	assert.Equal(t, "file.txt", checked.File)
+}
+
+func TestOperation_FilterNoMatchesRendersInsideDetails(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	t.Cleanup(commandRunner.Verify)
+	operation := loadOperation(t, commandRunner, statusOutput)
+	operation.filterInput.SetValue("missing")
+	operation.filterState = filterApplied
+	operation.setFilter("missing", true)
+
+	output := test.Stripped(test.RenderImmediate(operation, 40, 2))
+
+	assert.Contains(t, output, "/ missing")
+	assert.Contains(t, output, "No matching files")
+	assert.Equal(t, 2, operation.EmbeddedHeight(commit, operations.RenderPositionAfter, 40))
+
+	cmd, handled := operation.HandleIntent(intents.DetailsRestore{})
+	assert.True(t, handled)
+	assert.Nil(t, cmd)
+	assert.Nil(t, operation.confirmation, "an empty filtered view must not run a whole-revision file operation")
 }
 
 func TestOperation_createListItems(t *testing.T) {

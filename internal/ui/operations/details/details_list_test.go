@@ -10,6 +10,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDetailsList_RenderFileListShowsCheckedAndUncheckedHints(t *testing.T) {
@@ -46,4 +47,63 @@ func TestDetailsList_SelectedDeletedKeepsStatusForeground(t *testing.T) {
 
 	assert.Equal(t, lipgloss.Color("#ff5555"), style.GetForeground())
 	assert.Equal(t, lipgloss.Color("#220044"), style.GetBackground())
+}
+
+func TestDetailsList_FilterUsesMatchesAsVisibleRows(t *testing.T) {
+	list := NewDetailsList()
+	list.setItems([]*item{
+		{status: Modified, name: "cmd/jjui/main.go", fileName: "cmd/jjui/main.go"},
+		{status: Modified, name: "internal/ui/details.go", fileName: "internal/ui/details.go", selected: true},
+		{status: Modified, name: "docs/configuration.md", fileName: "docs/configuration.md"},
+	})
+	list.setCursor(1)
+
+	list.setFilter("DETAILS", true)
+
+	assert.Equal(t, 1, list.VisibleLen())
+	require.NotNil(t, list.current())
+	assert.Equal(t, "internal/ui/details.go", list.current().fileName)
+	assert.True(t, list.files[1].selected, "filtering must preserve checked state on source items")
+}
+
+func TestDetailsList_FilterRequiresContiguousSubstringAndPreservesOrder(t *testing.T) {
+	list := NewDetailsList()
+	list.setItems([]*item{
+		{status: Modified, name: "internal/ui/ui_test.go", fileName: "internal/ui/ui_test.go"},
+		{status: Modified, name: "internal/ui/intents/details_intents.go", fileName: "internal/ui/intents/details_intents.go"},
+		{status: Modified, name: "internal/ui/intents/other.go", fileName: "internal/ui/intents/other.go"},
+	})
+	list.setCursor(2)
+
+	list.setFilter("intents", true)
+
+	assert.Equal(t, 2, list.VisibleLen())
+	assert.Equal(t, "internal/ui/intents/details_intents.go", list.itemAt(0).fileName)
+	assert.Equal(t, "internal/ui/intents/other.go", list.itemAt(1).fileName)
+	require.NotNil(t, list.current())
+	assert.Equal(t, "internal/ui/intents/other.go", list.current().fileName)
+}
+
+func TestDetailsList_FilterMapsSelectionToSourceItem(t *testing.T) {
+	list := NewDetailsList()
+	list.setItems([]*item{
+		{status: Modified, name: "one.txt", fileName: "one.txt"},
+		{status: Modified, name: "two.txt", fileName: "two.txt"},
+	})
+	list.setFilter("two", true)
+
+	list.rangeSelect(0, 0)
+
+	assert.False(t, list.files[0].selected)
+	assert.True(t, list.files[1].selected)
+}
+
+func TestDetailsList_FilterWithNoMatchesHasNoCurrentItem(t *testing.T) {
+	list := NewDetailsList()
+	list.setItems([]*item{{status: Modified, name: "file.txt", fileName: "file.txt"}})
+
+	list.setFilter("missing", true)
+
+	assert.Zero(t, list.VisibleLen())
+	assert.Nil(t, list.current())
 }

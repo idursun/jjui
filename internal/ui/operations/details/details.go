@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
@@ -25,6 +26,14 @@ type updateCommitStatusMsg struct {
 	selectedFiles []string
 }
 
+type filterState uint8
+
+const (
+	filterOff filterState = iota
+	filterEditing
+	filterApplied
+)
+
 var (
 	_ operations.Operation         = (*Operation)(nil)
 	_ operations.EmbeddedOperation = (*Operation)(nil)
@@ -41,6 +50,8 @@ type Operation struct {
 	Current      *jj.Commit
 	revision     *jj.Commit
 	confirmation *confirmation.Model
+	filterInput  textinput.Model
+	filterState  filterState
 }
 
 func (s *Operation) IsOverlay() bool {
@@ -52,7 +63,7 @@ func (s *Operation) IsFocused() bool {
 }
 
 func (s *Operation) IsEditing() bool {
-	return s.confirmation != nil
+	return s.confirmation != nil || s.filterState == filterEditing
 }
 
 func (s *Operation) Scopes() []common.Scope {
@@ -61,6 +72,17 @@ func (s *Operation) Scopes() []common.Scope {
 		ret = append(ret, common.Scope{
 			Name:    actions.ScopeDetailsConfirmation,
 			Leak:    common.LeakNone,
+			Handler: s,
+		})
+	}
+	if s.filterState != filterOff {
+		leak := common.LeakAll
+		if s.filterState == filterEditing {
+			leak = common.LeakNone
+		}
+		ret = append(ret, common.Scope{
+			Name:    actions.ScopeDetails + ".filter",
+			Leak:    leak,
 			Handler: s,
 		})
 	}
@@ -130,9 +152,15 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 		}
 		s.Scroll(msg.Delta)
 		return nil
-	case tea.KeyMsg:
+	case tea.KeyMsg, tea.PasteMsg:
 		if s.confirmation != nil {
 			return s.confirmation.Update(msg)
+		}
+		if s.filterState == filterEditing {
+			var cmd tea.Cmd
+			s.filterInput, cmd = s.filterInput.Update(msg)
+			s.setFilter(s.filterInput.Value(), true)
+			return cmd
 		}
 		return nil
 	case intents.Intent:
@@ -148,10 +176,16 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		if s.confirmation != nil {
 			return s.confirmation.Update(intent), true
 		}
+		if s.filterState == filterEditing {
+			s.applyFilter()
+		}
 		return nil, true
 	case intents.Cancel:
 		if s.confirmation != nil {
 			return s.confirmation.Update(intent), true
+		}
+		if s.filterState != filterOff {
+			s.clearFilter()
 		}
 		return nil, true
 	case intents.OptionSelect:
@@ -164,6 +198,18 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return nil, true
 	case intents.DetailsClose:
 		return common.Close, true
+	case intents.DetailsOpenFilter:
+		return s.openFilter(), true
+	case intents.DetailsApplyFilter:
+		if s.filterState == filterEditing {
+			s.applyFilter()
+		}
+		return nil, true
+	case intents.DetailsCancelFilter:
+		if s.filterState != filterOff {
+			s.clearFilter()
+		}
+		return nil, true
 	case intents.Quit:
 		return common.Quit(), true
 	case intents.Refresh:
@@ -180,6 +226,9 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		}, true
 	case intents.DetailsSplit:
 		selectedFiles := s.getSelectedFiles(true)
+		if len(selectedFiles) == 0 {
+			return nil, true
+		}
 		s.selectedHint = "stays as is"
 		s.unselectedHint = "moves to the new revision"
 		model := confirmation.New(
@@ -198,14 +247,21 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		s.confirmation = model
 		return s.confirmation.Init(), true
 	case intents.DetailsSquash:
+		selectedFiles := s.getSelectedFiles(true)
+		if len(selectedFiles) == 0 {
+			return nil, true
+		}
 		return func() tea.Msg {
 			return intents.OpenSquash{
 				Selected: jj.NewSelectedRevisions(s.revision),
-				Files:    s.getSelectedFiles(true),
+				Files:    selectedFiles,
 			}
 		}, true
 	case intents.DetailsRestore:
 		selectedFiles := s.getSelectedFiles(true)
+		if len(selectedFiles) == 0 {
+			return nil, true
+		}
 		s.selectedHint = "gets restored"
 		s.unselectedHint = "stays as is"
 		model := confirmation.New(
@@ -225,6 +281,9 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return s.confirmation.Init(), true
 	case intents.DetailsAbsorb:
 		selectedFiles := s.getSelectedFiles(true)
+		if len(selectedFiles) == 0 {
+			return nil, true
+		}
 		s.selectedHint = "might get absorbed into parents"
 		s.unselectedHint = "stays as is"
 		model := confirmation.New(
@@ -321,46 +380,99 @@ func (s *Operation) EmbeddedHeight(commit *jj.Commit, pos operations.RenderPosit
 	if !s.CanEmbed(commit, pos) {
 		return 0
 	}
-	if s.Len() == 0 {
-		return 1
+	contentHeight := max(s.VisibleLen(), 1)
+	if s.filterState != filterOff {
+		contentHeight++
 	}
 	confirmationHeight := 0
 	if s.confirmation != nil {
 		confirmationHeight = lipgloss.Height(s.confirmation.View())
 	}
-	return s.Len() + confirmationHeight
+	return contentHeight + confirmationHeight
 }
 
 func (s *Operation) renderIntoRect(dl *render.DisplayContext, rect layout.Rectangle) int {
-	if s.Len() == 0 {
-		// Render "No changes" message
-		dimmedStyle := common.DefaultPalette.Get("revisions", "details", "dimmed", false)
-		content := dimmedStyle.Render("No changes")
-		dl.AddDraw(layout.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), 1), content, 0)
-		return 1
-	}
-
 	confirmationHeight := 0
 	if s.confirmation != nil {
 		confirmationHeight = lipgloss.Height(s.confirmation.View())
 	}
 
-	availableListHeight := max(rect.Dy()-confirmationHeight, 0)
+	availableContentHeight := max(rect.Dy()-confirmationHeight, 0)
+	contentY := rect.Min.Y
+	filterHeight := 0
+	if s.filterState != filterOff && availableContentHeight > 0 {
+		s.renderFilterInput(dl, layout.Rect(rect.Min.X, contentY, rect.Dx(), 1))
+		filterHeight = 1
+		contentY++
+		availableContentHeight--
+	}
 
-	// Calculate available height
-	height := min(availableListHeight, s.Len())
+	visibleLen := s.VisibleLen()
+	listHeight := min(availableContentHeight, max(visibleLen, 1))
 
-	// Render the file list to DisplayContext
-	// viewRect is already absolute, so don't reapply the parent screen offset.
-	viewRect := layout.Box{R: layout.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), height)}
-	s.RenderFileList(dl, viewRect)
+	if listHeight > 0 {
+		if visibleLen == 0 {
+			dimmedStyle := common.DefaultPalette.Get("revisions", "details", "dimmed", false)
+			message := "No matching files"
+			if s.Len() == 0 {
+				message = "No changes"
+			}
+			dl.AddDraw(layout.Rect(rect.Min.X, contentY, rect.Dx(), 1), dimmedStyle.Render(message), 0)
+		} else {
+			// viewRect is already absolute, so don't reapply the parent screen offset.
+			viewRect := layout.Box{R: layout.Rect(rect.Min.X, contentY, rect.Dx(), listHeight)}
+			s.RenderFileList(dl, viewRect)
+		}
+	}
 
-	if s.confirmation != nil && confirmationHeight > 0 && height < rect.Dy() {
-		confirmRect := layout.Rect(rect.Min.X, rect.Min.Y+height, rect.Dx(), confirmationHeight)
+	contentHeight := filterHeight + listHeight
+	if s.confirmation != nil && confirmationHeight > 0 && contentHeight < rect.Dy() {
+		confirmRect := layout.Rect(rect.Min.X, rect.Min.Y+contentHeight, rect.Dx(), confirmationHeight)
 		s.confirmation.ViewRect(dl, layout.Box{R: confirmRect})
 	}
 
-	return height + confirmationHeight
+	return contentHeight + confirmationHeight
+}
+
+func (s *Operation) renderFilterInput(dl *render.DisplayContext, rect layout.Rectangle) {
+	textStyle := common.DefaultPalette.Get("revisions", "details", "text", false)
+	dimmedStyle := common.DefaultPalette.Get("revisions", "details", "dimmed", false)
+	styles := s.filterInput.Styles()
+	styles.Focused.Prompt = dimmedStyle
+	styles.Focused.Text = textStyle
+	styles.Blurred.Prompt = dimmedStyle
+	styles.Blurred.Text = textStyle
+	s.filterInput.SetStyles(styles)
+	s.filterInput.SetWidth(max(rect.Dx(), 0))
+	dl.AddDraw(rect, s.filterInput.View(), 0)
+	if s.filterState == filterEditing {
+		dl.SetCursorInRect(s.filterInput.Cursor(), rect, 0, 0)
+	}
+}
+
+func (s *Operation) openFilter() tea.Cmd {
+	s.filterState = filterEditing
+	s.setFilter(s.filterInput.Value(), true)
+	s.filterInput.Focus()
+	s.filterInput.CursorEnd()
+	return textinput.Blink
+}
+
+func (s *Operation) applyFilter() {
+	if strings.TrimSpace(s.filterInput.Value()) == "" {
+		s.clearFilter()
+		return
+	}
+	s.filterState = filterApplied
+	s.filterInput.Blur()
+	s.setFilter(s.filterInput.Value(), true)
+}
+
+func (s *Operation) clearFilter() {
+	s.filterState = filterOff
+	s.filterInput.Reset()
+	s.filterInput.Blur()
+	s.setFilter("", false)
 }
 
 func (s *Operation) Name() string {
@@ -379,8 +491,9 @@ func (s *Operation) getSelectedFiles(allowVirtualSelection bool) []string {
 		}
 	}
 	if len(selectedFiles) == 0 && allowVirtualSelection {
-		selectedFiles = append(selectedFiles, s.current().fileName)
-		return selectedFiles
+		if current := s.current(); current != nil {
+			selectedFiles = append(selectedFiles, current.fileName)
+		}
 	}
 	return selectedFiles
 }
@@ -457,11 +570,16 @@ func (s *Operation) load(revision string) tea.Cmd {
 
 func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation {
 	l := NewDetailsList()
+	filterInput := textinput.New()
+	filterInput.Prompt = "/ "
+	filterInput.CharLimit = 0
+	filterInput.SetVirtualCursor(false)
 	op := &Operation{
 		DetailsList: l,
 		context:     context,
 		revision:    selected,
 		Current:     selected,
+		filterInput: filterInput,
 	}
 	return op
 }
