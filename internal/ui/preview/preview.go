@@ -88,9 +88,14 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) OnShow() {
+func (m *Model) OnShow() tea.Cmd {
 	m.reset()
+	return nil
 }
+
+func (m *Model) OnHide() {}
+
+func (m *Model) SetFocused(bool) {}
 
 func (m *Model) YOffset() int {
 	return m.view.YOffset()

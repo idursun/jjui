@@ -9,82 +9,47 @@ import (
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
-var _ common.ImmediateModel = (*SplitRenderer)(nil)
-
 // SplitRenderer lays out two immediate-mode models with a draggable separator.
 // It handles the low-level rectangle splitting, separator drawing, and drag hitbox.
 type SplitRenderer struct {
-	State    *SplitState
-	Vertical bool
-	// Primary could be revision, oplog
-	Primary common.ImmediateModel
-	// Secondary could be preview, bookmark pane
-	Secondary          common.ImmediateModel
-	SeparatorVisible   bool
-	SeparatorThickness int
+	state              *SplitState
+	vertical           bool
+	separatorThickness int
 	lastBox            layout.Box
 	hasLastBox         bool
 }
 
-func NewRenderer(state *SplitState, primary, secondary common.ImmediateModel) *SplitRenderer {
-	return &SplitRenderer{
-		State:            state,
-		Primary:          primary,
-		Secondary:        secondary,
-		SeparatorVisible: true,
-	}
+func NewRenderer(state *SplitState) *SplitRenderer {
+	return &SplitRenderer{state: state}
 }
 
-func (s *SplitRenderer) Init() tea.Cmd {
-	return nil
-}
-
-func (s *SplitRenderer) Update(msg tea.Msg) tea.Cmd {
-	return nil
-}
-
-func (s *SplitRenderer) ViewModels(dl *render.DisplayContext, box layout.Box, primary, secondary common.ImmediateModel, vertical bool) {
+func (s *SplitRenderer) Render(dl *render.DisplayContext, box layout.Box, primary, secondary common.ImmediateModel, vertical bool) {
 	if s == nil {
 		primary.ViewRect(dl, box)
 		return
 	}
-	s.Primary = primary
-	s.Secondary = secondary
-	s.SeparatorVisible = true
-	s.Vertical = vertical
-	s.ViewRect(dl, box)
-}
-
-func (s *SplitRenderer) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	if s.State == nil {
-		s.State = NewSplitState(50)
+	if s.state == nil {
+		s.state = NewSplitState(50)
 	}
+	s.vertical = vertical
 	s.lastBox = box
 	s.hasLastBox = true
 
-	primaryVisible := isVisible(s.Primary)
-	secondaryVisible := isVisible(s.Secondary)
-
-	switch {
-	case primaryVisible && secondaryVisible:
-		s.renderBoth(dl, box)
-	case primaryVisible:
-		s.Primary.ViewRect(dl, box)
-	case secondaryVisible:
-		s.Secondary.ViewRect(dl, box)
-	}
+	s.renderBoth(dl, box, primary, secondary)
 }
 
-func (s *SplitRenderer) renderBoth(dl *render.DisplayContext, box layout.Box) {
-	primaryPercent := 100 - s.State.Percent
-	thickness := s.SeparatorThickness
+func (s *SplitRenderer) renderBoth(
+	dl *render.DisplayContext,
+	box layout.Box,
+	primary common.ImmediateModel,
+	secondary common.ImmediateModel,
+) {
+	primaryPercent := 100 - s.state.Percent
+	thickness := s.separatorThickness
 	if thickness <= 0 {
 		thickness = 1
 	}
-	if !s.SeparatorVisible {
-		thickness = 0
-	}
-	if s.Vertical {
+	if s.vertical {
 		if box.R.Dy() <= 0 {
 			return
 		}
@@ -105,17 +70,17 @@ func (s *SplitRenderer) renderBoth(dl *render.DisplayContext, box layout.Box) {
 			secondaryBox := boxes[1]
 			secondaryBox.R.Min.Y += thickness
 			secondaryBox.R.Max.Y += thickness
-			s.Primary.ViewRect(dl, boxes[0])
-			s.Secondary.ViewRect(dl, secondaryBox)
+			primary.ViewRect(dl, boxes[0])
+			secondary.ViewRect(dl, secondaryBox)
 			dl.AddInteraction(sepRect, SplitDragMsg{Renderer: s}, render.InteractionDrag, 0)
-			drawRect, content := separatorContent(sepRect, s.Vertical)
+			drawRect, content := separatorContent(sepRect, s.vertical)
 			if drawRect.Dx() > 0 && drawRect.Dy() > 0 && content != "" {
 				dl.AddDraw(drawRect, content, render.ZPreview)
 			}
 			return
 		}
-		s.Primary.ViewRect(dl, boxes[0])
-		s.Secondary.ViewRect(dl, boxes[1])
+		primary.ViewRect(dl, boxes[0])
+		secondary.ViewRect(dl, boxes[1])
 		return
 	}
 
@@ -139,24 +104,24 @@ func (s *SplitRenderer) renderBoth(dl *render.DisplayContext, box layout.Box) {
 		secondaryBox := boxes[1]
 		secondaryBox.R.Min.X += thickness
 		secondaryBox.R.Max.X += thickness
-		s.Primary.ViewRect(dl, boxes[0])
-		s.Secondary.ViewRect(dl, secondaryBox)
+		primary.ViewRect(dl, boxes[0])
+		secondary.ViewRect(dl, secondaryBox)
 		dl.AddInteraction(sepRect, SplitDragMsg{Renderer: s}, render.InteractionDrag, 0)
-		drawRect, content := separatorContent(sepRect, s.Vertical)
+		drawRect, content := separatorContent(sepRect, s.vertical)
 		if drawRect.Dx() > 0 && drawRect.Dy() > 0 && content != "" {
 			dl.AddDraw(drawRect, content, render.ZPreview)
 		}
 		return
 	}
-	s.Primary.ViewRect(dl, boxes[0])
-	s.Secondary.ViewRect(dl, boxes[1])
+	primary.ViewRect(dl, boxes[0])
+	secondary.ViewRect(dl, boxes[1])
 }
 
 func (s *SplitRenderer) DragTo(x, y int) bool {
-	if s == nil || s.State == nil || !s.hasLastBox {
+	if s == nil || s.state == nil || !s.hasLastBox {
 		return false
 	}
-	return s.State.DragTo(s.lastBox, s.Vertical, x, y)
+	return s.state.DragTo(s.lastBox, s.vertical, x, y)
 }
 
 type SplitDragMsg struct {
@@ -169,16 +134,6 @@ func (m SplitDragMsg) SetDragStart(x, y int) tea.Msg {
 	m.X = x
 	m.Y = y
 	return m
-}
-
-func isVisible(m common.ImmediateModel) bool {
-	if m == nil {
-		return false
-	}
-	if v, ok := m.(interface{ Visible() bool }); ok {
-		return v.Visible()
-	}
-	return true
 }
 
 func separatorContent(sepRect layout.Rectangle, vertical bool) (layout.Rectangle, string) {

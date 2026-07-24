@@ -137,6 +137,9 @@ func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
 		m.oplog = nil
 		return nil, true
 	}
+	if m.splitContainer.ContentFocused() && m.splitContainer.Close() {
+		return nil, true
+	}
 	return nil, false
 }
 
@@ -148,6 +151,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	}
 
 	var cmds []tea.Cmd
+
+	if cmd, handled := m.handleSplitMsg(msg); handled {
+		return m.withSelectionSync(cmd)
+	} else if cmd != nil {
+		cmds = append(cmds, cmd)
+	}
 
 	switch msg := msg.(type) {
 	case tea.ModeReportMsg:
@@ -199,8 +208,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return tea.Batch(tea.RequestBackgroundColor, scheduleColorSchemePoll())
 	case tea.MouseReleaseMsg, tea.MouseMotionMsg:
-		if cmd, handled := m.handleSplitMouseMsg(msg); handled {
-			return cmd
+		if m.handleSplitMouseMsg(msg) {
+			return nil
 		}
 	case tea.MouseClickMsg, tea.MouseWheelMsg:
 		if m.displayContext != nil {
@@ -331,11 +340,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return m.stacked.Init()
 	case input.SelectedMsg, input.CancelledMsg:
 		m.stacked = nil
-	case common.ShowPreview:
-		if cmd, handled := m.handleSplitMsg(msg); handled {
-			cmds = append(cmds, cmd)
-		}
-		return tea.Batch(cmds...)
 	case common.OpenTargetPickerMsg:
 		if m.diff != nil {
 			model := target_picker.NewModel(m.context, msg.Payload, msg.Sources...)
@@ -365,11 +369,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			//   - if the user denies the request on the device, a new prompt automatically happen "Enter PIN for ...
 			m.password = password.New(msg)
 		}
-	case split.SplitDragMsg:
-		if cmd, handled := m.handleSplitMsg(msg); handled {
-			return cmd
-		}
-
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -450,6 +449,8 @@ func (m *Model) View() string {
 		m.flash.ViewRect(m.displayContext, flashBox)
 	}
 
+	m.splitContainer.RenderOverlay(m.displayContext, box)
+
 	if m.password != nil {
 		m.password.ViewRect(m.displayContext, box)
 	}
@@ -524,12 +525,11 @@ func (m *Model) dispatchScopes() []common.Scope {
 	if m.stacked != nil && m.diff == nil {
 		scopes = append(scopes, m.stacked.Scopes()...)
 	} else if m.oplog != nil {
-		scopes = append(scopes, m.oplog.Scopes()...)
+		scopes = append(scopes, m.splitScopes(m.oplog.Scopes())...)
 	} else {
-		scopes = append(scopes, m.revisions.Scopes()...)
+		scopes = append(scopes, m.splitScopes(m.revisions.Scopes())...)
 	}
 
-	scopes = append(scopes, m.splitScopes()...)
 	if !m.revsetModel.IsEditing() {
 		scopes = append(scopes, m.revsetModel.Scopes()...)
 	}
@@ -544,6 +544,10 @@ func (m *Model) dispatchScopes() []common.Scope {
 }
 
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	if cmd, handled := m.handleSplitIntent(intent); handled {
+		return cmd, true
+	}
+
 	switch intent := intent.(type) {
 
 	// --- Quit / Suspend ---
@@ -625,10 +629,6 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		}
 		out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
 		return common.FileSearch(m.context.CurrentRevset, rev, out), true
-
-	// --- Split controls ---
-	case intents.PreviewToggle, intents.PreviewToggleBottom, intents.PreviewExpand, intents.PreviewShrink, intents.PreviewShow:
-		return m.handleSplitIntent(intent)
 
 	// --- Delegated intents ---
 	case intents.DiffShow:
