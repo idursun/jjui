@@ -9,11 +9,15 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 )
 
+// LeakPolicy controls which outer scopes remain visible after a scope is reached.
 type LeakPolicy int
 
 const (
+	// LeakAll allows routing to continue through every outer scope.
 	LeakAll LeakPolicy = iota
+	// LeakGlobal allows routing to continue only through outer scopes marked Global.
 	LeakGlobal
+	// LeakNone prevents routing to any outer scope.
 	LeakNone
 )
 
@@ -27,6 +31,9 @@ type Scope struct {
 }
 
 type ScopeHandler interface {
+	// HandleIntent returns handled=true when this scope consumes the intent, even
+	// if it has no command to return. Returning false allows the next visible
+	// outer scope to handle the intent.
 	HandleIntent(intent intents.Intent) (tea.Cmd, bool)
 	Update(msg tea.Msg) tea.Cmd
 }

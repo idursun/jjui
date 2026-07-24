@@ -33,6 +33,8 @@ go run ./cmd/genactions
 - Models handle `intents.Intent`, not raw `tea.KeyMsg`.
 - Most UI renders through the immediate view system. Prefer `common.ImmediateModel` and `ViewRect(...)` over string-building views.
 - Use `render.DisplayContext` and `render.TextBuilder` for drawing and interactive text. Register mouse interactions through the display context.
+- Order scopes from innermost to outermost. Choose `LeakAll`, `LeakGlobal`, or `LeakNone` deliberately; the leak policy controls which outer scopes remain visible during routing.
+- In `HandleIntent`, return `handled = true` whenever the current scope consumes the intent, even when there is no command to run. Return `false` only when visible outer scopes should be allowed to handle it.
 - Do not hand-edit generated action files. Regenerate `internal/ui/actions/catalog_gen.go` and `internal/ui/actionmeta/builtins_gen.go` with `go run ./cmd/genactions`.
 - When changing action bindings or intent annotations, run the generator and keep the staleness test passing.
 
@@ -48,7 +50,7 @@ go run ./cmd/genactions
 
 ## Requirements
 
-- Go 1.24.2+
+- The Go version declared by `go.mod` or later
 - `jj` v0.37+
 
 ## Verification Expectations
@@ -56,6 +58,7 @@ go run ./cmd/genactions
 - For broad or cross-package changes, run `go test ./...`.
 - For targeted changes, run the most relevant package tests in addition to any generator or formatting step the change requires.
 - After modifying intent annotations or built-in actions, run `go run ./cmd/genactions` and the relevant tests, including `go test ./cmd/genactions`.
+- After changing Go dependencies, run `go mod tidy` and `nix run .#update-vendor-hash`, and include the resulting `go.mod`, `go.sum`, and `nix/vendor-hash` changes.
 
 ## Adding New Actions
 

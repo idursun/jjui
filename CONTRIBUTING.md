@@ -8,7 +8,7 @@ We welcome contributions from the community and appreciate your help in making t
 
 ### Prerequisites
 
-- Go 1.24.2 or later
+- The Go version declared by `go.mod` or later
 - [Jujutsu version control system](https://github.com/jj-vcs/jj) v0.37 or later
 
 ### Setting up the Development Environment
@@ -51,7 +51,7 @@ This process helps ensure that:
 ### Pull Request Process
 
 1. Ensure your code builds successfully: `go run ./cmd/jjui`
-2. If you have made a change to the dependencies then update the `nix/vendor-hash` file.
+2. If you changed Go dependencies, run `go mod tidy` and `nix run .#update-vendor-hash`, then include the resulting `go.mod`, `go.sum`, and `nix/vendor-hash` changes.
 3. (Optional) Submit your pull request with screenshots (if applicable)
 
 ### Code Style and Standards
