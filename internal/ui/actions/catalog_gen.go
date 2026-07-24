@@ -8,6 +8,8 @@ import (
 )
 
 const (
+	ScopeAnnotation          = "annotation"
+	ScopeAnnotationEditor    = "annotation.editor"
 	ScopeBookmarks           = "bookmarks"
 	ScopeChoose              = "choose"
 	ScopeCommandHistory      = "command_history"
@@ -48,6 +50,60 @@ const (
 
 func ResolveIntent(scope string, action keybindings.Action, args map[string]any) (intents.Intent, bool) {
 	switch scope {
+	case ScopeAnnotation:
+		switch action {
+		case keybindings.Action("annotation.add"):
+			return intents.AnnotationAdd{}, true
+		case keybindings.Action("annotation.child_revision"):
+			return intents.AnnotationNavigateChild{}, true
+		case keybindings.Action("annotation.clear"):
+			return intents.AnnotationClear{}, true
+		case keybindings.Action("annotation.comment_picker"):
+			return intents.AnnotationOpenCommentPicker{}, true
+		case keybindings.Action("annotation.copy"):
+			return intents.AnnotationCopy{}, true
+		case keybindings.Action("annotation.delete"):
+			return intents.AnnotationDelete{}, true
+		case keybindings.Action("annotation.left"):
+			return intents.AnnotationScrollHorizontal{Delta: -1}, true
+		case keybindings.Action("annotation.move_bottom"):
+			return intents.AnnotationMoveBoundary{Last: true}, true
+		case keybindings.Action("annotation.move_down"):
+			return intents.AnnotationMove{Delta: 1}, true
+		case keybindings.Action("annotation.move_top"):
+			return intents.AnnotationMoveBoundary{Last: false}, true
+		case keybindings.Action("annotation.move_up"):
+			return intents.AnnotationMove{Delta: -1}, true
+		case keybindings.Action("annotation.next_file"):
+			return intents.AnnotationFileNavigate{Delta: 1}, true
+		case keybindings.Action("annotation.page_down"):
+			return intents.AnnotationMove{Delta: 1, Page: true}, true
+		case keybindings.Action("annotation.page_up"):
+			return intents.AnnotationMove{Delta: -1, Page: true}, true
+		case keybindings.Action("annotation.parent_revision"):
+			return intents.AnnotationNavigateParent{}, true
+		case keybindings.Action("annotation.prev_file"):
+			return intents.AnnotationFileNavigate{Delta: -1}, true
+		case keybindings.Action("annotation.right"):
+			return intents.AnnotationScrollHorizontal{Delta: 1}, true
+		case keybindings.Action("annotation.select_down"):
+			return intents.AnnotationMove{Delta: 1, Select: true}, true
+		case keybindings.Action("annotation.select_up"):
+			return intents.AnnotationMove{Delta: -1, Select: true}, true
+		case keybindings.Action("annotation.target_picker"):
+			return intents.AnnotationOpenTargetPicker{}, true
+		case keybindings.Action("annotation.toggle_presentation"):
+			return intents.AnnotationTogglePresentation{}, true
+		case keybindings.Action("annotation.toggle_wrap"):
+			return intents.AnnotationToggleWrap{}, true
+		}
+	case ScopeAnnotationEditor:
+		switch action {
+		case keybindings.Action("annotation.editor.cancel"):
+			return intents.AnnotationEditorCancel{}, true
+		case keybindings.Action("annotation.editor.save"):
+			return intents.AnnotationEditorSave{}, true
+		}
 	case ScopeBookmarks:
 		switch action {
 		case keybindings.Action("bookmarks.apply"):
@@ -304,6 +360,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.OpenAbandon{}, true
 		case keybindings.Action("revisions.open_absorb"):
 			return intents.OpenAbsorb{}, true
+		case keybindings.Action("revisions.open_annotation"):
+			return intents.OpenAnnotation{}, true
 		case keybindings.Action("revisions.open_details"):
 			return intents.OpenDetails{}, true
 		case keybindings.Action("revisions.open_diff_range"):

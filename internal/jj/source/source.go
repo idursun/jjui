@@ -18,11 +18,16 @@ const (
 	KindTag
 	KindRemote
 	KindFile
+	KindComment
+	KindRevision
 )
 
 // Item represents a completion/picker item from any source.
 type Item struct {
-	Name          string
+	Name string
+	// Value is returned when a target picker selects the item. An empty value
+	// falls back to Name.
+	Value         string
 	Kind          Kind
 	SignatureHelp string
 	HasParameters bool

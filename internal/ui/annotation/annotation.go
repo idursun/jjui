@@ -1,0 +1,132 @@
+package annotation
+
+import (
+	"fmt"
+	"slices"
+	"strconv"
+	"strings"
+)
+
+type lineRange struct {
+	Start int
+	End   int
+}
+
+type Annotation struct {
+	ID       int
+	ChangeID string
+	File     string
+	OldLines lineRange
+	NewLines lineRange
+	Snippet  string
+	Comment  string
+}
+
+type annotationStore struct {
+	items  []Annotation
+	nextID int
+}
+
+func (s *annotationStore) Add(annotation Annotation) Annotation {
+	s.nextID++
+	annotation.ID = s.nextID
+	s.items = append(s.items, annotation)
+	return annotation
+}
+
+func (s *annotationStore) Find(id int) (Annotation, bool) {
+	index := s.index(id)
+	if index < 0 {
+		return Annotation{}, false
+	}
+	return s.items[index], true
+}
+
+func (s *annotationStore) UpdateComment(id int, comment string) bool {
+	index := s.index(id)
+	if index < 0 {
+		return false
+	}
+	s.items[index].Comment = comment
+	return true
+}
+
+func (s *annotationStore) Remove(id int) bool {
+	index := s.index(id)
+	if index < 0 {
+		return false
+	}
+	s.items = slices.Delete(s.items, index, index+1)
+	return true
+}
+
+func (s *annotationStore) Clear() int {
+	count := len(s.items)
+	s.items = nil
+	return count
+}
+
+func (s *annotationStore) All() []Annotation {
+	return s.items
+}
+
+func (s *annotationStore) CountRevision(changeID string) int {
+	count := 0
+	for _, annotation := range s.items {
+		if annotation.ChangeID == changeID {
+			count++
+		}
+	}
+	return count
+}
+
+func (s *annotationStore) ForFile(changeID, file string) []Annotation {
+	var annotations []Annotation
+	for _, annotation := range s.items {
+		if annotation.ChangeID == changeID && annotation.File == file {
+			annotations = append(annotations, annotation)
+		}
+	}
+	return annotations
+}
+
+func (s *annotationStore) index(id int) int {
+	return slices.IndexFunc(s.items, func(annotation Annotation) bool {
+		return annotation.ID == id
+	})
+}
+
+func formatAnnotationsMarkdown(annotations []Annotation) string {
+	var out strings.Builder
+	for index, annotation := range annotations {
+		if index > 0 {
+			out.WriteString("\n\n")
+		}
+		fmt.Fprintf(&out, "### @%s:%s\n\n", annotation.File, annotationHeaderRange(annotation))
+		out.WriteString("```diff\n")
+		out.WriteString(annotation.Snippet)
+		out.WriteString("\n```\n\n")
+		out.WriteString(annotation.Comment)
+	}
+	return out.String()
+}
+
+func annotationHeaderRange(annotation Annotation) string {
+	if annotation.NewLines.Start != 0 {
+		return formatLineRange(annotation.NewLines)
+	}
+	return formatLineRange(annotation.OldLines)
+}
+
+func formatLineRange(lines lineRange) string {
+	if lines.Start == 0 && lines.End == 0 {
+		return "0"
+	}
+	if lines.End == 0 {
+		lines.End = lines.Start
+	}
+	if lines.Start == lines.End {
+		return strconv.Itoa(lines.Start)
+	}
+	return fmt.Sprintf("%d-%d", lines.Start, lines.End)
+}

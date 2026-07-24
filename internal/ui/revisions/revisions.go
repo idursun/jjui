@@ -763,6 +763,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.startEvolog(intent), true
 	case intents.ShowDiff:
 		return m.showDiff(intent), true
+	case intents.OpenAnnotation:
+		return m.openAnnotation(intent), true
 	case intents.StartSplit:
 		return m.startSplit(intent), true
 	case intents.OpenRebase:
@@ -1106,6 +1108,21 @@ func (m *Model) showDiff(intent intents.ShowDiff) tea.Cmd {
 		args := jj.Diff(changeId, "")
 		output, _ := m.context.RunCommandImmediate(args)
 		return intents.DiffShow{Content: string(output), Args: args}
+	}
+}
+
+func (m *Model) openAnnotation(intent intents.OpenAnnotation) tea.Cmd {
+	commit := intent.Selected
+	if commit == nil {
+		commit = m.SelectedRevision()
+	}
+	if commit == nil || commit.IsRoot() {
+		return nil
+	}
+	return func() tea.Msg {
+		return intents.AnnotationShow{
+			ChangeID: commit.GetChangeId(),
+		}
 	}
 }
 
