@@ -919,6 +919,11 @@ func (m *Model) reloadActiveTheme() tea.Cmd {
 	}
 	m.context.ThemeBackgroundBlend = theme.BackgroundBlend
 	common.DefaultPalette.Update(theme.Colors)
+	common.DefaultPalette.ConfigureBackgroundBlend(
+		theme.BackgroundBlend,
+		m.context.TerminalBackground,
+		m.context.TerminalPalette,
+	)
 	return func() tea.Msg { return common.ThemeChangedMsg{} }
 }
 
@@ -926,9 +931,6 @@ func (m *Model) resolveActiveTheme() (config.ResolvedTheme, error) {
 	theme, err := config.ResolveTheme(m.context.TerminalHasDarkBackground, m.context.JJConfig.GetApplicableColors())
 	if err != nil {
 		return config.ResolvedTheme{}, err
-	}
-	if err := common.ApplyThemeBackgroundBlend(theme.Colors, theme.BackgroundBlend, m.context.TerminalBackground, m.context.TerminalPalette); err != nil {
-		return config.ResolvedTheme{}, fmt.Errorf("applying theme background blend: %w", err)
 	}
 	return theme, nil
 }

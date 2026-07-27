@@ -3,44 +3,74 @@ package common
 import (
 	"testing"
 
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestApplyThemeBackgroundBlend_BlendsOnlySelectedBackgrounds(t *testing.T) {
-	theme := map[string]config.Color{
-		":selected":            {Fg: "#dcd7ba", Bg: "#363646"},
-		"picker text:selected": {Fg: "#dcd7ba", Bg: "#363646"},
-		"unselected":           {Fg: "#dcd7ba", Bg: "#363646"},
-		"border":               {Bg: "#202020"},
-		"picker border":        {Bg: "#202020"},
-	}
+func TestPaletteGetBlended_LeavesRawStyleUnchanged(t *testing.T) {
+	palette := NewPalette()
+	palette.Update(map[string]config.Color{
+		"picker:selected": {Bg: "#363646"},
+		"picker border":   {Bg: "#202020"},
+	})
+	palette.ConfigureBackgroundBlend(
+		0.25,
+		"",
+		nil,
+	)
 
-	require.NoError(t, ApplyThemeBackgroundBlend(theme, 0.25, "", nil))
-
-	assert.Equal(t, "#31313f", theme[":selected"].Bg)
-	assert.Equal(t, "#31313f", theme["picker text:selected"].Bg)
-	assert.Equal(t, "#363646", theme["unselected"].Bg)
+	assert.Equal(t, lipgloss.Color("#363646"), palette.Get("picker", "", "", true).GetBackground())
+	assert.Equal(t, lipgloss.Color("#31313f"), palette.GetBlended("picker", "", "", true).GetBackground())
+	assert.Equal(t, lipgloss.Color("#363646"), palette.Get("picker", "", "", true).GetBackground())
 }
 
-func TestApplyThemeBackgroundBlend_SelectedSuffixSyntaxMatchesLegacySyntax(t *testing.T) {
-	legacy := map[string]config.Color{
+func TestPaletteGetBlended_CanBlendNonSelectedStyle(t *testing.T) {
+	palette := NewPalette()
+	palette.Update(map[string]config.Color{
+		"picker":       {Bg: "#202020"},
+		"picker badge": {Bg: "#808080"},
+	})
+	palette.ConfigureBackgroundBlend(
+		0.25,
+		"",
+		nil,
+	)
+
+	assert.Equal(t, lipgloss.Color("#808080"), palette.Get("picker", "", "badge", false).GetBackground())
+	assert.Equal(t, lipgloss.Color("#707070"), palette.GetBlended("picker", "", "badge", false).GetBackground())
+}
+
+func TestPaletteGetBlended_SelectedSuffixSyntaxMatchesLegacySyntax(t *testing.T) {
+	legacy := NewPalette()
+	legacy.Update(map[string]config.Color{
 		"picker selected text": {Bg: "#363646"},
 		"picker border":        {Bg: "#202020"},
-	}
-	suffix := map[string]config.Color{
+	})
+	legacy.ConfigureBackgroundBlend(
+		0.25,
+		"",
+		nil,
+	)
+	suffix := NewPalette()
+	suffix.Update(map[string]config.Color{
 		"picker text:selected": {Bg: "#363646"},
 		"picker border":        {Bg: "#202020"},
-	}
+	})
+	suffix.ConfigureBackgroundBlend(
+		0.25,
+		"",
+		nil,
+	)
 
-	require.NoError(t, ApplyThemeBackgroundBlend(legacy, 0.25, "", nil))
-	require.NoError(t, ApplyThemeBackgroundBlend(suffix, 0.25, "", nil))
-
-	assert.Equal(t, legacy["picker selected text"].Bg, suffix["picker text:selected"].Bg)
+	assert.Equal(
+		t,
+		legacy.GetBlended("picker", "", "text", true),
+		suffix.GetBlended("picker", "", "text", true),
+	)
 }
 
-func TestApplyThemeBackgroundBlend_UsesEffectiveSurfaceBackground(t *testing.T) {
+func TestPaletteGetBlended_UsesContainingSurfaceBackground(t *testing.T) {
 	for _, tt := range []struct {
 		name               string
 		theme              map[string]config.Color
@@ -93,48 +123,47 @@ func TestApplyThemeBackgroundBlend_UsesEffectiveSurfaceBackground(t *testing.T) 
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, ApplyThemeBackgroundBlend(tt.theme, 0.25, tt.terminalBackground, nil))
-			assert.Equal(t, tt.want, tt.theme["picker:selected"].Bg)
+			palette := NewPalette()
+			palette.Update(tt.theme)
+			palette.ConfigureBackgroundBlend(0.25, tt.terminalBackground, nil)
+
+			assert.Equal(t, lipgloss.Color(tt.want), palette.GetBlended("picker", "", "", true).GetBackground())
 		})
 	}
 }
 
-func TestApplyThemeBackgroundBlend_UsesTerminalPalette(t *testing.T) {
+func TestPaletteGetBlended_UsesTerminalPalette(t *testing.T) {
 	for _, tt := range []struct {
 		name            string
 		theme           map[string]config.Color
 		terminalPalette map[int]string
-		selector        string
 		want            string
 	}{
 		{
-			name: "selected background",
+			name: "style background",
 			theme: map[string]config.Color{
-				":selected":        {Bg: "bright black"},
-				"missing:selected": {Bg: "bright red"},
-				"border":           {Bg: "#202020"},
+				":selected": {Bg: "bright black"},
+				"border":    {Bg: "#202020"},
 			},
 			terminalPalette: map[int]string{8: "#808080"},
-			selector:        ":selected",
 			want:            "#707070",
 		},
 		{
-			name: "surface border",
+			name: "border background",
 			theme: map[string]config.Color{
 				":selected": {Bg: "#808080"},
 				"border":    {Bg: "bright black"},
 			},
 			terminalPalette: map[int]string{8: "#202020"},
-			selector:        ":selected",
 			want:            "#707070",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, ApplyThemeBackgroundBlend(tt.theme, 0.25, "", tt.terminalPalette))
-			assert.Equal(t, tt.want, tt.theme[tt.selector].Bg)
-			if missing, ok := tt.theme["missing:selected"]; ok {
-				assert.Equal(t, "bright red", missing.Bg)
-			}
+			palette := NewPalette()
+			palette.Update(tt.theme)
+			palette.ConfigureBackgroundBlend(0.25, "", tt.terminalPalette)
+
+			assert.Equal(t, lipgloss.Color(tt.want), palette.GetBlended("", "", "", true).GetBackground())
 		})
 	}
 }

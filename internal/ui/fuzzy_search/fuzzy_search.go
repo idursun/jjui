@@ -48,7 +48,7 @@ func View(fzf Model) string {
 	max := fzf.Max()
 	dimmedStyle := common.DefaultPalette.Get("status", "", "dimmed", false)
 	dimmedMatchStyle := common.DefaultPalette.Get("status", "", "shortcut", false)
-	selectedStyle := common.DefaultPalette.Get("", "", "", true)
+	selectedStyle := common.DefaultPalette.GetBlended("", "", "", true)
 	selectedMatchStyle := common.DefaultPalette.Get("status", "", "title", false)
 	selected := fzf.SelectedMatch()
 	for i, match := range fzf.Matches() {

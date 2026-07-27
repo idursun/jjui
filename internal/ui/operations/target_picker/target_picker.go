@@ -184,8 +184,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	bookmarkPillStyle := common.DefaultPalette.Get("picker", "", "bookmark", false)
-	selectedStyle := common.DefaultPalette.Get("picker", "", "", true)
-	selectedTextStyle := common.DefaultPalette.Get("picker", "", "text", true)
+	selectedStyle := common.DefaultPalette.GetBlended("picker", "", "", true)
+	selectedTextStyle := common.DefaultPalette.GetBlended("picker", "", "text", true)
 	borderStyle := common.DefaultPalette.GetBorder("picker", "", "border", false, lipgloss.NormalBorder())
 	textStyle := common.DefaultPalette.Get("picker", "", "text", false)
 	dimmedStyle := common.DefaultPalette.Get("picker", "", "dimmed", false)
@@ -229,9 +229,13 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			y := rect.Min.Y
 
 			isSelected := index == m.cursor
-			pillStyle := common.DefaultPalette.Get("picker", "", "dimmed", isSelected)
+			getStyle := common.DefaultPalette.Get
+			if isSelected {
+				getStyle = common.DefaultPalette.GetBlended
+			}
+			pillStyle := getStyle("picker", "", "dimmed", isSelected)
 			lineStyle := bookmarkPillStyle
-			matchStyle := common.DefaultPalette.Get("picker", "", "matched", isSelected)
+			matchStyle := getStyle("picker", "", "matched", isSelected)
 			if isSelected {
 				lineStyle = selectedTextStyle
 				dl.AddFill(rect, ' ', selectedStyle, render.ZMenuContent-1)

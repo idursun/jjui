@@ -530,7 +530,7 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
 	remotePromptStyle := common.DefaultPalette.Get("bookmarks", "remote", "title", false)
 	remoteTextStyle := common.DefaultPalette.Get("bookmarks", "remote", "text", false)
 	remoteDimmedStyle := common.DefaultPalette.Get("bookmarks", "remote", "dimmed", false)
-	remoteSelectedStyle := common.DefaultPalette.Get("bookmarks", "remote", "", true)
+	remoteSelectedStyle := common.DefaultPalette.GetBlended("bookmarks", "remote", "", true)
 	noRemoteStyle := common.DefaultPalette.Get("bookmarks", "remote", "error", false)
 
 	dl.AddFill(lineBox.R, ' ', remoteTextStyle, render.ZMenuContent)
@@ -835,9 +835,13 @@ func renderItem(dl *render.DisplayContext, rect layout.Rectangle, width int, sho
 	}
 
 	isSelected := index == cursor
-	textStyle := common.DefaultPalette.Get("bookmarks", "", "text", isSelected)
-	descStyle := common.DefaultPalette.Get("bookmarks", "", "dimmed", isSelected)
-	shortcutStyle := common.DefaultPalette.Get("bookmarks", "", "shortcut", isSelected)
+	getStyle := common.DefaultPalette.Get
+	if isSelected {
+		getStyle = common.DefaultPalette.GetBlended
+	}
+	textStyle := getStyle("bookmarks", "", "text", isSelected)
+	descStyle := getStyle("bookmarks", "", "dimmed", isSelected)
+	shortcutStyle := getStyle("bookmarks", "", "shortcut", isSelected)
 
 	titleLine := ""
 	if shortcut != "" {

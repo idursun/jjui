@@ -255,7 +255,7 @@ func New(messages []string, opts ...Option) *Model {
 	m.Styles = Styles{
 		Border:   common.DefaultPalette.GetBorder(scope, component, "border", false, lipgloss.RoundedBorder()),
 		Text:     common.DefaultPalette.Get(scope, component, "text", false).PaddingRight(1),
-		Selected: common.DefaultPalette.Get(scope, component, "", true).PaddingLeft(2).PaddingRight(2),
+		Selected: common.DefaultPalette.GetBlended(scope, component, "", true).PaddingLeft(2).PaddingRight(2),
 		Dimmed:   common.DefaultPalette.Get(scope, component, "dimmed", false).PaddingLeft(2).PaddingRight(2),
 	}
 

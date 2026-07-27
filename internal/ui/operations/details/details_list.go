@@ -246,7 +246,7 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 		offset := len(title) - len(item.name)
 		start := offset + match.start
 		end := offset + match.end
-		matchStyle := common.DefaultPalette.Get("revisions", "details", "matched", selected)
+		matchStyle := detailsPaletteStyle("matched", selected)
 		tb.Styled(title[:start], style)
 		tb.Styled(title[start:end], matchStyle)
 		tb.Styled(title[end:], style)
@@ -255,7 +255,7 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 
 	// Add conflict marker
 	if item.conflict {
-		conflictMarkerStyle := common.DefaultPalette.Get("revisions", "details", "conflict", selected)
+		conflictMarkerStyle := detailsPaletteStyle("conflict", selected)
 		tb.Styled("conflict ", conflictMarkerStyle)
 	}
 
@@ -268,7 +268,7 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 		}
 	}
 	if hint != "" {
-		hintStyle := common.DefaultPalette.Get("revisions", "details", "dimmed", selected)
+		hintStyle := detailsPaletteStyle("dimmed", selected)
 		tb.Styled(hint, hintStyle)
 	}
 }
@@ -287,7 +287,14 @@ func (d *DetailsList) getStatusStyle(s status, selected bool) lipgloss.Style {
 	case Copied:
 		role = "copied"
 	}
-	return common.DefaultPalette.Get("revisions", "details", role, selected)
+	return detailsPaletteStyle(role, selected)
+}
+
+func detailsPaletteStyle(role string, selected bool) lipgloss.Style {
+	if selected {
+		return common.DefaultPalette.GetBlended("revisions", "details", role, true)
+	}
+	return common.DefaultPalette.Get("revisions", "details", role, false)
 }
 
 // Scroll handles mouse wheel scrolling

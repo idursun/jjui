@@ -400,7 +400,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	outerBox := layout.NewBox(layout.Rect(box.R.Min.X, box.R.Max.Y, overlayWidth, overlayHeight))
 	// Fill the background to prevent underlying content from showing through
 	dl.AddFill(outerBox.R, ' ', common.DefaultPalette.Get("revset", "completion", "", false), render.ZRevsetOverlay-1)
-	completionSelected := common.DefaultPalette.Get("revset", "completion", "", true)
+	completionSelected := common.DefaultPalette.GetBlended("revset", "completion", "", true)
 	m.listRenderer.Render(
 		dl,
 		outerBox,
@@ -413,12 +413,16 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 				return
 			}
 			isSelected := index == m.selectedIndex
+			getStyle := common.DefaultPalette.Get
+			if isSelected {
+				getStyle = common.DefaultPalette.GetBlended
+			}
 
 			item := items[index]
 
-			ts := common.DefaultPalette.Get("revset", "completion", "text", isSelected)
-			ms := common.DefaultPalette.Get("revset", "completion", "matched", isSelected)
-			ds := common.DefaultPalette.Get("revset", "completion", "dimmed", isSelected)
+			ts := getStyle("revset", "completion", "text", isSelected)
+			ms := getStyle("revset", "completion", "matched", isSelected)
+			ds := getStyle("revset", "completion", "dimmed", isSelected)
 
 			if isSelected {
 				dl.AddFill(rect, ' ', completionSelected, render.ZRevsetOverlay-1)

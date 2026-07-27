@@ -1,8 +1,6 @@
 package common
 
 import (
-	"fmt"
-	"image/color"
 	"strings"
 
 	"github.com/idursun/jjui/internal/config"
@@ -15,6 +13,7 @@ var DefaultPalette = NewPalette()
 type Palette struct {
 	styles map[string]paletteStyle
 	cache  map[paletteCacheKey]lipgloss.Style
+	blend  paletteBackgroundBlend
 }
 
 type paletteCacheKey struct {
@@ -26,8 +25,14 @@ type paletteCacheKey struct {
 
 type paletteStyle struct {
 	style         lipgloss.Style
-	background    color.Color
+	backgroundRaw string
 	backgroundSet bool
+}
+
+type paletteBackgroundBlend struct {
+	ratio              float64
+	terminalBackground string
+	terminalPalette    map[int]string
 }
 
 func NewPalette() *Palette {
@@ -41,7 +46,7 @@ func (p *Palette) addColor(key string, color config.Color) {
 	style := createStyleFrom(color)
 	entry := paletteStyle{style: style}
 	if color.Bg != "" {
-		entry.background = parseColor(color.Bg)
+		entry.backgroundRaw = color.Bg
 		entry.backgroundSet = true
 	}
 	p.styles[config.ParseColorSelector(key).Key()] = entry
@@ -72,7 +77,29 @@ func (p *Palette) Update(styleMap map[string]config.Color) {
 	}
 }
 
+func (p *Palette) ConfigureBackgroundBlend(
+	ratio float64,
+	terminalBackground string,
+	terminalPalette map[int]string,
+) {
+	p.blend = paletteBackgroundBlend{
+		ratio:              ratio,
+		terminalBackground: terminalBackground,
+		terminalPalette:    cloneTerminalPalette(terminalPalette),
+	}
+}
+
 func (p *Palette) Get(scope, component, role string, isSelected bool) lipgloss.Style {
+	return p.get(scope, component, role, isSelected)
+}
+
+func (p *Palette) GetBlended(scope, component, role string, isSelected bool) lipgloss.Style {
+	style := p.get(scope, component, role, isSelected)
+	background, backgroundSet := p.resolveBackground(paletteKeys(scope, component, role, isSelected))
+	return p.applyBackgroundBlend(style, background, backgroundSet, scope, component)
+}
+
+func (p *Palette) get(scope, component, role string, isSelected bool) lipgloss.Style {
 	cacheKey := paletteCacheKey{
 		scope:      scope,
 		component:  component,
@@ -83,6 +110,23 @@ func (p *Palette) Get(scope, component, role string, isSelected bool) lipgloss.S
 		return style
 	}
 
+	keys := paletteKeys(scope, component, role, isSelected)
+	finalStyle := lipgloss.NewStyle()
+	for _, key := range keys {
+		entry, ok := p.styles[key]
+		if !ok {
+			continue
+		}
+		finalStyle = finalStyle.Inherit(entry.style)
+	}
+	if background, ok := p.resolveBackground(keys); ok {
+		finalStyle = finalStyle.Background(parseColor(background))
+	}
+	p.cache[cacheKey] = finalStyle
+	return finalStyle
+}
+
+func paletteKeys(scope, component, role string, isSelected bool) []string {
 	baseCandidates := paletteCandidates(scope, component, role)
 	keys := make([]string, 0, len(baseCandidates)*2+1)
 	if isSelected {
@@ -114,26 +158,63 @@ func (p *Palette) Get(scope, component, role string, isSelected bool) lipgloss.S
 	} else {
 		keys = append(keys, baseCandidates...)
 	}
+	return keys
+}
 
-	finalStyle := lipgloss.NewStyle()
-	var background color.Color
-	backgroundSet := false
+func (p *Palette) resolveBackground(keys []string) (string, bool) {
 	for _, key := range keys {
 		entry, ok := p.styles[key]
-		if !ok {
-			continue
-		}
-		finalStyle = finalStyle.Inherit(entry.style)
-		if !backgroundSet && entry.backgroundSet {
-			background = entry.background
-			backgroundSet = true
+		if ok && entry.backgroundSet {
+			return entry.backgroundRaw, true
 		}
 	}
-	if backgroundSet {
-		finalStyle = finalStyle.Background(background)
+	return "", false
+}
+
+func (p *Palette) applyBackgroundBlend(
+	style lipgloss.Style,
+	background string,
+	backgroundSet bool,
+	scope string,
+	component string,
+) lipgloss.Style {
+	if p.blend.ratio == 0 || !backgroundSet {
+		return style
 	}
-	p.cache[cacheKey] = finalStyle
-	return finalStyle
+
+	target := p.backgroundBlendTarget(scope, component)
+	if target == "" {
+		return style
+	}
+	base := resolvePaletteColor(background, p.blend.terminalPalette)
+	blended, ok, err := blendHexColor(base, target, p.blend.ratio)
+	if err != nil || !ok {
+		return style
+	}
+
+	return style.Background(parseColor(blended))
+}
+
+func (p *Palette) backgroundBlendTarget(scope, component string) string {
+	if background, ok := p.resolveBackground(paletteKeys(scope, component, "", false)); ok {
+		return resolveBlendTarget(background, p.blend.terminalBackground, p.blend.terminalPalette)
+	}
+
+	if background, ok := p.resolveBackground(paletteKeys(scope, component, "border", false)); ok {
+		return resolveBlendTarget(background, p.blend.terminalBackground, p.blend.terminalPalette)
+	}
+	return p.blend.terminalBackground
+}
+
+func cloneTerminalPalette(terminalPalette map[int]string) map[int]string {
+	if terminalPalette == nil {
+		return nil
+	}
+	cloned := make(map[int]string, len(terminalPalette))
+	for index, value := range terminalPalette {
+		cloned[index] = value
+	}
+	return cloned
 }
 
 func paletteCandidates(scope, component, role string) []string {
@@ -205,78 +286,9 @@ func createStyleFrom(color config.Color) lipgloss.Style {
 	return style
 }
 
-func ApplyThemeBackgroundBlend(theme map[string]config.Color, ratio float64, terminalBackground string, terminalPalette map[int]string) error {
-	if ratio == 0 {
-		return nil
-	}
-
-	for key, color := range theme {
-		selector := config.ParseColorSelector(key)
-		if color.Bg == "" || !selector.HasVariant(config.SelectedVariant) {
-			continue
-		}
-		fields := selector.Fields()
-		target := blendTargetColor(theme, fields, terminalBackground, terminalPalette)
-		if target == "" {
-			continue
-		}
-		base := resolvePaletteColor(color.Bg, terminalPalette)
-		blended, ok, err := blendHexColor(base, target, ratio)
-		if err != nil {
-			return fmt.Errorf("%q bg: %w", key, err)
-		}
-		if !ok {
-			continue
-		}
-		color.Bg = blended
-		theme[key] = color
-	}
-	return nil
-}
-
-func blendTargetColor(theme map[string]config.Color, fields []string, terminalBackground string, terminalPalette map[int]string) string {
-	if bg := resolvedBackground(theme, fields); bg != "" {
-		return resolveBlendTarget(bg, terminalBackground, terminalPalette)
-	}
-
-	if bg := resolvedBorderBackground(theme, fields); bg != "" {
-		return resolveBlendTarget(bg, terminalBackground, terminalPalette)
-	}
-	return terminalBackground
-}
-
 func resolveBlendTarget(value, terminalBackground string, terminalPalette map[int]string) string {
 	if value == "default" {
 		return terminalBackground
 	}
 	return resolvePaletteColor(value, terminalPalette)
-}
-
-func resolvedBorderBackground(theme map[string]config.Color, fields []string) string {
-	for start := 0; start < len(fields); start++ {
-		for end := len(fields); end > start; end-- {
-			key := strings.Join(append(append([]string(nil), fields[start:end]...), "border"), " ")
-			if color, ok := theme[key]; ok && color.Bg != "" {
-				return color.Bg
-			}
-		}
-	}
-	if color, ok := theme["border"]; ok {
-		return color.Bg
-	}
-	return ""
-}
-
-func resolvedBackground(theme map[string]config.Color, fields []string) string {
-	length := len(fields)
-	start := 0
-	for start < length {
-		for end := length; end > start; end-- {
-			if color, ok := theme[strings.Join(fields[start:end], " ")]; ok && color.Bg != "" {
-				return color.Bg
-			}
-		}
-		start++
-	}
-	return ""
 }

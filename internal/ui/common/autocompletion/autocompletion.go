@@ -41,7 +41,7 @@ type Option func(m *AutoCompletionInput)
 func WithStyleScope(scope string) Option {
 	return func(m *AutoCompletionInput) {
 		styles := AutoCompleteStyles{
-			Selected: common.DefaultPalette.Get(scope, "", "", true),
+			Selected: common.DefaultPalette.GetBlended(scope, "", "", true),
 			Matched:  common.DefaultPalette.Get(scope, "", "matched", false),
 			Text:     common.DefaultPalette.Get(scope, "", "text", false),
 			Dimmed:   common.DefaultPalette.Get(scope, "", "dimmed", false),

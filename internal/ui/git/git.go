@@ -367,7 +367,7 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
 	remotePromptStyle := common.DefaultPalette.Get("git", "remote", "title", false)
 	remoteTextStyle := common.DefaultPalette.Get("git", "remote", "text", false)
 	remoteDimmedStyle := common.DefaultPalette.Get("git", "remote", "dimmed", false)
-	remoteSelectedStyle := common.DefaultPalette.Get("git", "remote", "", true)
+	remoteSelectedStyle := common.DefaultPalette.GetBlended("git", "remote", "", true)
 	noRemoteStyle := common.DefaultPalette.Get("git", "remote", "error", false)
 
 	dl.AddFill(lineBox.R, ' ', remoteTextStyle, render.ZMenuContent)
@@ -591,9 +591,13 @@ func renderItem(dl *render.DisplayContext, rect layout.Rectangle, width int, sho
 	}
 
 	isSelected := index == cursor
-	textStyle := common.DefaultPalette.Get("git", "", "text", isSelected)
-	descStyle := common.DefaultPalette.Get("git", "", "dimmed", isSelected)
-	shortcutStyle := common.DefaultPalette.Get("git", "", "shortcut", isSelected)
+	getStyle := common.DefaultPalette.Get
+	if isSelected {
+		getStyle = common.DefaultPalette.GetBlended
+	}
+	textStyle := getStyle("git", "", "text", isSelected)
+	descStyle := getStyle("git", "", "dimmed", isSelected)
+	shortcutStyle := getStyle("git", "", "shortcut", isSelected)
 
 	titleLine := ""
 	if shortcut != "" {

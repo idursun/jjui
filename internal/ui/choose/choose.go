@@ -237,7 +237,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	surfaceStyle := common.DefaultPalette.Get("choose", "", "", false)
 	textStyle := common.DefaultPalette.Get("choose", "", "text", false)
 	titleStyle := common.DefaultPalette.Get("choose", "", "title", false)
-	selectedStyle := common.DefaultPalette.Get("choose", "", "", true)
+	selectedStyle := common.DefaultPalette.GetBlended("choose", "", "", true)
 	inputStyle := common.DefaultPalette.Get("choose", "", "input", false)
 
 	inputStyles := m.input.Styles()

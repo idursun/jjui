@@ -316,7 +316,7 @@ func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 	textStyle := common.DefaultPalette.Get("evolog", "", "text", false)
-	selectedStyle := common.DefaultPalette.Get("evolog", "", "", true)
+	selectedStyle := common.DefaultPalette.GetBlended("evolog", "", "", true)
 
 	totalHeight := 0
 	for _, row := range o.rows {
