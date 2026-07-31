@@ -434,6 +434,93 @@ func TestRedoDialogRawConfirmationKeysStillWork(t *testing.T) {
 	assert.False(t, ok, "pressing n should close the redo confirmation")
 }
 
+func Test_Update_RetryableCommandCompletedMsgShowsImmutableConfirmation(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	retryRan := false
+	msg := common.CommandCompletedMsg{
+		Err: errors.New("Error: Commit abc123 is immutable"),
+		Retry: func() tea.Msg {
+			retryRan = true
+			return common.CommandCompletedMsg{}
+		},
+	}
+	test.SimulateModel(model, func() tea.Msg { return msg })
+
+	scope, ok := model.stackedScope()
+	require.True(t, ok)
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeConfirmImmutable), scope)
+
+	test.SimulateModel(model, func() tea.Msg { return tea.KeyPressMsg{Text: "y", Code: 'y'} })
+
+	assert.True(t, retryRan, "pressing y should run the retry command")
+	_, ok = model.stackedScope()
+	assert.False(t, ok, "pressing y should close the confirmation once retry completes")
+}
+
+func Test_Update_CommandCompletedMsgWithoutRetryDoesNotShowConfirmation(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	msg := common.CommandCompletedMsg{Err: errors.New("Error: No such revision 'abc123'")}
+	test.SimulateModel(model, func() tea.Msg { return msg })
+
+	_, ok := model.stackedScope()
+	assert.False(t, ok, "a plain command failure should not open the immutable confirmation")
+}
+
+func Test_Update_ImmutableConfirmationClosesOverOpenDiffWithoutClosingDiff(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+	model.diff = diff.New("some diff")
+
+	msg := common.CommandCompletedMsg{
+		Err:   errors.New("Error: Commit abc123 is immutable"),
+		Retry: func() tea.Msg { return nil },
+	}
+	test.SimulateModel(model, func() tea.Msg { return msg })
+
+	scope, ok := model.stackedScope()
+	require.True(t, ok)
+	require.Equal(t, keybindings.ScopeName(actions.ScopeConfirmImmutable), scope)
+	require.NotNil(t, model.diff, "opening the confirmation must not close an unrelated open diff")
+
+	// closeTopScope (triggered by a plain common.CloseViewMsg) always closes
+	// an open diff before m.stacked; the confirmation's own options must not
+	// go through that path or "No" would close the diff and strand the dialog.
+	test.SimulateModel(model, func() tea.Msg { return tea.KeyPressMsg{Text: "n", Code: 'n'} })
+
+	_, ok = model.stackedScope()
+	assert.False(t, ok, "pressing n should close the confirmation")
+	assert.NotNil(t, model.diff, "closing the confirmation must not close the diff view underneath it")
+}
+
+func Test_Update_RetryableCommandCompletedMsgDoesNotReplaceExistingStacked(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.OpLog(1))
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, func() tea.Msg { return intents.Undo{} })
+	scope, ok := model.stackedScope()
+	require.True(t, ok)
+	require.Equal(t, keybindings.ScopeName(actions.ScopeUndo), scope)
+
+	msg := common.CommandCompletedMsg{
+		Err:   errors.New("Error: Commit abc123 is immutable"),
+		Retry: func() tea.Msg { return nil },
+	}
+	test.SimulateModel(model, func() tea.Msg { return msg })
+
+	scope, ok = model.stackedScope()
+	require.True(t, ok)
+	assert.Equal(t, keybindings.ScopeName(actions.ScopeUndo), scope, "an existing stacked dialog should not be clobbered by a background command failure")
+}
+
 // this test verifies that when `git` is activated and `status` is expanded,
 // pressing `esc` closes expanded `status`
 func Test_GitWithExpandedStatus_EscClosesStackedFirst(t *testing.T) {

@@ -109,6 +109,13 @@ function wait_refresh() end
 ---@field move_down fun()
 ---@field move_up fun()
 
+---@class jjui.confirm_immutable
+---@field apply fun()
+---@field cancel fun()
+---@field next fun()
+---@field prev fun()
+---@field close fun()
+
 ---@class jjui.diff
 ---@field half_page_down fun()
 ---@field half_page_up fun()
@@ -491,6 +498,7 @@ function wait_refresh() end
 ---@field bookmarks jjui.bookmarks
 ---@field choose jjui.choose
 ---@field command_history jjui.command_history
+---@field confirm_immutable jjui.confirm_immutable
 ---@field diff jjui.diff
 ---@field file_search jjui.file_search
 ---@field git jjui.git
@@ -520,6 +528,7 @@ function wait_refresh() end
 ---@field bookmarks jjui.bookmarks
 ---@field choose jjui.choose
 ---@field command_history jjui.command_history
+---@field confirm_immutable jjui.confirm_immutable
 ---@field diff jjui.diff
 ---@field file_search jjui.file_search
 ---@field git jjui.git
