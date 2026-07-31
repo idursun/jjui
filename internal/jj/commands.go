@@ -37,6 +37,19 @@ type (
 	}
 )
 
+// IsImmutableError reports whether err is jj's "commit is immutable" failure,
+// i.e. the operation would need --ignore-immutable to proceed. This excludes
+// jj's root-commit error ("Error: The root commit ... is immutable"), which
+// also contains "is immutable" but --ignore-immutable can't bypass: the root
+// commit is never rewritable, immutable_heads() config or not.
+func IsImmutableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "is immutable") && !strings.Contains(msg, "root commit")
+}
+
 func ConfigListAll() CommandArgs {
 	return []string{"config", "list", "--color", "never", "--include-defaults", "--ignore-working-copy"}
 }
