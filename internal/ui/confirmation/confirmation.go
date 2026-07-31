@@ -81,6 +81,15 @@ func WithZIndex(z int) Option {
 	}
 }
 
+// WithSelected sets which option is highlighted/selected initially. Options
+// default to selecting index 0; use this when the safe default isn't the
+// first option (e.g. a dialog that can appear without direct user action).
+func WithSelected(index int) Option {
+	return func(m *Model) {
+		m.selected = index
+	}
+}
+
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
