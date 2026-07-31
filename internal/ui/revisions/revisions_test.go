@@ -158,6 +158,18 @@ func TestModel_Navigate(t *testing.T) {
 	assert.Equal(t, "a", model.SelectedRevision().ChangeId)
 }
 
+func TestModel_GoToTopAndBottom(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+	model.updateGraphRows(rows, "a", true)
+
+	test.SimulateModel(model, model.Update(intents.GoToBottom{}))
+	assert.Equal(t, len(model.rows)-1, model.Cursor())
+
+	test.SimulateModel(model, model.Update(intents.GoToTop{}))
+	assert.Equal(t, 0, model.Cursor())
+}
+
 func TestModel_UpdateGraphRows_DoesNotPrefixMatchImplicitCurrentSelection(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := New(ctx)

@@ -90,6 +90,16 @@ const (
 	TargetWorkingCopy
 )
 
+//jjui:bind scope=revisions action=go_to_top
+type GoToTop struct{}
+
+func (GoToTop) isIntent() {}
+
+//jjui:bind scope=revisions action=go_to_bottom
+type GoToBottom struct{}
+
+func (GoToBottom) isIntent() {}
+
 //jjui:bind scope=revisions action=move_up set=Delta:-1
 //jjui:bind scope=revisions action=move_down set=Delta:1
 //jjui:bind scope=revisions action=page_up set=Delta:-1,IsPage:true
