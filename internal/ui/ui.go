@@ -31,6 +31,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/exec_process"
 	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/help"
+	"github.com/idursun/jjui/internal/ui/immutable"
 
 	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
@@ -259,6 +260,19 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return exec_process.ExecLine(m.context, msg)
 	case common.ExecProcessCompletedMsg:
 		cmds = append(cmds, common.Refresh)
+	case common.CommandCompletedMsg:
+		if msg.Err != nil && msg.Retry != nil && m.stacked == nil {
+			model := immutable.New(msg.Err, msg.Retry)
+			m.stacked = model
+			cmds = append(cmds, model.Init())
+		}
+	case immutable.CloseMsg:
+		// Closes unconditionally, unlike common.CloseViewMsg's closeTopScope,
+		// which always closes an open diff view first. This dialog can appear
+		// while a diff is open, so that priority would strand it on screen.
+		if _, ok := m.stacked.(*immutable.Model); ok {
+			m.stacked = nil
+		}
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
 	case triggerAutoRefreshMsg:
