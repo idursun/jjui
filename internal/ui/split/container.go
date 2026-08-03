@@ -7,26 +7,56 @@ import (
 	"github.com/idursun/jjui/internal/ui/render"
 )
 
-// SplitContent is a renderable model that can be shown inside a SplitContainer.
+// SplitContent is content that can be displayed beside the primary view.
 type SplitContent interface {
 	common.ImmediateModel
-	OnShow()
+	common.ScopeProvider
+	OnShow() tea.Cmd
+	OnHide()
+	SetFocused(bool)
 }
 
-// SplitContainer manages one optional split-content pane next to a primary view.
+type overlayContent interface {
+	RenderOverlay(dl *render.DisplayContext, box layout.Box)
+}
+
+// SplitContainer manages one optional content pane beside a primary view.
 type SplitContainer struct {
-	renderer *SplitRenderer
-	state    *SplitState
-	dragging bool
-	contents map[string]SplitContent
-	activeID string
+	renderer        *SplitRenderer
+	state           *SplitState
+	contents        map[string]SplitContent
+	activeContentID string
+	contentFocused  bool
+	dragging        bool
+
+	// OnPrimaryFocus is called when the primary view gains focus, registered as
+	// a callback to the model's Update() method.
+	OnPrimaryFocus func(bool)
 }
 
 func NewSplitContainer(state *SplitState) *SplitContainer {
 	return &SplitContainer{
-		renderer: NewRenderer(state, nil, nil),
+		renderer: NewRenderer(state),
 		state:    state,
 		contents: make(map[string]SplitContent),
+	}
+}
+
+// setContentFocused is the single place that mutates focus. It keeps the
+// active content's focus, the contentFocused flag, and the primary view's
+// focus in sync.
+func (sc *SplitContainer) setContentFocused(focused bool) {
+	if focused {
+		if sc.activeContent() == nil {
+			return
+		}
+	}
+	sc.contentFocused = focused
+	if content := sc.activeContent(); content != nil {
+		content.SetFocused(focused)
+	}
+	if sc.OnPrimaryFocus != nil {
+		sc.OnPrimaryFocus(!focused)
 	}
 }
 
@@ -34,39 +64,67 @@ func (sc *SplitContainer) RegisterContent(id string, content SplitContent) {
 	sc.contents[id] = content
 }
 
-func (sc *SplitContainer) ShowContent(id string) bool {
-	if sc.activeID == id {
-		return false
-	}
-	sc.activeID = id
-	sc.contents[id].OnShow()
-	return true
+func (sc *SplitContainer) ActiveID() string {
+	return sc.activeContentID
 }
 
-func (sc *SplitContainer) ToggleContent(id string) bool {
-	if sc.activeID != "" && sc.activeID == id {
-		sc.Close()
-		return true
+func (sc *SplitContainer) ContentFocused() bool {
+	return sc.contentFocused
+}
+
+func (sc *SplitContainer) ShowContent(id string) (tea.Cmd, bool) {
+	if sc.activeContentID == id {
+		return nil, false
+	}
+	content, ok := sc.contents[id]
+	if !ok {
+		return nil, false
+	}
+	if active := sc.activeContent(); active != nil {
+		active.SetFocused(false)
+		active.OnHide()
+	}
+	sc.activeContentID = id
+	sc.setContentFocused(false)
+	return content.OnShow(), true
+}
+
+func (sc *SplitContainer) ToggleContent(id string) (tea.Cmd, bool) {
+	if sc.activeContentID == id {
+		return nil, sc.Close()
 	}
 	return sc.ShowContent(id)
 }
 
 func (sc *SplitContainer) Close() bool {
-	if sc.activeID == "" {
+	content := sc.activeContent()
+	if content == nil {
 		return false
 	}
-	sc.activeID = ""
+	sc.setContentFocused(false)
+	content.OnHide()
+	sc.activeContentID = ""
 	return true
 }
 
-func (sc *SplitContainer) Resize(delta float64) bool {
-	old := sc.state.Percent
+func (sc *SplitContainer) FocusSplitContent() {
+	sc.setContentFocused(true)
+}
+
+func (sc *SplitContainer) FocusPrimary() {
+	sc.setContentFocused(false)
+}
+
+func (sc *SplitContainer) ToggleFocus() {
+	sc.setContentFocused(!sc.contentFocused)
+}
+
+func (sc *SplitContainer) Resize(delta float64) {
 	if delta > 0 {
 		sc.state.Expand(delta)
 	} else if delta < 0 {
 		sc.state.Shrink(-delta)
 	}
-	return sc.state.Percent != old
 }
 
 func (sc *SplitContainer) TogglePosition() {
@@ -87,16 +145,23 @@ func (sc *SplitContainer) Update(msg tea.Msg) tea.Cmd {
 	return content.Update(msg)
 }
 
-func (sc *SplitContainer) Scopes() []common.Scope {
+func (sc *SplitContainer) UpdateContent(id string, msg tea.Msg) (tea.Cmd, bool) {
+	content, ok := sc.contents[id]
+	if !ok {
+		return nil, false
+	}
+	return content.Update(msg), true
+}
+
+func (sc *SplitContainer) Scopes(primary []common.Scope) []common.Scope {
 	content := sc.activeContent()
 	if content == nil {
-		return nil
+		return primary
 	}
-	provider, ok := content.(common.ScopeProvider)
-	if !ok {
-		return nil
+	if sc.contentFocused {
+		return content.Scopes()
 	}
-	return provider.Scopes()
+	return append(primary, content.Scopes()...)
 }
 
 func (sc *SplitContainer) StartDrag(msg SplitDragMsg) {
@@ -125,13 +190,20 @@ func (sc *SplitContainer) Render(dl *render.DisplayContext, box layout.Box, prim
 		primary.ViewRect(dl, box)
 		return
 	}
-	sc.renderer.State = sc.state
-	sc.renderer.ViewModels(dl, box, primary, content, sc.state.AtBottom)
+	sc.renderer.Render(dl, box, primary, content, sc.state.AtBottom)
+}
+
+func (sc *SplitContainer) RenderOverlay(dl *render.DisplayContext, box layout.Box) {
+	content, ok := sc.activeContent().(overlayContent)
+	if !ok {
+		return
+	}
+	content.RenderOverlay(dl, box)
 }
 
 func (sc *SplitContainer) activeContent() SplitContent {
-	if sc.activeID == "" {
+	if sc.activeContentID == "" {
 		return nil
 	}
-	return sc.contents[sc.activeID]
+	return sc.contents[sc.activeContentID]
 }

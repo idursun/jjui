@@ -83,7 +83,7 @@ func Test_FilterIntentPressedTwice_ExecutesShortcut(t *testing.T) {
 	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
 	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(""))
 	commandRunner.Expect(jj.BookmarkListMovable("abc123")).SetOutput([]byte(`
-main;.;false;false;false;86
+main;.;true;false;false;false;86
 `))
 	commandRunner.Expect(jj.BookmarkMove("abc123", "main"))
 	defer commandRunner.Verify()
@@ -103,8 +103,8 @@ func Test_FilterIntentPressedTwice_ExecutesMainShortcutWhenCursorIsElsewhere(t *
 	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
 	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(""))
 	commandRunner.Expect(jj.BookmarkListMovable("abc123")).SetOutput([]byte(`
-some-other-bookmark;.;false;false;false;nearby
-main;.;false;false;false;mainCommit
+some-other-bookmark;.;true;false;false;false;nearby
+main;.;true;false;false;false;mainCommit
 `))
 	commandRunner.Expect(jj.BookmarkMove("abc123", "main"))
 	defer commandRunner.Verify()

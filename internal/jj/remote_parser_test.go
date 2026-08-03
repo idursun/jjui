@@ -3,6 +3,7 @@ package jj
 import (
 	"testing"
 
+	"github.com/idursun/jjui/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,4 +46,15 @@ func TestParseRemoteListOutput(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestParseRemoteListOutput_PrefersConfiguredDefaultRemote(t *testing.T) {
+	orig := config.Current.Git.DefaultRemote
+	defer func() {
+		config.Current.Git.DefaultRemote = orig
+	}()
+	config.Current.Git.DefaultRemote = "upstream"
+
+	result := ParseRemoteListOutput("origin https://github.com/user/repo.git\nupstream https://github.com/upstream/repo.git\nfork https://github.com/fork/repo.git\n")
+	assert.Equal(t, []string{"upstream", "origin", "fork"}, result)
 }

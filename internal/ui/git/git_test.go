@@ -59,11 +59,11 @@ func Test_loadBookmarks(t *testing.T) {
 	const changeId = "changeid"
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkList(changeId)).SetOutput([]byte(`
-feat/allow-new-bookmarks;.;false;false;false;83
-feat/allow-new-bookmarks;origin;true;false;false;83
-main;.;false;false;false;86
-main;origin;true;false;false;86
-test;.;false;false;false;d0
+feat/allow-new-bookmarks;.;true;false;false;false;83
+feat/allow-new-bookmarks;origin;true;true;false;false;83
+main;.;true;false;false;false;86
+main;origin;true;true;false;false;86
+test;.;true;false;false;false;d0
 `))
 	defer commandRunner.Verify()
 
@@ -95,8 +95,8 @@ func Test_PushSelectedBookmarks(t *testing.T) {
 	const changeId1 = "abc123"
 	const changeId2 = "def456"
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkList(changeId1)).SetOutput([]byte("feature-a;.;false;false;false;83\n"))
-	commandRunner.Expect(jj.BookmarkList(changeId2)).SetOutput([]byte("feature-b;.;false;false;false;86\n"))
+	commandRunner.Expect(jj.BookmarkList(changeId1)).SetOutput([]byte("feature-a;.;true;false;false;false;83\n"))
+	commandRunner.Expect(jj.BookmarkList(changeId2)).SetOutput([]byte("feature-b;.;true;false;false;false;86\n"))
 	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
 	commandRunner.Expect(jj.GitPush("--remote", "", "--bookmark", "feature-a", "--bookmark", "feature-b"))
 	defer commandRunner.Verify()
@@ -119,11 +119,11 @@ func Test_PushSelectedBookmarks_SkipsRemoteOnlyNonMatchingAndUntrackedRemotes(t 
 		localOnUntrackedOrigin = "mno345"
 	)
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkList(localOnOrigin)).SetOutput([]byte("feature-a;.;true;false;false;83\nfeature-a;origin;true;false;false;83\n"))
-	commandRunner.Expect(jj.BookmarkList(remoteOnly)).SetOutput([]byte("feature-b;origin;false;false;false;86\n"))
-	commandRunner.Expect(jj.BookmarkList(localOnUpstream)).SetOutput([]byte("feature-c;.;true;false;false;90\nfeature-c;upstream;true;false;false;90\n"))
-	commandRunner.Expect(jj.BookmarkList(newLocal)).SetOutput([]byte("feature-d;.;false;false;false;92\n"))
-	commandRunner.Expect(jj.BookmarkList(localOnUntrackedOrigin)).SetOutput([]byte("feature-e;.;false;false;false;95\nfeature-e;origin;false;false;false;95\n"))
+	commandRunner.Expect(jj.BookmarkList(localOnOrigin)).SetOutput([]byte("feature-a;.;true;true;false;false;83\nfeature-a;origin;true;true;false;false;83\n"))
+	commandRunner.Expect(jj.BookmarkList(remoteOnly)).SetOutput([]byte("feature-b;origin;true;false;false;false;86\n"))
+	commandRunner.Expect(jj.BookmarkList(localOnUpstream)).SetOutput([]byte("feature-c;.;true;true;false;false;90\nfeature-c;upstream;true;true;false;false;90\n"))
+	commandRunner.Expect(jj.BookmarkList(newLocal)).SetOutput([]byte("feature-d;.;true;false;false;false;92\n"))
+	commandRunner.Expect(jj.BookmarkList(localOnUntrackedOrigin)).SetOutput([]byte("feature-e;.;true;false;false;false;95\nfeature-e;origin;true;false;false;false;95\n"))
 	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin\nupstream\n"))
 	commandRunner.Expect(jj.GitPush("--remote", "origin", "--bookmark", "feature-a", "--bookmark", "feature-d"))
 	defer commandRunner.Verify()

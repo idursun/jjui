@@ -4,6 +4,9 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
+	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/stretchr/testify/assert"
@@ -11,8 +14,11 @@ import (
 )
 
 type fakeContent struct {
+	scope   keybindings.ScopeName
 	shows   int
+	hides   int
 	updates int
+	focused bool
 }
 
 func (f *fakeContent) Init() tea.Cmd { return nil }
@@ -24,49 +30,107 @@ func (f *fakeContent) Update(tea.Msg) tea.Cmd {
 
 func (f *fakeContent) ViewRect(*render.DisplayContext, layout.Box) {}
 
-func (f *fakeContent) OnShow() { f.shows++ }
+func (f *fakeContent) OnShow() tea.Cmd {
+	f.shows++
+	return nil
+}
+
+func (f *fakeContent) OnHide() {
+	f.hides++
+}
+
+func (f *fakeContent) SetFocused(focused bool) {
+	f.focused = focused
+}
+
+func (f *fakeContent) Scopes() []common.Scope {
+	return []common.Scope{{Name: f.scope, Handler: f}}
+}
+
+func (f *fakeContent) HandleIntent(intents.Intent) (tea.Cmd, bool) {
+	return nil, false
+}
 
 func TestSplitContainerShowToggleAndClose(t *testing.T) {
 	sc := NewSplitContainer(NewSplitState(50))
-	a := &fakeContent{}
-	b := &fakeContent{}
+	a := &fakeContent{scope: "a"}
+	b := &fakeContent{scope: "b"}
 	sc.RegisterContent("a", a)
 	sc.RegisterContent("b", b)
 
-	require.True(t, sc.ShowContent("a"))
+	_, shown := sc.ShowContent("a")
+	require.True(t, shown)
 	assert.Equal(t, 1, a.shows)
-	require.False(t, sc.ShowContent("a"))
-	assert.Equal(t, 1, a.shows)
+	_, shown = sc.ShowContent("a")
+	assert.False(t, shown)
+
 	sc.Update(struct{}{})
 	assert.Equal(t, 1, a.updates)
 	assert.Equal(t, 0, b.updates)
 
-	require.True(t, sc.ToggleContent("a"))
-	sc.Update(struct{}{})
-	assert.Equal(t, 1, a.updates, "closed content should not receive updates")
-
-	require.True(t, sc.ToggleContent("b"))
+	_, shown = sc.ShowContent("b")
+	require.True(t, shown)
+	assert.Equal(t, 1, a.hides)
 	assert.Equal(t, 1, b.shows)
-	sc.Update(struct{}{})
-	assert.Equal(t, 1, b.updates)
 
-	require.True(t, sc.ToggleContent("a"))
-	assert.Equal(t, 2, a.shows)
-	sc.Update(struct{}{})
-	assert.Equal(t, 2, a.updates)
+	_, changed := sc.ToggleContent("b")
+	require.True(t, changed)
+	assert.Equal(t, 1, b.hides)
+	assert.Empty(t, sc.ActiveID())
 
-	require.True(t, sc.Close())
-	require.False(t, sc.Close())
+	assert.False(t, sc.Close())
 }
 
-func TestSplitContainerResizeAndPositionAreContainerState(t *testing.T) {
+func TestSplitContainerShowContentUnknownIDReturnsFalseWithoutChangingActiveContent(t *testing.T) {
+	sc := NewSplitContainer(NewSplitState(50))
+	a := &fakeContent{scope: "a"}
+	sc.RegisterContent("a", a)
+
+	_, shown := sc.ShowContent("a")
+	require.True(t, shown)
+
+	_, shown = sc.ShowContent("missing")
+	assert.False(t, shown)
+	assert.Equal(t, "a", sc.ActiveID())
+	assert.Equal(t, 0, a.hides)
+	assert.Equal(t, 1, a.shows)
+}
+
+func TestSplitContainerTracksOnlyWhetherContentIsFocused(t *testing.T) {
+	sc := NewSplitContainer(NewSplitState(50))
+	content := &fakeContent{scope: "content"}
+	sc.RegisterContent("content", content)
+	_, _ = sc.ShowContent("content")
+
+	primary := []common.Scope{{Name: "primary"}}
+	assert.False(t, sc.ContentFocused())
+	assert.Equal(t, []keybindings.ScopeName{"primary", "content"}, scopeNames(sc.Scopes(primary)))
+
+	sc.FocusSplitContent()
+	assert.True(t, sc.ContentFocused())
+	assert.True(t, content.focused)
+	assert.Equal(t, []keybindings.ScopeName{"content"}, scopeNames(sc.Scopes(primary)))
+
+	sc.ToggleFocus()
+	assert.False(t, sc.ContentFocused())
+	assert.False(t, content.focused)
+
+	sc.ToggleFocus()
+	assert.True(t, sc.ContentFocused())
+	assert.True(t, content.focused)
+	sc.Close()
+	assert.False(t, sc.ContentFocused())
+	assert.False(t, content.focused)
+}
+
+func TestSplitContainerResizeAndPosition(t *testing.T) {
 	state := NewSplitState(50)
 	state.SetPlacement(PlacementAuto)
 	sc := NewSplitContainer(state)
 
-	require.True(t, sc.Resize(10))
+	sc.Resize(10)
 	assert.Equal(t, 60.0, state.Percent)
-	require.True(t, sc.Resize(-20))
+	sc.Resize(-20)
 	assert.Equal(t, 40.0, state.Percent)
 
 	sc.SetAutoPosition(true)
@@ -75,5 +139,13 @@ func TestSplitContainerResizeAndPositionAreContainerState(t *testing.T) {
 	assert.False(t, state.AutoPosition)
 	assert.False(t, state.AtBottom)
 	sc.SetAutoPosition(true)
-	assert.False(t, state.AtBottom, "manual placement should ignore auto-position updates")
+	assert.False(t, state.AtBottom)
+}
+
+func scopeNames(scopes []common.Scope) []keybindings.ScopeName {
+	names := make([]keybindings.ScopeName, len(scopes))
+	for i, scope := range scopes {
+		names[i] = scope.Name
+	}
+	return names
 }
