@@ -99,8 +99,13 @@ func (gr *GraphRowLine) chop(indent int) {
 
 	// Pad with spaces if indent is not fully consumed
 	if indent > 0 && len(gr.Gutter.Segments) > 0 {
-		lastSegment := gr.Gutter.Segments[len(gr.Gutter.Segments)-1]
-		lastSegment.Text += strings.Repeat(" ", indent)
+		style := gr.Gutter.Segments[len(gr.Gutter.Segments)-1].Style
+		for range indent {
+			gr.Gutter.Segments = append(gr.Gutter.Segments, &screen.Segment{
+				Text:  " ",
+				Style: style,
+			})
+		}
 	}
 }
 
