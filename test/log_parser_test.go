@@ -104,6 +104,19 @@ func TestParser_Parse_Extend(t *testing.T) {
 	assert.Len(t, extended.Segments, 2)
 }
 
+func TestParser_Parse_ExtendBlankGraphLine(t *testing.T) {
+	file, err := os.Open("testdata/single-line-with-description.log")
+	assert.NoError(t, err)
+	defer file.Close()
+	rows := parser.ParseRows(file)
+	assert.Len(t, rows, 1)
+	var sb strings.Builder
+	for _, segment := range rows[0].Extend().Segments {
+		sb.WriteString(segment.Text)
+	}
+	assert.Equal(t, "│  ", sb.String())
+}
+
 func TestParser_Parse_WorkingCopy_1(t *testing.T) {
 	var lb LogBuilder
 	lb.Write("*   _PREFIX:abcde_PREFIX:xyrq id=abcde author=some@author id=xyrq")
