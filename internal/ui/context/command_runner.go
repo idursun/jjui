@@ -81,6 +81,7 @@ func (a *MainCommandRunner) RunCommandStreaming(ctx context.Context, args []stri
 func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, continuations []tea.Cmd) tea.Cmd {
 	id := a.nextID()
 	command := "jj " + strings.Join(args, " ")
+	originalArgs := args
 	commands := make([]tea.Cmd, 0)
 	commands = append(commands,
 		func() tea.Msg {
@@ -128,6 +129,7 @@ func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, co
 				ID:     id,
 				Output: output.String(),
 				Err:    err,
+				Retry:  BuildBufferedRetry(a, originalArgs, input, continuations, err),
 			}
 		})
 	commands = append(commands, continuations...)
@@ -154,7 +156,11 @@ func (a *MainCommandRunner) RunInteractiveCommand(args []string, continuation te
 	c.Dir = a.Location
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		if err != nil {
-			return common.CommandCompletedMsg{Err: errors.New(errBuffer.String())}
+			cmdErr := errors.New(errBuffer.String())
+			return common.CommandCompletedMsg{
+				Err:   cmdErr,
+				Retry: BuildInteractiveRetry(a, args, continuation, cmdErr),
+			}
 		}
 		if continuation != nil {
 			return continuation()

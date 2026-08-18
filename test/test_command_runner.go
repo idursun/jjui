@@ -75,7 +75,11 @@ func (t *CommandRunner) RunCommandWithInput(args []string, input string, continu
 	cmds := make([]tea.Cmd, 0)
 	cmds = append(cmds, func() tea.Msg {
 		output, err := t.RunCommandImmediate(args)
-		return common.CommandCompletedMsg{Output: string(output), Err: err}
+		return common.CommandCompletedMsg{
+			Output: string(output),
+			Err:    err,
+			Retry:  appContext.BuildBufferedRetry(t, args, &input, continuations, err),
+		}
 	})
 	cmds = append(cmds, continuations...)
 	return tea.Batch(cmds...)
@@ -85,7 +89,11 @@ func (t *CommandRunner) RunCommand(args []string, continuations ...tea.Cmd) tea.
 	cmds := make([]tea.Cmd, 0)
 	cmds = append(cmds, func() tea.Msg {
 		output, err := t.RunCommandImmediate(args)
-		return common.CommandCompletedMsg{Output: string(output), Err: err}
+		return common.CommandCompletedMsg{
+			Output: string(output),
+			Err:    err,
+			Retry:  appContext.BuildBufferedRetry(t, args, nil, continuations, err),
+		}
 	})
 	cmds = append(cmds, continuations...)
 	return tea.Batch(cmds...)
@@ -95,7 +103,10 @@ func (t *CommandRunner) RunInteractiveCommand(args []string, continuation tea.Cm
 	return func() tea.Msg {
 		_, err := t.RunCommandImmediate(args)
 		if err != nil {
-			return common.CommandCompletedMsg{Err: err}
+			return common.CommandCompletedMsg{
+				Err:   err,
+				Retry: appContext.BuildInteractiveRetry(t, args, continuation, err),
+			}
 		}
 		if continuation != nil {
 			return continuation()

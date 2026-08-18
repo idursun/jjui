@@ -11,6 +11,7 @@ const (
 	ScopeBookmarks           = "bookmarks"
 	ScopeChoose              = "choose"
 	ScopeCommandHistory      = "command_history"
+	ScopeConfirmImmutable    = "confirm_immutable"
 	ScopeDiff                = "diff"
 	ScopeFileSearch          = "file_search"
 	ScopeGit                 = "git"
@@ -104,6 +105,17 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.CommandHistoryNavigate{Delta: 1}, true
 		case keybindings.Action("command_history.move_up"):
 			return intents.CommandHistoryNavigate{Delta: -1}, true
+		}
+	case ScopeConfirmImmutable:
+		switch action {
+		case keybindings.Action("confirm_immutable.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("confirm_immutable.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("confirm_immutable.next"):
+			return intents.OptionSelect{Delta: 1}, true
+		case keybindings.Action("confirm_immutable.prev"):
+			return intents.OptionSelect{Delta: -1}, true
 		}
 	case ScopeDiff:
 		switch action {

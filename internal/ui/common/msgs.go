@@ -34,6 +34,10 @@ type (
 		ID     int
 		Output string
 		Err    error
+		// Retry re-runs the failed command with --ignore-immutable. Only the
+		// jj command runner (internal/ui/context) populates this, and only
+		// when Err is jj's "commit is immutable" error.
+		Retry tea.Cmd
 	}
 	SelectionChangedMsg struct {
 		Item SelectedItem

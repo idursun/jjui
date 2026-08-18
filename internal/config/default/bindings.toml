@@ -375,6 +375,12 @@ bindings = [
     { key = "enter", action = "redo.apply", scope = "redo", desc = "apply" },
     { key = "esc", action = "redo.cancel", scope = "redo", desc = "cancel" },
 
+    # confirm_immutable
+    { key = "h", action = "confirm_immutable.prev", scope = "confirm_immutable", desc = "prev" },
+    { key = "l", action = "confirm_immutable.next", scope = "confirm_immutable", desc = "next" },
+    { key = "enter", action = "confirm_immutable.apply", scope = "confirm_immutable", desc = "apply" },
+    { key = "esc", action = "confirm_immutable.cancel", scope = "confirm_immutable", desc = "cancel" },
+
     # diff
     { key = ["up", "k"], action = "diff.scroll_up", scope = "diff", desc = "up" },
     { key = ["down", "j"], action = "diff.scroll_down", scope = "diff", desc = "down" },
