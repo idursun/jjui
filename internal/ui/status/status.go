@@ -452,6 +452,14 @@ func (m *Model) expandedStatusView(groups []help.ScopeGroup, maxWidth int, title
 	expandKey := m.expandStatusKey(groups)
 	closeHint := shortcutStyle.Render(expandKey+"/esc") + dimmedStyle.PaddingLeft(1).Render("close help")
 
+	renderedGroups := make([][]string, len(groups))
+	maxEntryWidth := 0
+	for i, group := range groups {
+		rendered, groupMaxEntryWidth := m.collectGroupEntries(group.Entries, shortcutStyle, dimmedStyle)
+		renderedGroups[i] = rendered
+		maxEntryWidth = max(maxEntryWidth, groupMaxEntryWidth)
+	}
+
 	var allLines []string
 	for i, group := range groups {
 		if i > 0 {
@@ -461,8 +469,7 @@ func (m *Model) expandedStatusView(groups []help.ScopeGroup, maxWidth int, title
 			header := titleStyle.Render(group.Name)
 			allLines = append(allLines, header)
 		}
-		rendered, maxEntryWidth := m.collectGroupEntries(group.Entries, shortcutStyle, dimmedStyle)
-		lines := m.buildHelpGrid(rendered, maxEntryWidth, maxWidth)
+		lines := m.buildHelpGrid(renderedGroups[i], maxEntryWidth, maxWidth)
 		allLines = append(allLines, lines...)
 	}
 	allLines = append(allLines, "", closeHint)
@@ -497,7 +504,7 @@ func (m *Model) collectGroupEntries(entries []help.Entry, shortcutStyle, dimmedS
 func (m *Model) buildHelpGrid(entries []string, maxEntryWidth, maxWidth int) []string {
 	minColWidth := maxEntryWidth + 2
 	numCols := max(maxWidth/minColWidth, 1)
-	colWidth := maxWidth / numCols
+	colWidth := minColWidth
 	numRows := (len(entries) + numCols - 1) / numCols
 
 	var lines []string
