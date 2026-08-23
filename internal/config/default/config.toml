@@ -41,6 +41,9 @@ bindings_profile = ":builtin"
 [ssh]
   hijack_askpass = false
 
+[bookmark]
+  interactive_bookmark_pane = false
+
 # Backwards compatibility
 [[actions]]
 name = "revisions.toggle_select"

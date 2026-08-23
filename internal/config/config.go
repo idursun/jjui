@@ -28,6 +28,7 @@ type Config struct {
 	Limit           int             `toml:"limit"`
 	Git             GitConfig       `toml:"git"`
 	Ssh             SshConfig       `toml:"ssh"`
+	Bookmark        BookmarkConfig  `toml:"bookmark"`
 }
 
 type Color struct {
@@ -337,4 +338,8 @@ func GetGitDefaultRemote(c *Config) string {
 
 type SshConfig struct {
 	HijackAskpass bool `toml:"hijack_askpass"`
+}
+
+type BookmarkConfig struct {
+	InteractiveBookmarkPane bool `toml:"interactive_bookmark_pane"`
 }

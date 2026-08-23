@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoad_Theme_Simple(t *testing.T) {
@@ -121,4 +122,15 @@ explicit_false = { fg = "blue", underline = false }
 	if assert.NotNil(t, config.UI.Colors["explicit_false"].Underline) {
 		assert.False(t, *config.UI.Colors["explicit_false"].Underline)
 	}
+}
+
+func TestLoad_BookmarkConfig(t *testing.T) {
+	content := `
+[bookmark]
+interactive_bookmark_pane = true
+`
+	config := &Config{}
+	err := config.Load(content, "")
+	require.NoError(t, err)
+	assert.True(t, config.Bookmark.InteractiveBookmarkPane)
 }
