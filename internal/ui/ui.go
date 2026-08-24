@@ -579,6 +579,10 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		m.stacked = model
 		return m.stacked.Init(), true
 	case intents.OpenBookmarks:
+		if config.Current.Bookmark.InteractiveBookmarkPane {
+			cmd, _ := m.handleSplitIntent(intents.ToggleBookmarkPane{})
+			return cmd, true
+		}
 		current := m.revisions.SelectedRevision()
 		if current == nil {
 			return nil, true
