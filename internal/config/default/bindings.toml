@@ -84,7 +84,6 @@ bindings = [
     { key = "$", action = "ui.exec_shell", scope = "revisions", desc = "exec shell" },
     { key = "shift+w", action = "ui.open_command_history", scope = "revisions", desc = "command history" },
     { key = "shift+p", action = "ui.preview_toggle_bottom", scope = "revisions", desc = "move preview to bottom" },
-    { key = "shift+x", action = "ui.toggle_bookmark_pane", scope = "revisions", desc = "bookmark pane" },
     { key = "esc", action = "revisions.cancel", scope = "revisions", desc = "clear selection" },
 
     # revisions.quick_search
@@ -347,7 +346,6 @@ bindings = [
     { key = "enter", action = "bookmarks.apply", scope = "bookmarks.filter", desc = "apply" },
 
     # bookmark_pane
-    { key = "shift+x", action = "ui.toggle_bookmark_pane", scope = "bookmark_pane", desc = "bookmark pane" },
     { key = "tab", action = "ui.focus_next_pane", scope = "bookmark_pane", desc = "next pane" },
     { key = ["up", "k"], action = "bookmark_pane.move_up", scope = "bookmark_pane", desc = "up" },
     { key = ["down", "j"], action = "bookmark_pane.move_down", scope = "bookmark_pane", desc = "down" },
