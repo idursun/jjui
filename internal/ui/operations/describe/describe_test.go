@@ -49,3 +49,33 @@ func TestViewRect_SyncsInputSizeForWrappedCursorMovement(t *testing.T) {
 	assert.Equal(t, 0, op.input.Line())
 	assert.Equal(t, 1, op.input.LineInfo().RowOffset)
 }
+
+func TestCtrlUYanksTextWithCtrlY(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GetDescription("change")).SetOutput([]byte("hello world"))
+	defer commandRunner.Verify()
+
+	op := NewOperation(test.NewTestContext(commandRunner), &jj.Commit{ChangeId: "change", CommitId: "commit"})
+	op.input.MoveToEnd()
+
+	op.Update(tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
+	assert.Empty(t, op.input.Value())
+
+	op.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
+	assert.Equal(t, "hello world", op.input.Value())
+}
+
+func TestCtrlUYanksNewlineAtLineStart(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GetDescription("change")).SetOutput([]byte("hello\nworld"))
+	defer commandRunner.Verify()
+
+	op := NewOperation(test.NewTestContext(commandRunner), &jj.Commit{ChangeId: "change", CommitId: "commit"})
+	op.input.MoveToEnd()
+	op.input.CursorStart()
+	op.Update(tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
+	assert.Equal(t, "helloworld", op.input.Value())
+
+	op.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
+	assert.Equal(t, "hello\nworld", op.input.Value())
+}
