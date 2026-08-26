@@ -36,7 +36,6 @@ bindings = [
     { key = "ctrl+d", action = "ui.preview_half_page_down", scope = "ui.preview", desc = "half page down" },
 
     # revisions
-    { key = "tab", action = "ui.focus_next_pane", scope = "revisions", desc = "next pane" },
     { key = ["up", "k"], action = "revisions.move_up", scope = "revisions", desc = "up" },
     { key = ["down", "j"], action = "revisions.move_down", scope = "revisions", desc = "down" },
     { key = "ctrl+r", action = "revisions.refresh", scope = "revisions", desc = "refresh" },
@@ -84,6 +83,7 @@ bindings = [
     { key = "$", action = "ui.exec_shell", scope = "revisions", desc = "exec shell" },
     { key = "shift+w", action = "ui.open_command_history", scope = "revisions", desc = "command history" },
     { key = "shift+p", action = "ui.preview_toggle_bottom", scope = "revisions", desc = "move preview to bottom" },
+    { key = "tab", action = "ui.focus_next_pane", scope = "revisions", desc = "next pane" },
     { key = "esc", action = "revisions.cancel", scope = "revisions", desc = "clear selection" },
 
     # revisions.quick_search
