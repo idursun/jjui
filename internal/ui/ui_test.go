@@ -1174,10 +1174,10 @@ func Test_Update_OpenTargetPickerWhileDiffActiveCreatesRootOverlay(t *testing.T)
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.diff = diff.NewWithContext(ctx, "diff content", jj.Diff("abc123", ""))
+	model.diff = diff.NewWithContext(ctx, "diff content", jj.Diff("abc123", jj.FileName{}))
 
 	cmd := model.Update(common.OpenTargetPickerMsg{
-		Sources: []source.Source{source.FileSource{Files: []string{"a.go"}}},
+		Sources: []source.Source{source.FileSource{Files: []jj.FileName{jj.NewFileName("a.go")}}},
 	})
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
@@ -1197,20 +1197,20 @@ func Test_Update_DiffTargetPickerClosesOnSelectionAndCancel(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.diff = diff.NewWithContext(ctx, "diff content", jj.Diff("abc123", ""))
+	model.diff = diff.NewWithContext(ctx, "diff content", jj.Diff("abc123", jj.FileName{}))
 
 	cmd := model.Update(common.OpenTargetPickerMsg{
-		Sources: []source.Source{source.FileSource{Files: []string{"a.go"}}},
+		Sources: []source.Source{source.FileSource{Files: []jj.FileName{jj.NewFileName("a.go")}}},
 	})
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
 	require.NotNil(t, model.stacked)
 
-	model.Update(target_picker.TargetSelectedMsg{Target: "a.go"})
+	model.Update(target_picker.TargetSelectedMsg{File: jj.NewFileName("a.go")})
 	assert.Nil(t, model.stacked)
 
 	cmd = model.Update(common.OpenTargetPickerMsg{
-		Sources: []source.Source{source.FileSource{Files: []string{"a.go"}}},
+		Sources: []source.Source{source.FileSource{Files: []jj.FileName{jj.NewFileName("a.go")}}},
 	})
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)

@@ -1,5 +1,7 @@
 package common
 
+import "github.com/idursun/jjui/internal/jj"
+
 type SelectedItem interface {
 	Equal(other SelectedItem) bool
 }
@@ -28,7 +30,7 @@ func (s SelectedRevision) Equal(other SelectedItem) bool {
 type SelectedFile struct {
 	ChangeId string
 	CommitId string
-	File     string
+	File     jj.FileName
 }
 
 func (s SelectedFile) Equal(other SelectedItem) bool {

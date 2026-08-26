@@ -184,8 +184,8 @@ func TestTargetPickerUnavailableWithoutArgs(t *testing.T) {
 func TestTargetPickerLoadsSummaryFiles(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
-	args := jj.Diff("abc", "")
-	commandRunner.Expect(append(jj.Diff("abc", ""), "--summary")).SetOutput([]byte("M a.go\nA b.go\nR {old => new}/path.txt\nM a.go"))
+	args := jj.Diff("abc", jj.FileName{})
+	commandRunner.Expect(append(jj.Diff("abc", jj.FileName{}), "--summary")).SetOutput([]byte("M a.go\nA b.go\nR {old => new}/path.txt\nM a.go"))
 
 	model := NewWithContext(test.NewTestContext(commandRunner), "diff", args)
 	cmd := model.Init()
@@ -198,23 +198,25 @@ func TestTargetPickerLoadsSummaryFiles(t *testing.T) {
 	require.NotNil(t, openCmd)
 	openMsg, ok := openCmd().(common.OpenTargetPickerMsg)
 	require.True(t, ok)
-	require.Len(t, openMsg.Sources, 1)
-	items, err := openMsg.Sources[0].Fetch(nil)
+	require.Len(t, openMsg.Sources, 2)
+	staticItems, err := openMsg.Sources[0].Fetch(nil)
+	require.NoError(t, err)
+	assert.Equal(t, []source.Item{{Name: allFilesTargetLabel}}, staticItems)
+	items, err := openMsg.Sources[1].Fetch(nil)
 	require.NoError(t, err)
 	assert.Equal(t, []source.Item{
-		{Name: allFilesTargetLabel, Kind: source.KindFile},
-		{Name: "a.go", Kind: source.KindFile},
-		{Name: "b.go", Kind: source.KindFile},
-		{Name: "new/path.txt", Kind: source.KindFile},
+		{Name: "a.go", File: jj.NewFileName("a.go"), Kind: source.KindFile},
+		{Name: "b.go", File: jj.NewFileName("b.go"), Kind: source.KindFile},
+		{Name: "new/path.txt", File: jj.NewFileName("new/path.txt"), Kind: source.KindFile},
 	}, items)
 }
 
 func TestTargetPickerSelectedAllFilesLoadsOriginalDiff(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
-	args := jj.Diff("abc", "")
+	args := jj.Diff("abc", jj.FileName{})
 	commandRunner.Expect(args).SetOutput([]byte("all files diff"))
-	commandRunner.Expect(append(jj.Diff("abc", ""), "--summary")).SetOutput([]byte("M dir/a.go"))
+	commandRunner.Expect(append(jj.Diff("abc", jj.FileName{}), "--summary")).SetOutput([]byte("M dir/a.go"))
 
 	model := NewWithContext(test.NewTestContext(commandRunner), "file diff", args)
 	initCmd := model.Init()
@@ -235,15 +237,15 @@ func TestTargetPickerSelectedAllFilesLoadsOriginalDiff(t *testing.T) {
 	require.Nil(t, updateCmd)
 	assert.Equal(t, "all files diff", test.Stripped(test.RenderImmediate(model, 20, 3)))
 	assert.Equal(t, []string(args), model.originalArgs)
-	assert.Equal(t, "", model.currentFile)
+	assert.True(t, model.currentFile.IsEmpty())
 }
 
 func TestTargetPickerSelectedFileLoadsDiffAndKeepsOriginalArgs(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
-	args := jj.Diff("abc", "")
-	commandRunner.Expect(append(jj.Diff("abc", ""), jj.EscapeFileName("dir/a b.go"))).SetOutput([]byte("file diff"))
-	commandRunner.Expect(append(jj.Diff("abc", ""), "--summary")).SetOutput([]byte("M dir/a b.go"))
+	args := jj.Diff("abc", jj.FileName{})
+	commandRunner.Expect(append(jj.Diff("abc", jj.FileName{}), jj.NewFileName("dir/a b.go").Escaped())).SetOutput([]byte("file diff"))
+	commandRunner.Expect(append(jj.Diff("abc", jj.FileName{}), "--summary")).SetOutput([]byte("M dir/a b.go"))
 
 	model := NewWithContext(test.NewTestContext(commandRunner), "initial diff", args)
 	initCmd := model.Init()
@@ -253,7 +255,7 @@ func TestTargetPickerSelectedFileLoadsDiffAndKeepsOriginalArgs(t *testing.T) {
 	require.Nil(t, model.Update(loadedTargets))
 
 	cmd := model.Update(target_picker.TargetSelectedMsg{
-		Target:  "dir/a b.go",
+		File:    jj.NewFileName("dir/a b.go"),
 		Payload: targetPickerPayload{},
 	})
 	require.NotNil(t, cmd)
@@ -264,7 +266,7 @@ func TestTargetPickerSelectedFileLoadsDiffAndKeepsOriginalArgs(t *testing.T) {
 	require.Nil(t, updateCmd)
 	assert.Equal(t, "file diff", test.Stripped(test.RenderImmediate(model, 20, 3)))
 	assert.Equal(t, []string(args), model.originalArgs)
-	assert.Equal(t, "dir/a b.go", model.currentFile)
+	assert.Equal(t, "dir/a b.go", model.currentFile.Path())
 
 	summaryCmd := model.Update(intents.DiffOpenTargetPicker{})
 	require.NotNil(t, summaryCmd)
@@ -275,11 +277,11 @@ func TestTargetPickerSelectedFileLoadsDiffAndKeepsOriginalArgs(t *testing.T) {
 func TestFileNavigateLoadsAdjacentFilesAndWraps(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
-	args := jj.Diff("abc", "")
-	commandRunner.Expect(append(jj.Diff("abc", ""), "--summary")).SetOutput([]byte("M a.go\nM b.go\nM c.go"))
-	commandRunner.Expect(append(jj.Diff("abc", ""), jj.EscapeFileName("c.go"))).SetOutput([]byte("c diff"))
-	commandRunner.Expect(append(jj.Diff("abc", ""), jj.EscapeFileName("a.go"))).SetOutput([]byte("a diff"))
-	commandRunner.Expect(append(jj.Diff("abc", ""), jj.EscapeFileName("b.go"))).SetOutput([]byte("b diff"))
+	args := jj.Diff("abc", jj.FileName{})
+	commandRunner.Expect(append(jj.Diff("abc", jj.FileName{}), jj.NewFileName("c.go").Escaped())).SetOutput([]byte("c diff"))
+	commandRunner.Expect(append(jj.Diff("abc", jj.FileName{}), jj.NewFileName("a.go").Escaped())).SetOutput([]byte("a diff"))
+	commandRunner.Expect(append(jj.Diff("abc", jj.FileName{}), jj.NewFileName("b.go").Escaped())).SetOutput([]byte("b diff"))
+	commandRunner.Expect(append(jj.Diff("abc", jj.FileName{}), "--summary")).SetOutput([]byte("M a.go\nM b.go\nM c.go"))
 
 	model := NewWithContext(test.NewTestContext(commandRunner), "initial diff", args)
 	initCmd := model.Init()
@@ -294,7 +296,7 @@ func TestFileNavigateLoadsAdjacentFilesAndWraps(t *testing.T) {
 	require.True(t, ok)
 	require.Nil(t, model.Update(loaded))
 	assert.Equal(t, "c diff", test.Stripped(test.RenderImmediate(model, 20, 3)))
-	assert.Equal(t, "c.go", model.currentFile)
+	assert.Equal(t, "c.go", model.currentFile.Path())
 
 	cmd = model.Update(intents.DiffFileNavigate{Delta: 1})
 	require.NotNil(t, cmd)
@@ -302,7 +304,7 @@ func TestFileNavigateLoadsAdjacentFilesAndWraps(t *testing.T) {
 	require.True(t, ok)
 	require.Nil(t, model.Update(loaded))
 	assert.Equal(t, "a diff", test.Stripped(test.RenderImmediate(model, 20, 3)))
-	assert.Equal(t, "a.go", model.currentFile)
+	assert.Equal(t, "a.go", model.currentFile.Path())
 
 	cmd = model.Update(intents.DiffFileNavigate{Delta: 1})
 	require.NotNil(t, cmd)
@@ -310,7 +312,7 @@ func TestFileNavigateLoadsAdjacentFilesAndWraps(t *testing.T) {
 	require.True(t, ok)
 	require.Nil(t, model.Update(loaded))
 	assert.Equal(t, "b diff", test.Stripped(test.RenderImmediate(model, 20, 3)))
-	assert.Equal(t, "b.go", model.currentFile)
+	assert.Equal(t, "b.go", model.currentFile.Path())
 }
 
 func TestFileNavigateUnavailableWithoutArgs(t *testing.T) {

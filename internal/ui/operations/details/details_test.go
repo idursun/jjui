@@ -42,8 +42,8 @@ func TestOperation_InitLoadsStatus(t *testing.T) {
 	operation := loadOperation(t, commandRunner, statusOutput)
 
 	require.Len(t, operation.files, 2)
-	assert.Equal(t, "file.txt", operation.files[0].fileName)
-	assert.Equal(t, "newfile.txt", operation.files[1].fileName)
+	assert.Equal(t, "file.txt", operation.files[0].fileName.Path())
+	assert.Equal(t, "newfile.txt", operation.files[1].fileName.Path())
 }
 
 func TestOperation_Restore(t *testing.T) {
@@ -59,7 +59,7 @@ func TestOperation_Restore(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			commandRunner := test.NewTestCommandRunner(t)
 			t.Cleanup(commandRunner.Verify)
-			commandRunner.Expect(jj.Restore(revision, []string{"file.txt"}, tt.interactive))
+			commandRunner.Expect(jj.Restore(revision, []jj.FileName{jj.NewFileName("file.txt")}, tt.interactive))
 			operation := loadOperation(t, commandRunner, statusOutput)
 
 			if tt.checkFile {
@@ -84,7 +84,7 @@ func TestOperation_Split(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			commandRunner := test.NewTestCommandRunner(t)
 			t.Cleanup(commandRunner.Verify)
-			commandRunner.Expect(jj.Split(revision, []string{"file.txt"}, tt.isParallel, false))
+			commandRunner.Expect(jj.Split(revision, []jj.FileName{jj.NewFileName("file.txt")}, tt.isParallel, false))
 			operation := loadOperation(t, commandRunner, statusOutput)
 
 			test.SimulateModel(operation, func() tea.Msg { return intents.DetailsToggleSelect{} })
@@ -120,7 +120,7 @@ func TestOperation_HandleIntentUpdatesSelectionAfterNavigation(t *testing.T) {
 
 	selected, ok := operation.Selection().Highlighted.(common.SelectedFile)
 	require.True(t, ok)
-	assert.Equal(t, "file.txt", selected.File)
+	assert.Equal(t, "file.txt", selected.File.Path())
 
 	cmd, handled := operation.HandleIntent(intents.DetailsNavigate{Delta: 1})
 	require.True(t, handled)
@@ -128,7 +128,7 @@ func TestOperation_HandleIntentUpdatesSelectionAfterNavigation(t *testing.T) {
 
 	selected, ok = operation.Selection().Highlighted.(common.SelectedFile)
 	require.True(t, ok)
-	assert.Equal(t, "newfile.txt", selected.File)
+	assert.Equal(t, "newfile.txt", selected.File.Path())
 }
 
 func TestOperation_FilterLifecycle(t *testing.T) {
@@ -145,7 +145,7 @@ func TestOperation_FilterLifecycle(t *testing.T) {
 	operation.Update(tea.PasteMsg{Content: "new"})
 	assert.Equal(t, 1, operation.VisibleLen())
 	require.NotNil(t, operation.current())
-	assert.Equal(t, "newfile.txt", operation.current().fileName)
+	assert.Equal(t, "newfile.txt", operation.current().fileName.Path())
 
 	_, handled = operation.HandleIntent(intents.DetailsApplyFilter{})
 	require.True(t, handled)
@@ -169,12 +169,12 @@ func TestOperation_FilterKeepsHiddenCheckedFilesInActions(t *testing.T) {
 	operation.files[0].selected = true
 	operation.setFilter("new", true)
 
-	assert.Equal(t, []string{"file.txt"}, operation.getSelectedFiles(true))
+	assert.Equal(t, []jj.FileName{jj.NewFileName("file.txt")}, operation.getSelectedFiles(true))
 	selection := operation.Selection()
 	require.Len(t, selection.Checked, 1)
 	checked, ok := selection.Checked[0].(uiContext.SelectedFile)
 	require.True(t, ok)
-	assert.Equal(t, "file.txt", checked.File)
+	assert.Equal(t, "file.txt", checked.File.Path())
 }
 
 func TestOperation_FilterNoMatchesRendersInsideDetails(t *testing.T) {
@@ -206,13 +206,29 @@ M modified.txt
 R src/{old => renamed}.txt
 C copied.txt`
 
-	got := operation.createListItems(content, []string{"deleted.txt"})
+	got := operation.createListItems(content, []jj.FileName{jj.NewFileName("deleted.txt")})
 
 	assert.Equal(t, []*item{
-		{status: Added, name: "added.txt", fileName: "added.txt", conflict: true},
-		{status: Deleted, name: "deleted.txt", fileName: "deleted.txt", selected: true},
-		{status: Modified, name: "modified.txt", fileName: "modified.txt", conflict: true},
-		{status: Renamed, name: "src/{old => renamed}.txt", fileName: "src/renamed.txt"},
-		{status: Copied, name: "copied.txt", fileName: "copied.txt", conflict: true},
+		{status: Added, name: "added.txt", fileName: jj.NewFileName("added.txt"), conflict: true},
+		{status: Deleted, name: "deleted.txt", fileName: jj.NewFileName("deleted.txt"), selected: true},
+		{status: Modified, name: "modified.txt", fileName: jj.NewFileName("modified.txt"), conflict: true},
+		{status: Renamed, name: "src/{ol => rename}d.txt", fileName: jj.NewFileName("src/renamed.txt")},
+		{status: Copied, name: "copied.txt", fileName: jj.NewFileName("copied.txt"), conflict: true},
 	}, got)
+}
+
+func TestOperationDisplaysWorkingDirectoryRelativeNamesButSelectsRepositoryPath(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.Location = "/work/repo"
+	ctx.WorkingDirectory = "/work/repo/internal"
+	operation := NewOperation(ctx, commit)
+
+	items := operation.createListItems("false $\nM internal/ui/details.go\n", nil)
+	require.Len(t, items, 1)
+	assert.Equal(t, "ui/details.go", items[0].name)
+	assert.Equal(t, "internal/ui/details.go", items[0].fileName.Path())
+
+	operation.setItems(items)
+	selected := operation.Selection().Highlighted.(common.SelectedFile)
+	assert.Equal(t, "internal/ui/details.go", selected.File.Path())
 }

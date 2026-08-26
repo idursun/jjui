@@ -1,11 +1,23 @@
 package context
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNewAppContextCapturesWorkingDirectoryAndWorkspaceChangePreservesIt(t *testing.T) {
+	workingDirectory, err := os.Getwd()
+	require.NoError(t, err)
+	ctx := NewAppContext("/repo", nil)
+	assert.Equal(t, workingDirectory, ctx.WorkingDirectory)
+
+	ctx.ChangeWorkspace("/other/repo")
+	assert.Equal(t, "/other/repo", ctx.Location)
+	assert.Equal(t, workingDirectory, ctx.WorkingDirectory)
+}
 
 func TestChangeWorkspace(t *testing.T) {
 	runner := &MainCommandRunner{Location: "/old/path"}

@@ -27,6 +27,7 @@ const (
 
 type Item struct {
 	Name string
+	File jj.FileName
 	Kind source.Kind
 }
 
@@ -73,6 +74,7 @@ func (m itemScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
 
 type TargetSelectedMsg struct {
 	Target  string
+	File    jj.FileName
 	Force   bool
 	Payload any
 }
@@ -286,7 +288,11 @@ func (m *Model) fetchItems() tea.Cmd {
 		sourceItems := source.FetchAll(m.context.RunCommandImmediate, m.sources...)
 		items := make([]Item, len(sourceItems))
 		for i, si := range sourceItems {
-			items[i] = Item{Name: si.Name, Kind: si.Kind}
+			name := si.Name
+			if !si.File.IsEmpty() {
+				name = si.File.Display(m.context.Location, m.context.WorkingDirectory)
+			}
+			items[i] = Item{Name: name, File: si.File, Kind: si.Kind}
 		}
 		return itemsLoadedMsg{items: items}
 	}
@@ -336,7 +342,14 @@ func (m *Model) cursorDown() {
 func (m *Model) accept(force bool) tea.Cmd {
 	if m.cursor >= 0 && m.cursor < len(m.matches) {
 		item := m.items[m.matches[m.cursor].Index]
-		return func() tea.Msg { return TargetSelectedMsg{Target: item.Name, Force: force, Payload: m.payload} }
+		if !item.File.IsEmpty() {
+			return func() tea.Msg {
+				return TargetSelectedMsg{File: item.File, Force: force, Payload: m.payload}
+			}
+		}
+		return func() tea.Msg {
+			return TargetSelectedMsg{Target: item.Name, Force: force, Payload: m.payload}
+		}
 	}
 	if input := strings.TrimSpace(m.input.Value()); input != "" {
 		return func() tea.Msg { return TargetSelectedMsg{Target: input, Force: force, Payload: m.payload} }

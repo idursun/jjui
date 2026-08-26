@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -56,7 +57,7 @@ func NewDetailsList() *DetailsList {
 }
 
 func (d *DetailsList) setItems(files []*item) {
-	currentFile := ""
+	currentFile := jj.FileName{}
 	if current := d.current(); current != nil {
 		currentFile = current.fileName
 	}
@@ -67,7 +68,7 @@ func (d *DetailsList) setItems(files []*item) {
 }
 
 func (d *DetailsList) setFilter(query string, enabled bool) {
-	currentFile := ""
+	currentFile := jj.FileName{}
 	if current := d.current(); current != nil {
 		currentFile = current.fileName
 	}
@@ -78,7 +79,7 @@ func (d *DetailsList) setFilter(query string, enabled bool) {
 	d.ensureCursorView = true
 }
 
-func (d *DetailsList) rebuildMatches(preferredFile string) {
+func (d *DetailsList) rebuildMatches(preferredFile jj.FileName) {
 	if d.filtering {
 		d.matches = nil
 		query := strings.TrimSpace(d.filterQuery)
@@ -97,7 +98,7 @@ func (d *DetailsList) rebuildMatches(preferredFile string) {
 		d.cursor = -1
 		return
 	}
-	if preferredFile != "" {
+	if !preferredFile.IsEmpty() {
 		for index := range visibleLen {
 			if candidate := d.itemAt(index); candidate != nil && candidate.fileName == preferredFile {
 				d.cursor = index

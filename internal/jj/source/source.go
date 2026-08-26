@@ -23,6 +23,7 @@ const (
 // Item represents a completion/picker item from any source.
 type Item struct {
 	Name          string
+	File          jj.FileName
 	Kind          Kind
 	SignatureHelp string
 	HasParameters bool
@@ -37,18 +38,26 @@ type Source interface {
 }
 
 type FileSource struct {
-	Files []string
+	Files []jj.FileName
 }
 
 func (s FileSource) Fetch(_ Runner) ([]Item, error) {
 	items := make([]Item, 0, len(s.Files))
 	for _, file := range s.Files {
-		if strings.TrimSpace(file) == "" {
+		if strings.TrimSpace(file.Path()) == "" {
 			continue
 		}
-		items = append(items, Item{Name: file, Kind: KindFile})
+		items = append(items, Item{Name: file.Path(), File: file, Kind: KindFile})
 	}
 	return items, nil
+}
+
+type StaticSource struct {
+	Items []Item
+}
+
+func (s StaticSource) Fetch(_ Runner) ([]Item, error) {
+	return s.Items, nil
 }
 
 // FetchAll collects items from multiple sources, skipping failures.

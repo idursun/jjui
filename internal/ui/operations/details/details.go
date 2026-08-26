@@ -23,7 +23,7 @@ import (
 
 type updateCommitStatusMsg struct {
 	summary       string
-	selectedFiles []string
+	selectedFiles []jj.FileName
 }
 
 type filterState uint8
@@ -220,7 +220,7 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return nil, true
 		}
 		return func() tea.Msg {
-			args := jj.Diff(s.revision.GetChangeId(), "")
+			args := jj.Diff(s.revision.GetChangeId(), jj.FileName{})
 			output, _ := s.context.RunCommandImmediate(jj.Diff(s.revision.GetChangeId(), selected.fileName))
 			return intents.DiffShow{Content: string(output), Args: args}
 		}, true
@@ -306,12 +306,12 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return nil, true
 	case intents.DetailsRevisionsChangingFile:
 		if current := s.current(); current != nil {
-			return tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(%s)", jj.EscapeFileName(current.fileName)))), true
+			return tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(%s)", current.fileName.Escaped()))), true
 		}
 		return nil, true
 	case intents.DetailsSelectFile:
 		for i := range s.files {
-			if s.files[i].fileName == intent.File {
+			if s.files[i].fileName.Path() == intent.File {
 				s.files[i].selected = true
 				break
 			}
@@ -335,7 +335,7 @@ func (s *Operation) Selection() common.SelectionSnapshot {
 	return snapshot
 }
 
-func (s *Operation) selectedFile(file string) context.SelectedFile {
+func (s *Operation) selectedFile(file jj.FileName) context.SelectedFile {
 	return context.SelectedFile{
 		ChangeId: s.revision.GetChangeId(),
 		CommitId: s.revision.CommitId,
@@ -479,8 +479,8 @@ func (s *Operation) Name() string {
 	return "details"
 }
 
-func (s *Operation) getSelectedFiles(allowVirtualSelection bool) []string {
-	selectedFiles := make([]string, 0)
+func (s *Operation) getSelectedFiles(allowVirtualSelection bool) []jj.FileName {
+	selectedFiles := make([]jj.FileName, 0)
 	if len(s.files) == 0 {
 		return selectedFiles
 	}
@@ -498,7 +498,7 @@ func (s *Operation) getSelectedFiles(allowVirtualSelection bool) []string {
 	return selectedFiles
 }
 
-func (s *Operation) createListItems(content string, selectedFiles []string) []*item {
+func (s *Operation) createListItems(content string, selectedFiles []jj.FileName) []*item {
 	var items []*item
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	scanner.Split(bufio.ScanWords)
@@ -538,9 +538,9 @@ func (s *Operation) createListItems(content string, selectedFiles []string) []*i
 		}
 		items = append(items, &item{
 			status:   status,
-			name:     summary.Name,
+			name:     summary.Display(s.context.Location, s.context.WorkingDirectory),
 			fileName: summary.FileName,
-			selected: slices.ContainsFunc(selectedFiles, func(s string) bool { return s == summary.FileName }),
+			selected: slices.Contains(selectedFiles, summary.FileName),
 			conflict: conflicts[index],
 		})
 		index++

@@ -3,7 +3,9 @@ package fuzzy_files
 import (
 	"testing"
 
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/sahilm/fuzzy"
 	"github.com/stretchr/testify/assert"
 )
@@ -11,7 +13,7 @@ import (
 func TestUpdateRevSet_WithPath(t *testing.T) {
 	model := &fuzzyFiles{
 		revset: "all()",
-		paths:  []string{"file1.txt", "path/to/file2.go", "special file.txt"},
+		paths:  fileNames("file1.txt", "path/to/file2.go", "special file.txt"),
 	}
 
 	// a match being selected
@@ -34,7 +36,7 @@ func TestUpdateRevSet_WithPath(t *testing.T) {
 func TestUpdateRevSet_WithPathContainingSpaces(t *testing.T) {
 	model := &fuzzyFiles{
 		revset: "all()",
-		paths:  []string{"file with spaces.txt"},
+		paths:  fileNames("file with spaces.txt"),
 	}
 
 	model.matches = fuzzy.Matches{
@@ -54,7 +56,7 @@ func TestUpdateRevSet_WithPathContainingSpaces(t *testing.T) {
 func TestUpdateRevSet_WithPathContainingBraces(t *testing.T) {
 	model := &fuzzyFiles{
 		revset: "all()",
-		paths:  []string{"file{with}braces.txt"},
+		paths:  fileNames("file{with}braces.txt"),
 	}
 
 	model.matches = fuzzy.Matches{
@@ -74,7 +76,7 @@ func TestUpdateRevSet_WithPathContainingBraces(t *testing.T) {
 func TestUpdateRevSet_WithDirectory(t *testing.T) {
 	model := &fuzzyFiles{
 		revset: "all()",
-		paths:  []string{"path/to/"},
+		paths:  fileNames("path/to/"),
 	}
 
 	model.matches = fuzzy.Matches{{Index: 0, Str: "path/to/"}}
@@ -90,7 +92,7 @@ func TestUpdateRevSet_WithDirectory(t *testing.T) {
 func TestUpdateRevSet_NoPath(t *testing.T) {
 	model := &fuzzyFiles{
 		revset:  "all()",
-		paths:   []string{},
+		paths:   []jj.FileName{},
 		matches: fuzzy.Matches{},
 	}
 
@@ -106,7 +108,7 @@ func TestUpdateRevSet_NoPath(t *testing.T) {
 func TestUpdateRevSet_EmptyMatches(t *testing.T) {
 	model := &fuzzyFiles{
 		revset:  "@",
-		paths:   []string{"file1.txt"},
+		paths:   fileNames("file1.txt"),
 		matches: fuzzy.Matches{},
 		cursor:  0,
 	}
@@ -123,13 +125,38 @@ func TestUpdateRevSet_EmptyMatches(t *testing.T) {
 func TestBuildPathEntries_IncludesDirectories(t *testing.T) {
 	entries := buildPathEntries([]byte("src/pkg/main.go\nsrc/other.go\nREADME.md\n"))
 
-	assert.Equal(t, []string{
+	assert.Equal(t, fileNames(
 		"src/",
 		"src/pkg/",
 		"src/pkg/main.go",
 		"src/other.go",
 		"README.md",
-	}, entries)
+	), entries)
+}
+
+func TestFileSearchDisplaysRelativePathsButUsesRepositoryPath(t *testing.T) {
+	model := &fuzzyFiles{
+		revset:           "all()",
+		paths:            fileNames("internal/ui/ui.go"),
+		repoRoot:         "/work/repo",
+		workingDirectory: "/work/repo/internal",
+		matches:          fuzzy.Matches{{Index: 0, Str: "ui/ui.go"}},
+	}
+
+	assert.Equal(t, "ui/ui.go", model.String(0))
+	msg := model.updateRevSet()()
+	assert.Equal(t, "files('internal/ui/ui.go')", string(msg.(common.UpdateRevSetMsg)))
+
+	edit := model.handleIntent(intents.FileSearchEdit{})().(common.ExecMsg)
+	assert.Contains(t, edit.Line, " 'internal/ui/ui.go'")
+}
+
+func fileNames(paths ...string) []jj.FileName {
+	result := make([]jj.FileName, len(paths))
+	for i, path := range paths {
+		result[i] = jj.NewFileName(path)
+	}
+	return result
 }
 
 func TestBuildPathEntries_EmptyOutput(t *testing.T) {

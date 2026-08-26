@@ -159,10 +159,10 @@ var _ common.ImmediateModel = (*Model)(nil)
 type Model struct {
 	context      *appContext.MainContext
 	originalArgs []string
-	targetFiles  []string
+	targetFiles  []jj.FileName
 	targetLoaded bool
 	targetErr    error
-	currentFile  string
+	currentFile  jj.FileName
 
 	lines        []string
 	maxLineWidth int
@@ -178,13 +178,13 @@ type targetPickerPayload struct{}
 
 type summaryLoadedMsg struct {
 	args  []string
-	files []string
+	files []jj.FileName
 	err   error
 }
 
 type fileLoadedMsg struct {
 	content string
-	file    string
+	file    jj.FileName
 	err     error
 }
 
@@ -238,7 +238,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		m.targetFiles = nil
 		m.targetLoaded = false
 		m.targetErr = nil
-		m.currentFile = ""
+		m.currentFile = jj.FileName{}
 		return m.Init(), true
 
 	case intents.DiffOpenTargetPicker:
@@ -295,11 +295,11 @@ func (m *Model) Init() tea.Cmd {
 		if err != nil {
 			return summaryLoadedMsg{args: originalArgs, err: err}
 		}
-		seen := map[string]bool{}
-		var files []string
+		seen := map[jj.FileName]bool{}
+		var files []jj.FileName
 		for _, line := range strings.Split(string(output), "\n") {
 			summary, ok := jj.ParseSummaryFile(line)
-			if !ok || summary.FileName == "" || seen[summary.FileName] {
+			if !ok || summary.FileName.IsEmpty() || seen[summary.FileName] {
 				continue
 			}
 			seen[summary.FileName] = true
@@ -375,7 +375,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if !slices.Equal(msg.args, m.originalArgs) {
 			return nil
 		}
-		m.targetFiles = append([]string(nil), msg.files...)
+		m.targetFiles = append([]jj.FileName(nil), msg.files...)
 		m.targetLoaded = msg.err == nil
 		m.targetErr = msg.err
 		return nil
@@ -391,9 +391,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		if msg.Target == allFilesTargetLabel {
-			msg.Target = ""
+			msg.File = jj.FileName{}
+		} else if msg.File.IsEmpty() {
+			return nil
 		}
-		return m.loadFile(msg.Target)
+		return m.loadFile(msg.File)
 	}
 	return nil
 }
@@ -434,17 +436,19 @@ func (m *Model) openTargetPicker() tea.Cmd {
 	if len(m.targetFiles) == 0 {
 		return intents.Invoke(intents.AddMessage{Text: "No files found in diff summary"})
 	}
-	files := append([]string{allFilesTargetLabel}, m.targetFiles...)
-	return common.OpenTargetPickerWithPayload(targetPickerPayload{}, source.FileSource{Files: files})
+	return common.OpenTargetPickerWithPayload(targetPickerPayload{},
+		source.StaticSource{Items: []source.Item{{Name: allFilesTargetLabel}}},
+		source.FileSource{Files: m.targetFiles},
+	)
 }
 
-func (m *Model) loadFile(file string) tea.Cmd {
+func (m *Model) loadFile(file jj.FileName) tea.Cmd {
 	if len(m.originalArgs) == 0 || m.context == nil {
 		return intents.Invoke(intents.AddMessage{Text: "File picker is unavailable for this diff"})
 	}
 	args := append([]string(nil), m.originalArgs...)
-	if file != "" {
-		args = append(args, jj.EscapeFileName(file))
+	if !file.IsEmpty() {
+		args = append(args, file.Escaped())
 	}
 	return func() tea.Msg {
 		output, err := m.context.RunCommandImmediate(args)

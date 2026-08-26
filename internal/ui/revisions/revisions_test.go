@@ -100,7 +100,7 @@ func (o *viewRectTrackingOp) Selection() common.SelectionSnapshot {
 			Highlighted: common.SelectedFile{
 				ChangeId: o.selectedRevision.GetChangeId(),
 				CommitId: o.selectedRevision.CommitId,
-				File:     o.selectedFile,
+				File:     jj.NewFileName(o.selectedFile),
 			},
 		}
 	}
@@ -357,7 +357,7 @@ func TestModel_UpdateRevisionsRefreshesDetailsSelection(t *testing.T) {
 	assert.True(t, ok, "refresh should keep details selection type while details is active")
 	assert.Equal(t, "a", selected.ChangeId)
 	assert.Equal(t, "10", selected.CommitId)
-	assert.Equal(t, "file.txt", selected.File)
+	assert.Equal(t, "file.txt", selected.File.Path())
 }
 
 func TestModel_UpdateRevisionsPreservesViewportOnKeepSelectionRefresh(t *testing.T) {

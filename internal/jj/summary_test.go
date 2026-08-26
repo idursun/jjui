@@ -33,14 +33,14 @@ func TestParseSummaryFile(t *testing.T) {
 			name:     "brace rename",
 			line:     "R internal/ui/{revisions => }/file.go",
 			status:   'R',
-			display:  "internal/ui/{revisions => }/file.go",
+			display:  "internal/ui/{revisions/ => }file.go",
 			fileName: "internal/ui/file.go",
 		},
 		{
 			name:     "deep brace rename",
 			line:     "R {src1/to_be_renamed.md => src2/renamed.md}",
 			status:   'R',
-			display:  "{src1/to_be_renamed.md => src2/renamed.md}",
+			display:  "src{1/to_be_ => 2/}renamed.md",
 			fileName: "src2/renamed.md",
 		},
 		{
@@ -63,8 +63,26 @@ func TestParseSummaryFile(t *testing.T) {
 			got, ok := ParseSummaryFile(tt.line)
 			require.True(t, ok)
 			assert.Equal(t, tt.status, got.Status)
-			assert.Equal(t, tt.display, got.Name)
-			assert.Equal(t, tt.fileName, got.FileName)
+			assert.Equal(t, tt.display, got.Display("", ""))
+			assert.Equal(t, tt.fileName, got.FileName.Path())
 		})
+	}
+}
+
+func TestSummaryFileDisplayRelativeToWorkingDirectory(t *testing.T) {
+	repo := "/work/repo"
+	cwd := "/work/repo/src"
+	tests := map[string]string{
+		"M src/main.go":                   "main.go",
+		"R src/old.go => docs/new.go":     "old.go => ../docs/new.go",
+		"R src/{before => after}/name.go": "{before => after}/name.go",
+		"R old/alpha.go => new/beta.go":   "../old/alpha.go => ../new/beta.go",
+		"R src/{日本語 => 日本海}/file.go":      "日本{語 => 海}/file.go",
+		"M src/file{with}braces.go":       "file{with}braces.go",
+	}
+	for line, want := range tests {
+		summary, ok := ParseSummaryFile(line)
+		require.True(t, ok)
+		assert.Equal(t, want, summary.Display(repo, cwd), line)
 	}
 }
