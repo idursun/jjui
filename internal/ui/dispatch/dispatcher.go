@@ -221,5 +221,9 @@ func isPrefix(full []string, prefix []tea.Key) bool {
 }
 
 func keyMatches(candidate string, key tea.Key) bool {
-	return candidate == key.String() || candidate == key.Keystroke()
+	keystroke := key.Keystroke()
+	if candidate == key.String() || candidate == keystroke {
+		return true
+	}
+	return candidate == "esc" && keystroke == "ctrl+["
 }

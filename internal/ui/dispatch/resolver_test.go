@@ -46,6 +46,17 @@ func TestResolveKey_BuiltInAction(t *testing.T) {
 	assert.Equal(t, "ui", result.Scope)
 }
 
+func TestResolveKey_CtrlLeftBracketUsesEscBinding(t *testing.T) {
+	r := makeResolver([]keybindings.Binding{
+		{Action: "ui.cancel", Scope: "ui", Key: []string{"esc"}},
+	}, nil)
+
+	result := r.ResolveKey(tea.KeyPressMsg{Code: '[', Mod: tea.ModCtrl}, createScopes("ui"))
+	assert.True(t, result.Consumed)
+	assert.IsType(t, intents.Cancel{}, result.Intent)
+	assert.Equal(t, "ui", result.Scope)
+}
+
 func TestResolveKey_Pending(t *testing.T) {
 	r := makeResolver([]keybindings.Binding{
 		{Action: "ui.quit", Scope: "ui", Seq: []string{"g", "q"}},

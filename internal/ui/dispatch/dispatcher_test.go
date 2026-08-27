@@ -80,17 +80,44 @@ func TestDispatcher_SwallowsMismatchedContinuationAndResets(t *testing.T) {
 	require.True(t, again.Pending)
 }
 
-func TestDispatcher_CancelSequenceWithEsc(t *testing.T) {
-	d, err := NewDispatcher([]bindings.Binding{{Action: "git_push", Scope: "revisions", Seq: []string{"g", "p"}}})
+func TestDispatcher_CancelSequenceWithEscapeAliases(t *testing.T) {
+	tests := []struct {
+		name         string
+		key          tea.KeyPressMsg
+		continuation string
+	}{
+		{name: "escape", key: tea.KeyPressMsg{Code: tea.KeyEsc}, continuation: "esc"},
+		{name: "ctrl left bracket", key: tea.KeyPressMsg{Code: '[', Mod: tea.ModCtrl}, continuation: "ctrl+["},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Make the cancellation key a valid continuation so this test exercises
+			// the reserved Escape path instead of the mismatched-key reset path.
+			d, err := NewDispatcher([]bindings.Binding{{Action: "git_push", Scope: "revisions", Seq: []string{"g", tt.continuation}}})
+			require.NoError(t, err)
+
+			first := d.Resolve(runeKey('g'), createScopes("revisions"))
+			require.True(t, first.Pending)
+
+			cancel := d.Resolve(tt.key, createScopes("revisions"))
+			require.True(t, cancel.Consumed)
+			require.False(t, cancel.Pending)
+			require.Empty(t, cancel.Action)
+
+			again := d.Resolve(runeKey('g'), createScopes("revisions"))
+			require.True(t, again.Pending)
+		})
+	}
+}
+
+func TestDispatcher_ResolvesCtrlLeftBracketAsEsc(t *testing.T) {
+	d, err := NewDispatcher([]bindings.Binding{{Action: "cancel", Scope: "ui", Key: []string{"esc"}}})
 	require.NoError(t, err)
 
-	first := d.Resolve(runeKey('g'), createScopes("revisions"))
-	require.True(t, first.Pending)
-
-	cancel := d.Resolve(tea.KeyPressMsg{Code: tea.KeyEsc}, createScopes("revisions"))
-	require.True(t, cancel.Consumed)
-	require.False(t, cancel.Pending)
-	require.Empty(t, cancel.Action)
+	result := d.Resolve(tea.KeyPressMsg{Code: '[', Mod: tea.ModCtrl}, createScopes("ui"))
+	require.True(t, result.Consumed)
+	require.Equal(t, bindings.Action("cancel"), result.Action)
 }
 
 func TestDispatcher_ResolvesSpaceAliasForSingleKey(t *testing.T) {
