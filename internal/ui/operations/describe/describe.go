@@ -84,8 +84,9 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 		cmd, _ := o.HandleIntent(msg)
 		return cmd
 	case tea.KeyPressMsg:
-		if msg.Code == 'u' && msg.Mod&tea.ModCtrl != 0 {
-			o.captureKilledText()
+		isCtrlKill := msg.Mod&tea.ModCtrl != 0 && (msg.Code == 'u' || msg.Code == 'k')
+		if isCtrlKill {
+			o.captureKilledText(msg.Code == 'k')
 		} else if msg.Code == 'y' && msg.Mod&tea.ModCtrl != 0 {
 			if o.killedText != "" {
 				o.input.InsertString(o.killedText)
@@ -99,7 +100,7 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-func (o *Operation) captureKilledText() {
+func (o *Operation) captureKilledText(forward bool) {
 	lines := strings.Split(o.input.Value(), "\n")
 	row := o.input.Line()
 	col := o.input.Column()
@@ -111,9 +112,15 @@ func (o *Operation) captureKilledText() {
 	if col > len(line) {
 		col = len(line)
 	}
-	if col > 0 {
+	if forward && col < len(line) {
+		o.killedText = string(line[col:])
+	} else if forward && row < len(lines)-1 {
+		// Bubbles joins the current line with the next one when Ctrl+K is
+		// pressed at the end of a line.
+		o.killedText = "\n"
+	} else if !forward && col > 0 {
 		o.killedText = string(line[:col])
-	} else if row > 0 {
+	} else if !forward && row > 0 {
 		// Bubbles joins the current line with the previous one when Ctrl+U is
 		// pressed at the beginning of a line.
 		o.killedText = "\n"

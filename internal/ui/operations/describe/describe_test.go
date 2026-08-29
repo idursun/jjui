@@ -79,3 +79,33 @@ func TestCtrlUYanksNewlineAtLineStart(t *testing.T) {
 	op.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
 	assert.Equal(t, "hello\nworld", op.input.Value())
 }
+
+func TestCtrlKYanksTextWithCtrlY(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GetDescription("change")).SetOutput([]byte("hello world"))
+	defer commandRunner.Verify()
+
+	op := NewOperation(test.NewTestContext(commandRunner), &jj.Commit{ChangeId: "change", CommitId: "commit"})
+	op.input.SetCursorColumn(6)
+
+	op.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	assert.Equal(t, "hello ", op.input.Value())
+
+	op.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
+	assert.Equal(t, "hello world", op.input.Value())
+}
+
+func TestCtrlKYanksNewlineAtLineEnd(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GetDescription("change")).SetOutput([]byte("hello\nworld"))
+	defer commandRunner.Verify()
+
+	op := NewOperation(test.NewTestContext(commandRunner), &jj.Commit{ChangeId: "change", CommitId: "commit"})
+	op.input.MoveToEnd()
+	op.input.CursorUp()
+	op.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	assert.Equal(t, "helloworld", op.input.Value())
+
+	op.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
+	assert.Equal(t, "hello\nworld", op.input.Value())
+}
