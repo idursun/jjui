@@ -52,3 +52,8 @@ func (f FileName) Escaped() string {
 	path = strings.ReplaceAll(path, `"`, `\"`)
 	return fmt.Sprintf(`file:"%s"`, path)
 }
+
+// ShellEscaped returns this path as a single shell argument.
+func (f FileName) ShellEscaped() string {
+	return "'" + strings.ReplaceAll(f.path, "'", "'\\''") + "'"
+}

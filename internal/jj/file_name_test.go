@@ -38,12 +38,27 @@ func TestFileNameDisplayFallbacks(t *testing.T) {
 func TestFileNameEscaped(t *testing.T) {
 	tests := map[string]string{
 		"a b.go":      `file:"a b.go"`,
+		"a'b.go":      `file:"a'b.go"`,
 		`a"quote.go`:  `file:"a\"quote.go"`,
 		`dir\file.go`: `file:"dir\\file.go"`,
 		`both\".go`:   `file:"both\\\".go"`,
 	}
 	for path, want := range tests {
 		assert.Equal(t, want, NewFileName(path).Escaped())
+	}
+}
+
+func TestFileNameShellEscaped(t *testing.T) {
+	tests := map[string]string{
+		"a b.go":  `'a b.go'`,
+		"a'b.go":  `'a'\''b.go'`,
+		`a"b.go`:  `'a"b.go'`,
+		`a$b.go`:  `'a$b.go'`,
+		`a; b.go`: `'a; b.go'`,
+		`a\b.go`:  `'a\b.go'`,
+	}
+	for path, want := range tests {
+		assert.Equal(t, want, NewFileName(path).ShellEscaped())
 	}
 }
 

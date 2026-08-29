@@ -29,8 +29,7 @@ func TestUpdateRevSet_WithPath(t *testing.T) {
 	updateMsg, ok := msg.(common.UpdateRevSetMsg)
 	assert.True(t, ok)
 
-	// wrapped in single quotes by SelectedMatch in fuzzy_search
-	assert.Equal(t, "files('path/to/file2.go')", string(updateMsg))
+	assert.Equal(t, `files(file:"path/to/file2.go")`, string(updateMsg))
 }
 
 func TestUpdateRevSet_WithPathContainingSpaces(t *testing.T) {
@@ -49,8 +48,7 @@ func TestUpdateRevSet_WithPathContainingSpaces(t *testing.T) {
 	updateMsg, ok := msg.(common.UpdateRevSetMsg)
 	assert.True(t, ok)
 
-	// the whole path wrapped in single quotes
-	assert.Equal(t, "files('file with spaces.txt')", string(updateMsg))
+	assert.Equal(t, `files(file:"file with spaces.txt")`, string(updateMsg))
 }
 
 func TestUpdateRevSet_WithPathContainingBraces(t *testing.T) {
@@ -69,8 +67,7 @@ func TestUpdateRevSet_WithPathContainingBraces(t *testing.T) {
 	updateMsg, ok := msg.(common.UpdateRevSetMsg)
 	assert.True(t, ok)
 
-	// braces should be preserved and the whole path wrapped in single quotes
-	assert.Equal(t, "files('file{with}braces.txt')", string(updateMsg))
+	assert.Equal(t, `files(file:"file{with}braces.txt")`, string(updateMsg))
 }
 
 func TestUpdateRevSet_WithDirectory(t *testing.T) {
@@ -86,7 +83,7 @@ func TestUpdateRevSet_WithDirectory(t *testing.T) {
 	msg := cmd()
 	updateMsg, ok := msg.(common.UpdateRevSetMsg)
 	assert.True(t, ok)
-	assert.Equal(t, "files('path/to/')", string(updateMsg))
+	assert.Equal(t, `files(file:"path/to/")`, string(updateMsg))
 }
 
 func TestUpdateRevSet_NoPath(t *testing.T) {
@@ -145,10 +142,24 @@ func TestFileSearchDisplaysRelativePathsButUsesRepositoryPath(t *testing.T) {
 
 	assert.Equal(t, "ui/ui.go", model.String(0))
 	msg := model.updateRevSet()()
-	assert.Equal(t, "files('internal/ui/ui.go')", string(msg.(common.UpdateRevSetMsg)))
+	assert.Equal(t, `files(file:"internal/ui/ui.go")`, string(msg.(common.UpdateRevSetMsg)))
 
 	edit := model.handleIntent(intents.FileSearchEdit{})().(common.ExecMsg)
 	assert.Contains(t, edit.Line, " 'internal/ui/ui.go'")
+}
+
+func TestFileSearchSafelyEscapesApostrophes(t *testing.T) {
+	model := &fuzzyFiles{
+		revset:  "all()",
+		paths:   fileNames("it's complicated.go"),
+		matches: fuzzy.Matches{{Index: 0, Str: "it's complicated.go"}},
+	}
+
+	msg := model.updateRevSet()()
+	assert.Equal(t, `files(file:"it's complicated.go")`, string(msg.(common.UpdateRevSetMsg)))
+
+	edit := model.handleIntent(intents.FileSearchEdit{})().(common.ExecMsg)
+	assert.Contains(t, edit.Line, ` 'it'\''s complicated.go'`)
 }
 
 func fileNames(paths ...string) []jj.FileName {

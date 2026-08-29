@@ -87,7 +87,7 @@ func (fzf *fuzzyFiles) updateRevSet() tea.Cmd {
 	path := fzf.selectedPath()
 	revset := fzf.revset
 	if !path.IsEmpty() {
-		revset = fmt.Sprintf("files('%s')", path.Path())
+		revset = fmt.Sprintf("files(%s)", path.Escaped())
 	}
 	return common.UpdateRevSet(revset)
 }
@@ -109,7 +109,7 @@ func (fzf *fuzzyFiles) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.FileSearchEdit:
 		path := fzf.selectedPath()
 		return newCmd(common.ExecMsg{
-			Line: config.GetDefaultEditor() + " '" + path.Path() + "'",
+			Line: config.GetDefaultEditor() + " " + path.ShellEscaped(),
 			Mode: common.ExecShell,
 		})
 	case intents.FileSearchTogglePreview:
