@@ -26,7 +26,7 @@ var (
 type Operation struct {
 	context               *context.MainContext
 	from                  jj.SelectedRevisions
-	files                 []string
+	files                 []jj.FileName
 	current               *jj.Commit
 	targetName            string
 	keepEmptied           bool
@@ -155,7 +155,7 @@ func (s *Operation) targetArg() string {
 
 type Option func(*Operation)
 
-func WithFiles(files []string) Option {
+func WithFiles(files []jj.FileName) Option {
 	return func(op *Operation) {
 		op.files = files
 	}

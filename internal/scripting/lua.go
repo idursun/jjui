@@ -228,7 +228,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	}))
 	contextTable.RawSetString("file", L.NewFunction(func(L *lua.LState) int {
 		if item, ok := ctx.SelectedItem.(uicontext.SelectedFile); ok {
-			L.Push(lua.LString(item.File))
+			L.Push(lua.LString(item.File.Path()))
 			return 1
 		}
 		return 0
@@ -244,7 +244,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		tbl := L.NewTable()
 		for _, item := range ctx.CheckedItems {
 			if f, ok := item.(uicontext.SelectedFile); ok {
-				tbl.Append(lua.LString(f.File))
+				tbl.Append(lua.LString(f.File.Path()))
 			}
 		}
 		L.Push(tbl)

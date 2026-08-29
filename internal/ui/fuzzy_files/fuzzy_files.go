@@ -31,9 +31,11 @@ type fuzzyFiles struct {
 	debounceTag   int
 
 	// search state
-	paths   []string
-	max     int
-	matches fuzzy.Matches
+	paths            []jj.FileName
+	repoRoot         string
+	workingDirectory string
+	max              int
+	matches          fuzzy.Matches
 }
 
 var debounceDuration = 250 * time.Millisecond
@@ -82,10 +84,10 @@ func (fzf *fuzzyFiles) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (fzf *fuzzyFiles) updateRevSet() tea.Cmd {
-	path := fuzzy_search.SelectedMatch(fzf)
+	path := fzf.selectedPath()
 	revset := fzf.revset
-	if len(path) > 0 {
-		revset = fmt.Sprintf("files(%s)", path)
+	if !path.IsEmpty() {
+		revset = fmt.Sprintf("files(%s)", path.Escaped())
 	}
 	return common.UpdateRevSet(revset)
 }
@@ -105,9 +107,9 @@ func (fzf *fuzzyFiles) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.FileSearchCancel:
 		return common.UpdateRevSet(fzf.revset)
 	case intents.FileSearchEdit:
-		path := fuzzy_search.SelectedMatch(fzf)
+		path := fzf.selectedPath()
 		return newCmd(common.ExecMsg{
-			Line: config.GetDefaultEditor() + " " + path,
+			Line: config.GetDefaultEditor() + " " + path.ShellEscaped(),
 			Mode: common.ExecShell,
 		})
 	case intents.FileSearchTogglePreview:
@@ -175,7 +177,18 @@ func (fzf *fuzzyFiles) String(i int) string {
 	if i < 0 || i >= n {
 		return ""
 	}
-	return fzf.paths[i]
+	return fzf.paths[i].Display(fzf.repoRoot, fzf.workingDirectory)
+}
+
+func (fzf *fuzzyFiles) selectedPath() jj.FileName {
+	if fzf.cursor < 0 || fzf.cursor >= len(fzf.matches) {
+		return jj.FileName{}
+	}
+	index := fzf.matches[fzf.cursor].Index
+	if index < 0 || index >= len(fzf.paths) {
+		return jj.FileName{}
+	}
+	return fzf.paths[index]
 }
 
 func (fzf *fuzzyFiles) search(input string) {
@@ -223,17 +236,19 @@ func (fzf *fuzzyFiles) viewContent() string {
 
 func NewModel(msg common.FileSearchMsg) fuzzy_search.Model {
 	model := &fuzzyFiles{
-		revset: msg.Revset,
-		max:    30,
-		commit: msg.Commit,
-		paths:  buildPathEntries(msg.RawFileOut),
+		revset:           msg.Revset,
+		max:              30,
+		commit:           msg.Commit,
+		paths:            buildPathEntries(msg.RawFileOut),
+		repoRoot:         msg.RepoRoot,
+		workingDirectory: msg.WorkingDirectory,
 	}
 	return model
 }
 
-func buildPathEntries(rawFileOut []byte) []string {
+func buildPathEntries(rawFileOut []byte) []jj.FileName {
 	lines := strings.Split(string(rawFileOut), "\n")
-	entries := make([]string, 0, len(lines))
+	entries := make([]jj.FileName, 0, len(lines))
 	seen := make(map[string]struct{}, len(lines))
 
 	add := func(entry string) {
@@ -244,7 +259,7 @@ func buildPathEntries(rawFileOut []byte) []string {
 			return
 		}
 		seen[entry] = struct{}{}
-		entries = append(entries, entry)
+		entries = append(entries, jj.NewFileName(entry))
 	}
 
 	for _, file := range lines {

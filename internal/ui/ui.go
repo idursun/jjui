@@ -632,7 +632,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return nil, true
 		}
 		out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
-		return common.FileSearch(m.context.CurrentRevset, rev, out), true
+		return common.FileSearch(m.context.CurrentRevset, rev, out, m.context.Location, m.context.WorkingDirectory), true
 
 	// --- Delegated intents ---
 	case intents.DiffShow:

@@ -10,7 +10,7 @@ func (OpenDetails) isIntent() {}
 //jjui:bind scope=revisions action=open_squash
 type OpenSquash struct {
 	Selected jj.SelectedRevisions
-	Files    []string
+	Files    []jj.FileName
 }
 
 func (OpenSquash) isIntent() {}
@@ -66,7 +66,7 @@ type StartSplit struct {
 	Selected      *jj.Commit
 	IsParallel    bool
 	IsInteractive bool
-	Files         []string
+	Files         []jj.FileName
 }
 
 func (StartSplit) isIntent() {}

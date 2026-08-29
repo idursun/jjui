@@ -2,6 +2,8 @@ package details
 
 import (
 	"fmt"
+
+	"github.com/idursun/jjui/internal/jj"
 )
 
 type status uint8
@@ -17,7 +19,7 @@ const (
 type item struct {
 	status   status
 	name     string
-	fileName string
+	fileName jj.FileName
 	selected bool
 	conflict bool
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	uicontext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -78,7 +79,7 @@ func TestContext_ChangeId(t *testing.T) {
 			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedFile{
 				ChangeId: "file123",
 				CommitId: "commit456",
-				File:     "test.go",
+				File:     jj.NewFileName("test.go"),
 			}},
 			want: strPtr("file123"),
 		},
@@ -116,7 +117,7 @@ func TestContext_CommitId(t *testing.T) {
 			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedFile{
 				ChangeId: "file123",
 				CommitId: "commit456",
-				File:     "test.go",
+				File:     jj.NewFileName("test.go"),
 			}},
 			want: strPtr("commit456"),
 		},
@@ -148,7 +149,7 @@ func TestContext_File(t *testing.T) {
 			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedFile{
 				ChangeId: "file123",
 				CommitId: "commit456",
-				File:     "path/to/file.go",
+				File:     jj.NewFileName("path/to/file.go"),
 			}},
 			want: strPtr("path/to/file.go"),
 		},
@@ -204,10 +205,10 @@ func TestContext_OperationId(t *testing.T) {
 func TestContext_CheckedFiles(t *testing.T) {
 	ctx := &uicontext.MainContext{
 		CheckedItems: []uicontext.SelectedItem{
-			uicontext.SelectedFile{ChangeId: "c1", CommitId: "co1", File: "file1.go"},
-			uicontext.SelectedFile{ChangeId: "c2", CommitId: "co2", File: "file2.go"},
+			uicontext.SelectedFile{ChangeId: "c1", CommitId: "co1", File: jj.NewFileName("file1.go")},
+			uicontext.SelectedFile{ChangeId: "c2", CommitId: "co2", File: jj.NewFileName("file2.go")},
 			uicontext.SelectedRevision{ChangeId: "rev1", CommitId: "com1"}, // should be ignored
-			uicontext.SelectedFile{ChangeId: "c3", CommitId: "co3", File: "file3.go"},
+			uicontext.SelectedFile{ChangeId: "c3", CommitId: "co3", File: jj.NewFileName("file3.go")},
 		},
 	}
 
@@ -242,7 +243,7 @@ func TestContext_CheckedChangeIds(t *testing.T) {
 	ctx := &uicontext.MainContext{
 		CheckedItems: []uicontext.SelectedItem{
 			uicontext.SelectedRevision{ChangeId: "change1", CommitId: "com1"},
-			uicontext.SelectedFile{ChangeId: "change2", CommitId: "com2", File: "f.go"},
+			uicontext.SelectedFile{ChangeId: "change2", CommitId: "com2", File: jj.NewFileName("f.go")},
 			uicontext.SelectedOperation{OperationId: "op1"}, // should be ignored
 			uicontext.SelectedRevision{ChangeId: "change3", CommitId: "com3"},
 		},
@@ -266,7 +267,7 @@ func TestContext_CheckedCommitIds(t *testing.T) {
 	ctx := &uicontext.MainContext{
 		CheckedItems: []uicontext.SelectedItem{
 			uicontext.SelectedRevision{ChangeId: "c1", CommitId: "commit1"},
-			uicontext.SelectedFile{ChangeId: "c2", CommitId: "commit2", File: "f.go"},
+			uicontext.SelectedFile{ChangeId: "c2", CommitId: "commit2", File: jj.NewFileName("f.go")},
 			uicontext.SelectedCommit{CommitId: "commit3"},
 			uicontext.SelectedOperation{OperationId: "op1"}, // should be ignored
 		},

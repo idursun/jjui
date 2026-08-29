@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -98,12 +99,12 @@ func TestHistorySource(t *testing.T) {
 }
 
 func TestFileSource(t *testing.T) {
-	s := FileSource{Files: []string{"a.go", "", "dir/b.go"}}
+	s := FileSource{Files: []jj.FileName{jj.NewFileName("a.go"), jj.NewFileName(""), jj.NewFileName("dir/b.go")}}
 	items, err := s.Fetch(nil)
 	assert.NoError(t, err)
 	assert.Equal(t, []Item{
-		{Name: "a.go", Kind: KindFile},
-		{Name: "dir/b.go", Kind: KindFile},
+		{Name: "a.go", File: jj.NewFileName("a.go"), Kind: KindFile},
+		{Name: "dir/b.go", File: jj.NewFileName("dir/b.go"), Kind: KindFile},
 	}, items)
 }
 

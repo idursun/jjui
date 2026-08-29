@@ -206,7 +206,7 @@ func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
 				jj.RevsetPlaceholder:       m.context.CurrentRevset,
 				jj.ChangeIdPlaceholder:     sel.ChangeId,
 				jj.CommitIdPlaceholder:     sel.CommitId,
-				jj.FilePlaceholder:         sel.File,
+				jj.FilePlaceholder:         sel.File.Path(),
 				jj.PreviewWidthPlaceholder: previewWidth,
 			})
 		case common.SelectedRevision:

@@ -1,6 +1,7 @@
 package context
 
 import (
+	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -28,6 +29,7 @@ type MainContext struct {
 	SelectedItem              SelectedItem   // Single item where cursor is hover.
 	CheckedItems              []SelectedItem // Items checked ✓ by the user.
 	Location                  string
+	WorkingDirectory          string
 	JJConfig                  *config.JJConfig
 	DefaultRevset             string
 	CurrentRevset             string
@@ -41,13 +43,15 @@ type MainContext struct {
 }
 
 func NewAppContext(location string, aps *askpass.Server) *MainContext {
+	workingDirectory, _ := os.Getwd()
 	m := &MainContext{
 		CommandRunner: &MainCommandRunner{
 			Location: location,
 			Askpass:  aps,
 		},
-		Location:  location,
-		Histories: config.NewHistories(),
+		Location:         location,
+		WorkingDirectory: workingDirectory,
+		Histories:        config.NewHistories(),
 	}
 
 	m.JJConfig = &config.JJConfig{}
@@ -119,7 +123,7 @@ func (ctx *MainContext) CreateReplacements() map[string]string {
 	case SelectedFile:
 		replacements[jj.ChangeIdPlaceholder] = selectedItem.ChangeId
 		replacements[jj.CommitIdPlaceholder] = selectedItem.CommitId
-		replacements[jj.FilePlaceholder] = selectedItem.File
+		replacements[jj.FilePlaceholder] = selectedItem.File.Path()
 	case SelectedOperation:
 		replacements[jj.OperationIdPlaceholder] = selectedItem.OperationId
 	}
@@ -131,7 +135,7 @@ func (ctx *MainContext) CreateReplacements() map[string]string {
 		case SelectedRevision:
 			checkedRevisions = append(checkedRevisions, c.CommitId)
 		case SelectedFile:
-			checkedFiles = append(checkedFiles, c.File)
+			checkedFiles = append(checkedFiles, c.File.Path())
 		}
 	}
 

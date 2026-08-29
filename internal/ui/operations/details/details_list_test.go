@@ -6,6 +6,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -16,8 +17,8 @@ import (
 func TestDetailsList_RenderFileListShowsCheckedAndUncheckedHints(t *testing.T) {
 	list := NewDetailsList()
 	list.files = []*item{
-		{status: Modified, name: "checked.txt", fileName: "checked.txt", selected: true},
-		{status: Added, name: "unchecked.txt", fileName: "unchecked.txt"},
+		{status: Modified, name: "checked.txt", fileName: jj.NewFileName("checked.txt"), selected: true},
+		{status: Added, name: "unchecked.txt", fileName: jj.NewFileName("unchecked.txt")},
 	}
 	list.cursor = 1
 	list.selectedHint = "stays as is"
@@ -52,9 +53,9 @@ func TestDetailsList_SelectedDeletedKeepsStatusForeground(t *testing.T) {
 func TestDetailsList_FilterUsesMatchesAsVisibleRows(t *testing.T) {
 	list := NewDetailsList()
 	list.setItems([]*item{
-		{status: Modified, name: "cmd/jjui/main.go", fileName: "cmd/jjui/main.go"},
-		{status: Modified, name: "internal/ui/details.go", fileName: "internal/ui/details.go", selected: true},
-		{status: Modified, name: "docs/configuration.md", fileName: "docs/configuration.md"},
+		{status: Modified, name: "cmd/jjui/main.go", fileName: jj.NewFileName("cmd/jjui/main.go")},
+		{status: Modified, name: "internal/ui/details.go", fileName: jj.NewFileName("internal/ui/details.go"), selected: true},
+		{status: Modified, name: "docs/configuration.md", fileName: jj.NewFileName("docs/configuration.md")},
 	})
 	list.setCursor(1)
 
@@ -62,33 +63,33 @@ func TestDetailsList_FilterUsesMatchesAsVisibleRows(t *testing.T) {
 
 	assert.Equal(t, 1, list.VisibleLen())
 	require.NotNil(t, list.current())
-	assert.Equal(t, "internal/ui/details.go", list.current().fileName)
+	assert.Equal(t, "internal/ui/details.go", list.current().fileName.Path())
 	assert.True(t, list.files[1].selected, "filtering must preserve checked state on source items")
 }
 
 func TestDetailsList_FilterRequiresContiguousSubstringAndPreservesOrder(t *testing.T) {
 	list := NewDetailsList()
 	list.setItems([]*item{
-		{status: Modified, name: "internal/ui/ui_test.go", fileName: "internal/ui/ui_test.go"},
-		{status: Modified, name: "internal/ui/intents/details_intents.go", fileName: "internal/ui/intents/details_intents.go"},
-		{status: Modified, name: "internal/ui/intents/other.go", fileName: "internal/ui/intents/other.go"},
+		{status: Modified, name: "internal/ui/ui_test.go", fileName: jj.NewFileName("internal/ui/ui_test.go")},
+		{status: Modified, name: "internal/ui/intents/details_intents.go", fileName: jj.NewFileName("internal/ui/intents/details_intents.go")},
+		{status: Modified, name: "internal/ui/intents/other.go", fileName: jj.NewFileName("internal/ui/intents/other.go")},
 	})
 	list.setCursor(2)
 
 	list.setFilter("intents", true)
 
 	assert.Equal(t, 2, list.VisibleLen())
-	assert.Equal(t, "internal/ui/intents/details_intents.go", list.itemAt(0).fileName)
-	assert.Equal(t, "internal/ui/intents/other.go", list.itemAt(1).fileName)
+	assert.Equal(t, "internal/ui/intents/details_intents.go", list.itemAt(0).fileName.Path())
+	assert.Equal(t, "internal/ui/intents/other.go", list.itemAt(1).fileName.Path())
 	require.NotNil(t, list.current())
-	assert.Equal(t, "internal/ui/intents/other.go", list.current().fileName)
+	assert.Equal(t, "internal/ui/intents/other.go", list.current().fileName.Path())
 }
 
 func TestDetailsList_FilterMapsSelectionToSourceItem(t *testing.T) {
 	list := NewDetailsList()
 	list.setItems([]*item{
-		{status: Modified, name: "one.txt", fileName: "one.txt"},
-		{status: Modified, name: "two.txt", fileName: "two.txt"},
+		{status: Modified, name: "one.txt", fileName: jj.NewFileName("one.txt")},
+		{status: Modified, name: "two.txt", fileName: jj.NewFileName("two.txt")},
 	})
 	list.setFilter("two", true)
 
@@ -100,7 +101,7 @@ func TestDetailsList_FilterMapsSelectionToSourceItem(t *testing.T) {
 
 func TestDetailsList_FilterWithNoMatchesHasNoCurrentItem(t *testing.T) {
 	list := NewDetailsList()
-	list.setItems([]*item{{status: Modified, name: "file.txt", fileName: "file.txt"}})
+	list.setItems([]*item{{status: Modified, name: "file.txt", fileName: jj.NewFileName("file.txt")}})
 
 	list.setFilter("missing", true)
 

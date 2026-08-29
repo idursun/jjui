@@ -91,7 +91,7 @@ func DiffEdit(changeId string) CommandArgs {
 	return []string{"diffedit", "-r", changeId}
 }
 
-func Split(revision string, files []string, parallel bool, interactive bool) CommandArgs {
+func Split(revision string, files []FileName, parallel bool, interactive bool) CommandArgs {
 	args := []string{"split", "-r", revision}
 	if parallel {
 		args = append(args, "--parallel")
@@ -101,7 +101,7 @@ func Split(revision string, files []string, parallel bool, interactive bool) Com
 	}
 	var escapedFiles []string
 	for _, file := range files {
-		escapedFiles = append(escapedFiles, EscapeFileName(file))
+		escapedFiles = append(escapedFiles, file.Escaped())
 	}
 	args = append(args, escapedFiles...)
 	return args
@@ -137,10 +137,10 @@ func Abandon(revision SelectedRevisions, ignoreImmutable bool) CommandArgs {
 	return args
 }
 
-func Diff(revision string, fileName string, extraArgs ...string) CommandArgs {
+func Diff(revision string, fileName FileName, extraArgs ...string) CommandArgs {
 	args := []string{"diff", "-r", revision, "--color", "always", "--ignore-working-copy"}
-	if fileName != "" {
-		args = append(args, EscapeFileName(fileName))
+	if !fileName.IsEmpty() {
+		args = append(args, fileName.Escaped())
 	}
 	if extraArgs != nil {
 		args = append(args, extraArgs...)
@@ -152,14 +152,14 @@ func DiffRange(from string, to string) CommandArgs {
 	return []string{"diff", "--from", from, "--to", to, "--color", "always", "--ignore-working-copy"}
 }
 
-func Restore(revision string, files []string, interactive bool) CommandArgs {
+func Restore(revision string, files []FileName, interactive bool) CommandArgs {
 	args := []string{"restore", "-c", revision}
 	if interactive {
 		args = append(args, "--interactive")
 	}
 	var escapedFiles []string
 	for _, file := range files {
-		escapedFiles = append(escapedFiles, EscapeFileName(file))
+		escapedFiles = append(escapedFiles, file.Escaped())
 	}
 	args = append(args, escapedFiles...)
 	return args
@@ -231,7 +231,7 @@ func BookmarkUntrack(name string, remote string) CommandArgs {
 	return args
 }
 
-func Squash(from SelectedRevisions, destination string, files []string, keepEmptied bool, useDestinationMessage bool, interactive bool, ignoreImmutable bool) CommandArgs {
+func Squash(from SelectedRevisions, destination string, files []FileName, keepEmptied bool, useDestinationMessage bool, interactive bool, ignoreImmutable bool) CommandArgs {
 	args := []string{"squash"}
 	args = append(args, from.AsPrefixedArgs("--from")...)
 	args = append(args, "--into", destination)
@@ -250,7 +250,7 @@ func Squash(from SelectedRevisions, destination string, files []string, keepEmpt
 	if len(files) > 0 {
 		var escapedFiles []string
 		for _, file := range files {
-			escapedFiles = append(escapedFiles, EscapeFileName(file))
+			escapedFiles = append(escapedFiles, file.Escaped())
 		}
 		args = append(args, escapedFiles...)
 	}
@@ -387,7 +387,7 @@ func TemplatedArgs(templatedArgs []string, replacements map[string]string) Comma
 	var args []string
 	if fileReplacement, exists := replacements[FilePlaceholder]; exists {
 		// Ensure that the file replacement is quoted
-		replacements[FilePlaceholder] = EscapeFileName(fileReplacement)
+		replacements[FilePlaceholder] = NewFileName(fileReplacement).Escaped()
 	}
 	for _, arg := range templatedArgs {
 		for k, v := range replacements {
@@ -398,14 +398,14 @@ func TemplatedArgs(templatedArgs []string, replacements map[string]string) Comma
 	return args
 }
 
-func Absorb(changeId string, into []string, files ...string) CommandArgs {
+func Absorb(changeId string, into []string, files ...FileName) CommandArgs {
 	args := []string{"absorb", "--from", changeId, "--color", "never"}
 	for _, target := range into {
 		args = append(args, "--into", target)
 	}
 	var escapedFiles []string
 	for _, file := range files {
-		escapedFiles = append(escapedFiles, EscapeFileName(file))
+		escapedFiles = append(escapedFiles, file.Escaped())
 	}
 	args = append(args, escapedFiles...)
 	return args
@@ -486,15 +486,4 @@ func ResolveRevisionID(revision string) CommandArgs {
 
 func RevsetValidate(revset string) CommandArgs {
 	return []string{"log", "-r", revset, "-n", "1", "--ignore-working-copy"}
-}
-
-func EscapeFileName(fileName string) string {
-	// Escape backslashes and quotes in the file name for shell compatibility
-	if strings.Contains(fileName, "\\") {
-		fileName = strings.ReplaceAll(fileName, "\\", "\\\\")
-	}
-	if strings.Contains(fileName, "\"") {
-		fileName = strings.ReplaceAll(fileName, "\"", "\\\"")
-	}
-	return fmt.Sprintf("file:\"%s\"", fileName)
 }
