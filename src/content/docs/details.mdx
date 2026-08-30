@@ -5,6 +5,8 @@ description: Inspect and operate on files within a revision
 
 Press `l` or `right` to open the details view for the highlighted revision. It shows all files changed in that revision with their status (Added, Modified, Deleted, Renamed, Copied). Conflict markers are shown next to files with conflicts.
 
+File paths are displayed relative to the directory where jjui was started, which keeps paths short when working in a subdirectory. jjui still uses repository-relative paths when running commands.
+
 Press `esc`, `left`, or `h` to close and return to the revision list.
 
 ![GIF](/jjui/gifs/jjui_details_split.gif)

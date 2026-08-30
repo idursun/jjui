@@ -3,7 +3,20 @@ title: Bookmarks
 description: Managing bookmarks from the Revisions view
 ---
 
-jjui provides two ways to manage bookmarks: a full bookmark menu for all operations, and a quick inline input for setting bookmarks directly on a revision.
+jjui provides a classic bookmark menu, an experimental interactive bookmark pane, and a quick inline input for setting bookmarks directly on a revision.
+
+## Interactive bookmark pane
+
+The experimental interactive bookmark pane can be enabled in `config.toml`:
+
+```toml
+[bookmark]
+interactive_bookmark_pane = true
+```
+
+With this option enabled, press `b` to open or close the bookmark pane beside the revisions view. Press `tab` to move focus between the revisions list and the pane. The classic bookmark menu remains the default when the option is disabled.
+
+The pane displays local and remote bookmarks in a tree. Use `enter` to expand remote refs, `h`/`l` to cycle remote filters, `/` to filter by name or target, and `space` to select multiple bookmarks. It also supports inspecting a bookmark in the revisions view (`s`), setting a bookmark revset (`alt+enter`), and editing, creating, moving, renaming, deleting, forgetting, tracking, untracking, pushing, or fetching bookmarks.
 
 ## Bookmark menu
 

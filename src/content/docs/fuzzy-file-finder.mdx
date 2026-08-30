@@ -12,6 +12,8 @@ jjui features a fuzzy file finder that can be activated using `ctrl+t` shortcut 
 
 When activated, you will see the list of all files that are present on the current revision. Press `esc` to cancel the file search.
 
+File paths are displayed relative to the directory where jjui was started. The selected path is still passed to jj and the resulting revset uses the repository-relative file.
+
 When you select a file (via `enter`) the current `revset` will be changed to show all revisions that have touched the selected file.
 
 You can navigate the candidates list using `up`/`down` and `ctrl+n`/`ctrl+p` as you'd expect on shell prompts.

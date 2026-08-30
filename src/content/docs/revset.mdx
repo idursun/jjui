@@ -32,5 +32,6 @@ Every revset you apply during a session is saved to history. When you re-open th
 
 - If jjui is started with `--revset/-r`, that value becomes the session default.
 - Submitting an empty revset resets to the session default.
+- Revset aliases may use either jj's string form or its extended object form with a `definition` field. jjui uses the definition when loading aliases for autocomplete.
 
 See [Revisions](/jjui/revisions) for where revset fits in daily navigation.

@@ -90,6 +90,17 @@ width_increment_percentage = 5.0
 limit = 200
 ```
 
+## Interactive bookmark pane
+
+Enable the experimental split-pane bookmark browser. The default is `false`, which keeps the classic bookmark menu:
+
+```toml
+[bookmark]
+interactive_bookmark_pane = true
+```
+
+When enabled, `b` toggles the pane and `tab` switches focus between it and the revisions view. See [Bookmarks](/jjui/bookmarks#interactive-bookmark-pane) for its actions.
+
 ## SSH
 
 Disable jjui's SSH askpass helper if you manage SSH credentials yourself:
