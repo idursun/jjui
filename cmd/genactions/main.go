@@ -1183,11 +1183,19 @@ var luaHandWrittenFunctions = []luaFunctionSpec{
 	},
 	{
 		Comment:     "Show a text input dialog and wait for user input (yields)",
-		ParamDocs:   []string{"---@param options? {title?: string, prompt?: string} Input options"},
+		ParamDocs:   []string{"---@param options? {title?: string, prompt?: string, value?: string} Input options"},
 		ReturnDocs:  []string{"---@return string|nil value The entered text, or nil if cancelled"},
 		Declaration: "function input(options) end",
 		FieldName:   "input",
-		FieldType:   "fun(options?: {title?: string, prompt?: string}): string|nil",
+		FieldType:   "fun(options?: {title?: string, prompt?: string, value?: string}): string|nil",
+	},
+	{
+		Comment:     "Change the workspace used by subsequent jj commands",
+		ParamDocs:   []string{"---@param path string Workspace path"},
+		ReturnDocs:  []string{"---@return boolean? ok True on success", "---@return string? error The error message (nil on success)"},
+		Declaration: "function change_workspace(path) end",
+		FieldName:   "change_workspace",
+		FieldType:   "fun(path: string): boolean?, string?",
 	},
 	{
 		Comment:     "Yield and wait for the current view to close",

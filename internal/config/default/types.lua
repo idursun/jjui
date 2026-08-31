@@ -66,9 +66,15 @@ function split_lines(text, keepEmpty) end
 function choose(...) end
 
 ---Show a text input dialog and wait for user input (yields)
----@param options? {title?: string, prompt?: string} Input options
+---@param options? {title?: string, prompt?: string, value?: string} Input options
 ---@return string|nil value The entered text, or nil if cancelled
 function input(options) end
+
+---Change the workspace used by subsequent jj commands
+---@param path string Workspace path
+---@return boolean? ok True on success
+---@return string? error The error message (nil on success)
+function change_workspace(path) end
 
 ---Yield and wait for the current view to close
 ---@return boolean applied True when the closed view was applied
@@ -566,7 +572,8 @@ function wait_refresh() end
 ---@field exec_shell fun(command: string)
 ---@field split_lines fun(text: string, keepEmpty?: boolean): string[]
 ---@field choose fun(...: string|string[]|{options?: string[]|string, title?: string, ordered?: boolean}): string|nil
----@field input fun(options?: {title?: string, prompt?: string}): string|nil
+---@field input fun(options?: {title?: string, prompt?: string, value?: string}): string|nil
+---@field change_workspace fun(path: string): boolean?, string?
 ---@field wait_close fun(): boolean
 ---@field wait_refresh fun()
 

@@ -136,6 +136,16 @@ func TestGeneratedLuaTypes_HandWrittenFunctionsMatchRootFields(t *testing.T) {
 	}
 }
 
+func TestGeneratedLuaTypes_DocumentsInputValueAndChangeWorkspace(t *testing.T) {
+	generated, err := generateLuaTypesSource(nil, nil, nil)
+	require.NoError(t, err)
+
+	content := string(generated)
+	require.Contains(t, content, "---@param options? {title?: string, prompt?: string, value?: string} Input options")
+	require.Contains(t, content, "function change_workspace(path) end")
+	require.Contains(t, content, "---@field change_workspace fun(path: string): boolean?, string?")
+}
+
 func repoRoot(t *testing.T) string {
 	t.Helper()
 	_, file, _, ok := runtime.Caller(0)
