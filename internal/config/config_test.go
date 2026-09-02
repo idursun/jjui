@@ -1,12 +1,43 @@
 package config
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestLoad_SetWindowTitle(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		expected WindowTitleMode
+		wantErr  bool
+	}{
+		{"true", "true", WindowTitleFull, false},
+		{"false", "false", WindowTitleOff, false},
+		{"base", `"base"`, WindowTitleBase, false},
+		{"full", `"full"`, WindowTitleFull, false},
+		{"invalid", `"bogus"`, WindowTitleOff, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{}
+			err := cfg.Load(fmt.Sprintf(`
+[ui]
+set_window_title = %s
+`, tt.value), "")
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, cfg.UI.SetWindowTitle)
+			}
+		})
+	}
+}
 
 func TestLoad_Theme_Simple(t *testing.T) {
 	content := `
