@@ -186,7 +186,7 @@ type UIConfig struct {
 	Theme           ThemeConfig           `toml:"theme"`
 	Colors          map[string]Color      `toml:"colors"`
 	BackgroundBlend BackgroundBlendConfig `toml:"background_blend"`
-	SetWindowTitle  bool                  `toml:"set_window_title"`
+	SetWindowTitle  WindowTitleMode       `toml:"set_window_title"`
 	// TODO(ilyagr): It might make sense to rename this to `auto_refresh_period` to match `--period` option
 	// once we have a mechanism to deprecate the old name softly.
 	AutoRefreshInterval        int  `toml:"auto_refresh_interval"`
@@ -196,6 +196,40 @@ type UIConfig struct {
 
 func GetExpiringFlashMessageTimeout(c *Config) time.Duration {
 	return time.Duration(c.UI.FlashMessageDisplaySeconds) * time.Second
+}
+
+// WindowTitleMode controls the terminal window title. It accepts a boolean
+// (true shows the full repo path, false disables the title) or the string
+// "base" to show only the directory name.
+type WindowTitleMode int
+
+const (
+	WindowTitleOff WindowTitleMode = iota
+	WindowTitleFull
+	WindowTitleBase
+)
+
+func (m *WindowTitleMode) UnmarshalTOML(data any) error {
+	switch value := data.(type) {
+	case bool:
+		if value {
+			*m = WindowTitleFull
+		} else {
+			*m = WindowTitleOff
+		}
+	case string:
+		switch value {
+		case "base":
+			*m = WindowTitleBase
+		case "full":
+			*m = WindowTitleFull
+		default:
+			return fmt.Errorf("invalid value for 'set_window_title': %q (expected one of: true, false, 'base', 'full')", value)
+		}
+	default:
+		return fmt.Errorf("invalid type for 'set_window_title': expected boolean or string, got %T", data)
+	}
+	return nil
 }
 
 type RevisionsConfig struct {

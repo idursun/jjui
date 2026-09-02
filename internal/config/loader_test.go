@@ -293,7 +293,7 @@ key = "esc"
 func TestLoadDefaultConfig_SetsWindowTitleByDefault(t *testing.T) {
 	cfg := loadDefaultConfig()
 
-	assert.True(t, cfg.UI.SetWindowTitle)
+	assert.Equal(t, WindowTitleFull, cfg.UI.SetWindowTitle)
 }
 
 func TestLoad_UISetWindowTitleCanBeDisabled(t *testing.T) {
@@ -304,7 +304,30 @@ func TestLoad_UISetWindowTitleCanBeDisabled(t *testing.T) {
 set_window_title = false
 `, ""))
 
-	assert.False(t, cfg.UI.SetWindowTitle)
+	assert.Equal(t, WindowTitleOff, cfg.UI.SetWindowTitle)
+}
+
+func TestLoad_UISetWindowTitleStringValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		expected WindowTitleMode
+	}{
+		{"base", "base", WindowTitleBase},
+		{"full", "full", WindowTitleFull},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := loadDefaultConfig()
+
+			require.NoError(t, cfg.Load(fmt.Sprintf(`
+[ui]
+set_window_title = %q
+`, tt.value), ""))
+
+			assert.Equal(t, tt.expected, cfg.UI.SetWindowTitle)
+		})
+	}
 }
 
 func TestLoad_SeqBindingDoesNotInheritStaleKey(t *testing.T) {
@@ -348,7 +371,7 @@ scope = "revisions"
 action = "revisions.move_up"
 key = "j"
 `
-	err := os.WriteFile(filepath.Join(dir, "my-profile.toml"), []byte(profileContent), 0600)
+	err := os.WriteFile(filepath.Join(dir, "my-profile.toml"), []byte(profileContent), 0o600)
 	require.NoError(t, err)
 
 	configContent := `bindings_profile = "my-profile.toml"`
@@ -374,7 +397,7 @@ action = "revisions.move_down"
 key = "k"
 `
 	profilePath := filepath.Join(dir, "abs-profile.toml")
-	err := os.WriteFile(profilePath, []byte(profileContent), 0600)
+	err := os.WriteFile(profilePath, []byte(profileContent), 0o600)
 	require.NoError(t, err)
 
 	// Use an absolute path — baseDir should be irrelevant
@@ -431,7 +454,7 @@ limit = 99
 [ui]
 auto_refresh_interval = 30
 `
-	require.NoError(t, os.WriteFile(filepath.Join(envDir, "config.toml"), []byte(envConfig), 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(envDir, "config.toml"), []byte(envConfig), 0o600))
 	t.Setenv("JJUI_CONFIG_DIR", envDir)
 
 	// Simulate what main.go does when JJUI_CONFIG_DIR is set:
