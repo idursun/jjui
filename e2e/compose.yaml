@@ -1,0 +1,11 @@
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ${JJUI_PATH:-..}:/jjui:ro
+    command:
+      - sh
+      - -c
+      - go -C /jjui build -o /tmp/jjui ./cmd/jjui && JJUI_BIN=/tmp/jjui go test -tags=e2e -count=1 -parallel=${E2E_PARALLEL:-4} -shuffle=${E2E_SHUFFLE:-on} -v ./...

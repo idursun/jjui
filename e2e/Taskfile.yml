@@ -1,0 +1,12 @@
+version: '3'
+
+tasks:
+  test:
+    desc: Run the E2E suite, or one test when given a test name
+    cmds:
+      - |
+        if [ -n "{{.CLI_ARGS}}" ]; then
+          docker compose run --rm --build -e E2E_TEST="{{.CLI_ARGS}}" test sh -c 'go -C /jjui build -o /tmp/jjui ./cmd/jjui && JJUI_BIN=/tmp/jjui go test -tags=e2e -count=1 -run "$E2E_TEST" -v .'
+        else
+          docker compose run --rm --build test
+        fi

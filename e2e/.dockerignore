@@ -1,0 +1,6 @@
+.build
+.git
+.idea
+.vscode
+coverage.*
+*.test
