@@ -135,7 +135,12 @@ Seconds between automatic revision list refreshes. Default is `0` (disabled). Ov
 set_window_title = true
 ```
 
-Whether jjui sets the terminal window title to include the repo path. Default is `true`. Set to `false` to leave the title managed by your shell or terminal.
+Controls the terminal window title. Default is `true`.
+
+- `true` — show the full repo path (e.g. `jjui - /home/user/projects/my-repo`)
+- `"full"` — same as `true`
+- `"base"` — show only the directory name (e.g. `jjui - my-repo`)
+- `false` — leave the title managed by your shell or terminal
 
 ## Mouse support
 
