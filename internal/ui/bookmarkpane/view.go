@@ -73,7 +73,13 @@ func (m *Model) renderList(dl *render.DisplayContext, box layout.Box) {
 		func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
 			m.renderListRow(dl, index, rect)
 		},
-		func(index int, _ tea.Mouse) tea.Msg { return ItemClickedMsg{Index: index} },
+		func(index int, mouse tea.Mouse) tea.Msg {
+			return ItemClickedMsg{
+				Index: index,
+				Ctrl:  mouse.Mod&tea.ModCtrl != 0,
+				Alt:   mouse.Mod&tea.ModAlt != 0,
+			}
+		},
 	)
 	m.listRenderer.RegisterScroll(dl, box)
 	m.ensureCursorVisible = false
