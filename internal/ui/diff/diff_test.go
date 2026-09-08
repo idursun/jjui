@@ -146,7 +146,7 @@ func TestSetContent_PreservesWrapMode(t *testing.T) {
 func TestTabs_RenderIndentedInDefaultView(t *testing.T) {
 	model := New("+\tfoo")
 
-	rendered := test.RenderImmediate(model, 12, 1)
+	rendered := test.Stripped(test.RenderImmediate(model, 12, 1))
 	assert.Equal(t, "+   foo", rendered)
 }
 

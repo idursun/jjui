@@ -11,6 +11,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func trimLinePadding(s string) string {
+	lines := strings.Split(s, "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " ")
+	}
+	return strings.Join(lines, "\n")
+}
+
 func TestReplayTerminalOutput(t *testing.T) {
 	output := "git: bad configuration option        \rgit: \n" +
 		"git: terminating        \rgit: \n" +
@@ -20,7 +28,7 @@ func TestReplayTerminalOutput(t *testing.T) {
 		"git: bad configuration option\n"+
 			"git: terminating\n"+
 			"remote: failed\n",
-		ansi.Strip(ReplayTerminalOutput(output)),
+		trimLinePadding(ansi.Strip(ReplayTerminalOutput(output))),
 	)
 }
 

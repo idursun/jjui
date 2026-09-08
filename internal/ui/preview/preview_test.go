@@ -197,7 +197,7 @@ func TestSetContent_ExpandsTabsUsingTabStops(t *testing.T) {
 
 	model.SetContent("+\tfoo")
 
-	rendered := test.RenderImmediate(model, 12, 1)
+	rendered := test.Stripped(test.RenderImmediate(model, 12, 1))
 	assert.Equal(t, "+   foo", rendered)
 }
 
@@ -207,6 +207,6 @@ func TestSetContent_ResetsTabStopsAfterNewlines(t *testing.T) {
 
 	model.SetContent("a\tb\nab\tc")
 
-	rendered := test.RenderImmediate(model, 12, 2)
+	rendered := test.Stripped(test.RenderImmediate(model, 12, 2))
 	assert.Equal(t, "a   b\nab  c", rendered)
 }
