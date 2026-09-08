@@ -1,7 +1,7 @@
 # Docker builds the Linux test environment and runs the Go tests through the
 # compose command. The Ghostty revision is pinned to the revision used by the
 # current go.mitchellh.com/libghostty binding.
-FROM golang:1.26-bookworm
+FROM golang:1.27-bookworm
 
 ARG GHOSTTY_COMMIT=2dd79f3bc6af649e68422b08e21ad0300fd8b391
 ARG ZIG_VERSION=0.16.0
