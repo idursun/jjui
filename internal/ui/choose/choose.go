@@ -61,7 +61,12 @@ func NewWithTitle(options []string, title string) *Model {
 
 func NewWithOptions(options []string, title string, ordered bool) *Model {
 	ti := textinput.New()
-	ti.Prompt = "/"
+	ti.Prompt = "filter: "
+	is := ti.Styles()
+	is.Focused.Prompt = common.DefaultPalette.Get("help", "", "shortcut", false)
+	is.Blurred.Prompt = common.DefaultPalette.Get("help", "", "shortcut", false)
+	ti.SetStyles(is)
+	ti.Placeholder = ""
 	ti.CharLimit = 100
 	ti.SetWidth(20)
 	ti.SetVirtualCursor(false)
