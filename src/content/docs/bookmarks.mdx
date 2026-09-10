@@ -16,7 +16,25 @@ interactive_bookmark_pane = true
 
 With this option enabled, press `b` to open or close the bookmark pane beside the revisions view. Press `tab` to move focus between the revisions list and the pane. The classic bookmark menu remains the default when the option is disabled.
 
-The pane displays local and remote bookmarks in a tree. Use `enter` to expand remote refs, `h`/`l` to cycle remote filters, `/` to filter by name or target, and `space` to select multiple bookmarks. It also supports inspecting a bookmark in the revisions view (`s`), setting a bookmark revset (`alt+enter`), and editing, creating, moving, renaming, deleting, forgetting, tracking, untracking, pushing, or fetching bookmarks.
+The pane displays local and remote bookmarks in a tree. Local bookmarks with remote counterparts can be expanded with `enter`; rows show tracking, deleted, and conflict states when applicable. `h`/`l` cycle the `all`, `local`, and individual remote filters. `/` filters by bookmark name, remote, target, or commit ID. `space` selects bookmarks for a multi-bookmark operation; when nothing is selected, operations use the highlighted row.
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` or arrows | Move through bookmarks |
+| `pgup` / `pgdown` or `shift+k` / `shift+j` | Page up / down |
+| `enter` | Expand or collapse remote refs |
+| `h` / `l` | Cycle remote filters |
+| `s` | Show the bookmark target in the Revisions view |
+| `alt+enter` | Set the active revset to the bookmark's ancestors |
+| `e` | Edit the bookmark's revision |
+| `n` | Create a new change from the bookmark's revision |
+| `r` | Rename the local bookmark |
+| `m` | Move the local bookmark |
+| `c` | Create a bookmark |
+| `d` / `f` | Delete / forget |
+| `t` / `u` | Track / untrack |
+| `shift+p` / `shift+f` | Push / fetch |
+| `esc` | Clear the filter or selection, then close the pane |
 
 ## Bookmark menu
 

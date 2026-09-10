@@ -39,7 +39,7 @@ desc = "hello"
 
 Helper functions and the `revisions`, `revset`, and `context` tables are available both as top-level globals and under the `jjui` namespace — `flash(...)` and `jjui.flash(...)` are the same, and `revisions.edit()` and `jjui.revisions.edit()` are the same.
 
-Other built-in action scopes (`ui`, `git`, `diff`, `oplog`, `bookmarks`, `undo`, `redo`, `choose`, `input`, `command_history`, `file_search`) are **only** available under the `jjui` namespace — e.g. `jjui.git.push()`, not `git.push()`.
+Other built-in action scopes (`ui`, `git`, `diff`, `oplog`, `bookmarks`, `bookmark_pane`, `annotation`, `undo`, `redo`, `choose`, `input`, `command_history`, `file_search`) are **only** available under the `jjui` namespace — e.g. `jjui.git.push()`, not `git.push()`.
 
 Built-in action wrappers are additionally available under `jjui.builtin.*`, which forces built-in resolution and ignores any user-defined overrides for those action names.
 
@@ -177,6 +177,7 @@ revset.set({ value = "trunk()" })
 | `revisions.open_set_parents()` | Enter set-parents mode |
 | `revisions.open_squash()` | Enter squash mode |
 | `revisions.open_diff_range()` | Enter diff range mode |
+| `revisions.open_annotation()` | Open the experimental Annotation View |
 
 ### revisions.rebase.*
 
@@ -377,6 +378,7 @@ Also available as a top-level global — `ui.cancel()` and `jjui.ui.cancel()` ar
 | `jjui.ui.open_redo()` | |
 | `jjui.ui.open_revset()` | |
 | `jjui.ui.open_command_history()` | |
+| `jjui.ui.toggle_bookmark_pane()` / `jjui.ui.focus_next_pane()` | |
 | `jjui.ui.file_search_toggle()` | |
 | `jjui.ui.quick_search()` | |
 | `jjui.ui.expand_status()` | |
@@ -414,6 +416,43 @@ Also available as a top-level global — `ui.cancel()` and `jjui.ui.cancel()` ar
 | `jjui.bookmarks.move_up()` / `jjui.bookmarks.move_down()` |
 | `jjui.bookmarks.page_up()` / `jjui.bookmarks.page_down()` |
 | `jjui.bookmarks.apply()` / `jjui.bookmarks.cancel()` / `jjui.bookmarks.quit()` |
+
+### jjui.bookmark_pane.*
+
+These actions are available when the experimental interactive bookmark pane is enabled.
+
+| Function |
+|----------|
+| `jjui.bookmark_pane.move_up()` / `jjui.bookmark_pane.move_down()` |
+| `jjui.bookmark_pane.page_up()` / `jjui.bookmark_pane.page_down()` |
+| `jjui.bookmark_pane.cycle_remotes()` / `jjui.bookmark_pane.cycle_remotes_back()` |
+| `jjui.bookmark_pane.open_filter()` / `jjui.bookmark_pane.toggle_expand()` |
+| `jjui.bookmark_pane.toggle_select()` |
+| `jjui.bookmark_pane.show_in_revision()` / `jjui.bookmark_pane.set_revset()` |
+| `jjui.bookmark_pane.edit()` / `jjui.bookmark_pane.new()` / `jjui.bookmark_pane.rename()` |
+| `jjui.bookmark_pane.create()` / `jjui.bookmark_pane.move()` |
+| `jjui.bookmark_pane.delete()` / `jjui.bookmark_pane.forget()` / `jjui.bookmark_pane.track()` / `jjui.bookmark_pane.untrack()` |
+| `jjui.bookmark_pane.push()` / `jjui.bookmark_pane.fetch()` |
+| `jjui.bookmark_pane.apply()` / `jjui.bookmark_pane.cancel()` |
+
+### jjui.annotation.*
+
+These actions are available in the experimental Annotation View.
+
+| Function |
+|----------|
+| `jjui.annotation.move_up()` / `move_down()` |
+| `jjui.annotation.select_up()` / `select_down()` |
+| `jjui.annotation.page_up()` / `page_down()` |
+| `jjui.annotation.half_page_up()` / `half_page_down()` |
+| `jjui.annotation.move_top()` / `move_bottom()` |
+| `jjui.annotation.left()` / `right()` |
+| `jjui.annotation.prev_file()` / `next_file()` |
+| `jjui.annotation.target_picker()` / `comment_picker()` |
+| `jjui.annotation.parent_revision()` / `child_revision()` |
+| `jjui.annotation.toggle_presentation()` / `toggle_wrap()` |
+| `jjui.annotation.add()` / `delete()` / `clear()` / `copy()` |
+| `jjui.annotation.editor.save()` / `jjui.annotation.editor.cancel()` |
 
 ### jjui.git.*
 

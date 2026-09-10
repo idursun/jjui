@@ -1,0 +1,36 @@
+---
+title: Annotation View
+description: Review a revision and collect comments in jjui
+---
+
+The experimental Annotation View provides a lightweight code-review workflow for a revision. From the Revisions view, select a non-root revision and press `shift+c`.
+
+The view starts on the revision's diff and displays one changed file at a time. Comments are kept in memory while the view is open; they are not written back to the repository. Press `y` to copy all comments as Markdown for sharing.
+
+## Reviewing a revision
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` or arrows | Move between commentable lines |
+| `shift+j` / `shift+k` | Extend the selected line range |
+| `ctrl+t` | Choose a changed file |
+| `[` / `]` | Previous / next changed file |
+| `{` / `}` | Navigate to a child / parent revision |
+| `v` | Toggle between the diff and the complete file |
+| `w` | Toggle line wrapping |
+| `h` / `l` or left / right | Scroll horizontally when wrapping is disabled |
+| `pgup` / `b`, `pgdown` / `f` / `space` | Page up / down |
+| `u` / `d` or `ctrl+u` / `ctrl+d` | Half page up / down |
+| `g` / `G` | Jump to the top / bottom |
+
+## Comments
+
+Move the cursor to a commentable line, optionally select a range with `shift+j` or `shift+k`, then press `c`. Type the comment and press `alt+enter` or `ctrl+s` to save it; `esc` cancels editing. Press `c` on an existing comment to edit it.
+
+- `t`: choose an annotation from the picker when multiple comments overlap or to jump to any comment
+- `x`: delete the comment at the cursor
+- `shift+x`: clear all comments
+- `y`: copy all comments as Markdown
+- `esc`: close the Annotation View
+
+Comments include the revision, file, line range, selected diff snippet, and comment text in the copied Markdown. The editor must be closed before navigating to another revision.

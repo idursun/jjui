@@ -47,6 +47,7 @@ export default defineConfig({
 						{ label: 'Set Parents', slug: 'revisions/set-parents' },
 						{ label: 'Evolog', slug: 'revisions/evolog' },
 						{ label: 'Inline Describe', slug: 'revisions/inline-describe' },
+						{ label: 'Annotation View', slug: 'revisions/annotation' },
 						{ label: 'Ace Jump', slug: 'ace-jump' },
 					],
 				},
