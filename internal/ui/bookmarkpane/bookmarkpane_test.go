@@ -724,6 +724,204 @@ func TestConfirmationIgnoresRowClicksWhileOpen(t *testing.T) {
 	require.NotNil(t, model.confirmation)
 
 	model.Update(ItemClickedMsg{Index: clickedIndex})
+	model.Update(ItemClickedMsg{Index: clickedIndex, Ctrl: true})
+	model.Update(ItemClickedMsg{Index: clickedIndex, Alt: true})
 
 	assert.Equal(t, initialCursor, model.cursor)
+	assert.Empty(t, model.selected)
+}
+
+func TestListClick_PropagatesMouseModifiers(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(bookmarkListOutput(3)))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	test.SimulateModel(model, model.OnShow())
+	model.SetFocused(true)
+	require.Len(t, model.visibleRows, 3)
+
+	dl := render.NewDisplayContext()
+	box := layout.NewBox(layout.Rect(0, 0, 40, 10))
+	model.ViewRect(dl, box)
+	require.Greater(t, model.lastListHeight, 0)
+	listTop := box.R.Min.Y + box.R.Dy() - model.lastListHeight
+
+	clickAt := func(row int, mod tea.KeyMod) ItemClickedMsg {
+		t.Helper()
+		msg, handled := dl.ProcessMouseEvent(tea.MouseClickMsg{
+			X:      2,
+			Y:      listTop + row,
+			Button: tea.MouseLeft,
+			Mod:    mod,
+		})
+		require.True(t, handled)
+		clicked, ok := msg.(ItemClickedMsg)
+		require.Truef(t, ok, "got %T", msg)
+		return clicked
+	}
+
+	assert.Equal(t, ItemClickedMsg{Index: 1}, clickAt(1, 0))
+	assert.Equal(t, ItemClickedMsg{Index: 1, Ctrl: true}, clickAt(1, tea.ModCtrl))
+	assert.Equal(t, ItemClickedMsg{Index: 2, Alt: true}, clickAt(2, tea.ModAlt))
+	assert.Equal(t, ItemClickedMsg{Index: 0, Ctrl: true, Alt: true}, clickAt(0, tea.ModCtrl|tea.ModAlt))
+}
+
+func TestCtrlClick_TogglesClickedRowAndMovesCursor(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(bookmarkListOutput(2)))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	test.SimulateModel(model, model.OnShow())
+	model.SetFocused(true)
+	require.Len(t, model.visibleRows, 2)
+
+	clickedIndex := 1
+	if model.cursor == 1 {
+		clickedIndex = 0
+	}
+	clickedTarget := mustRowTarget(t, model, clickedIndex)
+
+	model.Update(ItemClickedMsg{Index: clickedIndex, Ctrl: true})
+
+	assert.Equal(t, clickedIndex, model.cursor)
+	assert.Equal(t, map[string]bool{clickedTarget: true}, model.selected)
+
+	model.Update(ItemClickedMsg{Index: clickedIndex, Ctrl: true})
+	assert.Equal(t, clickedIndex, model.cursor)
+	assert.Empty(t, model.selected)
+}
+
+func TestPlainClick_MovesCursorWithoutTogglingSelection(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(bookmarkListOutput(2)))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	test.SimulateModel(model, model.OnShow())
+	model.SetFocused(true)
+	require.Len(t, model.visibleRows, 2)
+
+	clickedIndex := 1
+	if model.cursor == 1 {
+		clickedIndex = 0
+	}
+
+	model.Update(ItemClickedMsg{Index: clickedIndex})
+
+	assert.Equal(t, clickedIndex, model.cursor)
+	assert.Empty(t, model.selected)
+}
+
+func TestAltClick_RangeTogglesVisibleRows(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(bookmarkListOutput(3)))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	test.SimulateModel(model, model.OnShow())
+	model.SetFocused(true)
+	require.Len(t, model.visibleRows, 3)
+
+	model.cursor = 0
+	model.Update(ItemClickedMsg{Index: 2, Alt: true})
+
+	assert.Equal(t, 2, model.cursor)
+	assert.Equal(t, map[string]bool{
+		mustRowTarget(t, model, 0): true,
+		mustRowTarget(t, model, 1): true,
+		mustRowTarget(t, model, 2): true,
+	}, model.selected)
+}
+
+func TestAltClick_SkipsCollapsedRemoteChildren(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(
+		"feature;.;true;false;false;false;abc123\nfeature;origin;true;true;false;false;abc123\nother;.;true;false;false;false;def456\n",
+	))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.SyncRevisionContext("abc123", []string{"abc123", "def456"})
+	test.SimulateModel(model, model.OnShow())
+	model.SetFocused(true)
+
+	featureIndex := mustFindRow(t, model, "feature")
+	otherIndex := mustFindRow(t, model, "other")
+	model.cursor = featureIndex
+	model.Update(ItemClickedMsg{Index: otherIndex, Alt: true})
+
+	assert.Equal(t, map[string]bool{"feature": true, "other": true}, model.selected)
+	assert.False(t, model.selected["feature@origin"])
+}
+
+func TestAltClick_IncludesExpandedRemoteChildren(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(
+		"feature;.;true;false;false;false;abc123\nfeature;origin;true;true;false;false;abc123\nother;.;true;false;false;false;def456\n",
+	))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.SyncRevisionContext("abc123", []string{"abc123", "def456"})
+	test.SimulateModel(model, model.OnShow())
+	model.SetFocused(true)
+
+	featureIndex := mustFindRow(t, model, "feature")
+	model.cursor = featureIndex
+	model.Update(intents.BookmarkPaneToggleExpand{})
+	require.Greater(t, len(model.visibleRows), 2)
+
+	featureIndex = mustFindRow(t, model, "feature")
+	otherIndex := mustFindRow(t, model, "other")
+	originIndex := mustFindRow(t, model, "feature@origin")
+	require.True(t, originIndex > featureIndex && originIndex < otherIndex)
+
+	model.cursor = featureIndex
+	model.Update(ItemClickedMsg{Index: otherIndex, Alt: true})
+
+	assert.Equal(t, otherIndex, model.cursor)
+	assert.Equal(t, map[string]bool{
+		"feature":        true,
+		"feature@origin": true,
+		"other":          true,
+	}, model.selected)
+}
+
+func TestAltClick_TakesPrecedenceOverCtrl(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(bookmarkListOutput(3)))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	test.SimulateModel(model, model.OnShow())
+	model.SetFocused(true)
+	require.Len(t, model.visibleRows, 3)
+
+	model.cursor = 0
+	model.Update(ItemClickedMsg{Index: 2, Ctrl: true, Alt: true})
+
+	assert.Equal(t, 2, model.cursor)
+	assert.Len(t, model.selected, 3)
+}
+
+func mustRowTarget(t *testing.T, model *Model, index int) string {
+	t.Helper()
+	require.GreaterOrEqual(t, index, 0)
+	require.Less(t, index, len(model.visibleRows))
+	node, ok := model.rowNode(model.visibleRows[index])
+	require.True(t, ok)
+	return node.Target()
+}
+
+func mustFindRow(t *testing.T, model *Model, target string) int {
+	t.Helper()
+	for idx := range model.visibleRows {
+		if mustRowTarget(t, model, idx) == target {
+			return idx
+		}
+	}
+	t.Fatalf("row %q not found in visible rows", target)
+	return -1
 }

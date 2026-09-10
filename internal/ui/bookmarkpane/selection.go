@@ -19,9 +19,13 @@ func (m *Model) moveCursor(delta int) {
 		next = len(m.visibleRows) - 1
 	}
 	if next != m.cursor {
-		m.cursor = next
-		m.ensureCursorVisible = true
+		m.setCursor(next)
 	}
+}
+
+func (m *Model) setCursor(index int) {
+	m.cursor = index
+	m.ensureCursorVisible = true
 }
 
 func (m *Model) currentFilterText() string {
@@ -191,24 +195,43 @@ func (m *Model) selectTarget(target string) bool {
 			continue
 		}
 		if node.Target() == target {
-			m.cursor = idx
-			m.ensureCursorVisible = true
+			m.setCursor(idx)
 			return true
 		}
 	}
 	return false
 }
 
-func (m *Model) toggleSelectCurrent() {
-	target, ok := m.selectedTarget()
+func (m *Model) toggleSelectAt(index int) {
+	if index < 0 || index >= len(m.visibleRows) {
+		return
+	}
+	node, ok := m.rowNode(m.visibleRows[index])
 	if !ok {
 		return
 	}
+	target := node.Target()
 	if m.selected[target] {
 		delete(m.selected, target)
 	} else {
 		m.selected[target] = true
 	}
+}
+
+func (m *Model) toggleSelectCurrent() {
+	m.toggleSelectAt(m.cursor)
+}
+
+func (m *Model) rangeSelect(to int) {
+	if to < 0 || to >= len(m.visibleRows) {
+		return
+	}
+	lo := min(m.cursor, to)
+	hi := max(m.cursor, to)
+	for i := lo; i <= hi; i++ {
+		m.toggleSelectAt(i)
+	}
+	m.setCursor(to)
 }
 
 func (m *Model) clearSelections() {

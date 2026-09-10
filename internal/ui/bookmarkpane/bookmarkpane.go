@@ -42,6 +42,8 @@ type rowsLoadedMsg struct {
 
 type ItemClickedMsg struct {
 	Index int
+	Ctrl  bool
+	Alt   bool
 }
 
 type RemoteClickedMsg struct {
@@ -332,9 +334,17 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if m.mode() == modeConfirm {
 			return nil
 		}
-		if msg.Index >= 0 && msg.Index < len(m.visibleRows) {
-			m.cursor = msg.Index
-			m.ensureCursorVisible = true
+		if msg.Index < 0 || msg.Index >= len(m.visibleRows) {
+			return nil
+		}
+		switch {
+		case msg.Alt:
+			m.rangeSelect(msg.Index)
+		case msg.Ctrl:
+			m.setCursor(msg.Index)
+			m.toggleSelectCurrent()
+		default:
+			m.setCursor(msg.Index)
 		}
 		return nil
 	case RemoteClickedMsg:
