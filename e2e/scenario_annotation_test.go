@@ -72,6 +72,21 @@ func Test_Annotation_EditorConsumesBindingsAndCancelsDraft(t *testing.T) {
 	closeAnnotation(t, h)
 }
 
+func Test_Annotation_ExpandedHelpEscClosesHelpBeforeAnnotation(t *testing.T) {
+	t.Parallel()
+	h := NewHarness(t)
+	h.repo.Write("review.go", "review line\n").Commit("review target")
+	openAnnotation(t, h, "review target", "review.go")
+
+	annotationKey(t, h, ghostty.KeySlash, "?", ghostty.ModShift)
+	h.WaitText("close help")
+	h.Key("Escape")
+	h.WaitNoText("close help")
+	h.WaitText("0 annotations")
+
+	closeAnnotation(t, h)
+}
+
 func Test_Annotation_CommentPickerFindsLineOutsideDiff(t *testing.T) {
 	t.Parallel()
 	h := NewHarness(t)

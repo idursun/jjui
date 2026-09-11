@@ -518,6 +518,42 @@ func Test_GitWithExpandedStatus_EscClosesStackedFirst(t *testing.T) {
 	assert.Nil(t, model.stacked, "stacked (git) should close before expanded status")
 }
 
+func Test_AnnotationWithExpandedStatus_EscClosesStatusFirst(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	model.annotation = annotation.New(ctx, "change")
+	model.status.SetStatusExpanded(true)
+
+	cmd, handled := dispatchAction(model, keybindings.Action("ui.cancel"), nil)
+	require.True(t, handled)
+	test.SimulateModel(model, cmd)
+
+	assert.False(t, model.status.StatusExpanded(), "expanded status should close first")
+	assert.NotNil(t, model.annotation, "annotation view should remain open")
+
+	cmd, handled = dispatchAction(model, keybindings.Action("ui.cancel"), nil)
+	require.True(t, handled)
+	test.SimulateModel(model, cmd)
+
+	assert.Nil(t, model.annotation, "annotation view should close after expanded status")
+}
+
+func Test_AnnotationWithExpandedStatus_AppliedCloseStillClosesAnnotation(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	model.annotation = annotation.New(ctx, "change")
+	model.status.SetStatusExpanded(true)
+
+	model.Update(common.CloseApplied())
+
+	assert.True(t, model.status.StatusExpanded(), "applied close should not collapse expanded status")
+	assert.Nil(t, model.annotation, "applied close should close annotation")
+}
+
 func Test_Update_GitFilteredShortcutKeysDoNotLeakToRevisions(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))

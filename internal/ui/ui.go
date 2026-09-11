@@ -127,6 +127,12 @@ func (m *Model) withSelectionSync(cmd tea.Cmd) tea.Cmd {
 }
 
 func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
+	// The expanded status help is an overlay over the active view. When there
+	// is no stacked modal, close the overlay before closing that view.
+	if !msg.Applied && m.stacked == nil && m.status != nil && m.status.StatusExpanded() {
+		m.status.SetStatusExpanded(false)
+		return nil, true
+	}
 	if m.annotation != nil {
 		m.annotation = nil
 		return nil, true
