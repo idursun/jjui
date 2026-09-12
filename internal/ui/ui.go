@@ -469,12 +469,16 @@ func (m *Model) View() string {
 		m.stacked.ViewRect(m.displayContext, box)
 	}
 
+	if m.password == nil {
+		
+
 	if scope, ok := m.stackedScope(); !ok || scope != actions.ScopeCommandHistory {
-		flashBox := box
-		if footerHeight := m.footerHeight(box); footerHeight > 0 {
-			flashBox, _ = box.CutBottom(footerHeight)
+			flashBox := box
+			if footerHeight := m.footerHeight(box); footerHeight > 0 {
+				flashBox, _ = box.CutBottom(footerHeight)
+			}
+			m.flash.ViewRect(m.displayContext, flashBox)
 		}
-		m.flash.ViewRect(m.displayContext, flashBox)
 	}
 
 	m.splitContainer.RenderOverlay(m.displayContext, box)
