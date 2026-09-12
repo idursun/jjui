@@ -65,6 +65,11 @@ type DetailsToggleSelect struct{}
 
 func (DetailsToggleSelect) isIntent() {}
 
+//jjui:bind scope=revisions.details action=invert_selection
+type DetailsInvertSelection struct{}
+
+func (DetailsInvertSelection) isIntent() {}
+
 //jjui:bind scope=revisions.details action=revisions_changing_file
 type DetailsRevisionsChangingFile struct{}
 

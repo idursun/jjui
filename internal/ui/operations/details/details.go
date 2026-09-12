@@ -139,9 +139,7 @@ func (s *Operation) internalUpdate(msg tea.Msg) tea.Cmd {
 			s.rangeSelect(prevCursor, msg.Index)
 		case msg.Ctrl:
 			s.setCursor(msg.Index)
-			if current := s.current(); current != nil {
-				current.selected = !current.selected
-			}
+			s.toggleSelection()
 		default:
 			s.setCursor(msg.Index)
 		}
@@ -299,10 +297,13 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		s.confirmation = model
 		return s.confirmation.Init(), true
 	case intents.DetailsToggleSelect:
-		if current := s.current(); current != nil {
-			current.selected = !current.selected
+		if s.current() != nil {
+			s.toggleSelection()
 			s.navigate(1, false)
 		}
+		return nil, true
+	case intents.DetailsInvertSelection:
+		s.invertSelection()
 		return nil, true
 	case intents.DetailsRevisionsChangingFile:
 		if current := s.current(); current != nil {

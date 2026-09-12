@@ -314,6 +314,25 @@ func (d *DetailsList) rangeSelect(from, to int) {
 	}
 }
 
+func (d *DetailsList) toggleSelection() {
+	if current := d.current(); current != nil {
+		current.selected = !current.selected
+	}
+}
+
+func (d *DetailsList) invertSelection() {
+	if !d.hasSelectedItems() {
+		current := d.current()
+		if current == nil {
+			return
+		}
+		current.selected = true
+	}
+	for _, item := range d.files {
+		item.selected = !item.selected
+	}
+}
+
 func (d *DetailsList) Len() int {
 	if d.files == nil {
 		return 0

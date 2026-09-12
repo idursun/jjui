@@ -100,6 +100,49 @@ func TestOperation_Split(t *testing.T) {
 	}
 }
 
+func TestOperation_InvertSelection(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	t.Cleanup(commandRunner.Verify)
+	operation := loadOperation(t, commandRunner, statusOutput)
+
+	_, handled := operation.HandleIntent(intents.DetailsInvertSelection{})
+	require.True(t, handled)
+	assert.False(t, operation.files[0].selected)
+	assert.True(t, operation.files[1].selected)
+	assert.Equal(t, []jj.FileName{jj.NewFileName("newfile.txt")}, operation.getSelectedFiles(true))
+
+	_, handled = operation.HandleIntent(intents.DetailsInvertSelection{})
+	require.True(t, handled)
+	assert.True(t, operation.files[0].selected)
+	assert.False(t, operation.files[1].selected)
+	assert.Equal(t, []jj.FileName{jj.NewFileName("file.txt")}, operation.getSelectedFiles(true))
+}
+
+func TestOperation_InvertSelectionTreatsEmptySelectionAsVirtual(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	t.Cleanup(commandRunner.Verify)
+	operation := loadOperation(t, commandRunner, statusOutput)
+	operation.files[0].selected = true
+	operation.files[1].selected = true
+
+	_, handled := operation.HandleIntent(intents.DetailsInvertSelection{})
+	require.True(t, handled)
+	assert.Equal(t, []jj.FileName{jj.NewFileName("file.txt")}, operation.getSelectedFiles(true))
+}
+
+func TestOperation_InvertSelectionIncludesFilteredOutFiles(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	t.Cleanup(commandRunner.Verify)
+	operation := loadOperation(t, commandRunner, statusOutput)
+	operation.setFilter("new", true)
+
+	_, handled := operation.HandleIntent(intents.DetailsInvertSelection{})
+	require.True(t, handled)
+	assert.True(t, operation.files[0].selected)
+	assert.False(t, operation.files[1].selected)
+	assert.Equal(t, []jj.FileName{jj.NewFileName("file.txt")}, operation.getSelectedFiles(true))
+}
+
 func TestOperation_RefreshPreservesCheckedButNotHighlightedFile(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	t.Cleanup(commandRunner.Verify)

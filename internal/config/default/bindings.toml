@@ -177,6 +177,7 @@ bindings = [
     { key = "ctrl+r", action = "revisions.details.refresh", scope = "revisions.details", desc = "refresh" },
     { key = "d", action = "revisions.details.diff", scope = "revisions.details", desc = "diff" },
     { key = ["m", "space"], action = "revisions.details.toggle_select", scope = "revisions.details", desc = "select" },
+    { key = "i", action = "revisions.details.invert_selection", scope = "revisions.details", desc = "invert selection" },
     { key = "s", action = "revisions.details.split", scope = "revisions.details", desc = "split" },
     { key = "alt+s", action = "revisions.details.split_parallel", scope = "revisions.details", desc = "split parallel" },
     { key = "shift+s", action = "revisions.details.squash", scope = "revisions.details", desc = "squash" },

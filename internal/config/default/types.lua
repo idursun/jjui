@@ -376,6 +376,7 @@ function wait_refresh() end
 ---@field filter fun()
 ---@field filter_apply fun()
 ---@field filter_cancel fun()
+---@field invert_selection fun()
 ---@field move_down fun()
 ---@field move_up fun()
 ---@field page_down fun()
