@@ -149,7 +149,11 @@ func Diff(revision string, fileName FileName, extraArgs ...string) CommandArgs {
 }
 
 func DiffRange(from string, to string) CommandArgs {
-	return []string{"diff", "--from", from, "--to", to, "--color", "always", "--ignore-working-copy"}
+	args := []string{"diff", "--from", from}
+	if to != "" {
+		args = append(args, "--to", to)
+	}
+	return append(args, "--color", "always", "--ignore-working-copy")
 }
 
 func AnnotationDiff(revision string) CommandArgs {

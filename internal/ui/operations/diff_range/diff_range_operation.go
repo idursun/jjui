@@ -29,6 +29,7 @@ type Operation struct {
 	toName   string
 	fromName string
 	swapped  bool
+	hasTo    bool
 }
 
 func (o *Operation) IsFocused() bool {
@@ -57,6 +58,7 @@ func (o *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
 		}
 		o.to = commit
 	}
+	o.hasTo = true
 	return nil
 }
 
@@ -75,6 +77,7 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 		default:
 			o.toName = strings.TrimSpace(msg.Target)
 		}
+		o.hasTo = true
 
 		cmd, _ := o.HandleIntent(intents.Apply{})
 		return cmd
@@ -144,6 +147,9 @@ renderTo:
 }
 
 func (o *Operation) toTargetArg() string {
+	if !o.hasTo {
+		return ""
+	}
 	if strings.TrimSpace(o.toName) != "" {
 		return o.toName
 	}
@@ -162,5 +168,5 @@ func (o *Operation) Name() string {
 }
 
 func New(context *appContext.MainContext, source *jj.Commit, current *jj.Commit) *Operation {
-	return &Operation{context: context, from: source, to: current}
+	return &Operation{context: context, from: source, to: current, hasTo: !source.Equal(current)}
 }

@@ -29,6 +29,13 @@ func TestFileCommandsUseTypedRepositoryPaths(t *testing.T) {
 	assert.Equal(t, CommandArgs{"absorb", "--from", "source", "--color", "never", escaped}, Absorb("source", nil, file))
 }
 
+func TestDiffRangeOmitsEmptyToRevision(t *testing.T) {
+	assert.Equal(t,
+		CommandArgs{"diff", "--from", "source", "--color", "always", "--ignore-working-copy"},
+		DiffRange("source", ""),
+	)
+}
+
 func TestAnnotationCommandsUseStableMachineReadableOutput(t *testing.T) {
 	assert.Equal(t,
 		CommandArgs{"diff", "-r", "abc123", "--git", "--color", "never", "--ignore-working-copy"},

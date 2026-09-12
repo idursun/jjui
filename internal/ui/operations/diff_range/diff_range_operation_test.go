@@ -20,7 +20,9 @@ func TestApplyClosesOperationBeforeShowingDiff(t *testing.T) {
 		SetOutput([]byte("diff content"))
 	defer commandRunner.Verify()
 
-	op := New(test.NewTestContext(commandRunner), &jj.Commit{ChangeId: "from"}, &jj.Commit{ChangeId: "to"})
+	from := &jj.Commit{ChangeId: "from"}
+	op := New(test.NewTestContext(commandRunner), from, from)
+	selectRevision(op, &jj.Commit{ChangeId: "to"})
 
 	cmd, handled := op.HandleIntent(intents.Apply{})
 	require.True(t, handled)
@@ -38,6 +40,30 @@ func TestApplyClosesOperationBeforeShowingDiff(t *testing.T) {
 	diff, shown := msgs[1].(intents.DiffShow)
 	require.True(t, shown)
 	assert.Equal(t, "diff content", diff.Content)
+}
+
+func TestApplyWithoutSelectingTargetOmitsToRevision(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.DiffRange("from", "")).
+		SetOutput([]byte("diff content"))
+	defer commandRunner.Verify()
+
+	commit := &jj.Commit{ChangeId: "from"}
+	op := New(test.NewTestContext(commandRunner), commit, commit)
+
+	cmd, handled := op.HandleIntent(intents.Apply{})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+
+	var msgs []tea.Msg
+	test.SimulateModel(op, cmd, func(msg tea.Msg) {
+		msgs = append(msgs, msg)
+	})
+
+	require.Len(t, msgs, 2)
+	diff, shown := msgs[1].(intents.DiffShow)
+	require.True(t, shown)
+	assert.Equal(t, []string(jj.DiffRange("from", "")), diff.Args)
 }
 
 func TestOpenTargetPicker(t *testing.T) {
