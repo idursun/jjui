@@ -3,11 +3,9 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -282,17 +280,17 @@ func assertCommentAfter(t *testing.T, screen []string, source, comment string) {
 
 func waitAnnotationClipboard(t *testing.T, h *Harness) string {
 	t.Helper()
-	// Inspect OSC 52 output without touching the host clipboard.
-	pattern := regexp.MustCompile("\x1b\\]52;c;([A-Za-z0-9+/=]*)(?:\x07|\x1b\\\\)")
 	var payload string
 	waitFor(t, h.ctx, func() (bool, error) {
-		matches := pattern.FindAllStringSubmatch(h.session.RawOutput(), -1)
-		if len(matches) == 0 {
+		data, err := os.ReadFile(h.repo.clipboardPath)
+		if os.IsNotExist(err) || (err == nil && len(data) == 0) {
 			return false, nil
 		}
-		decoded, err := base64.StdEncoding.DecodeString(matches[len(matches)-1][1])
-		payload = string(decoded)
-		return true, err
+		if err != nil {
+			return false, err
+		}
+		payload = string(data)
+		return true, nil
 	})
 	return payload
 }

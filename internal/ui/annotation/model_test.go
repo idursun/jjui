@@ -705,6 +705,11 @@ func TestClearAnnotationsOnlyOnExplicitAction(t *testing.T) {
 
 func TestCopyAnnotationsCopiesAllAnnotationsAndShowsConfirmation(t *testing.T) {
 	model := New(nil, "")
+	var copied string
+	model.clipboardWriter = func(text string) error {
+		copied = text
+		return nil
+	}
 	model.addAnnotation(Annotation{
 		File:     "a.go",
 		NewLines: lineRange{Start: 2, End: 2},
@@ -715,19 +720,28 @@ func TestCopyAnnotationsCopiesAllAnnotationsAndShowsConfirmation(t *testing.T) {
 	cmd, handled := model.HandleIntent(intents.AnnotationCopy{})
 	require.True(t, handled)
 	require.NotNil(t, cmd)
-	commands, ok := cmd().(tea.BatchMsg)
+	flash, ok := cmd().(intents.AddMessage)
 	require.True(t, ok)
+	assert.Equal(t, formatAnnotationsMarkdown(model.annotations.All()), copied)
+	assert.Equal(t, "Copied 1 annotation", flash.Text)
+	assert.NoError(t, flash.Err)
+}
 
-	var copied, confirmed bool
-	for _, command := range commands {
-		message := command()
-		copied = copied || fmt.Sprint(message) == formatAnnotationsMarkdown(model.annotations.All())
-		if flash, ok := message.(intents.AddMessage); ok {
-			confirmed = flash.Text == "Copied 1 annotation"
-		}
+func TestCopyAnnotationsReportsClipboardError(t *testing.T) {
+	model := New(nil, "")
+	expectedErr := errors.New("clipboard unavailable")
+	model.clipboardWriter = func(string) error {
+		return expectedErr
 	}
-	assert.True(t, copied)
-	assert.True(t, confirmed)
+	model.addAnnotation(Annotation{Comment: "note"})
+
+	cmd, handled := model.HandleIntent(intents.AnnotationCopy{})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	message, ok := cmd().(intents.AddMessage)
+	require.True(t, ok)
+	assert.Equal(t, "Failed to copy annotation: clipboard unavailable", message.Text)
+	assert.ErrorIs(t, message.Err, expectedErr)
 }
 
 func TestCopyAnnotationsReportsNoAnnotations(t *testing.T) {

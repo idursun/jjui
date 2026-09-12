@@ -8,6 +8,7 @@ import (
 
 	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/jj/source"
@@ -42,10 +43,11 @@ func (s pickerSource) Fetch(_ source.Runner) ([]source.Item, error) {
 }
 
 type Model struct {
-	context     *appContext.MainContext
-	document    reviewDocument
-	annotations annotationStore
-	loader      annotationLoader
+	context         *appContext.MainContext
+	document        reviewDocument
+	annotations     annotationStore
+	loader          annotationLoader
+	clipboardWriter func(string) error
 
 	nextRequestID            uint64
 	revisionLoadRequestID    uint64
@@ -88,6 +90,7 @@ func New(ctx *appContext.MainContext, revision string) *Model {
 		},
 		selectionAnchor: -1,
 		loader:          annotationLoader{context: ctx},
+		clipboardWriter: clipboard.WriteAll,
 		renderer:        newAnnotationRenderer(dark),
 	}
 }
@@ -208,10 +211,16 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		if len(annotations) == 1 {
 			label = "annotation"
 		}
-		return tea.Batch(
-			tea.SetClipboard(formatAnnotationsMarkdown(annotations)),
-			intents.Invoke(intents.AddMessage{Text: fmt.Sprintf("Copied %d %s", len(annotations), label)}),
-		), true
+		text := formatAnnotationsMarkdown(annotations)
+		return func() tea.Msg {
+			if err := m.clipboardWriter(text); err != nil {
+				return intents.AddMessage{
+					Text: fmt.Sprintf("Failed to copy %s: %v", label, err),
+					Err:  err,
+				}
+			}
+			return intents.AddMessage{Text: fmt.Sprintf("Copied %d %s", len(annotations), label)}
+		}, true
 	}
 	return nil, false
 }

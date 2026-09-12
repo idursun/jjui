@@ -75,10 +75,19 @@ func newTestRepo(t *testing.T) *testRepo {
 	repo := filepath.Join(root, "repo")
 	configHome := filepath.Join(root, "config")
 	jjuiConfig := filepath.Join(root, "jjui-config")
+	clipboardBin := filepath.Join(root, "clipboard-bin")
+	clipboardPath := filepath.Join(root, "clipboard")
 	if err := os.MkdirAll(configHome, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(jjuiConfig, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(clipboardBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	clipboardCommand := filepath.Join(clipboardBin, "xclip")
+	if err := os.WriteFile(clipboardCommand, []byte("#!/bin/sh\ncat > \"$JJUI_TEST_CLIPBOARD\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -86,6 +95,8 @@ func newTestRepo(t *testing.T) *testRepo {
 		"HOME=" + filepath.Join(root, "home"),
 		"XDG_CONFIG_HOME=" + configHome,
 		"JJUI_CONFIG_DIR=" + jjuiConfig,
+		"JJUI_TEST_CLIPBOARD=" + clipboardPath,
+		"PATH=" + clipboardBin + ":" + environmentValue(os.Environ(), "PATH"),
 		"TERM=xterm-256color",
 		"COLORTERM=truecolor",
 	}
@@ -98,16 +109,17 @@ func newTestRepo(t *testing.T) *testRepo {
 	}
 	runCommand(t, repo, env, "jj", "commit", "-m", "initial")
 
-	return &testRepo{t: t, path: repo, env: env}
+	return &testRepo{t: t, path: repo, env: env, clipboardPath: clipboardPath}
 }
 
 // testRepo is a fluent builder for the common repository setup used by PTY
 // scenarios. It keeps repository paths and command environments together so
 // history-building steps can be chained without repeating harness plumbing.
 type testRepo struct {
-	t    *testing.T
-	path string
-	env  []string
+	t             *testing.T
+	path          string
+	env           []string
+	clipboardPath string
 }
 
 func (r *testRepo) Append(path, content string) *testRepo {
