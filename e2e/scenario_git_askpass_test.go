@@ -4,27 +4,31 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	ghostty "go.mitchellh.com/libghostty"
 )
 
 const (
-	gitAskpassURL      = "https://example.invalid/repo.git"
-	gitAskpassUsername = "Username for '" + gitAskpassURL + "':"
-	gitAskpassPassword = "Password for '" + gitAskpassURL + "':"
+	gitAskpassUsernamePrefix = "Username for 'http://127.0.0.1:"
+	gitAskpassPasswordPrefix = "Password for '"
 )
 
 func Test_GitAskpass_PromptsAndSubmitsCredentials(t *testing.T) {
 	t.Parallel()
-	repo, resultPath := newGitAskpassRepo(t, false)
+	repo, credentialsPath, _ := newGitAskpassRepo(t, false)
 	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "initial")
 	startGitPush(t, session, ctx)
 
 	screen, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, gitAskpassUsername)
+		return screenContains(screen, gitAskpassUsernamePrefix)
 	})
 	if err != nil {
 		t.Fatalf("username prompt did not render: %v", err)
@@ -45,7 +49,7 @@ func Test_GitAskpass_PromptsAndSubmitsCredentials(t *testing.T) {
 	}
 
 	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, gitAskpassPassword)
+		return screenContains(screen, gitAskpassPasswordPrefix)
 	}); err != nil {
 		t.Fatalf("password prompt did not render: %v", err)
 	}
@@ -54,7 +58,7 @@ func Test_GitAskpass_PromptsAndSubmitsCredentials(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, gitAskpassPassword) &&
+		return screenContains(screen, gitAskpassPasswordPrefix) &&
 			screenContains(screen, "***********") &&
 			!screenContains(screen, secret)
 	}); err != nil {
@@ -65,7 +69,7 @@ func Test_GitAskpass_PromptsAndSubmitsCredentials(t *testing.T) {
 	}
 
 	waitFor(t, ctx, func() (bool, error) {
-		data, err := os.ReadFile(resultPath)
+		data, err := os.ReadFile(credentialsPath)
 		if os.IsNotExist(err) {
 			return false, nil
 		}
@@ -77,12 +81,12 @@ func Test_GitAskpass_PromptsAndSubmitsCredentials(t *testing.T) {
 
 func Test_GitAskpass_CancelStopsPrompt(t *testing.T) {
 	t.Parallel()
-	repo, resultPath := newGitAskpassRepo(t, true)
+	repo, _, outcomePath := newGitAskpassRepo(t, true)
 	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "initial")
 	startGitPush(t, session, ctx)
 
 	screen, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, gitAskpassUsername)
+		return screenContains(screen, gitAskpassUsernamePrefix)
 	})
 	if err != nil {
 		t.Fatalf("username prompt did not render: %v", err)
@@ -97,7 +101,7 @@ func Test_GitAskpass_CancelStopsPrompt(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, gitAskpassPassword)
+		return screenContains(screen, gitAskpassPasswordPrefix)
 	}); err != nil {
 		t.Fatalf("password prompt did not render: %v", err)
 	}
@@ -106,37 +110,40 @@ func Test_GitAskpass_CancelStopsPrompt(t *testing.T) {
 	}
 
 	waitFor(t, ctx, func() (bool, error) {
-		data, err := os.ReadFile(resultPath)
+		data, err := os.ReadFile(outcomePath)
 		if os.IsNotExist(err) {
 			return false, nil
 		}
-		return string(data) == "cancelled\n", err
+		return string(data) == "failed\n", err
 	})
 
 	quitJJUI(t, session, ctx)
 }
 
-func newGitAskpassRepo(t *testing.T, cancel bool) (*testRepo, string) {
+func newGitAskpassRepo(t *testing.T, cancel bool) (*testRepo, string, string) {
 	t.Helper()
 	repo := newTestRepo(t)
-	resultPath := filepath.Join(filepath.Dir(repo.Path()), "askpass-result")
+	credentialsPath := filepath.Join(filepath.Dir(repo.Path()), "askpass-credentials")
+	outcomePath := filepath.Join(filepath.Dir(repo.Path()), "askpass-outcome")
+	gitURL, closeServer := newGitCredentialServer(t, credentialsPath)
+	t.Cleanup(closeServer)
 	fakeGitDir := filepath.Join(filepath.Dir(repo.Path()), "fake-git-bin")
 	if err := os.MkdirAll(fakeGitDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	script := "#!/bin/sh\nset -eu\n" +
-		"username=\"$(\"$GIT_ASKPASS\" \"" + gitAskpassUsername + "\")\"\n"
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := "#!/bin/sh\nset -u\n" +
+		"if \"$JJUI_REAL_GIT\" ls-remote \"$JJUI_TEST_GIT_URL\" >/dev/null 2>&1; then\n" +
+		"  printf '%s\\n' success > \"$JJUI_TEST_ASKPASS_OUTCOME\"\n" +
+		"else\n" +
+		"  printf '%s\\n' failed > \"$JJUI_TEST_ASKPASS_OUTCOME\"\n" +
+		"fi\n"
 	if cancel {
-		script += "if \"$GIT_ASKPASS\" \"" + gitAskpassPassword + "\"; then\n" +
-			"  exit 1\n" +
-			"else\n" +
-			"  printf '%s\\n' cancelled > \"$JJUI_TEST_ASKPASS_RESULT\"\n" +
-			"  exit 1\n" +
-			"fi\n"
-	} else {
-		script += "password=\"$(\"$GIT_ASKPASS\" \"" + gitAskpassPassword + "\")\"\n" +
-			"printf '%s\\n%s\\n' \"$username\" \"$password\" > \"$JJUI_TEST_ASKPASS_RESULT\"\n"
+		script = strings.Replace(script, "printf '%s\\n' success", "printf '%s\\n' failed", 1)
 	}
 	if err := os.WriteFile(filepath.Join(fakeGitDir, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
@@ -144,13 +151,32 @@ func newGitAskpassRepo(t *testing.T, cancel bool) (*testRepo, string) {
 
 	repo.env = mergeEnvironment(repo.env, []string{
 		"PATH=" + fakeGitDir + ":" + environmentValue(repo.env, "PATH"),
-		"JJUI_TEST_ASKPASS_RESULT=" + resultPath,
+		"JJUI_REAL_GIT=" + realGit,
+		"JJUI_TEST_GIT_URL=" + gitURL,
+		"JJUI_TEST_ASKPASS_OUTCOME=" + outcomePath,
 	})
-	repo.JJ("git", "remote", "add", "origin", gitAskpassURL).
+	repo.JJ("git", "remote", "add", "origin", gitURL).
 		JJ("describe", "-m", "remote main").
 		Bookmark("main", "@")
 	writeJJUIConfig(t, repo.Env(), "[askpass]\nenabled = true\n")
-	return repo, resultPath
+	return repo, credentialsPath, outcomePath
+}
+
+func newGitCredentialServer(t *testing.T, resultPath string) (string, func()) {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, password, ok := r.BasicAuth()
+		if !ok {
+			w.Header().Set("WWW-Authenticate", `Basic realm="jjui-e2e"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if err := os.WriteFile(resultPath, []byte(fmt.Sprintf("%s\n%s\n", username, password)), 0o600); err != nil {
+			t.Logf("recording Git credentials: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	return server.URL, server.Close
 }
 
 func startGitPush(t *testing.T, session *ptySession, ctx context.Context) {
