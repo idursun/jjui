@@ -288,7 +288,10 @@ func (m *Model) renderExpandedStatus(dl *render.DisplayContext, box layout.Box, 
 		return
 	}
 
-	expandedHelp, contentLineCount := m.expandedStatusView(m.groups, max(0, width-4), titleStyle, shortcutStyle, dimmedStyle)
+	// Keep at least one row of the main view visible above the expanded help.
+	// The full keybinding list is available from the dedicated help view.
+	maxLines := max(1, box.R.Min.Y-1)
+	expandedHelp, contentLineCount := m.expandedStatusView(m.groups, max(0, width-4), maxLines, titleStyle, shortcutStyle, dimmedStyle)
 	expandedLines := strings.Split(expandedHelp, "\n")
 	startY := box.R.Min.Y - contentLineCount
 
@@ -459,9 +462,10 @@ func (m *Model) InputValue() string {
 	return m.input.Value()
 }
 
-func (m *Model) expandedStatusView(groups []help.ScopeGroup, maxWidth int, titleStyle, shortcutStyle, dimmedStyle lipgloss.Style) (string, int) {
+func (m *Model) expandedStatusView(groups []help.ScopeGroup, maxWidth, maxLines int, titleStyle, shortcutStyle, dimmedStyle lipgloss.Style) (string, int) {
 	expandKey := m.expandStatusKey(groups)
 	closeHint := shortcutStyle.Render(expandKey+"/esc") + dimmedStyle.PaddingLeft(1).Render("close help")
+	fullHelpHint := shortcutStyle.Render(m.fullHelpKey(groups)) + dimmedStyle.PaddingLeft(1).Render("full help")
 
 	renderedGroups := make([][]string, len(groups))
 	maxEntryWidth := 0
@@ -484,6 +488,17 @@ func (m *Model) expandedStatusView(groups []help.ScopeGroup, maxWidth int, title
 		allLines = append(allLines, lines...)
 	}
 	allLines = append(allLines, "", closeHint)
+	if maxLines > 0 && len(allLines) > maxLines {
+		// Reserve space for a full-help hint and the close hint when the
+		// expanded status cannot fit in the available viewport.
+		if maxLines == 1 {
+			allLines = []string{closeHint}
+		} else {
+			const hintLines = 2
+			contentLines := maxLines - hintLines
+			allLines = append(allLines[:contentLines], fullHelpHint, closeHint)
+		}
+	}
 	return strings.Join(allLines, "\n"), len(allLines)
 }
 
@@ -611,6 +626,17 @@ func (m *Model) expandStatusKey(groups []help.ScopeGroup) string {
 		}
 	}
 	return expandFallback.Label
+}
+
+func (m *Model) fullHelpKey(groups []help.ScopeGroup) string {
+	for _, group := range groups {
+		for _, entry := range group.Entries {
+			if entry.Desc == "help" {
+				return entry.Label
+			}
+		}
+	}
+	return "f1"
 }
 
 func New(context *context.MainContext) *Model {

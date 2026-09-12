@@ -2,6 +2,7 @@ package status
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -112,6 +113,25 @@ func TestModel_ViewStatusRectShowsMode(t *testing.T) {
 	rendered := dl.RenderToString(40, 1)
 
 	assert.Contains(t, rendered, "diff")
+}
+
+func TestModel_ViewStatusRectExpandedHelpLeavesMainViewVisible(t *testing.T) {
+	ctx := &context.MainContext{Histories: config.NewHistories()}
+	m := New(ctx)
+	entries := make([]help.Entry, 20)
+	for i := range entries {
+		entries[i] = help.Entry{Label: "k", Desc: "entry"}
+	}
+	m.SetHelp(entries)
+	m.SetStatusExpanded(true)
+
+	dl := render.NewDisplayContext()
+	m.ViewStatusRect(dl, layout.NewBox(layout.Rect(0, 4, 20, 1)))
+	rendered := dl.RenderToString(20, 5)
+	lines := strings.Split(rendered, "\n")
+
+	assert.NotContains(t, lines[0], "entry")
+	assert.Contains(t, rendered, "full help")
 }
 
 func TestModel_ViewInputRectUsesFullWidth(t *testing.T) {
