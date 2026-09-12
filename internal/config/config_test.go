@@ -176,6 +176,12 @@ enabled = true
 	assert.True(t, config.AskpassEnabled())
 }
 
+func TestDefaultAskpassEnabled(t *testing.T) {
+	if !loadDefaultConfig().AskpassEnabled() {
+		t.Fatal("askpass should be enabled by default")
+	}
+}
+
 func TestAskpassEnabled_BackwardsCompatibility(t *testing.T) {
 	config := &Config{}
 	err := config.Load(`

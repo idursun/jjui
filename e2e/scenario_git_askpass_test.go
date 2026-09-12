@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	ghostty "go.mitchellh.com/libghostty"
@@ -23,7 +22,7 @@ const (
 
 func Test_GitAskpass_PromptsAndSubmitsCredentials(t *testing.T) {
 	t.Parallel()
-	repo, credentialsPath, _ := newGitAskpassRepo(t, false)
+	repo, credentialsPath := newGitAskpassRepo(t)
 	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "initial")
 	startGitPush(t, session, ctx)
 
@@ -81,7 +80,7 @@ func Test_GitAskpass_PromptsAndSubmitsCredentials(t *testing.T) {
 
 func Test_GitAskpass_CancelStopsPrompt(t *testing.T) {
 	t.Parallel()
-	repo, _, outcomePath := newGitAskpassRepo(t, true)
+	repo, credentialsPath := newGitAskpassRepo(t)
 	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "initial")
 	startGitPush(t, session, ctx)
 
@@ -108,23 +107,22 @@ func Test_GitAskpass_CancelStopsPrompt(t *testing.T) {
 	if err := session.SendKey(ghostty.KeyEscape, "", 0); err != nil {
 		t.Fatal(err)
 	}
-
-	waitFor(t, ctx, func() (bool, error) {
-		data, err := os.ReadFile(outcomePath)
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return string(data) == "failed\n", err
-	})
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
+		return screenContains(screen, "Git process failed")
+	}); err != nil {
+		t.Fatalf("Git command did not terminate after canceling the prompt: %v", err)
+	}
+	if _, err := os.Stat(credentialsPath); !os.IsNotExist(err) {
+		t.Fatalf("canceled Git command sent credentials: %v", err)
+	}
 
 	quitJJUI(t, session, ctx)
 }
 
-func newGitAskpassRepo(t *testing.T, cancel bool) (*testRepo, string, string) {
+func newGitAskpassRepo(t *testing.T) (*testRepo, string) {
 	t.Helper()
 	repo := newTestRepo(t)
 	credentialsPath := filepath.Join(filepath.Dir(repo.Path()), "askpass-credentials")
-	outcomePath := filepath.Join(filepath.Dir(repo.Path()), "askpass-outcome")
 	gitURL, closeServer := newGitCredentialServer(t, credentialsPath)
 	t.Cleanup(closeServer)
 	fakeGitDir := filepath.Join(filepath.Dir(repo.Path()), "fake-git-bin")
@@ -136,15 +134,7 @@ func newGitAskpassRepo(t *testing.T, cancel bool) (*testRepo, string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	script := "#!/bin/sh\nset -u\n" +
-		"if \"$JJUI_REAL_GIT\" ls-remote \"$JJUI_TEST_GIT_URL\" >/dev/null 2>&1; then\n" +
-		"  printf '%s\\n' success > \"$JJUI_TEST_ASKPASS_OUTCOME\"\n" +
-		"else\n" +
-		"  printf '%s\\n' failed > \"$JJUI_TEST_ASKPASS_OUTCOME\"\n" +
-		"fi\n"
-	if cancel {
-		script = strings.Replace(script, "printf '%s\\n' success", "printf '%s\\n' failed", 1)
-	}
+	script := "#!/bin/sh\nset -u\nexec \"$JJUI_REAL_GIT\" \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(fakeGitDir, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -152,14 +142,11 @@ func newGitAskpassRepo(t *testing.T, cancel bool) (*testRepo, string, string) {
 	repo.env = mergeEnvironment(repo.env, []string{
 		"PATH=" + fakeGitDir + ":" + environmentValue(repo.env, "PATH"),
 		"JJUI_REAL_GIT=" + realGit,
-		"JJUI_TEST_GIT_URL=" + gitURL,
-		"JJUI_TEST_ASKPASS_OUTCOME=" + outcomePath,
 	})
 	repo.JJ("git", "remote", "add", "origin", gitURL).
 		JJ("describe", "-m", "remote main").
 		Bookmark("main", "@")
-	writeJJUIConfig(t, repo.Env(), "[askpass]\nenabled = true\n")
-	return repo, credentialsPath, outcomePath
+	return repo, credentialsPath
 }
 
 func newGitCredentialServer(t *testing.T, resultPath string) (string, func()) {

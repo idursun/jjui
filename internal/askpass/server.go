@@ -21,17 +21,23 @@ import (
 
 // NewUnstartedServer creates an unstarted server to handle askpass prompts.
 func NewUnstartedServer(envPrefix string) *Server {
+	executablePath, err := os.Executable()
+	if err != nil {
+		executablePath = os.Args[0]
+	}
 	return &Server{
-		envPrefix:  envPrefix,
-		socketPath: filepath.Join(os.TempDir(), strings.ToLower(envPrefix)+"-askpass-"+strconv.Itoa(os.Getpid())+".sock"),
+		envPrefix:      envPrefix,
+		socketPath:     filepath.Join(os.TempDir(), strings.ToLower(envPrefix)+"-askpass-"+strconv.Itoa(os.Getpid())+".sock"),
+		executablePath: executablePath,
 
 		subprocesses: make(map[string]subprocess),
 	}
 }
 
 type Server struct {
-	envPrefix  string
-	socketPath string
+	envPrefix      string
+	socketPath     string
+	executablePath string
 
 	ln atomic.Pointer[net.UnixListener]
 
@@ -246,9 +252,9 @@ func (s *Server) NewSubprocess(name string) (started func(ppid int), cancel func
 			delete(s.subprocesses, key)
 			s.mu.Unlock()
 		}, []string{
-			"GIT_ASKPASS=" + os.Args[0],
+			"GIT_ASKPASS=" + s.executablePath,
 			"GIT_TERMINAL_PROMPT=0",
-			"SSH_ASKPASS=" + os.Args[0],
+			"SSH_ASKPASS=" + s.executablePath,
 			"SSH_ASKPASS_REQUIRE=force",
 			s.envPrefix + "_ASKPASS_ADDR=" + s.socketPath,
 			s.envPrefix + "_ASKPASS_KEY=" + key,
