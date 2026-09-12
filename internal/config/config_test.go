@@ -181,13 +181,3 @@ func TestDefaultAskpassEnabled(t *testing.T) {
 		t.Fatal("askpass should be enabled by default")
 	}
 }
-
-func TestAskpassEnabled_BackwardsCompatibility(t *testing.T) {
-	config := &Config{}
-	err := config.Load(`
-[ssh]
-hijack_askpass = true
-`, "")
-	require.NoError(t, err)
-	assert.True(t, config.AskpassEnabled())
-}

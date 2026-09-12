@@ -46,9 +46,6 @@ bindings_profile = ":builtin"
 [askpass]
   enabled = true
 
-[ssh]
-  hijack_askpass = false
-
 [bookmark]
   interactive_bookmark_pane = false
 
