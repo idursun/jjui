@@ -23,10 +23,14 @@ func Test_GitAskpass_PromptsAndSubmitsCredentials(t *testing.T) {
 	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "initial")
 	startGitPush(t, session, ctx)
 
-	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
+	screen, err := session.WaitForScreen(ctx, func(screen []string) bool {
 		return screenContains(screen, gitAskpassUsername)
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("username prompt did not render: %v", err)
+	}
+	if screenContains(screen, "Remotes:") {
+		t.Fatalf("Git Operations content remained visible behind askpass prompt:\n%s", formatScreen(screen))
 	}
 	if err := session.SendText("test-user"); err != nil {
 		t.Fatal(err)
@@ -77,10 +81,14 @@ func Test_GitAskpass_CancelStopsPrompt(t *testing.T) {
 	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "initial")
 	startGitPush(t, session, ctx)
 
-	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
+	screen, err := session.WaitForScreen(ctx, func(screen []string) bool {
 		return screenContains(screen, gitAskpassUsername)
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("username prompt did not render: %v", err)
+	}
+	if screenContains(screen, "Remotes:") {
+		t.Fatalf("Git Operations content remained visible behind askpass prompt:\n%s", formatScreen(screen))
 	}
 	if err := session.SendText("test-user"); err != nil {
 		t.Fatal(err)
