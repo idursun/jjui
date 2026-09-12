@@ -474,9 +474,8 @@ func (m *Model) View() string {
 	}
 
 	if m.password == nil {
-		
 
-	if scope, ok := m.stackedScope(); !ok || scope != actions.ScopeCommandHistory {
+		if scope, ok := m.stackedScope(); !ok || scope != actions.ScopeCommandHistory {
 			flashBox := box
 			if footerHeight := m.footerHeight(box); footerHeight > 0 {
 				flashBox, _ = box.CutBottom(footerHeight)
