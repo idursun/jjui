@@ -21,7 +21,9 @@ type Model struct {
 func New(msg common.TogglePasswordMsg) *Model {
 	ti := textinput.New()
 	ti.Prompt = msg.Prompt
-	ti.EchoMode = textinput.EchoPassword
+	if msg.EchoPassword {
+		ti.EchoMode = textinput.EchoPassword
+	}
 	ti.SetVirtualCursor(false)
 	ti.Focus()
 

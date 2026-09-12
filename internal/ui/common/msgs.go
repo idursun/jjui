@@ -80,8 +80,9 @@ type (
 		ID string
 	}
 	TogglePasswordMsg struct {
-		Prompt   string
-		Password chan []byte
+		Prompt       string
+		Password     chan []byte
+		EchoPassword bool
 	}
 	RestoreOperationMsg struct {
 		Operation any

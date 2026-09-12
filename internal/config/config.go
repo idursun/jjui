@@ -27,6 +27,7 @@ type Config struct {
 	OpLog           OpLogConfig     `toml:"oplog"`
 	Limit           int             `toml:"limit"`
 	Git             GitConfig       `toml:"git"`
+	Askpass         AskpassConfig   `toml:"askpass"`
 	Ssh             SshConfig       `toml:"ssh"`
 	Bookmark        BookmarkConfig  `toml:"bookmark"`
 }
@@ -362,6 +363,10 @@ type GitConfig struct {
 	DefaultRemote string `toml:"default_remote"`
 }
 
+type AskpassConfig struct {
+	Enabled bool `toml:"enabled"`
+}
+
 func GetGitDefaultRemote(c *Config) string {
 	remote := c.Git.DefaultRemote
 	if strings.TrimSpace(remote) == "" {
@@ -371,7 +376,13 @@ func GetGitDefaultRemote(c *Config) string {
 }
 
 type SshConfig struct {
+	// HijackAskpass is kept for backwards compatibility as an alias for
+	// [askpass].enabled.
 	HijackAskpass bool `toml:"hijack_askpass"`
+}
+
+func (c *Config) AskpassEnabled() bool {
+	return c.Askpass.Enabled || c.Ssh.HijackAskpass
 }
 
 type BookmarkConfig struct {
