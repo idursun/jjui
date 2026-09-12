@@ -253,9 +253,9 @@ func run() int {
 	appContext.CurrentRevset = appContext.DefaultRevset
 
 	p := tea.NewProgram(ui.New(appContext), tea.WithInput(os.Stdin))
-	if config.Current.Ssh.HijackAskpass {
+	if config.Current.AskpassEnabled() {
 		if err := askpassServer.StartListening(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: ssh.hijack_askpass: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error: askpass.enabled: %v\n", err)
 			return 1
 		}
 		defer askpassServer.Close()
@@ -280,13 +280,14 @@ func showPassword(send func(tea.Msg)) func(name, prompt string, done <-chan stru
 				return s
 			}
 		}
-		return "ssh-askpass: "
+		return "askpass: "
 	}
 	return func(name, prompt string, done <-chan struct{}) []byte {
 		password := make(chan []byte, 1)
 		send(common.TogglePasswordMsg{
-			Prompt:   adjustPrompt(prompt),
-			Password: password,
+			Prompt:       adjustPrompt(prompt),
+			Password:     password,
+			EchoPassword: isSecretPrompt(prompt),
 		})
 
 		select {
@@ -297,4 +298,11 @@ func showPassword(send func(tea.Msg)) func(name, prompt string, done <-chan stru
 			return pw
 		}
 	}
+}
+
+func isSecretPrompt(prompt string) bool {
+	prompt = strings.ToLower(prompt)
+	return strings.Contains(prompt, "password") ||
+		strings.Contains(prompt, "passphrase") ||
+		strings.Contains(prompt, "pin")
 }

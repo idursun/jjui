@@ -165,3 +165,23 @@ interactive_bookmark_pane = true
 	require.NoError(t, err)
 	assert.True(t, config.Bookmark.InteractiveBookmarkPane)
 }
+
+func TestLoad_AskpassConfig(t *testing.T) {
+	config := &Config{}
+	err := config.Load(`
+[askpass]
+enabled = true
+`, "")
+	require.NoError(t, err)
+	assert.True(t, config.AskpassEnabled())
+}
+
+func TestAskpassEnabled_BackwardsCompatibility(t *testing.T) {
+	config := &Config{}
+	err := config.Load(`
+[ssh]
+hijack_askpass = true
+`, "")
+	require.NoError(t, err)
+	assert.True(t, config.AskpassEnabled())
+}

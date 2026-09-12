@@ -43,6 +43,9 @@ bindings_profile = ":builtin"
 [git]
   default_remote = "origin"
 
+[askpass]
+  enabled = false
+
 [ssh]
   hijack_askpass = false
 
