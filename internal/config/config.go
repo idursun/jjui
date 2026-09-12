@@ -28,7 +28,6 @@ type Config struct {
 	Limit           int             `toml:"limit"`
 	Git             GitConfig       `toml:"git"`
 	Askpass         AskpassConfig   `toml:"askpass"`
-	Ssh             SshConfig       `toml:"ssh"`
 	Bookmark        BookmarkConfig  `toml:"bookmark"`
 }
 
@@ -375,14 +374,8 @@ func GetGitDefaultRemote(c *Config) string {
 	return remote
 }
 
-type SshConfig struct {
-	// HijackAskpass is kept for backwards compatibility as an alias for
-	// [askpass].enabled.
-	HijackAskpass bool `toml:"hijack_askpass"`
-}
-
 func (c *Config) AskpassEnabled() bool {
-	return c.Askpass.Enabled || c.Ssh.HijackAskpass
+	return c.Askpass.Enabled
 }
 
 type BookmarkConfig struct {
