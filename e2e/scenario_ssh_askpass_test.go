@@ -77,6 +77,5 @@ func newSSHAskpassRepo(t *testing.T) (*testRepo, string) {
 	repo.JJ("git", "remote", "add", "origin", "git@github.com:example/repo.git").
 		JJ("describe", "-m", "ssh remote").
 		Bookmark("main", "@")
-	writeJJUIConfig(t, repo.Env(), "[askpass]\nenabled = true\n")
 	return repo, resultPath
 }

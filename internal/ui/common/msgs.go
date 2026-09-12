@@ -80,6 +80,7 @@ type (
 		ID string
 	}
 	TogglePasswordMsg struct {
+		ID           uint64
 		Prompt       string
 		Password     chan []byte
 		EchoPassword bool

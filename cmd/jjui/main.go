@@ -12,9 +12,11 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"sync/atomic"
 	"unicode"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/askpass"
 	"github.com/idursun/jjui/internal/ui/common"
 
@@ -273,26 +275,20 @@ func run() int {
 }
 
 func showPassword(send func(tea.Msg)) func(name, prompt string, done <-chan struct{}) []byte {
-	adjustPrompt := func(s string) string {
-		// ensure that the prompt is not only made of spaces
-		for _, r := range s {
-			if !unicode.IsSpace(r) {
-				return s
-			}
-		}
-		return "askpass: "
-	}
+	var promptID atomic.Uint64
 	return func(name, prompt string, done <-chan struct{}) []byte {
+		id := promptID.Add(1)
 		password := make(chan []byte, 1)
 		send(common.TogglePasswordMsg{
-			Prompt:       adjustPrompt(prompt),
+			ID:           id,
+			Prompt:       adjustAskpassPrompt(prompt),
 			Password:     password,
 			EchoPassword: isSecretPrompt(prompt),
 		})
 
 		select {
 		case <-done:
-			send(common.TogglePasswordMsg{})
+			send(common.TogglePasswordMsg{ID: id})
 			return nil
 		case pw := <-password:
 			return pw
@@ -300,9 +296,28 @@ func showPassword(send func(tea.Msg)) func(name, prompt string, done <-chan stru
 	}
 }
 
+func adjustAskpassPrompt(prompt string) string {
+	prompt = ansi.Strip(prompt)
+	prompt = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, prompt)
+	prompt = strings.TrimSpace(prompt)
+	if prompt == "" {
+		return "askpass: "
+	}
+	const maxPromptLength = 200
+	if runes := []rune(prompt); len(runes) > maxPromptLength {
+		return string(runes[:maxPromptLength]) + "…"
+	}
+	return prompt
+}
+
 func isSecretPrompt(prompt string) bool {
-	prompt = strings.ToLower(prompt)
-	return strings.Contains(prompt, "password") ||
-		strings.Contains(prompt, "passphrase") ||
-		strings.Contains(prompt, "pin")
+	prompt = strings.ToLower(ansi.Strip(prompt))
+	return !strings.Contains(prompt, "username") &&
+		!strings.Contains(prompt, "user name") &&
+		!strings.Contains(prompt, "login")
 }

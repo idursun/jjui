@@ -44,7 +44,7 @@ bindings_profile = ":builtin"
   default_remote = "origin"
 
 [askpass]
-  enabled = false
+  enabled = true
 
 [ssh]
   hijack_askpass = false
