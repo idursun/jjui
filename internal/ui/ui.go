@@ -470,7 +470,10 @@ func (m *Model) View() string {
 	}
 
 	if scope, ok := m.stackedScope(); !ok || scope != actions.ScopeCommandHistory {
-		flashBox, _ := box.CutBottom(1)
+		flashBox := box
+		if footerHeight := m.footerHeight(box); footerHeight > 0 {
+			flashBox, _ = box.CutBottom(footerHeight)
+		}
 		m.flash.ViewRect(m.displayContext, flashBox)
 	}
 
@@ -505,22 +508,54 @@ func (m *Model) renderOpLogLayout(box layout.Box) {
 }
 
 func (m *Model) renderRevisionsLayout(box layout.Box) {
-	rows := box.V(layout.Fixed(1), layout.Fill(1), layout.Fixed(1))
-	if len(rows) < 3 {
-		return
-	}
+	content, input, status := m.splitFooter(box)
+	rows := content.V(layout.Fixed(1), layout.Fill(1))
 	m.revsetModel.ViewRect(m.displayContext, rows[0])
 	m.renderSplit(m.revisions, rows[1])
-	m.status.ViewRect(m.displayContext, rows[2])
+	m.renderFooter(input, status)
 }
 
 func (m *Model) renderWithStatus(box layout.Box, renderContent func(layout.Box)) {
-	rows := box.V(layout.Fill(1), layout.Fixed(1))
-	if len(rows) < 2 {
-		return
+	content, input, status := m.splitFooter(box)
+	renderContent(content)
+	m.renderFooter(input, status)
+}
+
+func (m *Model) splitFooter(box layout.Box) (content, input, status layout.Box) {
+	content = box
+	footerHeight := m.footerHeight(box)
+	if footerHeight == 0 {
+		return content, input, status
 	}
-	renderContent(rows[0])
-	m.status.ViewRect(m.displayContext, rows[1])
+
+	content, footer := box.CutBottom(footerHeight)
+	if m.status.IsFocused() {
+		if footerHeight == 1 {
+			input = footer
+			return content, input, status
+		}
+		rows := footer.V(layout.Fixed(1), layout.Fixed(1))
+		input, status = rows[0], rows[1]
+		return content, input, status
+	}
+	status = footer
+	return content, input, status
+}
+
+func (m *Model) footerHeight(box layout.Box) int {
+	if m.status.IsFocused() {
+		return min(box.R.Dy(), 2)
+	}
+	return min(box.R.Dy(), 1)
+}
+
+func (m *Model) renderFooter(input, status layout.Box) {
+	if input.R.Dy() > 0 {
+		m.status.ViewInputRect(m.displayContext, input)
+	}
+	if status.R.Dy() > 0 {
+		m.status.ViewStatusRect(m.displayContext, status)
+	}
 }
 
 func (m *Model) scheduleAutoRefresh() tea.Cmd {

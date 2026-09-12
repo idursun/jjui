@@ -45,6 +45,16 @@ type Model struct {
 	statusTruncated bool
 }
 
+// ViewRect renders the currently active footer row. The root UI uses the more
+// specific ViewInputRect and ViewStatusRect methods when both rows are visible.
+func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	if m.IsFocused() {
+		m.ViewInputRect(dl, box)
+		return
+	}
+	m.ViewStatusRect(dl, box)
+}
+
 func (m *Model) IsFocused() bool {
 	return m.focusKind != FocusNone
 }
@@ -210,12 +220,30 @@ func (m *Model) loadEditingSuggestions() {
 	m.input.SetSuggestions(history)
 }
 
-func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
+// ViewStatusRect renders the mode and keybinding help row.
+func (m *Model) ViewStatusRect(dl *render.DisplayContext, box layout.Box) {
 	shortcutStyle := common.DefaultPalette.Get("status", "", "shortcut", false)
 	dimmedStyle := common.DefaultPalette.Get("status", "", "dimmed", false)
 	textStyle := common.DefaultPalette.Get("status", "", "text", false)
 	titleStyle := common.DefaultPalette.Get("status", "", "title", false).PaddingLeft(1).PaddingRight(1)
 
+	width := box.R.Dx()
+	dl.AddFill(box.R, ' ', textStyle, 0)
+	helpBar := m.renderHelpBar(width, textStyle, shortcutStyle, dimmedStyle)
+
+	dl.AddDraw(box.R, helpBar, 0)
+	m.renderExpandedStatus(dl, box, width, textStyle, titleStyle, shortcutStyle, dimmedStyle)
+}
+
+// ViewInputRect renders the focused input row independently from the status row.
+func (m *Model) ViewInputRect(dl *render.DisplayContext, box layout.Box) {
+	if !m.IsFocused() || box.R.Dy() == 0 {
+		return
+	}
+
+	dimmedStyle := common.DefaultPalette.Get("status", "", "dimmed", false)
+	textStyle := common.DefaultPalette.Get("status", "", "text", false)
+	titleStyle := common.DefaultPalette.Get("status", "", "title", false).PaddingLeft(1).PaddingRight(1)
 	inputStyles := m.input.Styles()
 	inputStyles.Focused.Text = textStyle
 	inputStyles.Focused.Suggestion = dimmedStyle
@@ -229,46 +257,22 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	dl.AddFill(box.R, ' ', textStyle, 0)
 	modeWidth := max(10, len(m.mode)+2)
 	mode := titleStyle.Width(modeWidth).Render(m.mode)
-
-	var statusLine string
-	if m.IsFocused() {
-		content := m.renderContent(width, modeWidth, shortcutStyle, dimmedStyle)
-		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, textStyle.Render(" "), content)
-	} else {
-		helpBar := m.renderHelpBar(width, modeWidth, textStyle, shortcutStyle, dimmedStyle)
-		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, textStyle.Render(" "), helpBar)
-	}
-
-	dl.AddDraw(box.R, statusLine, 0)
-	if m.IsFocused() {
-		dl.SetCursorInRect(m.input.Cursor(), box.R, modeWidth+1, 0)
-	}
-	m.renderExpandedStatus(dl, box, width, textStyle, titleStyle, shortcutStyle, dimmedStyle)
+	m.input.SetWidth(max(0, width-modeWidth-1-render.StringWidth(m.input.Prompt)))
+	input := lipgloss.JoinHorizontal(lipgloss.Left, mode, textStyle.Render(" "), m.input.View())
+	dl.AddDraw(box.R, input, 0)
+	dl.SetCursorInRect(m.input.Cursor(), box.R, modeWidth+1, 0)
 	m.renderFuzzyOverlay(dl, box)
 }
 
-// renderHelpBar renders the help keybindings bar when idle.
-func (m *Model) renderHelpBar(width, modeWidth int, textStyle, shortcutStyle, dimmedStyle lipgloss.Style) string {
+// renderHelpBar renders the help keybindings bar.
+func (m *Model) renderHelpBar(width int, textStyle, shortcutStyle, dimmedStyle lipgloss.Style) string {
 	if len(m.groups) == 0 || m.statusExpanded {
 		return textStyle.Render(" ")
 	}
 
-	availableWidth := max(0, width-modeWidth-2)
-	helpContent, truncated := m.groupedHelpView(m.groups, availableWidth, shortcutStyle, dimmedStyle)
+	helpContent, truncated := m.groupedHelpView(m.groups, width, shortcutStyle, dimmedStyle)
 	m.statusTruncated = truncated
 	return lipgloss.PlaceHorizontal(width, 0, helpContent, lipgloss.WithWhitespaceStyle(textStyle))
-}
-
-// renderContent handles input display when focused
-func (m *Model) renderContent(width, modeWidth int, shortcutStyle, dimmedStyle lipgloss.Style) string {
-	var editHelp string
-	if len(m.groups) > 0 {
-		editHelp, _ = m.groupedHelpView(m.groups, 0, shortcutStyle, dimmedStyle)
-	}
-
-	promptWidth := render.StringWidth(m.input.Prompt) + 2
-	m.input.SetWidth(width - modeWidth - promptWidth - render.StringWidth(editHelp))
-	return lipgloss.JoinHorizontal(0, m.input.View(), editHelp)
 }
 
 // renderExpandedStatus orchestrates expanded help overlay

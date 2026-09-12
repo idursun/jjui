@@ -9,6 +9,9 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/help"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -82,6 +85,34 @@ func TestModel_BuildHelpGrid_ColumnMajorOrder(t *testing.T) {
 		"A  C  E",
 		"B  D  F",
 	}, lines)
+}
+
+func TestModel_ViewStatusRectShowsHelpWhileInputIsFocused(t *testing.T) {
+	ctx := &context.MainContext{Histories: config.NewHistories()}
+	m := New(ctx)
+	m.SetHelp([]help.Entry{{Label: "enter", Desc: "apply"}})
+	m.StartExec(common.ExecShell)
+
+	dl := render.NewDisplayContext()
+	m.ViewStatusRect(dl, layout.NewBox(layout.Rect(0, 0, 40, 1)))
+	rendered := dl.RenderToString(40, 1)
+
+	assert.NotContains(t, rendered, "exec sh")
+	assert.Contains(t, rendered, "enter")
+	assert.Contains(t, rendered, "apply")
+}
+
+func TestModel_ViewInputRectUsesFullWidth(t *testing.T) {
+	ctx := &context.MainContext{Histories: config.NewHistories()}
+	m := New(ctx)
+	m.StartExec(common.ExecShell)
+
+	dl := render.NewDisplayContext()
+	box := layout.NewBox(layout.Rect(0, 0, 40, 1))
+	m.ViewInputRect(dl, box)
+
+	assert.Equal(t, 27, m.input.Width())
+	assert.NotNil(t, dl.Cursor())
 }
 
 func TestStatus_Update_FileSearchFocusesAndTypingUpdatesInput(t *testing.T) {

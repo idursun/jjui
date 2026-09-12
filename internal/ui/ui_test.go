@@ -91,6 +91,61 @@ func hasScope(model *Model, name string) bool {
 	})
 }
 
+func TestSplitFooter(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.Histories = config.NewHistories()
+
+	tests := []struct {
+		name                               string
+		height                             int
+		focused                            bool
+		wantContent, wantInput, wantStatus int
+	}{
+		{name: "empty inactive", height: 0},
+		{name: "inactive one row", height: 1, wantStatus: 1},
+		{name: "inactive content and status", height: 2, wantContent: 1, wantStatus: 1},
+		{name: "empty active", height: 0, focused: true},
+		{name: "active one row prioritizes input", height: 1, focused: true, wantInput: 1},
+		{name: "active input and status", height: 2, focused: true, wantInput: 1, wantStatus: 1},
+		{name: "active content input and status", height: 3, focused: true, wantContent: 1, wantInput: 1, wantStatus: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model := NewUI(ctx)
+			if tt.focused {
+				model.status.StartExec(common.ExecShell)
+			}
+
+			content, input, status := model.splitFooter(layout.NewBox(layout.Rect(0, 0, 40, tt.height)))
+
+			assert.Equal(t, tt.wantContent, content.R.Dy())
+			assert.Equal(t, tt.wantInput, input.R.Dy())
+			assert.Equal(t, tt.wantStatus, status.R.Dy())
+		})
+	}
+}
+
+func TestView_ActiveInputUsesRowAboveStatus(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.Histories = config.NewHistories()
+	model := NewUI(ctx)
+	model.width = 30
+	model.height = 3
+	model.status.StartExec(common.ExecShell)
+
+	view := model.View()
+	lines := strings.Split(view, "\n")
+
+	require.GreaterOrEqual(t, len(lines), 3)
+	require.NotNil(t, model.frameCursor)
+	assert.Equal(t, 1, model.frameCursor.Position.Y)
+	assert.Contains(t, lines[1], "exec sh")
+	assert.Contains(t, lines[1], "$ ")
+	assert.NotContains(t, lines[2], "exec sh")
+	assert.NotContains(t, lines[2], "$ ")
+}
+
 func dispatchAction(model *Model, action keybindings.Action, args map[string]any) (tea.Cmd, bool) {
 	result := model.resolver.ResolveAction(action, args)
 	if result.LuaScript != "" {
