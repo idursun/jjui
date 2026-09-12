@@ -1,6 +1,7 @@
 package dispatch
 
 import (
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -81,8 +82,8 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []common.Scope) ResolveResul
 
 	for _, scope := range common.VisibleScopes(scopes) {
 		scopeBindings := d.bindings[scope.Name]
-		for i := len(scopeBindings) - 1; i >= 0; i-- {
-			binding := scopeBindings[i]
+		for _, binding := range slices.Backward(scopeBindings) {
+
 			if len(binding.Key) == 0 {
 				continue
 			}

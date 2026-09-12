@@ -208,10 +208,7 @@ func layoutAll(
 			Index: i,
 		})
 
-		height := max(result.DesiredLine, result.MinLine)
-		if height < 0 {
-			height = 0
-		}
+		height := max(max(result.DesiredLine, result.MinLine), 0)
 
 		itemStart := listY
 		itemEnd := listY + height

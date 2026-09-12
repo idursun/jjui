@@ -55,7 +55,7 @@ func TestChangedWordHighlightUsesCompleteLineContext(t *testing.T) {
 
 func TestHighlightCacheRetainsTheCurrentSource(t *testing.T) {
 	highlighter := newSourceHighlighter(true)
-	for index := 0; index < 320; index++ {
+	for index := range 320 {
 		highlighter.highlight("example.go", "value "+strconv.Itoa(index))
 	}
 

@@ -5,14 +5,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+//go:fix inline
 func boolPtr(v bool) *bool {
-	return &v
+	return new(v)
 }
 
 func TestLoadTheme(t *testing.T) {
@@ -26,7 +28,7 @@ error = "red"
 	require.NoError(t, err)
 
 	expected := map[string]Color{
-		"title":     {Fg: "blue", Bold: boolPtr(true)},
+		"title":     {Fg: "blue", Bold: new(true)},
 		":selected": {Fg: "white", Bg: "blue"},
 		"error":     {Fg: "red"},
 	}
@@ -193,9 +195,9 @@ func TestResolveThemeUIBackgroundBlendUsesActiveModeOverride(t *testing.T) {
 }
 
 func findLastActionByName(actions []ActionConfig, name string) (ActionConfig, bool) {
-	for i := len(actions) - 1; i >= 0; i-- {
-		if actions[i].Name == name {
-			return actions[i], true
+	for _, action := range slices.Backward(actions) {
+		if action.Name == name {
+			return action, true
 		}
 	}
 	return ActionConfig{}, false

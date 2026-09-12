@@ -8,8 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+//go:fix inline
 func boolPtr(v bool) *bool {
-	return &v
+	return new(v)
 }
 
 const (
@@ -95,8 +96,8 @@ func TestPaletteGet_BaseCandidatesFillOmittedProperties(t *testing.T) {
 	p.Update(map[string]config.Color{
 		"status input": {Bg: Black},
 		"status text":  {Fg: Cyan},
-		"input text":   {Underline: boolPtr(true)},
-		"text":         {Italic: boolPtr(true)},
+		"input text":   {Underline: new(true)},
+		"text":         {Italic: new(true)},
 	})
 
 	got := p.Get("status", "input", "text", false)
@@ -142,9 +143,9 @@ func TestPaletteGet_SelectedRolePrecedence(t *testing.T) {
 		"scope:selected":                    {Fg: Blue, Bg: Black},
 		"shortcut:selected":                 {Fg: Green},
 		"scope shortcut:selected":           {Fg: Yellow},
-		"scope component:selected":          {Underline: boolPtr(true)},
-		"scope component shortcut":          {Italic: boolPtr(true)},
-		"scope component shortcut:selected": {Fg: Cyan, Bold: boolPtr(true)},
+		"scope component:selected":          {Underline: new(true)},
+		"scope component shortcut":          {Italic: new(true)},
+		"scope component shortcut:selected": {Fg: Cyan, Bold: new(true)},
 	})
 
 	got := p.Get("scope", "component", "shortcut", true)
@@ -159,7 +160,7 @@ func TestPaletteGet_SelectedRoleBaseOverridesBroaderSelectedProperties(t *testin
 	p := NewPalette()
 	p.Update(map[string]config.Color{
 		"shortcut":       {Fg: Red},
-		"scope:selected": {Fg: Blue, Bg: Black, Bold: boolPtr(true)},
+		"scope:selected": {Fg: Blue, Bg: Black, Bold: new(true)},
 	})
 
 	got := p.Get("scope", "", "shortcut", true)
@@ -171,10 +172,10 @@ func TestPaletteGet_SelectedRoleBaseOverridesBroaderSelectedProperties(t *testin
 func TestPaletteGet_SelectedCandidatesFillOmittedProperties(t *testing.T) {
 	p := NewPalette()
 	p.Update(map[string]config.Color{
-		"git menu text:selected": {Italic: boolPtr(true)},
-		"git menu:selected":      {Bg: Blue, Underline: boolPtr(true)},
+		"git menu text:selected": {Italic: new(true)},
+		"git menu:selected":      {Bg: Blue, Underline: new(true)},
 		"git text:selected":      {Fg: Yellow},
-		"git:selected":           {Bold: boolPtr(true)},
+		"git:selected":           {Bold: new(true)},
 	})
 
 	got := p.Get("git", "menu", "text", true)
@@ -220,10 +221,10 @@ func TestPaletteGet_ExplicitDefaultBackgroundStopsInheritance(t *testing.T) {
 func TestPaletteGet_ExplicitFalseOverridesInheritedTrue(t *testing.T) {
 	p := NewPalette()
 	p.Update(map[string]config.Color{
-		"matched":                   {Underline: boolPtr(true)},
-		"revisions details matched": {Underline: boolPtr(false)},
-		":selected":                 {Bold: boolPtr(true)},
-		"revisions:selected":        {Bold: boolPtr(false)},
+		"matched":                   {Underline: new(true)},
+		"revisions details matched": {Underline: new(false)},
+		":selected":                 {Bold: new(true)},
+		"revisions:selected":        {Bold: new(false)},
 	})
 
 	got := p.Get("revisions", "details", "matched", true)

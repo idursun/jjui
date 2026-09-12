@@ -14,8 +14,9 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 )
 
+//go:fix inline
 func strPtr(v string) *string {
-	return &v
+	return new(v)
 }
 
 func assertLuaStringOrNil(t *testing.T, val lua.LValue, expected *string) {
@@ -72,7 +73,7 @@ func TestContext_ChangeId(t *testing.T) {
 				ChangeId: "abc123",
 				CommitId: "def456",
 			}},
-			want: strPtr("abc123"),
+			want: new("abc123"),
 		},
 		{
 			name: "selected file",
@@ -81,7 +82,7 @@ func TestContext_ChangeId(t *testing.T) {
 				CommitId: "commit456",
 				File:     jj.NewFileName("test.go"),
 			}},
-			want: strPtr("file123"),
+			want: new("file123"),
 		},
 		{
 			name: "no selection",
@@ -110,7 +111,7 @@ func TestContext_CommitId(t *testing.T) {
 				ChangeId: "abc123",
 				CommitId: "def456",
 			}},
-			want: strPtr("def456"),
+			want: new("def456"),
 		},
 		{
 			name: "selected file",
@@ -119,14 +120,14 @@ func TestContext_CommitId(t *testing.T) {
 				CommitId: "commit456",
 				File:     jj.NewFileName("test.go"),
 			}},
-			want: strPtr("commit456"),
+			want: new("commit456"),
 		},
 		{
 			name: "selected commit",
 			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedCommit{
 				CommitId: "onlycommit789",
 			}},
-			want: strPtr("onlycommit789"),
+			want: new("onlycommit789"),
 		},
 	}
 
@@ -151,7 +152,7 @@ func TestContext_File(t *testing.T) {
 				CommitId: "commit456",
 				File:     jj.NewFileName("path/to/file.go"),
 			}},
-			want: strPtr("path/to/file.go"),
+			want: new("path/to/file.go"),
 		},
 		{
 			name: "selected revision",
@@ -182,7 +183,7 @@ func TestContext_OperationId(t *testing.T) {
 			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedOperation{
 				OperationId: "op123456",
 			}},
-			want: strPtr("op123456"),
+			want: new("op123456"),
 		},
 		{
 			name: "selected revision",

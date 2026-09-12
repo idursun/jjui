@@ -2,6 +2,7 @@ package annotation
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -149,9 +150,9 @@ func changedWordPositions(oldWords, newWords []string) ([]bool, []bool) {
 	for i := range common {
 		common[i] = make([]int, len(newWords)+1)
 	}
-	for i := len(oldWords) - 1; i >= 0; i-- {
+	for i, oldWord := range slices.Backward(oldWords) {
 		for j := len(newWords) - 1; j >= 0; j-- {
-			if oldWords[i] == newWords[j] {
+			if oldWord == newWords[j] {
 				common[i][j] = common[i+1][j+1] + 1
 			} else {
 				common[i][j] = max(common[i+1][j], common[i][j+1])

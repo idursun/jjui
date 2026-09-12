@@ -23,7 +23,7 @@ func TestCardRenderer_InterpretsCarriageReturnsInCommandError(t *testing.T) {
 	assert.Contains(t, plain, "git: second")
 	assert.Contains(t, plain, "fatal: failed")
 
-	for _, line := range strings.Split(plain, "\n") {
+	for line := range strings.SplitSeq(plain, "\n") {
 		assert.True(t, strings.HasPrefix(line, "│") || strings.HasPrefix(line, "┌") || strings.HasPrefix(line, "└"))
 		assert.True(t, strings.HasSuffix(line, "│") || strings.HasSuffix(line, "┐") || strings.HasSuffix(line, "┘"))
 	}

@@ -221,10 +221,7 @@ func (o *Operation) resizeInput(width, maxHeight int) textarea.Model {
 	if width <= 0 {
 		width = 80
 	}
-	input.MaxHeight = maxHeight
-	if maxHeight <= 0 {
-		input.MaxHeight = 0
-	}
+	input.MaxHeight = max(maxHeight, 0)
 	input.SetWidth(width)
 	return input
 }

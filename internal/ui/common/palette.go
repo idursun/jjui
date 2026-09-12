@@ -1,6 +1,7 @@
 package common
 
 import (
+	"maps"
 	"strings"
 
 	"github.com/idursun/jjui/internal/config"
@@ -239,9 +240,7 @@ func cloneTerminalPalette(terminalPalette map[int]string) map[int]string {
 		return nil
 	}
 	cloned := make(map[int]string, len(terminalPalette))
-	for index, value := range terminalPalette {
-		cloned[index] = value
-	}
+	maps.Copy(cloned, terminalPalette)
 	return cloned
 }
 

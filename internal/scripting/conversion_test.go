@@ -9,8 +9,9 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
+//go:fix inline
 func boolRef(v bool) *bool {
-	return &v
+	return new(v)
 }
 
 func TestToLuaTableIncludesNestedStructFields(t *testing.T) {
@@ -90,7 +91,7 @@ func TestFromLuaTable_ColorBoolPointers(t *testing.T) {
 			expectedNil:      false,
 			expectedValue:    true,
 			expectedBg:       "0",
-			initialUnderline: boolRef(true),
+			initialUnderline: new(true),
 		},
 	}
 

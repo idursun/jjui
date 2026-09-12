@@ -48,13 +48,11 @@ func (dl *DisplayContext) AddDraw(rect layout.Rectangle, content string, z int, 
 		}
 	}
 	dl.draws = append(dl.draws, drawOp{
-		Draw: Draw{
-			Rect:    rect,
-			Content: content,
-			Z:       z,
-			Options: options,
-		},
-		order: dl.nextOrder(),
+		Rect:    rect,
+		Content: content,
+		Z:       z,
+		Options: options,
+		order:   dl.nextOrder(),
 	})
 }
 
@@ -99,12 +97,10 @@ func (dl *DisplayContext) AddPaint(rect layout.Rectangle, style lipgloss.Style, 
 // AddInteraction adds an InteractionOp to the display context.
 func (dl *DisplayContext) AddInteraction(rect layout.Rectangle, msg tea.Msg, typ InteractionType, z int) {
 	dl.interactions = append(dl.interactions, interactionOp{
-		InteractionOp: InteractionOp{
-			Rect: rect,
-			Msg:  msg,
-			Type: typ,
-			Z:    z,
-		},
+		Rect:  rect,
+		Msg:   msg,
+		Type:  typ,
+		Z:     z,
 		order: dl.nextOrder(),
 	})
 }
@@ -112,12 +108,10 @@ func (dl *DisplayContext) AddInteraction(rect layout.Rectangle, msg tea.Msg, typ
 // AddInteractionFn adds an interaction whose message is computed from the mouse event.
 func (dl *DisplayContext) AddInteractionFn(rect layout.Rectangle, fn func(tea.MouseMsg) tea.Msg, typ InteractionType, z int) {
 	dl.interactions = append(dl.interactions, interactionOp{
-		InteractionOp: InteractionOp{
-			Rect:  rect,
-			MsgFn: fn,
-			Type:  typ,
-			Z:     z,
-		},
+		Rect:  rect,
+		MsgFn: fn,
+		Type:  typ,
+		Z:     z,
 		order: dl.nextOrder(),
 	})
 }

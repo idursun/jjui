@@ -1356,7 +1356,7 @@ func buildLuaScopeTree(actionIDs []string, argSchemas map[string]map[string]stri
 		}
 		current := root
 		var pathParts []string
-		for _, seg := range strings.Split(scopeName, ".") {
+		for seg := range strings.SplitSeq(scopeName, ".") {
 			pathParts = append(pathParts, seg)
 			if current.children[seg] == nil {
 				current.children[seg] = &scopeNode{
@@ -1469,8 +1469,8 @@ func schemaTypeToLua(schemaType string) string {
 	case "string":
 		return "string"
 	default:
-		if strings.HasPrefix(schemaType, "enum:") {
-			values := strings.Split(strings.TrimPrefix(schemaType, "enum:"), "|")
+		if after, ok := strings.CutPrefix(schemaType, "enum:"); ok {
+			values := strings.Split(after, "|")
 			quoted := make([]string, len(values))
 			for i, v := range values {
 				quoted[i] = fmt.Sprintf("%q", v)

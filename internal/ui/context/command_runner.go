@@ -42,8 +42,7 @@ func (a *MainCommandRunner) RunCommandImmediateWithEnv(args []string, env []stri
 		c.Env = append(os.Environ(), env...)
 	}
 	if output, err := c.Output(); err != nil {
-		var exitError *exec.ExitError
-		if errors.As(err, &exitError) {
+		if exitError, ok := errors.AsType[*exec.ExitError](err); ok {
 			return nil, errors.New(string(exitError.Stderr))
 		}
 		return nil, err
@@ -119,8 +118,7 @@ func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, co
 
 			err := c.Wait()
 			if err != nil {
-				var exitError *exec.ExitError
-				if errors.As(err, &exitError) {
+				if _, ok := errors.AsType[*exec.ExitError](err); ok {
 					err = errors.New(output.String())
 				}
 			}

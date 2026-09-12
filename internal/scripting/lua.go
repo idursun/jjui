@@ -179,12 +179,12 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		}
 		if v, ok := payload["ensureView"]; ok {
 			if b, ok := v.(bool); ok {
-				intent.EnsureView = boolPtr(b)
+				intent.EnsureView = new(b)
 			}
 		}
 		if v, ok := payload["allowStream"]; ok {
 			if b, ok := v.(bool); ok {
-				intent.AllowStream = boolPtr(b)
+				intent.AllowStream = new(b)
 			}
 		}
 		return yieldStep(L, step{cmd: revisions.RevisionsCmd(intent)})
@@ -670,8 +670,9 @@ func yieldStep(L *lua.LState, st step) int {
 	return L.Yield(ud)
 }
 
+//go:fix inline
 func boolPtr(v bool) *bool {
-	return &v
+	return new(v)
 }
 
 func parseNavigateTarget(val string) intents.NavigationTarget {

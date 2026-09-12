@@ -11,10 +11,7 @@ func (m *Model) moveCursor(delta int) {
 		m.cursor = 0
 		return
 	}
-	next := m.cursor + delta
-	if next < 0 {
-		next = 0
-	}
+	next := max(m.cursor+delta, 0)
 	if next >= len(m.visibleRows) {
 		next = len(m.visibleRows) - 1
 	}

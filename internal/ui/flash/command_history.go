@@ -1,6 +1,8 @@
 package flash
 
 import (
+	"slices"
+
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/ui/actions"
@@ -148,8 +150,8 @@ func (m *CommandHistoryModel) renderedItems(maxWidth, maxHeight int) []renderedH
 	}
 
 	items := make([]renderedHistoryItem, 0, len(before)+1)
-	for i := len(before) - 1; i >= 0; i-- {
-		items = append(items, before[i])
+	for _, b := range slices.Backward(before) {
+		items = append(items, b)
 	}
 	items = append(items, selected)
 

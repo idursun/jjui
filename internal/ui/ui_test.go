@@ -65,7 +65,7 @@ func splitSeparatorX(t *testing.T, model *Model) int {
 	buf := render.NewScreenBuffer(100, 20)
 	dl.Render(buf)
 	view := strings.ReplaceAll(ansi.Strip(buf.Render()), "\r", "")
-	for _, line := range strings.Split(view, "\n") {
+	for line := range strings.SplitSeq(view, "\n") {
 		for x, r := range []rune(line) {
 			if r == '│' && x > 0 && x < 99 {
 				return x

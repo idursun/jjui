@@ -297,7 +297,7 @@ func (m *Model) Init() tea.Cmd {
 		}
 		seen := map[jj.FileName]bool{}
 		var files []jj.FileName
-		for _, line := range strings.Split(string(output), "\n") {
+		for line := range strings.SplitSeq(string(output), "\n") {
 			summary, ok := jj.ParseSummaryFile(line)
 			if !ok || summary.FileName.IsEmpty() || seen[summary.FileName] {
 				continue

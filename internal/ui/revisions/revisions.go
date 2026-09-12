@@ -284,8 +284,8 @@ func (m *Model) HasQuickSearch() bool {
 
 func (m *Model) Scopes() []common.Scope {
 	var ret []common.Scope
-	for i := len(m.layers) - 1; i >= 0; i-- {
-		if lp, ok := m.layers[i].(common.ScopeProvider); ok {
+	for _, v := range slices.Backward(m.layers) {
+		if lp, ok := v.(common.ScopeProvider); ok {
 			ret = append(ret, lp.Scopes()...)
 		}
 	}

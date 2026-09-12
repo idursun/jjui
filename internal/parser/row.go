@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/idursun/jjui/internal/jj"
@@ -179,9 +180,9 @@ func (row *Row) AddLine(line *GraphRowLine) {
 }
 
 func (row *Row) Last(flag RowLineFlags) *GraphRowLine {
-	for i := len(row.Lines) - 1; i >= 0; i-- {
-		if row.Lines[i].Flags&flag == flag {
-			return row.Lines[i]
+	for _, v := range slices.Backward(row.Lines) {
+		if v.Flags&flag == flag {
+			return v
 		}
 	}
 	return &GraphRowLine{}

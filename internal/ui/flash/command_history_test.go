@@ -104,7 +104,7 @@ func TestCommandHistory_ViewDoesNotClipTopBorderOnExactFitBelowStatusBar(t *test
 	history.ViewRect(dl, box)
 	rendered := dl.RenderToString(box.R.Dx(), box.R.Dy())
 
-	firstLine := strings.Split(rendered, "\n")[0]
+	firstLine, _, _ := strings.Cut(rendered, "\n")
 	assert.Contains(t, firstLine, "┌")
 }
 

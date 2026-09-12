@@ -2,6 +2,7 @@ package help
 
 import (
 	"encoding/json"
+	"slices"
 	"sort"
 	"strings"
 
@@ -40,8 +41,8 @@ func BuildFromBindings(
 	entries := make([]Entry, 0)
 	seenActions := map[string]struct{}{}
 
-	for i := len(bindings) - 1; i >= 0; i-- {
-		b := bindings[i]
+	for _, b := range slices.Backward(bindings) {
+
 		if keybindings.ScopeName(strings.TrimSpace(b.Scope)) != scope {
 			continue
 		}

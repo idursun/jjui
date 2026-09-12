@@ -403,8 +403,8 @@ func recordNamedArgument(segment string, used map[string]bool) {
 	if used == nil {
 		return
 	}
-	if eq := strings.IndexByte(segment, '='); eq >= 0 {
-		name := strings.TrimSpace(segment[:eq])
+	if before, _, ok := strings.Cut(segment, "="); ok {
+		name := strings.TrimSpace(before)
 		if name != "" {
 			used[name] = true
 		}

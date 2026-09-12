@@ -3,6 +3,7 @@ package scripting
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -339,9 +340,9 @@ func setupVM(t *testing.T) *uicontext.MainContext {
 }
 
 func findActionByName(actions []config.ActionConfig, name string) (config.ActionConfig, bool) {
-	for i := len(actions) - 1; i >= 0; i-- {
-		if actions[i].Name == name {
-			return actions[i], true
+	for _, action := range slices.Backward(actions) {
+		if action.Name == name {
+			return action, true
 		}
 	}
 	return config.ActionConfig{}, false

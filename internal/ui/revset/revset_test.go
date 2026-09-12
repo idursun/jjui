@@ -80,10 +80,10 @@ func TestModel_View_SelectedCompletionPaintsTextBackground(t *testing.T) {
 	palette.Update(map[string]config.Color{
 		"revset completion":                  {Bg: "black"},
 		"revset completion text":             {Fg: "green"},
-		"revset completion matched":          {Fg: "green", Bold: boolPtr(true)},
-		"revset completion:selected":         {Bg: "blue", Bold: boolPtr(true)},
+		"revset completion matched":          {Fg: "green", Bold: new(true)},
+		"revset completion:selected":         {Bg: "blue", Bold: new(true)},
 		"revset completion text:selected":    {Fg: "bright green"},
-		"revset completion matched:selected": {Bold: boolPtr(true)},
+		"revset completion matched:selected": {Bold: new(true)},
 		"revset completion dimmed:selected":  {Fg: "bright cyan"},
 	})
 	common.DefaultPalette = palette
@@ -294,7 +294,8 @@ func TestModel_Update_ApplyEmptyUsesDefaultRevset(t *testing.T) {
 	assert.Equal(t, ctx.DefaultRevset, updated, "empty apply should resolve to default revset")
 }
 
-func boolPtr(v bool) *bool { return &v }
+//go:fix inline
+func boolPtr(v bool) *bool { return new(v) }
 
 func renderExpectedCellColors(t *testing.T, content string) (any, any) {
 	t.Helper()
