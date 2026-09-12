@@ -1959,6 +1959,16 @@ func Test_BackgroundColorMsg_ReloadsThemeWhenColorChangesWithinCurrentScheme(t *
 	assert.True(t, paletteRequested)
 }
 
+func Test_BackgroundColorMsg_WithNoColorIsIgnored(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	model := NewUI(ctx)
+
+	assert.NotPanics(t, func() {
+		assert.Nil(t, model.Update(tea.BackgroundColorMsg{}))
+	})
+}
+
 func Test_ColorSchemeEvent_ReloadsThemeAndTerminalPalette(t *testing.T) {
 	enableBackgroundBlend(t, 0.4)
 	commandRunner := test.NewTestCommandRunner(t)

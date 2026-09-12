@@ -214,6 +214,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case uv.LightColorSchemeEvent:
 		return m.applyColorScheme(false)
 	case tea.BackgroundColorMsg:
+		if msg.Color == nil {
+			return nil
+		}
 		return m.applyTerminalBackground(msg.String(), msg.IsDark())
 	case colorSchemePollTickMsg:
 		if m.mode2031Supported {
