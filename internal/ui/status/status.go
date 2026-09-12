@@ -229,9 +229,16 @@ func (m *Model) ViewStatusRect(dl *render.DisplayContext, box layout.Box) {
 
 	width := box.R.Dx()
 	dl.AddFill(box.R, ' ', textStyle, 0)
-	helpBar := m.renderHelpBar(width, textStyle, shortcutStyle, dimmedStyle)
-
-	dl.AddDraw(box.R, helpBar, 0)
+	var statusLine string
+	if m.IsFocused() {
+		statusLine = m.renderHelpBar(width, textStyle, shortcutStyle, dimmedStyle)
+	} else {
+		modeWidth := max(10, len(m.mode)+2)
+		mode := titleStyle.Width(modeWidth).Render(m.mode)
+		helpBar := m.renderHelpBar(max(0, width-modeWidth-1), textStyle, shortcutStyle, dimmedStyle)
+		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, textStyle.Render(" "), helpBar)
+	}
+	dl.AddDraw(box.R, statusLine, 0)
 	m.renderExpandedStatus(dl, box, width, textStyle, titleStyle, shortcutStyle, dimmedStyle)
 }
 

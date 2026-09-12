@@ -102,6 +102,18 @@ func TestModel_ViewStatusRectShowsHelpWhileInputIsFocused(t *testing.T) {
 	assert.Contains(t, rendered, "apply")
 }
 
+func TestModel_ViewStatusRectShowsMode(t *testing.T) {
+	ctx := &context.MainContext{Histories: config.NewHistories()}
+	m := New(ctx)
+	m.SetMode("diff")
+
+	dl := render.NewDisplayContext()
+	m.ViewStatusRect(dl, layout.NewBox(layout.Rect(0, 0, 40, 1)))
+	rendered := dl.RenderToString(40, 1)
+
+	assert.Contains(t, rendered, "diff")
+}
+
 func TestModel_ViewInputRectUsesFullWidth(t *testing.T) {
 	ctx := &context.MainContext{Histories: config.NewHistories()}
 	m := New(ctx)
