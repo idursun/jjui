@@ -26,6 +26,9 @@ go test -v ./...
 
 # Regenerate action catalog after changing intent annotations
 go run ./cmd/genactions
+
+# Run all checks (fmt, mod tidy, unit and e2e tests)
+task check
 ```
 
 ## Working Rules

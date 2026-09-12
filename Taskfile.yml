@@ -1,0 +1,74 @@
+version: "3"
+
+tasks:
+  run:
+    desc: Run jjui
+    cmds:
+      - go run ./cmd/jjui
+
+  generate:
+    desc: Regenerate generated files
+    cmds:
+      - go generate ./...
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - go test ./...
+
+  test:e2e:
+    desc: Run the E2E suite, or one test when given a test name
+    cmds:
+      - task --dir e2e test -- "{{.CLI_ARGS}}"
+
+  install:
+    desc: Install jjui
+    cmds:
+      - go install ./cmd/jjui/
+
+  deps:update:
+    desc: Update Go dependencies and the Nix vendor hash
+    cmds:
+      - go get -u ./...
+      - go mod tidy
+      - task: nix:update-vendor-hash
+
+  check:
+    desc: Run CI checks
+    deps:
+      - task: check:fmt
+      - task: check:mod-tidy
+    cmds:
+      - task: test
+      - task: test:e2e
+
+  check:fmt:
+    internal: true
+    desc: Check that Go files are formatted
+    cmds:
+      - |
+        files="$(gofmt -l .)" || exit 1
+        if [ -n "$files" ]; then
+          echo "Formatting check failed; run 'go fmt ./...' first."
+          exit 1
+        fi
+
+  check:mod-tidy:
+    internal: true
+    cmds:
+      - |
+        if ! go mod tidy --diff; then
+          echo "go.mod or go.sum is out of date; run go mod tidy" >&2
+          exit 1
+        fi
+
+  nix:update-vendor-hash:
+    internal: true
+    cmds:
+      - >-
+        docker run --rm
+        -e NIX_CONFIG='experimental-features = nix-command flakes'
+        -v "{{.ROOT_DIR}}:/project"
+        -w /project
+        nixos/nix:latest
+        nix run .#update-vendor-hash
