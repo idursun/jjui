@@ -29,8 +29,8 @@ func Test_GitAskpass_PromptsAndSubmitsCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatalf("username prompt did not render: %v", err)
 	}
-	if screenContains(screen, "Remotes:") {
-		t.Fatalf("Git Operations content remained visible behind askpass prompt:\n%s", formatScreen(screen))
+	if screenContains(screen, "Remotes:") || screenContains(screen, "git push") {
+		t.Fatalf("background Git content remained visible behind askpass prompt:\n%s", formatScreen(screen))
 	}
 	if err := session.SendText("test-user"); err != nil {
 		t.Fatal(err)
@@ -87,8 +87,8 @@ func Test_GitAskpass_CancelStopsPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("username prompt did not render: %v", err)
 	}
-	if screenContains(screen, "Remotes:") {
-		t.Fatalf("Git Operations content remained visible behind askpass prompt:\n%s", formatScreen(screen))
+	if screenContains(screen, "Remotes:") || screenContains(screen, "git push") {
+		t.Fatalf("background Git content remained visible behind askpass prompt:\n%s", formatScreen(screen))
 	}
 	if err := session.SendText("test-user"); err != nil {
 		t.Fatal(err)
