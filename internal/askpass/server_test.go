@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -64,6 +65,25 @@ func TestServerListening(t *testing.T) {
 
 	if len(env) == 0 {
 		t.Fatalf("env should not be empty, got: %v", env)
+	}
+	for _, name := range []string{
+		"GIT_ASKPASS=",
+		"GIT_TERMINAL_PROMPT=0",
+		"SSH_ASKPASS=",
+		"SSH_ASKPASS_REQUIRE=force",
+		"JJUI_TEST_ASKPASS_ADDR=",
+		"JJUI_TEST_ASKPASS_KEY=",
+	} {
+		found := false
+		for _, value := range env {
+			if strings.HasPrefix(value, name) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("askpass environment is missing %q: %v", name, env)
+		}
 	}
 	started(42)
 	cancel()

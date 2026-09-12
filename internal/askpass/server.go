@@ -1,4 +1,4 @@
-// Package askpass provides a backchannel to handle ssh password prompts from the calling instance.
+// Package askpass provides a backchannel to handle credential prompts from the calling instance.
 package askpass
 
 import (
@@ -21,17 +21,23 @@ import (
 
 // NewUnstartedServer creates an unstarted server to handle askpass prompts.
 func NewUnstartedServer(envPrefix string) *Server {
+	executablePath, err := os.Executable()
+	if err != nil {
+		executablePath = os.Args[0]
+	}
 	return &Server{
-		envPrefix:  envPrefix,
-		socketPath: filepath.Join(os.TempDir(), strings.ToLower(envPrefix)+"-ssh-askpass-"+strconv.Itoa(os.Getpid())+".sock"),
+		envPrefix:      envPrefix,
+		socketPath:     filepath.Join(os.TempDir(), strings.ToLower(envPrefix)+"-askpass-"+strconv.Itoa(os.Getpid())+".sock"),
+		executablePath: executablePath,
 
 		subprocesses: make(map[string]subprocess),
 	}
 }
 
 type Server struct {
-	envPrefix  string
-	socketPath string
+	envPrefix      string
+	socketPath     string
+	executablePath string
 
 	ln atomic.Pointer[net.UnixListener]
 
@@ -39,13 +45,22 @@ type Server struct {
 	subprocesses map[string]subprocess
 }
 
-// IsSubprocess returns true if it detects that it was started as a SSH_ASKPASS subprocess. In this case the main program should shutdown immediately (stdout handling already happened before returning).
+// IsSubprocess returns true if it detects that it was started as an askpass
+// subprocess. In this case the main program should shutdown immediately (stdout
+// handling already happened before returning).
 func (s *Server) IsSubprocess() bool {
-	addr := os.Getenv(s.envPrefix + "_SSH_ASKPASS_ADDR")
+	addr := os.Getenv(s.envPrefix + "_ASKPASS_ADDR")
+	key := os.Getenv(s.envPrefix + "_ASKPASS_KEY")
+	// Accept the old names so helpers started by an older jjui process remain
+	// understandable during an upgrade.
+	if addr == "" {
+		addr = os.Getenv(s.envPrefix + "_SSH_ASKPASS_ADDR")
+		key = os.Getenv(s.envPrefix + "_SSH_ASKPASS_KEY")
+	}
 	if addr == "" {
 		return false
 	}
-	if err := dialServer(addr, os.Getenv(s.envPrefix+"_SSH_ASKPASS_KEY")); err != nil {
+	if err := dialServer(addr, key); err != nil {
 		log.Fatal(err)
 	}
 	return true
@@ -206,7 +221,7 @@ func (s *Server) handle(conn *net.UnixConn, askpass func(name, prompt string, do
 	return err
 }
 
-// NewSubprocess indicates the intent to start a subprocess which might need a password.
+// NewSubprocess indicates the intent to start a subprocess which might need credentials.
 //   - started must be called with the pid of a parent process of the askpass invocation (to ensure that the password is only given to proper processes)
 //   - cancel must be called when the subprocess is done
 //   - env contains the env variables for the askpass override (never nil)
@@ -237,10 +252,12 @@ func (s *Server) NewSubprocess(name string) (started func(ppid int), cancel func
 			delete(s.subprocesses, key)
 			s.mu.Unlock()
 		}, []string{
-			"SSH_ASKPASS=" + os.Args[0],
+			"GIT_ASKPASS=" + s.executablePath,
+			"GIT_TERMINAL_PROMPT=0",
+			"SSH_ASKPASS=" + s.executablePath,
 			"SSH_ASKPASS_REQUIRE=force",
-			s.envPrefix + "_SSH_ASKPASS_ADDR=" + s.socketPath,
-			s.envPrefix + "_SSH_ASKPASS_KEY=" + key,
+			s.envPrefix + "_ASKPASS_ADDR=" + s.socketPath,
+			s.envPrefix + "_ASKPASS_KEY=" + key,
 		}
 }
 

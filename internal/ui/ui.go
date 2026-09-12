@@ -377,13 +377,17 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 	case common.TogglePasswordMsg:
-		if m.password != nil {
-			// let the current prompt clean itself
-			m.password.Update(msg)
-		}
 		if msg.Password == nil {
-			m.password = nil
+			if m.password != nil && m.password.ID() == msg.ID {
+				// let the current prompt clean itself
+				m.password.Update(msg)
+				m.password = nil
+			}
 		} else {
+			if m.password != nil {
+				// Close the superseded prompt's response channel.
+				m.password.Update(common.TogglePasswordMsg{ID: m.password.ID()})
+			}
 			// overwrite current prompt. This can happen for ssh-sk keys:
 			//   - first prompt reads "Confirm user presence for ..."
 			//   - if the user denies the request on the device, a new prompt automatically happen "Enter PIN for ...
@@ -469,12 +473,15 @@ func (m *Model) View() string {
 		m.stacked.ViewRect(m.displayContext, box)
 	}
 
-	if scope, ok := m.stackedScope(); !ok || scope != actions.ScopeCommandHistory {
-		flashBox := box
-		if footerHeight := m.footerHeight(box); footerHeight > 0 {
-			flashBox, _ = box.CutBottom(footerHeight)
+	if m.password == nil {
+
+		if scope, ok := m.stackedScope(); !ok || scope != actions.ScopeCommandHistory {
+			flashBox := box
+			if footerHeight := m.footerHeight(box); footerHeight > 0 {
+				flashBox, _ = box.CutBottom(footerHeight)
+			}
+			m.flash.ViewRect(m.displayContext, flashBox)
 		}
-		m.flash.ViewRect(m.displayContext, flashBox)
 	}
 
 	m.splitContainer.RenderOverlay(m.displayContext, box)
