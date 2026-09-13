@@ -63,7 +63,7 @@ type Model struct {
 	stacked          common.StackedModel
 	displayContext   *render.DisplayContext
 	frameCursor      *tea.Cursor
-	previousSelected common.SelectedItem
+	lastHighlighted  common.SelectedItem
 	width            int
 	height           int
 	splitContainer   *split.SplitContainer
@@ -132,12 +132,12 @@ func (m *Model) selectionProviders() []common.SelectionProvider {
 	return providers
 }
 
-func (m *Model) syncSelection() tea.Cmd {
+func (m *Model) notifyHighlightChange() tea.Cmd {
 	snapshot := m.selectionSnapshot()
-	if selectedItemsEqual(snapshot.Highlighted, m.previousSelected) {
+	if selectedItemsEqual(snapshot.Highlighted, m.lastHighlighted) {
 		return nil
 	}
-	m.previousSelected = snapshot.Highlighted
+	m.lastHighlighted = snapshot.Highlighted
 	return common.SelectionChanged(snapshot.Highlighted)
 }
 
@@ -146,10 +146,6 @@ func selectedItemsEqual(a, b common.SelectedItem) bool {
 		return a == nil && b == nil
 	}
 	return a.Equal(b)
-}
-
-func (m *Model) withSelectionSync(cmd tea.Cmd) tea.Cmd {
-	return tea.Batch(cmd, m.syncSelection())
 }
 
 func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
@@ -182,17 +178,25 @@ func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (m *Model) Update(msg tea.Msg) tea.Cmd {
+func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
+	var completionID string
+	defer func() {
+		cmd = tea.Batch(cmd, m.notifyHighlightChange())
+		// Dispatched actions must finish their commands and selection notification
+		// before Lua resumes. Batching around the completion sequence would race it.
+		cmd = tea.Sequence(cmd, actionCompleted(completionID))
+	}()
+
 	if closeMsg, ok := msg.(common.CloseViewMsg); ok {
 		if cmd, handled := m.closeTopScope(closeMsg); handled {
-			return m.withSelectionSync(cmd)
+			return cmd
 		}
 	}
 
 	var cmds []tea.Cmd
 
 	if cmd, handled := m.handleSplitMsg(msg); handled {
-		return m.withSelectionSync(cmd)
+		return cmd
 	} else if cmd != nil {
 		cmds = append(cmds, cmd)
 	}
@@ -283,7 +287,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 					return nil
 				}
 				if cmd, handled := common.RouteIntent(scopes[start:], result.Intent); handled {
-					return m.withSelectionSync(cmd)
+					return cmd
 				}
 				if scopes[start].Leak != common.LeakAll {
 					return m.updateBlockingScope(scopes[start], msg)
@@ -304,7 +308,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case intents.Intent:
 		if cmd, handled := m.HandleIntent(msg); handled {
-			return m.withSelectionSync(cmd)
+			return cmd
 		}
 	case common.ExecMsg:
 		return exec_process.ExecLine(m.context, msg)
@@ -365,7 +369,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if result.Intent != nil {
 			scopes := m.dispatchScopes()
 			cmd, _ := common.RouteIntent(scopes, result.Intent)
-			return tea.Sequence(m.withSelectionSync(cmd), actionCompleted(msg.CompletionID))
+			completionID = msg.CompletionID
+			return cmd
 		}
 		return actionCompleted(msg.CompletionID)
 	case common.ShowChooseMsg:
@@ -428,7 +433,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		} else {
 			cmds = append(cmds, m.revisions.Update(msg))
 		}
-		return m.withSelectionSync(tea.Batch(cmds...))
+		return tea.Batch(cmds...)
 	}
 
 	cmds = append(cmds, m.revsetModel.Update(msg))
@@ -459,7 +464,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	cmds = append(cmds, m.updateSplit(msg))
 
-	return m.withSelectionSync(tea.Batch(cmds...))
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) updateStatus() {
@@ -836,7 +841,7 @@ func (m *Model) updateBlockingScope(scope common.Scope, msg tea.KeyMsg) tea.Cmd 
 	if scope.Handler == m.revsetModel {
 		m.state = common.Loading
 	}
-	return m.withSelectionSync(scope.Handler.Update(msg))
+	return scope.Handler.Update(msg)
 }
 
 var _ tea.Model = (*wrapper)(nil)

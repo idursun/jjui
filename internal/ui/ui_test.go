@@ -63,23 +63,23 @@ func TestLiveSelectionPreservesChangeNotificationsAndCommandReplacements(t *test
 	model := NewUI(ctx)
 	dialog := &selectionDialog{Model: input.NewWithTitle("", "", "")}
 	model.stacked = dialog
-	assert.Nil(t, model.syncSelection())
+	assert.Nil(t, model.Update(tea.ModeReportMsg{}))
 	first := common.SelectedRevision{ChangeId: "first", CommitId: "commit1"}
 	dialog.snapshot.Highlighted = first
 	assert.Equal(t, first, ctx.Selection().Highlighted, "reads must not wait for synchronization")
 	assert.Equal(t, "first", ctx.CreateReplacements()[jj.ChangeIdPlaceholder])
-	cmd := model.syncSelection()
+	cmd := model.Update(tea.ModeReportMsg{})
 	require.NotNil(t, cmd)
 	assert.Equal(t, common.SelectionChangedMsg{Item: first}, cmd())
-	assert.Nil(t, model.syncSelection(), "unchanged highlights should not emit events")
+	assert.Nil(t, model.Update(tea.ModeReportMsg{}), "unchanged highlights should not emit events")
 	dialog.snapshot.Checked = []common.SelectedItem{first}
 	assert.Equal(t, "commit1", ctx.CreateReplacements()[jj.CheckedCommitIdsPlaceholder])
-	assert.Nil(t, model.syncSelection(), "checking items alone does not change the highlight")
+	assert.Nil(t, model.Update(tea.ModeReportMsg{}), "checking items alone does not change the highlight")
 	dialog.snapshot.Highlighted = nil
-	cmd = model.syncSelection()
+	cmd = model.Update(tea.ModeReportMsg{})
 	require.NotNil(t, cmd)
 	assert.Equal(t, common.SelectionChangedMsg{}, cmd())
-	assert.Nil(t, model.syncSelection())
+	assert.Nil(t, model.Update(tea.ModeReportMsg{}))
 }
 
 func (blankImmediateModel) Init() tea.Cmd { return nil }
@@ -1572,6 +1572,7 @@ func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing
 	cmd := model.Update(common.RunLuaScriptMsg{Script: `
 		revisions.details.close()
 		revisions.jump_to_parent()
+		selection_after_jump = context.change_id()
 		revisions.open_details()
 	`})
 	require.NotNil(t, cmd)
@@ -1579,6 +1580,7 @@ func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing
 
 	require.NotNil(t, model.revisions.SelectedRevision())
 	assert.Equal(t, "parent", model.revisions.SelectedRevision().GetChangeId())
+	assert.Equal(t, lua.LString("parent"), ctx.ScriptVM.GetGlobal("selection_after_jump"))
 	assert.Equal(t, "details", model.revisions.CurrentOperation().Name())
 	assert.Empty(t, model.scriptRunners)
 }
