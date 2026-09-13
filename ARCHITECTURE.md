@@ -182,6 +182,15 @@ The relevant runtime pieces are:
 - [`internal/ui/actionmeta`](internal/ui/actionmeta)
 - [`internal/ui/actions`](internal/ui/actions)
 
+Lua getters for live model state use the root's `ApplicationStateProvider`.
+Typed selection remains available through the existing `SelectionProvider`,
+while model-specific getters implement explicit `StateProvider` properties.
+The root resolves public namespace paths by asking retained owners, including
+hidden split content and revision operation layers; focus and display state do
+not affect reads. A new getter should add a local property to its owning model,
+route the public path in `ui.go`, and document the function in generated Lua
+types. State changes continue to use intents.
+
 ## Architectural Summary
 
 If you are changing behavior in `jjui`, the main mental model is:

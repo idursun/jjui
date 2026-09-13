@@ -23,6 +23,7 @@ var (
 	_ operations.EmbeddedOperation = (*Operation)(nil)
 	_ common.Editable              = (*Operation)(nil)
 	_ common.ScopeProvider         = (*Operation)(nil)
+	_ common.StateProvider         = (*Operation)(nil)
 )
 
 type Operation struct {
@@ -36,6 +37,13 @@ type Operation struct {
 
 func (o *Operation) IsEditing() bool {
 	return true
+}
+
+func (o *Operation) QueryState(name string) (any, bool) {
+	if name == "content" {
+		return o.input.Value(), true
+	}
+	return nil, false
 }
 
 func (o *Operation) IsFocused() bool {

@@ -40,6 +40,7 @@ import (
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	lua "github.com/yuin/gopher-lua"
 )
 
 func showPreview(t *testing.T, model *Model, content string) {
@@ -49,6 +50,37 @@ func showPreview(t *testing.T, model *Model, content string) {
 }
 
 type blankImmediateModel struct{}
+
+type selectionDialog struct {
+	*input.Model
+	snapshot common.SelectionSnapshot
+}
+
+func (m *selectionDialog) Selection() common.SelectionSnapshot { return m.snapshot }
+
+func TestLiveSelectionPreservesChangeNotificationsAndCommandReplacements(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := NewUI(ctx)
+	dialog := &selectionDialog{Model: input.NewWithTitle("", "", "")}
+	model.stacked = dialog
+	assert.Nil(t, model.syncSelection())
+	first := common.SelectedRevision{ChangeId: "first", CommitId: "commit1"}
+	dialog.snapshot.Highlighted = first
+	assert.Equal(t, first, ctx.Selection().Highlighted, "reads must not wait for synchronization")
+	assert.Equal(t, "first", ctx.CreateReplacements()[jj.ChangeIdPlaceholder])
+	cmd := model.syncSelection()
+	require.NotNil(t, cmd)
+	assert.Equal(t, common.SelectionChangedMsg{Item: first}, cmd())
+	assert.Nil(t, model.syncSelection(), "unchanged highlights should not emit events")
+	dialog.snapshot.Checked = []common.SelectedItem{first}
+	assert.Equal(t, "commit1", ctx.CreateReplacements()[jj.CheckedCommitIdsPlaceholder])
+	assert.Nil(t, model.syncSelection(), "checking items alone does not change the highlight")
+	dialog.snapshot.Highlighted = nil
+	cmd = model.syncSelection()
+	require.NotNil(t, cmd)
+	assert.Equal(t, common.SelectionChangedMsg{}, cmd())
+	assert.Nil(t, model.syncSelection())
+}
 
 func (blankImmediateModel) Init() tea.Cmd { return nil }
 
@@ -675,11 +707,11 @@ func Test_Update_RevisionsEscClearsCheckedSelections_WithDefaultBindings(t *test
 	test.SimulateModel(model, model.revisions.Update(common.RefreshMsg{}))
 
 	test.SimulateModel(model, model.Update(intents.RevisionsToggleSelect{}))
-	require.Len(t, ctx.CheckedItems, 1, "setup should create a checked revision through the root sync path")
+	require.Len(t, ctx.Selection().Checked, 1, "setup should create a checked revision through the root sync path")
 
 	cmd := model.Update(intents.Cancel{})
 	test.SimulateModel(model, cmd)
-	assert.Empty(t, ctx.CheckedItems, "esc should clear checked revisions in normal revisions mode")
+	assert.Empty(t, ctx.Selection().Checked, "esc should clear checked revisions in normal revisions mode")
 }
 
 func Test_UpdateStatus_UsesBindingDeclarationOrderForRevisions(t *testing.T) {
@@ -1718,11 +1750,11 @@ func Test_Update_DetailsCloseClearsSelectedFiles(t *testing.T) {
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
 
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
-	require.Len(t, ctx.CheckedItems, 1, "details selection should be tracked before close")
+	require.Len(t, ctx.Selection().Checked, 1, "details selection should be tracked before close")
 
 	test.SimulateModel(model, test.Press(tea.KeyEsc))
 	assert.True(t, model.revisions.InNormalMode(), "esc should close details")
-	assert.Empty(t, ctx.CheckedItems, "closing details should clear selected files from context")
+	assert.Empty(t, ctx.Selection().Checked, "closing details should clear selected files from context")
 }
 
 func Test_Update_RestoreDetailsOperationResyncsSelectedFiles(t *testing.T) {
@@ -1741,13 +1773,13 @@ func Test_Update_RestoreDetailsOperationResyncsSelectedFiles(t *testing.T) {
 	test.SimulateModel(model, op.Init())
 
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
-	require.Len(t, ctx.CheckedItems, 1, "details selection should be tracked before close")
+	require.Len(t, ctx.Selection().Checked, 1, "details selection should be tracked before close")
 
 	model.Update(common.CloseViewMsg{})
-	assert.Empty(t, ctx.CheckedItems, "closing details should clear selected files from context")
+	assert.Empty(t, ctx.Selection().Checked, "closing details should clear selected files from context")
 
 	model.Update(common.RestoreOperationMsg{Operation: op})
-	assert.Len(t, ctx.CheckedItems, 1, "restoring details should resync checked files from the operation state")
+	assert.Len(t, ctx.Selection().Checked, 1, "restoring details should resync checked files from the operation state")
 }
 
 func Test_Update_DetailsEscClosesOperation(t *testing.T) {
@@ -1854,14 +1886,14 @@ func Test_Update_CommandErrorAfterClosingDetailsWithSelectedFiles_AllowsEscToDis
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
 
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
-	require.Len(t, ctx.CheckedItems, 1, "details selection should be tracked before close")
+	require.Len(t, ctx.Selection().Checked, 1, "details selection should be tracked before close")
 
 	model.Update(common.CloseViewMsg{})
 	model.Update(common.CommandCompletedMsg{Err: errors.New("split failed")})
 
 	assert.True(t, model.revisions.InNormalMode(), "closing details should return to revisions")
 	assert.True(t, model.flash.Any(), "command failure should surface as a flash message")
-	assert.Empty(t, ctx.CheckedItems, "selected files should be cleared when leaving details")
+	assert.Empty(t, ctx.Selection().Checked, "selected files should be cleared when leaving details")
 
 	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	assert.Nil(t, cmd, "esc should dismiss the flash instead of being consumed by stale checked items")

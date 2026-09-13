@@ -63,6 +63,7 @@ type Model struct {
 	stacked          common.StackedModel
 	displayContext   *render.DisplayContext
 	frameCursor      *tea.Cursor
+	previousSelected common.SelectedItem
 	width            int
 	height           int
 	splitContainer   *split.SplitContainer
@@ -71,6 +72,8 @@ type Model struct {
 	// mode 2031 push. Once true, the OSC 11 polling loop stops.
 	mode2031Supported bool
 }
+
+var _ common.ApplicationStateProvider = (*Model)(nil)
 
 type scriptFrame struct {
 	runner       *scripting.Runner
@@ -101,6 +104,20 @@ func (m *Model) selectionSnapshot() common.SelectionSnapshot {
 	return snapshot
 }
 
+func (m *Model) Selection() common.SelectionSnapshot {
+	return m.selectionSnapshot()
+}
+
+// QueryState resolves public Lua state paths against retained model owners.
+// Focus and visibility do not participate in lookup; owners decide whether a
+// model is still live and can answer the local property.
+func (m *Model) QueryState(name string) (any, bool) {
+	if strings.HasPrefix(name, "revisions.") && m.revisions != nil {
+		return m.revisions.QueryState(strings.TrimPrefix(name, "revisions."))
+	}
+	return nil, false
+}
+
 func (m *Model) selectionProviders() []common.SelectionProvider {
 	var providers []common.SelectionProvider
 	if provider, ok := m.stacked.(common.SelectionProvider); ok {
@@ -116,10 +133,19 @@ func (m *Model) selectionProviders() []common.SelectionProvider {
 }
 
 func (m *Model) syncSelection() tea.Cmd {
-	if m.context == nil {
+	snapshot := m.selectionSnapshot()
+	if selectedItemsEqual(snapshot.Highlighted, m.previousSelected) {
 		return nil
 	}
-	return m.context.SetSelection(m.selectionSnapshot())
+	m.previousSelected = snapshot.Highlighted
+	return common.SelectionChanged(snapshot.Highlighted)
+}
+
+func selectedItemsEqual(a, b common.SelectedItem) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return a.Equal(b)
 }
 
 func (m *Model) withSelectionSync(cmd tea.Cmd) tea.Cmd {
@@ -913,6 +939,7 @@ func NewUI(c *context.MainContext) *Model {
 		revsetModel: revsetModel,
 		flash:       flashView,
 	}
+	c.SetStateProvider(ui)
 	ui.initSplitContainer()
 	ui.initResolver()
 	return ui

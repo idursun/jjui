@@ -19,6 +19,48 @@ func strPtr(v string) *string {
 	return new(v)
 }
 
+type testStateProvider struct {
+	snapshot common.SelectionSnapshot
+	states   map[string]any
+}
+
+func TestStateGetterTracksProviderReplacementAndRejectsUnsupportedValues(t *testing.T) {
+	ctx := &uicontext.MainContext{}
+	L := lua.NewState()
+	defer L.Close()
+	registerAPI(L, ctx)
+	read := func() lua.LValue {
+		t.Helper()
+		require.NoError(t, L.DoString(`result = jjui.revisions.inline_describe.content()`))
+		return L.GetGlobal("result")
+	}
+	assert.Equal(t, lua.LNil, read())
+	ctx.SetStateProvider(&testStateProvider{states: map[string]any{"revisions.inline_describe.content": "first"}})
+	assert.Equal(t, lua.LString("first"), read())
+	ctx.SetStateProvider(&testStateProvider{states: map[string]any{"revisions.inline_describe.content": "second"}})
+	assert.Equal(t, lua.LString("second"), read())
+	ctx.SetStateProvider(&testStateProvider{states: map[string]any{"revisions.inline_describe.content": struct{}{}}})
+	err := L.DoString(`result = jjui.revisions.inline_describe.content()`)
+	require.ErrorContains(t, err, "unsupported queried state type")
+	ctx.SetStateProvider(nil)
+	assert.Equal(t, lua.LNil, read())
+}
+
+func (p *testStateProvider) Selection() common.SelectionSnapshot { return p.snapshot }
+func (p *testStateProvider) QueryState(name string) (any, bool) {
+	value, ok := p.states[name]
+	return value, ok
+}
+
+func contextWithSelection(selected common.SelectedItem, checked ...common.SelectedItem) *uicontext.MainContext {
+	ctx := &uicontext.MainContext{}
+	ctx.SetStateProvider(&testStateProvider{snapshot: common.SelectionSnapshot{
+		Highlighted: selected,
+		Checked:     checked,
+	}})
+	return ctx
+}
+
 func assertLuaStringOrNil(t *testing.T, val lua.LValue, expected *string) {
 	t.Helper()
 	if expected == nil {
@@ -69,19 +111,19 @@ func TestContext_ChangeId(t *testing.T) {
 	}{
 		{
 			name: "selected revision",
-			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedRevision{
+			ctx: contextWithSelection(uicontext.SelectedRevision{
 				ChangeId: "abc123",
 				CommitId: "def456",
-			}},
+			}),
 			want: new("abc123"),
 		},
 		{
 			name: "selected file",
-			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedFile{
+			ctx: contextWithSelection(uicontext.SelectedFile{
 				ChangeId: "file123",
 				CommitId: "commit456",
 				File:     jj.NewFileName("test.go"),
-			}},
+			}),
 			want: new("file123"),
 		},
 		{
@@ -107,26 +149,26 @@ func TestContext_CommitId(t *testing.T) {
 	}{
 		{
 			name: "selected revision",
-			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedRevision{
+			ctx: contextWithSelection(uicontext.SelectedRevision{
 				ChangeId: "abc123",
 				CommitId: "def456",
-			}},
+			}),
 			want: new("def456"),
 		},
 		{
 			name: "selected file",
-			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedFile{
+			ctx: contextWithSelection(uicontext.SelectedFile{
 				ChangeId: "file123",
 				CommitId: "commit456",
 				File:     jj.NewFileName("test.go"),
-			}},
+			}),
 			want: new("commit456"),
 		},
 		{
 			name: "selected commit",
-			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedCommit{
+			ctx: contextWithSelection(uicontext.SelectedCommit{
 				CommitId: "onlycommit789",
-			}},
+			}),
 			want: new("onlycommit789"),
 		},
 	}
@@ -147,19 +189,19 @@ func TestContext_File(t *testing.T) {
 	}{
 		{
 			name: "selected file",
-			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedFile{
+			ctx: contextWithSelection(uicontext.SelectedFile{
 				ChangeId: "file123",
 				CommitId: "commit456",
 				File:     jj.NewFileName("path/to/file.go"),
-			}},
+			}),
 			want: new("path/to/file.go"),
 		},
 		{
 			name: "selected revision",
-			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedRevision{
+			ctx: contextWithSelection(uicontext.SelectedRevision{
 				ChangeId: "abc123",
 				CommitId: "def456",
-			}},
+			}),
 			want: nil,
 		},
 	}
@@ -180,17 +222,17 @@ func TestContext_OperationId(t *testing.T) {
 	}{
 		{
 			name: "selected operation",
-			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedOperation{
+			ctx: contextWithSelection(uicontext.SelectedOperation{
 				OperationId: "op123456",
-			}},
+			}),
 			want: new("op123456"),
 		},
 		{
 			name: "selected revision",
-			ctx: &uicontext.MainContext{SelectedItem: uicontext.SelectedRevision{
+			ctx: contextWithSelection(uicontext.SelectedRevision{
 				ChangeId: "abc123",
 				CommitId: "def456",
-			}},
+			}),
 			want: nil,
 		},
 	}
@@ -204,14 +246,12 @@ func TestContext_OperationId(t *testing.T) {
 }
 
 func TestContext_CheckedFiles(t *testing.T) {
-	ctx := &uicontext.MainContext{
-		CheckedItems: []uicontext.SelectedItem{
-			uicontext.SelectedFile{ChangeId: "c1", CommitId: "co1", File: jj.NewFileName("file1.go")},
-			uicontext.SelectedFile{ChangeId: "c2", CommitId: "co2", File: jj.NewFileName("file2.go")},
-			uicontext.SelectedRevision{ChangeId: "rev1", CommitId: "com1"}, // should be ignored
-			uicontext.SelectedFile{ChangeId: "c3", CommitId: "co3", File: jj.NewFileName("file3.go")},
-		},
-	}
+	ctx := contextWithSelection(nil,
+		uicontext.SelectedFile{ChangeId: "c1", CommitId: "co1", File: jj.NewFileName("file1.go")},
+		uicontext.SelectedFile{ChangeId: "c2", CommitId: "co2", File: jj.NewFileName("file2.go")},
+		uicontext.SelectedRevision{ChangeId: "rev1", CommitId: "com1"}, // should be ignored
+		uicontext.SelectedFile{ChangeId: "c3", CommitId: "co3", File: jj.NewFileName("file3.go")},
+	)
 
 	vals := runScriptAndGetGlobals(t, ctx, `
 		files = context.checked_files()
@@ -228,9 +268,7 @@ func TestContext_CheckedFiles(t *testing.T) {
 }
 
 func TestContext_CheckedFiles_Empty(t *testing.T) {
-	ctx := &uicontext.MainContext{
-		CheckedItems: []uicontext.SelectedItem{},
-	}
+	ctx := contextWithSelection(nil)
 
 	val := runScriptAndGetGlobal(t, ctx, `
 		files = context.checked_files()
@@ -241,14 +279,12 @@ func TestContext_CheckedFiles_Empty(t *testing.T) {
 }
 
 func TestContext_CheckedChangeIds(t *testing.T) {
-	ctx := &uicontext.MainContext{
-		CheckedItems: []uicontext.SelectedItem{
-			uicontext.SelectedRevision{ChangeId: "change1", CommitId: "com1"},
-			uicontext.SelectedFile{ChangeId: "change2", CommitId: "com2", File: jj.NewFileName("f.go")},
-			uicontext.SelectedOperation{OperationId: "op1"}, // should be ignored
-			uicontext.SelectedRevision{ChangeId: "change3", CommitId: "com3"},
-		},
-	}
+	ctx := contextWithSelection(nil,
+		uicontext.SelectedRevision{ChangeId: "change1", CommitId: "com1"},
+		uicontext.SelectedFile{ChangeId: "change2", CommitId: "com2", File: jj.NewFileName("f.go")},
+		uicontext.SelectedOperation{OperationId: "op1"}, // should be ignored
+		uicontext.SelectedRevision{ChangeId: "change3", CommitId: "com3"},
+	)
 
 	vals := runScriptAndGetGlobals(t, ctx, `
 		ids = context.checked_change_ids()
@@ -265,14 +301,12 @@ func TestContext_CheckedChangeIds(t *testing.T) {
 }
 
 func TestContext_CheckedCommitIds(t *testing.T) {
-	ctx := &uicontext.MainContext{
-		CheckedItems: []uicontext.SelectedItem{
-			uicontext.SelectedRevision{ChangeId: "c1", CommitId: "commit1"},
-			uicontext.SelectedFile{ChangeId: "c2", CommitId: "commit2", File: jj.NewFileName("f.go")},
-			uicontext.SelectedCommit{CommitId: "commit3"},
-			uicontext.SelectedOperation{OperationId: "op1"}, // should be ignored
-		},
-	}
+	ctx := contextWithSelection(nil,
+		uicontext.SelectedRevision{ChangeId: "c1", CommitId: "commit1"},
+		uicontext.SelectedFile{ChangeId: "c2", CommitId: "commit2", File: jj.NewFileName("f.go")},
+		uicontext.SelectedCommit{CommitId: "commit3"},
+		uicontext.SelectedOperation{OperationId: "op1"}, // should be ignored
+	)
 
 	vals := runScriptAndGetGlobals(t, ctx, `
 		ids = context.checked_commit_ids()
@@ -289,12 +323,10 @@ func TestContext_CheckedCommitIds(t *testing.T) {
 }
 
 func TestContext_AccessViaJjuiNamespace(t *testing.T) {
-	ctx := &uicontext.MainContext{
-		SelectedItem: uicontext.SelectedRevision{
-			ChangeId: "ns_change",
-			CommitId: "ns_commit",
-		},
-	}
+	ctx := contextWithSelection(uicontext.SelectedRevision{
+		ChangeId: "ns_change",
+		CommitId: "ns_commit",
+	})
 
 	vals := runScriptAndGetGlobals(t, ctx, `
 		change = jjui.context.change_id()

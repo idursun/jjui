@@ -148,6 +148,5 @@ func NewTestContext(commandRunner appContext.CommandRunner) *appContext.MainCont
 	return &appContext.MainContext{
 		CommandRunner: commandRunner,
 		JJConfig:      &config.JJConfig{},
-		SelectedItem:  nil,
 	}
 }

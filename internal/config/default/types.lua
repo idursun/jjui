@@ -437,6 +437,7 @@ function wait_refresh() end
 ---@field editor fun()
 ---@field force_accept fun()
 ---@field new_line fun()
+---@field content fun(): string|nil
 ---@field close fun()
 
 ---@class jjui.revisions.inline_describe.confirmation
@@ -578,6 +579,7 @@ function wait_refresh() end
 
 ---@class jjui.ui.preview
 ---@field show fun(value?: string|{content: string})
+---@field y_offset fun(): integer|nil
 
 ---@class jjui.undo
 ---@field apply fun()

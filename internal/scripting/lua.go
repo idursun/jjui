@@ -143,7 +143,7 @@ func (r *Runner) Done() bool {
 func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	revisionsTable := L.NewTable()
 	revisionsTable.RawSetString("current", L.NewFunction(func(L *lua.LState) int {
-		if rev, ok := ctx.SelectedItem.(uicontext.SelectedRevision); ok {
+		if rev, ok := ctx.Selection().Highlighted.(uicontext.SelectedRevision); ok {
 			L.Push(lua.LString(rev.ChangeId))
 			return 1
 		}
@@ -151,7 +151,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	}))
 	revisionsTable.RawSetString("checked", L.NewFunction(func(L *lua.LState) int {
 		tbl := L.NewTable()
-		for _, item := range ctx.CheckedItems {
+		for _, item := range ctx.Selection().Checked {
 			if rev, ok := item.(uicontext.SelectedRevision); ok {
 				tbl.Append(lua.LString(rev.ChangeId))
 			}
@@ -202,7 +202,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 
 	contextTable := L.NewTable()
 	contextTable.RawSetString("change_id", L.NewFunction(func(L *lua.LState) int {
-		switch item := ctx.SelectedItem.(type) {
+		switch item := ctx.Selection().Highlighted.(type) {
 		case uicontext.SelectedRevision:
 			L.Push(lua.LString(item.ChangeId))
 			return 1
@@ -213,7 +213,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		return 0
 	}))
 	contextTable.RawSetString("commit_id", L.NewFunction(func(L *lua.LState) int {
-		switch item := ctx.SelectedItem.(type) {
+		switch item := ctx.Selection().Highlighted.(type) {
 		case uicontext.SelectedRevision:
 			L.Push(lua.LString(item.CommitId))
 			return 1
@@ -227,14 +227,14 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		return 0
 	}))
 	contextTable.RawSetString("file", L.NewFunction(func(L *lua.LState) int {
-		if item, ok := ctx.SelectedItem.(uicontext.SelectedFile); ok {
+		if item, ok := ctx.Selection().Highlighted.(uicontext.SelectedFile); ok {
 			L.Push(lua.LString(item.File.Path()))
 			return 1
 		}
 		return 0
 	}))
 	contextTable.RawSetString("operation_id", L.NewFunction(func(L *lua.LState) int {
-		if item, ok := ctx.SelectedItem.(uicontext.SelectedOperation); ok {
+		if item, ok := ctx.Selection().Highlighted.(uicontext.SelectedOperation); ok {
 			L.Push(lua.LString(item.OperationId))
 			return 1
 		}
@@ -242,7 +242,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	}))
 	contextTable.RawSetString("checked_files", L.NewFunction(func(L *lua.LState) int {
 		tbl := L.NewTable()
-		for _, item := range ctx.CheckedItems {
+		for _, item := range ctx.Selection().Checked {
 			if f, ok := item.(uicontext.SelectedFile); ok {
 				tbl.Append(lua.LString(f.File.Path()))
 			}
@@ -252,7 +252,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	}))
 	contextTable.RawSetString("checked_change_ids", L.NewFunction(func(L *lua.LState) int {
 		tbl := L.NewTable()
-		for _, item := range ctx.CheckedItems {
+		for _, item := range ctx.Selection().Checked {
 			switch i := item.(type) {
 			case uicontext.SelectedRevision:
 				tbl.Append(lua.LString(i.ChangeId))
@@ -265,7 +265,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	}))
 	contextTable.RawSetString("checked_commit_ids", L.NewFunction(func(L *lua.LState) int {
 		tbl := L.NewTable()
-		for _, item := range ctx.CheckedItems {
+		for _, item := range ctx.Selection().Checked {
 			switch i := item.(type) {
 			case uicontext.SelectedRevision:
 				tbl.Append(lua.LString(i.CommitId))
@@ -447,6 +447,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	root.RawSetString("builtin", builtinRoot)
 	registerGeneratedActionAPI(L, root, false)
 	registerGeneratedActionAPI(L, builtinRoot, true)
+	registerStateGetter(L, root, ctx, "revisions.inline_describe.content")
 	L.SetGlobal("jjui", root)
 
 	// but also expose at the top level for convenience
@@ -472,6 +473,43 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	L.SetGlobal("wait_close", waitCloseFn)
 	L.SetGlobal("wait_refresh", waitRefreshFn)
 	L.SetGlobal("change_workspace", changeWsFn)
+}
+
+func pushQueriedState(L *lua.LState, value any, ok bool) int {
+	if !ok || value == nil {
+		L.Push(lua.LNil)
+		return 1
+	}
+	switch value := value.(type) {
+	case string:
+		L.Push(lua.LString(value))
+	case bool:
+		L.Push(lua.LBool(value))
+	case int:
+		L.Push(lua.LNumber(value))
+	case int64:
+		L.Push(lua.LNumber(value))
+	case float64:
+		L.Push(lua.LNumber(value))
+	default:
+		L.RaiseError("unsupported queried state type %T", value)
+		return 0
+	}
+	return 1
+}
+
+func registerStateGetter(L *lua.LState, root *lua.LTable, ctx *uicontext.MainContext, path string) {
+	index := strings.LastIndexByte(path, '.')
+	if index <= 0 || index == len(path)-1 {
+		panic("invalid state path:" + path)
+	}
+	scope := path[:index]
+	property := path[index+1:]
+	table := ensureScopeTable(L, root, scope)
+	table.RawSetString(property, L.NewFunction(func(L *lua.LState) int {
+		value, ok := ctx.QueryState(path)
+		return pushQueriedState(L, value, ok)
+	}))
 }
 
 func registerGeneratedActionAPI(L *lua.LState, root *lua.LTable, builtIn bool) {

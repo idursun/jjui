@@ -49,7 +49,7 @@ func splitPlacementFromPreviewConfig(position config.PreviewPosition) split.Plac
 }
 
 func (m *Model) selectionChanged() tea.Cmd {
-	return common.SelectionChanged(m.context.SelectedItem)
+	return common.SelectionChanged(m.context.Selection().Highlighted)
 }
 
 func (m *Model) handleSplitMsg(msg tea.Msg) (tea.Cmd, bool) {

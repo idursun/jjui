@@ -155,9 +155,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.SetContent(msg.Content)
 		return nil
 	case common.SelectionChangedMsg:
-		return m.refreshPreviewForItem(m.context.SelectedItem)
+		return m.refreshPreviewForItem(m.context.Selection().Highlighted)
 	case common.RefreshMsg:
-		return m.refreshPreviewForItem(m.context.SelectedItem)
+		return m.refreshPreviewForItem(m.context.Selection().Highlighted)
 	case updatePreviewContentMsg:
 		m.contentItem = msg.contentItem
 		m.SetContent(msg.content)

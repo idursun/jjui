@@ -1288,6 +1288,12 @@ func generateLuaTypesSource(actionIDs []string, argSchemas map[string]map[string
 			}
 			writeActionFunction(&b, action)
 		}
+		if scope.fullName == "revisions.inline_describe" {
+			b.WriteString("---@field content fun(): string|nil\n")
+		}
+		if scope.fullName == "ui.preview" {
+			b.WriteString("---@field y_offset fun(): integer|nil\n")
+		}
 		// Mirror the runtime "close" alias for "cancel"
 		if hasCancel && !hasClose {
 			b.WriteString("---@field close fun()\n")

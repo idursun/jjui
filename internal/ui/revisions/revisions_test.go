@@ -64,6 +64,7 @@ type viewRectTrackingOp struct {
 	selectedRevision *jj.Commit
 	selectedFile     string
 	selectedCommit   string
+	state            map[string]any
 }
 
 func (o *viewRectTrackingOp) Init() tea.Cmd { return nil }
@@ -88,6 +89,11 @@ func (o *viewRectTrackingOp) ViewRect(_ *render.DisplayContext, _ layout.Box) {
 func (o *viewRectTrackingOp) Render(*jj.Commit, operations.RenderPosition) string { return "" }
 
 func (o *viewRectTrackingOp) Name() string { return o.name }
+
+func (o *viewRectTrackingOp) QueryState(name string) (any, bool) {
+	value, ok := o.state[name]
+	return value, ok
+}
 
 func (o *viewRectTrackingOp) Selection() common.SelectionSnapshot {
 	if o.selectedCommit != "" {
@@ -403,6 +409,39 @@ func TestModel_ViewRectRendersBaseOperationAndStackedChildren(t *testing.T) {
 	assert.Equal(t, 1, base.viewRectCalls)
 	assert.Equal(t, 1, child.viewRectCalls)
 	assert.Equal(t, []string{"base", "child"}, order)
+}
+
+func TestModel_QueryStateFindsRetainedLayerAndLosesPoppedLayer(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	layer := &viewRectTrackingOp{
+		name:  "inline_describe",
+		state: map[string]any{"content": "draft"},
+	}
+	model.layers = []common.ImmediateModel{layer}
+
+	value, ok := model.QueryState("inline_describe.content")
+	assert.True(t, ok)
+	assert.Equal(t, "draft", value)
+
+	model.popLayer()
+	_, ok = model.QueryState("inline_describe.content")
+	assert.False(t, ok, "popped state owners must no longer be queryable")
+}
+
+func TestModel_QueryStateReadsCoveredBaseAndTracksReplacement(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.baseOp = &viewRectTrackingOp{name: "inline_describe", state: map[string]any{"content": "draft"}}
+	model.layers = []common.ImmediateModel{&viewRectTrackingOp{name: "picker", state: map[string]any{"content": "other"}}}
+	value, ok := model.QueryState("inline_describe.content")
+	assert.True(t, ok)
+	assert.Equal(t, "draft", value)
+	model.setBaseOperation(&viewRectTrackingOp{name: "inline_describe", state: map[string]any{"content": "replacement"}})
+	value, ok = model.QueryState("inline_describe.content")
+	assert.True(t, ok)
+	assert.Equal(t, "replacement", value)
+	model.resetOperations()
+	_, ok = model.QueryState("inline_describe.content")
+	assert.False(t, ok)
 }
 
 func TestModel_ViewRectEmbeddedBaseOperationDoesNotRegisterViewportClicks(t *testing.T) {

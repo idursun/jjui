@@ -51,6 +51,7 @@ var (
 	_ common.ImmediateModel    = (*Model)(nil)
 	_ common.ScopeProvider     = (*Model)(nil)
 	_ common.SelectionProvider = (*Model)(nil)
+	_ common.StateProvider     = (*Model)(nil)
 )
 
 type Model struct {
@@ -169,6 +170,33 @@ func (m *Model) activeModel() common.ImmediateModel {
 		return m.layers[len(m.layers)-1]
 	}
 	return m.baseOperation()
+}
+
+// QueryState searches every retained revision operation from the newest layer
+// back to the base operation. It deliberately ignores focus and visibility;
+// a state owner remains queryable until its layer is popped or replaced.
+func (m *Model) QueryState(name string) (any, bool) {
+	module, property, ok := strings.Cut(name, ".")
+	if !ok {
+		return nil, false
+	}
+	query := func(model common.ImmediateModel) (any, bool) {
+		op, ok := model.(operations.Operation)
+		if !ok || op.Name() != module {
+			return nil, false
+		}
+		provider, ok := model.(common.StateProvider)
+		if !ok {
+			return nil, false
+		}
+		return provider.QueryState(property)
+	}
+	for _, v := range slices.Backward(m.layers) {
+		if value, found := query(v); found {
+			return value, true
+		}
+	}
+	return query(m.baseOperation())
 }
 
 func (m *Model) activeOperation() operations.Operation {
@@ -545,7 +573,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 		// If the revision to select is not set, use the currently selected item
 		if m.pendingReload.tag == msg.tag && m.pendingReload.selectedRevision == "" {
-			switch selected := m.context.SelectedItem.(type) {
+			switch selected := m.context.Selection().Highlighted.(type) {
 			case appContext.SelectedRevision:
 				m.pendingReload.selectedRevision = selected.ChangeId
 			case appContext.SelectedFile:

@@ -2,8 +2,6 @@ package context
 
 import (
 	"os"
-	"reflect"
-	"slices"
 	"strings"
 
 	"github.com/idursun/jjui/internal/askpass"
@@ -11,8 +9,6 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	lua "github.com/yuin/gopher-lua"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 // SelectedItem type aliases to break circular dependencies
@@ -26,8 +22,7 @@ type (
 
 type MainContext struct {
 	CommandRunner
-	SelectedItem              SelectedItem   // Single item where cursor is hover.
-	CheckedItems              []SelectedItem // Items checked ✓ by the user.
+	stateProvider             common.ApplicationStateProvider
 	Location                  string
 	WorkingDirectory          string
 	JJConfig                  *config.JJConfig
@@ -40,6 +35,27 @@ type MainContext struct {
 	ThemeBackgroundBlend      float64
 	Histories                 *config.Histories
 	ScriptVM                  *lua.LState
+}
+
+// SetStateProvider connects the context to the root's live state resolver.
+// The provider is intentionally optional because the Lua VM is created before
+// the UI model is constructed.
+func (ctx *MainContext) SetStateProvider(provider common.ApplicationStateProvider) {
+	ctx.stateProvider = provider
+}
+
+func (ctx *MainContext) QueryState(name string) (any, bool) {
+	if ctx.stateProvider == nil {
+		return nil, false
+	}
+	return ctx.stateProvider.QueryState(name)
+}
+
+func (ctx *MainContext) Selection() common.SelectionSnapshot {
+	if ctx.stateProvider == nil {
+		return common.SelectionSnapshot{}
+	}
+	return ctx.stateProvider.Selection()
 }
 
 func NewAppContext(location string, aps *askpass.Server) *MainContext {
@@ -61,58 +77,10 @@ func NewAppContext(location string, aps *askpass.Server) *MainContext {
 	return m
 }
 
-func (ctx *MainContext) ClearCheckedItems(ofType reflect.Type) {
-	ctx.CheckedItems = slices.DeleteFunc(ctx.CheckedItems, func(i SelectedItem) bool {
-		return ofType == nil || ofType == reflect.TypeOf(i)
-	})
-}
-
-func (ctx *MainContext) AddCheckedItem(item SelectedItem) {
-	exists := slices.ContainsFunc(ctx.CheckedItems, func(i SelectedItem) bool {
-		return i.Equal(item)
-	})
-	if !exists {
-		ctx.CheckedItems = append(ctx.CheckedItems, item)
-	}
-}
-
-func (ctx *MainContext) RemoveCheckedItem(item SelectedItem) {
-	ctx.CheckedItems = slices.DeleteFunc(ctx.CheckedItems, func(i SelectedItem) bool {
-		return i.Equal(item)
-	})
-}
-
-func (ctx *MainContext) SetSelectedItem(item SelectedItem) tea.Cmd {
-	if item == nil {
-		return nil
-	}
-	if selectedItemsEqual(item, ctx.SelectedItem) {
-		return nil
-	}
-	ctx.SelectedItem = item
-	return common.SelectionChanged(item)
-}
-
-func (ctx *MainContext) SetSelection(snapshot common.SelectionSnapshot) tea.Cmd {
-	highlightChanged := !selectedItemsEqual(snapshot.Highlighted, ctx.SelectedItem)
-	ctx.SelectedItem = snapshot.Highlighted
-	ctx.CheckedItems = slices.Clone(snapshot.Checked)
-	if highlightChanged {
-		return common.SelectionChanged(snapshot.Highlighted)
-	}
-	return nil
-}
-
-func selectedItemsEqual(a, b SelectedItem) bool {
-	if a == nil || b == nil {
-		return a == nil && b == nil
-	}
-	return a.Equal(b)
-}
-
 // CreateReplacements creates context-aware replacements for exec input.
 func (ctx *MainContext) CreateReplacements() map[string]string {
-	selectedItem := ctx.SelectedItem
+	snapshot := ctx.Selection()
+	selectedItem := snapshot.Highlighted
 	replacements := make(map[string]string)
 	replacements[jj.RevsetPlaceholder] = ctx.CurrentRevset
 
@@ -130,7 +98,7 @@ func (ctx *MainContext) CreateReplacements() map[string]string {
 
 	var checkedFiles []string
 	var checkedRevisions []string
-	for _, checked := range ctx.CheckedItems {
+	for _, checked := range snapshot.Checked {
 		switch c := checked.(type) {
 		case SelectedRevision:
 			checkedRevisions = append(checkedRevisions, c.CommitId)
@@ -159,19 +127,9 @@ func (ctx *MainContext) ChangeWorkspace(path string) {
 	}
 }
 
-func (ctx *MainContext) ToggleCheckedItem(item SelectedRevision) {
-	for i, checked := range ctx.CheckedItems {
-		if checked.Equal(item) {
-			ctx.CheckedItems = slices.Delete(ctx.CheckedItems, i, i+1)
-			return
-		}
-	}
-	ctx.CheckedItems = append(ctx.CheckedItems, item)
-}
-
 func (ctx *MainContext) GetSelectedRevisions() map[string]bool {
 	selectedRevisions := make(map[string]bool)
-	for _, item := range ctx.CheckedItems {
+	for _, item := range ctx.Selection().Checked {
 		if rev, ok := item.(SelectedRevision); ok {
 			selectedRevisions[rev.ChangeId] = true
 		}
