@@ -326,6 +326,7 @@ func (ChooseCancel) isIntent() {}
 //jjui:bind scope=revisions.duplicate action=cancel
 //jjui:bind scope=revisions action=cancel
 //jjui:bind scope=revisions.details.confirmation action=cancel
+//jjui:bind scope=revisions.inline_describe.confirmation action=cancel
 //jjui:bind scope=revisions.evolog action=cancel
 //jjui:bind scope=revisions.abandon action=cancel
 //jjui:bind scope=revisions.absorb action=cancel
@@ -364,6 +365,7 @@ func (Cancel) isIntent() {}
 //jjui:bind scope=revisions.duplicate action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions.duplicate action=force_apply set=Force:true
 //jjui:bind scope=revisions.details.confirmation action=apply set=Force:$bool(force)
+//jjui:bind scope=revisions.inline_describe.confirmation action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions.details.confirmation action=force_apply set=Force:true
 //jjui:bind scope=revisions.evolog action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions.abandon action=apply set=Force:$bool(force)
@@ -405,6 +407,8 @@ func (Apply) isIntent() {}
 //jjui:bind scope=redo action=next set=Delta:1
 //jjui:bind scope=revisions.details.confirmation action=prev set=Delta:-1
 //jjui:bind scope=revisions.details.confirmation action=next set=Delta:1
+//jjui:bind scope=revisions.inline_describe.confirmation action=prev set=Delta:-1
+//jjui:bind scope=revisions.inline_describe.confirmation action=next set=Delta:1
 //jjui:bind scope=bookmark_pane.confirmation action=prev set=Delta:-1
 //jjui:bind scope=bookmark_pane.confirmation action=next set=Delta:1
 type OptionSelect struct {

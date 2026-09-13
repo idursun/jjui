@@ -3,11 +3,14 @@ package describe
 import (
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -22,19 +25,13 @@ var (
 	_ common.ScopeProvider         = (*Operation)(nil)
 )
 
-var stashed *stashedDescription = nil
-
-type stashedDescription struct {
-	revision    *jj.Commit
-	description string
-}
-
 type Operation struct {
 	context      *context.MainContext
 	input        textarea.Model
 	revision     *jj.Commit
 	originalDesc string
 	killedText   string
+	confirmation *confirmation.Model
 }
 
 func (o *Operation) IsEditing() bool {
@@ -46,20 +43,30 @@ func (o *Operation) IsFocused() bool {
 }
 
 func (o *Operation) Scopes() []common.Scope {
-	return []common.Scope{
-		{
-			Name:    actions.ScopeInlineDescribe,
+	var scopes []common.Scope
+	if o.confirmation != nil {
+		scopes = append(scopes, common.Scope{
+			Name:    actions.ScopeInlineDescribeConfirmation,
 			Leak:    common.LeakNone,
 			Handler: o,
-		},
+		})
 	}
+	return append(scopes, common.Scope{
+		Name:    actions.ScopeInlineDescribe,
+		Leak:    common.LeakNone,
+		Handler: o,
+	})
 }
 
 func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
 	if pos != operations.RenderOverDescription {
 		return ""
 	}
-	return o.resizeInput(80, 0).View()
+	view := o.resizeInput(80, 0).View()
+	if o.confirmation != nil {
+		view = lipgloss.JoinVertical(lipgloss.Left, view, o.confirmation.View())
+	}
+	return view
 }
 
 func (o *Operation) CanEmbed(_ *jj.Commit, pos operations.RenderPosition) bool {
@@ -70,7 +77,7 @@ func (o *Operation) EmbeddedHeight(commit *jj.Commit, pos operations.RenderPosit
 	if !o.CanEmbed(commit, pos) {
 		return 0
 	}
-	return o.resizeInput(width, 0).Height()
+	return o.resizeInput(width, 0).Height() + o.confirmationHeight()
 }
 
 func (o *Operation) Name() string {
@@ -80,10 +87,21 @@ func (o *Operation) Name() string {
 func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
+	case confirmation.CloseMsg:
+		o.confirmation = nil
+		return nil
+	case confirmation.SelectOptionMsg:
+		if o.confirmation != nil {
+			return o.confirmation.Update(msg)
+		}
+		return nil
 	case intents.Intent:
 		cmd, _ := o.HandleIntent(msg)
 		return cmd
 	case tea.KeyPressMsg:
+		if o.confirmation != nil {
+			return o.confirmation.Update(msg)
+		}
 		isCtrlKill := msg.Mod&tea.ModCtrl != 0 && (msg.Code == 'u' || msg.Code == 'k')
 		if isCtrlKill {
 			o.captureKilledText(msg.Code == 'k')
@@ -91,6 +109,10 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 			if o.killedText != "" {
 				o.input.InsertString(o.killedText)
 			}
+			return nil
+		}
+	case tea.PasteMsg:
+		if o.confirmation != nil {
 			return nil
 		}
 	}
@@ -130,17 +152,21 @@ func (o *Operation) captureKilledText(forward bool) {
 func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent := intent.(type) {
 	case intents.Cancel:
-		unsavedDescription := o.input.Value()
-		if o.originalDesc == "" && unsavedDescription != "" {
-			stashed = &stashedDescription{
-				revision:    o.revision,
-				description: unsavedDescription,
-			}
-			return tea.Batch(common.Close, func() tea.Msg {
-				return intents.AddMessage{Text: "Unsaved description is stashed. Edit again to restore."}
-			}), true
+		if o.confirmation != nil {
+			return o.confirmation.Update(intent), true
+		}
+		if o.input.Value() != o.originalDesc {
+			return o.openCancelConfirmation(), true
 		}
 		return common.Close, true
+	case intents.Apply:
+		if o.confirmation != nil {
+			return o.confirmation.Update(intent), true
+		}
+	case intents.OptionSelect:
+		if o.confirmation != nil {
+			return o.confirmation.Update(intent), true
+		}
 	case intents.InlineDescribeEditor:
 		return o.runInlineDescribeEditor(), true
 	case intents.InlineDescribeNewLine:
@@ -150,6 +176,26 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return o.runInlineDescribeAccept(intent.Force), true
 	}
 	return nil, false
+}
+
+func (o *Operation) openCancelConfirmation() tea.Cmd {
+	o.confirmation = confirmation.New(
+		[]string{"You have unsaved changes. Discard them?"},
+		confirmation.WithStyleScope("revisions"),
+		confirmation.WithOption("Keep editing",
+			confirmation.Close,
+			key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "keep editing"))),
+		confirmation.WithOption("Discard",
+			common.Close,
+			key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "discard"))),
+	)
+	background := common.DefaultPalette.GetBlended("revisions", "", "", true).GetBackground()
+	o.confirmation.Styles.Border = o.confirmation.Styles.Border.
+		Background(background).
+		BorderBackground(background)
+	o.confirmation.Styles.Text = o.confirmation.Styles.Text.Background(background)
+	o.confirmation.Styles.Dimmed = o.confirmation.Styles.Dimmed.Background(background)
+	return o.confirmation.Init()
 }
 
 func (o *Operation) runInlineDescribeEditor() tea.Cmd {
@@ -172,7 +218,8 @@ func (o *Operation) Init() tea.Cmd {
 }
 
 func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	o.input = o.resizeInput(box.R.Dx(), box.R.Dy())
+	confirmationHeight := o.confirmationHeight()
+	o.input = o.resizeInput(box.R.Dx(), max(box.R.Dy()-confirmationHeight, 0))
 	input := o.input
 
 	selectedStyle := common.DefaultPalette.GetBlended("revisions", "", "", true)
@@ -183,19 +230,24 @@ func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	rect := layout.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), input.Height())
 	dl.AddDraw(rect, input.View(), 0)
-	dl.SetCursorInRect(input.Cursor(), rect, 0, 0)
+	if o.confirmation == nil {
+		dl.SetCursorInRect(input.Cursor(), rect, 0, 0)
+	} else if confirmationHeight > 0 && input.Height() < box.R.Dy() {
+		confirmationRect := layout.Rect(box.R.Min.X, box.R.Min.Y+input.Height(), box.R.Dx(), confirmationHeight)
+		o.confirmation.ViewRect(dl, layout.Box{R: confirmationRect})
+	}
+}
+
+func (o *Operation) confirmationHeight() int {
+	if o.confirmation == nil {
+		return 0
+	}
+	return lipgloss.Height(o.confirmation.View())
 }
 
 func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation {
 	descOutput, _ := context.RunCommandImmediate(jj.GetDescription(revision.GetChangeId()))
 	originalDesc := string(descOutput)
-	desc := originalDesc
-	if stashed != nil && stashed.revision.CommitId == revision.CommitId && originalDesc == "" {
-		desc = stashed.description
-	}
-
-	// clear the stashed description regardless
-	stashed = nil
 
 	input := textarea.New()
 	input.CharLimit = 0
@@ -205,7 +257,7 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 	input.MinHeight = 1
 	input.SetVirtualCursor(false)
 
-	input.SetValue(desc)
+	input.SetValue(originalDesc)
 	input.Focus()
 
 	return &Operation{

@@ -430,11 +430,19 @@ function wait_refresh() end
 ---@field close fun()
 
 ---@class jjui.revisions.inline_describe
+---@field confirmation jjui.revisions.inline_describe.confirmation
 ---@field accept fun(args: {force?: boolean})
 ---@field cancel fun()
 ---@field editor fun()
 ---@field force_accept fun()
 ---@field new_line fun()
+---@field close fun()
+
+---@class jjui.revisions.inline_describe.confirmation
+---@field apply fun(args: {force?: boolean})
+---@field cancel fun()
+---@field next fun()
+---@field prev fun()
 ---@field close fun()
 
 ---@class jjui.revisions.new_between

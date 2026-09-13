@@ -254,6 +254,10 @@ bindings = [
     { key = ["alt+enter", "ctrl+s"], action = "revisions.inline_describe.accept", scope = "revisions.inline_describe", desc = "accept" },
     { key = "alt+shift+enter", action = "revisions.inline_describe.force_accept", scope = "revisions.inline_describe", desc = "force accept" },
     { key = "enter", action = "revisions.inline_describe.new_line", scope = "revisions.inline_describe", desc = "new line" },
+    { key = ["left", "h"], action = "revisions.inline_describe.confirmation.prev", scope = "revisions.inline_describe.confirmation", desc = "prev" },
+    { key = ["right", "l"], action = "revisions.inline_describe.confirmation.next", scope = "revisions.inline_describe.confirmation", desc = "next" },
+    { key = "enter", action = "revisions.inline_describe.confirmation.apply", scope = "revisions.inline_describe.confirmation", desc = "apply" },
+    { key = "esc", action = "revisions.inline_describe.confirmation.cancel", scope = "revisions.inline_describe.confirmation", desc = "cancel" },
 
     # revisions.set_bookmark
     { key = "esc", action = "revisions.set_bookmark.cancel", scope = "revisions.set_bookmark", desc = "cancel" },
