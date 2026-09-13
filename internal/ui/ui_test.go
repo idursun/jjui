@@ -40,6 +40,7 @@ import (
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	lua "github.com/yuin/gopher-lua"
 )
 
 func showPreview(t *testing.T, model *Model, content string) {
@@ -1394,6 +1395,174 @@ func Test_Update_OpenTargetPickerWhileAnnotationActiveCreatesRootOverlay(t *test
 	model.Update(target_picker.TargetPickerCancelMsg{})
 	assert.Nil(t, model.stacked)
 	assert.NotNil(t, model.annotation)
+}
+
+func evalLuaGlobals(t *testing.T, model *Model, script string, names ...string) []lua.LValue {
+	t.Helper()
+	require.NotNil(t, model.context.ScriptVM)
+	runner, cmd, err := scripting.RunScript(model.context, script)
+	require.NoError(t, err)
+	require.NotNil(t, runner)
+	require.True(t, runner.Done())
+	require.Nil(t, cmd)
+	values := make([]lua.LValue, 0, len(names))
+	for _, name := range names {
+		values = append(values, model.context.ScriptVM.GetGlobal(name))
+	}
+	return values
+}
+
+func scrollPreview(t *testing.T, model *Model, kind intents.PreviewScrollKind) {
+	t.Helper()
+	cmd, handled := common.RouteIntent(model.dispatchScopes(), intents.PreviewScroll{Kind: kind})
+	require.True(t, handled)
+	if cmd != nil {
+		test.SimulateModel(model, cmd)
+	}
+}
+
+func TestLuaPreviewGetters_RuntimeWiring(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	require.NoError(t, scripting.InitVM(ctx))
+	defer scripting.CloseVM(ctx)
+
+	model := NewUI(ctx)
+	ctx.SelectedItem = common.SelectedFile{
+		ChangeId: "abc123",
+		CommitId: "def456",
+		File:     jj.NewFileName("path/to/file.go"),
+	}
+
+	var content strings.Builder
+	for i := range 30 {
+		fmt.Fprintf(&content, "line %02d of file.go\n", i)
+	}
+	previewContent := content.String()
+	showPreview(t, model, previewContent)
+	renderSplitView(model, 40, 8)
+
+	before := evalLuaGlobals(t, model, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+		file = context.file()
+		ns_offset = jjui.context.preview_y_offset()
+		ns_content = jjui.context.preview_content()
+	`, "offset", "content", "file", "ns_offset", "ns_content")
+	assert.Equal(t, lua.LNumber(0), before[0])
+	assert.Equal(t, previewContent, before[1].String())
+	assert.Equal(t, "path/to/file.go", before[2].String())
+	assert.Equal(t, lua.LNumber(0), before[3])
+	assert.Equal(t, previewContent, before[4].String())
+
+	cropped := renderSplitView(model, 40, 8)
+	assert.NotEqual(t, previewContent, cropped)
+	assert.Equal(t, previewContent, before[1].String())
+
+	scrollPreview(t, model, intents.PreviewScrollDown)
+	scrollPreview(t, model, intents.PreviewScrollDown)
+	after := evalLuaGlobals(t, model, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+	`, "offset", "content")
+	assert.Equal(t, lua.LNumber(2), after[0])
+	assert.Equal(t, previewContent, after[1].String())
+
+	again := evalLuaGlobals(t, model, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+	`, "offset", "content")
+	assert.Equal(t, after[0], again[0])
+	assert.Equal(t, after[1], again[1])
+}
+
+func TestLuaPreviewGetters_Lifecycle(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	require.NoError(t, scripting.InitVM(ctx))
+	defer scripting.CloseVM(ctx)
+
+	model := NewUI(ctx)
+
+	closed := evalLuaGlobals(t, model, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+	`, "offset", "content")
+	assert.Equal(t, lua.LNil, closed[0])
+	assert.Equal(t, lua.LNil, closed[1])
+
+	var firstBuilder strings.Builder
+	for i := range 20 {
+		fmt.Fprintf(&firstBuilder, "hunk line %02d\n", i)
+	}
+	firstContent := firstBuilder.String()
+	showPreview(t, model, firstContent)
+	renderSplitView(model, 40, 6)
+
+	opened := evalLuaGlobals(t, model, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+	`, "offset", "content")
+	assert.Equal(t, lua.LNumber(0), opened[0])
+	assert.Equal(t, firstContent, opened[1].String())
+
+	scrollPreview(t, model, intents.PreviewScrollDown)
+	scrolled := evalLuaGlobals(t, model, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+	`, "offset", "content")
+	assert.Equal(t, lua.LNumber(1), scrolled[0])
+	assert.Equal(t, firstContent, scrolled[1].String())
+
+	_, handled := model.HandleIntent(intents.PreviewToggle{})
+	require.True(t, handled)
+	afterClose := evalLuaGlobals(t, model, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+	`, "offset", "content")
+	assert.Equal(t, lua.LNil, afterClose[0])
+	assert.Equal(t, lua.LNil, afterClose[1])
+
+	_, handled = model.HandleIntent(intents.PreviewToggle{})
+	require.True(t, handled)
+	renderSplitView(model, 40, 6)
+	reopened := evalLuaGlobals(t, model, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+	`, "offset", "content")
+	assert.Equal(t, lua.LNumber(0), reopened[0])
+	assert.Equal(t, firstContent, reopened[1].String())
+
+	scrollPreview(t, model, intents.PreviewScrollDown)
+	_, handled = model.HandleIntent(intents.ToggleBookmarkPane{})
+	require.True(t, handled)
+	bookmark := evalLuaGlobals(t, model, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+	`, "offset", "content")
+	assert.Equal(t, lua.LNil, bookmark[0])
+	assert.Equal(t, lua.LNil, bookmark[1])
+
+	replacement := "replacement\ncontent\n"
+	showPreview(t, model, replacement)
+	replaced := evalLuaGlobals(t, model, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+	`, "offset", "content")
+	assert.Equal(t, lua.LNumber(0), replaced[0])
+	assert.Equal(t, replacement, replaced[1].String())
+
+	showPreview(t, model, "")
+	empty := evalLuaGlobals(t, model, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+	`, "offset", "content")
+	assert.Equal(t, lua.LNumber(0), empty[0])
+	assert.Equal(t, lua.LString(""), empty[1])
 }
 
 func Test_Update_DispatchedPreviewShowUpdatesVisiblePreview(t *testing.T) {

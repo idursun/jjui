@@ -40,6 +40,9 @@ type MainContext struct {
 	ThemeBackgroundBlend      float64
 	Histories                 *config.Histories
 	ScriptVM                  *lua.LState
+	// PreviewState reports the currently displayed preview buffer. visible is
+	// false when the preview is hidden or another split pane is active.
+	PreviewState func() (yOffset int, content string, visible bool)
 }
 
 func NewAppContext(location string, aps *askpass.Server) *MainContext {

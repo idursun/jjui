@@ -1101,6 +1101,8 @@ const luaHandWrittenClasses = `---@class jjui.revisions
 ---@field checked_files fun(): string[] Get array of checked files
 ---@field checked_change_ids fun(): string[] Get array of checked change IDs
 ---@field checked_commit_ids fun(): string[] Get array of checked commit IDs
+---@field preview_y_offset fun(): integer? Get the preview viewport's zero-based vertical offset, or nil when hidden
+---@field preview_content fun(): string? Get the preview buffer content, or nil when hidden
 
 `
 
