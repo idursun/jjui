@@ -19,7 +19,7 @@ tasks:
   test:e2e:
     desc: Run the E2E suite, or one test when given a test name
     cmds:
-      - task --dir e2e test -- "{{.CLI_ARGS}}"
+      - task --dir e2e test -- {{.CLI_ARGS}}
 
   install:
     desc: Install jjui

@@ -182,12 +182,12 @@ func (o *Operation) openCancelConfirmation() tea.Cmd {
 	o.confirmation = confirmation.New(
 		[]string{"You have unsaved changes. Discard them?"},
 		confirmation.WithStyleScope("revisions"),
-		confirmation.WithOption("Keep editing",
-			confirmation.Close,
-			key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "keep editing"))),
 		confirmation.WithOption("Discard",
 			common.Close,
 			key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "discard"))),
+		confirmation.WithOption("Keep editing",
+			confirmation.Close,
+			key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "keep editing"))),
 	)
 	background := common.DefaultPalette.GetBlended("revisions", "", "", true).GetBackground()
 	o.confirmation.Styles.Border = o.confirmation.Styles.Border.

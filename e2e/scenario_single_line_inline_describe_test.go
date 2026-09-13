@@ -43,10 +43,18 @@ func Test_Revisions_InlineDescribeRendersOnSingleLineLog(t *testing.T) {
 	if err := session.SendKey(ghostty.KeyEscape, "", 0); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
+		return screenContains(screen, "You have unsaved changes. Discard them?")
+	}); err != nil {
+		t.Fatalf("discard confirmation did not open: %v\nraw output:\n%s", err, session.RawOutput())
+	}
+	if err := session.SendKey(ghostty.KeyY, "y", 0); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := session.WaitForStableScreen(ctx, 3, func(screen []string) bool {
 		return screenContains(screen, "initial") && !screenContains(screen, "inline description")
 	}); err != nil {
-		t.Fatalf("escape did not close inline describe: %v\nraw output:\n%s", err, session.RawOutput())
+		t.Fatalf("discard did not close inline describe: %v\nraw output:\n%s", err, session.RawOutput())
 	}
 	if err := session.SendKey(ghostty.KeyQ, "q", 0); err != nil {
 		t.Fatal(err)
