@@ -49,6 +49,55 @@ bindings_profile = ":builtin"
 [bookmark]
   interactive_bookmark_pane = false
 
+[[actions]]
+name = "revisions.evolog.split"
+lua = """
+ local historical_commit = context.commit_id()
+ if not historical_commit then
+   error("no evolog commit selected")
+ end
+
+ local change_id, err = jj({
+   "log",
+   "--ignore-working-copy",
+   "--no-graph",
+   "-r", historical_commit,
+   "-T", "change_id.shortest()",
+ })
+ if err then
+   error(err)
+ end
+
+ local current_commit
+ current_commit, err = jj({
+   "log",
+   "--ignore-working-copy",
+   "--no-graph",
+   "-r", change_id,
+   "-T", "commit_id.shortest()",
+ })
+ if err then
+   error(err)
+ end
+ if current_commit == historical_commit then
+   error("select a hidden evolog commit to split at")
+ end
+
+ local function run(args)
+   flash("jj " .. table.concat(args, " "))
+   local _, command_err = jj(args)
+   if command_err then
+     error(command_err)
+   end
+ end
+
+ run({ "duplicate", "-r", change_id, "--insert-after", change_id })
+ run({ "restore", "--from", historical_commit, "--into", change_id, "--restore-descendants" })
+
+ jjui.builtin.revisions.evolog.cancel()
+ jjui.builtin.revisions.refresh()
+ """
+
 # Backwards compatibility
 [[actions]]
 name = "revisions.toggle_select"

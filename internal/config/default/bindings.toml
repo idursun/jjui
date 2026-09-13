@@ -203,6 +203,7 @@ bindings = [
     { key = "enter", action = "revisions.evolog.apply", scope = "revisions.evolog", desc = "apply" },
     { key = "d", action = "revisions.evolog.diff", scope = "revisions.evolog", desc = "diff" },
     { key = "r", action = "revisions.evolog.restore", scope = "revisions.evolog", desc = "restore" },
+    { key = "s", action = "revisions.evolog.split", scope = "revisions.evolog", desc = "split here" },
     { key = "p", action = "ui.preview_toggle", scope = "revisions.evolog", desc = "toggle preview" },
     { key = "shift+p", action = "ui.preview_toggle_bottom", scope = "revisions.evolog", desc = "move preview to bottom" },
 
