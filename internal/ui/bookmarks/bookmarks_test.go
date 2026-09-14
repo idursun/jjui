@@ -120,6 +120,27 @@ main;.;true;false;false;false;mainCommit
 	test.SimulateModel(op, func() tea.Msg { return intents.BookmarksFilter{Kind: intents.BookmarksFilterMove} })
 }
 
+func Test_MoveToHiddenRevision_UsesCommitId(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(""))
+	commandRunner.Expect(jj.BookmarkListMovable("abc123")).SetOutput([]byte(`
+main;.;true;false;false;true;86
+`))
+	commandRunner.Expect(jj.BookmarkMove("commit123", "main", "--allow-backwards"))
+	defer commandRunner.Verify()
+
+	commit := &jj.Commit{ChangeId: "abc123", CommitId: "commit123", Hidden: true}
+	op := NewModel(test.NewTestContext(commandRunner), commit, []string{"commit123"})
+	test.SimulateModel(op, op.Init())
+	_ = test.RenderImmediate(op, 100, 40)
+
+	test.SimulateModel(op, func() tea.Msg { return intents.BookmarksFilter{Kind: intents.BookmarksFilterMove} })
+	assertSelectedItem(t, op, "move 'main' backwards to commit123")
+
+	test.SimulateModel(op, func() tea.Msg { return intents.BookmarksFilter{Kind: intents.BookmarksFilterMove} })
+}
+
 func Test_FilterEditing_AcceptsPasteMsg(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))

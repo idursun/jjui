@@ -202,3 +202,11 @@ func TestParser_Evolog(t *testing.T) {
 	assert.Equal(t, "l", rows[0].Commit.ChangeId)
 	assert.Equal(t, "98", rows[0].Commit.CommitId)
 }
+
+func TestParser_HiddenRevision(t *testing.T) {
+	file, _ := os.Open("testdata/hidden.log")
+	rows := parser.ParseRows(file)
+	assert.Len(t, rows, 1)
+	assert.True(t, rows[0].Commit.Hidden)
+	assert.Equal(t, "c6", rows[0].Commit.GetChangeId())
+}

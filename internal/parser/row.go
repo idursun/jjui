@@ -164,7 +164,7 @@ func (row *Row) AddLine(line *GraphRowLine) {
 		line.Flags = Revision | Highlightable
 		row.Commit.IsWorkingCopy = line.containsRune('@')
 		for _, segment := range line.Segments {
-			if strings.TrimSpace(segment.Text) == "hidden" {
+			if text := strings.TrimSpace(segment.Text); text == "hidden" || text == "(hidden)" {
 				row.Commit.Hidden = true
 			}
 		}
