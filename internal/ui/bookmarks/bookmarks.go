@@ -216,7 +216,9 @@ func (m *Model) filterItemsByRemote(allItems []item) []item {
 }
 
 func (m *Model) loadMovables() tea.Msg {
-	output, _ := m.context.RunCommandImmediate(jj.BookmarkListMovable(m.current.GetChangeId()))
+	// A hidden revision has no visible descendants, so look for bookmarks
+	// around the visible revision of its change instead.
+	output, _ := m.context.RunCommandImmediate(jj.BookmarkListMovable(m.current.ChangeId))
 	var bookmarkItems []item
 	bookmarks := jj.ParseBookmarkListOutput(string(output))
 	for _, b := range bookmarks {
