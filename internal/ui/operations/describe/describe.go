@@ -172,6 +172,12 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.InlineDescribeNewLine:
 		o.input.InsertString("\n")
 		return nil, true
+	case intents.InlineDescribeClear:
+		if value := o.input.Value(); value != "" {
+			o.killedText = value
+		}
+		o.input.Reset()
+		return nil, true
 	case intents.InlineDescribeAccept:
 		return o.runInlineDescribeAccept(intent.Force), true
 	}
