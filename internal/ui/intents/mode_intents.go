@@ -105,6 +105,11 @@ type InlineDescribeNewLine struct{}
 
 func (InlineDescribeNewLine) isIntent() {}
 
+//jjui:bind scope=revisions.inline_describe action=clear
+type InlineDescribeClear struct{}
+
+func (InlineDescribeClear) isIntent() {}
+
 //jjui:bind scope=revisions.target_picker action=move_up set=Delta:-1
 //jjui:bind scope=revisions.target_picker action=move_down set=Delta:1
 type TargetPickerNavigate struct {

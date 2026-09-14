@@ -433,6 +433,7 @@ function wait_refresh() end
 ---@field confirmation jjui.revisions.inline_describe.confirmation
 ---@field accept fun(args: {force?: boolean})
 ---@field cancel fun()
+---@field clear fun()
 ---@field editor fun()
 ---@field force_accept fun()
 ---@field new_line fun()

@@ -233,6 +233,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.go_to_top":                           {"revisions"},
 	"revisions.inline_describe.accept":              {"revisions.inline_describe"},
 	"revisions.inline_describe.cancel":              {"revisions.inline_describe"},
+	"revisions.inline_describe.clear":               {"revisions.inline_describe"},
 	"revisions.inline_describe.confirmation.apply":  {"revisions.inline_describe.confirmation"},
 	"revisions.inline_describe.confirmation.cancel": {"revisions.inline_describe.confirmation"},
 	"revisions.inline_describe.confirmation.next":   {"revisions.inline_describe.confirmation"},
