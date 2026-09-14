@@ -43,8 +43,8 @@ bindings_profile = ":builtin"
 [git]
   default_remote = "origin"
 
-[ssh]
-  hijack_askpass = false
+[askpass]
+  enabled = true
 
 [bookmark]
   interactive_bookmark_pane = false
