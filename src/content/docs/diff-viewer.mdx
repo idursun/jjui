@@ -30,6 +30,9 @@ While choosing the range:
 | `f` | Pick the `--from` target from bookmarks or tags |
 | `esc` | Cancel |
 
+If you accept without choosing a different target, jjui omits the redundant
+`--to` argument and runs `jj diff --from <from>` against the working copy.
+
 ## Navigation
 
 | Key | Action |

@@ -20,7 +20,12 @@ Press `enter` to keep the filter active or `esc` to clear it.
 ## Selecting files
 
 - `m` or `space`: toggle-select the highlighted file (cursor advances automatically)
+- `i`: invert the current file selection
 - Most operations act on selected files. If no files are selected, the operation uses the highlighted file.
+
+Inversion applies to the complete file list, including files hidden by an
+active filter. If nothing is selected, jjui first treats the highlighted file
+as selected, so the other files become selected.
 
 ### Mouse selection
 

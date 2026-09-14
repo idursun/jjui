@@ -59,6 +59,9 @@ Read-only access to the currently highlighted or selected item.
 | `context.checked_change_ids()` | string[] | Checked revisions or files |
 | `context.checked_commit_ids()` | string[] | Checked revisions, files, or commits |
 
+The selection getters read live UI state when called. After a yielding action or
+refresh, they reflect the current selection rather than a cached snapshot.
+
 ---
 
 ## revisions.*
@@ -102,7 +105,7 @@ Args can be passed as individual strings or as a single table of strings.
 | `flash(text)` | — | Show a short status message |
 | `flash({ text, error?, sticky? })` | — | `error = true` styles as error; `sticky = true` keeps it visible |
 | `choose(option1, option2, ...)` | string or nil | Show a picker; returns the selected value or nil if cancelled |
-| `choose({ options, title?, ordered? })` | string or nil | Table form; press `/` in any choice dialog to filter |
+| `choose({ options, title?, ordered? })` | string or nil | Table form; press `/` in any choice dialog to open the `filter:` prompt |
 | `input({ title?, prompt?, value? })` | string or nil | Show a text input dialog; `value` sets its initial text; returns the entered text or nil |
 | `set_theme(name)` | — | Switch the active theme at runtime |
 | `copy_to_clipboard(text)` | `(true, nil)` or `(nil, err)` | Copy to system clipboard |
@@ -278,6 +281,8 @@ revset.set({ value = "trunk()" })
 | `revisions.inline_describe.accept({ force? })` | Apply the description |
 | `revisions.inline_describe.force_accept()` | Apply the description with force |
 | `revisions.inline_describe.new_line()` | Insert a line break |
+| `revisions.inline_describe.clear()` | Clear the editor and save the previous text for `ctrl+y` |
+| `revisions.inline_describe.content()` | Return the editor's current text, or `nil` when unavailable |
 | `revisions.inline_describe.editor()` | Open external editor |
 | `revisions.inline_describe.cancel()` | Cancel without saving |
 
@@ -287,6 +292,7 @@ revset.set({ value = "trunk()" })
 |----------|------|
 | `revisions.details.select_file(file)` | Required string (positional) |
 | `revisions.details.toggle_select()` | |
+| `revisions.details.invert_selection()` | Invert file selection |
 | `revisions.details.squash()` | |
 | `revisions.details.absorb()` | |
 | `revisions.details.split()` | |

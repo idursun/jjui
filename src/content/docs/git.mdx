@@ -47,3 +47,18 @@ To push all eligible bookmarks from the highlighted revision or a multi-selectio
 
 - `/`: free text filter to search commands by name
 - `esc`: close the menu
+
+## Credential prompts
+
+When a command started by jjui needs Git or SSH credentials, jjui can show the
+askpass prompt inside the application instead of letting the subprocess take
+over the terminal. Usernames are shown normally; passwords and passphrases are
+masked. The Git menu and command status are hidden while the prompt is open.
+
+This is enabled by default. To use your own credential or SSH prompt instead,
+disable it in `config.toml`:
+
+```toml
+[askpass]
+enabled = false
+```

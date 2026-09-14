@@ -101,14 +101,18 @@ interactive_bookmark_pane = true
 
 When enabled, `b` toggles the pane and `tab` switches focus between it and the revisions view. See [Bookmarks](/jjui/bookmarks#interactive-bookmark-pane) for its actions.
 
-## SSH
+## Credential prompts
 
-Disable jjui's SSH askpass helper if you manage SSH credentials yourself:
+jjui handles Git and SSH credential requests in an in-app askpass prompt by
+default. Usernames are visible, while passwords and passphrases are masked.
+Disable this if you manage credentials with your own helpers or prompt:
 
 ```toml
-[ssh]
-hijack_askpass = false
+[askpass]
+enabled = false
 ```
+
+The older `[ssh].hijack_askpass` setting has been removed.
 
 ## Exec suggestions
 
