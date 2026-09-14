@@ -16,9 +16,16 @@ The evolog entries are listed below the revision. Navigate through them to inspe
 - `j`/`k`, `pgup`/`pgdown`: navigate entries
 - `d`: view the diff of the highlighted entry
 - `r`: switch to restore mode
+- `s`: split the revision at the highlighted hidden entry
 - `p`: toggle preview (shows the diff patch for the highlighted entry)
 - `shift+p`: move preview to bottom
 - `esc`: close evolog
+
+The split action is available for a hidden evolog entry. It duplicates the
+current change, restores the selected historical state into the original
+change, and refreshes the revision list. This leaves the later evolution in a
+new change. Selecting the current visible revision does not provide a split
+point.
 
 ## Restore mode
 

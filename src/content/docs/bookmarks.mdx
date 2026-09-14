@@ -16,7 +16,7 @@ interactive_bookmark_pane = true
 
 With this option enabled, press `b` to open or close the bookmark pane beside the revisions view. Press `tab` to move focus between the revisions list and the pane. The classic bookmark menu remains the default when the option is disabled.
 
-The pane displays local and remote bookmarks in a tree. Local bookmarks with remote counterparts can be expanded with `enter`; rows show tracking, deleted, and conflict states when applicable. `h`/`l` cycle the `all`, `local`, and individual remote filters. `/` filters by bookmark name, remote, target, or commit ID. `space` selects bookmarks for a multi-bookmark operation; when nothing is selected, operations use the highlighted row.
+The pane displays local and remote bookmarks in a tree. Local bookmarks with remote counterparts can be expanded with `enter`; rows show tracking, deleted, and conflict states when applicable. `h`/`l` cycle the `all`, `local`, and individual remote filters. `/` filters by bookmark name, remote, target, or commit ID. `space` selects bookmarks for a multi-bookmark operation; `ctrl+click` toggles a row, and `alt+click` selects a range. When nothing is selected, operations use the highlighted row.
 
 | Key | Action |
 |-----|--------|
@@ -59,6 +59,10 @@ The bookmark menu shows **"local"** as the first remote, followed by all configu
 - **a specific remote**: only track and untrack commands for bookmarks on that remote
 
 Items within each category are sorted by distance from the current revision — bookmarks closer to where your cursor is appear first in the move list.
+
+Move commands also work when the highlighted target is a hidden revision, such
+as a remote bookmark whose local change was rewritten. jjui uses that hidden
+revision's commit ID as the move target.
 
 ## Setting a bookmark
 

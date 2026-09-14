@@ -104,6 +104,11 @@ background_blend = { light = 0.2, dark = 0.4 }
 
 When blending is enabled, jjui queries the terminal background and ANSI palette. It reapplies the theme when the terminal background changes.
 
+Selected rows and menu entries also receive an automatic foreground adjustment
+when their configured colors would be difficult to read against the selected
+background. Annotation highlights use the active theme colors and receive the
+same contrast treatment.
+
 ## Style Format
 
 Theme colors are keyed by a **selector** that targets a UI element. A color can be a foreground color by itself or a style table.

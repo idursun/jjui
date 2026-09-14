@@ -11,9 +11,15 @@ Press `enter` on a revision to open the inline description editor. The current d
 - `alt+enter` or `ctrl+s`: apply — runs `jj describe` with what you've typed
 - `alt+shift+enter`: force apply — useful when intentionally updating an immutable revision
 - `alt+e`: open the description in your external editor instead
-- `esc`: cancel
+- `esc`: cancel when unchanged; when modified, open the discard confirmation
+- `ctrl+x`: clear the whole description and save it in the yank buffer
 
 Press `ctrl+y` to insert the text most recently killed with `ctrl+k` or `ctrl+u`.
+After `ctrl+x`, `ctrl+y` restores the complete description.
+
+When the description has unsaved changes, the discard confirmation starts with
+**Discard** selected: press `enter` or `y` to discard, or press `esc` (or `n`)
+to keep editing.
 
 ## Custom bindings
 
@@ -50,7 +56,3 @@ function setup(config)
   end)
 end
 ```
-
-## Draft stashing
-
-If the revision had an **empty description** when you opened the editor, pressing `esc` stashes your typed text as a draft instead of discarding it. The next time you open inline describe on that same revision, the draft is restored automatically.
