@@ -58,12 +58,6 @@ func parseGitPatch(content string) []patchFile {
 			oldPath, newPath := parseDiffHeader(raw)
 			files = append(files, patchFile{OldPath: oldPath, NewPath: newPath})
 			current = &files[len(files)-1]
-			if oldPath != "" && newPath != "" && oldPath != newPath {
-				summary := oldPath + " -> " + newPath
-				current.Lines = append(current.Lines, patchLine{
-					Kind: lineMetadata, Raw: summary, Content: summary,
-				})
-			}
 			inHunk = false
 			continue
 		}
@@ -77,6 +71,20 @@ func parseGitPatch(content string) []patchFile {
 		if strings.HasPrefix(raw, "+++ ") && !inHunk {
 			current.NewPath = parseMarkerPath(strings.TrimPrefix(raw, "+++ "), "b/")
 			continue
+		}
+		if !inHunk {
+			switch {
+			case strings.HasPrefix(raw, "new file mode "):
+				current.OldPath = ""
+			case strings.HasPrefix(raw, "deleted file mode "):
+				current.NewPath = ""
+			case strings.HasPrefix(raw, "rename from "):
+				current.OldPath = parseMarkerPath(strings.TrimPrefix(raw, "rename from "), "")
+				continue
+			case strings.HasPrefix(raw, "rename to "):
+				current.NewPath = parseMarkerPath(strings.TrimPrefix(raw, "rename to "), "")
+				continue
+			}
 		}
 		if oldStart, newStart, ok := parseHunkHeader(raw); ok {
 			oldLine = oldStart
@@ -124,22 +132,55 @@ func parseGitPatch(content string) []patchFile {
 	}
 
 	for i := range files {
+		if files[i].OldPath != "" && files[i].NewPath != "" && files[i].OldPath != files[i].NewPath {
+			summary := files[i].OldPath + " -> " + files[i].NewPath
+			files[i].Lines = append([]patchLine{{
+				Kind: lineMetadata, Raw: summary, Content: summary,
+			}}, files[i].Lines...)
+		}
 		pairChangedBlocks(files[i].Lines)
 	}
 	return files
 }
 
 func parseDiffHeader(line string) (string, string) {
-	fields, err := shellwords.Parse(strings.TrimPrefix(line, "diff --git "))
-	if err != nil || len(fields) < 2 {
-		return "", ""
+	header := strings.TrimPrefix(line, "diff --git ")
+	fields, err := shellwords.Parse(header)
+	if err == nil && len(fields) == 2 {
+		return trimPatchPrefix(fields[0], "a/"), trimPatchPrefix(fields[1], "b/")
 	}
-	return trimPatchPrefix(fields[0], "a/"), trimPatchPrefix(fields[1], "b/")
+	// An unquoted header is ambiguous when its paths contain spaces. The common
+	// non-rename form repeats the same path after the a/ and b/ prefixes, so use
+	// only a boundary that makes both paths identical. Rename metadata and
+	// ---/+++ markers provide authoritative paths for the remaining forms.
+	const separator = " b/"
+	withoutOldPrefix := strings.TrimPrefix(header, "a/")
+	for offset := 0; offset < len(withoutOldPrefix); {
+		index := strings.Index(withoutOldPrefix[offset:], separator)
+		if index < 0 {
+			break
+		}
+		index += offset
+		oldPath := withoutOldPrefix[:index]
+		newPath := withoutOldPrefix[index+len(separator):]
+		if oldPath == newPath {
+			return oldPath, newPath
+		}
+		offset = index + 1
+	}
+	return "", ""
 }
 
 func parseMarkerPath(path, prefix string) string {
+	path = strings.TrimSuffix(path, "\t")
 	if path == "/dev/null" {
 		return ""
+	}
+	// Git does not quote paths containing spaces in the ---/+++ markers.
+	// Only parse quoted paths as shell words; parsing an unquoted path would
+	// discard everything after its first space.
+	if !strings.HasPrefix(path, `"`) {
+		return trimPatchPrefix(path, prefix)
 	}
 	fields, err := shellwords.Parse(path)
 	if err == nil && len(fields) > 0 {

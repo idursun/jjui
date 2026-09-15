@@ -58,6 +58,72 @@ func TestModelLoadsStructuredDiffAndCompleteFile(t *testing.T) {
 	assert.Contains(t, fileView, "unchanged line")
 }
 
+func TestFullFileViewLoadsFileWithSpacesInPath(t *testing.T) {
+	runner := test.NewTestCommandRunner(t)
+	defer runner.Verify()
+	runner.Expect(jj.GetDescription("change")).SetOutput([]byte("Update file"))
+	runner.Expect(jj.AnnotationDiff("change")).SetOutput([]byte(`diff --git a/a file.go b/a file.go
+--- a/a file.go	
++++ b/a file.go	
+@@ -1 +1 @@
+-old
++new`))
+	runner.Expect(jj.FileShow("change", "a file.go")).SetOutput([]byte("new\nunchanged line"))
+
+	model := New(test.NewTestContext(runner), "change")
+	require.Nil(t, model.Update(model.Init()()))
+
+	cmd, handled := model.HandleIntent(intents.AnnotationTogglePresentation{})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	require.Nil(t, model.Update(cmd()))
+
+	assert.Equal(t, "a file.go", model.currentFile().Path)
+	assert.Contains(t, model.document.currentFile().Content, "unchanged line")
+}
+
+func TestFullFileViewLoadsEmptyFileWithSpacesInPath(t *testing.T) {
+	runner := test.NewTestCommandRunner(t)
+	defer runner.Verify()
+	runner.Expect(jj.GetDescription("change")).SetOutput([]byte("Add file"))
+	runner.Expect(jj.AnnotationDiff("change")).SetOutput([]byte(`diff --git a/hello world.txt b/hello world.txt
+new file mode 100644
+index 0000000000..e69de29bb2`))
+	runner.Expect(jj.FileShow("change", "hello world.txt")).SetOutput([]byte("loaded content"))
+
+	model := New(test.NewTestContext(runner), "change")
+	require.Nil(t, model.Update(model.Init()()))
+
+	cmd, handled := model.HandleIntent(intents.AnnotationTogglePresentation{})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	require.Nil(t, model.Update(cmd()))
+
+	assert.Equal(t, "hello world.txt", model.currentFile().Path)
+	assert.Equal(t, []string{"loaded content"}, model.document.currentFile().Content)
+}
+
+func TestFullFileViewLoadsDeletedFileWithSpacesFromParent(t *testing.T) {
+	runner := test.NewTestCommandRunner(t)
+	defer runner.Verify()
+	runner.Expect(jj.GetDescription("change")).SetOutput([]byte("Delete file"))
+	runner.Expect(jj.AnnotationDiff("change")).SetOutput([]byte(`diff --git a/hello world.txt b/hello world.txt
+deleted file mode 100644
+index e69de29bb2..0000000000`))
+	runner.Expect(jj.FileShow("change-", "hello world.txt")).SetOutput([]byte(""))
+
+	model := New(test.NewTestContext(runner), "change")
+	require.Nil(t, model.Update(model.Init()()))
+
+	cmd, handled := model.HandleIntent(intents.AnnotationTogglePresentation{})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	require.Nil(t, model.Update(cmd()))
+
+	assert.Equal(t, "hello world.txt", model.currentFile().Path)
+	assert.Equal(t, []string{""}, model.document.currentFile().Content)
+}
+
 func TestAnnotationsRenderOnUnchangedLines(t *testing.T) {
 	runner := test.NewTestCommandRunner(t)
 	defer runner.Verify()
