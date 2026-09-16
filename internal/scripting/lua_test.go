@@ -70,6 +70,16 @@ func assertLuaStringOrNil(t *testing.T, val lua.LValue, expected *string) {
 	assert.Equal(t, *expected, val.String())
 }
 
+func assertLuaNumberOrNil(t *testing.T, val lua.LValue, expected *int) {
+	t.Helper()
+	if expected == nil {
+		assert.Equal(t, lua.LNil, val)
+		return
+	}
+	require.Equal(t, lua.LTNumber, val.Type())
+	assert.Equal(t, lua.LNumber(*expected), val)
+}
+
 // runScriptAndGetGlobal runs a Lua script and returns the value of a global variable
 // before the Lua state is closed.
 func runScriptAndGetGlobal(t *testing.T, ctx *uicontext.MainContext, script, varName string) lua.LValue {
@@ -335,6 +345,178 @@ func TestContext_AccessViaJjuiNamespace(t *testing.T) {
 
 	assert.Equal(t, "ns_change", vals[0].String())
 	assert.Equal(t, "ns_commit", vals[1].String())
+}
+
+func TestContext_PreviewYOffset(t *testing.T) {
+	tests := []struct {
+		name string
+		ctx  *uicontext.MainContext
+		want *int
+	}{
+		{
+			name: "reader absent",
+			ctx:  &uicontext.MainContext{},
+			want: nil,
+		},
+		{
+			name: "hidden",
+			ctx: &uicontext.MainContext{
+				PreviewState: func() (int, string, bool) {
+					return 4, "secret", false
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "active empty",
+			ctx: &uicontext.MainContext{
+				PreviewState: func() (int, string, bool) {
+					return 0, "", true
+				},
+			},
+			want: new(0),
+		},
+		{
+			name: "active offset",
+			ctx: &uicontext.MainContext{
+				PreviewState: func() (int, string, bool) {
+					return 12, "diff", true
+				},
+			},
+			want: new(12),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val := runScriptAndGetGlobal(t, tt.ctx, `result = context.preview_y_offset()`, "result")
+			assertLuaNumberOrNil(t, val, tt.want)
+			val = runScriptAndGetGlobal(t, tt.ctx, `result = jjui.context.preview_y_offset()`, "result")
+			assertLuaNumberOrNil(t, val, tt.want)
+		})
+	}
+}
+
+func TestContext_PreviewContent(t *testing.T) {
+	ansiContent := "line1\n+\tfoo\n\n\x1b[32mgreen\x1b[0m\n"
+	tests := []struct {
+		name string
+		ctx  *uicontext.MainContext
+		want *string
+	}{
+		{
+			name: "reader absent",
+			ctx:  &uicontext.MainContext{},
+			want: nil,
+		},
+		{
+			name: "hidden",
+			ctx: &uicontext.MainContext{
+				PreviewState: func() (int, string, bool) {
+					return 4, "secret", false
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "active empty",
+			ctx: &uicontext.MainContext{
+				PreviewState: func() (int, string, bool) {
+					return 0, "", true
+				},
+			},
+			want: new(""),
+		},
+		{
+			name: "active content retains ansi",
+			ctx: &uicontext.MainContext{
+				PreviewState: func() (int, string, bool) {
+					return 3, ansiContent, true
+				},
+			},
+			want: new(ansiContent),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val := runScriptAndGetGlobal(t, tt.ctx, `result = context.preview_content()`, "result")
+			assertLuaStringOrNil(t, val, tt.want)
+			val = runScriptAndGetGlobal(t, tt.ctx, `result = jjui.context.preview_content()`, "result")
+			assertLuaStringOrNil(t, val, tt.want)
+		})
+	}
+}
+
+func TestContext_PreviewGetters_PersistentVMObservesCurrentReaderAndState(t *testing.T) {
+	ctx := setupVM(t)
+
+	vals := evalOnVM(t, ctx, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+		ns_offset = jjui.context.preview_y_offset()
+		ns_content = jjui.context.preview_content()
+	`, "offset", "content", "ns_offset", "ns_content")
+	assert.Equal(t, lua.LNil, vals[0])
+	assert.Equal(t, lua.LNil, vals[1])
+	assert.Equal(t, lua.LNil, vals[2])
+	assert.Equal(t, lua.LNil, vals[3])
+
+	var yOffset int
+	var content string
+	var visible bool
+	ctx.PreviewState = func() (int, string, bool) {
+		return yOffset, content, visible
+	}
+
+	vals = evalOnVM(t, ctx, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+	`, "offset", "content")
+	assert.Equal(t, lua.LNil, vals[0])
+	assert.Equal(t, lua.LNil, vals[1])
+
+	visible = true
+	vals = evalOnVM(t, ctx, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+		ns_offset = jjui.context.preview_y_offset()
+		ns_content = jjui.context.preview_content()
+	`, "offset", "content", "ns_offset", "ns_content")
+	assert.Equal(t, lua.LNumber(0), vals[0])
+	assert.Equal(t, lua.LString(""), vals[1])
+	assert.Equal(t, lua.LNumber(0), vals[2])
+	assert.Equal(t, lua.LString(""), vals[3])
+
+	yOffset = 7
+	content = "first hunk\n\x1b[31m-old\x1b[0m\n"
+	vals = evalOnVM(t, ctx, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+	`, "offset", "content")
+	assert.Equal(t, lua.LNumber(7), vals[0])
+	assert.Equal(t, "first hunk\n\x1b[31m-old\x1b[0m\n", vals[1].String())
+
+	yOffset = 0
+	content = ""
+	vals = evalOnVM(t, ctx, `
+		offset = context.preview_y_offset()
+		content = context.preview_content()
+	`, "offset", "content")
+	assert.Equal(t, lua.LNumber(0), vals[0])
+	assert.Equal(t, lua.LString(""), vals[1])
+}
+
+func evalOnVM(t *testing.T, ctx *uicontext.MainContext, script string, varNames ...string) []lua.LValue {
+	t.Helper()
+	require.NotNil(t, ctx.ScriptVM)
+	err := ctx.ScriptVM.DoString(script)
+	require.NoError(t, err)
+	var results []lua.LValue
+	for _, name := range varNames {
+		results = append(results, ctx.ScriptVM.GetGlobal(name))
+	}
+	return results
 }
 
 func TestGeneratedActions_AccessViaJjuiNamespace(t *testing.T) {

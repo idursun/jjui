@@ -30,8 +30,15 @@ func (m *Model) initSplitContainer() {
 
 	m.splitContainer = split.NewSplitContainer(state)
 	m.splitContainer.OnPrimaryFocus = m.revisions.SetFocused
-	m.splitContainer.RegisterContent(previewContentID, preview.New(m.context))
+	previewModel := preview.New(m.context)
+	m.splitContainer.RegisterContent(previewContentID, previewModel)
 	m.splitContainer.RegisterContent(bookmarkContentID, bookmarkpane.New(m.context))
+	m.context.PreviewState = func() (yOffset int, content string, visible bool) {
+		if m.splitContainer.ActiveID() != previewContentID {
+			return 0, "", false
+		}
+		return previewModel.YOffset(), previewModel.Content(), true
+	}
 	if config.Current.Preview.ShowAtStart {
 		_, _ = m.splitContainer.ShowContent(previewContentID)
 	}
