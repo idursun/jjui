@@ -3,6 +3,7 @@ package actionmeta
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -583,14 +584,7 @@ func ValidateBuiltInActionArgs(action string, args map[string]any) error {
 					return fmt.Errorf("action %q arg %q expects string enum", action, key)
 				}
 				allowed := strings.Split(strings.TrimPrefix(expectedType, "enum:"), "|")
-				valid := false
-				for _, item := range allowed {
-					if s == item {
-						valid = true
-						break
-					}
-				}
-				if !valid {
+				if !slices.Contains(allowed, s) {
 					return fmt.Errorf("action %q arg %q invalid value %q (accepted: %s)", action, key, s, strings.Join(allowed, ", "))
 				}
 				continue

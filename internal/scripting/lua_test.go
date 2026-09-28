@@ -14,11 +14,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 )
 
-//go:fix inline
-func strPtr(v string) *string {
-	return new(v)
-}
-
 type testStateProvider struct {
 	snapshot common.SelectionSnapshot
 	states   map[string]any

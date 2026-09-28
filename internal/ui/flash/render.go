@@ -102,8 +102,11 @@ func (r CardRenderer) wrapCard(content string, maxWidth int, borderStyle ...lipg
 		content = lipgloss.NewStyle().Width(maxWidth).Render(content)
 	}
 	style := theme.DefaultPalette.Get("flash", "", "text", false)
-	if len(borderStyle) > 0 && borderStyle[0].GetForeground() != nil {
-		style = borderStyle[0]
+	if len(borderStyle) > 0 {
+		// lipgloss reports an unset foreground as NoColor, never nil.
+		if _, unset := borderStyle[0].GetForeground().(lipgloss.NoColor); !unset {
+			style = borderStyle[0]
+		}
 	}
 	return lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder()).

@@ -844,8 +844,7 @@ func (w *wrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		w.scheduledNextFrame = false
 		return w, nil
 	}
-	var cmd tea.Cmd
-	cmd = w.ui.Update(msg)
+	cmd := w.ui.Update(msg)
 	if _, ok := msg.(common.ExecMsg); ok {
 		// Force a fresh frame before Bubble Tea releases/restores the terminal
 		// for tea.Exec. Otherwise RestoreTerminal can repaint using the last

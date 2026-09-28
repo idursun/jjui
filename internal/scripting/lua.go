@@ -708,11 +708,6 @@ func yieldStep(L *lua.LState, st step) int {
 	return L.Yield(ud)
 }
 
-//go:fix inline
-func boolPtr(v bool) *bool {
-	return new(v)
-}
-
 func parseNavigateTarget(val string) intents.NavigationTarget {
 	switch strings.ToLower(val) {
 	case "parent":

@@ -8,11 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//go:fix inline
-func boolPtr(v bool) *bool {
-	return new(v)
-}
-
 const (
 	Black  = "0"
 	Red    = "1"

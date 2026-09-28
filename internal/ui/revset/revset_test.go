@@ -295,9 +295,6 @@ func TestModel_Update_ApplyEmptyUsesDefaultRevset(t *testing.T) {
 	assert.Equal(t, ctx.DefaultRevset, updated, "empty apply should resolve to default revset")
 }
 
-//go:fix inline
-func boolPtr(v bool) *bool { return new(v) }
-
 func renderExpectedCellColors(t *testing.T, content string) (any, any) {
 	t.Helper()
 	dl := render.NewDisplayContext()

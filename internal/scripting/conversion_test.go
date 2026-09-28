@@ -9,11 +9,6 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-//go:fix inline
-func boolRef(v bool) *bool {
-	return new(v)
-}
-
 func TestToLuaTableIncludesNestedStructFields(t *testing.T) {
 	L := lua.NewState()
 	t.Cleanup(L.Close)

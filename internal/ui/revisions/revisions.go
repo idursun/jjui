@@ -427,9 +427,7 @@ func (m *Model) Selection() common.SelectionSnapshot {
 		}
 	}
 
-	for _, item := range m.checkedRevisionItems() {
-		snapshot.Checked = append(snapshot.Checked, item)
-	}
+	snapshot.Checked = append(snapshot.Checked, m.checkedRevisionItems()...)
 	return snapshot
 }
 

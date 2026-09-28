@@ -214,6 +214,7 @@ func generateActionMetaSource(actionArgSchemas map[string]map[string]string, act
 	b.WriteString("package actionmeta\n\n")
 	b.WriteString("import (\n")
 	b.WriteString("\t\"fmt\"\n")
+	b.WriteString("\t\"slices\"\n")
 	b.WriteString("\t\"sort\"\n")
 	b.WriteString("\t\"strings\"\n")
 	b.WriteString(")\n\n")
@@ -352,14 +353,7 @@ func generateActionMetaSource(actionArgSchemas map[string]map[string]string, act
 	b.WriteString("\t\t\t\t\treturn fmt.Errorf(\"action %q arg %q expects string enum\", action, key)\n")
 	b.WriteString("\t\t\t\t}\n")
 	b.WriteString("\t\t\t\tallowed := strings.Split(strings.TrimPrefix(expectedType, \"enum:\"), \"|\")\n")
-	b.WriteString("\t\t\t\tvalid := false\n")
-	b.WriteString("\t\t\t\tfor _, item := range allowed {\n")
-	b.WriteString("\t\t\t\t\tif s == item {\n")
-	b.WriteString("\t\t\t\t\t\tvalid = true\n")
-	b.WriteString("\t\t\t\t\t\tbreak\n")
-	b.WriteString("\t\t\t\t\t}\n")
-	b.WriteString("\t\t\t\t}\n")
-	b.WriteString("\t\t\t\tif !valid {\n")
+	b.WriteString("\t\t\t\tif !slices.Contains(allowed, s) {\n")
 	b.WriteString("\t\t\t\t\treturn fmt.Errorf(\"action %q arg %q invalid value %q (accepted: %s)\", action, key, s, strings.Join(allowed, \", \"))\n")
 	b.WriteString("\t\t\t\t}\n")
 	b.WriteString("\t\t\t\tcontinue\n")
@@ -1517,11 +1511,11 @@ func sortedScopeNames(m map[string]*scopeNode) []string {
 }
 
 func splitCanonicalActionID(canonical string) (scope string, token string) {
-	idx := strings.LastIndex(canonical, ".")
-	if idx < 0 {
+	scope, token, found := strings.CutLast(canonical, ".")
+	if !found {
 		return "", canonical
 	}
-	return canonical[:idx], canonical[idx+1:]
+	return scope, token
 }
 
 func writeActionFunction(b *bytes.Buffer, action luaActionSpec) {

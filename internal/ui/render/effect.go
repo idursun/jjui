@@ -48,9 +48,6 @@ type HighlightEffect struct {
 
 func (e HighlightEffect) Apply(buf uv.Screen) {
 	background := e.Style.GetBackground()
-	if background == nil {
-		return
-	}
 	if _, isNoColor := background.(lipgloss.NoColor); isNoColor {
 		return
 	}
