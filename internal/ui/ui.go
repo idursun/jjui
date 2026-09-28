@@ -586,14 +586,11 @@ func (m *Model) dispatchScopes() []common.Scope {
 		scopes = append(scopes, m.revsetModel.Scopes()...)
 	}
 
-	// A dialog takes all keys. A screen over the primary view (diff,
-	// annotation) still leaves the primary view's global scopes reachable.
+	// Only the top layer receives keys. The split panes beside the primary
+	// view (preview, bookmark pane) join only while the primary view is on top.
 	primary := m.primary()
 	if top, ok := m.topLayer(); ok && top.model != primary {
 		scopes = append(scopes, top.model.Scopes()...)
-		if top.screen {
-			scopes = append(scopes, m.splitScopes(primary.Scopes())...)
-		}
 	} else {
 		scopes = append(scopes, m.splitScopes(primary.Scopes())...)
 	}
