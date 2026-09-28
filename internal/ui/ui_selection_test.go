@@ -66,10 +66,10 @@ func TestUpdateDetectsHighlightChangesAcrossReturnPaths(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 			model := NewUI(ctx)
-			model.stacked = &changingSelectionScope{
+			pushDialog(model, &changingSelectionScope{
 				scopeOnlyStackedModel: scopeOnlyStackedModel{scope: actions.ScopeChoose},
 				next:                  first,
-			}
+			})
 			cmd := model.Update(tc.msg)
 			assert.Equal(t, first, ctx.Selection().Highlighted)
 			var changes []common.SelectionChangedMsg
@@ -88,9 +88,9 @@ func TestUpdateNotifiesWhenEarlyReturnRemovesHighlight(t *testing.T) {
 	for _, msg := range []tea.Msg{common.CloseViewMsg{}, common.ShowInputMsg{}} {
 		t.Run(reflect.TypeOf(msg).Name(), func(t *testing.T) {
 			model := NewUI(test.NewTestContext(test.NewTestCommandRunner(t)))
-			model.stacked = &changingSelectionScope{snapshot: common.SelectionSnapshot{
+			pushDialog(model, &changingSelectionScope{snapshot: common.SelectionSnapshot{
 				Highlighted: common.SelectedRevision{ChangeId: "first"},
-			}}
+			}})
 			require.NotNil(t, model.Update(tea.ModeReportMsg{}))
 			var changes []common.SelectionChangedMsg
 			test.SimulateModel(model, model.Update(msg), func(msg tea.Msg) {
@@ -106,9 +106,9 @@ func TestUpdateNotifiesWhenEarlyReturnRemovesHighlight(t *testing.T) {
 func TestDirectHandleIntentLeavesNotificationToUpdate(t *testing.T) {
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := NewUI(ctx)
-	model.stacked = &changingSelectionScope{snapshot: common.SelectionSnapshot{
+	pushDialog(model, &changingSelectionScope{snapshot: common.SelectionSnapshot{
 		Highlighted: common.SelectedRevision{ChangeId: "first"},
-	}}
+	}})
 	require.NotNil(t, model.Update(tea.ModeReportMsg{}))
 	// Opening history replaces the selection provider synchronously.
 	_, handled := model.HandleIntent(intents.CommandHistoryToggle{})
@@ -133,7 +133,7 @@ func TestDispatchActionCompletesAfterHighlightNotification(t *testing.T) {
 			if withCommand {
 				scope.cmd = func() tea.Msg { return selectionActionResultMsg{} }
 			}
-			model.stacked = scope
+			pushDialog(model, scope)
 			cmd := model.Update(common.DispatchActionMsg{Action: "choose.move_down", CompletionID: "action"})
 			assert.Equal(t, first, ctx.Selection().Highlighted)
 			require.NotNil(t, cmd)
@@ -168,9 +168,9 @@ func TestUpdateHighlightNotificationRefreshesPreview(t *testing.T) {
 	defer commandRunner.Verify()
 	model := NewUI(test.NewTestContext(commandRunner))
 	showPreview(t, model, "original preview")
-	model.stacked = &changingSelectionScope{snapshot: common.SelectionSnapshot{
+	pushDialog(model, &changingSelectionScope{snapshot: common.SelectionSnapshot{
 		Highlighted: common.SelectedRevision{ChangeId: "first"},
-	}}
+	}})
 
 	cmd := model.Update(tea.ModeReportMsg{})
 	require.NotNil(t, cmd)

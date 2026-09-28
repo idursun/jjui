@@ -46,10 +46,8 @@ import (
 
 type Model struct {
 	revisions        *revisions.Model
-	oplog            *oplog.Model
+	layers           []layer
 	revsetModel      *revset.Model
-	diff             *diff.Model
-	annotation       *annotation.Model
 	flash            *flash.Model
 	state            common.State
 	status           *status.Model
@@ -59,7 +57,6 @@ type Model struct {
 	sequenceHelp     []help.Entry
 	sequenceAutoOpen bool
 	resolver         *dispatch.Resolver
-	stacked          common.StackedModel
 	displayContext   *render.DisplayContext
 	frameCursor      *tea.Cursor
 	lastHighlighted  common.SelectedItem
@@ -125,8 +122,8 @@ func (m *Model) QueryState(name string) (any, bool) {
 			return m.splitContainer.CanResize(-config.Current.Preview.WidthIncrementPercentage), true
 		}
 	}
-	if strings.HasPrefix(name, "annotation.") && m.annotation != nil {
-		return m.annotation.QueryState(strings.TrimPrefix(name, "annotation."))
+	if annotationModel, ok := findLayer[*annotation.Model](m); ok && strings.HasPrefix(name, "annotation.") {
+		return annotationModel.QueryState(strings.TrimPrefix(name, "annotation."))
 	}
 	if strings.HasPrefix(name, "bookmark_pane.") && m.splitContainer != nil {
 		return m.splitContainer.QueryState(bookmarkContentID, strings.TrimPrefix(name, "bookmark_pane."))
@@ -140,11 +137,10 @@ func (m *Model) QueryState(name string) (any, bool) {
 
 func (m *Model) selectionProviders() []common.SelectionProvider {
 	var providers []common.SelectionProvider
-	if provider, ok := m.stacked.(common.SelectionProvider); ok {
-		providers = append(providers, provider)
-	}
-	if m.oplog != nil {
-		providers = append(providers, m.oplog)
+	for _, l := range slices.Backward(m.layers) {
+		if provider, ok := l.model.(common.SelectionProvider); ok {
+			providers = append(providers, provider)
+		}
 	}
 	if m.revisions != nil {
 		providers = append(providers, m.revisions)
@@ -170,32 +166,13 @@ func selectedItemsEqual(a, b common.SelectedItem) bool {
 
 func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
 	// The expanded status help is an overlay over the active view. When there
-	// is no stacked modal, close the overlay before closing that view.
-	if !msg.Applied && m.stacked == nil && m.status != nil && m.status.StatusExpanded() {
+	// is no dialog, close the overlay before closing that view.
+	if !msg.Applied && m.dialog() == nil && m.status != nil && m.status.StatusExpanded() {
 		m.status.SetStatusExpanded(false)
 		return nil, true
 	}
-	if m.stacked != nil {
-		cmd := m.stacked.Update(msg)
-		m.stacked = nil
-		return cmd, true
-	}
-	if m.annotation != nil {
-		if !msg.Applied {
-			if cmd, canClose := m.annotation.RequestClose(); !canClose {
-				return cmd, true
-			}
-		}
-		m.annotation = nil
-		return nil, true
-	}
-	if m.diff != nil {
-		m.diff = nil
-		return nil, true
-	}
-	if m.oplog != nil {
-		m.oplog = nil
-		return nil, true
+	if len(m.layers) > 0 {
+		return m.closeTopLayer(msg), true
 	}
 	if m.splitContainer.ContentFocused() && m.splitContainer.Close() {
 		return nil, true
@@ -399,37 +376,25 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 		}
 		return actionCompleted(msg.CompletionID)
 	case common.ShowChooseMsg:
-		model := choose.NewWithOptions(msg.Options, msg.Title, msg.Ordered)
-		m.stacked = model
-		return m.stacked.Init()
-	case choose.SelectedMsg:
-		m.stacked = nil
-	case choose.CancelledMsg:
-		m.stacked = nil
+		return m.openDialog(choose.NewWithOptions(msg.Options, msg.Title, msg.Ordered))
+	case choose.SelectedMsg, choose.CancelledMsg:
+		m.closeDialog()
 	case common.ShowInputMsg:
-		model := input.NewWithTitle(msg.Title, msg.Prompt, msg.Value)
-		m.stacked = model
-		return m.stacked.Init()
+		return m.openDialog(input.NewWithTitle(msg.Title, msg.Prompt, msg.Value))
 	case input.SelectedMsg, input.CancelledMsg:
-		m.stacked = nil
+		m.closeDialog()
 	case common.OpenTargetPickerMsg:
-		if m.annotation != nil || m.diff != nil {
-			model := target_picker.NewModel(m.context, msg.Payload, msg.Sources...)
-			m.stacked = model
-			return m.stacked.Init()
+		if m.acceptsTargets() {
+			return m.openDialog(target_picker.NewModel(m.context, msg.Payload, msg.Sources...))
 		}
 	case target_picker.TargetSelectedMsg:
-		if m.annotation != nil && m.stacked != nil {
-			m.stacked = nil
-			return m.annotation.Update(msg)
-		}
-		if m.diff != nil && m.stacked != nil {
-			m.stacked = nil
-			return m.diff.Update(msg)
+		if m.acceptsTargets() && m.dialog() != nil {
+			m.closeDialog()
+			return m.screen().Update(msg)
 		}
 	case target_picker.TargetPickerCancelMsg:
-		if (m.annotation != nil || m.diff != nil) && m.stacked != nil {
-			m.stacked = nil
+		if m.acceptsTargets() && m.dialog() != nil {
+			m.closeDialog()
 			return nil
 		}
 	case common.TogglePasswordMsg:
@@ -454,29 +419,21 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 		m.height = msg.Height
 	}
 
-	// Unhandled key messages go to the main view (oplog or revisions)
+	// Unhandled key messages go to the primary view (oplog or revisions)
 	// Other messages are broadcast to all models
+	primary := m.primary()
 	if common.IsInputMessage(msg) {
-		if m.oplog != nil {
-			cmds = append(cmds, m.oplog.Update(msg))
-		} else {
-			cmds = append(cmds, m.revisions.Update(msg))
-		}
+		cmds = append(cmds, primary.Update(msg))
 		return tea.Batch(cmds...)
 	}
 
 	cmds = append(cmds, m.revsetModel.Update(msg))
 	cmds = append(cmds, m.status.Update(msg))
 	cmds = append(cmds, m.flash.Update(msg))
-	if m.diff != nil {
-		cmds = append(cmds, m.diff.Update(msg))
-	}
-	if m.annotation != nil {
-		cmds = append(cmds, m.annotation.Update(msg))
-	}
-
-	if m.stacked != nil {
-		cmds = append(cmds, m.stacked.Update(msg))
+	for _, l := range m.layers {
+		if l.model != primary {
+			cmds = append(cmds, l.model.Update(msg))
+		}
 	}
 
 	if len(m.scriptRunners) > 0 {
@@ -485,11 +442,7 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 		}
 	}
 
-	if m.oplog != nil {
-		cmds = append(cmds, m.oplog.Update(msg))
-	} else {
-		cmds = append(cmds, m.revisions.Update(msg))
-	}
+	cmds = append(cmds, primary.Update(msg))
 
 	cmds = append(cmds, m.updateSplit(msg))
 
@@ -518,21 +471,23 @@ func (m *Model) View() string {
 	box := layout.NewBox(layout.Rect(0, 0, m.width, m.height))
 	screenBuf := render.NewScreenBuffer(m.width, m.height)
 
-	if m.annotation != nil {
-		m.renderAnnotationLayout(box)
-	} else if m.diff != nil {
-		m.renderDiffLayout(box)
-	} else {
+	switch screen := m.screen().(type) {
+	case nil:
 		m.updateSplitAutoPosition()
-		if m.oplog != nil {
-			m.renderOpLogLayout(box)
-		} else {
-			m.renderRevisionsLayout(box)
-		}
+		m.renderRevisionsLayout(box)
+	case *oplog.Model:
+		m.updateSplitAutoPosition()
+		m.renderWithStatus(box, func(content layout.Box) {
+			m.renderSplit(screen, content)
+		})
+	default:
+		m.renderWithStatus(box, func(content layout.Box) {
+			screen.ViewRect(m.displayContext, content)
+		})
 	}
 
-	if m.stacked != nil {
-		m.stacked.ViewRect(m.displayContext, box)
+	for _, l := range m.layers[m.screenIndex()+1:] {
+		l.model.ViewRect(m.displayContext, box)
 	}
 
 	if m.password == nil {
@@ -556,24 +511,6 @@ func (m *Model) View() string {
 	finalView := screenBuf.Render()
 	m.frameCursor = m.displayContext.Cursor()
 	return strings.ReplaceAll(finalView, "\r", "")
-}
-
-func (m *Model) renderDiffLayout(box layout.Box) {
-	m.renderWithStatus(box, func(content layout.Box) {
-		m.diff.ViewRect(m.displayContext, content)
-	})
-}
-
-func (m *Model) renderAnnotationLayout(box layout.Box) {
-	m.renderWithStatus(box, func(content layout.Box) {
-		m.annotation.ViewRect(m.displayContext, content)
-	})
-}
-
-func (m *Model) renderOpLogLayout(box layout.Box) {
-	m.renderWithStatus(box, func(content layout.Box) {
-		m.renderSplit(m.oplog, content)
-	})
 }
 
 func (m *Model) renderRevisionsLayout(box layout.Box) {
@@ -649,22 +586,16 @@ func (m *Model) dispatchScopes() []common.Scope {
 		scopes = append(scopes, m.revsetModel.Scopes()...)
 	}
 
-	if m.stacked != nil && (m.diff != nil || m.annotation != nil) {
-		scopes = append(scopes, m.stacked.Scopes()...)
-	}
-
-	if m.annotation != nil {
-		scopes = append(scopes, m.annotation.Scopes()...)
-	} else if m.diff != nil {
-		scopes = append(scopes, m.diff.Scopes()...)
-	}
-
-	if m.stacked != nil && m.diff == nil && m.annotation == nil {
-		scopes = append(scopes, m.stacked.Scopes()...)
-	} else if m.oplog != nil {
-		scopes = append(scopes, m.splitScopes(m.oplog.Scopes())...)
+	// A dialog takes all keys. A screen over the primary view (diff,
+	// annotation) still leaves the primary view's global scopes reachable.
+	primary := m.primary()
+	if top, ok := m.topLayer(); ok && top.model != primary {
+		scopes = append(scopes, top.model.Scopes()...)
+		if top.screen {
+			scopes = append(scopes, m.splitScopes(primary.Scopes())...)
+		}
 	} else {
-		scopes = append(scopes, m.splitScopes(m.revisions.Scopes())...)
+		scopes = append(scopes, m.splitScopes(primary.Scopes())...)
 	}
 
 	if !m.revsetModel.IsEditing() {
@@ -701,7 +632,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			m.flash.DeleteOldest()
 			return nil, true
 		}
-		if m.stacked != nil || m.diff != nil || m.annotation != nil || m.oplog != nil {
+		if len(m.layers) > 0 {
 			return common.Close, true
 		}
 		if m.status.StatusExpanded() {
@@ -712,9 +643,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 
 	// --- Open stacked views ---
 	case intents.OpenGit:
-		model := git.NewModel(m.context, m.revisions.SelectedRevisions())
-		m.stacked = model
-		return m.stacked.Init(), true
+		return m.openDialog(git.NewModel(m.context, m.revisions.SelectedRevisions())), true
 	case intents.OpenBookmarks:
 		if config.Current.Bookmark.InteractiveBookmarkPane {
 			cmd, _ := m.handleSplitIntent(intents.ToggleBookmarkPane{})
@@ -725,34 +654,27 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return nil, true
 		}
 		changeIds := m.revisions.GetCommitIds()
-		model := bookmarks.NewModel(m.context, current, changeIds)
-		m.stacked = model
-		return m.stacked.Init(), true
+		return m.openDialog(bookmarks.NewModel(m.context, current, changeIds)), true
 	case intents.OpLogOpen:
-		m.oplog = oplog.New(m.context)
-		return m.oplog.Init(), true
+		model := oplog.New(m.context)
+		m.openScreen(model)
+		return model.Init(), true
 	case intents.Undo:
-		model := undo.NewModel(m.context)
-		m.stacked = model
-		return m.stacked.Init(), true
+		return m.openDialog(undo.NewModel(m.context)), true
 	case intents.Redo:
-		model := redo.NewModel(m.context)
-		m.stacked = model
-		return m.stacked.Init(), true
+		return m.openDialog(redo.NewModel(m.context)), true
 	case intents.OpenHelp:
-		if m.stacked != nil || m.diff != nil || m.annotation != nil {
+		// Help opens only over the revisions view or the oplog.
+		if top, ok := m.topLayer(); ok && top.model != m.primary() {
 			return nil, true
 		}
-		model := help.New()
-		m.stacked = model
-		return m.stacked.Init(), true
+		return m.openDialog(help.New()), true
 	case intents.CommandHistoryToggle:
 		if scope, ok := m.stackedScope(); ok && scope == actions.ScopeCommandHistory {
-			m.stacked = nil
+			m.closeDialog()
 			return nil, true
 		}
-		m.stacked = m.flash.NewHistory()
-		return m.stacked.Init(), true
+		return m.openDialog(m.flash.NewHistory()), true
 
 	// --- Activate input modes ---
 	case intents.Edit:
@@ -773,16 +695,19 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 
 	// --- Delegated intents ---
 	case intents.DiffShow:
-		if m.diff == nil {
-			m.diff = diff.NewWithContext(m.context, "", nil)
+		model, ok := findLayer[*diff.Model](m)
+		if !ok {
+			model = diff.NewWithContext(m.context, "", nil)
 		}
-		return m.diff.Update(intent), true
+		m.openScreen(model)
+		return model.Update(intent), true
 	case intents.AnnotationShow:
 		if intent.ChangeID == "" {
 			return nil, true
 		}
-		m.annotation = annotation.New(m.context, intent.ChangeID)
-		return m.annotation.Init(), true
+		model := annotation.New(m.context, intent.ChangeID)
+		m.openScreen(model)
+		return model.Init(), true
 	// --- Status ---
 	case intents.ExpandStatusToggle:
 		m.status.ToggleStatusExpand()
@@ -862,10 +787,11 @@ func (m *Model) validateRuntimeThemeChange() error {
 }
 
 func (m *Model) stackedScope() (keybindings.ScopeName, bool) {
-	if m.stacked == nil {
+	dialog := m.dialog()
+	if dialog == nil {
 		return "", false
 	}
-	scopes := m.stacked.Scopes()
+	scopes := dialog.Scopes()
 	if len(scopes) == 0 || scopes[0].Name == "" {
 		return "", false
 	}

@@ -174,7 +174,8 @@ desc = "git"
 	h.Quit()
 }
 
-// The oplog can be opened over a diff through ui-scope bindings.
+// The oplog can be opened over a diff through ui-scope bindings. The view
+// opened last is shown, and closing returns to the diff beneath it.
 func Test_ViewStack_OpLogOpenedOverDiff(t *testing.T) {
 	t.Parallel()
 	h := startViewStackRepo(t)
@@ -189,11 +190,11 @@ desc = "oplog"
 
 	openTargetDiff(h)
 	h.Key("Y")
-	// Current behaviour: the diff stays in front of the oplog opened after it.
-	h.WaitStableMode("diff")
+	h.WaitMode("oplog")
 
 	h.Key("Escape")
-	h.WaitMode("oplog")
+	h.WaitMode("diff")
+	h.WaitText("view stack content")
 	h.Key("Escape")
 	h.WaitMode("revisions")
 	h.Quit()

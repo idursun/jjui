@@ -72,7 +72,7 @@ func TestLiveSelectionPreservesChangeNotificationsAndCommandReplacements(t *test
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	model := NewUI(ctx)
 	dialog := &selectionDialog{Model: input.NewWithTitle("", "", "")}
-	model.stacked = dialog
+	pushDialog(model, dialog)
 	assert.Nil(t, model.Update(tea.ModeReportMsg{}))
 	first := common.SelectedRevision{ChangeId: "first", CommitId: "commit1"}
 	dialog.snapshot.Highlighted = first
@@ -276,7 +276,7 @@ func TestWrapperView_ForwardsCursorFromRenderedFrame(t *testing.T) {
 	model := NewUI(ctx)
 	model.width = 80
 	model.height = 20
-	model.stacked = input.NewWithTitle("Prompt", "Text: ", "")
+	pushDialog(model, input.NewWithTitle("Prompt", "Text: ", ""))
 
 	w := &wrapper{ui: model, render: true}
 	view := w.View()
@@ -324,7 +324,7 @@ func TestWrapperUpdate_ExecMsgRefreshesCachedCursorBeforeExec(t *testing.T) {
 	model := NewUI(ctx)
 	model.width = 80
 	model.height = 20
-	model.stacked = input.NewWithTitle("Prompt", "Text: ", "")
+	pushDialog(model, input.NewWithTitle("Prompt", "Text: ", ""))
 
 	w := &wrapper{ui: model, render: true}
 	view := w.View()
@@ -332,7 +332,7 @@ func TestWrapperUpdate_ExecMsgRefreshesCachedCursorBeforeExec(t *testing.T) {
 
 	// Simulate the state after Apply cleared focus but before tea.Exec releases
 	// and restores the terminal.
-	model.stacked = nil
+	model.closeDialog()
 
 	updated, cmd := w.Update(common.ExecMsg{Line: "log", Mode: common.ExecJJ})
 	require.NotNil(t, cmd)
@@ -597,8 +597,8 @@ func Test_GitWithExpandedStatus_EscClosesStackedFirst(t *testing.T) {
 	// Directly set stacked to git model (simulates pressing 'g')
 	gitModel := git.NewModel(ctx, jj.NewSelectedRevisions())
 	test.SimulateModel(gitModel, gitModel.Init())
-	model.stacked = gitModel
-	assert.NotNil(t, model.stacked, "stacked (git) should be set")
+	pushDialog(model, gitModel)
+	assert.NotNil(t, model.dialog(), "stacked (git) should be set")
 
 	// Render to trigger status truncation detection
 	_ = model.View()
@@ -612,7 +612,7 @@ func Test_GitWithExpandedStatus_EscClosesStackedFirst(t *testing.T) {
 	assert.True(t, model.status.StatusExpanded(), "status should remain expanded while stacked is closed first")
 
 	// Stacked (git) should be closed first
-	assert.Nil(t, model.stacked, "stacked (git) should close before expanded status")
+	assert.Nil(t, model.dialog(), "stacked (git) should close before expanded status")
 }
 
 func Test_AnnotationWithExpandedStatus_EscClosesStatusFirst(t *testing.T) {
@@ -620,7 +620,7 @@ func Test_AnnotationWithExpandedStatus_EscClosesStatusFirst(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	model.annotation = annotation.New(ctx, "change")
+	model.openScreen(annotation.New(ctx, "change"))
 	model.status.SetStatusExpanded(true)
 
 	cmd, handled := dispatchAction(model, keybindings.Action("ui.cancel"), nil)
@@ -628,13 +628,13 @@ func Test_AnnotationWithExpandedStatus_EscClosesStatusFirst(t *testing.T) {
 	test.SimulateModel(model, cmd)
 
 	assert.False(t, model.status.StatusExpanded(), "expanded status should close first")
-	assert.NotNil(t, model.annotation, "annotation view should remain open")
+	assert.NotNil(t, layerOf[*annotation.Model](model), "annotation view should remain open")
 
 	cmd, handled = dispatchAction(model, keybindings.Action("ui.cancel"), nil)
 	require.True(t, handled)
 	test.SimulateModel(model, cmd)
 
-	assert.Nil(t, model.annotation, "annotation view should close after expanded status")
+	assert.Nil(t, layerOf[*annotation.Model](model), "annotation view should close after expanded status")
 }
 
 func Test_AnnotationWithExpandedStatus_AppliedCloseStillClosesAnnotation(t *testing.T) {
@@ -642,13 +642,13 @@ func Test_AnnotationWithExpandedStatus_AppliedCloseStillClosesAnnotation(t *test
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	model.annotation = annotation.New(ctx, "change")
+	model.openScreen(annotation.New(ctx, "change"))
 	model.status.SetStatusExpanded(true)
 
 	model.Update(common.CloseApplied())
 
 	assert.True(t, model.status.StatusExpanded(), "applied close should not collapse expanded status")
-	assert.Nil(t, model.annotation, "applied close should close annotation")
+	assert.Nil(t, layerOf[*annotation.Model](model), "applied close should close annotation")
 }
 
 func Test_Update_GitFilteredShortcutKeysDoNotLeakToRevisions(t *testing.T) {
@@ -662,7 +662,7 @@ func Test_Update_GitFilteredShortcutKeysDoNotLeakToRevisions(t *testing.T) {
 	gitModel := git.NewModel(ctx, jj.NewSelectedRevisions())
 	test.SimulateModel(gitModel, gitModel.Init())
 	test.SimulateModel(gitModel, func() tea.Msg { return intents.GitFilter{Kind: intents.GitFilterFetch} })
-	model.stacked = gitModel
+	pushDialog(model, gitModel)
 
 	key := tea.KeyPressMsg{Text: "a", Code: 'a'}
 	result := model.resolver.ResolveKey(key, model.dispatchScopes())
@@ -787,7 +787,7 @@ func Test_Update_SequencePrefixBeatsSingleKeyBinding(t *testing.T) {
 
 	// First key only starts pending sequence, should not trigger open_git.
 	model.Update(tea.KeyPressMsg{Text: "g", Code: 'g'})
-	assert.Nil(t, model.stacked)
+	assert.Nil(t, model.dialog())
 
 	// Completing sequence should trigger ui.open_revset.
 	model.Update(tea.KeyPressMsg{Text: "r", Code: 'r'})
@@ -891,7 +891,7 @@ func Test_Update_GitFilterEditingEnterDoesNotTriggerApply(t *testing.T) {
 	model := NewUI(ctx)
 	gitModel := git.NewModel(ctx, jj.NewSelectedRevisions())
 	test.SimulateModel(gitModel, gitModel.Init())
-	model.stacked = gitModel
+	pushDialog(model, gitModel)
 
 	// Start filter editing.
 	model.Update(tea.KeyPressMsg{Text: "/", Code: '/'})
@@ -908,6 +908,15 @@ func Test_Update_GitFilterEditingEnterDoesNotTriggerApply(t *testing.T) {
 	// Apply should now route through normal git scope after leaving filter-edit mode.
 	_, handled := dispatchAction(model, keybindings.Action("git.apply"), nil)
 	assert.True(t, handled, "apply should dispatch after filter-edit mode")
+}
+
+func pushDialog(m *Model, dialog common.StackedModel) {
+	m.layers = append(m.layers, layer{model: dialog})
+}
+
+func layerOf[T common.StackedModel](m *Model) T {
+	model, _ := findLayer[T](m)
+	return model
 }
 
 type scopeOnlyStackedModel struct {
@@ -946,7 +955,7 @@ func Test_DispatchScopes_UsesStackedScope(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	model.stacked = &scopeOnlyStackedModel{scope: actions.ScopeUndo}
+	pushDialog(model, &scopeOnlyStackedModel{scope: actions.ScopeUndo})
 	scopes := model.dispatchScopes()
 	require.NotEmpty(t, scopes)
 	assert.Equal(t, keybindings.ScopeName(actions.ScopeUndo), scopes[0].Name)
@@ -958,7 +967,7 @@ func Test_HandleDispatchedAction_UsesStackedScope(t *testing.T) {
 	model := NewUI(ctx)
 
 	stacked := &scopeOnlyStackedModel{scope: actions.ScopeChoose}
-	model.stacked = stacked
+	pushDialog(model, stacked)
 
 	cmd, handled := dispatchAction(model, keybindings.Action("choose.move_down"), nil)
 	assert.True(t, handled)
@@ -985,7 +994,7 @@ func Test_Update_BlockingScopeHandledNilCmdDoesNotReceiveRawKeyAgain(t *testing.
 	model := NewUI(ctx)
 
 	stacked := &scopeOnlyStackedModel{scope: actions.ScopeChoose}
-	model.stacked = stacked
+	pushDialog(model, stacked)
 
 	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	assert.Nil(t, cmd, "choose.cancel handler returns nil cmd")
@@ -1293,8 +1302,8 @@ func Test_Update_DispatchedDiffShowOpensAndUpdatesDiff(t *testing.T) {
 		BuiltIn: true,
 	})
 	require.Nil(t, cmd)
-	require.NotNil(t, model.diff)
-	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(model.diff, 20, 3)))
+	require.NotNil(t, layerOf[*diff.Model](model))
+	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(layerOf[*diff.Model](model), 20, 3)))
 }
 
 func Test_Update_DispatchedDiffShowUpdatesExistingDiff(t *testing.T) {
@@ -1303,7 +1312,7 @@ func Test_Update_DispatchedDiffShowUpdatesExistingDiff(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.diff = diff.New("old")
+	model.openScreen(diff.New("old"))
 
 	cmd := model.Update(common.DispatchActionMsg{
 		Action:  "diff.show",
@@ -1311,8 +1320,8 @@ func Test_Update_DispatchedDiffShowUpdatesExistingDiff(t *testing.T) {
 		BuiltIn: true,
 	})
 	require.Nil(t, cmd)
-	require.NotNil(t, model.diff)
-	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(model.diff, 20, 3)))
+	require.NotNil(t, layerOf[*diff.Model](model))
+	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(layerOf[*diff.Model](model), 20, 3)))
 }
 
 func Test_Update_AnnotationShowOpensTopLevelAnnotationView(t *testing.T) {
@@ -1325,16 +1334,16 @@ func Test_Update_AnnotationShowOpensTopLevelAnnotationView(t *testing.T) {
 	})
 
 	require.NotNil(t, cmd)
-	require.NotNil(t, model.annotation)
-	firstAnnotation := model.annotation
+	require.NotNil(t, layerOf[*annotation.Model](model))
+	firstAnnotation := layerOf[*annotation.Model](model)
 	model.Update(common.CloseViewMsg{})
-	assert.Nil(t, model.annotation)
+	assert.Nil(t, layerOf[*annotation.Model](model))
 
 	model.Update(intents.AnnotationShow{
 		ChangeID: commit.ChangeId,
 	})
-	require.NotNil(t, model.annotation)
-	assert.NotSame(t, firstAnnotation, model.annotation)
+	require.NotNil(t, layerOf[*annotation.Model](model))
+	assert.NotSame(t, firstAnnotation, layerOf[*annotation.Model](model))
 }
 
 func Test_Update_DiffEscClosesDiffAndRestoresDetails(t *testing.T) {
@@ -1350,7 +1359,7 @@ func Test_Update_DiffEscClosesDiffAndRestoresDetails(t *testing.T) {
 	require.Equal(t, "details", model.revisions.CurrentOperation().Name())
 
 	model.Update(intents.DiffShow{Content: "diff content"})
-	require.NotNil(t, model.diff, "diff should open over details")
+	require.NotNil(t, layerOf[*diff.Model](model), "diff should open over details")
 
 	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	require.NotNil(t, cmd, "esc in diff should close diff")
@@ -1358,7 +1367,7 @@ func Test_Update_DiffEscClosesDiffAndRestoresDetails(t *testing.T) {
 	require.True(t, ok, "esc in diff should dispatch close-view")
 
 	model.Update(closeMsg)
-	assert.Nil(t, model.diff, "diff should close after esc")
+	assert.Nil(t, layerOf[*diff.Model](model), "diff should close after esc")
 	require.False(t, model.revisions.InNormalMode(), "details should remain active after closing diff")
 	assert.Equal(t, "details", model.revisions.CurrentOperation().Name())
 }
@@ -1369,7 +1378,7 @@ func Test_Update_OpenTargetPickerWhileDiffActiveCreatesRootOverlay(t *testing.T)
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.diff = diff.NewWithContext(ctx, "diff content", jj.Diff("abc123", jj.FileName{}))
+	model.openScreen(diff.NewWithContext(ctx, "diff content", jj.Diff("abc123", jj.FileName{})))
 
 	cmd := model.Update(common.OpenTargetPickerMsg{
 		Sources: []source.Source{source.FileSource{Files: []jj.FileName{jj.NewFileName("a.go")}}},
@@ -1377,8 +1386,8 @@ func Test_Update_OpenTargetPickerWhileDiffActiveCreatesRootOverlay(t *testing.T)
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
 
-	require.NotNil(t, model.stacked)
-	_, ok := model.stacked.(*target_picker.Model)
+	require.NotNil(t, model.dialog())
+	_, ok := model.dialog().(*target_picker.Model)
 	require.True(t, ok)
 
 	model.Update(tea.WindowSizeMsg{Width: 40, Height: 8})
@@ -1392,27 +1401,27 @@ func Test_Update_DiffTargetPickerClosesOnSelectionAndCancel(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.diff = diff.NewWithContext(ctx, "diff content", jj.Diff("abc123", jj.FileName{}))
+	model.openScreen(diff.NewWithContext(ctx, "diff content", jj.Diff("abc123", jj.FileName{})))
 
 	cmd := model.Update(common.OpenTargetPickerMsg{
 		Sources: []source.Source{source.FileSource{Files: []jj.FileName{jj.NewFileName("a.go")}}},
 	})
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
-	require.NotNil(t, model.stacked)
+	require.NotNil(t, model.dialog())
 
 	model.Update(target_picker.TargetSelectedMsg{File: jj.NewFileName("a.go")})
-	assert.Nil(t, model.stacked)
+	assert.Nil(t, model.dialog())
 
 	cmd = model.Update(common.OpenTargetPickerMsg{
 		Sources: []source.Source{source.FileSource{Files: []jj.FileName{jj.NewFileName("a.go")}}},
 	})
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
-	require.NotNil(t, model.stacked)
+	require.NotNil(t, model.dialog())
 
 	model.Update(target_picker.TargetPickerCancelMsg{})
-	assert.Nil(t, model.stacked)
+	assert.Nil(t, model.dialog())
 }
 
 func Test_Update_OpenTargetPickerWhileAnnotationActiveCreatesRootOverlay(t *testing.T) {
@@ -1421,7 +1430,7 @@ func Test_Update_OpenTargetPickerWhileAnnotationActiveCreatesRootOverlay(t *test
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.annotation = annotation.New(ctx, "")
+	model.openScreen(annotation.New(ctx, ""))
 
 	cmd := model.Update(common.OpenTargetPickerMsg{
 		Sources: []source.Source{source.FileSource{Files: []jj.FileName{jj.NewFileName("a.go")}}},
@@ -1429,13 +1438,13 @@ func Test_Update_OpenTargetPickerWhileAnnotationActiveCreatesRootOverlay(t *test
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
 
-	require.NotNil(t, model.stacked)
-	_, ok := model.stacked.(*target_picker.Model)
+	require.NotNil(t, model.dialog())
+	_, ok := model.dialog().(*target_picker.Model)
 	require.True(t, ok)
 
 	model.Update(target_picker.TargetPickerCancelMsg{})
-	assert.Nil(t, model.stacked)
-	assert.NotNil(t, model.annotation)
+	assert.Nil(t, model.dialog())
+	assert.NotNil(t, layerOf[*annotation.Model](model))
 }
 
 func Test_Update_DispatchedPreviewShowUpdatesVisiblePreview(t *testing.T) {
@@ -1493,13 +1502,13 @@ func Test_Update_LuaInputEscCancelsAndFinishesScript(t *testing.T) {
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
 	require.NotEmpty(t, model.scriptRunners, "script should wait for input")
-	require.NotNil(t, model.stacked, "input view should be stacked")
+	require.NotNil(t, model.dialog(), "input view should be stacked")
 
 	cmd = model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	require.NotNil(t, cmd, "esc in input scope should forward cancel to input model")
 	test.SimulateModel(model, cmd)
 
-	assert.Nil(t, model.stacked, "input should close after esc")
+	assert.Nil(t, model.dialog(), "input should close after esc")
 	assert.Empty(t, model.scriptRunners, "script should finish after input cancel")
 }
 
@@ -1524,13 +1533,13 @@ func Test_Update_LuaChooseEscViaUiCancelFinishesScript(t *testing.T) {
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
 	require.NotEmpty(t, model.scriptRunners, "script should wait for choose")
-	require.NotNil(t, model.stacked, "choose view should be stacked")
+	require.NotNil(t, model.dialog(), "choose view should be stacked")
 
 	cmd = model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	require.NotNil(t, cmd, "esc should dispatch ui.cancel when choose.cancel is not configured")
 	test.SimulateModel(model, cmd)
 
-	assert.Nil(t, model.stacked, "choose should close after esc")
+	assert.Nil(t, model.dialog(), "choose should close after esc")
 	assert.Empty(t, model.scriptRunners, "script should finish after choose cancel")
 }
 
