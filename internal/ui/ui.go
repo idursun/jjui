@@ -256,9 +256,10 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 		}
 		return tea.Batch(tea.RequestBackgroundColor, scheduleColorSchemePoll())
 	case tea.MouseReleaseMsg, tea.MouseMotionMsg:
-		if m.handleSplitMouseMsg(msg) {
-			return nil
-		}
+		// Only the split separator drag follows the mouse; clicks and wheel
+		// events go through the frame's interactions below.
+		m.handleSplitMouseMsg(msg)
+		return nil
 	case tea.MouseClickMsg, tea.MouseWheelMsg:
 		if m.displayContext != nil {
 			if interactionMsg, handled := m.displayContext.ProcessMouseEvent(msg.(tea.MouseMsg)); handled {
@@ -419,14 +420,9 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 		m.height = msg.Height
 	}
 
-	// Unhandled key messages go to the primary view (oplog or revisions)
-	// Other messages are broadcast to all models
+	// Keys and mouse events have returned above. Every other message is
+	// broadcast to all models.
 	primary := m.primary()
-	if common.IsInputMessage(msg) {
-		cmds = append(cmds, primary.Update(msg))
-		return tea.Batch(cmds...)
-	}
-
 	cmds = append(cmds, m.revsetModel.Update(msg))
 	cmds = append(cmds, m.status.Update(msg))
 	cmds = append(cmds, m.flash.Update(msg))

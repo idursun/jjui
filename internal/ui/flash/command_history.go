@@ -107,6 +107,7 @@ func (m *CommandHistoryModel) ViewRect(dl *render.DisplayContext, box layout.Box
 	maxWidth := area.Dx() - 4
 
 	dl.AddDim(rest.R, render.ZOverlay)
+	dl.AddBackdrop(rest.R, render.ZOverlay-1)
 
 	for _, item := range m.renderedItems(maxWidth, area.Dy()) {
 		y -= item.h

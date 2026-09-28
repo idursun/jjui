@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -174,4 +175,19 @@ func TestCommandHistory_ViewFillsHistoryCardsBackground(t *testing.T) {
 		}
 	}
 	assert.True(t, foundCardCell, "expected to find at least one rendered history card cell")
+}
+
+func TestCommandHistory_SwallowsClicksOutsideItems(t *testing.T) {
+	source := New()
+	source.AddWithCommand("output", "jj cmd", nil)
+	history := source.NewHistory()
+
+	dl := render.NewDisplayContext()
+	// A view below the history that would react to clicks.
+	dl.AddInteraction(layout.Rect(0, 0, 60, 12), "below", render.InteractionClick, render.ZBase)
+	history.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 60, 12)))
+
+	msg, handled := dl.ProcessMouseEvent(tea.MouseClickMsg{X: 0, Y: 0, Button: tea.MouseLeft})
+	assert.True(t, handled)
+	assert.Nil(t, msg, "clicks outside history items must not reach the view below")
 }

@@ -168,13 +168,12 @@ func (m *Model) syncBookmarkPaneContext() {
 	})
 }
 
-func (m *Model) handleSplitMouseMsg(msg tea.Msg) bool {
+func (m *Model) handleSplitMouseMsg(msg tea.Msg) {
 	switch msg := msg.(type) {
 	case tea.MouseReleaseMsg:
 		m.splitContainer.EndDrag()
 	case tea.MouseMotionMsg:
 		mouse := msg.Mouse()
-		return m.splitContainer.DragTo(mouse.X, mouse.Y)
+		m.splitContainer.DragTo(mouse.X, mouse.Y)
 	}
-	return false
 }
