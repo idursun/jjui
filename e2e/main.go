@@ -33,6 +33,11 @@ func encodeKey(term *ghostty.Terminal, key ghostty.Key, text string, mods ghostt
 	event.SetKey(key)
 	event.SetMods(mods)
 	event.SetUTF8(text)
+	// Kitty keyboard encoding of ctrl+letter needs the unshifted codepoint;
+	// without it the encoder emits nothing.
+	if mods&ghostty.ModCtrl != 0 && len(text) == 1 {
+		event.SetUnshiftedCodepoint(rune(text[0]))
+	}
 
 	return encoder.Encode(event)
 }

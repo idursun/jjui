@@ -524,6 +524,9 @@ var harnessLetterKeys = map[byte]ghostty.Key{
 }
 
 func harnessKey(name string) (ghostty.Key, string, ghostty.Mods, error) {
+	if letter, ok := strings.CutPrefix(name, "ctrl+"); ok && len(letter) == 1 && letter[0] >= 'a' && letter[0] <= 'z' {
+		return harnessLetterKeys[letter[0]-('a'-'A')], letter, ghostty.ModCtrl, nil
+	}
 	if len(name) == 1 {
 		char := name[0]
 		upper := char
