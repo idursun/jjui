@@ -40,12 +40,6 @@ func WheelDelta(msg tea.MouseMsg) (delta int, horizontal bool) {
 	return 0, false
 }
 
-// DragStartCarrier is an interface for messages that carry drag start coordinates.
-// The ProcessMouseEvent function will set the drag start position for drag interactions.
-type DragStartCarrier interface {
-	SetDragStart(x, y int) tea.Msg
-}
-
 func processMouseEvent(interactions []interactionOp, msg tea.MouseMsg) (tea.Msg, bool) {
 	mouse := msg.Mouse()
 	pos := layout.Pos(mouse.X, mouse.Y)
@@ -58,9 +52,6 @@ func processMouseEvent(interactions []interactionOp, msg tea.MouseMsg) (tea.Msg,
 		if interaction, ok := findInteraction(interactions, pos, InteractionDrag); ok {
 			if interaction.MsgFn != nil {
 				return interaction.MsgFn(msg), true
-			}
-			if carrier, ok := interaction.Msg.(DragStartCarrier); ok {
-				return carrier.SetDragStart(mouse.X, mouse.Y), true
 			}
 			return interaction.Msg, true
 		}
