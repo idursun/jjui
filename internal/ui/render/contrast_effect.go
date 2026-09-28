@@ -61,8 +61,7 @@ type highlightContrastEffect struct {
 	z        int
 }
 
-func (e highlightContrastEffect) GetRect() layout.Rectangle { return e.rect }
-func (e highlightContrastEffect) GetZ() int                 { return e.z }
+func (e highlightContrastEffect) GetZ() int { return e.z }
 
 // Apply runs after word, line and selection backgrounds have been composed.
 // Work on screen cells so ANSI resets and token boundaries cannot undo it.

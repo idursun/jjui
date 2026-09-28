@@ -16,8 +16,6 @@ type Effect interface {
 	Apply(buf uv.Screen)
 	// GetZ returns the Z-index for layering (higher Z renders later)
 	GetZ() int
-	// GetRect returns the rectangle this effect applies to
-	GetRect() layout.Rectangle
 }
 
 // DimEffect dims the content by setting the Faint attribute.
@@ -37,8 +35,7 @@ func (e DimEffect) Apply(buf uv.Screen) {
 	})
 }
 
-func (e DimEffect) GetZ() int                 { return e.Z }
-func (e DimEffect) GetRect() layout.Rectangle { return e.Rect }
+func (e DimEffect) GetZ() int { return e.Z }
 
 // HighlightEffect applies a highlight style by changing the background color.
 // Extracts the background color from the lipgloss.Style and applies it to cells.
@@ -73,8 +70,7 @@ func (e HighlightEffect) Apply(buf uv.Screen) {
 	})
 }
 
-func (e HighlightEffect) GetZ() int                 { return e.Z }
-func (e HighlightEffect) GetRect() layout.Rectangle { return e.Rect }
+func (e HighlightEffect) GetZ() int { return e.Z }
 
 type FillEffect struct {
 	Rect  layout.Rectangle
@@ -97,8 +93,7 @@ func (e FillEffect) Apply(buf uv.Screen) {
 	}
 }
 
-func (e FillEffect) GetZ() int                 { return e.Z }
-func (e FillEffect) GetRect() layout.Rectangle { return e.Rect }
+func (e FillEffect) GetZ() int { return e.Z }
 
 // toAnsiColor converts a color.Color to the correct ansi.Color concrete type
 // so that palette colors emit palette escape codes instead of 24-bit RGB.
