@@ -113,50 +113,7 @@ func (b Box) V(specs ...Spec) []Box {
 		return result
 	}
 
-	// First pass: calculate sizes and track what's consumed
-	sizes := make([]int, len(specs))
-	consumed := 0
-	fillWeight := 0.0
-
-	// Calculate fill weight and fixed/pct sizes
-	for i, spec := range specs {
-		switch s := spec.(type) {
-		case FillSpec:
-			fillWeight += float64(s)
-		case Fixed:
-			size := s.calc(height, 0, 0)
-			sizes[i] = size
-			consumed += size
-		case Percent:
-			size := s.calc(height, 0, 0)
-			sizes[i] = size
-			consumed += size
-		}
-	}
-
-	// Calculate remaining space for Fill specs
-	remaining := max(height-consumed, 0)
-
-	// Second pass: calculate Fill sizes
-	fillAllocated := 0
-	for i, spec := range specs {
-		if _, ok := spec.(FillSpec); ok {
-			sizes[i] = spec.calc(height, remaining, fillWeight)
-			fillAllocated += sizes[i]
-		}
-	}
-
-	// Handle rounding errors: give remainder to last Fill spec
-	if fillWeight > 0 && remaining > fillAllocated {
-		remainder := remaining - fillAllocated
-		// Find last Fill spec and add remainder
-		for i := len(specs) - 1; i >= 0; i-- {
-			if _, ok := specs[i].(FillSpec); ok {
-				sizes[i] += remainder
-				break
-			}
-		}
-	}
+	sizes := splitSizes(height, specs)
 
 	// Create boxes from sizes
 	result := make([]Box, len(specs))
@@ -198,50 +155,7 @@ func (b Box) H(specs ...Spec) []Box {
 		return result
 	}
 
-	// First pass: calculate sizes and track what's consumed
-	sizes := make([]int, len(specs))
-	consumed := 0
-	fillWeight := 0.0
-
-	// Calculate fill weight and fixed/pct sizes
-	for i, spec := range specs {
-		switch s := spec.(type) {
-		case FillSpec:
-			fillWeight += float64(s)
-		case Fixed:
-			size := s.calc(width, 0, 0)
-			sizes[i] = size
-			consumed += size
-		case Percent:
-			size := s.calc(width, 0, 0)
-			sizes[i] = size
-			consumed += size
-		}
-	}
-
-	// Calculate remaining space for Fill specs
-	remaining := max(width-consumed, 0)
-
-	// Second pass: calculate Fill sizes
-	fillAllocated := 0
-	for i, spec := range specs {
-		if _, ok := spec.(FillSpec); ok {
-			sizes[i] = spec.calc(width, remaining, fillWeight)
-			fillAllocated += sizes[i]
-		}
-	}
-
-	// Handle rounding errors: give remainder to last Fill spec
-	if fillWeight > 0 && remaining > fillAllocated {
-		remainder := remaining - fillAllocated
-		// Find last Fill spec and add remainder
-		for i := len(specs) - 1; i >= 0; i-- {
-			if _, ok := specs[i].(FillSpec); ok {
-				sizes[i] += remainder
-				break
-			}
-		}
-	}
+	sizes := splitSizes(width, specs)
 
 	// Create boxes from sizes
 	result := make([]Box, len(specs))
@@ -264,6 +178,43 @@ func (b Box) H(specs ...Spec) []Box {
 	}
 
 	return result
+}
+
+// splitSizes allocates total cells along one axis according to the given specs.
+// Fixed and Percent specs are sized first; Fill specs share what remains.
+func splitSizes(total int, specs []Spec) []int {
+	sizes := make([]int, len(specs))
+	consumed := 0
+	fillWeight := 0.0
+
+	for i, spec := range specs {
+		if s, ok := spec.(FillSpec); ok {
+			fillWeight += float64(s)
+			continue
+		}
+		sizes[i] = spec.calc(total, 0, 0)
+		consumed += sizes[i]
+	}
+
+	// Calculate remaining space for Fill specs
+	remaining := max(total-consumed, 0)
+
+	fillAllocated := 0
+	lastFill := -1
+	for i, spec := range specs {
+		if _, ok := spec.(FillSpec); ok {
+			sizes[i] = spec.calc(total, remaining, fillWeight)
+			fillAllocated += sizes[i]
+			lastFill = i
+		}
+	}
+
+	// Handle rounding errors: give remainder to last Fill spec
+	if fillWeight > 0 && lastFill >= 0 && remaining > fillAllocated {
+		sizes[lastFill] += remaining - fillAllocated
+	}
+
+	return sizes
 }
 
 // CutTop cuts h cells from the top, returning the top box and the rest.
