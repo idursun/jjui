@@ -31,7 +31,8 @@ type OpLogScrollMsg struct {
 	Horizontal bool
 }
 
-func (o OpLogScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
+func newOpLogScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
 	return OpLogScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
@@ -334,6 +335,6 @@ func New(context *context.MainContext) *Model {
 		rows:    nil,
 		cursor:  0,
 	}
-	m.listRenderer = render.NewListRenderer(OpLogScrollMsg{})
+	m.listRenderer = render.NewListRenderer(newOpLogScrollMsg)
 	return m
 }

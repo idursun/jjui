@@ -44,16 +44,16 @@ type ClickMessageFunc func(index int, mouse tea.Mouse) ClickMessage
 
 type ListRenderer struct {
 	StartLine     int
-	ScrollMsg     tea.Msg
+	ScrollMsgFn   func(tea.MouseMsg) tea.Msg
 	Z             int // Interaction z-index; default is 0.
 	FirstRowIndex int
 	LastRowIndex  int
 }
 
-func NewListRenderer(scrollMsg tea.Msg) *ListRenderer {
+func NewListRenderer(scrollMsgFn func(tea.MouseMsg) tea.Msg) *ListRenderer {
 	return &ListRenderer{
 		StartLine:     0,
-		ScrollMsg:     scrollMsg,
+		ScrollMsgFn:   scrollMsgFn,
 		FirstRowIndex: -1,
 		LastRowIndex:  -1,
 	}
@@ -176,12 +176,12 @@ func (r *ListRenderer) GetLastRowIndex() int {
 // RegisterScroll registers a scroll interaction for the given view rect.
 // Call this after Render if you want to enable mouse wheel scrolling.
 func (r *ListRenderer) RegisterScroll(dl *DisplayContext, viewRect layout.Box) {
-	if r.ScrollMsg == nil {
+	if r.ScrollMsgFn == nil {
 		return
 	}
-	dl.AddInteraction(
+	dl.AddInteractionFn(
 		viewRect.R,
-		r.ScrollMsg,
+		r.ScrollMsgFn,
 		InteractionScroll,
 		r.Z,
 	)

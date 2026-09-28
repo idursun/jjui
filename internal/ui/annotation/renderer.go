@@ -46,10 +46,9 @@ type scrollMsg struct {
 	Horizontal bool
 }
 
-func (m scrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	m.Delta = delta
-	m.Horizontal = horizontal
-	return m
+func newScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return scrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 type annotationRenderer struct {
@@ -198,7 +197,7 @@ func (r *annotationRenderer) Render(
 			cursorX = line.ContentX
 		}
 	}
-	dl.AddInteraction(bodyBox.R, scrollMsg{}, render.InteractionScroll, 0)
+	dl.AddInteractionFn(bodyBox.R, newScrollMsg, render.InteractionScroll, 0)
 
 	if state.editing &&
 		editorStart >= result.scrollY &&

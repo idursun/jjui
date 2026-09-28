@@ -66,7 +66,7 @@ func TestOpLogNavigateIntent(t *testing.T) {
 		},
 		cursor: 0,
 	}
-	m.listRenderer = render.NewListRenderer(OpLogScrollMsg{})
+	m.listRenderer = render.NewListRenderer(newOpLogScrollMsg)
 
 	cmd := m.Update(intents.OpLogNavigate{Delta: 1, IsPage: false})
 	if cmd != nil {

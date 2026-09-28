@@ -31,7 +31,8 @@ type EvologScrollMsg struct {
 	Horizontal bool
 }
 
-func (e EvologScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
+func newEvologScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
 	return EvologScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
@@ -300,7 +301,7 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 		target:     revision,
 		rows:       nil,
 		cursor:     0,
-		dlRenderer: render.NewListRenderer(EvologScrollMsg{}),
+		dlRenderer: render.NewListRenderer(newEvologScrollMsg),
 	}
 	return o
 }

@@ -315,10 +315,9 @@ type ScrollMsg struct {
 	Horizontal bool
 }
 
-func (s ScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	s.Delta = delta
-	s.Horizontal = horizontal
-	return s
+func newScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return ScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 func (m *Model) clampScroll(width, height int) {
@@ -409,7 +408,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.clampScroll(width, height)
 
 	m.mode.ViewRect(dl, box, m.scrollY)
-	dl.AddInteraction(box.R, ScrollMsg{}, render.InteractionScroll, 0)
+	dl.AddInteractionFn(box.R, newScrollMsg, render.InteractionScroll, 0)
 }
 
 func New(output string) *Model {

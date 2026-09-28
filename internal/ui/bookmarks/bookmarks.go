@@ -37,10 +37,9 @@ type itemScrollMsg struct {
 	Horizontal bool
 }
 
-func (m itemScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	m.Delta = delta
-	m.Horizontal = horizontal
-	return m
+func newItemScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return itemScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 type filterState int
@@ -604,7 +603,7 @@ func NewModel(c *context.MainContext, current *jj.Commit, commitIds []string) *M
 		distanceMap:       calcDistanceMap(current.CommitId, commitIds),
 		remoteNames:       remotes,
 		selectedRemoteIdx: 0,
-		listRenderer:      render.NewListRenderer(itemScrollMsg{}),
+		listRenderer:      render.NewListRenderer(newItemScrollMsg),
 		title:             "Bookmark Operations",
 		allItems:          make([]item, 0),
 	}

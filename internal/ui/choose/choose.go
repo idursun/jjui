@@ -30,10 +30,9 @@ type itemScrollMsg struct {
 	Horizontal bool
 }
 
-func (m itemScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	m.Delta = delta
-	m.Horizontal = horizontal
-	return m
+func newItemScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return itemScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 var _ common.ImmediateModel = (*Model)(nil)
@@ -76,7 +75,7 @@ func NewWithOptions(options []string, title string, ordered bool) *Model {
 		options:         options,
 		filteredOptions: options,
 		title:           title,
-		listRenderer:    render.NewListRenderer(itemScrollMsg{}),
+		listRenderer:    render.NewListRenderer(newItemScrollMsg),
 		ordered:         ordered,
 		input:           ti,
 	}
@@ -173,7 +172,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		if m.listRenderer == nil {
-			m.listRenderer = render.NewListRenderer(itemScrollMsg{})
+			m.listRenderer = render.NewListRenderer(newItemScrollMsg)
 		}
 		m.listRenderer.StartLine += msg.Delta
 		if m.listRenderer.StartLine < 0 {
@@ -236,7 +235,7 @@ func (m *Model) selectCurrent() tea.Cmd {
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if m.listRenderer == nil {
-		m.listRenderer = render.NewListRenderer(itemScrollMsg{})
+		m.listRenderer = render.NewListRenderer(newItemScrollMsg)
 	}
 
 	borderStyle := theme.DefaultPalette.GetBorder("choose", "", "border", false, lipgloss.RoundedBorder())

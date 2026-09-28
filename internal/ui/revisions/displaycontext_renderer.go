@@ -89,7 +89,7 @@ func (ir *itemRenderer) renderSegmentForLine(tb *render.TextBuilder, segment *sc
 // NewDisplayContextRenderer creates a new DisplayContext-based renderer
 func NewDisplayContextRenderer() *DisplayContextRenderer {
 	return &DisplayContextRenderer{
-		listRenderer:   render.NewListRenderer(ViewportScrollMsg{}),
+		listRenderer:   render.NewListRenderer(newViewportScrollMsg),
 		selectionFocus: true,
 	}
 }

@@ -37,10 +37,9 @@ type completionScrollMsg struct {
 	Horizontal bool
 }
 
-func (m completionScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	m.Delta = delta
-	m.Horizontal = horizontal
-	return m
+func newCompletionScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return completionScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 type completionClickMsg struct {
@@ -111,7 +110,7 @@ func New(context *appContext.MainContext) *Model {
 		completionProvider: completionProvider,
 		History:            []string{},
 		MaxHistoryItems:    50,
-		listRenderer:       render.NewListRenderer(completionScrollMsg{}),
+		listRenderer:       render.NewListRenderer(newCompletionScrollMsg),
 		selectedIndex:      -1, // no selection initially
 	}
 }

@@ -56,10 +56,9 @@ type itemScrollMsg struct {
 	Horizontal bool
 }
 
-func (m itemScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	m.Delta = delta
-	m.Horizontal = horizontal
-	return m
+func newItemScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return itemScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 type pendingInputKind int
@@ -211,7 +210,7 @@ func New(c *context.MainContext) *Model {
 		remoteNames:  []string{allRemoteFilter, localRemoteFilter},
 		expanded:     make(map[string]bool),
 		selected:     make(map[string]bool),
-		listRenderer: render.NewListRenderer(itemScrollMsg{}),
+		listRenderer: render.NewListRenderer(newItemScrollMsg),
 		filterInput:  filterInput,
 		styles:       s,
 	}

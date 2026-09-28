@@ -105,10 +105,9 @@ type ViewportScrollMsg struct {
 	Horizontal bool
 }
 
-func (v ViewportScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	v.Delta = delta
-	v.Horizontal = horizontal
-	return v
+func newViewportScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return ViewportScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 type updateRevisionsMsg struct {

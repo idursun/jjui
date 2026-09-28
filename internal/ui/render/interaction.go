@@ -24,10 +24,20 @@ type InteractionOp struct {
 	Z     int                        // Z-index for overlapping regions (higher = priority)
 }
 
-// ScrollDeltaCarrier is an interface for messages that carry scroll delta information.
-// The ProcessMouseEvent function will set the Delta field for scroll interactions.
-type ScrollDeltaCarrier interface {
-	SetDelta(delta int, horizontal bool) tea.Msg
+// WheelDelta converts a mouse wheel event into a scroll delta.
+// It returns a zero delta for events that are not wheel scrolls.
+func WheelDelta(msg tea.MouseMsg) (delta int, horizontal bool) {
+	switch msg.Mouse().Button {
+	case tea.MouseWheelUp:
+		return -3, false
+	case tea.MouseWheelDown:
+		return 3, false
+	case tea.MouseWheelLeft:
+		return -3, true
+	case tea.MouseWheelRight:
+		return 3, true
+	}
+	return 0, false
 }
 
 // DragStartCarrier is an interface for messages that carry drag start coordinates.
@@ -62,23 +72,12 @@ func processMouseEvent(interactions []interactionOp, msg tea.MouseMsg) (tea.Msg,
 			return interaction.Msg, true
 		}
 	case tea.MouseWheelMsg:
-		var delta int
-		var horizontal bool
-		switch mouse.Button {
-		case tea.MouseWheelUp:
-			delta = -3
-		case tea.MouseWheelDown:
-			delta = 3
-		case tea.MouseWheelLeft:
-			delta, horizontal = -3, true
-		case tea.MouseWheelRight:
-			delta, horizontal = 3, true
-		default:
+		if delta, _ := WheelDelta(msg); delta == 0 {
 			return nil, false
 		}
 		if interaction, ok := findInteraction(interactions, pos, InteractionScroll); ok {
-			if carrier, ok := interaction.Msg.(ScrollDeltaCarrier); ok {
-				return carrier.SetDelta(delta, horizontal), true
+			if interaction.MsgFn != nil {
+				return interaction.MsgFn(msg), true
 			}
 			return interaction.Msg, true
 		}

@@ -29,7 +29,8 @@ type fileMatch struct {
 	end   int
 }
 
-func (f FileListScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
+func newFileListScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
 	return FileListScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
@@ -52,7 +53,7 @@ func NewDetailsList() *DetailsList {
 		selectedHint:   "",
 		unselectedHint: "",
 	}
-	d.listRenderer = render.NewListRenderer(FileListScrollMsg{})
+	d.listRenderer = render.NewListRenderer(newFileListScrollMsg)
 	return d
 }
 

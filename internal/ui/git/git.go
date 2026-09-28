@@ -63,10 +63,9 @@ type itemScrollMsg struct {
 	Horizontal bool
 }
 
-func (m itemScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	m.Delta = delta
-	m.Horizontal = horizontal
-	return m
+func newItemScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return itemScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 type filterState int
@@ -414,7 +413,7 @@ func NewModel(c *context.MainContext, revisions jj.SelectedRevisions) *Model {
 		revisions:         revisions,
 		remoteNames:       remotes,
 		selectedRemoteIdx: 0,
-		listRenderer:      render.NewListRenderer(itemScrollMsg{}),
+		listRenderer:      render.NewListRenderer(newItemScrollMsg),
 		title:             "Git Operations",
 	}
 	m.listRenderer.Z = render.ZMenuContent

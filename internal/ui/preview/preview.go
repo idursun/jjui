@@ -46,10 +46,9 @@ type ScrollMsg struct {
 	Horizontal bool
 }
 
-func (s ScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	s.Delta = delta
-	s.Horizontal = horizontal
-	return s
+func newScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return ScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 func (m *Model) Scopes() []common.Scope {
@@ -189,7 +188,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	dl.AddDraw(box.R, m.view.View(), render.ZPreview, render.PreserveBackground())
 
 	scrollRect := layout.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), box.R.Dy())
-	dl.AddInteraction(scrollRect, ScrollMsg{}, render.InteractionScroll, render.ZPreview)
+	dl.AddInteractionFn(scrollRect, newScrollMsg, render.InteractionScroll, render.ZPreview)
 }
 
 func (m *Model) reset() {

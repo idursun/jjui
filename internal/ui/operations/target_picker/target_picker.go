@@ -61,10 +61,9 @@ type itemScrollMsg struct {
 	Horizontal bool
 }
 
-func (m itemScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	m.Delta = delta
-	m.Horizontal = horizontal
-	return m
+func newItemScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return itemScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 type TargetSelectedMsg struct {
@@ -105,7 +104,7 @@ func NewModel(ctx *context.MainContext, payload any, sources ...source.Source) *
 		context:             ctx,
 		input:               ti,
 		cursor:              0,
-		listRenderer:        render.NewListRenderer(itemScrollMsg{}),
+		listRenderer:        render.NewListRenderer(newItemScrollMsg),
 		ensureCursorVisible: true,
 		payload:             payload,
 		sources:             sources,

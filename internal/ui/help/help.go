@@ -108,9 +108,8 @@ type Model struct {
 	filtered  []ScopeGroup
 }
 
-type helpScrollMsg struct{}
-
-func (helpScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
+func newHelpScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
 	if horizontal {
 		return nil
 	}
@@ -289,7 +288,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.scroll = min(m.scroll, maxScroll)
 
 	// Enable mouse wheel scrolling in the help content area.
-	dl.AddInteraction(contentBox.R, helpScrollMsg{}, render.InteractionScroll, render.ZMenuContent)
+	dl.AddInteractionFn(contentBox.R, newHelpScrollMsg, render.InteractionScroll, render.ZMenuContent)
 
 	visible := lines[m.scroll:]
 	if len(visible) > contentBox.R.Dy() {
