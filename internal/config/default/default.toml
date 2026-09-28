@@ -42,9 +42,6 @@ error = "red"
 "picker dimmed" = { fg = "bright black" }
 "picker matched" = { underline = true }
 "picker:selected" = { fg = "cyan", bg = "bright black", bold = true, underline = false }
-"picker dimmed:selected" = {}
-"picker text:selected" = {}
-"picker matched:selected" = {}
 "annotation header" = { fg = "magenta", bold = true }
 "annotation dimmed" = "bright black"
 "annotation error" = "red"
