@@ -274,6 +274,17 @@ func renderVisibleSpan(
 	child := NewDisplayContext()
 	render(child, layout.Rect(0, 0, span.Rect.Dx(), itemHeight))
 
+	// Carry the item's interactions over, shifted to screen space and clipped to the visible span.
+	offset := layout.Pos(span.Rect.Min.X, span.Rect.Min.Y-span.LineOffset)
+	for _, op := range child.interactions {
+		op.Rect = op.Rect.Add(offset).Intersect(span.Rect)
+		if op.Rect.Empty() {
+			continue
+		}
+		op.order = dl.nextOrder()
+		dl.interactions = append(dl.interactions, op)
+	}
+
 	clipped := clipRenderedLines(
 		child.RenderToString(span.Rect.Dx(), itemHeight),
 		span.LineOffset,

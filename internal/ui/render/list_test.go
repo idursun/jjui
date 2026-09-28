@@ -124,3 +124,39 @@ func TestListRendererRenderUsesVisibleHeightForBottomClippedItem(t *testing.T) {
 
 	assert.Equal(t, 3, seenHeight)
 }
+
+func TestListRendererKeepsItemInteractionsOfTopClippedItem(t *testing.T) {
+	renderer := NewListRenderer(nil)
+	renderer.SetScrollOffset(3)
+
+	viewRect := layout.Rect(2, 1, 8, 2)
+	dl := NewDisplayContext()
+	renderer.Render(
+		dl,
+		layout.NewBox(viewRect),
+		1,
+		-1,
+		false,
+		func(_ int) int { return 5 },
+		func(dl *DisplayContext, _ int, rect layout.Rectangle) {
+			for i := range rect.Dy() {
+				lineRect := layout.Rect(rect.Min.X, rect.Min.Y+i, rect.Dx(), 1)
+				dl.AddInteraction(lineRect, fmt.Sprintf("line %d", i+1), InteractionClick, 0)
+			}
+		},
+		func(index int, _ tea.Mouse) ClickMessage {
+			return index
+		},
+	)
+
+	click := func(x, y int) tea.Msg {
+		msg, handled := dl.ProcessMouseEvent(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+		require.True(t, handled)
+		return msg
+	}
+	assert.Equal(t, "line 4", click(viewRect.Min.X, viewRect.Min.Y))
+	assert.Equal(t, "line 5", click(viewRect.Max.X-1, viewRect.Min.Y+1))
+
+	_, handled := dl.ProcessMouseEvent(tea.MouseClickMsg{X: viewRect.Min.X, Y: viewRect.Min.Y - 1, Button: tea.MouseLeft})
+	assert.False(t, handled, "scrolled-off lines must not be clickable outside the list")
+}
