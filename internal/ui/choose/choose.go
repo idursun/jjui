@@ -337,7 +337,6 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	itemCount := len(m.filteredOptions)
-	m.listRenderer.StartLine = render.ClampStartLine(m.listRenderer.StartLine, listBox.R.Dy(), itemCount)
 	m.listRenderer.Render(
 		dl,
 		listBox,
