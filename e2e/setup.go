@@ -553,6 +553,7 @@ func harnessKey(name string) (ghostty.Key, string, ghostty.Mods, error) {
 	}{
 		"Enter":      {ghostty.KeyEnter, ""},
 		"Escape":     {ghostty.KeyEscape, ""},
+		"F1":         {ghostty.KeyF1, ""},
 		"Space":      {ghostty.KeySpace, " "},
 		"ArrowUp":    {ghostty.KeyArrowUp, ""},
 		"ArrowDown":  {ghostty.KeyArrowDown, ""},

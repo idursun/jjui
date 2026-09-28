@@ -175,6 +175,11 @@ func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
 		m.status.SetStatusExpanded(false)
 		return nil, true
 	}
+	if m.stacked != nil {
+		cmd := m.stacked.Update(msg)
+		m.stacked = nil
+		return cmd, true
+	}
 	if m.annotation != nil {
 		if !msg.Applied {
 			if cmd, canClose := m.annotation.RequestClose(); !canClose {
@@ -187,11 +192,6 @@ func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
 	if m.diff != nil {
 		m.diff = nil
 		return nil, true
-	}
-	if m.stacked != nil {
-		cmd := m.stacked.Update(msg)
-		m.stacked = nil
-		return cmd, true
 	}
 	if m.oplog != nil {
 		m.oplog = nil
