@@ -126,26 +126,50 @@ Resolution order is:
 
 Once an intent is resolved, the root UI routes it to the owning model.
 
-## Focus and Scope Tree
+## View Layers and Scope Routing
 
-There is currently no separate generic focus-tree subsystem.
+There is no generic focus-tree subsystem. The root model keeps its views in one ordered list, and that list drives rendering, key routing, closing and message delivery.
 
-The UI focus tree is hardcoded in [`internal/ui/ui.go`](internal/ui/ui.go), mainly through logic such as:
+### The layer list
 
-- `primaryScope()`
-- `alwaysOnScopes()`
-- `dispatchScopes()`
-- `routeIntentByOwner(...)`
-- `handleUnmatched(...)`
+The revisions view is always at the bottom. Views opened over it are kept as layers, ordered bottom to top, in [`internal/ui/layers.go`](internal/ui/layers.go):
 
-That code determines:
+- a **screen** (oplog, diff, annotation) takes the whole view and hides the layers below it
+- a **dialog** (git, bookmarks, undo, redo, help, choose, input, target picker, command history) is drawn over the layers below it
 
-- which model is considered focused
-- which scopes are currently active
-- which always-on scopes remain available
-- where an intent or unmatched key should be routed
+The top layer is the active one:
 
-This keeps control flow explicit, but it also means UI composition and focus behavior are centralized in `ui.go`.
+- rendering draws the topmost screen (or the revisions view), then every dialog above it
+- only the top layer receives keys
+- closing (`CloseViewMsg`, or the cancel fallback) removes the top layer
+- non-input messages are broadcast to every layer, so hidden layers stay up to date
+
+Opening a dialog replaces the dialog on top. Opening a screen moves it to the top, keeping at most one screen of each kind.
+
+The **primary** view is the one shown in the split beside the preview or bookmark pane: the oplog when it is open, otherwise revisions. Unhandled keys go to the primary view, and the split panes only join key routing while the primary view is the top layer.
+
+The password prompt, flash messages and the status line sit outside the list and are handled around it.
+
+This rendering order is separate from `revisions.Model`'s own layers stack, which holds the active revisions operation and its transient overlays.
+
+### Scope chain
+
+For each key, `dispatchScopes()` in [`internal/ui/ui.go`](internal/ui/ui.go) builds a chain of scopes from innermost to outermost:
+
+1. the password prompt, if any
+2. the status line, while it takes input (exec, quick search, file search)
+3. the revset editor, while editing
+4. the top layer's scopes, or the primary view's scopes followed by the split pane's scopes
+5. the revset scope, when not editing
+6. the root `ui` scope
+
+Each scope's leak policy decides how far routing continues past it:
+
+- `LeakAll`: every outer scope stays visible
+- `LeakGlobal`: only outer scopes marked `Global` stay visible
+- `LeakNone`: routing stops here, typically while editing text
+
+Two scopes are `Global`: the root `ui` scope, which is available everywhere, and the preview. The preview cannot take focus, so being `Global` lets its hotkeys work through the primary view's own `LeakGlobal` modes such as details and evolog. It is only in the chain while the primary view is on top.
 
 ## Root UI Responsibilities
 
@@ -153,8 +177,8 @@ The root model in [`internal/ui/ui.go`](internal/ui/ui.go) is responsible for mo
 
 It currently owns:
 
-- composition of major views such as revisions, preview, diff, status, oplog, and stacked dialogs
-- dispatch scope selection
+- the view layer list: revisions, oplog, diff, annotation, and dialogs
+- dispatch scope selection from that list
 - action and intent routing
 - top-level lifecycle actions like quit, help, undo, redo, preview toggling, and overlays
 - mouse interaction handoff through the current display context
@@ -166,7 +190,9 @@ This file is the architectural center of the UI.
 
 Mouse handling follows the same immediate rendering model.
 
-During rendering, components register clickable or scrollable regions with the display context. When Bubble Tea delivers a mouse event, the root model forwards it to the active `DisplayContext`, which resolves the topmost matching interaction and optionally emits a new Bubble Tea message.
+During rendering, components register clickable, scrollable, or draggable regions with the display context. When Bubble Tea delivers a mouse event, the root model forwards it to the active `DisplayContext`, which resolves the topmost matching interaction and optionally emits a new Bubble Tea message.
+
+A region either carries a fixed message (`AddInteraction`) or computes its message from the mouse event (`AddInteractionFn`), for example a scroll delta via `render.WheelDelta` or a drag start position.
 
 This means mouse interaction targets are derived from the current frame rather than kept as long-lived widgets.
 
@@ -200,5 +226,5 @@ If you are changing behavior in `jjui`, the main mental model is:
 - rendering is immediate-mode through `render/`
 - models handle intents, not keys
 - `//jjui:bind` annotations generate the action catalog and builtin Lua surface
-- focus and dispatch scope selection are currently hardcoded in `ui.go`
+- one ordered list of view layers in `ui.go` decides what is drawn, which view receives keys, and what closes first
 - frames are cached and only recomputed every 8ms, while messages continue to be processed in between
