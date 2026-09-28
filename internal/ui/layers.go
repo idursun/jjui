@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"reflect"
 	"slices"
 
 	tea "charm.land/bubbletea/v2"
@@ -92,11 +91,25 @@ func (m *Model) closeDialog() {
 // openScreen moves a screen to the top. An open screen of the same kind is
 // removed first, so there is at most one screen of each kind.
 func (m *Model) openScreen(model common.StackedModel) {
-	kind := reflect.TypeOf(model)
 	m.layers = slices.DeleteFunc(m.layers, func(l layer) bool {
-		return reflect.TypeOf(l.model) == kind
+		return sameScreenKind(l.model, model)
 	})
 	m.layers = append(m.layers, layer{model: model, screen: true})
+}
+
+func sameScreenKind(a, b common.StackedModel) bool {
+	switch a.(type) {
+	case *oplog.Model:
+		_, ok := b.(*oplog.Model)
+		return ok
+	case *diff.Model:
+		_, ok := b.(*diff.Model)
+		return ok
+	case *annotation.Model:
+		_, ok := b.(*annotation.Model)
+		return ok
+	}
+	return false
 }
 
 // closeTopLayer closes the top layer. An annotation with unsaved comments can
