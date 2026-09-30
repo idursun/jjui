@@ -11,7 +11,7 @@ import (
 )
 
 func (m *Model) renderTitle(dl *render.DisplayContext, box layout.Box) {
-	dl.Text(box.R.Min.X, box.R.Min.Y, render.ZMenuContent).
+	dl.Text(box.R.Min.X, box.R.Min.Y, render.ZPreview).
 		Styled("Bookmarks", m.styles.title).
 		Done()
 }
@@ -21,7 +21,7 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
-	tb := dl.Text(box.R.Min.X, box.R.Min.Y, render.ZMenuContent).
+	tb := dl.Text(box.R.Min.X, box.R.Min.Y, render.ZPreview).
 		Styled("Remotes: ", m.styles.title)
 	for idx, remoteName := range m.remoteNames {
 		style := m.styles.dimmed
@@ -44,7 +44,7 @@ func (m *Model) renderFilter(dl *render.DisplayContext, box layout.Box) {
 		fis.Blurred.Text = menuTextStyle
 		m.filterInput.SetStyles(fis)
 		m.filterInput.SetWidth(max(box.R.Dx()-2, 0))
-		dl.AddDraw(box.R, m.filterInput.View(), render.ZMenuContent)
+		dl.AddDraw(box.R, m.filterInput.View(), render.ZPreview)
 		dl.SetCursorInRect(m.filterInput.Cursor(), box.R, 0, 0)
 		return
 	}
@@ -52,7 +52,7 @@ func (m *Model) renderFilter(dl *render.DisplayContext, box layout.Box) {
 	if filterText == "" {
 		return
 	}
-	dl.Text(box.R.Min.X, box.R.Min.Y, render.ZMenuContent).
+	dl.Text(box.R.Min.X, box.R.Min.Y, render.ZPreview).
 		Styled("Filter: ", m.styles.filterPrompt).
 		Styled(filterText, m.styles.text).
 		Done()
@@ -118,10 +118,10 @@ func (m *Model) renderListRow(dl *render.DisplayContext, index int, rect layout.
 		return
 	}
 	if index == m.cursor && m.Focused() {
-		dl.AddHighlight(rect, m.styles.selected, render.ZMenuContent+1)
+		dl.AddHighlight(rect, m.styles.selected, render.ZPreview+1)
 	}
 
-	tb := dl.Text(rect.Min.X, rect.Min.Y, render.ZMenuContent)
+	tb := dl.Text(rect.Min.X, rect.Min.Y, render.ZPreview)
 	if m.selected[node.Target()] {
 		tb.Styled("✓ ", m.styles.selected)
 	} else {
