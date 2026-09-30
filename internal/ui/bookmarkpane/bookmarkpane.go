@@ -215,7 +215,7 @@ func New(c *context.MainContext) *Model {
 		filterInput:  filterInput,
 		styles:       s,
 	}
-	m.listRenderer.Z = render.ZMenuContent
+	m.listRenderer.Z = render.ZPreview
 	return m
 }
 
@@ -515,8 +515,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
-	dl.AddInteraction(box.R, PaneClickedMsg{}, render.InteractionClick, render.ZMenuBorder)
-	dl.AddFill(box.R, ' ', m.styles.text, render.ZMenuContent)
+	dl.AddInteraction(box.R, PaneClickedMsg{}, render.InteractionClick, render.ZPreview-1)
+	dl.AddFill(box.R, ' ', m.styles.text, render.ZPreview)
 
 	content := box
 	if content.R.Dx() <= 0 || content.R.Dy() <= 0 {
