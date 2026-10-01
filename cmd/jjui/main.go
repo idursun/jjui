@@ -255,16 +255,16 @@ func run() int {
 
 	p := tea.NewProgram(ui.New(appContext), tea.WithInput(os.Stdin))
 	if config.Current.AskpassEnabled() {
-		if err := askpassServer.StartListening(); err != nil {
+		switch err := askpassServer.StartListening(); {
+		case err == nil:
+			defer askpassServer.Close()
+			go askpassServer.Serve(showPassword(p.Send))
+		case errors.Is(err, askpass.ErrUnsupported):
+			// run without askpass; jj prompts the usual way
+		default:
 			fmt.Fprintf(os.Stderr, "Error: askpass.enabled: %v\n", err)
 			return 1
 		}
-		defer askpassServer.Close()
-
-		go askpassServer.Serve(showPassword(p.Send))
-
-		// uncomment the line below to show a fake prompt upon startup
-		// go showPassword(p.Send)("test", "Enter PIN for 'ssh': ", make(<-chan struct{}))
 	}
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error running program: %v\n", err)

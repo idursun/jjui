@@ -94,6 +94,10 @@ func dialServer(addr, key string) error {
 	return err
 }
 
+// ErrUnsupported is returned by StartListening when the platform cannot
+// verify the askpass peer (e.g. Windows).
+var ErrUnsupported = errors.New("askpass is not supported on this platform")
+
 // StartListening starts listening on the unix socket (must be called before [Server.Serve])
 func (s *Server) StartListening() error {
 	ln, err := net.ListenUnix("unix", &net.UnixAddr{
@@ -108,6 +112,9 @@ func (s *Server) StartListening() error {
 
 	if err := s.smokeTestPeerCred(ln); err != nil {
 		s.Close()
+		if errors.Is(err, peercred.ErrNotImplemented) {
+			return fmt.Errorf("%w: %w", ErrUnsupported, err)
+		}
 		return err
 	}
 
