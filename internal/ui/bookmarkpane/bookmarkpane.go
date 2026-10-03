@@ -178,22 +178,30 @@ func (m *Model) Scopes() []common.Scope {
 	}}
 }
 
-func New(c *context.MainContext) *Model {
+func newStyles(isSelected bool) styles {
 	palette := theme.DefaultPalette
-	s := styles{
-		title:              palette.Get("", "", "title", false),
-		text:               palette.Get("picker", "", "text", false),
-		dimmed:             palette.Get("picker", "", "dimmed", false),
-		selected:           palette.Get("revisions", "", "", true),
-		localBookmark:      palette.Get("picker", "", "bookmark", false),
-		remoteBookmark:     palette.Get("picker", "", "dimmed", false),
-		remoteBookmarkName: palette.Get("picker", "", "matched", false),
-		trackedBookmark:    palette.Get("status", "", "text", false),
-		deleted:            palette.Get("", "", "deleted", false),
-		conflict:           palette.Get("", "", "error", false),
-		filterPrompt:       palette.Get("picker", "", "matched", false),
-		childGuide:         palette.Get("picker", "", "dimmed", false),
+	getStyle := palette.Get
+	if isSelected {
+		getStyle = palette.GetBlended
 	}
+	return styles{
+		title:              palette.Get("bookmarks", "", "title", false),
+		text:               getStyle("bookmarks", "", "text", isSelected),
+		dimmed:             getStyle("bookmarks", "", "dimmed", isSelected),
+		selected:           palette.GetBlended("bookmarks", "", "", true),
+		localBookmark:      getStyle("bookmarks", "", "bookmark", isSelected),
+		remoteBookmark:     getStyle("bookmarks", "", "dimmed", isSelected),
+		remoteBookmarkName: getStyle("bookmarks", "", "matched", isSelected),
+		trackedBookmark:    getStyle("bookmarks", "", "text", isSelected),
+		deleted:            getStyle("bookmarks", "", "deleted", isSelected),
+		conflict:           getStyle("bookmarks", "", "error", isSelected),
+		filterPrompt:       palette.Get("bookmarks", "", "matched", false),
+		childGuide:         getStyle("bookmarks", "", "dimmed", isSelected),
+	}
+}
+
+func New(c *context.MainContext) *Model {
+	s := newStyles(false)
 
 	filterInput := textinput.New()
 	filterInput.Prompt = "Filter: "
@@ -514,6 +522,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
+	m.styles = newStyles(false)
 	dl.AddInteraction(box.R, PaneClickedMsg{}, render.InteractionClick, render.ZPreview-1)
 	dl.AddFill(box.R, ' ', m.styles.text, render.ZPreview)
 
@@ -524,6 +533,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	titleBox, content := content.CutTop(1)
 	m.renderTitle(dl, titleBox)
+	_, content = content.CutTop(1)
 	remoteBox, content := content.CutTop(1)
 	m.renderRemotes(dl, remoteBox)
 	var listBox layout.Box
