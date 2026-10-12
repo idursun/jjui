@@ -254,6 +254,8 @@ func run() int {
 	appContext.CurrentRevset = appContext.DefaultRevset
 
 	p := tea.NewProgram(ui.New(appContext), tea.WithInput(os.Stdin))
+	stopThemeReload := watchThemeReloadSignals(p)
+	defer stopThemeReload()
 	if config.Current.AskpassEnabled() {
 		switch err := askpassServer.StartListening(); {
 		case err == nil:

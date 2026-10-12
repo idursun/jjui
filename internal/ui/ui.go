@@ -204,6 +204,8 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case common.ReloadThemeMsg:
+		return m.reloadActiveTheme()
 	case tea.ModeReportMsg:
 		if msg.Mode == ansi.ModeUnicodeCore {
 			if msg.Value == ansi.ModeReset || msg.Value == ansi.ModeSet || msg.Value == ansi.ModePermanentlySet {

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/config"
@@ -37,6 +38,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revset"
+	"github.com/idursun/jjui/internal/ui/theme"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1063,6 +1065,29 @@ func Test_HandleIntent_EditEntersRevsetInNormalMode(t *testing.T) {
 	assert.True(t, handled)
 	assert.NotNil(t, cmd)
 	assert.True(t, model.revsetModel.IsEditing())
+}
+
+func Test_Update_ReloadThemeReadsFileAndKeepsPaletteOnError(t *testing.T) {
+	setupThemeTestConfig(t)
+	originalPalette := theme.DefaultPalette
+	theme.DefaultPalette = theme.NewPalette()
+	t.Cleanup(func() { theme.DefaultPalette = originalPalette })
+	config.Current.UI.Theme.Dark = "runtime_dark"
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.TerminalHasDarkBackground = true
+	model := NewUI(ctx)
+	themePath := filepath.Join(config.GetConfigDir(), "themes", "runtime_dark.toml")
+	for _, foreground := range []string{"#ff0000", "#00ff00"} {
+		require.NoError(t, os.WriteFile(themePath, []byte(`title = { fg = "`+foreground+`" }`), 0o644))
+		cmd := model.Update(common.ReloadThemeMsg{})
+		changed, _, _ := inspectTerminalRefresh(cmd)
+		require.True(t, changed)
+		assert.Equal(t, lipgloss.Color(foreground), theme.DefaultPalette.Get("", "title", "", false).GetForeground())
+	}
+	require.NoError(t, os.WriteFile(themePath, []byte(`title = {`), 0o644))
+	changed, _, _ := inspectTerminalRefresh(model.Update(common.ReloadThemeMsg{}))
+	assert.False(t, changed)
+	assert.Equal(t, lipgloss.Color("#00ff00"), theme.DefaultPalette.Get("", "title", "", false).GetForeground())
 }
 
 func Test_HandleIntent_ChangeThemeUpdatesCurrentMode(t *testing.T) {

@@ -13,6 +13,7 @@ type (
 	}
 	AutoRefreshMsg  struct{}
 	ThemeChangedMsg struct{}
+	ReloadThemeMsg  struct{}
 	RefreshMsg      struct {
 		SelectedRevision string
 		KeepSelections   bool
