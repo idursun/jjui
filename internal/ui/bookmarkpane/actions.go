@@ -113,7 +113,7 @@ func (m *Model) pushSelected() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	flags := []string{"--bookmark", bookmark.Name}
+	flags := []string{"--bookmark", jj.ExactStringPattern(bookmark.Name)}
 	if node.IsRemote() && node.Remote != "" {
 		flags = append(flags, "--remote", node.Remote)
 	}
@@ -128,7 +128,7 @@ func (m *Model) fetchSelected() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	flags := []string{"--branch", bookmark.Name}
+	flags := []string{"--branch", jj.ExactStringPattern(bookmark.Name)}
 	if node.IsRemote() && node.Remote != "" {
 		flags = append(flags, "--remote", node.Remote)
 	}

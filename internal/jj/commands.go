@@ -208,12 +208,13 @@ func BookmarkSet(revision string, name string) CommandArgs {
 	return []string{"bookmark", "set", "-r", revision, name}
 }
 
-func exactStringPattern(value string) string {
+// ExactStringPattern quotes a name so jj matches it exactly.
+func ExactStringPattern(value string) string {
 	return "exact:" + strconv.Quote(value)
 }
 
 func BookmarkMove(revision string, bookmark string, extraFlags ...string) CommandArgs {
-	args := []string{"bookmark", "move", exactStringPattern(bookmark), "--to", revision}
+	args := []string{"bookmark", "move", ExactStringPattern(bookmark), "--to", revision}
 	if extraFlags != nil {
 		args = append(args, extraFlags...)
 	}
@@ -221,7 +222,7 @@ func BookmarkMove(revision string, bookmark string, extraFlags ...string) Comman
 }
 
 func BookmarkDelete(name string) CommandArgs {
-	return []string{"bookmark", "delete", exactStringPattern(name)}
+	return []string{"bookmark", "delete", ExactStringPattern(name)}
 }
 
 func BookmarkRename(oldName string, newName string) CommandArgs {
@@ -229,21 +230,21 @@ func BookmarkRename(oldName string, newName string) CommandArgs {
 }
 
 func BookmarkForget(name string) CommandArgs {
-	return []string{"bookmark", "forget", exactStringPattern(name)}
+	return []string{"bookmark", "forget", ExactStringPattern(name)}
 }
 
 func BookmarkTrack(name string, remote string) CommandArgs {
-	args := []string{"bookmark", "track", exactStringPattern(name)}
+	args := []string{"bookmark", "track", ExactStringPattern(name)}
 	if remote != "" {
-		args = append(args, "--remote", exactStringPattern(remote))
+		args = append(args, "--remote", ExactStringPattern(remote))
 	}
 	return args
 }
 
 func BookmarkUntrack(name string, remote string) CommandArgs {
-	args := []string{"bookmark", "untrack", exactStringPattern(name)}
+	args := []string{"bookmark", "untrack", ExactStringPattern(name)}
 	if remote != "" {
-		args = append(args, "--remote", exactStringPattern(remote))
+		args = append(args, "--remote", ExactStringPattern(remote))
 	}
 	return args
 }
