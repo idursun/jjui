@@ -1090,6 +1090,37 @@ func Test_Update_ReloadThemeReadsFileAndKeepsPaletteOnError(t *testing.T) {
 	assert.Equal(t, lipgloss.Color("#00ff00"), theme.DefaultPalette.Get("", "title", "", false).GetForeground())
 }
 
+func Test_Update_ReloadThemeEnablesBackgroundBlend(t *testing.T) {
+	setupThemeTestConfig(t)
+	originalPalette := theme.DefaultPalette
+	theme.DefaultPalette = theme.NewPalette()
+	t.Cleanup(func() { theme.DefaultPalette = originalPalette })
+	originalBlend := config.Current.UI.BackgroundBlend
+	config.Current.UI.BackgroundBlend = config.BackgroundBlendConfig{}
+	t.Cleanup(func() { config.Current.UI.BackgroundBlend = originalBlend })
+	config.Current.UI.Theme.Dark = "runtime_dark"
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.TerminalHasDarkBackground = true
+	ctx.TerminalBackground = "#000000"
+	model := NewUI(ctx)
+	themePath := filepath.Join(config.GetConfigDir(), "themes", "runtime_dark.toml")
+	changed, requested, _ := inspectTerminalRefresh(model.Update(common.ReloadThemeMsg{}))
+	require.True(t, changed)
+	require.False(t, requested, "disabled blending does not need terminal palette queries")
+	require.NoError(t, os.WriteFile(themePath, []byte(`[dark]
+background_blend = 0.75
+[dark.colors]
+"picker badge" = { bg = "green" }
+`), 0o644))
+	changed, requested, _ = inspectTerminalRefresh(model.Update(common.ReloadThemeMsg{}))
+	require.True(t, changed)
+	require.True(t, requested, "enabling blending must query terminal ANSI colors")
+	changed, requested, _ = inspectTerminalRefresh(model.Update(uv.UnknownOscEvent("\x1b]4;2;rgb:00/aa/00\x07")))
+	require.True(t, changed)
+	assert.False(t, requested, "palette replies must not trigger more queries")
+	assert.Equal(t, lipgloss.Color("#005500"), theme.DefaultPalette.GetBlended("picker", "", "badge", false).GetBackground())
+}
+
 func Test_HandleIntent_ChangeThemeUpdatesCurrentMode(t *testing.T) {
 	setupThemeTestConfig(t)
 

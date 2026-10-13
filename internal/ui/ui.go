@@ -990,6 +990,7 @@ func (m *Model) reloadActiveTheme() tea.Cmd {
 		log.Printf("failed to resolve theme: %v", err)
 		return nil
 	}
+	blendEnabled := m.context.ThemeBackgroundBlend == 0 && resolvedTheme.BackgroundBlend > 0
 	m.context.ThemeBackgroundBlend = resolvedTheme.BackgroundBlend
 	theme.DefaultPalette.Update(resolvedTheme.Colors)
 	theme.DefaultPalette.ConfigureBackgroundBlend(
@@ -997,7 +998,11 @@ func (m *Model) reloadActiveTheme() tea.Cmd {
 		m.context.TerminalBackground,
 		m.context.TerminalPalette,
 	)
-	return func() tea.Msg { return common.ThemeChangedMsg{} }
+	cmd := func() tea.Msg { return common.ThemeChangedMsg{} }
+	if blendEnabled {
+		return tea.Batch(cmd, requestTerminalPalette())
+	}
+	return cmd
 }
 
 func (m *Model) resolveActiveTheme() (config.ResolvedTheme, error) {
