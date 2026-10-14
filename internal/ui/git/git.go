@@ -647,7 +647,7 @@ func (m *Model) createMenuItems() []item {
 				items = append(items, item{
 					name:     fmt.Sprintf("git push --bookmark %s --remote %s", b.Name, remote.Remote),
 					desc:     fmt.Sprintf("Git push bookmark %s to %s", b.Name, remote.Remote),
-					command:  jj.GitPush("--bookmark", b.Name, "--remote", remote.Remote),
+					command:  jj.GitPush("--bookmark", jj.ExactStringPattern(b.Name), "--remote", remote.Remote),
 					category: itemCategoryPush,
 				})
 			}
@@ -687,10 +687,11 @@ func (m *Model) createMenuItems() []item {
 
 	if len(selectedBookmarks) > 0 {
 		var bookmarkFlags []string
+		flags := []string{"--remote", selectedRemote}
 		for _, name := range selectedBookmarks {
 			bookmarkFlags = append(bookmarkFlags, "--bookmark", name)
+			flags = append(flags, "--bookmark", jj.ExactStringPattern(name))
 		}
-		flags := append([]string{"--remote", selectedRemote}, bookmarkFlags...)
 		items = append(items,
 			item{
 				category: itemCategoryPush,

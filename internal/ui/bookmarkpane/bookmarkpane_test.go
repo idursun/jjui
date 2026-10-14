@@ -241,7 +241,7 @@ func TestWindowResize_ResetsCachedPageHeightBeforeNextRender(t *testing.T) {
 func TestPushSelected_RunsGitPushForBookmark(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
-	commandRunner.Expect(jj.GitPush("--bookmark", "main"))
+	commandRunner.Expect(jj.GitPush("--bookmark", `exact:"main"`))
 	defer commandRunner.Verify()
 
 	model := New(test.NewTestContext(commandRunner))
@@ -257,7 +257,7 @@ func TestPushSelected_RunsGitPushForBookmark(t *testing.T) {
 func TestFetchSelected_RunsGitFetchForBookmark(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
-	commandRunner.Expect(jj.GitFetch("--branch", "main"))
+	commandRunner.Expect(jj.GitFetch("--branch", `exact:"main"`))
 	defer commandRunner.Verify()
 
 	model := New(test.NewTestContext(commandRunner))
@@ -272,8 +272,11 @@ func TestFetchSelected_RunsGitFetchForBookmark(t *testing.T) {
 
 func TestPushSelected_RemoteBookmarkUsesRemote(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nmain;origin;true;true;false;false;abc123\n"))
-	commandRunner.Expect(jj.GitPush("--bookmark", "main", "--remote", "origin"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(`
+"feature/AB#1234_some-feature";.;true;false;false;false;abc123
+"feature/AB#1234_some-feature";origin;true;true;false;false;abc123
+`))
+	commandRunner.Expect(jj.GitPush("--bookmark", `exact:"feature/AB#1234_some-feature"`, "--remote", "origin"))
 	defer commandRunner.Verify()
 
 	model := New(test.NewTestContext(commandRunner))
@@ -290,8 +293,11 @@ func TestPushSelected_RemoteBookmarkUsesRemote(t *testing.T) {
 
 func TestFetchSelected_RemoteBookmarkUsesRemote(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\nmain;origin;true;true;false;false;abc123\n"))
-	commandRunner.Expect(jj.GitFetch("--branch", "main", "--remote", "origin"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(`
+"feature/AB#1234_some-feature";.;true;false;false;false;abc123
+"feature/AB#1234_some-feature";origin;true;true;false;false;abc123
+`))
+	commandRunner.Expect(jj.GitFetch("--branch", `exact:"feature/AB#1234_some-feature"`, "--remote", "origin"))
 	defer commandRunner.Verify()
 
 	model := New(test.NewTestContext(commandRunner))
