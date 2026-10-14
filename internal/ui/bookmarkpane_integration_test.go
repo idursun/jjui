@@ -39,6 +39,27 @@ func bookmarkPaneVisible(model *Model) bool {
 	return strings.Contains(renderSplitView(model, 100, 20), "Bookmarks")
 }
 
+func Test_BookmarkPaneReadlineNavigation(t *testing.T) {
+	model := newBookmarkPaneModel(t, "local;.;true;false;false;false;abc123\nremote;origin;true;true;false;false;def456\n")
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, bookmarkPaneFocused(model))
+
+	for _, step := range []struct {
+		key      rune
+		hasLocal bool
+	}{
+		{'p', true},  // Clamp at the first bookmark.
+		{'n', false}, // Move to the remote-only bookmark.
+		{'n', false}, // Clamp at the last bookmark.
+		{'p', true},  // Return to the local bookmark.
+	} {
+		test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: step.key, Mod: tea.ModCtrl}))
+		value, ok := model.QueryState("bookmark_pane.has_local_bookmark")
+		require.True(t, ok)
+		assert.Equal(t, step.hasLocal, value, "after ctrl+%c", step.key)
+	}
+}
+
 func Test_GitOverlayDoesNotHideBehindBookmarkPane(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))

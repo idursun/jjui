@@ -356,8 +356,8 @@ bindings = [
 
     # bookmark_pane
     { key = "tab", action = "ui.focus_next_pane", scope = "bookmark_pane", desc = "next pane" },
-    { key = ["up", "k"], action = "bookmark_pane.move_up", scope = "bookmark_pane", desc = "up" },
-    { key = ["down", "j"], action = "bookmark_pane.move_down", scope = "bookmark_pane", desc = "down" },
+    { key = ["up", "k", "ctrl+p"], action = "bookmark_pane.move_up", scope = "bookmark_pane", desc = "up" },
+    { key = ["down", "j", "ctrl+n"], action = "bookmark_pane.move_down", scope = "bookmark_pane", desc = "down" },
     { key = ["right", "l"], action = "bookmark_pane.cycle_remotes", scope = "bookmark_pane", desc = "next remote" },
     { key = ["left", "h"], action = "bookmark_pane.cycle_remotes_back", scope = "bookmark_pane", desc = "prev remote" },
     { key = ["pgup", "shift+k"], action = "bookmark_pane.page_up", scope = "bookmark_pane", desc = "page up" },
