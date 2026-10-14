@@ -59,6 +59,21 @@ theme = "my-theme"
 
 jjui detects changes to the terminal appearance and reapplies the matching theme.
 
+## Reloading the theme
+
+On Linux, macOS, and other Unix systems, send `SIGUSR1` to a running jjui to reload the active theme file without restarting:
+
+```sh
+kill -USR1 <jjui-pid>
+
+# or reload every running instance
+pkill -USR1 -x jjui
+```
+
+This is useful when another tool, such as a wallpaper-based color generator, rewrites the theme file. Only theme files are reloaded; changes to `config.toml` (including `[ui.colors]` overrides) and Lua scripts still need a restart. jjui does not watch the file for changes, so send the signal after the file is written. If the theme file can't be loaded, jjui keeps the current colors.
+
+Theme reloading by signal is not available on Windows.
+
 ## Light and dark variants in one theme file
 
 A structured theme can contain shared colors plus appearance-specific overrides:
