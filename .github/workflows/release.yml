@@ -34,7 +34,7 @@ jobs:
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
         run: |
-          go build -ldflags="-X 'main.Version=$VERSION'" -o release/jjui-$VERSION-${{ matrix.os }}-${{ matrix.arch }}${{matrix.extension}} cmd/jjui/main.go
+          go build -ldflags="-X 'main.Version=$VERSION'" -o release/jjui-$VERSION-${{ matrix.os }}-${{ matrix.arch }}${{matrix.extension}} ./cmd/jjui
           zip -j release/jjui-$VERSION-${{ matrix.os }}-${{ matrix.arch }}.zip release/jjui-$VERSION-${{ matrix.os }}-${{ matrix.arch }}${{matrix.extension}}
       - name: Upload release binaries
         uses: softprops/action-gh-release@v2
