@@ -20,9 +20,7 @@ func Test_Revisions_NewRevisionKeepsSelectionOrderForParents(t *testing.T) {
 	h.Start("older")
 	h.WaitTextInOrder("newer", "older")
 
-	// Check older first, then move up and check newer. The selection order
-	// is the reverse of the log order. The default space action also jumps
-	// to the parent, so after checking older the cursor is on initial.
+	// Check older, then newer: the reverse of log order. Space moves down, so it takes two k to reach newer.
 	h.Key("j")
 	h.Key("j")
 	h.Key(" ")

@@ -98,10 +98,9 @@ lua = """
  jjui.builtin.revisions.refresh()
  """
 
-# Backwards compatibility
 [[actions]]
 name = "revisions.toggle_select"
 lua = """
  jjui.builtin.revisions.toggle_select()
- jjui.builtin.revisions.jump_to_parent()
+ jjui.builtin.revisions.move_down()
  """
