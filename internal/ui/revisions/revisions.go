@@ -73,6 +73,7 @@ type Model struct {
 	ensureCursorView       bool
 	requestInFlight        bool
 	checkedRevisions       map[string]appContext.SelectedRevision
+	checkedOrder           []string // commit ids in the order they were checked
 	focused                bool
 }
 
@@ -393,16 +394,7 @@ func (m *Model) SelectedRevision() *jj.Commit {
 }
 
 func (m *Model) SelectedRevisions() jj.SelectedRevisions {
-	var selected []*jj.Commit
-	for _, row := range m.rows {
-		if row.Commit == nil {
-			continue
-		}
-		if _, ok := m.checkedRevisions[row.Commit.CommitId]; ok {
-			selected = append(selected, row.Commit)
-		}
-	}
-
+	selected := m.checkedCommits()
 	if len(selected) == 0 {
 		return jj.NewSelectedRevisions(m.SelectedRevision())
 	}
@@ -431,15 +423,28 @@ func (m *Model) Selection() common.SelectionSnapshot {
 	return snapshot
 }
 
-func (m *Model) checkedRevisionItems() []common.SelectedItem {
-	items := make([]common.SelectedItem, 0, len(m.checkedRevisions))
+// checkedCommits keeps selection order; `jj new` uses it as the parent order.
+func (m *Model) checkedCommits() []*jj.Commit {
+	loaded := make(map[string]*jj.Commit, len(m.rows))
 	for _, row := range m.rows {
-		if row.Commit == nil {
-			continue
+		if row.Commit != nil {
+			loaded[row.Commit.CommitId] = row.Commit
 		}
-		if item, ok := m.checkedRevisions[row.Commit.CommitId]; ok {
-			items = append(items, item)
+	}
+	var commits []*jj.Commit
+	for _, commitId := range m.checkedOrder {
+		if commit, ok := loaded[commitId]; ok {
+			commits = append(commits, commit)
 		}
+	}
+	return commits
+}
+
+func (m *Model) checkedRevisionItems() []common.SelectedItem {
+	commits := m.checkedCommits()
+	items := make([]common.SelectedItem, 0, len(commits))
+	for _, commit := range commits {
+		items = append(items, m.checkedRevisions[commit.CommitId])
 	}
 	return items
 }
@@ -455,13 +460,18 @@ func (m *Model) checkedRevisionMap() map[string]bool {
 func (m *Model) toggleCheckedRevision(item appContext.SelectedRevision) {
 	if _, ok := m.checkedRevisions[item.CommitId]; ok {
 		delete(m.checkedRevisions, item.CommitId)
+		m.checkedOrder = slices.DeleteFunc(m.checkedOrder, func(commitId string) bool {
+			return commitId == item.CommitId
+		})
 		return
 	}
 	m.checkedRevisions[item.CommitId] = item
+	m.checkedOrder = append(m.checkedOrder, item.CommitId)
 }
 
 func (m *Model) clearCheckedRevisions() {
 	clear(m.checkedRevisions)
+	m.checkedOrder = nil
 }
 
 func (m *Model) Init() tea.Cmd {
