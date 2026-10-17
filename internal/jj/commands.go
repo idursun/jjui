@@ -342,18 +342,11 @@ func RebaseInsert(from SelectedRevisions, sourcePrefix string, insertAfter strin
 	return args
 }
 
-func SetParents(to string, parentsToAdd []string, parentsToRemove []string) CommandArgs {
-	var b strings.Builder
-	b.WriteString("parents(")
-	b.WriteString(to)
-	b.WriteString(")")
-	for _, remove := range parentsToRemove {
-		b.WriteString(" ~ ")
-		b.WriteString(remove)
-	}
-	args := []string{"rebase", "-s", to, "-d", b.String()}
-	for _, add := range parentsToAdd {
-		args = append(args, "-d", add)
+// One -d per parent: jj keeps -d order, but a `parents(x)` revset comes back in log order.
+func SetParents(to string, parents []string) CommandArgs {
+	args := []string{"rebase", "-s", to}
+	for _, parent := range parents {
+		args = append(args, "-d", parent)
 	}
 	return args
 }
@@ -470,9 +463,10 @@ func GetParent(revisions SelectedRevisions) CommandArgs {
 	return args
 }
 
+// Change ids, so a parent rewritten by a snapshot still resolves to its latest version.
 func GetParents(revision string) CommandArgs {
 	args := []string{"log", "-r", revision}
-	args = append(args, "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", "parents.map(|x| x.commit_id().shortest())")
+	args = append(args, "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", `parents.map(|x| x.change_id().shortest() ++ if(x.divergent(), "/" ++ x.change_offset()))`)
 	return args
 }
 

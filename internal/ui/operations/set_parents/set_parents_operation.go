@@ -82,7 +82,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return nil, true
 		}
 
-		if slices.Contains(m.parents, m.current.CommitId) {
+		if slices.Contains(m.parents, m.current.GetChangeId()) {
 			if m.toRemove[m.current.GetChangeId()] {
 				delete(m.toRemove, m.current.GetChangeId())
 			} else {
@@ -102,14 +102,15 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return common.Close, true
 		}
 
-		parentsToAdd := slices.Clone(m.toAdd)
-		var parentsToRemove []string
-
-		for changeId := range m.toRemove {
-			parentsToRemove = append(parentsToRemove, changeId)
+		var parents []string
+		for _, changeId := range m.parents {
+			if !m.toRemove[changeId] {
+				parents = append(parents, changeId)
+			}
 		}
+		parents = append(parents, m.toAdd...)
 
-		return m.context.RunCommand(jj.SetParents(m.target.GetChangeId(), parentsToAdd, parentsToRemove), common.RefreshAndSelect(m.target.GetChangeId()), common.CloseApplied), true
+		return m.context.RunCommand(jj.SetParents(m.target.GetChangeId(), parents), common.RefreshAndSelect(m.target.GetChangeId()), common.CloseApplied), true
 	case intents.Cancel:
 		return common.Close, true
 	}
@@ -131,7 +132,7 @@ func (m *Model) Render(commit *jj.Commit, renderPosition operations.RenderPositi
 		return sourceMarker.Render("<< remove >>")
 	}
 
-	if slices.Contains(m.parents, commit.CommitId) {
+	if slices.Contains(m.parents, commit.GetChangeId()) {
 		return dimmedStyle.Render("<< parent >>")
 	}
 	if commit.GetChangeId() == m.target.GetChangeId() {
