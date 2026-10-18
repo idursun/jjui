@@ -278,6 +278,24 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		L.Push(tbl)
 		return 1
 	}))
+	contextTable.RawSetString("preview_y_offset", L.NewFunction(func(L *lua.LState) int {
+		yOffset, _, visible := readPreviewState(ctx)
+		if !visible {
+			L.Push(lua.LNil)
+			return 1
+		}
+		L.Push(lua.LNumber(yOffset))
+		return 1
+	}))
+	contextTable.RawSetString("preview_content", L.NewFunction(func(L *lua.LState) int {
+		_, content, visible := readPreviewState(ctx)
+		if !visible {
+			L.Push(lua.LNil)
+			return 1
+		}
+		L.Push(lua.LString(content))
+		return 1
+	}))
 
 	jjAsyncFn := L.NewFunction(func(L *lua.LState) int {
 		args := argsFromLua(L)
@@ -587,6 +605,13 @@ func optionalLuaMapArg(L *lua.LState, pos int) map[string]any {
 		return nil
 	}
 	return luaTableToMap(tbl)
+}
+
+func readPreviewState(ctx *uicontext.MainContext) (yOffset int, content string, visible bool) {
+	if ctx == nil || ctx.PreviewState == nil {
+		return 0, "", false
+	}
+	return ctx.PreviewState()
 }
 
 func payloadFromTop(L *lua.LState) map[string]any {
