@@ -68,10 +68,16 @@ template = "builtin_log_compact"
 revset = ""
 log_batching = true
 log_batch_size = 50
+show_diffstat = true
 ```
 
 - `log_batching`: load revisions incrementally in batches (default: `true`)
 - `log_batch_size`: number of revisions per batch when batching is enabled (default: `50`)
+- `show_diffstat`: show `+added`/`-removed` line counts on revision rows,
+  per-file counts in the [details view](/jjui/details), and per-file counts
+  beside file names in the [preview](/jjui/preview) (default: `true`).
+  Disable it if loading large revsets feels slow, since it also skips the
+  underlying `diff.stat()` evaluation.
 
 ## Preview
 
