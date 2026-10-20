@@ -14,6 +14,9 @@ type Commit struct {
 	Root              bool
 	IsEmpty           bool
 	CommitId          string
+	DiffAdded         int
+	DiffRemoved       int
+	HasDiffStats      bool
 }
 
 func (c Commit) IsRoot() bool {

@@ -55,8 +55,8 @@ func Log(revset string, limit int, jjTemplate string) CommandArgs {
 		template = jjTemplate
 	}
 	prefix := fmt.Sprintf(
-		"stringify('%s' ++ separate('%s', change_id.shortest() ++ if(divergent, \"/\" ++ change_offset), commit_id.shortest(), bookmarks.len() > 0, local_bookmarks.len() > 0, current_working_copy || working_copies.len() > 0, root, empty))",
-		JJUIPrefix, JJUIPrefix)
+		"stringify('%s' ++ separate('%s', change_id.shortest() ++ if(divergent, \"/\" ++ change_offset), commit_id.shortest(), bookmarks.len() > 0, local_bookmarks.len() > 0, current_working_copy || working_copies.len() > 0, root, empty%s))",
+		JJUIPrefix, JJUIPrefix, logDiffstatFields())
 	template = fmt.Sprintf("%s ++ ' ' ++ %s", prefix, template)
 	args = append(args, "-T", template)
 	return args
@@ -201,7 +201,26 @@ func Snapshot() CommandArgs {
 
 func Status(revision string) CommandArgs {
 	template := `separate(";", diff.files().map(|x| x.target().conflict())) ++ " $\n"`
+	if config.Current.Revisions.ShowDiffstat {
+		template += ` ++ diff.stat().files().map(|e| json({"path" => stringify(e.path()), "added" => e.lines_added(), "removed" => e.lines_removed()})).join("\n") ++ "\n$$\n"`
+	}
 	return []string{"log", "-r", revision, "--summary", "--no-graph", "--color", "never", "--quiet", "--template", template, "--ignore-working-copy"}
+}
+
+// logDiffstatFields returns the extra `separate()` fields that carry per-commit
+// line counts in the log prefix, or an empty string when diffstat is disabled.
+func logDiffstatFields() string {
+	if !config.Current.Revisions.ShowDiffstat {
+		return ""
+	}
+	return ", diff.stat().total_added(), diff.stat().total_removed()"
+}
+
+// FileStats returns per-file added/removed line counts for a revision as one
+// JSON object per line.
+func FileStats(revision string) CommandArgs {
+	template := `diff.stat().files().map(|e| json({"path" => stringify(e.path()), "added" => e.lines_added(), "removed" => e.lines_removed()})).join("\n")`
+	return []string{"log", "-r", revision, "--no-graph", "--color", "never", "--quiet", "--template", template, "--ignore-working-copy"}
 }
 
 func BookmarkSet(revision string, name string) CommandArgs {

@@ -1,16 +1,19 @@
 package revisions
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 // DisplayContextRenderer renders the revisions list using the DisplayContext approach
@@ -651,6 +654,32 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 			}
 		}
 		write(" " + beforeCommitID)
+	}
+
+	// Add diffstat totals (+added -removed) on the revision line.
+	if config.Current.Revisions.ShowDiffstat && line.Flags&parser.Revision == parser.Revision && ir.row.Commit != nil && ir.row.Commit.HasDiffStats {
+		added := ir.row.Commit.DiffAdded
+		removed := ir.row.Commit.DiffRemoved
+		if added+removed > 0 {
+			write(" ")
+			if added > 0 {
+				addedStyle := theme.DefaultPalette.Get("revisions", "", "added", ir.isHighlighted)
+				if ir.isHighlighted && lineIsHighlightable {
+					addedStyle = addedStyle.Inherit(ir.renderer.selectedStyle)
+				}
+				writeStyled(fmt.Sprintf("+%d", added), addedStyle)
+			}
+			if removed > 0 {
+				if added > 0 {
+					write(" ")
+				}
+				removedStyle := theme.DefaultPalette.Get("revisions", "", "deleted", ir.isHighlighted)
+				if ir.isHighlighted && lineIsHighlightable {
+					removedStyle = removedStyle.Inherit(ir.renderer.selectedStyle)
+				}
+				writeStyled(fmt.Sprintf("-%d", removed), removedStyle)
+			}
+		}
 	}
 
 	// Add affected marker

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
@@ -258,6 +259,49 @@ C copied.txt`
 		{status: Renamed, name: "src/{ol => rename}d.txt", fileName: jj.NewFileName("src/renamed.txt")},
 		{status: Copied, name: "copied.txt", fileName: jj.NewFileName("copied.txt"), conflict: true},
 	}, got)
+}
+
+func TestOperation_createListItemsParsesDiffstat(t *testing.T) {
+	operation := NewOperation(test.NewTestContext(test.NewTestCommandRunner(t)), commit)
+	content := `false false $
+{"path":"added.txt","added":5,"removed":0}
+{"path":"modified.txt","added":12,"removed":3}
+$$
+M added.txt
+M modified.txt`
+
+	got := operation.createListItems(content, nil)
+	require.Len(t, got, 2)
+	assert.Equal(t, "added.txt", got[0].fileName.Path())
+	assert.True(t, got[0].hasStats)
+	assert.Equal(t, 5, got[0].added)
+	assert.Equal(t, 0, got[0].removed)
+	assert.True(t, got[1].hasStats)
+	assert.Equal(t, 12, got[1].added)
+	assert.Equal(t, 3, got[1].removed)
+
+	operation.setItems(got)
+	output := test.Stripped(test.RenderImmediate(operation, 60, 4))
+	assert.Contains(t, output, "+5")
+	assert.Contains(t, output, "+12")
+	assert.Contains(t, output, "-3")
+}
+
+func TestOperation_HidesDiffstatWhenDisabled(t *testing.T) {
+	orig := config.Current.Revisions.ShowDiffstat
+	t.Cleanup(func() { config.Current.Revisions.ShowDiffstat = orig })
+	config.Current.Revisions.ShowDiffstat = false
+
+	operation := NewOperation(test.NewTestContext(test.NewTestCommandRunner(t)), commit)
+	content := `false $
+{"path":"added.txt","added":5,"removed":0}
+$$
+M added.txt`
+
+	operation.setItems(operation.createListItems(content, nil))
+	output := test.Stripped(test.RenderImmediate(operation, 60, 3))
+	assert.Contains(t, output, "added.txt")
+	assert.NotContains(t, output, "+5")
 }
 
 func TestOperationDisplaysWorkingDirectoryRelativeNamesButSelectsRepositoryPath(t *testing.T) {
