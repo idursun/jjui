@@ -72,3 +72,17 @@ func TestParseRowPrefixesReadsOptionalMetadataAndLegacyFormat(t *testing.T) {
 		}
 	}
 }
+
+func TestParseRowPrefixesReadsDiffStats(t *testing.T) {
+	line := NewGraphRowLine([]*screen.Segment{{Text: "@ _PREFIX:change_PREFIX:commit_PREFIX:true_PREFIX:false_PREFIX:true_PREFIX:false_PREFIX:false_PREFIX:12_PREFIX:3"}})
+	_, commit := line.ParseRowPrefixes()
+	if commit == nil {
+		t.Fatalf("prefix not parsed")
+	}
+	if !commit.HasDiffStats {
+		t.Fatalf("expected diff stats, got %+v", commit)
+	}
+	if commit.DiffAdded != 12 || commit.DiffRemoved != 3 {
+		t.Fatalf("diff stats = +%d -%d, want +12 -3", commit.DiffAdded, commit.DiffRemoved)
+	}
+}
