@@ -1,11 +1,13 @@
 package details
 
 import (
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -254,6 +256,20 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 		tb.Styled(title[end:], style)
 	}
 	tb.Styled(" ", style)
+
+	// Add per-file diffstat (+added -removed).
+	if config.Current.Revisions.ShowDiffstat && item.hasStats && item.added+item.removed > 0 {
+		if item.added > 0 {
+			addedStyle := detailsPaletteStyle("added", selected)
+			tb.Styled(fmt.Sprintf("+%d", item.added), addedStyle)
+			tb.Styled(" ", style)
+		}
+		if item.removed > 0 {
+			removedStyle := detailsPaletteStyle("deleted", selected)
+			tb.Styled(fmt.Sprintf("-%d", item.removed), removedStyle)
+			tb.Styled(" ", style)
+		}
+	}
 
 	// Add conflict marker
 	if item.conflict {

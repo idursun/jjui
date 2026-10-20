@@ -242,9 +242,21 @@ func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
 			return nil
 		}
 		output, _ := m.context.RunCommandImmediateWithEnv(args, env)
+		content := string(output)
+		if sel, ok := item.(common.SelectedRevision); ok && config.Current.Revisions.ShowDiffstat {
+			// Annotate file names with per-file line counts so the preview
+			// shows them before the details are expanded. A stats failure
+			// must not hide the preview itself.
+			if statsOut, err := m.context.RunCommandImmediate(jj.FileStats(sel.ChangeId)); err == nil {
+				stats := parseFileStats(statsOut)
+				content = annotateFileStats(content, stats, func(path string) string {
+					return jj.NewFileName(path).Display(m.context.Location, m.context.WorkingDirectory)
+				})
+			}
+		}
 		return updatePreviewContentMsg{
 			contentItem: item,
-			content:     string(output),
+			content:     content,
 		}
 	})
 }

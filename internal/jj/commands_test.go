@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/idursun/jjui/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -11,7 +12,29 @@ func TestLogAndEvologIncludeRootMetadata(t *testing.T) {
 	logArgs := strings.Join(Log("@", 0, ""), " ")
 	evologArgs := strings.Join(Evolog("@"), " ")
 	assert.Contains(t, logArgs, "working_copies.len() > 0, root, empty")
+	assert.Contains(t, logArgs, "diff.stat().total_added()")
+	assert.Contains(t, logArgs, "diff.stat().total_removed()")
 	assert.Contains(t, evologArgs, "commit.commit_id().shortest(), commit.root(), commit.empty()")
+}
+
+func TestDiffstatCommandsRespectShowDiffstat(t *testing.T) {
+	orig := config.Current.Revisions.ShowDiffstat
+	t.Cleanup(func() { config.Current.Revisions.ShowDiffstat = orig })
+
+	config.Current.Revisions.ShowDiffstat = true
+	assert.Contains(t, strings.Join(Log("@", 0, ""), " "), "diff.stat().total_added()")
+	assert.Contains(t, strings.Join(Status("abc"), " "), "diff.stat().files()")
+
+	config.Current.Revisions.ShowDiffstat = false
+	assert.NotContains(t, strings.Join(Log("@", 0, ""), " "), "diff.stat()")
+	assert.NotContains(t, strings.Join(Status("abc"), " "), "diff.stat()")
+}
+
+func TestFileStatsUsesMachineReadablePerFileTemplate(t *testing.T) {
+	args := strings.Join(FileStats("abc"), " ")
+	assert.Contains(t, args, "diff.stat().files()")
+	assert.Contains(t, args, "lines_added()")
+	assert.Contains(t, args, "lines_removed()")
 }
 
 func TestBookmarkPatternCommandsUseExactStringPatterns(t *testing.T) {
