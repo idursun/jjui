@@ -103,7 +103,7 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.Apply:
 		command := func() tea.Msg {
 			args := jj.DiffRange(o.fromTargetArg(), o.toTargetArg())
-			if output, err := o.context.RunCommandImmediate(args); err != nil {
+			if output, err := o.context.RunCommandImmediateWithEnv(args, o.context.DiffEnv()); err != nil {
 				return intents.AddMessage{Text: err.Error()}
 			} else {
 				return intents.DiffShow{Content: string(output), Args: args}

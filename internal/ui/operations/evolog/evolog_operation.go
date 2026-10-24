@@ -164,7 +164,7 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return func() tea.Msg {
 			selectedCommitId := o.getSelectedEvolog().CommitId
 			args := jj.Diff(selectedCommitId, jj.FileName{})
-			output, _ := o.context.RunCommandImmediate(args)
+			output, _ := o.context.RunCommandImmediateWithEnv(args, o.context.DiffEnv())
 			return intents.DiffShow{Content: string(output), Args: args}
 		}, true
 	case intents.EvologRestore:
