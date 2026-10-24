@@ -2,6 +2,7 @@ package context
 
 import (
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/idursun/jjui/internal/askpass"
@@ -35,6 +36,8 @@ type MainContext struct {
 	ThemeBackgroundBlend      float64
 	Histories                 *config.Histories
 	ScriptVM                  *lua.LState
+	TerminalWidth             int
+	TerminalHeight            int
 }
 
 // SetStateProvider connects the context to the root's live state resolver.
@@ -75,6 +78,32 @@ func NewAppContext(location string, aps *askpass.Server) *MainContext {
 		m.JJConfig, _ = config.DefaultConfig(output)
 	}
 	return m
+}
+
+// SetTerminalSize records the current terminal dimensions for width-sensitive
+// subprocesses. Full-screen diffs capture `jj` output through a pipe, so
+// tools like difftastic cannot probe the TTY width and fall back to 80
+// columns unless DFT_WIDTH/COLUMNS are provided.
+func (ctx *MainContext) SetTerminalSize(width, height int) {
+	ctx.TerminalWidth = width
+	ctx.TerminalHeight = height
+}
+
+// DiffEnv exposes the terminal size to width-sensitive diff tools.
+// Returns nil when the terminal size is unknown, preserving old behavior.
+func (ctx *MainContext) DiffEnv() []string {
+	if ctx.TerminalWidth <= 0 {
+		return nil
+	}
+	height := ctx.TerminalHeight
+	if height <= 0 {
+		height = 24
+	}
+	return []string{
+		"DFT_WIDTH=" + strconv.Itoa(ctx.TerminalWidth),
+		"COLUMNS=" + strconv.Itoa(ctx.TerminalWidth),
+		"LINES=" + strconv.Itoa(height),
+	}
 }
 
 // CreateReplacements creates context-aware replacements for exec input.

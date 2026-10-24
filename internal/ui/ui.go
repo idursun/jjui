@@ -420,6 +420,7 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.context.SetTerminalSize(msg.Width, msg.Height)
 	}
 
 	// Keys and mouse events have returned above. Every other message is

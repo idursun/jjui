@@ -324,3 +324,24 @@ func TestFileNavigateUnavailableWithoutArgs(t *testing.T) {
 	require.True(t, ok)
 	assert.Contains(t, msg.Text, "unavailable")
 }
+
+func TestLoadFilePassesViewportWidthToDifftastic(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	args := jj.Diff("abc", jj.FileName{})
+	fileArgs := append(append([]string(nil), args...), jj.NewFileName("a.go").Escaped())
+	// Viewport is 180 wide, so the reload must advertise 180 columns.
+	commandRunner.ExpectWithEnv(fileArgs, []string{"DFT_WIDTH=180", "COLUMNS=180", "LINES=3"}).SetOutput([]byte("file diff"))
+
+	ctx := test.NewTestContext(commandRunner)
+	model := NewWithContext(ctx, "initial diff", args)
+	test.RenderImmediate(model, 180, 3)
+
+	cmd := model.loadFile(jj.NewFileName("a.go"))
+	require.NotNil(t, cmd)
+	loaded, ok := cmd().(fileLoadedMsg)
+	require.True(t, ok)
+	require.NoError(t, loaded.err)
+	assert.Equal(t, "file diff", loaded.content)
+}
