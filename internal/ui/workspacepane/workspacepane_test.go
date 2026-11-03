@@ -132,6 +132,7 @@ func TestForgetAndRemoveRequireConfirmationAndReturnToLaunchWorkspace(t *testing
 		t.Run(operation, func(t *testing.T) {
 			m, runner := setup(t)
 			m.context.Location, m.context.WorkspaceName = "/feature", "feature"
+			m.selectedName = "feature"
 			var intent intents.Intent = intents.WorkspaceForget{}
 			if operation == "remove" {
 				intent = intents.WorkspaceRemove{}
@@ -164,6 +165,42 @@ func TestLaunchWorkspaceIsProtected(t *testing.T) {
 		require.True(t, handled)
 		assert.IsType(t, intents.AddMessage{}, cmd())
 		assert.Nil(t, m.confirmation)
+	}
+	// Selecting the launch workspace must remain protected even when another
+	// workspace is active; protection belongs to the target, not the context.
+	m.context.Location, m.context.WorkspaceName = "/feature", "feature"
+	for _, intent := range []intents.Intent{intents.WorkspaceForget{}, intents.WorkspaceRemove{}} {
+		cmd, handled := m.HandleIntent(intent)
+		require.True(t, handled)
+		assert.IsType(t, intents.AddMessage{}, cmd())
+		assert.Nil(t, m.confirmation)
+	}
+}
+
+func TestRemoveAndForgetTargetBrowsedWorkspaceWhileLaunchRemainsActive(t *testing.T) {
+	for _, operation := range []string{"remove", "forget"} {
+		t.Run(operation, func(t *testing.T) {
+			m, runner := setup(t)
+			m.HandleIntent(intents.WorkspaceNavigate{Delta: 1})
+			var intent intents.Intent = intents.WorkspaceRemove{}
+			if operation == "forget" {
+				intent = intents.WorkspaceForget{}
+			}
+			cmd, handled := m.HandleIntent(intent)
+			require.True(t, handled)
+			require.Nil(t, cmd, "the selected non-launch workspace should reach confirmation")
+			require.NotNil(t, m.confirmation)
+			assert.Contains(t, m.confirmation.View(), strings.ToUpper(operation[:1])+operation[1:]+" workspace feature")
+			assert.Contains(t, m.confirmation.View(), "will remain default")
+			runner.Expect([]string{"-R", "/repo", "workspace", operation, "--", "feature"})
+			m.HandleIntent(intents.OptionSelect{Delta: 1})
+			cmd, _ = m.HandleIntent(intents.Apply{})
+			cmd = m.Update(cmd())
+			cmd = m.Update(cmd())
+			assert.IsType(t, common.RefreshMsg{}, cmd(), "removing an inactive workspace must not activate another workspace")
+			assert.Equal(t, "default", m.context.WorkspaceName)
+			assert.Equal(t, "/repo", m.context.Location)
+		})
 	}
 }
 

@@ -179,6 +179,57 @@ func TestWorkspacePanelRemovesActiveWorkspaceAndReturnsToLaunch(t *testing.T) {
 	assert.Equal(t, selected, run(root, "log", "-r", model.revisions.SelectedRevision().CommitId, "--no-graph", "-T", "change_id"))
 }
 
+func TestWorkspacePanelRemovesOrForgetsSelectedInactiveWorkspace(t *testing.T) {
+	for _, operation := range []string{"remove", "forget"} {
+		for _, active := range []string{"default", "other"} {
+			t.Run(operation+"/active-"+active, func(t *testing.T) {
+				root, run := workspaceTestRepo(t)
+				if operation == "remove" {
+					if err := exec.Command("jj", "workspace", "remove", "--help").Run(); err != nil {
+						t.Skip("installed jj does not support workspace remove")
+					}
+				}
+				target := filepath.Join(filepath.Dir(root), "qwer")
+				run(root, "workspace", "add", "--name", "qwer", "--no-colocate", target)
+				activePath := root
+				if active == "other" {
+					activePath = filepath.Join(filepath.Dir(root), "other")
+					run(root, "workspace", "add", "--name", "other", "--no-colocate", activePath)
+				}
+				model := newWorkspaceTestUI(t, root)
+				test.SimulateModel(model, model.Update(intents.OpenWorkspaces{}))
+				if active == "other" {
+					activateWorkspaceFromPanel(t, model, "other")
+				}
+				selected := run(activePath, "log", "-r", model.revisions.SelectedRevision().CommitId, "--no-graph", "-T", "change_id")
+				test.SimulateModel(model, model.Update(workspacepane.ItemClickedMsg{Name: "qwer"}))
+				require.Equal(t, active, model.context.WorkspaceName)
+				key := tea.KeyPressMsg{Code: 'd', Text: "d"}
+				if operation == "forget" {
+					key = tea.KeyPressMsg{Code: 'f', Text: "f"}
+				}
+				test.SimulateModel(model, model.Update(key))
+				model.width, model.height = 160, 30
+				view := ansi.Strip(model.View())
+				assert.Contains(t, view, strings.ToUpper(operation[:1])+operation[1:]+" workspace qwer?")
+				assert.Contains(t, view, "The active workspace will remain "+active)
+				test.SimulateModel(model, model.Update(intents.OptionSelect{Delta: 1}))
+				test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: tea.KeyEnter}))
+				assert.Equal(t, active, model.context.WorkspaceName)
+				assert.Equal(t, activePath, model.context.Location)
+				assert.DirExists(t, root)
+				assert.NotContains(t, run(root, "workspace", "list"), "qwer")
+				if operation == "remove" {
+					assert.NoDirExists(t, target)
+				} else {
+					assert.DirExists(t, target)
+				}
+				assert.Equal(t, selected, run(activePath, "log", "-r", model.revisions.SelectedRevision().CommitId, "--no-graph", "-T", "change_id"))
+			})
+		}
+	}
+}
+
 func TestWorkspacePanelAddsWorkspaceWithoutActivatingIt(t *testing.T) {
 	root, run := workspaceTestRepo(t)
 	model := newWorkspaceTestUI(t, root)

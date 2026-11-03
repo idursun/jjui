@@ -180,7 +180,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			}
 		case "forget", "remove":
 			delete(m.paths, msg.name)
-			return func() tea.Msg { return ActivateMsg{Name: m.launchName, Path: m.launchPath} }
+			if msg.name == m.context.WorkspaceName {
+				return func() tea.Msg { return ActivateMsg{Name: m.launchName, Path: m.launchPath} }
+			}
 		}
 		return common.RefreshAndKeepSelections
 	case common.RefreshMsg:
@@ -400,10 +402,16 @@ func (m *Model) run(operation, name string, args []string) tea.Cmd {
 }
 
 func (m *Model) confirmRemoval(operation string) tea.Cmd {
-	if m.context.Location == m.launchPath || m.context.WorkspaceName == "" || m.launchName == "" {
-		return message(fmt.Errorf("the launch workspace is protected; activate another workspace first"))
+	name := m.selectedName
+	if name == "" {
+		return nil
 	}
-	name := m.context.WorkspaceName
+	if m.launchName == "" {
+		return message(fmt.Errorf("cannot identify the launch workspace; refresh before removing a workspace"))
+	}
+	if name == m.launchName || m.paths[name] == m.launchPath {
+		return message(fmt.Errorf("the launch workspace %s is protected; select another workspace", m.launchName))
+	}
 	detail := "Working-copy files will remain on disk."
 	if operation == "remove" {
 		detail = "The entire workspace directory will be deleted, including ignored and untracked files."
@@ -413,10 +421,14 @@ func (m *Model) confirmRemoval(operation string) tea.Cmd {
 	apply := func() tea.Msg {
 		return removalConfirmedMsg{operation: operation, name: name, args: args}
 	}
+	activeMessage := fmt.Sprintf("The active workspace will remain %s.", m.context.WorkspaceName)
+	if name == m.context.WorkspaceName {
+		activeMessage = fmt.Sprintf("The active workspace will become %s.", m.launchName)
+	}
 	m.confirmation = confirmation.New([]string{
 		fmt.Sprintf("%s workspace %s?", strings.ToUpper(operation[:1])+operation[1:], name),
 		detail,
-		fmt.Sprintf("The active workspace will become %s.", m.launchName),
+		activeMessage,
 	},
 		confirmation.WithStyleScope("workspace_pane"),
 		confirmation.WithZIndex(render.ZDialogs),
