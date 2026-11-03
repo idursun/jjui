@@ -50,6 +50,10 @@ func (f FileName) Display(repoRoot, workingDirectory string) string {
 func (f FileName) Escaped() string {
 	path := strings.ReplaceAll(f.path, `\`, `\\`)
 	path = strings.ReplaceAll(path, `"`, `\"`)
+	// file: only matches an exact path, so directories use the recursive root: prefix
+	if strings.HasSuffix(f.path, "/") {
+		return fmt.Sprintf(`root:"%s"`, path)
+	}
 	return fmt.Sprintf(`file:"%s"`, path)
 }
 

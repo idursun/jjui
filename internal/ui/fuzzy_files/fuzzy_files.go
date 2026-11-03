@@ -213,17 +213,9 @@ func (m *Model) updateRevSet() tea.Cmd {
 	path := m.selectedPath()
 	revset := m.revset
 	if !path.IsEmpty() {
-		revset = fmt.Sprintf("files(%s)", fileset(path))
+		revset = fmt.Sprintf("files(%s)", path.Escaped())
 	}
 	return common.UpdateRevSet(revset)
-}
-
-// file: only matches an exact path, so directories use the recursive root: prefix
-func fileset(path jj.FileName) string {
-	if strings.HasSuffix(path.Path(), "/") {
-		return "root:" + strings.TrimPrefix(path.Escaped(), "file:")
-	}
-	return path.Escaped()
 }
 
 func (m *Model) search() {
