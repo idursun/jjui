@@ -83,6 +83,9 @@ func testWorkspaceSwitchAndNew(t *testing.T, streaming bool) {
 	test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: 'w', Text: "w"}))
 	require.Equal(t, workspaceContentID, model.splitContainer.ActiveID())
 	require.True(t, model.splitContainer.ContentFocused())
+	panel := renderSplitView(model, 300, 20)
+	assert.Contains(t, panel, root)
+	assert.Contains(t, panel, feature)
 	// Browsing must not change execution context or revision navigation.
 	test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: 'j', Text: "j"}))
 	assert.Equal(t, "default", ctx.WorkspaceName)

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/idursun/jjui/internal/jj"
@@ -11,6 +12,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -230,4 +233,35 @@ func TestRefreshPreservesBrowsedWorkspace(t *testing.T) {
 	m.Update(loadedMsg{location: "/repo", workspaces: []jj.Workspace{{Name: "default", Current: true}, {Name: "feature"}}})
 	assert.Equal(t, "feature", m.selectedName)
 	assert.Equal(t, "default", m.context.WorkspaceName)
+}
+
+func TestWorkspacePathsAreLoadedAndRenderedBesideNames(t *testing.T) {
+	m, runner := setup(t)
+	runner.Expect(jj.WorkspaceList()).SetOutput([]byte("default\ttrue\nfeature\tfalse\nmissing\tfalse\n"))
+	runner.Expect([]string{"workspace", "root", "--name", "feature", "--ignore-working-copy"}).SetOutput([]byte("/feature"))
+	runner.Expect([]string{"workspace", "root", "--name", "missing", "--ignore-working-copy"}).SetError(errors.New("no recorded path"))
+	m.Update(m.OnShow()())
+	dl := render.NewDisplayContext()
+	m.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 80, 8)))
+	lines := strings.Split(dl.RenderToString(80, 8), "\n")
+	assert.Contains(t, lines[2], "default")
+	assert.Contains(t, lines[2], "/repo")
+	assert.Contains(t, lines[3], "feature")
+	assert.Contains(t, lines[3], "/feature")
+	assert.Contains(t, lines[4], "missing")
+	assert.Contains(t, lines[4], "(path unavailable)")
+	assert.Equal(t, "default", m.context.WorkspaceName)
+}
+
+func TestLongWorkspacePathsStayOnOneClippedRow(t *testing.T) {
+	m, _ := setup(t)
+	m.paths["feature"] = "/" + strings.Repeat("long-directory/", 20)
+	dl := render.NewDisplayContext()
+	m.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 30, 6)))
+	lines := strings.Split(dl.RenderToString(30, 6), "\n")
+	assert.Contains(t, lines[3], "feature")
+	assert.NotContains(t, lines[4], "long-directory")
+	for _, line := range lines {
+		assert.LessOrEqual(t, render.StringWidth(line), 30)
+	}
 }

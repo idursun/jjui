@@ -31,11 +31,6 @@ type WorkspaceRemove struct{}
 
 func (WorkspaceRemove) isIntent() {}
 
-//jjui:bind scope=workspace_pane action=root
-type WorkspaceRoot struct{}
-
-func (WorkspaceRoot) isIntent() {}
-
 //jjui:bind scope=workspace_pane action=update_stale
 type WorkspaceUpdateStale struct{}
 

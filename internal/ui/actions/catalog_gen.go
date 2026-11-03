@@ -928,8 +928,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.WorkspaceRemove{}, true
 		case keybindings.Action("workspace_pane.rename"):
 			return intents.WorkspaceRename{}, true
-		case keybindings.Action("workspace_pane.root"):
-			return intents.WorkspaceRoot{}, true
 		case keybindings.Action("workspace_pane.show_in_revision"):
 			return intents.WorkspaceReveal{}, true
 		case keybindings.Action("workspace_pane.update_stale"):

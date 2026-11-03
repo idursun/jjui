@@ -2,6 +2,7 @@ package workspacepane
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -36,6 +37,7 @@ type loadedMsg struct {
 	location   string
 	generation uint64
 	workspaces []jj.Workspace
+	paths      map[string]string
 	err        error
 }
 
@@ -110,11 +112,26 @@ func message(err error) tea.Cmd {
 
 func (m *Model) load() tea.Cmd {
 	runner, location := m.context.CommandRunner, m.context.Location
+	activeName, knownPaths := m.context.WorkspaceName, maps.Clone(m.paths)
 	m.generation++
 	generation := m.generation
 	return func() tea.Msg {
 		output, err := runner.RunCommandImmediate(jj.WorkspaceList())
-		return loadedMsg{location: location, generation: generation, workspaces: jj.ParseWorkspaces(string(output)), err: err}
+		if err != nil {
+			return loadedMsg{location: location, generation: generation, err: err}
+		}
+		workspaces := jj.ParseWorkspaces(string(output))
+		paths := make(map[string]string, len(workspaces))
+		for _, workspace := range workspaces {
+			if workspace.Name == activeName {
+				paths[workspace.Name] = location
+			} else if path, err := resolveWorkspacePath(runner, location, workspace.Name); err == nil {
+				paths[workspace.Name] = path
+			} else if path := knownPaths[workspace.Name]; path != "" {
+				paths[workspace.Name] = path
+			}
+		}
+		return loadedMsg{location: location, generation: generation, workspaces: workspaces, paths: paths}
 	}
 }
 
@@ -131,6 +148,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return message(msg.err)
 		}
 		m.workspaces = msg.workspaces
+		if msg.paths != nil {
+			m.paths = msg.paths
+		}
 		m.context.IdentifyWorkspace(msg.workspaces)
 		if !slices.ContainsFunc(m.workspaces, func(w jj.Workspace) bool { return w.Name == m.selectedName }) {
 			m.selectedName = m.context.WorkspaceName
@@ -240,9 +260,13 @@ func (m *Model) workspacePath(name string) (string, error) {
 	if path, ok := m.paths[name]; ok {
 		return path, nil
 	}
-	path, err := m.context.RunCommandImmediate([]string{"workspace", "root", "--name", name, "--ignore-working-copy"})
+	return resolveWorkspacePath(m.context.CommandRunner, m.context.Location, name)
+}
+
+func resolveWorkspacePath(runner context.CommandRunner, location, name string) (string, error) {
+	path, err := runner.RunCommandImmediate([]string{"workspace", "root", "--name", name, "--ignore-working-copy"})
 	if err != nil || len(path) == 0 {
-		if primary := m.primaryWorkspacePath(name); primary != "" {
+		if primary := primaryWorkspacePath(runner, location, name); primary != "" {
 			return primary, nil
 		}
 		// Old jj versions and older workspaces may have no recorded root.
@@ -257,8 +281,8 @@ func (m *Model) workspacePath(name string) (string, error) {
 // Older repositories may not record the primary workspace's path in jj's
 // workspace list. Secondary workspaces still point to its .jj/repo directory.
 // Verify its workspace name rather than assuming the primary is called default.
-func (m *Model) primaryWorkspacePath(name string) string {
-	metadata := filepath.Join(m.context.Location, ".jj")
+func primaryWorkspacePath(runner context.CommandRunner, location, name string) string {
+	metadata := filepath.Join(location, ".jj")
 	pointer, err := os.ReadFile(filepath.Join(metadata, "repo"))
 	if err != nil {
 		return ""
@@ -272,10 +296,9 @@ func (m *Model) primaryWorkspacePath(name string) string {
 		return ""
 	}
 	primary := filepath.Dir(filepath.Dir(repoPath))
-	if primary == m.context.Location {
+	if primary == location {
 		return ""
 	}
-	runner := m.context.RunnerAt(primary)
 	output, err := runner.RunCommandImmediate(append([]string{"-R", primary}, jj.WorkspaceList()...))
 	if err != nil {
 		return ""
@@ -349,15 +372,6 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.confirmRemoval("forget"), true
 	case intents.WorkspaceRemove:
 		return m.confirmRemoval("remove"), true
-	case intents.WorkspaceRoot:
-		if m.selectedName == "" {
-			return nil, true
-		}
-		path, err := m.workspacePath(m.selectedName)
-		if err != nil {
-			return message(err), true
-		}
-		return intents.Invoke(intents.AddMessage{Text: path}), true
 	case intents.WorkspaceUpdateStale:
 		if m.selectedName == "" {
 			return nil, true
@@ -434,15 +448,24 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
 			w := m.workspaces[index]
 			style := text
+			pathStyle := dimmed
 			prefix := "  "
 			if w.Name == m.context.WorkspaceName {
 				prefix = "● "
 			}
 			if w.Name == m.selectedName && m.focused {
 				style = theme.DefaultPalette.GetBlended("bookmarks", "", "", true)
+				pathStyle = theme.DefaultPalette.GetBlended("bookmarks", "", "dimmed", true)
 				dl.AddFill(rect, ' ', style, render.ZPreview)
 			}
-			dl.Text(rect.Min.X, rect.Min.Y, render.ZPreview).Styled(" "+prefix+w.Name, style).Done()
+			path := m.paths[w.Name]
+			if path == "" {
+				path = "(path unavailable)"
+			}
+			dl.Text(rect.Min.X, rect.Min.Y, render.ZPreview).
+				Styled(" "+prefix+w.Name, style).
+				Styled("  "+path, pathStyle).
+				Done()
 		},
 		func(index int, _ tea.Mouse) tea.Msg { return ItemClickedMsg{Name: m.workspaces[index].Name} },
 	)

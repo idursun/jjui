@@ -381,7 +381,6 @@ var builtInActionScopes = map[string][]string{
 	"workspace_pane.refresh":                        {"workspace_pane"},
 	"workspace_pane.remove":                         {"workspace_pane"},
 	"workspace_pane.rename":                         {"workspace_pane"},
-	"workspace_pane.root":                           {"workspace_pane"},
 	"workspace_pane.show_in_revision":               {"workspace_pane"},
 	"workspace_pane.update_stale":                   {"workspace_pane"},
 }
