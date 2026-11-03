@@ -41,6 +41,11 @@ type WorkspaceUpdateStale struct{}
 
 func (WorkspaceUpdateStale) isIntent() {}
 
+//jjui:bind scope=workspace_pane action=show_in_revision
+type WorkspaceReveal struct{}
+
+func (WorkspaceReveal) isIntent() {}
+
 //jjui:bind scope=workspace_pane action=refresh
 type WorkspaceRefresh struct{}
 

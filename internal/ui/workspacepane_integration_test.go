@@ -79,8 +79,17 @@ func testWorkspaceSwitchAndNew(t *testing.T, streaming bool) {
 	test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: 'w', Text: "w"}))
 	require.Equal(t, workspaceContentID, model.splitContainer.ActiveID())
 	require.True(t, model.splitContainer.ContentFocused())
-	// No separate workspace cursor: moving to the next row activates it.
+	// Browsing must not change execution context or revision navigation.
 	test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: 'j', Text: "j"}))
+	assert.Equal(t, "default", ctx.WorkspaceName)
+	assert.Equal(t, root, ctx.Location)
+	assert.Equal(t, selected, model.revisions.SelectedRevision().ChangeId)
+	assert.Equal(t, beforeGraph, model.revisions.GetCommitIds())
+	key := tea.KeyPressMsg{Code: tea.KeyEnter}
+	if streaming {
+		key = tea.KeyPressMsg{Code: ' ', Text: " "}
+	}
+	test.SimulateModel(model, model.Update(key))
 	require.Equal(t, "feature", ctx.WorkspaceName)
 	assert.Equal(t, feature, ctx.Location)
 	assert.Equal(t, selected, model.revisions.SelectedRevision().ChangeId)
@@ -125,7 +134,7 @@ func TestWorkspacePanelRenamesAndForgetsActiveWorkspace(t *testing.T) {
 	run(root, "workspace", "add", "--name", "feature", "--no-colocate", feature)
 	model := newWorkspaceTestUI(t, root)
 	test.SimulateModel(model, model.Update(intents.OpenWorkspaces{}))
-	test.SimulateModel(model, model.Update(workspacepane.ItemClickedMsg{Name: "feature"}))
+	activateWorkspaceFromPanel(t, model, "feature")
 	require.Equal(t, "feature", model.context.WorkspaceName)
 	test.SimulateModel(model, model.Update(intents.WorkspaceRename{}))
 	test.SimulateModel(model, model.Update(input.SelectedMsg{Value: "renamed"}))
@@ -151,7 +160,7 @@ func TestWorkspacePanelRemovesActiveWorkspaceAndReturnsToLaunch(t *testing.T) {
 	run(root, "workspace", "add", "--name", "feature", "--no-colocate", feature)
 	model := newWorkspaceTestUI(t, root)
 	test.SimulateModel(model, model.Update(intents.OpenWorkspaces{}))
-	test.SimulateModel(model, model.Update(workspacepane.ItemClickedMsg{Name: "feature"}))
+	activateWorkspaceFromPanel(t, model, "feature")
 	require.Equal(t, "feature", model.context.WorkspaceName)
 	selected := run(feature, "log", "-r", model.revisions.SelectedRevision().CommitId, "--no-graph", "-T", "change_id")
 	test.SimulateModel(model, model.Update(intents.WorkspaceRemove{}))
@@ -174,11 +183,48 @@ func TestWorkspacePanelAddsWorkspaceWithoutActivatingIt(t *testing.T) {
 	assert.DirExists(t, feature)
 	assert.Contains(t, run(root, "workspace", "list"), "feature")
 	assert.Equal(t, "default", model.context.WorkspaceName)
-	test.SimulateModel(model, model.Update(workspacepane.ItemClickedMsg{Name: "feature"}))
+	activateWorkspaceFromPanel(t, model, "feature")
 	assert.Equal(t, "feature", model.context.WorkspaceName)
-	test.SimulateModel(model, model.Update(workspacepane.ItemClickedMsg{Name: "default"}))
+	activateWorkspaceFromPanel(t, model, "default")
 	assert.Equal(t, "default", model.context.WorkspaceName)
 	assert.Nil(t, model.dialog(), "returning to the launch workspace must not prompt for its known path")
+}
+
+func activateWorkspaceFromPanel(t *testing.T, model *Model, name string) {
+	t.Helper()
+	previous := model.context.WorkspaceName
+	test.SimulateModel(model, model.Update(workspacepane.ItemClickedMsg{Name: name}))
+	require.Equal(t, previous, model.context.WorkspaceName, "clicks must not activate a workspace")
+	test.SimulateModel(model, model.Update(intents.Apply{}))
+}
+
+func TestWorkspaceRevealSelectsWorkingCopyWithoutActivation(t *testing.T) {
+	root, run := workspaceTestRepo(t)
+	feature := filepath.Join(filepath.Dir(root), "feature")
+	run(root, "workspace", "add", "--name", "feature", "--no-colocate", feature)
+	model := newWorkspaceTestUI(t, root)
+	test.SimulateModel(model, model.Update(intents.OpenWorkspaces{}))
+	test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: tea.KeyDown}))
+	test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: 's', Text: "s"}))
+	assert.Equal(t, "default", model.context.WorkspaceName)
+	assert.Equal(t, root, model.context.Location)
+	assert.True(t, model.revisions.IsFocused())
+	assert.Equal(t, run(feature, "log", "-r", "@", "--no-graph", "-T", "change_id"),
+		run(root, "log", "-r", model.revisions.SelectedRevision().CommitId, "--no-graph", "-T", "change_id"))
+}
+
+func TestWorkspaceUpdateStaleUpdatesBrowsedWorkspaceWithoutActivation(t *testing.T) {
+	root, run := workspaceTestRepo(t)
+	feature := filepath.Join(filepath.Dir(root), "feature")
+	run(root, "workspace", "add", "--name", "feature", "--no-colocate", feature)
+	run(root, "describe", "-r", "feature@", "-m", "updated working copy")
+	model := newWorkspaceTestUI(t, root)
+	test.SimulateModel(model, model.Update(intents.OpenWorkspaces{}))
+	test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: tea.KeyDown}))
+	test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: 'u', Text: "u"}))
+	assert.Equal(t, "default", model.context.WorkspaceName)
+	assert.Equal(t, root, model.context.Location)
+	assert.Contains(t, run(feature, "status"), "updated working copy")
 }
 
 func TestQueuedRevisionCommandStaysInOriginalWorkspace(t *testing.T) {

@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"fmt"
 	"log"
+	"slices"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/config"
@@ -68,9 +70,12 @@ func (m *Model) handleSplitMsg(msg tea.Msg) (tea.Cmd, bool) {
 		// Invalidate graph loads now, before an old workspace's result can arrive.
 		refresh := common.RefreshMsg{KeepSelections: true}
 		return tea.Batch(m.revisions.Update(refresh), m.updateSplit(refresh)), true
-	case workspacepane.ReturnToRevisionsMsg:
+	case workspacepane.RevealRevisionMsg:
+		if !slices.Contains(m.revisions.GetCommitIds(), msg.CommitID) {
+			return intents.Invoke(intents.AddMessage{Text: fmt.Sprintf("The working copy for workspace %s is not visible in the current revset", msg.Name)}), true
+		}
 		m.splitContainer.FocusPrimary()
-		return nil, true
+		return m.revisions.RevealRevision(msg.CommitID), true
 	case workspacepane.ItemClickedMsg, workspacepane.PaneClickedMsg:
 		if m.splitContainer.ActiveID() == workspaceContentID {
 			m.splitContainer.FocusSplitContent()

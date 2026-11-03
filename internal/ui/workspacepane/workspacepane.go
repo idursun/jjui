@@ -25,7 +25,7 @@ import (
 
 // ActivateMsg requests an execution-context change, not revision navigation.
 type ActivateMsg struct{ Name, Path string }
-type ReturnToRevisionsMsg struct{}
+type RevealRevisionMsg struct{ Name, CommitID string }
 type PaneClickedMsg struct{}
 type ItemClickedMsg struct{ Name string }
 
@@ -54,6 +54,7 @@ type Model struct {
 	launchPath   string
 	launchName   string
 	workspaces   []jj.Workspace
+	selectedName string
 	focused      bool
 	busy         bool
 	pending      string
@@ -66,7 +67,7 @@ type Model struct {
 }
 
 func New(ctx *context.MainContext) *Model {
-	m := &Model{context: ctx, launchPath: ctx.Location, launchName: ctx.WorkspaceName, paths: make(map[string]string)}
+	m := &Model{context: ctx, launchPath: ctx.Location, launchName: ctx.WorkspaceName, selectedName: ctx.WorkspaceName, paths: make(map[string]string)}
 	if ctx.WorkspaceName != "" {
 		m.paths[ctx.WorkspaceName] = ctx.Location
 	}
@@ -81,8 +82,11 @@ func New(ctx *context.MainContext) *Model {
 	return m
 }
 
-func (m *Model) Init() tea.Cmd           { return nil }
-func (m *Model) OnShow() tea.Cmd         { return m.load() }
+func (m *Model) Init() tea.Cmd { return nil }
+func (m *Model) OnShow() tea.Cmd {
+	m.selectedName = m.context.WorkspaceName
+	return m.load()
+}
 func (m *Model) OnHide()                 { m.focused = false; m.confirmation = nil }
 func (m *Model) SetFocused(focused bool) { m.focused = focused }
 func (m *Model) IsEditing() bool         { return m.confirmation != nil || m.pending != "" }
@@ -128,6 +132,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		m.workspaces = msg.workspaces
 		m.context.IdentifyWorkspace(msg.workspaces)
+		if !slices.ContainsFunc(m.workspaces, func(w jj.Workspace) bool { return w.Name == m.selectedName }) {
+			m.selectedName = m.context.WorkspaceName
+		}
 		if m.context.WorkspaceName != "" {
 			m.paths[m.context.WorkspaceName] = m.context.Location
 		}
@@ -142,6 +149,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		switch msg.operation {
 		case "rename":
+			if m.selectedName == m.context.WorkspaceName {
+				m.selectedName = msg.name
+			}
 			delete(m.paths, m.context.WorkspaceName)
 			m.context.WorkspaceName = msg.name
 			m.paths[msg.name] = m.context.Location
@@ -157,7 +167,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return m.load()
 	case ItemClickedMsg:
 		if !m.busy && m.confirmation == nil {
-			return m.activate(msg.Name)
+			if slices.ContainsFunc(m.workspaces, func(w jj.Workspace) bool { return w.Name == msg.Name }) {
+				m.selectedName = msg.Name
+			}
 		}
 	case input.CancelledMsg:
 		m.pending, m.pendingName, m.addPath = "", "", ""
@@ -210,22 +222,36 @@ func (m *Model) absolutePath(path string) string {
 }
 
 func (m *Model) activate(name string) tea.Cmd {
-	if name == m.context.WorkspaceName {
+	if name == "" || name == m.context.WorkspaceName {
 		return nil
 	}
+	path, err := m.workspacePath(name)
+	if err != nil {
+		m.pending, m.pendingName = "activate", name
+		return input.ShowWithTitle("Locate workspace "+name, "Directory: ", "")
+	}
+	return func() tea.Msg { return ActivateMsg{Name: name, Path: path} }
+}
+
+func (m *Model) workspacePath(name string) (string, error) {
+	if name == m.context.WorkspaceName {
+		return m.context.Location, nil
+	}
 	if path, ok := m.paths[name]; ok {
-		return func() tea.Msg { return ActivateMsg{Name: name, Path: path} }
+		return path, nil
 	}
 	path, err := m.context.RunCommandImmediate([]string{"workspace", "root", "--name", name, "--ignore-working-copy"})
 	if err != nil || len(path) == 0 {
 		if primary := m.primaryWorkspacePath(name); primary != "" {
-			return func() tea.Msg { return ActivateMsg{Name: name, Path: primary} }
+			return primary, nil
 		}
 		// Old jj versions and older workspaces may have no recorded root.
-		m.pending, m.pendingName = "activate", name
-		return input.ShowWithTitle("Locate workspace "+name, "Directory: ", "")
+		if err != nil {
+			return "", fmt.Errorf("cannot locate workspace %s: %w", name, err)
+		}
+		return "", fmt.Errorf("workspace %s has no recorded directory", name)
 	}
-	return func() tea.Msg { return ActivateMsg{Name: name, Path: string(path)} }
+	return string(path), nil
 }
 
 // Older repositories may not record the primary workspace's path in jj's
@@ -285,14 +311,32 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	}
 	switch intent := intent.(type) {
 	case intents.WorkspaceNavigate:
-		index := slices.IndexFunc(m.workspaces, func(w jj.Workspace) bool { return w.Name == m.context.WorkspaceName })
-		if index < 0 || len(m.workspaces) == 0 {
+		if len(m.workspaces) == 0 {
 			return nil, true
 		}
+		index := slices.IndexFunc(m.workspaces, func(w jj.Workspace) bool { return w.Name == m.selectedName })
+		if index < 0 {
+			index = 0
+		}
 		index = max(0, min(len(m.workspaces)-1, index+intent.Delta))
-		return m.activate(m.workspaces[index].Name), true
+		m.selectedName = m.workspaces[index].Name
+		return nil, true
 	case intents.Apply:
-		return func() tea.Msg { return ReturnToRevisionsMsg{} }, true
+		return m.activate(m.selectedName), true
+	case intents.WorkspaceReveal:
+		if m.selectedName == "" {
+			return nil, true
+		}
+		out, err := m.context.RunCommandImmediate(jj.ResolveRevisionID(fmt.Sprintf("%q@", m.selectedName)))
+		if err != nil {
+			return message(err), true
+		}
+		_, commitID, ok := strings.Cut(strings.TrimSpace(string(out)), ";")
+		if !ok || commitID == "" {
+			return message(fmt.Errorf("workspace %s has no working-copy revision", m.selectedName)), true
+		}
+		name := m.selectedName
+		return func() tea.Msg { return RevealRevisionMsg{Name: name, CommitID: commitID} }, true
 	case intents.Cancel:
 		return common.Close, true
 	case intents.WorkspaceAdd:
@@ -306,9 +350,23 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.WorkspaceRemove:
 		return m.confirmRemoval("remove"), true
 	case intents.WorkspaceRoot:
-		return intents.Invoke(intents.AddMessage{Text: m.context.Location}), true
+		if m.selectedName == "" {
+			return nil, true
+		}
+		path, err := m.workspacePath(m.selectedName)
+		if err != nil {
+			return message(err), true
+		}
+		return intents.Invoke(intents.AddMessage{Text: path}), true
 	case intents.WorkspaceUpdateStale:
-		return m.run("update-stale", "", []string{"workspace", "update-stale"}), true
+		if m.selectedName == "" {
+			return nil, true
+		}
+		path, err := m.workspacePath(m.selectedName)
+		if err != nil {
+			return message(err), true
+		}
+		return m.run("update-stale", m.selectedName, []string{"-R", path, "workspace", "update-stale"}), true
 	case intents.WorkspaceRefresh:
 		return m.load(), true
 	}
@@ -370,8 +428,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	dl.AddInteraction(box.R, PaneClickedMsg{}, render.InteractionClick, render.ZPreview-1)
 	top, content := box.CutTop(2)
 	dl.Text(top.R.Min.X, top.R.Min.Y, render.ZPreview).Styled(" Workspaces ", title).Done()
-	active := slices.IndexFunc(m.workspaces, func(w jj.Workspace) bool { return w.Name == m.context.WorkspaceName })
-	m.list.Render(dl, content, len(m.workspaces), active, true,
+	cursor := slices.IndexFunc(m.workspaces, func(w jj.Workspace) bool { return w.Name == m.selectedName })
+	m.list.Render(dl, content, len(m.workspaces), cursor, true,
 		func(int) int { return 1 },
 		func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
 			w := m.workspaces[index]
@@ -379,6 +437,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			prefix := "  "
 			if w.Name == m.context.WorkspaceName {
 				prefix = "● "
+			}
+			if w.Name == m.selectedName && m.focused {
 				style = theme.DefaultPalette.GetBlended("bookmarks", "", "", true)
 				dl.AddFill(rect, ' ', style, render.ZPreview)
 			}

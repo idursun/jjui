@@ -28,32 +28,40 @@ func setup(t *testing.T) (*Model, *test.CommandRunner) {
 	return m, runner
 }
 
-func TestNavigationRequestsActivationWithoutSeparateSelection(t *testing.T) {
+func TestNavigationOnlyBrowsesAndApplyExplicitlyActivates(t *testing.T) {
 	m, runner := setup(t)
-	runner.Expect([]string{"workspace", "root", "--name", "feature", "--ignore-working-copy"}).SetOutput([]byte("/feature"))
 	cmd, handled := m.HandleIntent(intents.WorkspaceNavigate{Delta: 1})
+	require.True(t, handled)
+	assert.Nil(t, cmd)
+	assert.Equal(t, "feature", m.selectedName)
+	assert.Equal(t, "default", m.context.WorkspaceName)
+	runner.Expect([]string{"workspace", "root", "--name", "feature", "--ignore-working-copy"}).SetOutput([]byte("/feature"))
+	cmd, handled = m.HandleIntent(intents.Apply{})
 	require.True(t, handled)
 	require.NotNil(t, cmd)
 	assert.Equal(t, ActivateMsg{Name: "feature", Path: "/feature"}, cmd())
 	assert.Equal(t, "default", m.context.WorkspaceName, "only the root model applies validated activations")
-	// A successful activation becomes the only list position; there is no cursor.
 	m.context.WorkspaceName = "feature"
 	cmd, handled = m.HandleIntent(intents.WorkspaceNavigate{Delta: 1})
 	assert.True(t, handled)
 	assert.Nil(t, cmd, "navigation clamps at the last workspace")
+	assert.Nil(t, m.Update(ItemClickedMsg{Name: "default"}))
+	assert.Equal(t, "default", m.selectedName)
+	assert.Equal(t, "feature", m.context.WorkspaceName, "a click only browses")
 }
 
 func TestMissingRootPromptsForDirectory(t *testing.T) {
 	m, runner := setup(t)
 	runner.Expect([]string{"workspace", "root", "--name", "feature", "--ignore-working-copy"}).SetError(errors.New("no recorded path"))
-	cmd := m.Update(ItemClickedMsg{Name: "feature"})
+	assert.Nil(t, m.Update(ItemClickedMsg{Name: "feature"}))
+	cmd, _ := m.HandleIntent(intents.Apply{})
 	require.NotNil(t, cmd)
 	assert.IsType(t, common.ShowInputMsg{}, cmd())
 	cmd = m.Update(input.SelectedMsg{Value: "../feature"})
 	assert.Equal(t, ActivateMsg{Name: "feature", Path: "/feature"}, cmd())
 }
 
-func TestNavigationLocatesLegacyPrimaryWorkspaceWithoutPrompt(t *testing.T) {
+func TestExplicitActivationLocatesLegacyPrimaryWorkspaceWithoutPrompt(t *testing.T) {
 	t.Run("default", func(t *testing.T) { testLegacyPrimaryWorkspace(t, "default") })
 	t.Run("renamed", func(t *testing.T) { testLegacyPrimaryWorkspace(t, "main") })
 }
@@ -75,13 +83,18 @@ func testLegacyPrimaryWorkspace(t *testing.T, primaryName string) {
 	runner.Expect(append([]string{"-R", primary}, jj.WorkspaceList()...)).SetOutput([]byte(primaryName + "\ttrue\nfeature\tfalse\n"))
 	cmd, handled := m.HandleIntent(intents.WorkspaceNavigate{Delta: -1})
 	require.True(t, handled)
+	assert.Nil(t, cmd)
+	cmd, handled = m.HandleIntent(intents.Apply{})
+	require.True(t, handled)
 	require.NotNil(t, cmd)
-	assert.Equal(t, ActivateMsg{Name: primaryName, Path: primary}, cmd(), "arrow navigation must activate the original workspace instead of prompting for its directory")
+	assert.Equal(t, ActivateMsg{Name: primaryName, Path: primary}, cmd(), "explicit activation must locate the original workspace without prompting")
 	assert.Empty(t, m.pending)
 	// The same directory must not be used for a different workspace merely
 	// because that workspace's own path is also unavailable.
 	runner.Expect([]string{"workspace", "root", "--name", "other", "--ignore-working-copy"}).SetError(errors.New("Workspace has no recorded path"))
-	cmd = m.Update(ItemClickedMsg{Name: "other"})
+	m.workspaces = append(m.workspaces, jj.Workspace{Name: "other"})
+	assert.Nil(t, m.Update(ItemClickedMsg{Name: "other"}))
+	cmd, _ = m.HandleIntent(intents.Apply{})
 	assert.IsType(t, common.ShowInputMsg{}, cmd())
 }
 
@@ -182,8 +195,39 @@ func TestBusyPanelConsumesNavigation(t *testing.T) {
 	}
 	m.busy = false
 	cmd, _ := m.HandleIntent(intents.Apply{})
-	assert.IsType(t, ReturnToRevisionsMsg{}, cmd())
+	assert.Nil(t, cmd, "applying the already active workspace is a no-op")
 	m.SetFocused(false)
 	_, handled := m.HandleIntent(intents.WorkspaceAdd{})
 	assert.False(t, handled)
+}
+
+func TestRevealWorkingCopyDoesNotActivateWorkspace(t *testing.T) {
+	m, runner := setup(t)
+	m.HandleIntent(intents.WorkspaceNavigate{Delta: 1})
+	runner.Expect(jj.ResolveRevisionID(`"feature"@`)).SetOutput([]byte("change;commit"))
+	cmd, handled := m.HandleIntent(intents.WorkspaceReveal{})
+	require.True(t, handled)
+	assert.Equal(t, RevealRevisionMsg{Name: "feature", CommitID: "commit"}, cmd())
+	assert.Equal(t, "default", m.context.WorkspaceName)
+}
+
+func TestUpdateStaleTargetsBrowsedWorkspaceWithoutActivation(t *testing.T) {
+	m, runner := setup(t)
+	m.HandleIntent(intents.WorkspaceNavigate{Delta: 1})
+	runner.Expect([]string{"workspace", "root", "--name", "feature", "--ignore-working-copy"}).SetOutput([]byte("/feature"))
+	runner.Expect([]string{"-R", "/feature", "workspace", "update-stale"})
+	cmd, handled := m.HandleIntent(intents.WorkspaceUpdateStale{})
+	require.True(t, handled)
+	m.Update(cmd())
+	assert.Equal(t, "feature", m.selectedName)
+	assert.Equal(t, "default", m.context.WorkspaceName)
+	assert.Equal(t, "/repo", m.context.Location)
+}
+
+func TestRefreshPreservesBrowsedWorkspace(t *testing.T) {
+	m, _ := setup(t)
+	m.HandleIntent(intents.WorkspaceNavigate{Delta: 1})
+	m.Update(loadedMsg{location: "/repo", workspaces: []jj.Workspace{{Name: "default", Current: true}, {Name: "feature"}}})
+	assert.Equal(t, "feature", m.selectedName)
+	assert.Equal(t, "default", m.context.WorkspaceName)
 }

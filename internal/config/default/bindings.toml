@@ -89,18 +89,19 @@ bindings = [
     { key = "tab", action = "ui.focus_next_pane", scope = "revisions", desc = "next pane" },
     { key = "esc", action = "revisions.cancel", scope = "revisions", desc = "clear selection" },
 
-    # workspace pane: navigation changes the active execution workspace
+    # workspace pane: browsing does not change the active execution workspace
     { key = "w", action = "ui.open_workspaces", scope = "workspace_pane", desc = "close workspaces" },
     { key = ["up", "k", "ctrl+p"], action = "workspace_pane.move_up", scope = "workspace_pane", desc = "previous workspace" },
     { key = ["down", "j", "ctrl+n"], action = "workspace_pane.move_down", scope = "workspace_pane", desc = "next workspace" },
-    { key = "enter", action = "workspace_pane.apply", scope = "workspace_pane", desc = "return to revisions" },
+    { key = ["enter", "space"], action = "workspace_pane.apply", scope = "workspace_pane", desc = "activate workspace" },
+    { key = "s", action = "workspace_pane.show_in_revision", scope = "workspace_pane", desc = "show working copy" },
     { key = "esc", action = "workspace_pane.cancel", scope = "workspace_pane", desc = "close" },
     { key = "a", action = "workspace_pane.add", scope = "workspace_pane", desc = "add" },
     { key = "r", action = "workspace_pane.rename", scope = "workspace_pane", desc = "rename active" },
     { key = "f", action = "workspace_pane.forget", scope = "workspace_pane", desc = "forget active" },
     { key = "d", action = "workspace_pane.remove", scope = "workspace_pane", desc = "remove active" },
     { key = "p", action = "workspace_pane.root", scope = "workspace_pane", desc = "show path" },
-    { key = "u", action = "workspace_pane.update_stale", scope = "workspace_pane", desc = "update stale" },
+    { key = "u", action = "workspace_pane.update_stale", scope = "workspace_pane", desc = "update selected stale" },
     { key = "ctrl+r", action = "workspace_pane.refresh", scope = "workspace_pane", desc = "refresh" },
     { key = "esc", action = "workspace_pane.confirmation.cancel", scope = "workspace_pane.confirmation", desc = "cancel" },
     { key = "enter", action = "workspace_pane.confirmation.apply", scope = "workspace_pane.confirmation", desc = "apply" },

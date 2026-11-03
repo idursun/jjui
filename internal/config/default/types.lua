@@ -609,6 +609,7 @@ function wait_refresh() end
 ---@field remove fun()
 ---@field rename fun()
 ---@field root fun()
+---@field show_in_revision fun()
 ---@field update_stale fun()
 ---@field close fun()
 
