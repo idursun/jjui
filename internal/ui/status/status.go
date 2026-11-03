@@ -3,7 +3,6 @@ package status
 import (
 	"strings"
 
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
@@ -12,11 +11,7 @@ import (
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
-	"github.com/idursun/jjui/internal/ui/exec_process"
-	"github.com/idursun/jjui/internal/ui/fuzzy_input"
-	"github.com/idursun/jjui/internal/ui/fuzzy_search"
 	"github.com/idursun/jjui/internal/ui/help"
-	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/theme"
@@ -24,185 +19,27 @@ import (
 
 var expandFallback = help.Entry{Label: "?", Desc: "expand status"}
 
-type FocusKind int
-
-const (
-	FocusNone FocusKind = iota
-	FocusInput
-	FocusQuickSearch
-)
-
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
 	context         *context.MainContext
-	input           textinput.Model
 	groups          []help.ScopeGroup
 	mode            string
-	focusKind       FocusKind
-	fuzzy           fuzzy_search.Model
 	statusExpanded  bool
 	statusTruncated bool
 	conditionCache  map[string]actionmeta.Condition
-}
-
-// ViewRect renders the currently active footer row. The root UI uses the more
-// specific ViewInputRect and ViewStatusRect methods when both rows are visible.
-func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	if m.IsFocused() {
-		m.ViewInputRect(dl, box)
-		return
-	}
-	m.ViewStatusRect(dl, box)
-}
-
-func (m *Model) IsFocused() bool {
-	return m.focusKind != FocusNone
-}
-
-func (m *Model) FocusKind() FocusKind {
-	return m.focusKind
-}
-
-func (m *Model) Scopes() []common.Scope {
-	if m.focusKind == FocusNone {
-		return nil
-	}
-	var scope keybindings.ScopeName
-	switch m.focusKind {
-	case FocusInput:
-		scope = actions.ScopeStatusInput
-	case FocusQuickSearch:
-		scope = actions.ScopeQuickSearchInput
-	default:
-		return nil
-	}
-	return []common.Scope{
-		{
-			Name:    scope,
-			Leak:    common.LeakNone,
-			Handler: m,
-		},
-	}
-}
-
-func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
-	switch intent.(type) {
-	case intents.Cancel:
-		if m.IsFocused() {
-			m.fuzzy = nil
-			m.focusKind = FocusNone
-			m.input.Reset()
-			return nil, true
-		}
-	case intents.Apply:
-		if m.IsFocused() {
-			editMode := m.mode
-			input := m.input.Value()
-			prompt := m.input.Prompt
-			fuzzy := m.fuzzy
-			if fuzzy != nil {
-				if selected := fuzzy_search.SelectedMatch(fuzzy); selected != "" {
-					input = strings.Trim(selected, "'")
-					m.input.SetValue(input)
-				}
-			}
-			m.saveEditingSuggestions()
-
-			m.fuzzy = nil
-			m.focusKind = FocusNone
-			m.mode = ""
-			m.input.Reset()
-
-			if strings.HasPrefix(editMode, "exec") {
-				return func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }, true
-			}
-			return func() tea.Msg { return common.QuickSearchMsg(input) }, true
-		}
-	}
-	if m.IsFocused() && m.fuzzy != nil {
-		return m.fuzzy.Update(intent), true
-	}
-	return nil, false
 }
 
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Update(msg tea.Msg) tea.Cmd {
-	switch msg := msg.(type) {
-	case common.ExecProcessCompletedMsg:
-		if msg.Err != nil {
-			m.mode = "exec " + msg.Msg.Mode.Mode
-			m.input.Prompt = msg.Msg.Mode.Prompt
-			m.loadEditingSuggestions()
-			m.focusKind = FocusInput
-			m.fuzzy = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
-			m.input.SetValue(msg.Msg.Line)
-			m.input.CursorEnd()
-
-			return tea.Batch(m.fuzzy.Init(), m.input.Focus(), fuzzy_search.Search(m.input.Value()))
-		}
-		return nil
-	case intents.Intent:
-		cmd, _ := m.HandleIntent(msg)
-		return cmd
-	case tea.KeyMsg, tea.PasteMsg:
-		if m.IsFocused() {
-			var cmd tea.Cmd
-			previous := m.input.Value()
-			m.input, cmd = m.input.Update(msg)
-			if m.fuzzy != nil && m.input.Value() != previous {
-				cmd = tea.Batch(cmd, fuzzy_search.Search(m.input.Value()))
-			}
-			return cmd
-		}
-		return nil
-	default:
-		if m.fuzzy != nil {
-			return m.fuzzy.Update(msg)
-		}
-		return nil
-	}
+func (m *Model) Update(tea.Msg) tea.Cmd {
+	return nil
 }
 
-func (m *Model) StartExec(mode common.ExecMode) tea.Cmd {
-	m.mode = "exec " + mode.Mode
-	m.input.Prompt = mode.Prompt
-	m.loadEditingSuggestions()
-	m.focusKind = FocusInput
-
-	m.fuzzy = fuzzy_input.NewModel(&m.input, m.input.AvailableSuggestions())
-	return tea.Batch(m.fuzzy.Init(), m.input.Focus())
-}
-
-func (m *Model) StartQuickSearch() tea.Cmd {
-	m.focusKind = FocusQuickSearch
-	m.mode = "search"
-	m.input.Prompt = "> "
-	m.loadEditingSuggestions()
-	return m.input.Focus()
-}
-
-func (m *Model) saveEditingSuggestions() {
-	input := m.input.Value()
-	if len(strings.TrimSpace(input)) == 0 {
-		return
-	}
-	h := m.context.Histories.GetHistory(config.HistoryKey(m.mode), true)
-	h.Append(input)
-}
-
-func (m *Model) loadEditingSuggestions() {
-	h := m.context.Histories.GetHistory(config.HistoryKey(m.mode), true)
-	history := h.Entries()
-	m.input.ShowSuggestions = true
-	m.input.SetSuggestions(history)
-}
-
-// ViewStatusRect renders the mode and keybinding help row.
-func (m *Model) ViewStatusRect(dl *render.DisplayContext, box layout.Box) {
+// ViewRect renders the mode and keybinding help row.
+func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	shortcutStyle := theme.DefaultPalette.Get("status", "", "shortcut", false)
 	dimmedStyle := theme.DefaultPalette.Get("status", "", "dimmed", false)
 	textStyle := theme.DefaultPalette.Get("status", "", "text", false)
@@ -210,10 +47,9 @@ func (m *Model) ViewStatusRect(dl *render.DisplayContext, box layout.Box) {
 
 	width := box.R.Dx()
 	dl.AddFill(box.R, ' ', textStyle, 0)
-	var statusLine string
-	if m.IsFocused() {
-		statusLine = m.renderHelpBar(width, textStyle, shortcutStyle, dimmedStyle)
-	} else {
+	// without a mode label, indent by the label's left padding to line up with the prompt label above
+	statusLine := textStyle.Render(" ") + m.renderHelpBar(max(0, width-1), textStyle, shortcutStyle, dimmedStyle)
+	if m.mode != "" {
 		modeWidth := max(10, len(m.mode)+2)
 		mode := titleStyle.Width(modeWidth).Render(m.mode)
 		helpBar := m.renderHelpBar(max(0, width-modeWidth-1), textStyle, shortcutStyle, dimmedStyle)
@@ -221,35 +57,6 @@ func (m *Model) ViewStatusRect(dl *render.DisplayContext, box layout.Box) {
 	}
 	dl.AddDraw(box.R, statusLine, 0)
 	m.renderExpandedStatus(dl, box, width, textStyle, titleStyle, shortcutStyle, dimmedStyle)
-}
-
-// ViewInputRect renders the focused input row independently from the status row.
-func (m *Model) ViewInputRect(dl *render.DisplayContext, box layout.Box) {
-	if !m.IsFocused() || box.R.Dy() == 0 {
-		return
-	}
-
-	dimmedStyle := theme.DefaultPalette.Get("status", "", "dimmed", false)
-	textStyle := theme.DefaultPalette.Get("status", "", "text", false)
-	titleStyle := theme.DefaultPalette.Get("status", "", "title", false).PaddingLeft(1).PaddingRight(1)
-	inputStyles := m.input.Styles()
-	inputStyles.Focused.Text = textStyle
-	inputStyles.Focused.Suggestion = dimmedStyle
-	inputStyles.Focused.Placeholder = dimmedStyle
-	inputStyles.Blurred.Text = textStyle
-	inputStyles.Blurred.Suggestion = dimmedStyle
-	inputStyles.Blurred.Placeholder = dimmedStyle
-	m.input.SetStyles(inputStyles)
-
-	width := box.R.Dx()
-	dl.AddFill(box.R, ' ', textStyle, 0)
-	modeWidth := max(10, len(m.mode)+2)
-	mode := titleStyle.Width(modeWidth).Render(m.mode)
-	m.input.SetWidth(max(0, width-modeWidth-1-render.StringWidth(m.input.Prompt)))
-	input := lipgloss.JoinHorizontal(lipgloss.Left, mode, textStyle.Render(" "), m.input.View())
-	dl.AddDraw(box.R, input, 0)
-	dl.SetCursorInRect(m.input.Cursor(), box.R, modeWidth+1, 0)
-	m.renderFuzzyOverlay(dl, box)
 }
 
 // renderHelpBar renders the help keybindings bar.
@@ -265,7 +72,7 @@ func (m *Model) renderHelpBar(width int, textStyle, shortcutStyle, dimmedStyle l
 
 // renderExpandedStatus orchestrates expanded help overlay
 func (m *Model) renderExpandedStatus(dl *render.DisplayContext, box layout.Box, width int, textStyle, titleStyle, shortcutStyle, dimmedStyle lipgloss.Style) {
-	if !m.statusExpanded || len(m.groups) == 0 || m.IsFocused() {
+	if !m.statusExpanded || len(m.groups) == 0 {
 		return
 	}
 
@@ -321,15 +128,6 @@ func (m *Model) renderExpandedStatusContent(dl *render.DisplayContext, box layou
 		contentRect := layout.Rect(box.R.Min.X, y, width, 1)
 		dl.AddDraw(contentRect, contentLine, render.ZExpandedStatus)
 	}
-}
-
-// renderFuzzyOverlay handles fuzzy search overlay
-func (m *Model) renderFuzzyOverlay(dl *render.DisplayContext, box layout.Box) {
-	if m.fuzzy == nil {
-		return
-	}
-	overlayRect := layout.Rect(box.R.Min.X, 0, box.R.Dx(), box.R.Min.Y)
-	m.fuzzy.ViewRect(dl, layout.Box{R: overlayRect})
 }
 
 func (m *Model) SetScopes(scopes []common.Scope) {
@@ -392,7 +190,8 @@ func (m *Model) condition(source string) (actionmeta.Condition, bool) {
 }
 
 func (m *Model) setModeFromScopes(scopes []common.Scope) {
-	if m.IsFocused() {
+	if labelledByPrompt(common.VisibleScopes(scopes)) {
+		m.mode = ""
 		return
 	}
 	mode := modeFromScopes(common.VisibleScopes(scopes))
@@ -428,9 +227,6 @@ func (m *Model) StatusTruncated() bool {
 
 // ToggleStatusExpand toggles the expanded footer help view.
 func (m *Model) ToggleStatusExpand() {
-	if m.IsFocused() {
-		return
-	}
 	if m.statusExpanded || m.statusTruncated {
 		m.statusExpanded = !m.statusExpanded
 	}
@@ -438,9 +234,6 @@ func (m *Model) ToggleStatusExpand() {
 
 // SetStatusExpanded forces expanded help visibility.
 func (m *Model) SetStatusExpanded(expanded bool) {
-	if m.IsFocused() {
-		return
-	}
 	m.statusExpanded = expanded
 }
 
@@ -458,22 +251,27 @@ func modeFromScopes(scopes []common.Scope) string {
 	return ""
 }
 
+// prompts draw their own mode label next to their input
+func labelledByPrompt(scopes []common.Scope) bool {
+	for _, scope := range scopes {
+		if scope.Name == "" {
+			continue
+		}
+		return scope.Name == actions.ScopeStatusInput || scope.Name == actions.ScopeQuickSearchInput
+	}
+	return false
+}
+
 func modeNameForScope(scope keybindings.ScopeName) string {
 	return strings.ToLower(help.ScopeDisplayName(string(scope)))
 }
 
 func (m *Model) SetMode(mode string) {
-	if !m.IsFocused() {
-		m.mode = mode
-	}
+	m.mode = mode
 }
 
 func (m *Model) Mode() string {
 	return m.mode
-}
-
-func (m *Model) InputValue() string {
-	return m.input.Value()
 }
 
 func (m *Model) expandedStatusView(groups []help.ScopeGroup, maxWidth, maxLines int, titleStyle, shortcutStyle, dimmedStyle lipgloss.Style) (string, int) {
@@ -654,12 +452,7 @@ func (m *Model) fullHelpKey(groups []help.ScopeGroup) string {
 }
 
 func New(context *context.MainContext) *Model {
-	t := textinput.New()
-	t.SetWidth(50)
-	t.SetVirtualCursor(false)
-
 	return &Model{
 		context: context,
-		input:   t,
 	}
 }

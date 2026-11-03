@@ -25,6 +25,7 @@ import (
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/diff"
+	"github.com/idursun/jjui/internal/ui/exec_prompt"
 	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/help"
 	"github.com/idursun/jjui/internal/ui/input"
@@ -140,31 +141,22 @@ func TestSplitFooter(t *testing.T) {
 	ctx.Histories = config.NewHistories()
 
 	tests := []struct {
-		name                               string
-		height                             int
-		focused                            bool
-		wantContent, wantInput, wantStatus int
+		name                    string
+		height                  int
+		wantContent, wantStatus int
 	}{
-		{name: "empty inactive", height: 0},
-		{name: "inactive one row", height: 1, wantStatus: 1},
-		{name: "inactive content and status", height: 2, wantContent: 1, wantStatus: 1},
-		{name: "empty active", height: 0, focused: true},
-		{name: "active one row prioritizes input", height: 1, focused: true, wantInput: 1},
-		{name: "active input and status", height: 2, focused: true, wantInput: 1, wantStatus: 1},
-		{name: "active content input and status", height: 3, focused: true, wantContent: 1, wantInput: 1, wantStatus: 1},
+		{name: "empty", height: 0},
+		{name: "one row", height: 1, wantStatus: 1},
+		{name: "content and status", height: 2, wantContent: 1, wantStatus: 1},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			model := NewUI(ctx)
-			if tt.focused {
-				model.status.StartExec(common.ExecShell)
-			}
 
-			content, input, status := model.splitFooter(layout.NewBox(layout.Rect(0, 0, 40, tt.height)))
+			content, status := model.splitFooter(layout.NewBox(layout.Rect(0, 0, 40, tt.height)))
 
 			assert.Equal(t, tt.wantContent, content.R.Dy())
-			assert.Equal(t, tt.wantInput, input.R.Dy())
 			assert.Equal(t, tt.wantStatus, status.R.Dy())
 		})
 	}
@@ -176,7 +168,7 @@ func TestView_ActiveInputUsesRowAboveStatus(t *testing.T) {
 	model := NewUI(ctx)
 	model.width = 30
 	model.height = 3
-	model.status.StartExec(common.ExecShell)
+	model.openDialog(exec_prompt.New(ctx, common.ExecShell, ""))
 
 	view := model.View()
 	lines := strings.Split(view, "\n")
@@ -1689,16 +1681,26 @@ func Test_Update_ExecHistoryUpDownNavigationInStatusInputScope(t *testing.T) {
 
 	model := NewUI(ctx)
 
+	model.width = 60
+	model.height = 10
 	model.Update(tea.KeyPressMsg{Text: "$", Code: '$'})
-	assert.True(t, model.status.IsFocused(), "exec shell should focus status input")
+	_, ok := model.dialog().(*exec_prompt.Model)
+	assert.True(t, ok, "exec shell should open the exec prompt")
+	assert.True(t, hasScope(model, string(actions.ScopeStatusInput)))
+
+	inputLine := func() string {
+		lines := strings.Split(ansi.Strip(model.View()), "\n")
+		return strings.TrimSpace(lines[len(lines)-2])
+	}
+	initial := inputLine()
 
 	model.Update(tea.KeyPressMsg{Code: tea.KeyUp})
-	firstNav := model.status.InputValue()
-	assert.NotEmpty(t, firstNav, "up should navigate to a history command")
+	firstNav := inputLine()
+	assert.NotEqual(t, initial, firstNav, "up should navigate to a history command")
 
 	model.Update(tea.KeyPressMsg{Code: tea.KeyDown})
-	secondNav := model.status.InputValue()
-	assert.NotEmpty(t, secondNav, "down should navigate to a history command")
+	secondNav := inputLine()
+	assert.NotEqual(t, initial, secondNav, "down should navigate to a history command")
 	assert.NotEqual(t, firstNav, secondNav, "down should move to a different history entry")
 }
 
@@ -2260,4 +2262,26 @@ func Test_ResumeMsg_SkipsTerminalPaletteQueryWhenBackgroundBlendDisabled(t *test
 
 	_, foundPaletteRequest, _ := inspectTerminalRefresh(cmd)
 	assert.False(t, foundPaletteRequest)
+}
+
+func TestUpdate_FailedExecReopensPromptWithLine(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.Histories = config.NewHistories()
+	model := NewUI(ctx)
+	model.width = 40
+	model.height = 5
+
+	model.Update(common.ExecProcessCompletedMsg{Msg: common.ExecMsg{Line: "status", Mode: common.ExecJJ}})
+	assert.Nil(t, model.dialog(), "successful exec should not reopen the prompt")
+
+	model.Update(common.ExecProcessCompletedMsg{
+		Err: errors.New("exit status 1"),
+		Msg: common.ExecMsg{Line: "bogus-subcommand", Mode: common.ExecShell},
+	})
+	_, ok := model.dialog().(*exec_prompt.Model)
+	require.True(t, ok, "failed exec should reopen the exec prompt")
+	assert.True(t, hasScope(model, string(actions.ScopeStatusInput)))
+	view := ansi.Strip(model.View())
+	assert.Contains(t, view, "exec sh")
+	assert.Contains(t, view, "$ bogus-subcommand")
 }

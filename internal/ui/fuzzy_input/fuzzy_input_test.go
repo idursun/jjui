@@ -15,8 +15,7 @@ func TestSuggestCycleIntent(t *testing.T) {
 	config.Current.Suggest.Exec.Mode = "off"
 
 	input := textinput.New()
-	fuzzyModel := NewModel(&input, []string{"abc"})
-	model := fuzzyModel.(*model)
+	model := New(&input, []string{"abc"})
 
 	_ = model.Update(intents.SuggestCycle{})
 	assert.Equal(t, config.SuggestModeFuzzy, model.suggestMode)
@@ -32,8 +31,7 @@ func TestSuggestNavigateIntent(t *testing.T) {
 	config.Current.Suggest.Exec.Mode = "off"
 
 	input := textinput.New()
-	fuzzyModel := NewModel(&input, []string{"fetch", "push"})
-	model := fuzzyModel.(*model)
+	model := New(&input, []string{"fetch", "push"})
 
 	assert.Equal(t, 0, model.cursor)
 

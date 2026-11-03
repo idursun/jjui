@@ -1,7 +1,6 @@
 package fuzzy_input
 
 import (
-	"fmt"
 	"log"
 	"regexp"
 	"strconv"
@@ -9,7 +8,6 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -19,40 +17,49 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-type model struct {
-	suggestions []string
-	input       *textinput.Model
-	cursor      int
-	max         int
-	matches     fuzzy.Matches
-	suggestMode config.SuggestMode
+type ItemClickedMsg struct {
+	Index int
 }
 
-type initMsg struct{}
-
-func newCmd(msg tea.Msg) tea.Cmd {
-	return func() tea.Msg {
-		return msg
-	}
+type itemScrollMsg struct {
+	Delta      int
+	Horizontal bool
 }
 
-func (fzf *model) Init() tea.Cmd {
-	return newCmd(initMsg{})
+func newItemScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return itemScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
-func (fzf *model) Update(msg tea.Msg) tea.Cmd {
+type Model struct {
+	suggestions  []string
+	input        *textinput.Model
+	cursor       int
+	max          int
+	matches      fuzzy.Matches
+	suggestMode  config.SuggestMode
+	listRenderer *render.ListRenderer
+	// set when the cursor moves, cleared after a frame so wheel scrolling sticks
+	ensureCursorVisible bool
+}
+
+func (fzf *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case initMsg:
-		fzf.search("")
-	case fuzzy_search.SearchMsg:
-		fzf.search(msg.Input)
 	case intents.Intent:
-		return fzf.handleIntent(msg)
+		fzf.handleIntent(msg)
+	case ItemClickedMsg:
+		fzf.cursor = msg.Index
+		fzf.ensureCursorVisible = true
+	case itemScrollMsg:
+		if !msg.Horizontal {
+			fzf.ensureCursorVisible = false
+			fzf.listRenderer.StartLine = max(0, fzf.listRenderer.StartLine+msg.Delta)
+		}
 	}
 	return nil
 }
 
-func (fzf *model) handleIntent(intent intents.Intent) tea.Cmd {
+func (fzf *Model) handleIntent(intent intents.Intent) {
 	switch intent := intent.(type) {
 	case intents.SuggestCycle:
 		switch fzf.suggestMode {
@@ -68,12 +75,11 @@ func (fzf *model) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.SuggestNavigate:
 		fzf.moveCursor(intent.Delta)
 	}
-	return nil
 }
 
-func (fzf *model) suggestEnabled() bool { return fzf.suggestMode != config.SuggestModeOff }
+func (fzf *Model) suggestEnabled() bool { return fzf.suggestMode != config.SuggestModeOff }
 
-func (fzf *model) moveCursor(inc int) {
+func (fzf *Model) moveCursor(inc int) {
 	l := min(len(fzf.matches), fzf.max)
 	if !fzf.suggestEnabled() {
 		// move on complete history
@@ -87,6 +93,7 @@ func (fzf *model) moveCursor(inc int) {
 		n = 0
 	}
 	fzf.cursor = n
+	fzf.ensureCursorVisible = true
 	if !fzf.suggestEnabled() {
 		// update input.
 		fzf.input.SetValue(fzf.String(n))
@@ -94,33 +101,31 @@ func (fzf *model) moveCursor(inc int) {
 	}
 }
 
-func (fzf *model) Max() int {
-	return fzf.max
+// Selected returns the highlighted suggestion, or "" when no suggestion is shown.
+func (fzf *Model) Selected() string {
+	if fzf.cursor < 0 || fzf.cursor >= min(len(fzf.matches), fzf.max) {
+		return ""
+	}
+	return fzf.String(fzf.matches[fzf.cursor].Index)
 }
 
-func (fzf *model) Matches() fuzzy.Matches {
-	return fzf.matches
-}
-
-func (fzf *model) SelectedMatch() int {
-	return fzf.cursor
-}
-
-func (fzf *model) Len() int {
+func (fzf *Model) Len() int {
 	return len(fzf.suggestions)
 }
 
-func (fzf *model) String(i int) string {
+func (fzf *Model) String(i int) string {
 	if len(fzf.suggestions) == 0 {
 		return ""
 	}
 	return fzf.suggestions[i]
 }
 
-func (fzf *model) search(input string) {
+func (fzf *Model) Search(input string) {
 	input = strings.TrimSpace(input)
 	fzf.cursor = 0
 	fzf.matches = fuzzy.Matches{}
+	fzf.listRenderer.StartLine = 0
+	fzf.ensureCursorVisible = true
 	if len(input) == 0 {
 		return
 	}
@@ -131,7 +136,7 @@ func (fzf *model) search(input string) {
 	}
 }
 
-func (fzf *model) searchRegex(input string) fuzzy.Matches {
+func (fzf *Model) searchRegex(input string) fuzzy.Matches {
 	matches := fuzzy.Matches{}
 	re, err := regexp.CompilePOSIX(input)
 	if err != nil {
@@ -156,32 +161,57 @@ func (fzf *model) searchRegex(input string) fuzzy.Matches {
 	return matches
 }
 
-func (fzf *model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	content := fzf.viewContent()
-	if content == "" {
+// ViewRect draws the matches bottom-up at the bottom of box: the best match
+// on the last row and the title above the list.
+func (fzf *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	n := min(len(fzf.matches), fzf.max)
+	listHeight := min(n, box.R.Dy()-1)
+	if listHeight <= 0 || box.R.Dx() <= 0 {
 		return
 	}
-	_, h := lipgloss.Size(content)
-	rect := layout.Rect(box.R.Min.X, box.R.Max.Y-h, box.R.Dx(), h)
-	dl.AddDraw(rect, content, render.ZFuzzyInput)
-}
 
-func (fzf *model) viewContent() string {
-	matches := len(fzf.matches)
-	if matches == 0 {
-		return ""
-	}
-	view := fuzzy_search.View(fzf)
-	title := fmt.Sprintf(
-		"  %s of %s elements in history ",
-		strconv.Itoa(matches),
-		strconv.Itoa(fzf.Len()),
+	background := theme.DefaultPalette.Get("status", "", "text", false)
+	titleStyle := theme.DefaultPalette.Get("status", "", "title", false)
+	dimmedStyle := theme.DefaultPalette.Get("status", "", "dimmed", false)
+	dimmedMatchStyle := theme.DefaultPalette.Get("status", "", "shortcut", false)
+	selectedStyle := theme.DefaultPalette.GetBlended("", "", "", true)
+
+	height := listHeight + 1
+	rect := layout.Rect(box.R.Min.X, box.R.Max.Y-height, box.R.Dx(), height)
+	dl.AddFill(rect, ' ', background, render.ZFuzzyOverlay-1)
+
+	titleBox, listBox := layout.NewBox(rect).CutTop(1)
+	title := "  " + strconv.Itoa(len(fzf.matches)) + " of " + strconv.Itoa(fzf.Len()) + " elements in history "
+	dl.Text(titleBox.R.Min.X, titleBox.R.Min.Y, render.ZFuzzyOverlay).Styled(title, titleStyle).Done()
+
+	// the list renders top-down, so row i shows match n-1-i
+	fzf.listRenderer.Render(
+		dl,
+		listBox,
+		n,
+		n-1-fzf.cursor,
+		fzf.ensureCursorVisible,
+		func(int) int { return 1 },
+		func(dl *render.DisplayContext, row int, r layout.Rectangle) {
+			index := n - 1 - row
+			if index < 0 || index >= n {
+				return
+			}
+			match := fzf.matches[index]
+			marker, lineStyle, matchStyle := " ", dimmedStyle, dimmedMatchStyle
+			if index == fzf.cursor {
+				marker, lineStyle, matchStyle = "◆", selectedStyle, titleStyle
+			}
+			entry := fuzzy_search.HighlightMatched(fzf.String(match.Index), match, lineStyle, matchStyle)
+			dl.AddDraw(r, titleStyle.Render(marker)+" "+entry, render.ZFuzzyOverlay)
+		},
+		func(row int, _ tea.Mouse) tea.Msg { return ItemClickedMsg{Index: n - 1 - row} },
 	)
-	title = theme.DefaultPalette.Get("status", "", "title", false).Render(title)
-	return lipgloss.JoinVertical(0, title, view)
+	fzf.listRenderer.RegisterScroll(dl, listBox)
+	fzf.ensureCursorVisible = false
 }
 
-func NewModel(input *textinput.Model, suggestions []string) fuzzy_search.Model {
+func New(input *textinput.Model, suggestions []string) *Model {
 	input.ShowSuggestions = false
 	input.SetSuggestions([]string{})
 
@@ -190,11 +220,13 @@ func NewModel(input *textinput.Model, suggestions []string) fuzzy_search.Model {
 		log.Fatal(err)
 	}
 
-	fzf := &model{
-		input:       input,
-		suggestions: suggestions,
-		max:         30,
-		suggestMode: suggestMode,
+	fzf := &Model{
+		input:        input,
+		suggestions:  suggestions,
+		max:          30,
+		suggestMode:  suggestMode,
+		listRenderer: render.NewListRenderer(newItemScrollMsg),
 	}
+	fzf.listRenderer.Z = render.ZFuzzyOverlay
 	return fzf
 }

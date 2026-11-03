@@ -157,11 +157,10 @@ This rendering order is separate from `revisions.Model`'s own layers stack, whic
 For each key, `dispatchScopes()` in [`internal/ui/ui.go`](internal/ui/ui.go) builds a chain of scopes from innermost to outermost:
 
 1. the password prompt, if any
-2. the status line, while it takes input (exec, quick search, file search)
-3. the revset editor, while editing
-4. the top layer's scopes, or the primary view's scopes followed by the split pane's scopes
-5. the revset scope, when not editing
-6. the root `ui` scope
+2. the revset editor, while editing
+3. the top layer's scopes, or the primary view's scopes followed by the split pane's scopes
+4. the revset scope, when not editing
+5. the root `ui` scope
 
 Each scope's leak policy decides how far routing continues past it:
 

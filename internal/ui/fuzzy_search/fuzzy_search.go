@@ -1,80 +1,12 @@
 package fuzzy_search
 
 import (
-	"fmt"
-	"slices"
 	"strings"
 	"unicode/utf8"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/idursun/jjui/internal/ui/common"
-	"github.com/idursun/jjui/internal/ui/theme"
 	"github.com/sahilm/fuzzy"
 )
-
-type Model interface {
-	fuzzy.Source
-	common.ImmediateModel
-	Max() int
-	Matches() fuzzy.Matches
-	SelectedMatch() int
-}
-
-type SearchMsg struct {
-	Input string
-}
-
-func Search(input string) tea.Cmd {
-	return func() tea.Msg {
-		return SearchMsg{
-			Input: input,
-		}
-	}
-}
-
-func SelectedMatch(model Model) string {
-	idx := model.SelectedMatch()
-	matches := model.Matches()
-	n := len(matches)
-	if idx < 0 || idx >= n {
-		return ""
-	}
-	m := matches[idx]
-	return fmt.Sprintf("'%s'", model.String(m.Index))
-}
-
-func View(fzf Model) string {
-	shown := []string{}
-	max := fzf.Max()
-	dimmedStyle := theme.DefaultPalette.Get("status", "", "dimmed", false)
-	dimmedMatchStyle := theme.DefaultPalette.Get("status", "", "shortcut", false)
-	selectedStyle := theme.DefaultPalette.GetBlended("", "", "", true)
-	selectedMatchStyle := theme.DefaultPalette.Get("status", "", "title", false)
-	selected := fzf.SelectedMatch()
-	for i, match := range fzf.Matches() {
-		if i == max {
-			break
-		}
-		sel := " "
-		selStyle := selectedMatchStyle
-		lineStyle := dimmedStyle
-		matchStyle := dimmedMatchStyle
-
-		entry := fzf.String(match.Index)
-		if i == selected {
-			sel = "◆"
-			lineStyle = selectedStyle
-			matchStyle = selectedMatchStyle
-		}
-
-		entry = HighlightMatched(entry, match, lineStyle, matchStyle)
-		shown = append(shown, selStyle.Render(sel)+" "+entry)
-	}
-	slices.Reverse(shown)
-	entries := lipgloss.JoinVertical(0, shown...)
-	return entries
-}
 
 type RefinedSource struct {
 	Source  fuzzy.Source

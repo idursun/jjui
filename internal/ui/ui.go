@@ -24,6 +24,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/exec_process"
+	"github.com/idursun/jjui/internal/ui/exec_prompt"
 	"github.com/idursun/jjui/internal/ui/flash"
 	"github.com/idursun/jjui/internal/ui/fuzzy_files"
 	"github.com/idursun/jjui/internal/ui/git"
@@ -34,6 +35,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/oplog"
 	"github.com/idursun/jjui/internal/ui/password"
+	"github.com/idursun/jjui/internal/ui/quick_search"
 	"github.com/idursun/jjui/internal/ui/redo"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revisions"
@@ -315,6 +317,9 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 		return exec_process.ExecLine(m.context, msg)
 	case common.ExecProcessCompletedMsg:
 		cmds = append(cmds, common.Refresh)
+		if msg.Err != nil {
+			cmds = append(cmds, m.openDialog(exec_prompt.New(m.context, msg.Msg.Mode, msg.Msg.Line)))
+		}
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
 	case triggerAutoRefreshMsg:
@@ -427,7 +432,6 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 	// broadcast to all models.
 	primary := m.primary()
 	cmds = append(cmds, m.revsetModel.Update(msg))
-	cmds = append(cmds, m.status.Update(msg))
 	cmds = append(cmds, m.flash.Update(msg))
 	for _, l := range m.layers {
 		if l.model != primary {
@@ -492,8 +496,8 @@ func (m *Model) View() string {
 	if m.password == nil {
 		if scope, ok := m.stackedScope(); !ok || scope != actions.ScopeCommandHistory {
 			flashBox := box
-			if footerHeight := m.footerHeight(box); footerHeight > 0 {
-				flashBox, _ = box.CutBottom(footerHeight)
+			if box.R.Dy() > 0 {
+				flashBox, _ = box.CutBottom(1)
 			}
 			m.flash.ViewRect(m.displayContext, flashBox)
 		}
@@ -512,53 +516,29 @@ func (m *Model) View() string {
 }
 
 func (m *Model) renderRevisionsLayout(box layout.Box) {
-	content, input, status := m.splitFooter(box)
+	content, status := m.splitFooter(box)
 	rows := content.V(layout.Fixed(1), layout.Fill(1))
 	m.revsetModel.ViewRect(m.displayContext, rows[0])
 	m.renderSplit(m.revisions, rows[1])
-	m.renderFooter(input, status)
+	m.renderFooter(status)
 }
 
 func (m *Model) renderWithStatus(box layout.Box, renderContent func(layout.Box)) {
-	content, input, status := m.splitFooter(box)
+	content, status := m.splitFooter(box)
 	renderContent(content)
-	m.renderFooter(input, status)
+	m.renderFooter(status)
 }
 
-func (m *Model) splitFooter(box layout.Box) (content, input, status layout.Box) {
-	content = box
-	footerHeight := m.footerHeight(box)
-	if footerHeight == 0 {
-		return content, input, status
+func (m *Model) splitFooter(box layout.Box) (content, status layout.Box) {
+	if box.R.Dy() == 0 {
+		return box, status
 	}
-
-	content, footer := box.CutBottom(footerHeight)
-	if m.status.IsFocused() {
-		if footerHeight == 1 {
-			input = footer
-			return content, input, status
-		}
-		rows := footer.V(layout.Fixed(1), layout.Fixed(1))
-		input, status = rows[0], rows[1]
-		return content, input, status
-	}
-	status = footer
-	return content, input, status
+	return box.CutBottom(1)
 }
 
-func (m *Model) footerHeight(box layout.Box) int {
-	if m.status.IsFocused() {
-		return min(box.R.Dy(), 2)
-	}
-	return min(box.R.Dy(), 1)
-}
-
-func (m *Model) renderFooter(input, status layout.Box) {
-	if input.R.Dy() > 0 {
-		m.status.ViewInputRect(m.displayContext, input)
-	}
+func (m *Model) renderFooter(status layout.Box) {
 	if status.R.Dy() > 0 {
-		m.status.ViewStatusRect(m.displayContext, status)
+		m.status.ViewRect(m.displayContext, status)
 	}
 }
 
@@ -579,7 +559,6 @@ func (m *Model) dispatchScopes() []common.Scope {
 		scopes = append(scopes, m.password.Scopes()...)
 	}
 
-	scopes = append(scopes, m.status.Scopes()...)
 	if m.revsetModel.IsEditing() {
 		scopes = append(scopes, m.revsetModel.Scopes()...)
 	}
@@ -675,11 +654,11 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.Edit:
 		return m.revsetModel.Update(intent), true
 	case intents.ExecJJ:
-		return m.status.StartExec(common.ExecJJ), true
+		return m.openDialog(exec_prompt.New(m.context, common.ExecJJ, "")), true
 	case intents.ExecShell:
-		return m.status.StartExec(common.ExecShell), true
+		return m.openDialog(exec_prompt.New(m.context, common.ExecShell, "")), true
 	case intents.QuickSearch:
-		return m.status.StartQuickSearch(), true
+		return m.openDialog(quick_search.New(m.context)), true
 	case intents.FileSearchToggle:
 		rev := m.revisions.SelectedRevision()
 		if rev == nil {
