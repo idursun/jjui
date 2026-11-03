@@ -13,6 +13,7 @@ import (
 
 // Entry is a status-help key entry rendered as "key description".
 type Entry struct {
+	Action     string
 	Label      string
 	Desc       string
 	Overridden bool
@@ -80,6 +81,7 @@ func buildFromBindings(
 		}
 
 		entries = append(entries, Entry{
+			Action:   string(action),
 			Label:    label,
 			Desc:     bindingDesc(b),
 			Disabled: isAvailable != nil && !isAvailable(b),

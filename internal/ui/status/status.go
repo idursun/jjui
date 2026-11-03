@@ -430,25 +430,21 @@ func (m *Model) groupedHelpView(groups []help.ScopeGroup, maxWidth int, shortcut
 }
 
 func (m *Model) expandStatusKey(groups []help.ScopeGroup) string {
-	for _, group := range groups {
-		for _, entry := range group.Entries {
-			if entry.Desc == "expand status" {
-				return entry.Label
-			}
-		}
-	}
-	return expandFallback.Label
+	return actionKey(groups, "ui.expand_status", expandFallback.Label)
 }
 
 func (m *Model) fullHelpKey(groups []help.ScopeGroup) string {
-	for _, group := range groups {
-		for _, entry := range group.Entries {
-			if entry.Desc == "help" {
-				return entry.Label
-			}
+	return actionKey(groups, "ui.open_help", "f1")
+}
+
+// actionKey returns the label of the first active entry bound to action.
+func actionKey(groups []help.ScopeGroup, action, fallback string) string {
+	for _, entry := range help.FlatEntries(groups) {
+		if entry.Action == action && !entry.Overridden && !entry.Disabled {
+			return entry.Label
 		}
 	}
-	return "f1"
+	return fallback
 }
 
 func New(context *context.MainContext) *Model {

@@ -18,8 +18,8 @@ func TestBuildFromBindings_FiltersToScope(t *testing.T) {
 
 	entries := BuildFromBindings("revisions", bindings)
 	assert.Equal(t, []Entry{
-		{Label: "J", Desc: "move down"},
-		{Label: "enter", Desc: "apply"},
+		{Action: "revisions.move_down", Label: "J", Desc: "move down"},
+		{Action: "revisions.apply", Label: "enter", Desc: "apply"},
 	}, entries)
 }
 
@@ -31,8 +31,8 @@ func TestBuildFromBindings_UsesConfiguredDescription(t *testing.T) {
 
 	entries := BuildFromBindings("revisions", bindings)
 	assert.Equal(t, []Entry{
-		{Label: "enter", Desc: "run operation"},
-		{Label: "esc", Desc: "cancel"},
+		{Action: "revisions.apply", Label: "enter", Desc: "run operation"},
+		{Action: "ui.cancel", Label: "esc", Desc: "cancel"},
 	}, entries)
 }
 
@@ -43,7 +43,7 @@ func TestBuildFromBindingsWithAvailability_MarksUnavailableBinding(t *testing.T)
 		Key:    config.StringList{"d"},
 	}}, func(config.BindingConfig) bool { return false })
 
-	assert.Equal(t, []Entry{{Label: "d", Desc: "diff", Disabled: true}}, entries)
+	assert.Equal(t, []Entry{{Action: "revisions.diff", Label: "d", Desc: "diff", Disabled: true}}, entries)
 }
 
 func TestBuildFromBindings_ShowsActionAndBindingConditions(t *testing.T) {
@@ -75,8 +75,8 @@ func TestBuildFromBindings_SameScopeLastBindingWins(t *testing.T) {
 
 	entries := BuildFromBindings("revisions", bindings)
 	assert.Equal(t, []Entry{
-		{Label: "j", Desc: "move down"},
-		{Label: "o", Desc: "open details"},
+		{Action: "revisions.move_down", Label: "j", Desc: "move down"},
+		{Action: "revisions.open_details", Label: "o", Desc: "open details"},
 	}, entries)
 }
 
@@ -89,9 +89,9 @@ func TestBuildFromBindings_SameActionDifferentArgsRemainActive(t *testing.T) {
 
 	entries := BuildFromBindings("revisions.rebase", bindings)
 	assert.Equal(t, []Entry{
-		{Label: "r", Desc: "source: revision"},
-		{Label: "shift+b", Desc: "source: branch"},
-		{Label: "s", Desc: "source: descendants"},
+		{Action: "revisions.rebase.set_source", Label: "r", Desc: "source: revision"},
+		{Action: "revisions.rebase.set_source", Label: "shift+b", Desc: "source: branch"},
+		{Action: "revisions.rebase.set_source", Label: "s", Desc: "source: descendants"},
 	}, entries)
 }
 
@@ -103,8 +103,8 @@ func TestBuildFromBindings_SameScopeDifferentActionsWithSameLeaf(t *testing.T) {
 
 	entries := BuildFromBindings("revisions", bindings)
 	assert.Equal(t, []Entry{
-		{Label: "shift+l", Desc: "revset"},
-		{Label: "e", Desc: "edit"},
+		{Action: "revset.edit", Label: "shift+l", Desc: "revset"},
+		{Action: "revisions.edit", Label: "e", Desc: "edit"},
 	}, entries)
 }
 

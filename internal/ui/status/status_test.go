@@ -7,6 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/help"
@@ -126,4 +127,32 @@ func TestModel_ViewRectExpandedHelpLeavesMainViewVisible(t *testing.T) {
 
 	assert.NotContains(t, lines[0], "entry")
 	assert.Contains(t, rendered, "full help")
+}
+
+func TestModel_HintKeysResolveByAction(t *testing.T) {
+	groups := []help.ScopeGroup{{Name: "ui", Entries: []help.Entry{
+		{Action: "ui.expand_status", Label: "ctrl+h", Desc: "expand status help"},
+		{Action: "ui.open_help", Label: "f2", Desc: "help"},
+	}}}
+	m := New(&context.MainContext{Histories: config.NewHistories()})
+	assert.Equal(t, "ctrl+h", m.expandStatusKey(groups))
+	assert.Equal(t, "f2", m.fullHelpKey(groups))
+
+	groups[0].Entries[0].Overridden = true
+	groups[0].Entries[1].Disabled = true
+	assert.Equal(t, "?", m.expandStatusKey(groups))
+	assert.Equal(t, "f1", m.fullHelpKey(groups))
+}
+
+func TestModel_HintKeysFollowReboundBindings(t *testing.T) {
+	previous := config.Current
+	t.Cleanup(func() { config.Current = previous })
+	config.Current = &config.Config{Bindings: []config.BindingConfig{
+		{Action: "ui.expand_status", Scope: "ui", Key: config.StringList{"ctrl+h"}, Desc: "expand status help"},
+		{Action: "ui.open_help", Scope: "ui", Key: config.StringList{"f2"}, Desc: "help"},
+	}}
+	m := New(&context.MainContext{Histories: config.NewHistories()})
+	groups := help.BuildGroupedFromBindings([]keybindings.ScopeName{"ui"}, config.Current.Bindings)
+	assert.Equal(t, "ctrl+h", m.expandStatusKey(groups))
+	assert.Equal(t, "f2", m.fullHelpKey(groups))
 }

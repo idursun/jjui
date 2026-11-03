@@ -758,7 +758,7 @@ func Test_UpdateStatus_IncludesAlwaysOnUiBindings(t *testing.T) {
 	model := NewUI(ctx)
 
 	model.updateStatus()
-	assert.Contains(t, help.FlatEntries(model.status.Help()), help.Entry{Label: "W", Desc: "command history"})
+	assert.Contains(t, help.FlatEntries(model.status.Help()), help.Entry{Action: "ui.show_command_history", Label: "W", Desc: "command history"})
 }
 
 func Test_Update_SequencePrefixBeatsSingleKeyBinding(t *testing.T) {
