@@ -88,7 +88,7 @@ func (m *Model) Init() tea.Cmd {
 	return tea.Batch(m.revisions.Init(), m.scheduleAutoRefresh())
 }
 
-func (m *Model) selectionSnapshot() common.SelectionSnapshot {
+func (m *Model) Selection() common.SelectionSnapshot {
 	var snapshot common.SelectionSnapshot
 	for _, provider := range m.selectionProviders() {
 		part := provider.Selection()
@@ -98,10 +98,6 @@ func (m *Model) selectionSnapshot() common.SelectionSnapshot {
 		snapshot.Checked = append(snapshot.Checked, part.Checked...)
 	}
 	return snapshot
-}
-
-func (m *Model) Selection() common.SelectionSnapshot {
-	return m.selectionSnapshot()
 }
 
 // QueryState resolves public binding and Lua state paths against retained model owners.
@@ -149,7 +145,7 @@ func (m *Model) selectionProviders() []common.SelectionProvider {
 }
 
 func (m *Model) notifyHighlightChange() tea.Cmd {
-	snapshot := m.selectionSnapshot()
+	snapshot := m.Selection()
 	if selectedItemsEqual(snapshot.Highlighted, m.lastHighlighted) {
 		return nil
 	}
@@ -494,7 +490,6 @@ func (m *Model) View() string {
 	}
 
 	if m.password == nil {
-
 		if scope, ok := m.stackedScope(); !ok || scope != actions.ScopeCommandHistory {
 			flashBox := box
 			if footerHeight := m.footerHeight(box); footerHeight > 0 {
