@@ -5,13 +5,12 @@ package main
 import (
 	"strings"
 	"testing"
-
-	ghostty "go.mitchellh.com/libghostty"
 )
 
 func Test_Revisions_RebasesSourceWithInsertBetween(t *testing.T) {
 	t.Parallel()
-	repo := newTestRepo(t).
+	h := NewHarness(t)
+	h.repo.
 		Append("README.md", "base\n").
 		Commit("base").
 		Append("README.md", "source\n").
@@ -20,69 +19,55 @@ func Test_Revisions_RebasesSourceWithInsertBetween(t *testing.T) {
 		Append("README.md", "target\n").
 		Commit("target")
 
-	jjuiBin := jjuiBinary(t)
-	session, ctx := startJJUITestWithRepo(t, jjuiBin, repo, "target")
+	h.Start("target")
+	h.WaitTextInOrder("target", "source", "base")
 
-	// The visible order is the working-copy child, target, then the source
-	// branch. Select source and move back to target for the insert target.
-	if err := session.SendKey(ghostty.KeyJ, "j", 0); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := session.WaitForStableScreen(ctx, 3, func(screen []string) bool {
-		return screenContains(screen, "target")
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := session.SendKey(ghostty.KeyJ, "j", 0); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := session.WaitForStableScreen(ctx, 3, func(screen []string) bool {
-		return screenContains(screen, "source")
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := session.SendKey(ghostty.KeySpace, " ", 0); err != nil {
-		t.Fatal(err)
-	}
-	if err := session.SendKey(ghostty.KeyK, "k", 0); err != nil {
-		t.Fatal(err)
-	}
-	if err := session.SendKey(ghostty.KeyR, "r", 0); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, "rebase")
-	}); err != nil {
-		t.Fatalf("rebase operation did not open: %v", err)
-	}
+	// Space runs asynchronously, so wait for each state before the next key.
+	h.Key("j")
+	h.Key("j")
+	h.Key(" ")
+	waitForCheckedRevisions(h, "source")
 
-	if err := session.SendKey(ghostty.KeyS, "s", 0); err != nil {
-		t.Fatal(err)
-	}
-	if err := session.SendKey(ghostty.KeyI, "i", 0); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, "insert") && screenContains(screen, "between")
-	}); err != nil {
-		t.Fatalf("rebase insert-between mode did not render: %v", err)
-	}
-	if err := session.SendKey(ghostty.KeyEnter, "", 0); err != nil {
-		t.Fatal(err)
-	}
+	// Space moved the cursor down to base, which becomes the insert-after end.
+	h.Key("r")
+	h.WaitText("<< onto >>")
+	h.Key("s")
+	h.Key("i")
+	h.WaitText("between")
+	waitForMarkerAbove(h, "<< before this >>", "base")
 
-	waitFor(t, ctx, func() (bool, error) {
-		log := runCommand(t, repo.Path(), repo.Env(), "jj", "log", "-r", "all()", "-T", "description ++ \"\\n\"", "--no-graph", "--color", "never")
-		base := strings.Index(log, "base\n")
-		source := strings.Index(log, "source\n")
-		target := strings.Index(log, "target\n")
-		return target >= 0 && source > target && base > source, nil
+	h.Key("k")
+	waitForMarkerAbove(h, "<< before this >>", "source")
+	h.Key("k")
+	waitForMarkerAbove(h, "<< before this >>", "target")
+	waitForMarkerAbove(h, "<< after this >>", "base")
+	h.Key("Enter")
+
+	waitFor(t, h.ctx, func() (bool, error) {
+		return parentDescription(h, "target") == "source" && parentDescription(h, "source") == "base", nil
 	})
 
-	if err := session.SendKey(ghostty.KeyQ, "q", 0); err != nil {
-		t.Fatal(err)
+	h.Quit()
+}
+
+// The marker is on the header row, directly above the description.
+func waitForMarkerAbove(h *Harness, marker, description string) {
+	h.t.Helper()
+	_, err := h.session.WaitForScreen(h.ctx, func(screen []string) bool {
+		row := screenRowIndexContaining(screen, description)
+		return row >= 1 && strings.Contains(screen[row-1], marker)
+	})
+	if err != nil {
+		h.t.Fatalf("waiting for %q above %q: %v", marker, description, err)
 	}
-	if err := session.WaitContext(ctx); err != nil {
-		t.Fatalf("jjui exited with error: %v", err)
+}
+
+func parentDescription(h *Harness, description string) string {
+	out, err := commandOutput(h.Repo(), h.Env(), "jj", "log", "--no-graph", "--color", "never",
+		"-r", `description(exact:"`+description+`\n")`,
+		"-T", `parents.map(|c| c.description().first_line()).join(",")`)
+	if err != nil {
+		return ""
 	}
+	return strings.TrimSpace(out)
 }
