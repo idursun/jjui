@@ -2,6 +2,7 @@ package workspacepane
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -217,11 +218,55 @@ func (m *Model) activate(name string) tea.Cmd {
 	}
 	path, err := m.context.RunCommandImmediate([]string{"workspace", "root", "--name", name, "--ignore-working-copy"})
 	if err != nil || len(path) == 0 {
+		if primary := m.primaryWorkspacePath(name); primary != "" {
+			return func() tea.Msg { return ActivateMsg{Name: name, Path: primary} }
+		}
 		// Old jj versions and older workspaces may have no recorded root.
 		m.pending, m.pendingName = "activate", name
 		return input.ShowWithTitle("Locate workspace "+name, "Directory: ", "")
 	}
 	return func() tea.Msg { return ActivateMsg{Name: name, Path: string(path)} }
+}
+
+// Older repositories may not record the primary workspace's path in jj's
+// workspace list. Secondary workspaces still point to its .jj/repo directory.
+// Verify its workspace name rather than assuming the primary is called default.
+func (m *Model) primaryWorkspacePath(name string) string {
+	metadata := filepath.Join(m.context.Location, ".jj")
+	pointer, err := os.ReadFile(filepath.Join(metadata, "repo"))
+	if err != nil {
+		return ""
+	}
+	repoPath := strings.TrimSpace(string(pointer))
+	if !filepath.IsAbs(repoPath) {
+		repoPath = filepath.Join(metadata, repoPath)
+	}
+	repoPath, err = filepath.EvalSymlinks(repoPath)
+	if err != nil || filepath.Base(repoPath) != "repo" || filepath.Base(filepath.Dir(repoPath)) != ".jj" {
+		return ""
+	}
+	primary := filepath.Dir(filepath.Dir(repoPath))
+	if primary == m.context.Location {
+		return ""
+	}
+	runner := m.context.RunnerAt(primary)
+	output, err := runner.RunCommandImmediate(append([]string{"-R", primary}, jj.WorkspaceList()...))
+	if err != nil {
+		return ""
+	}
+	currentName := ""
+	for _, workspace := range jj.ParseWorkspaces(string(output)) {
+		if workspace.Current {
+			if currentName != "" {
+				return ""
+			}
+			currentName = workspace.Name
+		}
+	}
+	if currentName != name {
+		return ""
+	}
+	return primary
 }
 
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {

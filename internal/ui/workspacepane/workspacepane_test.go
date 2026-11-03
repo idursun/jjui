@@ -2,6 +2,8 @@ package workspacepane
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/idursun/jjui/internal/jj"
@@ -49,6 +51,38 @@ func TestMissingRootPromptsForDirectory(t *testing.T) {
 	assert.IsType(t, common.ShowInputMsg{}, cmd())
 	cmd = m.Update(input.SelectedMsg{Value: "../feature"})
 	assert.Equal(t, ActivateMsg{Name: "feature", Path: "/feature"}, cmd())
+}
+
+func TestNavigationLocatesLegacyPrimaryWorkspaceWithoutPrompt(t *testing.T) {
+	t.Run("default", func(t *testing.T) { testLegacyPrimaryWorkspace(t, "default") })
+	t.Run("renamed", func(t *testing.T) { testLegacyPrimaryWorkspace(t, "main") })
+}
+
+func testLegacyPrimaryWorkspace(t *testing.T, primaryName string) {
+	t.Helper()
+	m, runner := setup(t)
+	base := t.TempDir()
+	primary := filepath.Join(base, "primary")
+	feature := filepath.Join(base, "feature")
+	require.NoError(t, os.MkdirAll(filepath.Join(primary, ".jj", "repo"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(feature, ".jj"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(feature, ".jj", "repo"), []byte("../../primary/.jj/repo"), 0600))
+	m.context.Location, m.context.WorkspaceName = feature, "feature"
+	m = New(m.context)
+	m.SetFocused(true)
+	m.workspaces = []jj.Workspace{{Name: primaryName}, {Name: "feature", Current: true}}
+	runner.Expect([]string{"workspace", "root", "--name", primaryName, "--ignore-working-copy"}).SetError(errors.New("Workspace has no recorded path"))
+	runner.Expect(append([]string{"-R", primary}, jj.WorkspaceList()...)).SetOutput([]byte(primaryName + "\ttrue\nfeature\tfalse\n"))
+	cmd, handled := m.HandleIntent(intents.WorkspaceNavigate{Delta: -1})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	assert.Equal(t, ActivateMsg{Name: primaryName, Path: primary}, cmd(), "arrow navigation must activate the original workspace instead of prompting for its directory")
+	assert.Empty(t, m.pending)
+	// The same directory must not be used for a different workspace merely
+	// because that workspace's own path is also unavailable.
+	runner.Expect([]string{"workspace", "root", "--name", "other", "--ignore-working-copy"}).SetError(errors.New("Workspace has no recorded path"))
+	cmd = m.Update(ItemClickedMsg{Name: "other"})
+	assert.IsType(t, common.ShowInputMsg{}, cmd())
 }
 
 func TestRenameUsesActiveWorkspaceAndUpdatesOnlyAfterSuccess(t *testing.T) {
