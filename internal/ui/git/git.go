@@ -331,7 +331,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	titleBox, contentBox := contentBox.CutTop(1)
 	dl.
-		Text(titleBox.R.Min.X, titleBox.R.Min.Y, render.ZMenuContent).
+		TextIn(titleBox.R, render.ZMenuContent).
 		Styled(m.title, menuTitleStyle).
 		Done()
 
@@ -373,7 +373,7 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, lineBox layout.Box) {
 	dl.AddFill(lineBox.R, ' ', remoteTextStyle, render.ZMenuContent)
 
 	// Render above menu content
-	tb := dl.Text(lineBox.R.Min.X, lineBox.R.Min.Y, render.ZMenuContent+1).
+	tb := dl.TextIn(lineBox.R, render.ZMenuContent+1).
 		Styled(" ", remoteTextStyle).
 		Styled("Remotes: ", remotePromptStyle)
 
@@ -518,20 +518,16 @@ func (m *Model) applyFilters(resetCursor bool) {
 }
 
 func (m *Model) renderFilterView(dl *render.DisplayContext, box layout.Box) {
-	if box.R.Dx() <= 0 || box.R.Dy() <= 0 {
-		return
-	}
-	width := box.R.Dx()
 	menuTextStyle := theme.DefaultPalette.Get("git", "", "text", false)
 	menuMatchedStyle := theme.DefaultPalette.Get("git", "", "matched", false)
-	filterStyle := menuTextStyle.PaddingLeft(1)
-	filterValueStyle := menuMatchedStyle
 
-	filterView := lipgloss.JoinHorizontal(0, filterStyle.Render("Showing "), filterValueStyle.Render("all"))
+	tb := dl.TextIn(box.R, render.ZMenuContent)
 	if m.categoryFilter != "" {
-		filterView = lipgloss.JoinHorizontal(0, filterStyle.Render("Showing only "), filterValueStyle.Render(m.categoryFilter))
+		tb.Styled(" Showing only ", menuTextStyle).Styled(m.categoryFilter, menuMatchedStyle)
+	} else {
+		tb.Styled(" Showing ", menuTextStyle).Styled("all", menuMatchedStyle)
 	}
-	dl.AddDraw(box.R, menuTextStyle.Width(width).Render(filterView), render.ZMenuContent)
+	tb.Done()
 }
 
 func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
@@ -539,7 +535,6 @@ func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
 		return
 	}
 
-	listWidth := max(listBox.R.Dx()-2, 0)
 	items := m.visibleItems()
 	itemCount := len(items)
 	if itemCount == 0 {
@@ -558,7 +553,7 @@ func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
 			if index < 0 || index >= itemCount {
 				return
 			}
-			renderItem(dl, rect, listWidth, m.categoryFilter != "", m.cursor, index, items[index])
+			renderItem(dl, rect, m.categoryFilter != "", index == m.cursor, items[index])
 		},
 		func(index int, _ tea.Mouse) tea.Msg { return itemClickMsg{Index: index} },
 	)
@@ -566,30 +561,7 @@ func (m *Model) renderList(dl *render.DisplayContext, listBox layout.Box) {
 	m.ensureCursorVisible = false
 }
 
-func renderItem(dl *render.DisplayContext, rect layout.Rectangle, width int, showShortcuts bool, cursor int, index int, item item) {
-	var (
-		title string
-		desc  string
-	)
-	title = item.Title()
-	desc = item.Description()
-	shortcut := ""
-	if showShortcuts {
-		shortcut = item.ShortCut()
-	}
-	if width <= 0 {
-		return
-	}
-
-	if len(title) > width {
-		title = title[:width-1] + "…"
-	}
-
-	if len(desc) > width {
-		desc = desc[:width-1] + "…"
-	}
-
-	isSelected := index == cursor
+func renderItem(dl *render.DisplayContext, rect layout.Rectangle, showShortcuts bool, isSelected bool, item item) {
 	getStyle := theme.DefaultPalette.Get
 	if isSelected {
 		getStyle = theme.DefaultPalette.GetBlended
@@ -598,24 +570,20 @@ func renderItem(dl *render.DisplayContext, rect layout.Rectangle, width int, sho
 	descStyle := getStyle("git", "", "dimmed", isSelected)
 	shortcutStyle := getStyle("git", "", "shortcut", isSelected)
 
-	titleLine := ""
-	if shortcut != "" {
-		titleLine = lipgloss.JoinHorizontal(0, shortcutStyle.PaddingLeft(1).Render(shortcut), textStyle.PaddingLeft(1).Render(title))
-	} else {
-		titleLine = textStyle.PaddingLeft(1).Render(title)
+	if isSelected {
+		dl.AddFill(rect, ' ', textStyle, render.ZMenuContent)
 	}
-	titleLine = lipgloss.PlaceHorizontal(width+2, 0, titleLine, lipgloss.WithWhitespaceStyle(textStyle))
 
-	descStyle = descStyle.PaddingLeft(1).PaddingRight(1).Width(width + 2)
-	descLine := descStyle.Render(desc)
-	descLine = lipgloss.PlaceHorizontal(width+2, 0, descLine, lipgloss.WithWhitespaceStyle(textStyle))
-
-	spacerLine := textStyle.Width(width + 2).Render("")
-	content := lipgloss.JoinVertical(lipgloss.Left, titleLine, descLine, spacerLine)
-	if content == "" {
-		return
+	// One column of margin on each side.
+	textRect := layout.Rect(rect.Min.X+1, rect.Min.Y, max(rect.Dx()-2, 0), rect.Dy())
+	tb := dl.TextIn(textRect, render.ZMenuContent)
+	if shortcut := item.ShortCut(); showShortcuts && shortcut != "" {
+		tb.Styled(shortcut, shortcutStyle).Styled(" ", textStyle)
 	}
-	dl.AddDraw(rect, content, render.ZMenuContent)
+	tb.Styled(item.Title(), textStyle).
+		NewLine().
+		Styled(item.Description(), descStyle).
+		Done()
 }
 
 func (m *Model) createMenuItems() []item {
