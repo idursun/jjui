@@ -25,7 +25,7 @@ func (s statusTestState) QueryState(name string) (any, bool) {
 
 func (statusTestState) Selection() common.SelectionSnapshot { return common.SelectionSnapshot{} }
 
-func TestSetScopes_KeepsUnavailableBindingsCrossedOutInExpandedHelp(t *testing.T) {
+func TestSync_KeepsUnavailableBindingsCrossedOutInExpandedHelp(t *testing.T) {
 	previous := config.Current
 	t.Cleanup(func() { config.Current = previous })
 	config.Current = &config.Config{Bindings: []config.BindingConfig{
@@ -42,7 +42,7 @@ func TestSetScopes_KeepsUnavailableBindingsCrossedOutInExpandedHelp(t *testing.T
 	ctx := &context.MainContext{Histories: config.NewHistories()}
 	ctx.SetStateProvider(state)
 	m := New(ctx)
-	m.SetScopes([]common.Scope{{Name: actions.ScopeRevisions}})
+	m.Sync([]common.Scope{{Name: actions.ScopeRevisions}}, nil)
 
 	entries := m.Help()[0].Entries
 	assert.True(t, entries[0].Disabled, "diff should remain visible but unavailable")
@@ -52,7 +52,7 @@ func TestSetScopes_KeepsUnavailableBindingsCrossedOutInExpandedHelp(t *testing.T
 	state["revisions.has_revision"] = true
 	state["revisions.is_empty"] = false
 	state["revisions.has_selection"] = true
-	m.SetScopes([]common.Scope{{Name: actions.ScopeRevisions}})
+	m.Sync([]common.Scope{{Name: actions.ScopeRevisions}}, nil)
 	for _, entry := range m.Help()[0].Entries {
 		assert.False(t, entry.Disabled, "%s became available", entry.Label)
 	}
@@ -87,7 +87,7 @@ func TestModel_CollectGroupEntriesStrikesDisabledAndOverriddenEntries(t *testing
 func TestModel_ViewRectShowsMode(t *testing.T) {
 	ctx := &context.MainContext{Histories: config.NewHistories()}
 	m := New(ctx)
-	m.SetMode("diff")
+	m.mode = "diff"
 
 	dl := render.NewDisplayContext()
 	m.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 40, 1)))
@@ -99,11 +99,11 @@ func TestModel_ViewRectShowsMode(t *testing.T) {
 func TestModel_PromptScopesHideMode(t *testing.T) {
 	for _, scope := range []keybindings.ScopeName{actions.ScopeStatusInput, actions.ScopeQuickSearchInput} {
 		m := New(&context.MainContext{Histories: config.NewHistories()})
-		m.SetMode("revisions")
-		m.SetScopes([]common.Scope{{Name: scope, Leak: common.LeakNone}})
+		m.mode = "revisions"
+		m.Sync([]common.Scope{{Name: scope, Leak: common.LeakNone}}, nil)
 		assert.Empty(t, m.Mode(), scope)
 
-		m.SetHelp([]help.Entry{{Label: "esc", Desc: "cancel"}})
+		m.setHelp([]help.Entry{{Label: "esc", Desc: "cancel"}})
 		dl := render.NewDisplayContext()
 		m.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 40, 1)))
 		assert.True(t, strings.HasPrefix(dl.RenderToString(40, 1), " esc cancel"), scope)
@@ -117,7 +117,7 @@ func TestModel_ViewRectExpandedHelpLeavesMainViewVisible(t *testing.T) {
 	for i := range entries {
 		entries[i] = help.Entry{Label: "k", Desc: "entry"}
 	}
-	m.SetHelp(entries)
+	m.setHelp(entries)
 	m.SetStatusExpanded(true)
 
 	dl := render.NewDisplayContext()
@@ -134,14 +134,13 @@ func TestModel_HintKeysResolveByAction(t *testing.T) {
 		{Action: "ui.expand_status", Label: "ctrl+h", Desc: "expand status help"},
 		{Action: "ui.open_help", Label: "f2", Desc: "help"},
 	}}}
-	m := New(&context.MainContext{Histories: config.NewHistories()})
-	assert.Equal(t, "ctrl+h", m.expandStatusKey(groups))
-	assert.Equal(t, "f2", m.fullHelpKey(groups))
+	assert.Equal(t, "ctrl+h", expandStatusKey(groups))
+	assert.Equal(t, "f2", fullHelpKey(groups))
 
 	groups[0].Entries[0].Overridden = true
 	groups[0].Entries[1].Disabled = true
-	assert.Equal(t, "?", m.expandStatusKey(groups))
-	assert.Equal(t, "f1", m.fullHelpKey(groups))
+	assert.Equal(t, "?", expandStatusKey(groups))
+	assert.Equal(t, "f1", fullHelpKey(groups))
 }
 
 func TestModel_HintKeysFollowReboundBindings(t *testing.T) {
@@ -151,8 +150,7 @@ func TestModel_HintKeysFollowReboundBindings(t *testing.T) {
 		{Action: "ui.expand_status", Scope: "ui", Key: config.StringList{"ctrl+h"}, Desc: "expand status help"},
 		{Action: "ui.open_help", Scope: "ui", Key: config.StringList{"f2"}, Desc: "help"},
 	}}
-	m := New(&context.MainContext{Histories: config.NewHistories()})
 	groups := help.BuildGroupedFromBindings([]keybindings.ScopeName{"ui"}, config.Current.Bindings)
-	assert.Equal(t, "ctrl+h", m.expandStatusKey(groups))
-	assert.Equal(t, "f2", m.fullHelpKey(groups))
+	assert.Equal(t, "ctrl+h", expandStatusKey(groups))
+	assert.Equal(t, "f2", fullHelpKey(groups))
 }

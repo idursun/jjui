@@ -17,8 +17,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/theme"
 )
 
-var expandFallback = help.Entry{Label: "?", Desc: "expand status"}
-
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
@@ -102,12 +100,8 @@ func (m *Model) renderExpandedStatusBorder(dl *render.DisplayContext, box layout
 	dl.AddDraw(borderRect, topBorder, render.ZExpandedStatus)
 }
 
-// renderExpandedStatusContent draws the content for the expanded status
-// Each line is a single row, positioned below the border (hence startY + 1)
-//
-// Each line is left-padded with 2 spaces and right-padded to fill the
-// available width, accounting for 4 total characters of horizontal padding
-// (2 left + 2 reserved for borders).
+// renderExpandedStatusContent draws each line below the top border, with a
+// 2-column margin on both sides.
 func (m *Model) renderExpandedStatusContent(dl *render.DisplayContext, box layout.Box, width, startY int, lines []string, textStyle lipgloss.Style) {
 	for i, line := range lines {
 		// Position each line below the border, offset by its index
@@ -118,8 +112,6 @@ func (m *Model) renderExpandedStatusContent(dl *render.DisplayContext, box layou
 			continue
 		}
 
-		// calculate right padding
-		// subtract 4 for: 2 chars left padding + 2 chars border space
 		padding := max(0, width-render.StringWidth(line)-4)
 
 		paddedLine := "  " + line + strings.Repeat(" ", padding)
@@ -130,15 +122,10 @@ func (m *Model) renderExpandedStatusContent(dl *render.DisplayContext, box layou
 	}
 }
 
-func (m *Model) SetScopes(scopes []common.Scope) {
-	m.setModeFromScopes(scopes)
-	m.setHelpFromScopes(scopes)
-}
-
 func (m *Model) Sync(scopes []common.Scope, sequenceHelp []help.Entry) {
 	m.setModeFromScopes(scopes)
 	if sequenceHelp != nil {
-		m.SetHelp(sequenceHelp)
+		m.setHelp(sequenceHelp)
 		return
 	}
 	m.setHelpFromScopes(scopes)
@@ -190,17 +177,19 @@ func (m *Model) condition(source string) (actionmeta.Condition, bool) {
 }
 
 func (m *Model) setModeFromScopes(scopes []common.Scope) {
-	if labelledByPrompt(common.VisibleScopes(scopes)) {
+	scope, ok := firstNamedScope(common.VisibleScopes(scopes))
+	if !ok {
+		return
+	}
+	// prompts draw their own mode label next to their input
+	if scope.Name == actions.ScopeStatusInput || scope.Name == actions.ScopeQuickSearchInput {
 		m.mode = ""
 		return
 	}
-	mode := modeFromScopes(common.VisibleScopes(scopes))
-	if mode != "" {
-		m.SetMode(mode)
-	}
+	m.mode = modeNameForScope(scope.Name)
 }
 
-func (m *Model) SetHelp(entries []help.Entry) {
+func (m *Model) setHelp(entries []help.Entry) {
 	if len(entries) == 0 {
 		m.setGroups(nil)
 		return
@@ -241,33 +230,17 @@ func (m *Model) Help() []help.ScopeGroup {
 	return m.groups
 }
 
-func modeFromScopes(scopes []common.Scope) string {
+func firstNamedScope(scopes []common.Scope) (common.Scope, bool) {
 	for _, scope := range scopes {
-		if scope.Name == "" {
-			continue
+		if scope.Name != "" {
+			return scope, true
 		}
-		return modeNameForScope(scope.Name)
 	}
-	return ""
-}
-
-// prompts draw their own mode label next to their input
-func labelledByPrompt(scopes []common.Scope) bool {
-	for _, scope := range scopes {
-		if scope.Name == "" {
-			continue
-		}
-		return scope.Name == actions.ScopeStatusInput || scope.Name == actions.ScopeQuickSearchInput
-	}
-	return false
+	return common.Scope{}, false
 }
 
 func modeNameForScope(scope keybindings.ScopeName) string {
 	return strings.ToLower(help.ScopeDisplayName(string(scope)))
-}
-
-func (m *Model) SetMode(mode string) {
-	m.mode = mode
 }
 
 func (m *Model) Mode() string {
@@ -275,9 +248,9 @@ func (m *Model) Mode() string {
 }
 
 func (m *Model) expandedStatusView(groups []help.ScopeGroup, maxWidth, maxLines int, titleStyle, shortcutStyle, dimmedStyle lipgloss.Style) (string, int) {
-	expandKey := m.expandStatusKey(groups)
+	expandKey := expandStatusKey(groups)
 	closeHint := shortcutStyle.Render(expandKey+"/esc") + dimmedStyle.PaddingLeft(1).Render("close help")
-	fullHelpHint := shortcutStyle.Render(m.fullHelpKey(groups)) + dimmedStyle.PaddingLeft(1).Render("full help")
+	fullHelpHint := shortcutStyle.Render(fullHelpKey(groups)) + dimmedStyle.PaddingLeft(1).Render("full help")
 
 	renderedGroups := make([][]string, len(groups))
 	maxEntryWidth := 0
@@ -369,7 +342,7 @@ func (m *Model) buildHelpGrid(entries []string, maxEntryWidth, maxWidth int) []s
 func (m *Model) groupedHelpView(groups []help.ScopeGroup, maxWidth int, shortcutStyle, dimmedStyle lipgloss.Style) (string, bool) {
 	separator := dimmedStyle.Render(" • ")
 	groupSeparator := dimmedStyle.Render(" │ ")
-	expandKey := m.expandStatusKey(groups)
+	expandKey := expandStatusKey(groups)
 	moreHint := separator + shortcutStyle.Render(expandKey) + dimmedStyle.PaddingLeft(1).Render("more")
 
 	separatorWidth := render.StringWidth(separator)
@@ -429,11 +402,11 @@ func (m *Model) groupedHelpView(groups []help.ScopeGroup, maxWidth int, shortcut
 	return result.String(), truncated
 }
 
-func (m *Model) expandStatusKey(groups []help.ScopeGroup) string {
-	return actionKey(groups, "ui.expand_status", expandFallback.Label)
+func expandStatusKey(groups []help.ScopeGroup) string {
+	return actionKey(groups, "ui.expand_status", "?")
 }
 
-func (m *Model) fullHelpKey(groups []help.ScopeGroup) string {
+func fullHelpKey(groups []help.ScopeGroup) string {
 	return actionKey(groups, "ui.open_help", "f1")
 }
 
