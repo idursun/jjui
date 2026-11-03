@@ -1,10 +1,12 @@
 package render
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/ui/layout"
 )
 
@@ -232,5 +234,88 @@ func TestTextBuilder_Space(t *testing.T) {
 
 	if draws[2].Rect.Min.X != 3 {
 		t.Errorf("expected last segment at x=3, got x=%d", draws[2].Rect.Min.X)
+	}
+}
+
+func renderPlainLines(dl *DisplayContext, width, height int) []string {
+	lines := strings.Split(ansi.Strip(dl.RenderToString(width, height)), "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRight(line, " ")
+	}
+	return lines
+}
+
+func TestTextBuilder_TextInTruncatesWithEllipsis(t *testing.T) {
+	tests := []struct {
+		name  string
+		build func(tb *TextBuilder)
+		want  string
+	}{
+		{"fits", func(tb *TextBuilder) { tb.Write("abc") }, "abc"},
+		{"cuts inside a segment", func(tb *TextBuilder) { tb.Write("ab").Write("cdefgh") }, "abcd…"},
+		{"marks a segment that fills the line exactly", func(tb *TextBuilder) { tb.Write("abcde").Write("f") }, "abcd…"},
+		{"counts columns, not bytes", func(tb *TextBuilder) { tb.Write("日本語です") }, "日本…"},
+		{"keeps cutting after a newline", func(tb *TextBuilder) { tb.Write("abcdefg").NewLine().Write("hi") }, "abcd…\nhi"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dl := NewDisplayContext()
+			tb := dl.TextIn(layout.Rect(0, 0, 5, 2), 0)
+			tt.build(tb)
+			tb.Done()
+
+			got := strings.TrimRight(strings.Join(renderPlainLines(dl, 8, 2), "\n"), "\n")
+			if got != tt.want {
+				t.Fatalf("expected %q, got %q", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestTextBuilder_TextInKeepsEllipsisInSegmentStyle(t *testing.T) {
+	dl := NewDisplayContext()
+	style := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+
+	dl.TextIn(layout.Rect(0, 0, 4, 1), 0).Styled("abcdef", style).Done()
+
+	if len(dl.draws) != 1 {
+		t.Fatalf("expected 1 draw, got %d", len(dl.draws))
+	}
+	if want := style.Render("abc…"); dl.draws[0].Content != want {
+		t.Fatalf("expected %q, got %q", want, dl.draws[0].Content)
+	}
+}
+
+func TestTextBuilder_TextInDropsLinesBelowRect(t *testing.T) {
+	dl := NewDisplayContext()
+
+	tb := dl.TextIn(layout.Rect(2, 1, 10, 1), 0).
+		Write("one").
+		NewLine().
+		Clickable("two", lipgloss.NewStyle(), testClickMsg{ID: 2})
+
+	if _, height := tb.Measure(); height != 1 {
+		t.Fatalf("expected measured height 1, got %d", height)
+	}
+	tb.Done()
+
+	if len(dl.draws) != 1 {
+		t.Fatalf("expected 1 draw, got %d", len(dl.draws))
+	}
+	if r := dl.draws[0].Rect; r.Min.X != 2 || r.Min.Y != 1 {
+		t.Errorf("expected draw at 2,1 got %d,%d", r.Min.X, r.Min.Y)
+	}
+	if len(dl.interactions) != 0 {
+		t.Errorf("expected no interactions for the dropped line, got %d", len(dl.interactions))
+	}
+}
+
+func TestTextBuilder_TextInEmptyRectDrawsNothing(t *testing.T) {
+	dl := NewDisplayContext()
+
+	dl.TextIn(layout.Rect(0, 0, 0, 0), 0).Write("abc").Done()
+
+	if len(dl.draws) != 0 {
+		t.Fatalf("expected no draws, got %d", len(dl.draws))
 	}
 }
