@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -8,9 +9,12 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/askpass"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/input"
@@ -225,6 +229,42 @@ func TestWorkspaceUpdateStaleUpdatesBrowsedWorkspaceWithoutActivation(t *testing
 	assert.Equal(t, "default", model.context.WorkspaceName)
 	assert.Equal(t, root, model.context.Location)
 	assert.Contains(t, run(feature, "status"), "updated working copy")
+}
+
+func TestActiveWorkspaceGraphLabelIsRedAndFollowsActivation(t *testing.T) {
+	root, run := workspaceTestRepo(t)
+	feature := filepath.Join(filepath.Dir(root), "feature")
+	run(root, "workspace", "add", "--name", "feature", "--no-colocate", feature)
+	model := newWorkspaceTestUI(t, root)
+	assertColors := func(active, inactive string) {
+		t.Helper()
+		ctx := model.context
+		out, err := ctx.RunCommandImmediate(jj.Log("all()", 0, ctx.JJConfig.Templates.Log, ctx.GraphPriority))
+		require.NoError(t, err)
+		styles := make(map[string]lipgloss.Style)
+		for _, row := range parser.ParseRows(bytes.NewReader(out)) {
+			for _, line := range row.Lines {
+				for _, segment := range line.Segments {
+					for _, name := range []string{active, inactive} {
+						if strings.Contains(segment.Text, name+"@") {
+							styles[name] = segment.Style
+						}
+					}
+				}
+			}
+		}
+		require.Contains(t, styles, active)
+		require.Contains(t, styles, inactive)
+		assert.Equal(t, lipgloss.Color("1"), styles[active].GetForeground(), "active workspace should be red")
+		assert.True(t, styles[active].GetBold())
+		assert.Equal(t, lipgloss.Color("2"), styles[inactive].GetForeground(), "other workspaces should retain jj's green")
+	}
+	assertColors("default", "feature")
+	test.SimulateModel(model, model.Update(intents.OpenWorkspaces{}))
+	test.SimulateModel(model, model.Update(workspacepane.ItemClickedMsg{Name: "feature"}))
+	assertColors("default", "feature")
+	test.SimulateModel(model, model.Update(intents.Apply{}))
+	assertColors("feature", "default")
 }
 
 func TestQueuedRevisionCommandStaysInOriginalWorkspace(t *testing.T) {
