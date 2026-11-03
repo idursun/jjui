@@ -153,14 +153,14 @@ func TestWorkspacePanelRemovesActiveWorkspaceAndReturnsToLaunch(t *testing.T) {
 	test.SimulateModel(model, model.Update(intents.OpenWorkspaces{}))
 	test.SimulateModel(model, model.Update(workspacepane.ItemClickedMsg{Name: "feature"}))
 	require.Equal(t, "feature", model.context.WorkspaceName)
-	selected := model.revisions.SelectedRevision().ChangeId
+	selected := run(feature, "log", "-r", model.revisions.SelectedRevision().CommitId, "--no-graph", "-T", "change_id")
 	test.SimulateModel(model, model.Update(intents.WorkspaceRemove{}))
 	test.SimulateModel(model, model.Update(intents.OptionSelect{Delta: 1}))
 	test.SimulateModel(model, model.Update(intents.Apply{}))
 	assert.Equal(t, "default", model.context.WorkspaceName)
 	assert.Equal(t, root, model.context.Location)
 	assert.NoDirExists(t, feature)
-	assert.Equal(t, selected, model.revisions.SelectedRevision().ChangeId)
+	assert.Equal(t, selected, run(root, "log", "-r", model.revisions.SelectedRevision().CommitId, "--no-graph", "-T", "change_id"))
 }
 
 func TestWorkspacePanelAddsWorkspaceWithoutActivatingIt(t *testing.T) {
