@@ -5,10 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -203,23 +201,4 @@ func TestModel_ViewInputRectUsesFullWidth(t *testing.T) {
 
 	assert.Equal(t, 27, m.input.Width())
 	assert.NotNil(t, dl.Cursor())
-}
-
-func TestStatus_Update_FileSearchFocusesAndTypingUpdatesInput(t *testing.T) {
-	ctx := &context.MainContext{
-		Histories: config.NewHistories(),
-	}
-	m := New(ctx)
-
-	cmd := m.Update(common.FileSearchMsg{
-		Revset:     "@",
-		Commit:     &jj.Commit{ChangeId: "abc123", CommitId: "def456"},
-		RawFileOut: []byte("a.txt\nb.txt"),
-	})
-	assert.NotNil(t, cmd)
-	assert.Equal(t, FocusFileSearch, m.FocusKind())
-	assert.True(t, m.IsFocused())
-
-	m.Update(tea.KeyPressMsg{Text: "x", Code: 'x'})
-	assert.Equal(t, "x", m.InputValue())
 }

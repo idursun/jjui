@@ -13,7 +13,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/exec_process"
-	"github.com/idursun/jjui/internal/ui/fuzzy_files"
 	"github.com/idursun/jjui/internal/ui/fuzzy_input"
 	"github.com/idursun/jjui/internal/ui/fuzzy_search"
 	"github.com/idursun/jjui/internal/ui/help"
@@ -30,7 +29,6 @@ type FocusKind int
 const (
 	FocusNone FocusKind = iota
 	FocusInput
-	FocusFileSearch
 	FocusQuickSearch
 )
 
@@ -72,8 +70,6 @@ func (m *Model) Scopes() []common.Scope {
 	}
 	var scope keybindings.ScopeName
 	switch m.focusKind {
-	case FocusFileSearch:
-		scope = actions.ScopeFileSearch
 	case FocusInput:
 		scope = actions.ScopeStatusInput
 	case FocusQuickSearch:
@@ -94,14 +90,9 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent.(type) {
 	case intents.Cancel:
 		if m.IsFocused() {
-			editMode := m.mode
-			fuzzy := m.fuzzy
 			m.fuzzy = nil
 			m.focusKind = FocusNone
 			m.input.Reset()
-			if fuzzy != nil && strings.HasSuffix(editMode, "file") {
-				return fuzzy.Update(intents.FileSearchCancel{}), true
-			}
 			return nil, true
 		}
 	case intents.Apply:
@@ -123,13 +114,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			m.mode = ""
 			m.input.Reset()
 
-			switch {
-			case strings.HasSuffix(editMode, "file"):
-				if fuzzy != nil {
-					return fuzzy.Update(intents.FileSearchAccept{}), true
-				}
-				return nil, true
-			case strings.HasPrefix(editMode, "exec"):
+			if strings.HasPrefix(editMode, "exec") {
 				return func() tea.Msg { return exec_process.ExecMsgFromLine(prompt, input) }, true
 			}
 			return func() tea.Msg { return common.QuickSearchMsg(input) }, true
@@ -147,13 +132,6 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case common.FileSearchMsg:
-		m.mode = "rev file"
-		m.input.Prompt = "> "
-		m.loadEditingSuggestions()
-		m.focusKind = FocusFileSearch
-		m.fuzzy = fuzzy_files.NewModel(msg)
-		return tea.Batch(m.fuzzy.Init(), m.input.Focus())
 	case common.ExecProcessCompletedMsg:
 		if msg.Err != nil {
 			m.mode = "exec " + msg.Msg.Mode.Mode

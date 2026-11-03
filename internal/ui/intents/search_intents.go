@@ -40,10 +40,6 @@ type FileSearchNavigate struct {
 
 func (FileSearchNavigate) isIntent() {}
 
-type FileSearchCancel struct{}
-
-func (FileSearchCancel) isIntent() {}
-
 //jjui:bind scope=file_search action=edit
 type FileSearchEdit struct{}
 
@@ -53,10 +49,6 @@ func (FileSearchEdit) isIntent() {}
 type FileSearchTogglePreview struct{}
 
 func (FileSearchTogglePreview) isIntent() {}
-
-type FileSearchAccept struct{}
-
-func (FileSearchAccept) isIntent() {}
 
 //jjui:bind scope=file_search action=page_up set=Kind:PreviewPageUp
 //jjui:bind scope=file_search action=page_down set=Kind:PreviewPageDown
