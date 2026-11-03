@@ -13,11 +13,13 @@ import (
 	"github.com/idursun/jjui/internal/ui/preview"
 	"github.com/idursun/jjui/internal/ui/revisions"
 	"github.com/idursun/jjui/internal/ui/split"
+	"github.com/idursun/jjui/internal/ui/workspacepane"
 )
 
 const (
-	previewContentID  = "preview"
-	bookmarkContentID = "bookmark-pane"
+	previewContentID   = "preview"
+	bookmarkContentID  = "bookmark-pane"
+	workspaceContentID = "workspace-pane"
 )
 
 func (m *Model) initSplitContainer() {
@@ -32,6 +34,7 @@ func (m *Model) initSplitContainer() {
 	m.splitContainer.OnPrimaryFocus = m.revisions.SetFocused
 	m.splitContainer.RegisterContent(previewContentID, preview.New(m.context))
 	m.splitContainer.RegisterContent(bookmarkContentID, bookmarkpane.New(m.context))
+	m.splitContainer.RegisterContent(workspaceContentID, workspacepane.New(m.context))
 	if config.Current.Preview.ShowAtStart {
 		_, _ = m.splitContainer.ShowContent(previewContentID)
 	}
@@ -54,6 +57,24 @@ func (m *Model) selectionChanged() tea.Cmd {
 
 func (m *Model) handleSplitMsg(msg tea.Msg) (tea.Cmd, bool) {
 	switch msg := msg.(type) {
+	case workspacepane.Message:
+		cmd, _ := m.splitContainer.UpdateContent(workspaceContentID, msg)
+		return cmd, true
+	case workspacepane.ActivateMsg:
+		if err := m.context.ActivateWorkspace(msg.Name, msg.Path); err != nil {
+			return intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err}), true
+		}
+		m.revsetModel.ReloadWorkspaceConfig()
+		// Invalidate graph loads now, before an old workspace's result can arrive.
+		refresh := common.RefreshMsg{KeepSelections: true}
+		return tea.Batch(m.revisions.Update(refresh), m.updateSplit(refresh)), true
+	case workspacepane.ReturnToRevisionsMsg:
+		m.splitContainer.FocusPrimary()
+		return nil, true
+	case workspacepane.ItemClickedMsg, workspacepane.PaneClickedMsg:
+		if m.splitContainer.ActiveID() == workspaceContentID {
+			m.splitContainer.FocusSplitContent()
+		}
 	case common.ShowPreview:
 		cmd, shown := m.splitContainer.ShowContent(previewContentID)
 		m.splitContainer.FocusPrimary()
@@ -95,6 +116,14 @@ func (m *Model) handleSplitIntent(intent intents.Intent) (tea.Cmd, bool) {
 	}
 
 	switch msg := intent.(type) {
+	case intents.OpenWorkspaces:
+		if m.splitContainer.ActiveID() == workspaceContentID {
+			m.splitContainer.Close()
+			return nil, true
+		}
+		cmd, _ := m.splitContainer.ShowContent(workspaceContentID)
+		m.splitContainer.FocusSplitContent()
+		return cmd, true
 	case intents.ToggleBookmarkPane:
 		if m.splitContainer.ActiveID() == bookmarkContentID {
 			m.splitContainer.Close()
@@ -105,7 +134,7 @@ func (m *Model) handleSplitIntent(intent intents.Intent) (tea.Cmd, bool) {
 		m.splitContainer.FocusSplitContent()
 		return cmd, true
 	case intents.FocusNextPane:
-		if m.splitContainer.ActiveID() == bookmarkContentID {
+		if m.splitContainer.ActiveID() == bookmarkContentID || m.splitContainer.ActiveID() == workspaceContentID {
 			m.splitContainer.ToggleFocus()
 		}
 		return nil, true

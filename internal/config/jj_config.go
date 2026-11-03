@@ -12,7 +12,8 @@ type JJConfig struct {
 	Colors        map[string]Color `toml:"colors"`
 	RevsetAliases RevsetAliasMap   `toml:"revset-aliases"`
 	Revsets       struct {
-		Log string `toml:"log"`
+		Log                string `toml:"log"`
+		LogGraphPrioritize string `toml:"log-graph-prioritize"`
 	} `toml:"revsets"`
 	Templates struct {
 		Log string `toml:"log"`

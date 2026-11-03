@@ -179,6 +179,9 @@ func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
 }
 
 func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
+	if refresh, ok := msg.(common.RefreshMsg); ok && refresh.Location != "" && refresh.Location != m.context.Location {
+		return nil
+	}
 	var completionID string
 	defer func() {
 		cmd = tea.Batch(cmd, m.notifyHighlightChange())

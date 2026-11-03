@@ -45,6 +45,11 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	width := box.R.Dx()
 	dl.AddFill(box.R, ' ', textStyle, 0)
+	workspaceLabel := ""
+	if m.context.WorkspaceName != "" {
+		workspaceLabel = dimmedStyle.Render(" workspace: " + m.context.WorkspaceName + " ")
+		width = max(0, width-render.StringWidth(workspaceLabel))
+	}
 	// without a mode label, indent by the label's left padding to line up with the prompt label above
 	statusLine := textStyle.Render(" ") + m.renderHelpBar(max(0, width-1), textStyle, shortcutStyle, dimmedStyle)
 	if m.mode != "" {
@@ -53,8 +58,15 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		helpBar := m.renderHelpBar(max(0, width-modeWidth-1), textStyle, shortcutStyle, dimmedStyle)
 		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, textStyle.Render(" "), helpBar)
 	}
-	dl.AddDraw(box.R, statusLine, 0)
-	m.renderExpandedStatus(dl, box, width, textStyle, titleStyle, shortcutStyle, dimmedStyle)
+	helpRect := box.R
+	helpRect.Max.X = helpRect.Min.X + width
+	dl.AddDraw(helpRect, statusLine, 0)
+	if workspaceLabel != "" {
+		labelRect := box.R
+		labelRect.Min.X = helpRect.Max.X
+		dl.AddDraw(labelRect, workspaceLabel, 0)
+	}
+	m.renderExpandedStatus(dl, box, box.R.Dx(), textStyle, titleStyle, shortcutStyle, dimmedStyle)
 }
 
 // renderHelpBar renders the help keybindings bar.

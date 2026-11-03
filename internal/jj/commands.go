@@ -41,8 +41,11 @@ func ConfigListAll() CommandArgs {
 	return []string{"config", "list", "--color", "never", "--include-defaults", "--ignore-working-copy"}
 }
 
-func Log(revset string, limit int, jjTemplate string) CommandArgs {
+func Log(revset string, limit int, jjTemplate string, graphPriority ...string) CommandArgs {
 	args := []string{"log", "--color", "always", "--quiet"}
+	if len(graphPriority) > 0 && graphPriority[0] != "" {
+		args = append(args, "--config", fmt.Sprintf("revsets.log-graph-prioritize=%q", graphPriority[0]))
+	}
 	if revset != "" {
 		args = append(args, "-r", revset)
 	}

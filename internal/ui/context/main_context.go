@@ -1,7 +1,9 @@
 package context
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -25,10 +27,13 @@ type MainContext struct {
 	CommandRunner
 	stateProvider             common.ApplicationStateProvider
 	Location                  string
+	WorkspaceName             string
+	repositoryPath            string
 	WorkingDirectory          string
 	JJConfig                  *config.JJConfig
 	DefaultRevset             string
 	CurrentRevset             string
+	GraphPriority             string
 	TerminalHasDarkBackground bool
 	TerminalThemeDetected     bool
 	TerminalBackground        string
@@ -76,6 +81,9 @@ func NewAppContext(location string, aps *askpass.Server) *MainContext {
 	m.JJConfig = &config.JJConfig{}
 	if output, err := m.RunCommandImmediate(jj.ConfigListAll()); err == nil {
 		m.JJConfig, _ = config.DefaultConfig(output)
+	}
+	if output, err := m.RunCommandImmediate(jj.WorkspaceList()); err == nil {
+		m.IdentifyWorkspace(jj.ParseWorkspaces(string(output)))
 	}
 	return m
 }
@@ -151,9 +159,126 @@ func (ctx *MainContext) CreateReplacements() map[string]string {
 
 func (ctx *MainContext) ChangeWorkspace(path string) {
 	ctx.Location = path
+	ctx.CommandRunner = ctx.RunnerAt(path)
+	ctx.WorkspaceName = ""
+	ctx.repositoryPath = ""
+	ctx.GraphPriority = ""
+}
+
+// RunnerAt leaves existing commands attached to their original directory.
+func (ctx *MainContext) RunnerAt(path string) CommandRunner {
 	if runner, ok := ctx.CommandRunner.(*MainCommandRunner); ok {
-		runner.Location = path
+		return &MainCommandRunner{Location: path, Askpass: runner.Askpass}
 	}
+	return ctx.CommandRunner
+}
+
+// IdentifyWorkspace uses the current-working-copy hint only when it is unambiguous.
+// Multiple workspaces can point at the same revision.
+func (ctx *MainContext) IdentifyWorkspace(workspaces []jj.Workspace) {
+	var candidates []string
+	for _, workspace := range workspaces {
+		if workspace.Current {
+			candidates = append(candidates, workspace.Name)
+		}
+	}
+	if len(candidates) == 1 {
+		ctx.WorkspaceName = candidates[0]
+		return
+	}
+	for _, name := range candidates {
+		out, err := ctx.RunCommandImmediate([]string{"workspace", "root", "--name", name, "--ignore-working-copy"})
+		if err == nil && filepath.Clean(string(out)) == filepath.Clean(ctx.Location) {
+			ctx.WorkspaceName = name
+			return
+		}
+	}
+}
+
+// ActivateWorkspace validates the destination before changing any live context.
+func (ctx *MainContext) ActivateWorkspace(name, path string) error {
+	runner := ctx.RunnerAt(path)
+	out, err := runner.RunCommandImmediate([]string{"-R", path, "root", "--ignore-working-copy"})
+	if err != nil {
+		return err
+	}
+	root := strings.TrimSpace(string(out))
+	if root == "" {
+		return fmt.Errorf("workspace %s has no root directory", name)
+	}
+	// A manually located directory must belong to this repository, not just
+	// contain a workspace with the same name in an unrelated repository.
+	repositoryPath := ctx.repositoryPath
+	if repositoryPath == "" {
+		before, err := ctx.RunCommandImmediate([]string{"git", "root", "--ignore-working-copy"})
+		if err != nil {
+			return err
+		}
+		repositoryPath = filepath.Clean(string(before))
+	}
+	after, err := runner.RunCommandImmediate([]string{"-R", root, "git", "root", "--ignore-working-copy"})
+	if err != nil {
+		return err
+	}
+	if repositoryPath != filepath.Clean(string(after)) {
+		return fmt.Errorf("%s belongs to a different repository", root)
+	}
+	// Check the name as well, including paths supplied for older jj versions
+	// that cannot resolve another workspace's root by name.
+	out, err = runner.RunCommandImmediate(append([]string{"-R", root}, jj.WorkspaceList()...))
+	if err != nil {
+		return err
+	}
+	matched := false
+	currentCount := 0
+	for _, workspace := range jj.ParseWorkspaces(string(out)) {
+		if workspace.Current {
+			currentCount++
+		}
+		if workspace.Name == name && workspace.Current {
+			matched = true
+		}
+	}
+	if !matched {
+		return fmt.Errorf("%s is not workspace %s", root, name)
+	}
+	if currentCount > 1 {
+		actualRoot, err := runner.RunCommandImmediate([]string{"-R", root, "workspace", "root", "--name", name, "--ignore-working-copy"})
+		if err != nil {
+			return fmt.Errorf("cannot verify workspace %s: %w", name, err)
+		}
+		if filepath.Clean(string(actualRoot)) != filepath.Clean(root) {
+			return fmt.Errorf("%s is not workspace %s", root, name)
+		}
+	}
+	out, err = runner.RunCommandImmediate(append([]string{"-R", root}, jj.ConfigListAll()...))
+	if err != nil {
+		return err
+	}
+	jjConfig, err := config.DefaultConfig(out)
+	if err != nil {
+		return err
+	}
+	priority := ctx.GraphPriority
+	if priority == "" {
+		priority = "none()"
+		if expression := ctx.JJConfig.Revsets.LogGraphPrioritize; expression != "" {
+			out, err := ctx.RunCommandImmediate([]string{"log", "--no-graph", "--ignore-working-copy", "--color", "never", "-r", expression, "-T", `commit_id ++ "\n"`})
+			if err != nil {
+				return err
+			}
+			if ids := strings.Fields(string(out)); len(ids) > 0 {
+				priority = strings.Join(ids, " | ")
+			}
+		}
+	}
+	ctx.ChangeWorkspace(root)
+	ctx.WorkspaceName = name
+	ctx.repositoryPath = repositoryPath
+	ctx.WorkingDirectory = root
+	ctx.JJConfig = jjConfig
+	ctx.GraphPriority = priority
+	return nil
 }
 
 func (ctx *MainContext) GetSelectedRevisions() map[string]bool {

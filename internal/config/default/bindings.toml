@@ -47,6 +47,7 @@ bindings = [
     { key = "r", action = "revisions.open_rebase", scope = "revisions", desc = "rebase" },
     { key = "v", action = "revisions.open_evolog", scope = "revisions", desc = "evolog" },
     { key = "b", action = "ui.open_bookmarks", scope = "revisions", desc = "bookmarks" },
+    { key = "w", action = "ui.open_workspaces", scope = "revisions", desc = "workspaces" },
     { key = "g", action = "ui.open_git", scope = "revisions", desc = "git" },
     { key = "o", action = "ui.open_oplog", scope = "revisions", desc = "oplog" },
     { key = "shift+s", action = "revisions.open_squash", scope = "revisions", desc = "squash" },
@@ -87,6 +88,24 @@ bindings = [
     { key = "shift+p", action = "ui.preview_toggle_bottom", scope = "revisions", desc = "move preview to bottom" },
     { key = "tab", action = "ui.focus_next_pane", scope = "revisions", desc = "next pane" },
     { key = "esc", action = "revisions.cancel", scope = "revisions", desc = "clear selection" },
+
+    # workspace pane: navigation changes the active execution workspace
+    { key = "w", action = "ui.open_workspaces", scope = "workspace_pane", desc = "close workspaces" },
+    { key = ["up", "k", "ctrl+p"], action = "workspace_pane.move_up", scope = "workspace_pane", desc = "previous workspace" },
+    { key = ["down", "j", "ctrl+n"], action = "workspace_pane.move_down", scope = "workspace_pane", desc = "next workspace" },
+    { key = "enter", action = "workspace_pane.apply", scope = "workspace_pane", desc = "return to revisions" },
+    { key = "esc", action = "workspace_pane.cancel", scope = "workspace_pane", desc = "close" },
+    { key = "a", action = "workspace_pane.add", scope = "workspace_pane", desc = "add" },
+    { key = "r", action = "workspace_pane.rename", scope = "workspace_pane", desc = "rename active" },
+    { key = "f", action = "workspace_pane.forget", scope = "workspace_pane", desc = "forget active" },
+    { key = "d", action = "workspace_pane.remove", scope = "workspace_pane", desc = "remove active" },
+    { key = "p", action = "workspace_pane.root", scope = "workspace_pane", desc = "show path" },
+    { key = "u", action = "workspace_pane.update_stale", scope = "workspace_pane", desc = "update stale" },
+    { key = "ctrl+r", action = "workspace_pane.refresh", scope = "workspace_pane", desc = "refresh" },
+    { key = "esc", action = "workspace_pane.confirmation.cancel", scope = "workspace_pane.confirmation", desc = "cancel" },
+    { key = "enter", action = "workspace_pane.confirmation.apply", scope = "workspace_pane.confirmation", desc = "apply" },
+    { key = ["left", "h"], action = "workspace_pane.confirmation.prev", scope = "workspace_pane.confirmation", desc = "previous option" },
+    { key = ["right", "l"], action = "workspace_pane.confirmation.next", scope = "workspace_pane.confirmation", desc = "next option" },
 
     # revisions.quick_search
     { key = "'", action = "revisions.quick_search.next", scope = "revisions.quick_search", desc = "next" },

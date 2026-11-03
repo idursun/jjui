@@ -1369,8 +1369,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 }
 
 func (m *Model) load(revset string, tag uint64) tea.Cmd {
+	runner, template, priority := m.context.CommandRunner, m.context.JJConfig.Templates.Log, m.context.GraphPriority
 	return func() tea.Msg {
-		output, err := m.context.RunCommandImmediate(jj.Log(revset, config.Current.Limit, m.context.JJConfig.Templates.Log))
+		output, err := runner.RunCommandImmediate(jj.Log(revset, config.Current.Limit, template, priority))
 		if err != nil {
 			return common.UpdateRevisionsFailedMsg{
 				Err:    err,
@@ -1386,12 +1387,13 @@ func (m *Model) load(revset string, tag uint64) tea.Cmd {
 }
 
 func (m *Model) loadStreaming(revset string, tag uint64) tea.Cmd {
+	runner, template, priority := m.context.CommandRunner, m.context.JJConfig.Templates.Log, m.context.GraphPriority
 	return func() tea.Msg {
 		if m.tag.Load() != tag {
 			return nil
 		}
 
-		streamer, err := graph.NewGraphStreamer(context.Background(), m.context, revset, m.context.JJConfig.Templates.Log)
+		streamer, err := graph.NewGraphStreamer(context.Background(), runner, revset, template, priority)
 		var errMsg string
 		if err != nil {
 			if err == io.EOF {
