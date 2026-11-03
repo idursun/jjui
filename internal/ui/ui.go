@@ -353,15 +353,19 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 		}
 		return tea.Sequence(cmd, actionCompleted(msg.CompletionID))
 	case common.DispatchActionMsg:
-		if actionmeta.IsBuiltInAction(msg.Action) {
-			if err := actionmeta.ValidateBuiltInActionArgs(msg.Action, msg.Args); err != nil {
+		if m.resolver == nil {
+			return actionCompleted(msg.CompletionID)
+		}
+		actionName := strings.TrimSpace(msg.Action)
+		if actionmeta.IsBuiltInAction(actionName) {
+			if err := actionmeta.ValidateBuiltInActionArgs(actionName, msg.Args); err != nil {
 				return tea.Sequence(
 					intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err}),
 					actionCompleted(msg.CompletionID),
 				)
 			}
 		}
-		action := keybindings.Action(strings.TrimSpace(msg.Action))
+		action := keybindings.Action(actionName)
 		var result dispatch.Result
 		if msg.BuiltIn {
 			result = m.resolver.ResolveBuiltInAction(action, msg.Args)
@@ -941,6 +945,7 @@ func (m *Model) initResolver() {
 	bindings := config.BindingsToRuntime(config.Current.Bindings)
 	dispatcher, err := dispatch.NewDispatcher(bindings)
 	if err != nil {
+		log.Printf("failed to initialise key bindings: %v", err)
 		return
 	}
 	dispatcher.SetStateProvider(m)
