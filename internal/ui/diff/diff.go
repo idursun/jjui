@@ -2,6 +2,7 @@ package diff
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -451,10 +452,29 @@ func (m *Model) loadFile(file jj.FileName) tea.Cmd {
 		args = append(args, file.Escaped())
 	}
 	return func() tea.Msg {
-		output, err := m.context.RunCommandImmediate(args)
+		output, err := m.context.RunCommandImmediateWithEnv(args, m.diffEnv())
 		if err != nil {
 			return fileLoadedMsg{file: file, err: err}
 		}
 		return fileLoadedMsg{content: string(output), file: file}
+	}
+}
+
+// diffEnv prefers the live viewport width for per-file reloads so difftastic
+// wraps at the size the content is actually rendered at. Falls back to the
+// terminal size recorded on the context.
+func (m *Model) diffEnv() []string {
+	width := m.viewportWidth
+	height := m.viewportHeight
+	if width <= 0 && m.context != nil {
+		return m.context.DiffEnv()
+	}
+	if height <= 0 {
+		height = 24
+	}
+	return []string{
+		"DFT_WIDTH=" + strconv.Itoa(width),
+		"COLUMNS=" + strconv.Itoa(width),
+		"LINES=" + strconv.Itoa(height),
 	}
 }

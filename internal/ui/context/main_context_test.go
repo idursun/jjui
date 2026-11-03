@@ -61,3 +61,11 @@ func TestChangeWorkspace_NonMainCommandRunner(t *testing.T) {
 	})
 	assert.Equal(t, "/new", ctx.Location)
 }
+
+func TestDiffEnv_ExposesTerminalWidthToDifftastic(t *testing.T) {
+	ctx := &MainContext{}
+	assert.Nil(t, ctx.DiffEnv())
+
+	ctx.SetTerminalSize(180, 40)
+	assert.Equal(t, []string{"DFT_WIDTH=180", "COLUMNS=180", "LINES=40"}, ctx.DiffEnv())
+}

@@ -213,7 +213,7 @@ func (m *Model) showDiff(intent intents.OpLogShowDiff) tea.Cmd {
 		opId = m.rows[m.cursor].OperationId
 	}
 	return func() tea.Msg {
-		output, _ := m.context.RunCommandImmediate(jj.OpShow(opId))
+		output, _ := m.context.RunCommandImmediateWithEnv(jj.OpShow(opId), m.context.DiffEnv())
 		return intents.DiffShow{Content: string(output)}
 	}
 }
