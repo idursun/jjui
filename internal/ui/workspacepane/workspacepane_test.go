@@ -73,6 +73,10 @@ func testLegacyPrimaryWorkspace(t *testing.T, primaryName string) {
 	t.Helper()
 	m, runner := setup(t)
 	base := t.TempDir()
+	// Resolve symlinks (macOS temp dirs live under /var -> /private/var)
+	// to match the EvalSymlinks resolution in primaryWorkspacePath.
+	base, err := filepath.EvalSymlinks(base)
+	require.NoError(t, err)
 	primary := filepath.Join(base, "primary")
 	feature := filepath.Join(base, "feature")
 	require.NoError(t, os.MkdirAll(filepath.Join(primary, ".jj", "repo"), 0755))
