@@ -28,9 +28,11 @@ bindings = [
     { key = ["up", "ctrl+p"], action = "revset.move_up", scope = "revset", desc = "up" },
     { key = ["down", "ctrl+n"], action = "revset.move_down", scope = "revset", desc = "down" },
 
+    # shared split panel sizing
+    { key = "ctrl+h", action = "ui.preview_expand", scope = "ui.split", desc = "expand panel" },
+    { key = "ctrl+l", action = "ui.preview_shrink", scope = "ui.split", desc = "shrink panel" },
+
     # preview
-    { key = "ctrl+h", action = "ui.preview_expand", scope = "ui.preview", desc = "expand preview" },
-    { key = "ctrl+l", action = "ui.preview_shrink", scope = "ui.preview", desc = "shrink preview" },
     { key = "ctrl+p", action = "ui.preview_scroll_up", scope = "ui.preview", desc = "scroll up" },
     { key = "ctrl+n", action = "ui.preview_scroll_down", scope = "ui.preview", desc = "scroll down" },
     { key = "ctrl+u", action = "ui.preview_half_page_up", scope = "ui.preview", desc = "half page up" },
