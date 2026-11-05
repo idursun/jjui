@@ -8,6 +8,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -49,41 +50,22 @@ func (ir *itemRenderer) getSegmentStyleForLine(segment screen.Segment, lineIsHig
 }
 
 // renderSegmentForLine renders a segment considering whether the line is highlightable.
-func (ir *itemRenderer) renderSegmentForLine(tb *render.TextBuilder, segment *screen.Segment, lineIsHighlightable bool) {
+// offset is the segment's byte position within the line that matches refer to.
+func (ir *itemRenderer) renderSegmentForLine(tb *render.TextBuilder, segment *screen.Segment, lineIsHighlightable bool, offset int, matches [][2]int) {
 	baseStyle := ir.getSegmentStyleForLine(*segment, lineIsHighlightable)
-	if ir.SearchText == "" {
-		tb.Styled(segment.Text, baseStyle)
-		return
-	}
-
-	lowerText := strings.ToLower(segment.Text)
-	searchText := ir.SearchText
-	if !strings.Contains(lowerText, searchText) {
+	if len(matches) == 0 {
 		tb.Styled(segment.Text, baseStyle)
 		return
 	}
 
 	matchStyle := baseStyle.Inherit(ir.renderer.matchedStyle)
-	start := 0
-	for {
-		offset := strings.Index(lowerText[start:], searchText)
-		if offset == -1 {
-			if start < len(segment.Text) {
-				tb.Styled(segment.Text[start:], baseStyle)
-			}
-			break
+	common.SplitByRanges(segment.Text, offset, matches, func(piece string, matched bool) {
+		if matched {
+			tb.Styled(piece, matchStyle)
+		} else {
+			tb.Styled(piece, baseStyle)
 		}
-		idx := start + offset
-		if idx > start {
-			tb.Styled(segment.Text[start:idx], baseStyle)
-		}
-		end := min(idx+len(searchText), len(segment.Text))
-		tb.Styled(segment.Text[idx:end], matchStyle)
-		start = end
-		if start >= len(segment.Text) {
-			break
-		}
-	}
+	})
 }
 
 // NewDisplayContextRenderer creates a new DisplayContext-based renderer
@@ -624,7 +606,18 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 	// and enables the fallback: when user's custom jj `template-aliases` has
 	// no CommitID, it inserts to the end of the line
 	beforeCommitIDRendered := false
+	var matches [][2]int
+	if ir.SearchText != "" {
+		var lineText strings.Builder
+		for _, segment := range line.Segments {
+			lineText.WriteString(segment.Text)
+		}
+		matches = common.MatchRanges(lineText.String(), ir.SearchText)
+	}
+	offset := 0
 	for _, segment := range line.Segments {
+		segmentOffset := offset
+		offset += len(segment.Text)
 		if beforeCommitID != "" && !beforeCommitIDRendered && strings.HasPrefix(segment.Text, ir.row.Commit.CommitId) {
 			if cursorProvider, ok := ir.op.(operations.InlineCursorProvider); ok {
 				if cursor := cursorProvider.InlineCursor(ir.row.Commit, operations.RenderBeforeCommitId); cursor != nil {
@@ -643,7 +636,7 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 				continue
 			}
 		}
-		ir.renderSegmentForLine(tb, segment, lineIsHighlightable)
+		ir.renderSegmentForLine(tb, segment, lineIsHighlightable, segmentOffset, matches)
 		currentX += render.StringWidth(segment.Text)
 	}
 	if beforeCommitID != "" && !beforeCommitIDRendered {

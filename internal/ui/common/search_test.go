@@ -127,3 +127,40 @@ func TestCircularSearch(t *testing.T) {
 		})
 	}
 }
+
+func TestCircularSearch_MatchesAcrossSegments(t *testing.T) {
+	items := []screen.Searchable{newItem("alpha"), newItem("u", "nnyyxrq")}
+	assert.Equal(t, 1, CircularSearch(items, "unny", 0, 0, false))
+}
+
+func TestMatchRanges(t *testing.T) {
+	assert.Nil(t, MatchRanges("abc", ""))
+	assert.Nil(t, MatchRanges("abc", "x"))
+	assert.Equal(t, [][2]int{{0, 2}, {3, 5}}, MatchRanges("AbxaB", "ab"))
+	assert.Equal(t, [][2]int{{0, 2}, {2, 4}}, MatchRanges("aaaa", "aa"))
+}
+
+func TestSplitByRanges(t *testing.T) {
+	type piece struct {
+		text    string
+		matched bool
+	}
+	split := func(text string, offset int, ranges [][2]int) []piece {
+		var pieces []piece
+		SplitByRanges(text, offset, ranges, func(p string, matched bool) {
+			pieces = append(pieces, piece{p, matched})
+		})
+		return pieces
+	}
+
+	// line "u" + "nnyyxrq", query "unny" -> range {0, 4}
+	ranges := [][2]int{{0, 4}}
+	assert.Equal(t, []piece{{"u", true}}, split("u", 0, ranges))
+	assert.Equal(t, []piece{{"nny", true}, {"yxrq", false}}, split("nnyyxrq", 1, ranges))
+
+	assert.Equal(t, []piece{{"abc", false}}, split("abc", 0, nil))
+	assert.Equal(t, []piece{{"abc", false}}, split("abc", 10, ranges))
+	assert.Equal(t, []piece{{"a", false}, {"b", true}, {"c", false}, {"d", true}},
+		split("abcd", 0, [][2]int{{1, 2}, {3, 4}}))
+	assert.Nil(t, split("", 0, ranges))
+}

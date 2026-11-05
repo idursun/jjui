@@ -266,30 +266,26 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		y := itemRect.Min.Y
 		for _, line := range row.Lines {
 			var content bytes.Buffer
+			var matches [][2]int
+			if m.quickSearch != "" {
+				var lineText strings.Builder
+				for _, segment := range line.Segments {
+					lineText.WriteString(segment.Text)
+				}
+				matches = common.MatchRanges(lineText.String(), m.quickSearch)
+			}
+			offset := 0
 			for _, segment := range line.Segments {
 				text := segment.Text
 				style := segment.Style.Inherit(styleOverride)
-
-				if m.quickSearch != "" && text != "" {
-					lowerText := strings.ToLower(text)
-					lowerSearch := m.quickSearch
-					lastEnd := 0
-					for {
-						idx := strings.Index(lowerText[lastEnd:], lowerSearch)
-						if idx == -1 {
-							content.WriteString(style.Render(text[lastEnd:]))
-							break
-						}
-						idx += lastEnd
-						if idx > lastEnd {
-							content.WriteString(style.Render(text[lastEnd:idx]))
-						}
-						content.WriteString(matchedStyle.Inherit(styleOverride).Render(text[idx : idx+len(lowerSearch)]))
-						lastEnd = idx + len(lowerSearch)
+				common.SplitByRanges(text, offset, matches, func(piece string, matched bool) {
+					if matched {
+						content.WriteString(matchedStyle.Inherit(styleOverride).Render(piece))
+					} else {
+						content.WriteString(style.Render(piece))
 					}
-				} else {
-					content.WriteString(style.Render(text))
-				}
+				})
+				offset += len(text)
 			}
 			lineContent := lipgloss.PlaceHorizontal(itemRect.Dx(), 0, content.String(), lipgloss.WithWhitespaceStyle(styleOverride))
 			lineRect := layout.Rect(itemRect.Min.X, y, itemRect.Dx(), 1)
