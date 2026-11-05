@@ -49,6 +49,15 @@ bindings_profile = ":builtin"
 [bookmark]
   interactive_bookmark_pane = false
 
+[workspace]
+  # Discovery runs only when the panel is opened with w.
+  # jj before 0.40 requires manual paths; removing directories requires jj 0.46+.
+  interactive_workspace_pane = false
+  # Optional foreground for the active workspace label in jjui's revision graph.
+  # This setting applies only when interactive_workspace_pane is true.
+  # Unset or empty preserves jj's colors. Accepts jj color names or "#RRGGBB".
+  # active_workspace_color = "red"
+
 [[actions]]
 name = "revisions.evolog.split"
 lua = """

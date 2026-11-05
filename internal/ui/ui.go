@@ -106,6 +106,9 @@ func (m *Model) Selection() common.SelectionSnapshot {
 // Focus and visibility do not participate in lookup; owners decide whether a
 // model is still live and can answer the local property.
 func (m *Model) QueryState(name string) (any, bool) {
+	if name == "ui.workspace.enabled" {
+		return config.Current.Workspace.InteractiveWorkspacePane, true
+	}
 	if strings.HasPrefix(name, "ui.preview.") {
 		switch strings.TrimPrefix(name, "ui.preview.") {
 		case "can_expand":
@@ -179,6 +182,9 @@ func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
 }
 
 func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
+	if refresh, ok := msg.(common.RefreshMsg); ok && refresh.Location != "" && refresh.Location != m.context.Location {
+		return nil
+	}
 	var completionID string
 	defer func() {
 		cmd = tea.Batch(cmd, m.notifyHighlightChange())
