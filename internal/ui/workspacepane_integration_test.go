@@ -30,7 +30,9 @@ func workspaceTestRepo(t *testing.T) (string, func(string, ...string) string) {
 	if _, err := exec.LookPath("jj"); err != nil {
 		t.Skip("jj is not installed")
 	}
-	base := t.TempDir()
+	// jj reports canonical workspace roots, including macOS /var -> /private/var.
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
 	configPath := filepath.Join(base, "config.toml")
 	require.NoError(t, os.WriteFile(configPath, []byte("[user]\nname = 'Workspace Test'\nemail = 'workspace@example.test'\n"), 0600))
 	t.Setenv("JJ_CONFIG", configPath)
@@ -83,7 +85,9 @@ func testWorkspaceSwitchAndNew(t *testing.T, streaming bool) {
 	test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: 'w', Text: "w"}))
 	require.Equal(t, workspaceContentID, model.splitContainer.ActiveID())
 	require.True(t, model.splitContainer.ContentFocused())
-	panel := renderSplitView(model, 300, 20)
+	// Leave room for full paths even when the test runner uses a long TMPDIR.
+	panelWidth := 2 * (max(len(root), len(feature)) + 32)
+	panel := renderSplitView(model, panelWidth, 20)
 	assert.Contains(t, panel, root)
 	assert.Contains(t, panel, feature)
 	// Browsing must not change execution context or revision navigation.
