@@ -57,7 +57,7 @@ func newWorkspaceTestUI(t *testing.T, root string, streaming ...bool) *Model {
 	t.Helper()
 	previous := config.Current.Revisions.LogBatching
 	previousWorkspace := config.Current.Workspace
-	config.Current.Workspace.Enabled = true
+	config.Current.Workspace.InteractiveWorkspacePane = true
 	config.Current.Revisions.LogBatching = false
 	if len(streaming) > 0 {
 		config.Current.Revisions.LogBatching = streaming[0]
@@ -91,7 +91,7 @@ func TestWorkspaceDiscoveryIsOptInAndLazy(t *testing.T) {
 			t.Setenv("JJUI_QUERY_LOG", logPath)
 			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 			previous := config.Current.Workspace
-			config.Current.Workspace.Enabled = enabled
+			config.Current.Workspace.InteractiveWorkspacePane = enabled
 			t.Cleanup(func() { config.Current.Workspace = previous })
 			ctx := appContext.NewAppContext(root, askpass.NewUnstartedServer("JJUI_TEST"))
 			ctx.DefaultRevset, ctx.CurrentRevset = "all()", "all()"

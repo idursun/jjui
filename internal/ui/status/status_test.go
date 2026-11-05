@@ -98,7 +98,7 @@ func TestModel_ViewRectShowsMode(t *testing.T) {
 
 func TestWorkspaceIndicatorDoesNotGetClippedByModeLabel(t *testing.T) {
 	previous := config.Current.Workspace
-	config.Current.Workspace.Enabled = true
+	config.Current.Workspace.InteractiveWorkspacePane = true
 	t.Cleanup(func() { config.Current.Workspace = previous })
 	ctx := &context.MainContext{WorkspaceName: "feature", Histories: config.NewHistories()}
 	m := New(ctx)
@@ -112,7 +112,7 @@ func TestWorkspaceIndicatorDoesNotGetClippedByModeLabel(t *testing.T) {
 
 func TestDisabledWorkspacesDoNotShowStatusIndicator(t *testing.T) {
 	previous := config.Current.Workspace
-	config.Current.Workspace.Enabled = false
+	config.Current.Workspace.InteractiveWorkspacePane = false
 	t.Cleanup(func() { config.Current.Workspace = previous })
 	m := New(&context.MainContext{WorkspaceName: "feature", Histories: config.NewHistories()})
 	dl := render.NewDisplayContext()

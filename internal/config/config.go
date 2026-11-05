@@ -33,7 +33,7 @@ type Config struct {
 }
 
 type WorkspaceConfig struct {
-	Enabled bool `toml:"enabled"`
+	InteractiveWorkspacePane bool `toml:"interactive_workspace_pane"`
 }
 
 type Color struct {

@@ -168,9 +168,9 @@ interactive_bookmark_pane = true
 
 func TestLoad_WorkspaceConfigIsOptIn(t *testing.T) {
 	cfg := loadDefaultConfig()
-	assert.False(t, cfg.Workspace.Enabled)
-	require.NoError(t, cfg.Load("[workspace]\nenabled = true\n", ""))
-	assert.True(t, cfg.Workspace.Enabled)
+	assert.False(t, cfg.Workspace.InteractiveWorkspacePane)
+	require.NoError(t, cfg.Load("[workspace]\ninteractive_workspace_pane = true\n", ""))
+	assert.True(t, cfg.Workspace.InteractiveWorkspacePane)
 }
 
 func TestLoad_AskpassConfig(t *testing.T) {

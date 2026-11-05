@@ -52,8 +52,9 @@ bindings_profile = ":builtin"
 [workspace]
   # Discovery runs only when the panel is opened with w.
   # jj before 0.40 requires manual paths; removing directories requires jj 0.46+.
-  enabled = false
-  # Workspace graph-label colors follow jj configuration. For example, in jj's config:
+  interactive_workspace_pane = false
+  # Workspace graph-label colors follow jj configuration, not jjui's ui.colors.
+  # The following example belongs in jj's config file, NOT in this file:
   # [colors]
   # "working_copy working_copies" = { fg = "red", bold = true }
 

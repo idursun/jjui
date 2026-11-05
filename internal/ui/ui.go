@@ -107,7 +107,7 @@ func (m *Model) Selection() common.SelectionSnapshot {
 // model is still live and can answer the local property.
 func (m *Model) QueryState(name string) (any, bool) {
 	if name == "ui.workspace.enabled" {
-		return config.Current.Workspace.Enabled, true
+		return config.Current.Workspace.InteractiveWorkspacePane, true
 	}
 	if strings.HasPrefix(name, "ui.preview.") {
 		switch strings.TrimPrefix(name, "ui.preview.") {

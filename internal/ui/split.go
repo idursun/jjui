@@ -36,7 +36,7 @@ func (m *Model) initSplitContainer() {
 	m.splitContainer.OnPrimaryFocus = m.revisions.SetFocused
 	m.splitContainer.RegisterContent(previewContentID, preview.New(m.context))
 	m.splitContainer.RegisterContent(bookmarkContentID, bookmarkpane.New(m.context))
-	if config.Current.Workspace.Enabled {
+	if config.Current.Workspace.InteractiveWorkspacePane {
 		m.splitContainer.RegisterContent(workspaceContentID, workspacepane.New(m.context))
 	}
 	if config.Current.Preview.ShowAtStart {
@@ -65,7 +65,7 @@ func (m *Model) handleSplitMsg(msg tea.Msg) (tea.Cmd, bool) {
 		cmd, _ := m.splitContainer.UpdateContent(workspaceContentID, msg)
 		return cmd, true
 	case workspacepane.ActivateMsg:
-		if !config.Current.Workspace.Enabled {
+		if !config.Current.Workspace.InteractiveWorkspacePane {
 			return nil, true
 		}
 		if err := m.context.ActivateWorkspace(msg.Name, msg.Path); err != nil {
@@ -127,7 +127,7 @@ func (m *Model) handleSplitIntent(intent intents.Intent) (tea.Cmd, bool) {
 
 	switch msg := intent.(type) {
 	case intents.OpenWorkspaces:
-		if !config.Current.Workspace.Enabled {
+		if !config.Current.Workspace.InteractiveWorkspacePane {
 			return nil, true
 		}
 		if m.splitContainer.ActiveID() == workspaceContentID {
