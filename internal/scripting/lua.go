@@ -412,12 +412,12 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	changeWsFn := L.NewFunction(func(L *lua.LState) int {
 		path := L.CheckString(1)
 		prev := ctx.Location
-		prevName, prevPriority := ctx.WorkspaceName, ctx.GraphPriority
+		prevName := ctx.WorkspaceName
 		ctx.ChangeWorkspace(path)
 		out, err := ctx.RunCommandImmediate([]string{"root"})
 		if err != nil {
 			ctx.ChangeWorkspace(prev)
-			ctx.WorkspaceName, ctx.GraphPriority = prevName, prevPriority
+			ctx.WorkspaceName = prevName
 			L.Push(lua.LNil)
 			L.Push(lua.LString("not a jj repo: " + path))
 			return 2

@@ -33,7 +33,6 @@ type MainContext struct {
 	JJConfig                  *config.JJConfig
 	DefaultRevset             string
 	CurrentRevset             string
-	GraphPriority             string
 	TerminalHasDarkBackground bool
 	TerminalThemeDetected     bool
 	TerminalBackground        string
@@ -162,7 +161,6 @@ func (ctx *MainContext) ChangeWorkspace(path string) {
 	ctx.CommandRunner = ctx.RunnerAt(path)
 	ctx.WorkspaceName = ""
 	ctx.repositoryPath = ""
-	ctx.GraphPriority = ""
 }
 
 // RunnerAt leaves existing commands attached to their original directory.
@@ -259,25 +257,11 @@ func (ctx *MainContext) ActivateWorkspace(name, path string) error {
 	if err != nil {
 		return err
 	}
-	priority := ctx.GraphPriority
-	if priority == "" {
-		priority = "none()"
-		if expression := ctx.JJConfig.Revsets.LogGraphPrioritize; expression != "" {
-			out, err := ctx.RunCommandImmediate([]string{"log", "--no-graph", "--ignore-working-copy", "--color", "never", "-r", expression, "-T", `commit_id ++ "\n"`})
-			if err != nil {
-				return err
-			}
-			if ids := strings.Fields(string(out)); len(ids) > 0 {
-				priority = strings.Join(ids, " | ")
-			}
-		}
-	}
 	ctx.ChangeWorkspace(root)
 	ctx.WorkspaceName = name
 	ctx.repositoryPath = repositoryPath
 	ctx.WorkingDirectory = root
 	ctx.JJConfig = jjConfig
-	ctx.GraphPriority = priority
 	return nil
 }
 

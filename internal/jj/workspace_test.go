@@ -12,7 +12,6 @@ func TestParseWorkspaces(t *testing.T) {
 	assert.Empty(t, ParseWorkspaces(""))
 }
 
-func TestLogGraphPriorityIsExplicitAndOptional(t *testing.T) {
-	assert.Equal(t, Log("all()", 10, "description"), Log("all()", 10, "description", ""))
-	assert.Contains(t, Log("all()", 10, "description", "abc | def"), `revsets.log-graph-prioritize="abc | def"`)
+func TestLogDoesNotOverrideWorkspaceColorsOrGraphOrdering(t *testing.T) {
+	assert.NotContains(t, Log("all()", 10, "description"), "--config")
 }

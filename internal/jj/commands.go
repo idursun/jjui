@@ -41,14 +41,8 @@ func ConfigListAll() CommandArgs {
 	return []string{"config", "list", "--color", "never", "--include-defaults", "--ignore-working-copy"}
 }
 
-func Log(revset string, limit int, jjTemplate string, graphPriority ...string) CommandArgs {
+func Log(revset string, limit int, jjTemplate string) CommandArgs {
 	args := []string{"log", "--color", "always", "--quiet"}
-	// jj applies working_copy to the active revision and working_copies to
-	// workspace labels, so this leaves the rest of the template untouched.
-	args = append(args, "--config", `colors."working_copy working_copies"={fg="red",bold=true}`)
-	if len(graphPriority) > 0 && graphPriority[0] != "" {
-		args = append(args, "--config", fmt.Sprintf("revsets.log-graph-prioritize=%q", graphPriority[0]))
-	}
 	if revset != "" {
 		args = append(args, "-r", revset)
 	}

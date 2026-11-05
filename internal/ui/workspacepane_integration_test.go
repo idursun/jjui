@@ -104,7 +104,7 @@ func testWorkspaceSwitchAndNew(t *testing.T, streaming bool) {
 	require.Equal(t, "feature", ctx.WorkspaceName)
 	assert.Equal(t, feature, ctx.Location)
 	assert.Equal(t, selected, model.revisions.SelectedRevision().ChangeId)
-	assert.Equal(t, beforeGraph, model.revisions.GetCommitIds())
+	assert.ElementsMatch(t, beforeGraph, model.revisions.GetCommitIds(), "jj may reorder the graph after activation")
 	assert.Equal(t, "all()", ctx.CurrentRevset)
 	test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: tea.KeyTab}))
 	require.True(t, model.revisions.IsFocused())
@@ -289,15 +289,16 @@ func TestWorkspaceUpdateStaleUpdatesBrowsedWorkspaceWithoutActivation(t *testing
 	assert.Contains(t, run(feature, "status"), "updated working copy")
 }
 
-func TestActiveWorkspaceGraphLabelIsRedAndFollowsActivation(t *testing.T) {
+func TestConfiguredWorkspaceGraphLabelColorFollowsActivation(t *testing.T) {
 	root, run := workspaceTestRepo(t)
+	run(root, "config", "set", "--repo", `colors."working_copy working_copies"`, `{fg="red",bold=true}`)
 	feature := filepath.Join(filepath.Dir(root), "feature")
 	run(root, "workspace", "add", "--name", "feature", "--no-colocate", feature)
 	model := newWorkspaceTestUI(t, root)
 	assertColors := func(active, inactive string) {
 		t.Helper()
 		ctx := model.context
-		out, err := ctx.RunCommandImmediate(jj.Log("all()", 0, ctx.JJConfig.Templates.Log, ctx.GraphPriority))
+		out, err := ctx.RunCommandImmediate(jj.Log("all()", 0, ctx.JJConfig.Templates.Log))
 		require.NoError(t, err)
 		styles := make(map[string]lipgloss.Style)
 		for _, row := range parser.ParseRows(bytes.NewReader(out)) {
