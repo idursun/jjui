@@ -237,6 +237,7 @@ type RevisionsConfig struct {
 	LogBatchSize int    `toml:"log_batch_size"`
 	Template     string `toml:"template"`
 	Revset       string `toml:"revset"`
+	ShowDiffstat bool   `toml:"show_diffstat"`
 }
 
 type PreviewPosition int

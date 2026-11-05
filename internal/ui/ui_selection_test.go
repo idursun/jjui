@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -165,6 +166,7 @@ func TestUpdateHighlightNotificationRefreshesPreview(t *testing.T) {
 	config.Current.Preview.RevisionCommand = []string{"diff", "-r", "$change_id"}
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect([]string{"diff", "-r", "first"}).SetOutput([]byte("updated preview"))
+	commandRunner.Expect(jj.FileStats("first")).SetOutput([]byte(""))
 	defer commandRunner.Verify()
 	model := NewUI(test.NewTestContext(commandRunner))
 	showPreview(t, model, "original preview")

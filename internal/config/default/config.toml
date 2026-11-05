@@ -24,6 +24,12 @@ bindings_profile = ":builtin"
 [revisions]
   log_batching = true
   log_batch_size = 50
+  # show_diffstat controls the +added/-removed line counts on revision rows,
+  # the per-file counts in the file details, and the per-file counts beside
+  # file names in the preview. Disabling it also skips the underlying
+  # `diff.stat()` template evaluation. Turn it off for very large repos if the
+  # revisions list feels slow.
+  show_diffstat = true
   # template = 'builtin_log_compact' # overrides jj's templates.log
   # revset = "zzzzzzz"               # overrides jj's revsets.log
 
