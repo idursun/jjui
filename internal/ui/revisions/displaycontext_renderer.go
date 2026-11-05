@@ -150,6 +150,7 @@ func (r *DisplayContextRenderer) Render(
 			contentWidth := r.itemContentWidth(item, viewRect.R.Dx())
 			embeddedHeight := r.embeddedHeight(operation, item.Commit, operations.RenderPositionAfter, contentWidth)
 			embeddedOffset := 0
+			pinRow := false
 
 			beforeHeight := 0
 			if before := operation.Render(item.Commit, operations.RenderPositionBefore); before != "" {
@@ -167,6 +168,8 @@ func (r *DisplayContextRenderer) Render(
 				}
 			} else if embeddedHeight = r.embeddedHeight(operation, item.Commit, operations.RenderOverDescription, contentWidth); embeddedHeight > 0 {
 				// Bias the viewport upward for inline description editors too.
+				// Keep the row pinned after wheel scrolling so the embedded view gets the visible height.
+				pinRow = true
 				embeddedOffset = beforeHeight + len(item.Lines)
 				for i, line := range item.Lines {
 					descriptionLine := line.Flags&parser.Highlightable == parser.Highlightable &&
@@ -192,7 +195,7 @@ func (r *DisplayContextRenderer) Render(
 				desiredHeight := min(embeddedHeight, max(viewHeight-embeddedOffset, 0))
 				if desiredHeight > 0 {
 					currentStart := render.ClampStartLine(r.listRenderer.StartLine, viewHeight, totalLines)
-					if currentStart <= cursorStart {
+					if currentStart <= cursorStart || pinRow {
 						embeddedStart := cursorStart + embeddedOffset
 						start := max(currentStart, embeddedStart+desiredHeight-viewHeight)
 						// Keep the selected revision visible while embedded models scroll internally.

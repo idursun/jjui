@@ -71,7 +71,7 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if pos != operations.RenderOverDescription {
 		return ""
 	}
-	view := o.resizeInput(80, 0).View()
+	view := resizeInput(o.input, 80, 0).View()
 	if o.confirmation != nil {
 		view = lipgloss.JoinVertical(lipgloss.Left, view, o.confirmation.View())
 	}
@@ -86,7 +86,7 @@ func (o *Operation) EmbeddedHeight(commit *jj.Commit, pos operations.RenderPosit
 	if !o.CanEmbed(commit, pos) {
 		return 0
 	}
-	return o.resizeInput(width, 0).Height() + o.confirmationHeight()
+	return resizeInput(newInput(o.input.Value()), width, 0).Height() + o.confirmationHeight()
 }
 
 func (o *Operation) Name() string {
@@ -234,7 +234,7 @@ func (o *Operation) Init() tea.Cmd {
 
 func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	confirmationHeight := o.confirmationHeight()
-	o.input = o.resizeInput(box.R.Dx(), max(box.R.Dy()-confirmationHeight, 0))
+	o.input = resizeInput(o.input, box.R.Dx(), max(box.R.Dy()-confirmationHeight, 0))
 	input := o.input
 
 	selectedStyle := theme.DefaultPalette.GetBlended("revisions", "", "", true)
@@ -264,16 +264,9 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 	descOutput, _ := context.RunCommandImmediate(jj.GetDescription(revision.GetChangeId()))
 	originalDesc := string(descOutput)
 
-	input := textarea.New()
-	input.CharLimit = 0
-	input.Prompt = ""
-	input.ShowLineNumbers = false
-	input.DynamicHeight = true
-	input.MinHeight = 1
-	input.SetVirtualCursor(false)
-
-	input.SetValue(originalDesc)
-	input.Focus()
+	input := newInput(originalDesc)
+	// Fill the viewport so the first resize can scroll to the cursor.
+	input, _ = input.Update(nil)
 
 	return &Operation{
 		context:      context,
@@ -283,8 +276,21 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 	}
 }
 
-func (o *Operation) resizeInput(width, maxHeight int) textarea.Model {
-	input := o.input
+func newInput(value string) textarea.Model {
+	input := textarea.New()
+	input.CharLimit = 0
+	input.Prompt = ""
+	input.ShowLineNumbers = false
+	input.DynamicHeight = true
+	input.MinHeight = 1
+	input.SetVirtualCursor(false)
+
+	input.SetValue(value)
+	input.Focus()
+	return input
+}
+
+func resizeInput(input textarea.Model, width, maxHeight int) textarea.Model {
 	if width <= 0 {
 		width = 80
 	}
