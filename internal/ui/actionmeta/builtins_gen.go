@@ -434,6 +434,7 @@ var builtInActionConditions = map[string]string{
 	"revisions.split":                           "revisions.has_revision && !revisions.is_empty",
 	"revisions.split_parallel":                  "revisions.has_revision && !revisions.is_empty",
 	"revisions.toggle_select":                   "revisions.has_revision",
+	"ui.open_workspaces":                        "ui.workspace.enabled",
 	"ui.preview_expand":                         "ui.preview.can_expand",
 	"ui.preview_shrink":                         "ui.preview.can_shrink",
 }

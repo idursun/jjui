@@ -29,6 +29,11 @@ type Config struct {
 	Git             GitConfig       `toml:"git"`
 	Askpass         AskpassConfig   `toml:"askpass"`
 	Bookmark        BookmarkConfig  `toml:"bookmark"`
+	Workspace       WorkspaceConfig `toml:"workspace"`
+}
+
+type WorkspaceConfig struct {
+	Enabled bool `toml:"enabled"`
 }
 
 type Color struct {

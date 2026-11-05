@@ -3,7 +3,6 @@ package workspacepane
 import (
 	"fmt"
 	"maps"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -116,17 +115,16 @@ func (m *Model) load() tea.Cmd {
 	m.generation++
 	generation := m.generation
 	return func() tea.Msg {
-		output, err := runner.RunCommandImmediate(jj.WorkspaceList())
+		workspaces, err := jj.DiscoverWorkspaces(runner.RunCommandImmediate)
 		if err != nil {
 			return loadedMsg{location: location, generation: generation, err: err}
 		}
-		workspaces := jj.ParseWorkspaces(string(output))
 		paths := make(map[string]string, len(workspaces))
 		for _, workspace := range workspaces {
 			if workspace.Name == activeName {
 				paths[workspace.Name] = location
-			} else if path, err := resolveWorkspacePath(runner, location, workspace.Name); err == nil {
-				paths[workspace.Name] = path
+			} else if workspace.Path != "" {
+				paths[workspace.Name] = workspace.Path
 			} else if path := knownPaths[workspace.Name]; path != "" {
 				paths[workspace.Name] = path
 			}
@@ -262,62 +260,7 @@ func (m *Model) workspacePath(name string) (string, error) {
 	if path, ok := m.paths[name]; ok {
 		return path, nil
 	}
-	return resolveWorkspacePath(m.context.CommandRunner, m.context.Location, name)
-}
-
-func resolveWorkspacePath(runner context.CommandRunner, location, name string) (string, error) {
-	path, err := runner.RunCommandImmediate([]string{"workspace", "root", "--name", name, "--ignore-working-copy"})
-	if err != nil || len(path) == 0 {
-		if primary := primaryWorkspacePath(runner, location, name); primary != "" {
-			return primary, nil
-		}
-		// Old jj versions and older workspaces may have no recorded root.
-		if err != nil {
-			return "", fmt.Errorf("cannot locate workspace %s: %w", name, err)
-		}
-		return "", fmt.Errorf("workspace %s has no recorded directory", name)
-	}
-	return string(path), nil
-}
-
-// Older repositories may not record the primary workspace's path in jj's
-// workspace list. Secondary workspaces still point to its .jj/repo directory.
-// Verify its workspace name rather than assuming the primary is called default.
-func primaryWorkspacePath(runner context.CommandRunner, location, name string) string {
-	metadata := filepath.Join(location, ".jj")
-	pointer, err := os.ReadFile(filepath.Join(metadata, "repo"))
-	if err != nil {
-		return ""
-	}
-	repoPath := strings.TrimSpace(string(pointer))
-	if !filepath.IsAbs(repoPath) {
-		repoPath = filepath.Join(metadata, repoPath)
-	}
-	repoPath, err = filepath.EvalSymlinks(repoPath)
-	if err != nil || filepath.Base(repoPath) != "repo" || filepath.Base(filepath.Dir(repoPath)) != ".jj" {
-		return ""
-	}
-	primary := filepath.Dir(filepath.Dir(repoPath))
-	if primary == location {
-		return ""
-	}
-	output, err := runner.RunCommandImmediate(append([]string{"-R", primary}, jj.WorkspaceList()...))
-	if err != nil {
-		return ""
-	}
-	currentName := ""
-	for _, workspace := range jj.ParseWorkspaces(string(output)) {
-		if workspace.Current {
-			if currentName != "" {
-				return ""
-			}
-			currentName = workspace.Name
-		}
-	}
-	if currentName != name {
-		return ""
-	}
-	return primary
+	return "", fmt.Errorf("workspace %s has no recorded directory", name)
 }
 
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {

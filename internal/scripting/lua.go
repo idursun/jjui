@@ -9,7 +9,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
-	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actionmeta"
 	"github.com/idursun/jjui/internal/ui/choose"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -423,9 +422,6 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 			return 2
 		}
 		ctx.ChangeWorkspace(strings.TrimSpace(string(out)))
-		if output, err := ctx.RunCommandImmediate(jj.WorkspaceList()); err == nil {
-			ctx.IdentifyWorkspace(jj.ParseWorkspaces(string(output)))
-		}
 		L.Push(lua.LBool(true))
 		L.Push(lua.LNil)
 		return 2

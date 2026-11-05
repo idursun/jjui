@@ -81,9 +81,6 @@ func NewAppContext(location string, aps *askpass.Server) *MainContext {
 	if output, err := m.RunCommandImmediate(jj.ConfigListAll()); err == nil {
 		m.JJConfig, _ = config.DefaultConfig(output)
 	}
-	if output, err := m.RunCommandImmediate(jj.WorkspaceList()); err == nil {
-		m.IdentifyWorkspace(jj.ParseWorkspaces(string(output)))
-	}
 	return m
 }
 
@@ -176,6 +173,10 @@ func (ctx *MainContext) RunnerAt(path string) CommandRunner {
 func (ctx *MainContext) IdentifyWorkspace(workspaces []jj.Workspace) {
 	var candidates []string
 	for _, workspace := range workspaces {
+		if workspace.Path != "" && filepath.Clean(workspace.Path) == filepath.Clean(ctx.Location) {
+			ctx.WorkspaceName = workspace.Name
+			return
+		}
 		if workspace.Current {
 			candidates = append(candidates, workspace.Name)
 		}

@@ -2,8 +2,6 @@ package workspacepane
 
 import (
 	"errors"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -32,13 +30,13 @@ func setup(t *testing.T) (*Model, *test.CommandRunner) {
 }
 
 func TestNavigationOnlyBrowsesAndApplyExplicitlyActivates(t *testing.T) {
-	m, runner := setup(t)
+	m, _ := setup(t)
 	cmd, handled := m.HandleIntent(intents.WorkspaceNavigate{Delta: 1})
 	require.True(t, handled)
 	assert.Nil(t, cmd)
 	assert.Equal(t, "feature", m.selectedName)
 	assert.Equal(t, "default", m.context.WorkspaceName)
-	runner.Expect([]string{"workspace", "root", "--name", "feature", "--ignore-working-copy"}).SetOutput([]byte("/feature"))
+	m.paths["feature"] = "/feature"
 	cmd, handled = m.HandleIntent(intents.Apply{})
 	require.True(t, handled)
 	require.NotNil(t, cmd)
@@ -54,8 +52,7 @@ func TestNavigationOnlyBrowsesAndApplyExplicitlyActivates(t *testing.T) {
 }
 
 func TestMissingRootPromptsForDirectory(t *testing.T) {
-	m, runner := setup(t)
-	runner.Expect([]string{"workspace", "root", "--name", "feature", "--ignore-working-copy"}).SetError(errors.New("no recorded path"))
+	m, _ := setup(t)
 	assert.Nil(t, m.Update(ItemClickedMsg{Name: "feature"}))
 	cmd, _ := m.HandleIntent(intents.Apply{})
 	require.NotNil(t, cmd)
@@ -64,45 +61,35 @@ func TestMissingRootPromptsForDirectory(t *testing.T) {
 	assert.Equal(t, ActivateMsg{Name: "feature", Path: "/feature"}, cmd())
 }
 
-func TestExplicitActivationLocatesLegacyPrimaryWorkspaceWithoutPrompt(t *testing.T) {
-	t.Run("default", func(t *testing.T) { testLegacyPrimaryWorkspace(t, "default") })
-	t.Run("renamed", func(t *testing.T) { testLegacyPrimaryWorkspace(t, "main") })
+func TestKnownSessionPathAvoidsDirectoryPrompt(t *testing.T) {
+	m, _ := setup(t)
+	m.context.Location, m.context.WorkspaceName = "/feature", "feature"
+	m.Update(ItemClickedMsg{Name: "default"})
+	cmd, handled := m.HandleIntent(intents.Apply{})
+	require.True(t, handled)
+	assert.Equal(t, ActivateMsg{Name: "default", Path: "/repo"}, cmd())
 }
 
-func testLegacyPrimaryWorkspace(t *testing.T, primaryName string) {
-	t.Helper()
+func TestOlderJJLoadsNamesAndPromptsForUnknownPaths(t *testing.T) {
 	m, runner := setup(t)
-	base := t.TempDir()
-	// Resolve symlinks (macOS temp dirs live under /var -> /private/var)
-	// to match the EvalSymlinks resolution in primaryWorkspacePath.
-	base, err := filepath.EvalSymlinks(base)
-	require.NoError(t, err)
-	primary := filepath.Join(base, "primary")
-	feature := filepath.Join(base, "feature")
-	require.NoError(t, os.MkdirAll(filepath.Join(primary, ".jj", "repo"), 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(feature, ".jj"), 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(feature, ".jj", "repo"), []byte("../../primary/.jj/repo"), 0600))
-	m.context.Location, m.context.WorkspaceName = feature, "feature"
-	m = New(m.context)
-	m.SetFocused(true)
-	m.workspaces = []jj.Workspace{{Name: primaryName}, {Name: "feature", Current: true}}
-	runner.Expect([]string{"workspace", "root", "--name", primaryName, "--ignore-working-copy"}).SetError(errors.New("Workspace has no recorded path"))
-	runner.Expect(append([]string{"-R", primary}, jj.WorkspaceList()...)).SetOutput([]byte(primaryName + "\ttrue\nfeature\tfalse\n"))
-	cmd, handled := m.HandleIntent(intents.WorkspaceNavigate{Delta: -1})
+	runner.Expect(jj.WorkspaceListWithPaths()).SetError(errors.New("unknown template keyword: root"))
+	runner.Expect(jj.WorkspaceList()).SetOutput([]byte("default\ttrue\nfeature\tfalse\n"))
+	m.Update(m.OnShow()())
+	assert.Equal(t, "/repo", m.paths["default"])
+	assert.Empty(t, m.paths["feature"])
+	m.Update(ItemClickedMsg{Name: "feature"})
+	cmd, handled := m.HandleIntent(intents.Apply{})
 	require.True(t, handled)
-	assert.Nil(t, cmd)
-	cmd, handled = m.HandleIntent(intents.Apply{})
-	require.True(t, handled)
-	require.NotNil(t, cmd)
-	assert.Equal(t, ActivateMsg{Name: primaryName, Path: primary}, cmd(), "explicit activation must locate the original workspace without prompting")
-	assert.Empty(t, m.pending)
-	// The same directory must not be used for a different workspace merely
-	// because that workspace's own path is also unavailable.
-	runner.Expect([]string{"workspace", "root", "--name", "other", "--ignore-working-copy"}).SetError(errors.New("Workspace has no recorded path"))
-	m.workspaces = append(m.workspaces, jj.Workspace{Name: "other"})
-	assert.Nil(t, m.Update(ItemClickedMsg{Name: "other"}))
-	cmd, _ = m.HandleIntent(intents.Apply{})
 	assert.IsType(t, common.ShowInputMsg{}, cmd())
+}
+
+func TestRecordedPathsIdentifyCurrentWorkspaceWithoutRevisionHint(t *testing.T) {
+	m, runner := setup(t)
+	m.context.WorkspaceName = ""
+	runner.Expect(jj.WorkspaceListWithPaths()).SetOutput([]byte("\"default\"\ttrue\t\"/repo\"\n\"feature\"\ttrue\t\"/feature\"\n"))
+	m.Update(m.OnShow()())
+	assert.Equal(t, "default", m.context.WorkspaceName)
+	assert.Equal(t, "default", m.selectedName)
 }
 
 func TestRenameUsesActiveWorkspaceAndUpdatesOnlyAfterSuccess(t *testing.T) {
@@ -258,7 +245,7 @@ func TestRevealWorkingCopyDoesNotActivateWorkspace(t *testing.T) {
 func TestUpdateStaleTargetsBrowsedWorkspaceWithoutActivation(t *testing.T) {
 	m, runner := setup(t)
 	m.HandleIntent(intents.WorkspaceNavigate{Delta: 1})
-	runner.Expect([]string{"workspace", "root", "--name", "feature", "--ignore-working-copy"}).SetOutput([]byte("/feature"))
+	m.paths["feature"] = "/feature"
 	runner.Expect([]string{"-R", "/feature", "workspace", "update-stale"})
 	cmd, handled := m.HandleIntent(intents.WorkspaceUpdateStale{})
 	require.True(t, handled)
@@ -278,9 +265,7 @@ func TestRefreshPreservesBrowsedWorkspace(t *testing.T) {
 
 func TestWorkspacePathsAreLoadedAndRenderedBesideNames(t *testing.T) {
 	m, runner := setup(t)
-	runner.Expect(jj.WorkspaceList()).SetOutput([]byte("default\ttrue\nfeature\tfalse\nmissing\tfalse\n"))
-	runner.Expect([]string{"workspace", "root", "--name", "feature", "--ignore-working-copy"}).SetOutput([]byte("/feature"))
-	runner.Expect([]string{"workspace", "root", "--name", "missing", "--ignore-working-copy"}).SetError(errors.New("no recorded path"))
+	runner.Expect(jj.WorkspaceListWithPaths()).SetOutput([]byte("\"default\"\ttrue\tnull\n\"feature\"\tfalse\t\"/feature\"\n\"missing\"\tfalse\tnull\n"))
 	m.Update(m.OnShow()())
 	dl := render.NewDisplayContext()
 	m.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 80, 8)))

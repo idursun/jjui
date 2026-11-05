@@ -49,6 +49,14 @@ bindings_profile = ":builtin"
 [bookmark]
   interactive_bookmark_pane = false
 
+[workspace]
+  # Discovery runs only when the panel is opened with w.
+  # jj before 0.40 requires manual paths; removing directories requires jj 0.46+.
+  enabled = false
+  # Workspace graph-label colors follow jj configuration. For example, in jj's config:
+  # [colors]
+  # "working_copy working_copies" = { fg = "red", bold = true }
+
 [[actions]]
 name = "revisions.evolog.split"
 lua = """

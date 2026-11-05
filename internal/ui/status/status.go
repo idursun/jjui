@@ -46,7 +46,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	width := box.R.Dx()
 	dl.AddFill(box.R, ' ', textStyle, 0)
 	workspaceLabel := ""
-	if m.context.WorkspaceName != "" {
+	if config.Current.Workspace.Enabled && m.context.WorkspaceName != "" {
 		workspaceLabel = dimmedStyle.Render(" workspace: " + m.context.WorkspaceName + " ")
 		width = max(0, width-render.StringWidth(workspaceLabel))
 	}

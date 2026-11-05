@@ -1,6 +1,6 @@
 package intents
 
-//jjui:bind scope=ui action=open_workspaces
+//jjui:bind scope=ui action=open_workspaces when="ui.workspace.enabled"
 type OpenWorkspaces struct{}
 
 func (OpenWorkspaces) isIntent() {}

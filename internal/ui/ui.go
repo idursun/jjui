@@ -106,6 +106,9 @@ func (m *Model) Selection() common.SelectionSnapshot {
 // Focus and visibility do not participate in lookup; owners decide whether a
 // model is still live and can answer the local property.
 func (m *Model) QueryState(name string) (any, bool) {
+	if name == "ui.workspace.enabled" {
+		return config.Current.Workspace.Enabled, true
+	}
 	if strings.HasPrefix(name, "ui.preview.") {
 		switch strings.TrimPrefix(name, "ui.preview.") {
 		case "can_expand":

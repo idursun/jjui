@@ -53,16 +53,66 @@ func workspaceTestRepo(t *testing.T) (string, func(string, ...string) string) {
 func newWorkspaceTestUI(t *testing.T, root string, streaming ...bool) *Model {
 	t.Helper()
 	previous := config.Current.Revisions.LogBatching
+	previousWorkspace := config.Current.Workspace
+	config.Current.Workspace.Enabled = true
 	config.Current.Revisions.LogBatching = false
 	if len(streaming) > 0 {
 		config.Current.Revisions.LogBatching = streaming[0]
 	}
-	t.Cleanup(func() { config.Current.Revisions.LogBatching = previous })
+	t.Cleanup(func() {
+		config.Current.Revisions.LogBatching = previous
+		config.Current.Workspace = previousWorkspace
+	})
 	ctx := appContext.NewAppContext(root, askpass.NewUnstartedServer("JJUI_TEST"))
 	ctx.DefaultRevset, ctx.CurrentRevset = "all()", "all()"
 	m := NewUI(ctx)
 	test.SimulateModel(m, m.revisions.Init())
 	return m
+}
+
+func TestWorkspaceDiscoveryIsOptInAndLazy(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		name := "disabled"
+		if enabled {
+			name = "enabled"
+		}
+		t.Run(name, func(t *testing.T) {
+			root, _ := workspaceTestRepo(t)
+			realJJ, err := exec.LookPath("jj")
+			require.NoError(t, err)
+			bin := t.TempDir()
+			logPath := filepath.Join(bin, "workspace-queries")
+			wrapper := "#!/bin/sh\nif [ \"$1\" = workspace ]; then\n  printf 'workspace\\n' >> \"$JJUI_QUERY_LOG\"\nfi\nexec \"$JJUI_REAL_JJ\" \"$@\"\n"
+			require.NoError(t, os.WriteFile(filepath.Join(bin, "jj"), []byte(wrapper), 0700))
+			t.Setenv("JJUI_REAL_JJ", realJJ)
+			t.Setenv("JJUI_QUERY_LOG", logPath)
+			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+			previous := config.Current.Workspace
+			config.Current.Workspace.Enabled = enabled
+			t.Cleanup(func() { config.Current.Workspace = previous })
+			ctx := appContext.NewAppContext(root, askpass.NewUnstartedServer("JJUI_TEST"))
+			ctx.DefaultRevset, ctx.CurrentRevset = "all()", "all()"
+			model := NewUI(ctx)
+			test.SimulateModel(model, model.revisions.Init())
+			require.Empty(t, ctx.WorkspaceName)
+			_, err = os.Stat(logPath)
+			require.True(t, os.IsNotExist(err), "startup must not discover workspaces")
+			test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: 'w', Text: "w"}))
+			if enabled {
+				assert.Equal(t, workspaceContentID, model.splitContainer.ActiveID())
+				assert.Equal(t, "default", ctx.WorkspaceName)
+				queries, err := os.ReadFile(logPath)
+				require.NoError(t, err)
+				assert.Equal(t, "workspace\n", string(queries), "one structured list query discovers names and paths")
+			} else {
+				test.SimulateModel(model, model.Update(intents.OpenWorkspaces{}))
+				assert.NotEqual(t, workspaceContentID, model.splitContainer.ActiveID())
+				_, err := os.Stat(logPath)
+				assert.True(t, os.IsNotExist(err), "disabled opening must not discover workspaces")
+				assert.Empty(t, ctx.WorkspaceName)
+			}
+		})
+	}
 }
 
 func TestWorkspaceSwitchPreservesRevisionAndNewRunsInActiveWorkspace(t *testing.T) {
@@ -121,6 +171,7 @@ func TestWorkspaceActivationFailurePreservesContextAndSelection(t *testing.T) {
 	root, _ := workspaceTestRepo(t)
 	model := newWorkspaceTestUI(t, root)
 	selected := model.revisions.SelectedRevision().ChangeId
+	test.SimulateModel(model, model.Update(intents.OpenWorkspaces{}))
 	oldRunner := model.context.CommandRunner
 	test.SimulateModel(model, model.Update(workspacepane.ActivateMsg{Name: "missing", Path: filepath.Join(root, "missing")}))
 	assert.Equal(t, root, model.context.Location)
