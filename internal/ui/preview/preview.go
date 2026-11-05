@@ -25,6 +25,7 @@ type Model struct {
 	content     string
 	contentItem common.SelectedItem
 	context     *context.MainContext
+	wrap        bool
 }
 
 const (
@@ -177,13 +178,33 @@ func (m *Model) SetContent(content string) {
 	}
 	m.reset()
 	m.content = content
-	m.view.SetContent(content)
+	m.applyContent()
+}
+
+// applyContent hands the content to the viewport, word-wrapped to the current
+// width when wrapping is enabled.
+func (m *Model) applyContent() {
+	if m.wrap {
+		// Wrapped lines always fit, so there is nothing to scroll sideways.
+		m.view.SetXOffset(0)
+		m.view.SetContent(wrapContent(m.content, m.view.Width()))
+	} else {
+		m.view.SetContent(m.content)
+	}
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	surfaceStyle := theme.DefaultPalette.Get("preview", "", "", false)
-	m.view.SetWidth(box.R.Dx())
+	if width := box.R.Dx(); width != m.view.Width() {
+		m.view.SetWidth(width)
+		if m.wrap {
+			m.applyContent()
+		}
+	}
 	m.view.SetHeight(box.R.Dy())
+	// Growing the pane or re-wrapping to fewer lines can leave the previous
+	// offset beyond the last page.
+	m.view.SetYOffset(m.view.YOffset())
 	dl.AddFill(box.R, ' ', surfaceStyle, render.ZPreview)
 	dl.AddDraw(box.R, m.view.View(), render.ZPreview, render.PreserveBackground())
 
@@ -252,5 +273,6 @@ func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
 func New(context *context.MainContext) *Model {
 	return &Model{
 		context: context,
+		wrap:    config.Current.Preview.Wrap,
 	}
 }
