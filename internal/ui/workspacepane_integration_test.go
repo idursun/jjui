@@ -28,6 +28,9 @@ import (
 func workspaceTestRepo(t *testing.T) (string, func(string, ...string) string) {
 	t.Helper()
 	if _, err := exec.LookPath("jj"); err != nil {
+		if os.Getenv("JJUI_REQUIRE_JJ") != "" {
+			t.Fatal("jj is required for workspace integration tests")
+		}
 		t.Skip("jj is not installed")
 	}
 	// jj reports canonical workspace roots, including macOS /var -> /private/var.
