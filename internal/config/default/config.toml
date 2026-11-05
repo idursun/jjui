@@ -53,10 +53,10 @@ bindings_profile = ":builtin"
   # Discovery runs only when the panel is opened with w.
   # jj before 0.40 requires manual paths; removing directories requires jj 0.46+.
   interactive_workspace_pane = false
-  # Workspace graph-label colors follow jj configuration, not jjui's ui.colors.
-  # The following example belongs in jj's config file, NOT in this file:
-  # [colors]
-  # "working_copy working_copies" = { fg = "red", bold = true }
+  # Optional foreground for the active workspace label in jjui's revision graph.
+  # This setting applies only when interactive_workspace_pane is true.
+  # Unset or empty preserves jj's colors. Accepts jj color names or "#RRGGBB".
+  # active_workspace_color = "red"
 
 [[actions]]
 name = "revisions.evolog.split"

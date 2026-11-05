@@ -345,10 +345,10 @@ func TestWorkspaceUpdateStaleUpdatesBrowsedWorkspaceWithoutActivation(t *testing
 
 func TestConfiguredWorkspaceGraphLabelColorFollowsActivation(t *testing.T) {
 	root, run := workspaceTestRepo(t)
-	run(root, "config", "set", "--repo", `colors."working_copy working_copies"`, `{fg="red",bold=true}`)
 	feature := filepath.Join(filepath.Dir(root), "feature")
 	run(root, "workspace", "add", "--name", "feature", "--no-colocate", feature)
 	model := newWorkspaceTestUI(t, root)
+	config.Current.Workspace.ActiveWorkspaceColor = "red"
 	assertColors := func(active, inactive string) {
 		t.Helper()
 		ctx := model.context

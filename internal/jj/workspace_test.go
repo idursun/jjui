@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/BurntSushi/toml"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,5 +47,43 @@ func TestDiscoverWorkspacesReportsCommandFailure(t *testing.T) {
 }
 
 func TestLogDoesNotOverrideWorkspaceColorsOrGraphOrdering(t *testing.T) {
+	previous := config.Current.Workspace
+	config.Current.Workspace = config.WorkspaceConfig{}
+	t.Cleanup(func() { config.Current.Workspace = previous })
 	assert.NotContains(t, Log("all()", 10, "description"), "--config")
+}
+
+func TestLogWorkspaceColorIsOptionalAndRequiresPanelOptIn(t *testing.T) {
+	previous := config.Current.Workspace
+	t.Cleanup(func() { config.Current.Workspace = previous })
+	for _, tc := range []struct {
+		name    string
+		enabled bool
+		color   string
+	}{
+		{name: "unset"},
+		{name: "enabled without color", enabled: true},
+		{name: "disabled with color", color: "red"},
+		{name: "enabled with named color", enabled: true, color: "red"},
+		{name: "enabled with hex color", enabled: true, color: "#ff0000"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config.Current.Workspace = config.WorkspaceConfig{InteractiveWorkspacePane: tc.enabled, ActiveWorkspaceColor: tc.color}
+			args := Log("all()", 10, "description")
+			if !tc.enabled || tc.color == "" {
+				assert.NotContains(t, args, "--config")
+				return
+			}
+			require.Equal(t, "--config", args[4])
+			var override struct {
+				Colors map[string]struct {
+					Fg string `toml:"fg"`
+				} `toml:"colors"`
+			}
+			_, err := toml.Decode(args[5], &override)
+			require.NoError(t, err)
+			assert.Equal(t, tc.color, override.Colors["working_copy working_copies"].Fg)
+			assert.Len(t, override.Colors, 1)
+		})
+	}
 }
