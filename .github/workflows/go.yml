@@ -31,30 +31,5 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: '1.27.0'
-      - name: Set up jj
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          case "$RUNNER_OS" in
-            Linux) target=unknown-linux-musl ;;
-            macOS) target=apple-darwin ;;
-            *) exit 1 ;;
-          esac
-          case "$(uname -m)" in
-            x86_64) arch=x86_64 ;;
-            arm64|aarch64) arch=aarch64 ;;
-            *) exit 1 ;;
-          esac
-          asset="jj-v0.46.0-$arch-$target.tar.gz"
-          install_dir="$RUNNER_TEMP/jj"
-          mkdir -p "$install_dir"
-          gh release download v0.46.0 --repo jj-vcs/jj --pattern "$asset" --dir "$install_dir"
-          tar -xzf "$install_dir/$asset" -C "$install_dir"
-          echo "$install_dir" >> "$GITHUB_PATH"
-          "$install_dir/jj" --version
       - name: Test
-        env:
-          JJUI_REQUIRE_JJ: '1'
         run: go test -v ./...
