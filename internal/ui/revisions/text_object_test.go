@@ -277,3 +277,39 @@ func runAllJJCommands(cmd tea.Cmd) {
 		}
 	}
 }
+
+// Tags as `jj log --color=debug` labels them: a local tag, a local tag that
+// moved away from its remote (*) and the remote tag left behind.
+const tagLog = "<<log commit node immutable::◆>>  <<log commit immutable change_id shortest prefix::m>><<log commit immutable:: >>" +
+	"<<log commit immutable tags name::v1.0>><<log commit immutable tags:: >><<log commit immutable tags name::v2.0>><<log commit immutable tags::*>><<log commit immutable tags:: >>" +
+	"<<log commit immutable tags name::v2.0>><<log commit immutable tags::@>><<log commit immutable tags remote::origin>><<log commit immutable:: >>" +
+	"<<log commit immutable commit_id shortest prefix::4>><<log commit immutable::>>\n"
+
+func TestTextObjectsForRow_Tags(t *testing.T) {
+	rows := parser.ParseRows(strings.NewReader(tagLog))
+	require.Len(t, rows, 1)
+
+	var tags []string
+	for _, o := range textObjectsForRow(rows[0]) {
+		if o.Kind == textObjectTag {
+			tags = append(tags, textObjectTitleForTest(o))
+		}
+	}
+	assert.Equal(t, []string{"v1.0", "v2.0", "v2.0@origin"}, tags)
+}
+
+func TestModel_FocusedTagDeleteOnlyDeletesLocalTags(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.TagDelete("v1.0"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(parser.ParseRows(strings.NewReader(tagLog)), "", true)
+	model.focusedObjectKind = textObjectTag
+	assert.Equal(t, actions.ScopeRevisions+".tag", string(model.Scopes()[0].Name))
+	runJJCommand(model.Update(intents.FocusedTagDelete{}))
+
+	model.focusedObjectIndex = 2
+	_, isMessage := model.Update(intents.FocusedTagDelete{})().(intents.AddMessage)
+	assert.True(t, isMessage, "remote tags cannot be deleted")
+}
