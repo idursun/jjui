@@ -137,6 +137,15 @@ func (dl *DisplayContext) SetCursorAt(cursor *tea.Cursor, x, y int) {
 	dl.cursor = &cursorCopy
 }
 
+// SetPassiveCursorAt sets the frame cursor only when nothing else has set it
+// in this frame, so a navigation cursor never takes over an input's cursor.
+func (dl *DisplayContext) SetPassiveCursorAt(cursor *tea.Cursor, x, y int) {
+	if dl.cursor != nil {
+		return
+	}
+	dl.SetCursorAt(cursor, x, y)
+}
+
 // SetCursorInRect sets the frame cursor relative to a rectangle origin plus any local offsets.
 func (dl *DisplayContext) SetCursorInRect(cursor *tea.Cursor, rect layout.Rectangle, dx, dy int) {
 	dl.SetCursorAt(cursor, rect.Min.X+dx, rect.Min.Y+dy)

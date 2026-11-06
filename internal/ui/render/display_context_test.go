@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
@@ -283,4 +284,15 @@ func TestEmptyDisplayContext(t *testing.T) {
 	// Should not panic - that's the main test
 	// Empty buffer output may be empty or whitespace, both are valid
 	_ = buf.Render()
+}
+
+func TestDisplayContext_PassiveCursorDoesNotReplaceCursor(t *testing.T) {
+	dl := NewDisplayContext()
+	dl.SetPassiveCursorAt(tea.NewCursor(0, 0), 1, 1)
+	assert.Equal(t, 1, dl.Cursor().Position.X)
+
+	dl = NewDisplayContext()
+	dl.SetCursorAt(tea.NewCursor(0, 0), 5, 2)
+	dl.SetPassiveCursorAt(tea.NewCursor(0, 0), 1, 1)
+	assert.Equal(t, 5, dl.Cursor().Position.X)
 }
