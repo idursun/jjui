@@ -1,0 +1,18 @@
+[1m[38;5;2m<<log commit node working_copy mutable::@>>[0m  <<log commit::Commit ID: >>[38;5;4m<<log commit commit_id::339c87bea6a5e02c8af31c8c0aa27e910e813cfe>>[39m<<log commit::>>
+│  <<log commit::Change ID: >>[38;5;5m<<log commit change_id::yostqsxwqrltovqlrlzszywzslusmuup>>[39m<<log commit::>>
+│  <<log commit::Author   : >>[38;5;3m<<log commit author name::Test User>>[39m<<log commit:: <>>[38;5;3m<<log commit author email local::test>><<log commit author email::@>><<log commit author email domain::example.com>>[39m<<log commit::> (>>[38;5;6m<<log commit author timestamp local format::2026-01-02 03:04:05>>[39m<<log commit::)>>
+│  <<log commit::Committer: >>[38;5;3m<<log commit committer name::Test User>>[39m<<log commit:: <>>[38;5;3m<<log commit committer email local::test>><<log commit committer email::@>><<log commit committer email domain::example.com>>[39m<<log commit::> (>>[38;5;6m<<log commit committer timestamp local format::2026-01-02 03:04:05>>[39m<<log commit::)>>
+│  <<log commit::>>
+│  <<log commit description trim_end::    side work>>
+│  <<log commit description trim_end::>>
+│  <<log commit description trim_end::    with a longer body>>
+│  <<log commit description trim_end::    over two lines>><<log commit::>>
+│  <<log commit::>>
+<<log commit node mutable::○>>  <<log commit::Commit ID: >>[38;5;4m<<log commit commit_id::c3693e6e09c2fdd01625e164e4d92cd886661350>>[39m<<log commit::>>
+│  <<log commit::Change ID: >>[38;5;5m<<log commit change_id::qpvuntsmwlqtpsluzzsnyyzlmlwvmlnu>>[39m<<log commit::>>
+~  <<log commit::Bookmarks: >>[38;5;5m<<log commit local_bookmarks name::main>>[39m<<log commit:: >>[38;5;5m<<log commit remote_bookmarks name::main>><<log commit remote_bookmarks::@>><<log commit remote_bookmarks remote::git>>[39m<<log commit::>>
+   <<log commit::Author   : >>[38;5;3m<<log commit author name::Test User>>[39m<<log commit:: <>>[38;5;3m<<log commit author email local::test>><<log commit author email::@>><<log commit author email domain::example.com>>[39m<<log commit::> (>>[38;5;6m<<log commit author timestamp local format::2026-01-02 03:04:05>>[39m<<log commit::)>>
+   <<log commit::Committer: >>[38;5;3m<<log commit committer name::Test User>>[39m<<log commit:: <>>[38;5;3m<<log commit committer email local::test>><<log commit committer email::@>><<log commit committer email domain::example.com>>[39m<<log commit::> (>>[38;5;6m<<log commit committer timestamp local format::2026-01-02 03:04:05>>[39m<<log commit::)>>
+   <<log commit::>>
+   <<log commit description trim_end::    base>><<log commit::>>
+   <<log commit::>>

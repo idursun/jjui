@@ -1,0 +1,5 @@
+[1m[38;5;2m<<log commit node working_copy mutable::@>>[0m  [1m[38;5;5m<<log commit change_id shortest prefix::yo>>[0m<<log commit:: >><<log commit description first_line::side work>><<log commit::>>
+│  [1m[38;5;4m<<log commit commit_id shortest prefix::3>>[0m<<log commit::>>
+<<log commit node mutable::○>>  [1m[38;5;5m<<log commit change_id shortest prefix::q>>[0m<<log commit:: >><<log commit description first_line::base>><<log commit::>>
+│  [1m[38;5;4m<<log commit commit_id shortest prefix::c3>>[0m<<log commit::>>
+~

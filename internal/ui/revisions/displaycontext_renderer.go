@@ -154,9 +154,7 @@ func (r *DisplayContextRenderer) Render(
 				pinRow = true
 				embeddedOffset = beforeHeight + len(item.Lines)
 				for i, line := range item.Lines {
-					descriptionLine := line.Flags&parser.Highlightable == parser.Highlightable &&
-						line.Flags&parser.Revision != parser.Revision
-					if descriptionLine {
+					if isDescriptionLine(line) {
 						embeddedOffset = beforeHeight + i
 						break
 					}
@@ -357,10 +355,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		}
 
 		// Handle description overlay
-		if !descriptionRendered &&
-			line.Flags&parser.Highlightable == parser.Highlightable &&
-			line.Flags&parser.Revision != parser.Revision &&
-			isSelected && operation != nil {
+		if !descriptionRendered && isDescriptionLine(line) && isSelected && operation != nil {
 
 			// Calculate gutter width using extended gutter for consistency
 			// (same approach as RenderPositionAfter)
@@ -382,7 +377,7 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 				descriptionRendered = true
 
 				// Skip remaining description lines
-				for i < len(item.Lines) && item.Lines[i].Flags&parser.Highlightable == parser.Highlightable {
+				for i < len(item.Lines) && isDescriptionLine(item.Lines[i]) {
 					i++
 				}
 				i-- // Adjust because loop will increment
@@ -458,12 +453,17 @@ func (r *DisplayContextRenderer) replacedLineCount(item parser.Row, pos operatio
 
 	count := 0
 	for _, line := range item.Lines {
-		if line.Flags&parser.Highlightable == parser.Highlightable &&
-			line.Flags&parser.Revision != parser.Revision {
+		if isDescriptionLine(line) {
 			count++
 		}
 	}
 	return count
+}
+
+// isDescriptionLine is a description line below the revision line; a
+// description on the revision line itself is overlaid after the row instead.
+func isDescriptionLine(line *parser.GraphRowLine) bool {
+	return line.Flags&parser.Description == parser.Description && line.Flags&parser.Revision != parser.Revision
 }
 
 func (r *DisplayContextRenderer) embeddedHeight(
@@ -618,7 +618,7 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 	for _, segment := range line.Segments {
 		segmentOffset := offset
 		offset += len(segment.Text)
-		if beforeCommitID != "" && !beforeCommitIDRendered && strings.HasPrefix(segment.Text, ir.row.Commit.CommitId) {
+		if beforeCommitID != "" && !beforeCommitIDRendered && segment.HasLabel("commit_id") {
 			if cursorProvider, ok := ir.op.(operations.InlineCursorProvider); ok {
 				if cursor := cursorProvider.InlineCursor(ir.row.Commit, operations.RenderBeforeCommitId); cursor != nil {
 					ir.dl.SetCursorAt(cursor, x+currentX, y)
