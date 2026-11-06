@@ -90,19 +90,41 @@ func TestModel_ObjectFocusIsStickyAcrossRowsAndSetsScope(t *testing.T) {
 	assert.Equal(t, textObjectNode, model.focusedTextObject().Kind)
 }
 
-func TestModel_FocusedBookmarkDeleteOnlyDeletesLocalBookmarks(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkDelete("second"))
-	defer commandRunner.Verify()
+func TestModel_FocusedBookmarkDelete(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		index    int
+		listing  string
+		commands []jj.CommandArgs
+	}{
+		{name: "local bookmark", index: 0, commands: []jj.CommandArgs{jj.BookmarkDelete("second")}},
+		{
+			name: "tracked remote bookmark is marked deleted", index: 1,
+			listing:  "second;.;true;false;false;false;28\nsecond;origin;true;true;false;false;28\n",
+			commands: []jj.CommandArgs{jj.BookmarkListAll(), jj.BookmarkDelete("second")},
+		},
+		{
+			name: "untracked remote bookmark is tracked first", index: 1,
+			listing:  "second;origin;true;false;false;false;28\n",
+			commands: []jj.CommandArgs{jj.BookmarkListAll(), jj.BookmarkTrack("second", "origin"), jj.BookmarkDelete("second")},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			commandRunner := test.NewTestCommandRunner(t)
+			for _, command := range tc.commands {
+				expectation := commandRunner.Expect(command)
+				if command[0] == "bookmark" && command[1] == "list" {
+					expectation.SetOutput([]byte(tc.listing))
+				}
+			}
+			defer commandRunner.Verify()
 
-	model := New(test.NewTestContext(commandRunner))
-	model.updateGraphRows(textObjectRows(t), "", true)
-
-	model.focusedObjectKind, model.focusedObjectIndex = textObjectBookmark, 0
-	runJJCommand(model.Update(intents.FocusedBookmarkDelete{}))
-
-	model.focusedObjectIndex = 1
-	runJJCommand(model.Update(intents.FocusedBookmarkDelete{}))
+			model := New(test.NewTestContext(commandRunner))
+			model.updateGraphRows(textObjectRows(t), "", true)
+			model.focusedObjectKind, model.focusedObjectIndex = textObjectBookmark, tc.index
+			runAllJJCommands(model.Update(intents.FocusedBookmarkDelete{}))
+		})
+	}
 }
 
 func TestModel_FocusedAuthorResetUpdatesSelectedRevision(t *testing.T) {
@@ -164,11 +186,15 @@ func TestModel_TrackFocusedBookmarkUsesTrackingState(t *testing.T) {
 func TestModel_PushFocusedBookmark(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.GitPush("--bookmark", jj.ExactStringPattern("second")))
+	commandRunner.Expect(jj.GitPush("--bookmark", jj.ExactStringPattern("second"), "--remote", "origin"))
 	defer commandRunner.Verify()
 
 	model := New(test.NewTestContext(commandRunner))
 	model.updateGraphRows(textObjectRows(t), "", true)
 	model.focusedObjectKind = textObjectBookmark
+	runJJCommand(model.Update(intents.FocusedBookmarkPush{}))
+
+	model.focusedObjectIndex = 1
 	runJJCommand(model.Update(intents.FocusedBookmarkPush{}))
 }
 
@@ -194,4 +220,60 @@ func textObjectTitleForTest(o textObject) string {
 		return o.Value + "@" + o.Remote
 	}
 	return o.Value
+}
+
+func TestModel_TrackFocusedLocalBookmarkUsesDefaultRemote(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("upstream https://example.com/upstream.git\norigin https://example.com/origin.git\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("second;.;true;false;true;false;\n"))
+	commandRunner.Expect(jj.BookmarkTrack("second", "origin"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind, model.focusedObjectIndex = textObjectBookmark, 0
+	runJJCommand(model.Update(intents.FocusedBookmarkTrack{Track: true}))
+}
+
+func TestModel_UntrackFocusedLocalBookmark(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin https://example.com/origin.git\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("second;.;true;false;false;false;28\nsecond;origin;true;true;false;false;28\n"))
+	commandRunner.Expect(jj.BookmarkUntrack("second", "origin"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind, model.focusedObjectIndex = textObjectBookmark, 0
+
+	_, isMessage := model.Update(intents.FocusedBookmarkTrack{Track: true})().(intents.AddMessage)
+	assert.True(t, isMessage, "second@origin is already tracked")
+	runJJCommand(model.Update(intents.FocusedBookmarkTrack{Track: false}))
+}
+
+func TestModel_TrackFocusedLocalBookmarkWithoutRemotes(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList())
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind, model.focusedObjectIndex = textObjectBookmark, 0
+
+	msg, isMessage := model.Update(intents.FocusedBookmarkTrack{Track: true})().(intents.AddMessage)
+	assert.True(t, isMessage)
+	assert.Contains(t, msg.Text, "no git remote")
+}
+
+// runAllJJCommands runs every command of nested RunCommand batches; the
+// refresh continuations only return a message.
+func runAllJJCommands(cmd tea.Cmd) {
+	if cmd == nil {
+		return
+	}
+	if batch, ok := cmd().(tea.BatchMsg); ok {
+		for _, c := range batch {
+			runAllJJCommands(c)
+		}
+	}
 }
