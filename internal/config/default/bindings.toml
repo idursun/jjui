@@ -99,6 +99,9 @@ bindings = [
     { key = "shift+t", action = "revisions.bookmark.untrack", scope = "revisions.bookmark", desc = "untrack bookmark" },
     { key = "shift+g", action = "revisions.bookmark.push", scope = "revisions.bookmark", desc = "push bookmark" },
     { key = "d", action = "revisions.tag.delete", scope = "revisions.tag", desc = "delete tag" },
+    { key = "r", action = "revisions.change_id.update", scope = "revisions.change_id", desc = "new change id" },
+    { key = "w", action = "revisions.change_id.force_rewrite", scope = "revisions.change_id", desc = "force rewrite" },
+    { key = "e", action = "revisions.description.edit", scope = "revisions.description", desc = "describe in editor" },
     { key = "r", action = "revisions.author.reset", scope = "revisions.author", desc = "reset author" },
     { key = "r", action = "revisions.timestamp.reset", scope = "revisions.timestamp", desc = "reset author timestamp" },
 

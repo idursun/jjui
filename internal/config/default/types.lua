@@ -294,6 +294,8 @@ function wait_refresh() end
 ---@field author jjui.revisions.author
 ---@field bookmark jjui.revisions.bookmark
 ---@field bookmark_target jjui.revisions.bookmark_target
+---@field change_id jjui.revisions.change_id
+---@field description jjui.revisions.description
 ---@field details jjui.revisions.details
 ---@field diff_range jjui.revisions.diff_range
 ---@field duplicate jjui.revisions.duplicate
@@ -393,6 +395,13 @@ function wait_refresh() end
 ---@field cancel fun()
 ---@field force_apply fun()
 ---@field close fun()
+
+---@class jjui.revisions.change_id
+---@field force_rewrite fun()
+---@field update fun()
+
+---@class jjui.revisions.description
+---@field edit fun()
 
 ---@class jjui.revisions.details
 ---@field confirmation jjui.revisions.details.confirmation

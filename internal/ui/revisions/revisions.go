@@ -876,6 +876,12 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.runOnFocusedRevision(textObjectAuthor, jj.MetaeditUpdateAuthor), true
 	case intents.FocusedTimestampReset:
 		return m.runOnFocusedRevision(textObjectTimestamp, jj.MetaeditUpdateAuthorTimestamp), true
+	case intents.FocusedChangeIdUpdate:
+		return m.runOnFocusedRevision(textObjectChangeId, jj.MetaeditUpdateChangeId), true
+	case intents.FocusedForceRewrite:
+		return m.runOnFocusedRevision(textObjectChangeId, jj.MetaeditForceRewrite), true
+	case intents.FocusedDescriptionEdit:
+		return m.describeFocusedRevision(), true
 	case intents.GoToTop:
 		return m.goToTop(), true
 	case intents.GoToBottom:
