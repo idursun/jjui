@@ -399,6 +399,16 @@ func TestModel_RevisionsFetch(t *testing.T) {
 	runJJCommand(model.Update(intents.RevisionsFetch{}))
 }
 
+func TestModel_ObjectFocusKind(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectIndex = 1
+	_, handled := model.HandleIntent(intents.RevisionsObjectFocusKind{Kind: textObjectBookmark})
+	assert.True(t, handled)
+	assert.Equal(t, 0, model.focusedObjectIndex)
+	assert.Equal(t, actions.ScopeRevisions+".bookmark", string(model.Scopes()[0].Name))
+}
+
 func TestTextObjectsForRow_UnquotesRefNames(t *testing.T) {
 	log := `<<log commit node working_copy mutable::@>>  <<log commit change_id shortest prefix::y>> <<log commit bookmarks name::"a b">><<log commit bookmarks::@>><<log commit bookmarks remote::"my remote">> <<log commit commit_id shortest prefix::3>>` + "\n"
 	rows := parser.ParseRows(strings.NewReader(log))

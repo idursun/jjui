@@ -870,6 +870,9 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.runOnFocusedRevision(textObjectChangeId, func(changeId string) jj.CommandArgs {
 			return jj.GitPush("--change", changeId)
 		}), true
+	case intents.RevisionsObjectFocusKind:
+		m.focusedObjectKind, m.focusedObjectIndex = intent.Kind, 0
+		return nil, true
 	case intents.RevisionsFetch:
 		return m.context.RunCommand(jj.GitFetch(), common.Refresh), true
 	case intents.FocusedBookmarkRename:

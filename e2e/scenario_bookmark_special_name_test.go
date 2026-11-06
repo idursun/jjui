@@ -22,20 +22,15 @@ func Test_Bookmarks_DeletesSpecialName(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, bookmark)
+		// The working copy has no bookmark, so it leaves the log once the
+		// revset applies.
+		return screenContains(screen, bookmark) && !screenContains(screen, "(no description set)")
 	}); err != nil {
-		t.Fatalf("bookmark menu did not render the special bookmark name: %v\nraw output:\n%s", err, session.RawOutput())
+		t.Fatalf("bookmarks revset did not render the special bookmark name: %v\nraw output:\n%s", err, session.RawOutput())
 	}
 
+	// b focuses the bookmark, so d deletes it.
 	if err := session.SendKey(ghostty.KeyD, "d", 0); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, "delete '"+bookmark+"'")
-	}); err != nil {
-		t.Fatalf("bookmark delete filter did not render the special bookmark: %v\nraw output:\n%s", err, session.RawOutput())
-	}
-	if err := session.SendKey(ghostty.KeyEnter, "", 0); err != nil {
 		t.Fatal(err)
 	}
 
