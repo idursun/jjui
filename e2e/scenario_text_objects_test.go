@@ -88,12 +88,15 @@ func Test_TextObjects_RenamesFocusedBookmark(t *testing.T) {
 	if err := session.SendKey(ghostty.KeyR, "r", 0); err != nil {
 		t.Fatal(err)
 	}
-	// The inline editor shows the current name next to the bookmark itself.
-	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		row := screenRowIndexContaining(screen, "old-name")
-		return row >= 0 && strings.Count(screen[row], "old-name") == 2
-	}); err != nil {
-		t.Fatalf("inline rename did not open: %v", err)
+	// The name is edited in place: the cursor moves to the end of it.
+	screen, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "old-name") })
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := screenRowIndexContaining(screen, "old-name")
+	end := len([]rune(screen[row][:strings.Index(screen[row], "old-name")])) + len("old-name")
+	if _, err := session.WaitForCursor(ctx, func(c cursorPosition) bool { return int(c.Y) == row && int(c.X) == end }); err != nil {
+		t.Fatalf("rename did not start editing the name in place: %v", err)
 	}
 	if err := session.SendKey(ghostty.KeyU, "u", ghostty.ModCtrl); err != nil {
 		t.Fatal(err)

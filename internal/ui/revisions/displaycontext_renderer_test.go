@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
@@ -265,4 +266,30 @@ func TestDisplayContextRenderer_DescribeOverlaysOnlyDescriptionLines(t *testing.
 	}
 	assert.NotContains(t, out, "with a longer body")
 	assert.Less(t, strings.Index(out, "Committer:"), strings.Index(out, overlayContent))
+}
+
+func TestDisplayContextRenderer_RenameBookmarkEditsTheNameInPlace(t *testing.T) {
+	log := "<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::m>><<log commit mutable:: >>" +
+		"<<log commit mutable bookmarks name::second>><<log commit mutable bookmarks:: >>" +
+		"<<log commit mutable bookmarks name::second>><<log commit mutable bookmarks::@>><<log commit mutable bookmarks remote::origin>><<log commit mutable:: >>" +
+		"<<log commit mutable commit_id shortest prefix::28>><<log commit mutable::>>\n"
+	rows := parser.ParseRows(strings.NewReader(log))
+	require.Len(t, rows, 1)
+
+	op := bookmark.NewRenameBookmarkOperation(test.NewTestContext(test.NewTestCommandRunner(t)), rows[0].Commit.GetChangeId(), "second")
+	test.SimulateModel(op, test.Type("-x"))
+
+	r := NewDisplayContextRenderer()
+	dl := render.NewDisplayContext()
+	r.Render(dl, rows, 0, layout.NewBox(layout.Rect(0, 0, 80, 3)), op, op, false, "", true)
+	screen := uv.NewScreenBuffer(80, 3)
+	dl.Render(screen)
+	firstLine := ansi.Strip(strings.Split(screen.Render(), "\n")[0])
+
+	// The input keeps a cell after the text for the cursor.
+	assert.Equal(t, "○  m second-x  second@origin 28", strings.TrimRight(firstLine, " "))
+	cursor := dl.Cursor()
+	require.NotNil(t, cursor)
+	nameColumn := ansi.StringWidth(firstLine[:strings.Index(firstLine, "second-x")])
+	assert.Equal(t, nameColumn+len("second-x"), cursor.Position.X)
 }
