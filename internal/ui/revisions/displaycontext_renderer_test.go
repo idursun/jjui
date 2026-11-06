@@ -195,7 +195,7 @@ func TestDisplayContextRenderer_SetBookmarkRegistersInlineCursor(t *testing.T) {
 		Lines: []*parser.GraphRowLine{
 			{
 				Gutter:   parser.GraphGutter{Segments: []*screen.Segment{{Text: "|"}}},
-				Segments: []*screen.Segment{{Text: "def456 bookmark target"}},
+				Segments: []*screen.Segment{{Text: "def456", Labels: []string{"commit_id"}}, {Text: " bookmark target"}},
 				Flags:    parser.Revision,
 			},
 		},
@@ -216,4 +216,53 @@ func TestDisplayContextRenderer_SetBookmarkRegistersInlineCursor(t *testing.T) {
 	require.NotNil(t, inlineCursor)
 	assert.Equal(t, viewRect.R.Min.X+1+inlineCursor.Position.X, cursor.Position.X)
 	assert.Equal(t, viewRect.R.Min.Y+inlineCursor.Position.Y, cursor.Position.Y)
+}
+
+func TestDisplayContextRenderer_SetBookmarkInputGoesBeforeLabelledCommitId(t *testing.T) {
+	// The shortest commit id "2" is also a prefix of the timestamp.
+	log := "<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::m>><<log commit mutable change_id shortest rest::mypmnqu>><<log commit mutable:: >>" +
+		"<<log commit mutable committer timestamp local format::2025-05-22 21:59:38>><<log commit mutable:: >>" +
+		"<<log commit mutable commit_id shortest prefix::2>><<log commit mutable commit_id shortest rest::8c8ae4a>><<log commit mutable::>>\n"
+	rows := parser.ParseRows(strings.NewReader(log))
+	require.Len(t, rows, 1)
+
+	op := bookmark.NewSetBookmarkOperation(test.NewTestContext(test.NewTestCommandRunner(t)), rows[0].Commit.GetChangeId(), "NAME")
+	r := NewDisplayContextRenderer()
+	dl := render.NewDisplayContext()
+	r.Render(dl, rows, 0, layout.NewBox(layout.Rect(0, 0, 80, 3)), op, nil, false, "", true)
+	screen := uv.NewScreenBuffer(80, 3)
+	dl.Render(screen)
+
+	firstLine := strings.Split(screen.Render(), "\n")[0]
+	assert.Contains(t, firstLine, "2025-05-22 21:59:38 NAME  28c8ae4a")
+}
+
+func TestDisplayContextRenderer_DescribeOverlaysOnlyDescriptionLines(t *testing.T) {
+	f, err := os.Open("../../../test/testdata/detailed.log")
+	require.NoError(t, err)
+	defer func() { _ = f.Close() }()
+	rows := parser.ParseRows(f)
+	require.NotEmpty(t, rows)
+	targetRow := rows[0]
+
+	const overlayContent = "[describe overlay content]"
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GetDescription(targetRow.Commit.GetChangeId())).SetOutput([]byte(overlayContent))
+	defer commandRunner.Verify()
+	op := describe.NewOperation(test.NewTestContext(commandRunner), targetRow.Commit)
+
+	r := NewDisplayContextRenderer()
+	width, height := 90, 20
+	dl := render.NewDisplayContext()
+	r.Render(dl, []parser.Row{targetRow}, 0, layout.NewBox(layout.Rect(0, 0, width, height)), op, nil, false, "", true)
+	buf := uv.NewScreenBuffer(width, height)
+	dl.Render(buf)
+	out := buf.Render()
+
+	// The header lines of the detailed template stay; the description goes.
+	for _, kept := range []string{"Change ID:", "Author   :", "Committer:"} {
+		assert.Contains(t, out, kept)
+	}
+	assert.NotContains(t, out, "with a longer body")
+	assert.Less(t, strings.Index(out, "Committer:"), strings.Index(out, overlayContent))
 }

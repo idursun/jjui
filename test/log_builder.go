@@ -1,29 +1,11 @@
 package test
 
 import (
-	"bufio"
 	"fmt"
 	"strings"
-
-	"charm.land/lipgloss/v2"
 )
 
-type part int
-
-const (
-	normal = iota
-	id
-	author
-	bookmark
-)
-
-var styles = map[part]lipgloss.Style{
-	normal:   lipgloss.NewStyle(),
-	id:       lipgloss.NewStyle().Foreground(lipgloss.Color("1")),
-	author:   lipgloss.NewStyle().Foreground(lipgloss.Color("2")),
-	bookmark: lipgloss.NewStyle().Foreground(lipgloss.Color("3")),
-}
-
+// LogBuilder writes log lines the way `jj log --color=debug` labels them.
 type LogBuilder struct {
 	w strings.Builder
 }
@@ -32,52 +14,23 @@ func (l *LogBuilder) String() string {
 	return l.w.String()
 }
 
-func (l *LogBuilder) Write(line string) {
-	scanner := bufio.NewScanner(strings.NewReader(line))
-	scanner.Split(bufio.ScanWords)
-	for scanner.Scan() {
-		text := scanner.Text()
-		if after, ok := strings.CutPrefix(text, "short_id="); ok {
-			text = after
-			l.ShortId(text)
-			continue
-		}
-		if after, ok := strings.CutPrefix(text, "id="); ok {
-			text = after
-			l.Id(text[:1], text[1:])
-			continue
-		}
-		if after, ok := strings.CutPrefix(text, "author="); ok {
-			l.Author(after)
-			continue
-		}
-		if after, ok := strings.CutPrefix(text, "bookmarks="); ok {
-			text = after
-			values := strings.Split(text, ",")
-			l.Bookmarks(strings.Join(values, " "))
-			continue
-		}
-		l.Append(text)
+// Revision writes a revision line; "@" as node marks the working copy.
+func (l *LogBuilder) Revision(gutter string, node string, changeId string, commitId string) {
+	labels := "log commit mutable"
+	if node == "@" {
+		labels = "log commit working_copy mutable"
 	}
-	l.w.WriteString("\n")
+	fmt.Fprintf(&l.w, "%s<<log commit node %s::%s>>  ", gutter, strings.TrimPrefix(labels, "log commit "), node)
+	fmt.Fprintf(&l.w, "<<%s change_id shortest prefix::%s>><<%s:: >>", labels, changeId, labels)
+	fmt.Fprintf(&l.w, "<<%s commit_id shortest prefix::%s>><<%s::>>\n", labels, commitId, labels)
 }
 
-func (l *LogBuilder) Append(value string) {
-	fmt.Fprintf(&l.w, "%s ", styles[normal].Render(value))
+// Description writes a description line below a revision.
+func (l *LogBuilder) Description(gutter string, text string) {
+	fmt.Fprintf(&l.w, "%s<<log commit mutable description first_line::%s>><<log commit mutable::>>\n", gutter, text)
 }
 
-func (l *LogBuilder) ShortId(sid string) {
-	fmt.Fprintf(&l.w, " %s ", styles[id].Render(sid))
-}
-
-func (l *LogBuilder) Id(short string, rest string) {
-	fmt.Fprintf(&l.w, " %s%s ", styles[id].Render(short), styles[id].Render(rest))
-}
-
-func (l *LogBuilder) Author(value string) {
-	fmt.Fprintf(&l.w, " %s ", styles[author].Render(value))
-}
-
-func (l *LogBuilder) Bookmarks(value string) {
-	fmt.Fprintf(&l.w, " %s ", styles[bookmark].Render(value))
+// Graph writes a line that only draws the graph.
+func (l *LogBuilder) Graph(gutter string) {
+	l.w.WriteString(gutter + "\n")
 }
