@@ -220,3 +220,23 @@ func Test_TextObjects_DeletesUntrackedRemoteBookmark(t *testing.T) {
 		return !remoteHasBranch(t, repo, remote, "other"), nil
 	})
 }
+
+func Test_TextObjects_DeletesFocusedTag(t *testing.T) {
+	t.Parallel()
+	repo := newTestRepo(t)
+	// Tagged commits are immutable, so tag @- to keep the working copy put.
+	repo.JJ("tag", "set", "v1.0", "-r", "@-")
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "v1.0")
+	if err := session.SendKey(ghostty.KeyJ, "j", 0); err != nil {
+		t.Fatal(err)
+	}
+	focusTextOnRow(t, session, ctx, "v1.0")
+	if err := session.SendKey(ghostty.KeyD, "d", 0); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		out := runCommand(t, repo.Path(), repo.Env(), "jj", "tag", "list", "--ignore-working-copy")
+		return !strings.Contains(out, "v1.0"), nil
+	})
+}
