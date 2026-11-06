@@ -434,6 +434,16 @@ func OpLog(limit int) CommandArgs {
 	return args
 }
 
+// OpLogLabelled is OpLog with `--color=debug`, for parsing the output by its
+// template labels.
+func OpLogLabelled(limit int) CommandArgs {
+	args := []string{"op", "log", "--color", "debug", "--quiet", "--ignore-working-copy"}
+	if limit > 0 {
+		args = append(args, "--limit", strconv.Itoa(limit))
+	}
+	return args
+}
+
 func OpShow(operationId string) CommandArgs {
 	return []string{"op", "show", operationId, "--color", "always", "--ignore-working-copy"}
 }
