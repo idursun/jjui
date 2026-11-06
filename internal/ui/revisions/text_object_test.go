@@ -9,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/actions"
+	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/test"
@@ -312,4 +313,31 @@ func TestModel_FocusedTagDeleteOnlyDeletesLocalTags(t *testing.T) {
 	model.focusedObjectIndex = 2
 	_, isMessage := model.Update(intents.FocusedTagDelete{})().(intents.AddMessage)
 	assert.True(t, isMessage, "remote tags cannot be deleted")
+}
+
+func TestModel_FocusedChangeIdActions(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.MetaeditUpdateChangeId("m"))
+	commandRunner.Expect(jj.MetaeditForceRewrite("m"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectChangeId
+	runJJCommand(model.Update(intents.FocusedChangeIdUpdate{}))
+	runJJCommand(model.Update(intents.FocusedForceRewrite{}))
+}
+
+func TestModel_FocusedDescriptionEditDescribesOnlyTheFocusedRevision(t *testing.T) {
+	rows := textObjectRows(t)
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.Describe(jj.NewSelectedRevisions(rows[0].Commit)))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(rows, "", true)
+	// A checked revision would otherwise be described too.
+	model.toggleCheckedRevision(appContext.SelectedRevision{ChangeId: rows[1].Commit.ChangeId, CommitId: rows[1].Commit.CommitId})
+	model.focusedObjectKind = textObjectDescription
+	runJJCommand(model.Update(intents.FocusedDescriptionEdit{}))
 }

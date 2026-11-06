@@ -304,3 +304,18 @@ func (FocusedBookmarkPush) isIntent() {}
 type FocusedTagDelete struct{}
 
 func (FocusedTagDelete) isIntent() {}
+
+//jjui:bind scope=revisions.change_id action=update
+type FocusedChangeIdUpdate struct{}
+
+func (FocusedChangeIdUpdate) isIntent() {}
+
+//jjui:bind scope=revisions.change_id action=force_rewrite
+type FocusedForceRewrite struct{}
+
+func (FocusedForceRewrite) isIntent() {}
+
+//jjui:bind scope=revisions.description action=edit
+type FocusedDescriptionEdit struct{}
+
+func (FocusedDescriptionEdit) isIntent() {}
