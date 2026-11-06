@@ -294,6 +294,10 @@ func BookmarkListAll() CommandArgs {
 	return []string{"bookmark", "list", "-a", "--template", allBookmarkTemplate, "--color", "never", "--ignore-working-copy"}
 }
 
+func TagDelete(name string) CommandArgs {
+	return []string{"tag", "delete", ExactStringPattern(name)}
+}
+
 func TagList() CommandArgs {
 	return []string{"tag", "list", "--template", "name ++ '\n'", "--color", "never", "--ignore-working-copy"}
 }

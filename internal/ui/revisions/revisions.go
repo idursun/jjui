@@ -862,6 +862,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return nil, true
 	case intents.FocusedBookmarkDelete:
 		return m.deleteFocusedBookmark(), true
+	case intents.FocusedTagDelete:
+		return m.deleteFocusedTag(), true
 	case intents.FocusedBookmarkRename:
 		return m.renameFocusedBookmark(), true
 	case intents.FocusedBookmarkMove:

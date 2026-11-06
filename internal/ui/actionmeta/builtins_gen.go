@@ -321,6 +321,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.squash.keep_emptied":                 {"revisions.squash"},
 	"revisions.squash.target_picker":                {"revisions.squash"},
 	"revisions.squash.use_destination_msg":          {"revisions.squash"},
+	"revisions.tag.delete":                          {"revisions.tag"},
 	"revisions.target_picker.apply":                 {"revisions.target_picker"},
 	"revisions.target_picker.autocomplete":          {"revisions.target_picker"},
 	"revisions.target_picker.autocomplete_back":     {"revisions.target_picker"},

@@ -16,6 +16,7 @@ const (
 	textObjectAuthor      = "author"
 	textObjectTimestamp   = "timestamp"
 	textObjectBookmark    = "bookmark"
+	textObjectTag         = "tag"
 	textObjectDescription = "description"
 )
 
@@ -24,7 +25,7 @@ type textObject struct {
 	Value string
 	// Index is the ordinal of the object among objects of the same kind.
 	Index int
-	// Remote and Conflicted are only set for bookmarks.
+	// Remote and Conflicted are only set for bookmarks and tags.
 	Remote     string
 	Conflicted bool
 	line       int
@@ -49,6 +50,8 @@ func textObjectKind(segment *screen.Segment) string {
 		return textObjectAuthor
 	case segment.HasLabel("bookmarks"), segment.HasLabel("local_bookmarks"), segment.HasLabel("remote_bookmarks"):
 		return textObjectBookmark
+	case segment.HasLabel("tags"):
+		return textObjectTag
 	case segment.HasLabel("description"):
 		return textObjectDescription
 	}
@@ -92,12 +95,14 @@ func textObjectsForRow(row parser.Row) []textObject {
 			start := x + render.StringWidth(segment.Text[:strings.Index(segment.Text, text)])
 			x += width
 
-			if kind == textObjectBookmark {
+			// Bookmarks and tags render as a name followed by @remote and
+			// markers such as ?? or *.
+			if kind == textObjectBookmark || kind == textObjectTag {
 				prev := last()
 				switch {
 				case segment.HasLabel("name"):
 					add(kind, text, lineIndex, start)
-				case prev == nil || prev.Kind != textObjectBookmark:
+				case prev == nil || prev.Kind != kind:
 				default:
 					extend(prev, lineIndex, start, text)
 					if segment.HasLabel("remote") {
