@@ -208,6 +208,15 @@ func ExactStringPattern(value string) string {
 	return "exact:" + strconv.Quote(value)
 }
 
+// UnquoteRefName returns the name of a bookmark, tag or remote as rendered by
+// jj, which quotes names that are not valid revset symbols.
+func UnquoteRefName(rendered string) string {
+	if name, err := strconv.Unquote(rendered); err == nil && strings.HasPrefix(rendered, `"`) {
+		return name
+	}
+	return rendered
+}
+
 func BookmarkMove(revision string, bookmark string, extraFlags ...string) CommandArgs {
 	args := []string{"bookmark", "move", ExactStringPattern(bookmark), "--to", revision}
 	if extraFlags != nil {
