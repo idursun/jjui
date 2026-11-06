@@ -248,3 +248,31 @@ type Refresh struct {
 }
 
 func (Refresh) isIntent() {}
+
+//jjui:bind scope=revisions action=object_next set=Delta:1 when="revisions.has_revision"
+//jjui:bind scope=revisions action=object_prev set=Delta:-1 when="revisions.has_revision"
+type RevisionsObjectFocus struct {
+	Delta int
+}
+
+func (RevisionsObjectFocus) isIntent() {}
+
+//jjui:bind scope=revisions action=object_node when="revisions.has_revision"
+type RevisionsObjectNode struct{}
+
+func (RevisionsObjectNode) isIntent() {}
+
+//jjui:bind scope=revisions.bookmark action=delete
+type FocusedBookmarkDelete struct{}
+
+func (FocusedBookmarkDelete) isIntent() {}
+
+//jjui:bind scope=revisions.author action=reset
+type FocusedAuthorReset struct{}
+
+func (FocusedAuthorReset) isIntent() {}
+
+//jjui:bind scope=revisions.timestamp action=reset
+type FocusedTimestampReset struct{}
+
+func (FocusedTimestampReset) isIntent() {}

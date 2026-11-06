@@ -75,6 +75,10 @@ type Model struct {
 	checkedRevisions       map[string]appContext.SelectedRevision
 	checkedOrder           []string // commit ids in the order they were checked
 	focused                bool
+	// focusedObjectKind and focusedObjectIndex are the text object the user
+	// moved to; rows without such an object fall back to the node.
+	focusedObjectKind  string
+	focusedObjectIndex int
 }
 
 type revisionReloadState struct {
@@ -378,6 +382,16 @@ func (m *Model) Scopes() []common.Scope {
 	var scope bindings.ScopeName = actions.ScopeRevisions
 	if !m.InNormalMode() {
 		scope = ""
+	}
+
+	if m.InNormalMode() {
+		if obj := m.focusedTextObject(); obj != nil && obj.Kind != textObjectNode {
+			ret = append(ret, common.Scope{
+				Name:    bindings.ScopeName(actions.ScopeRevisions + "." + obj.Kind),
+				Leak:    leak,
+				Handler: m,
+			})
+		}
 	}
 
 	ret = append(ret, common.Scope{
@@ -840,6 +854,18 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return nil, true
 	case intents.Navigate:
 		return m.navigate(intent), true
+	case intents.RevisionsObjectFocus:
+		m.moveObjectFocus(intent.Delta)
+		return nil, true
+	case intents.RevisionsObjectNode:
+		m.focusedObjectKind, m.focusedObjectIndex = textObjectNode, 0
+		return nil, true
+	case intents.FocusedBookmarkDelete:
+		return m.deleteFocusedBookmark(), true
+	case intents.FocusedAuthorReset:
+		return m.runOnFocusedRevision(textObjectAuthor, jj.MetaeditUpdateAuthor), true
+	case intents.FocusedTimestampReset:
+		return m.runOnFocusedRevision(textObjectTimestamp, jj.MetaeditUpdateAuthorTimestamp), true
 	case intents.GoToTop:
 		return m.goToTop(), true
 	case intents.GoToBottom:
@@ -1349,6 +1375,10 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	// Render to DisplayContext
+	m.displayContextRenderer.focusedObject = nil
+	if m.InNormalMode() && !m.IsEditing() {
+		m.displayContextRenderer.focusedObject = m.focusedTextObject()
+	}
 	m.displayContextRenderer.Render(
 		dl,
 		m.rows,
@@ -1519,4 +1549,51 @@ func (m *Model) jumpToParent(revisions jj.SelectedRevisions) {
 	if parentIndex != -1 {
 		m.SetCursor(parentIndex)
 	}
+}
+
+func (m *Model) focusedTextObject() *textObject {
+	if m.cursor < 0 || m.cursor >= len(m.rows) || m.rows[m.cursor].Commit == nil {
+		return nil
+	}
+	return resolveTextObject(textObjectsForRow(m.rows[m.cursor]), m.focusedObjectKind, m.focusedObjectIndex)
+}
+
+func (m *Model) moveObjectFocus(delta int) {
+	if m.cursor < 0 || m.cursor >= len(m.rows) {
+		return
+	}
+	objects := textObjectsForRow(m.rows[m.cursor])
+	if len(objects) == 0 {
+		return
+	}
+	current := 0
+	if obj := resolveTextObject(objects, m.focusedObjectKind, m.focusedObjectIndex); obj != nil {
+		for i := range objects {
+			if &objects[i] == obj {
+				current = i
+			}
+		}
+	}
+	next := ((current+delta)%len(objects) + len(objects)) % len(objects)
+	m.focusedObjectKind, m.focusedObjectIndex = objects[next].Kind, objects[next].Index
+}
+
+func (m *Model) deleteFocusedBookmark() tea.Cmd {
+	obj := m.focusedTextObject()
+	if obj == nil || obj.Kind != textObjectBookmark {
+		return nil
+	}
+	if obj.Remote != "" {
+		return intents.Invoke(intents.AddMessage{Text: "Only local bookmarks can be deleted"})
+	}
+	return m.context.RunCommand(jj.BookmarkDelete(obj.Value), common.Refresh)
+}
+
+func (m *Model) runOnFocusedRevision(kind string, command func(string) jj.CommandArgs) tea.Cmd {
+	obj := m.focusedTextObject()
+	revision := m.SelectedRevision()
+	if obj == nil || obj.Kind != kind || revision == nil {
+		return nil
+	}
+	return m.context.RunCommand(command(revision.GetChangeId()), common.Refresh)
 }
