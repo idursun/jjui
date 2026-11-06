@@ -276,3 +276,26 @@ func (FocusedAuthorReset) isIntent() {}
 type FocusedTimestampReset struct{}
 
 func (FocusedTimestampReset) isIntent() {}
+
+//jjui:bind scope=revisions.bookmark action=rename
+type FocusedBookmarkRename struct{}
+
+func (FocusedBookmarkRename) isIntent() {}
+
+//jjui:bind scope=revisions.bookmark action=move
+type FocusedBookmarkMove struct{}
+
+func (FocusedBookmarkMove) isIntent() {}
+
+//jjui:bind scope=revisions.bookmark action=track set=Track:true
+//jjui:bind scope=revisions.bookmark action=untrack set=Track:false
+type FocusedBookmarkTrack struct {
+	Track bool
+}
+
+func (FocusedBookmarkTrack) isIntent() {}
+
+//jjui:bind scope=revisions.bookmark action=push
+type FocusedBookmarkPush struct{}
+
+func (FocusedBookmarkPush) isIntent() {}

@@ -862,6 +862,14 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return nil, true
 	case intents.FocusedBookmarkDelete:
 		return m.deleteFocusedBookmark(), true
+	case intents.FocusedBookmarkRename:
+		return m.renameFocusedBookmark(), true
+	case intents.FocusedBookmarkMove:
+		return m.moveFocusedBookmark(), true
+	case intents.FocusedBookmarkTrack:
+		return m.trackFocusedBookmark(intent.Track), true
+	case intents.FocusedBookmarkPush:
+		return m.pushFocusedBookmark(), true
 	case intents.FocusedAuthorReset:
 		return m.runOnFocusedRevision(textObjectAuthor, jj.MetaeditUpdateAuthor), true
 	case intents.FocusedTimestampReset:
@@ -1339,6 +1347,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.displayContextRenderer.dimmedStyle = dimmedStyle
 	m.displayContextRenderer.selectedStyle = selectedStyle
 	m.displayContextRenderer.matchedStyle = matchedStyle
+	m.displayContextRenderer.objectStyle = theme.DefaultPalette.Get("revisions", "", "object", true)
 
 	dl.AddInteraction(box.R, PaneClickedMsg{}, render.InteractionClick, -1)
 
