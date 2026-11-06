@@ -33,7 +33,6 @@ const (
 	ScopeAuthor                     = "revisions.author"
 	ScopeBookmark                   = "revisions.bookmark"
 	ScopeBookmarkTarget             = "revisions.bookmark_target"
-	ScopeChangeId                   = "revisions.change_id"
 	ScopeDescription                = "revisions.description"
 	ScopeDetails                    = "revisions.details"
 	ScopeDetailsConfirmation        = "revisions.details.confirmation"
@@ -578,15 +577,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Cancel{}, true
 		case keybindings.Action("revisions.bookmark_target.force_apply"):
 			return intents.Apply{Force: true}, true
-		}
-	case ScopeChangeId:
-		switch action {
-		case keybindings.Action("revisions.change_id.force_rewrite"):
-			return intents.FocusedForceRewrite{}, true
-		case keybindings.Action("revisions.change_id.push"):
-			return intents.FocusedChangePush{}, true
-		case keybindings.Action("revisions.change_id.update"):
-			return intents.FocusedChangeIdUpdate{}, true
 		}
 	case ScopeDescription:
 		switch action {

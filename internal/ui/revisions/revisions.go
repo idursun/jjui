@@ -866,10 +866,6 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.deleteFocusedTag(), true
 	case intents.FocusedBookmarkForget:
 		return m.forgetFocusedBookmark(), true
-	case intents.FocusedChangePush:
-		return m.runOnFocusedRevision(textObjectChangeId, func(changeId string) jj.CommandArgs {
-			return jj.GitPush("--change", changeId)
-		}), true
 	case intents.RevisionsObjectFocusKind:
 		m.focusedObjectKind, m.focusedObjectIndex = intent.Kind, 0
 		return nil, true
@@ -887,10 +883,6 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.runOnFocusedRevision(textObjectAuthor, jj.MetaeditUpdateAuthor), true
 	case intents.FocusedTimestampReset:
 		return m.runOnFocusedRevision(textObjectTimestamp, jj.MetaeditUpdateAuthorTimestamp), true
-	case intents.FocusedChangeIdUpdate:
-		return m.runOnFocusedRevision(textObjectChangeId, jj.MetaeditUpdateChangeId), true
-	case intents.FocusedForceRewrite:
-		return m.runOnFocusedRevision(textObjectChangeId, jj.MetaeditForceRewrite), true
 	case intents.FocusedDescriptionEdit:
 		return m.describeFocusedRevision(), true
 	case intents.GoToTop:

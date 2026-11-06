@@ -244,24 +244,6 @@ func Test_TextObjects_DeletesFocusedTag(t *testing.T) {
 	})
 }
 
-func Test_TextObjects_UpdatesFocusedChangeId(t *testing.T) {
-	t.Parallel()
-	repo := newTestRepo(t)
-	changeId := func() string {
-		return strings.TrimSpace(runCommand(t, repo.Path(), repo.Env(), "jj", "log", "--ignore-working-copy", "-r", "@", "--no-graph", "--color", "never", "-T", "change_id.short(8)"))
-	}
-	before := changeId()
-
-	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, before)
-	focusTextOnRow(t, session, ctx, before)
-	if err := session.SendKey(ghostty.KeyR, "r", 0); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, ctx, func() (bool, error) {
-		return changeId() != before, nil
-	})
-}
-
 func Test_TextObjects_ForgetsFocusedBookmark(t *testing.T) {
 	t.Parallel()
 	repo := newTestRepo(t)
@@ -274,23 +256,6 @@ func Test_TextObjects_ForgetsFocusedBookmark(t *testing.T) {
 	}
 	waitFor(t, ctx, func() (bool, error) {
 		return !bookmarkExists(t, repo.Path(), repo.Env(), "forget-me"), nil
-	})
-}
-
-func Test_TextObjects_PushesFocusedChange(t *testing.T) {
-	t.Parallel()
-	repo, remote := newRepoWithFileRemote(t)
-	repo.JJ("describe", "-m", "push me")
-	changeId := strings.TrimSpace(runCommand(t, repo.Path(), repo.Env(), "jj", "log", "--ignore-working-copy", "-r", "@", "--no-graph", "--color", "never", "-T", "change_id.short(8)"))
-
-	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, changeId)
-	focusTextOnRow(t, session, ctx, changeId)
-	if err := session.SendKey(ghostty.KeyG, "G", ghostty.ModShift); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, ctx, func() (bool, error) {
-		out, _ := commandOutput(filepath.Dir(repo.Path()), repo.Env(), "git", "--git-dir", remote, "for-each-ref", "--format=%(refname)", "refs/heads/")
-		return strings.Contains(out, "refs/heads/push-"+changeId), nil
 	})
 }
 

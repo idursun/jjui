@@ -305,16 +305,6 @@ type FocusedTagDelete struct{}
 
 func (FocusedTagDelete) isIntent() {}
 
-//jjui:bind scope=revisions.change_id action=update
-type FocusedChangeIdUpdate struct{}
-
-func (FocusedChangeIdUpdate) isIntent() {}
-
-//jjui:bind scope=revisions.change_id action=force_rewrite
-type FocusedForceRewrite struct{}
-
-func (FocusedForceRewrite) isIntent() {}
-
 //jjui:bind scope=revisions.description action=edit
 type FocusedDescriptionEdit struct{}
 
@@ -324,11 +314,6 @@ func (FocusedDescriptionEdit) isIntent() {}
 type FocusedBookmarkForget struct{}
 
 func (FocusedBookmarkForget) isIntent() {}
-
-//jjui:bind scope=revisions.change_id action=push
-type FocusedChangePush struct{}
-
-func (FocusedChangePush) isIntent() {}
 
 //jjui:bind scope=revisions action=fetch
 type RevisionsFetch struct{}
