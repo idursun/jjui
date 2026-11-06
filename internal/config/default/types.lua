@@ -297,6 +297,7 @@ function wait_refresh() end
 ---@field description jjui.revisions.description
 ---@field details jjui.revisions.details
 ---@field diff_range jjui.revisions.diff_range
+---@field divergent jjui.revisions.divergent
 ---@field duplicate jjui.revisions.duplicate
 ---@field evolog jjui.revisions.evolog
 ---@field inline_describe jjui.revisions.inline_describe
@@ -439,6 +440,11 @@ function wait_refresh() end
 ---@field swap fun()
 ---@field target_picker fun(args: {target: "to"|"from"})
 ---@field close fun()
+
+---@class jjui.revisions.divergent
+---@field abandon fun()
+---@field show_all fun()
+---@field update_change_id fun()
 
 ---@class jjui.revisions.duplicate
 ---@field ace_jump fun()

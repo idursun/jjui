@@ -37,6 +37,7 @@ const (
 	ScopeDetails                    = "revisions.details"
 	ScopeDetailsConfirmation        = "revisions.details.confirmation"
 	ScopeDiffRange                  = "revisions.diff_range"
+	ScopeDivergent                  = "revisions.divergent"
 	ScopeDuplicate                  = "revisions.duplicate"
 	ScopeEvolog                     = "revisions.evolog"
 	ScopeInlineDescribe             = "revisions.inline_describe"
@@ -649,6 +650,15 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.DiffRangeSwap{}, true
 		case keybindings.Action("revisions.diff_range.target_picker"):
 			return intents.DiffRangeOpenTargetPicker{Target: enumArgDiffArgTarget(args, "target")}, true
+		}
+	case ScopeDivergent:
+		switch action {
+		case keybindings.Action("revisions.divergent.abandon"):
+			return intents.FocusedDivergentAbandon{}, true
+		case keybindings.Action("revisions.divergent.show_all"):
+			return intents.FocusedDivergentShowAll{}, true
+		case keybindings.Action("revisions.divergent.update_change_id"):
+			return intents.FocusedDivergentUpdateChangeId{}, true
 		}
 	case ScopeDuplicate:
 		switch action {

@@ -9,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/actions"
+	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
@@ -418,4 +419,41 @@ func TestTextObjectsForRow_UnquotesRefNames(t *testing.T) {
 	require.NotNil(t, obj)
 	assert.Equal(t, "a b", obj.Value)
 	assert.Equal(t, "my remote", obj.Remote)
+}
+
+const divergentLog = "<<log commit node immutable::◆>>  <<log commit immutable divergent change_id shortest prefix::nkmpu>><<log commit immutable divergent change_id shortest rest::xny>><<log commit immutable divergent change_offset::/2>><<log commit immutable:: >>" +
+	"<<log commit immutable author email local::yc>><<log commit immutable:: >>" +
+	"<<log commit immutable commit_id shortest prefix::7fa9>><<log commit immutable commit_id shortest rest::215d>><<log commit immutable:: >><<log commit immutable divergent::(divergent)>><<log commit immutable::>>\n"
+
+func divergentRows(t *testing.T) []parser.Row {
+	rows := parser.ParseRows(strings.NewReader(divergentLog))
+	require.Len(t, rows, 1)
+	return rows
+}
+
+func TestTextObjectsForRow_Divergent(t *testing.T) {
+	objects := textObjectsForRow(divergentRows(t)[0])
+	var kinds, values []string
+	for _, o := range objects {
+		kinds = append(kinds, o.Kind)
+		values = append(values, o.Value)
+	}
+	assert.Equal(t, []string{"node", "change_id", "author", "commit_id", "divergent"}, kinds)
+	assert.Equal(t, []string{"◆", "nkmpuxny/2", "yc", "7fa9215d", "(divergent)"}, values)
+}
+
+func TestModel_FocusedDivergentActions(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.AbandonCommit("7fa9"))
+	commandRunner.Expect(jj.MetaeditUpdateChangeId("7fa9"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(divergentRows(t), "", true)
+	model.focusedObjectKind = textObjectDivergent
+	runJJCommand(model.Update(intents.FocusedDivergentAbandon{}))
+	runJJCommand(model.Update(intents.FocusedDivergentUpdateChangeId{}))
+
+	cmd, _ := model.HandleIntent(intents.FocusedDivergentShowAll{})
+	assert.Equal(t, common.UpdateRevSetMsg("change_id(nkmpu)"), cmd())
 }
