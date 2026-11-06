@@ -195,7 +195,7 @@ func dispatchAction(model *Model, action keybindings.Action, args map[string]any
 	return nil, result.Consumed
 }
 
-const testLogOutput = "○  _PREFIX:abc123_PREFIX:def456 \x1b[1m\x1b[38;5;5mchild\x1b[0m \x1b[38;5;3mauthor\x1b[39m \x1b[38;5;6m2026-05-05\x1b[39m \x1b[1m\x1b[38;5;4mdef456\x1b[0m\n"
+const testLogOutput = "<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::abc123>><<log commit mutable:: >><<log commit mutable author email::author>><<log commit mutable:: >><<log commit mutable commit_id shortest prefix::def456>><<log commit mutable::>>\n"
 
 func TestWrapperView_SetsWindowTitleWhenEnabled(t *testing.T) {
 	origSetWindowTitle := config.Current.UI.SetWindowTitle
@@ -1610,7 +1610,8 @@ func Test_Update_LuaActionRejectsInvalidBuiltInArgs(t *testing.T) {
 
 func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing.T) {
 	const statusOutput = "false false $\nM file.txt\n"
-	const logOutput = "○  _PREFIX:child_PREFIX:childcommit \x1b[1m\x1b[38;5;5mchild\x1b[0m \x1b[38;5;3mauthor\x1b[39m \x1b[38;5;6m2026-05-05\x1b[39m \x1b[1m\x1b[38;5;4mchildcommit\x1b[0m\n○  _PREFIX:parent_PREFIX:parentcommit \x1b[1m\x1b[38;5;5mparent\x1b[0m \x1b[38;5;3mauthor\x1b[39m \x1b[38;5;6m2026-05-05\x1b[39m \x1b[1m\x1b[38;5;4mparentcommit\x1b[0m\n"
+	const logOutput = "<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::child>><<log commit mutable:: >><<log commit mutable commit_id shortest prefix::childcommit>><<log commit mutable::>>\n" +
+		"<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::parent>><<log commit mutable:: >><<log commit mutable commit_id shortest prefix::parentcommit>><<log commit mutable::>>\n"
 
 	origLogBatching := config.Current.Revisions.LogBatching
 	defer func() {
