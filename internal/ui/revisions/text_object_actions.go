@@ -138,3 +138,45 @@ func (m *Model) describeFocusedRevision() tea.Cmd {
 	}
 	return m.startDescribe(intents.Describe{Selected: jj.NewSelectedRevisions(revision)})
 }
+
+// forgetFocusedBookmark forgets the bookmark without marking a deletion to
+// push. Remote and tracked bookmarks are forgotten with --include-remotes,
+// otherwise their remote bookmarks stay behind; they come back on the next
+// fetch if they still exist on the remote.
+func (m *Model) forgetFocusedBookmark() tea.Cmd {
+	obj := m.focusedTextObject()
+	if obj == nil || obj.Kind != textObjectBookmark {
+		return nil
+	}
+	includeRemotes := obj.Remote != ""
+	if !includeRemotes {
+		tracked, err := m.isBookmarkTracked(obj.Value)
+		if err != nil {
+			return intents.Invoke(intents.AddMessage{Text: "Could not list bookmarks", Err: err})
+		}
+		includeRemotes = tracked
+	}
+	if includeRemotes {
+		return m.context.RunCommand(jj.BookmarkForgetIncludingRemotes(obj.Value), common.Refresh)
+	}
+	return m.context.RunCommand(jj.BookmarkForget(obj.Value), common.Refresh)
+}
+
+// isBookmarkTracked reports whether the local bookmark tracks any remote.
+func (m *Model) isBookmarkTracked(name string) (bool, error) {
+	output, err := m.context.RunCommandImmediate(jj.BookmarkListAll())
+	if err != nil {
+		return false, err
+	}
+	for _, b := range jj.ParseBookmarkListOutput(string(output)) {
+		if b.Name != name {
+			continue
+		}
+		for _, r := range b.Remotes {
+			if r.Tracked {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}

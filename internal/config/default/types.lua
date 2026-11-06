@@ -319,6 +319,7 @@ function wait_refresh() end
 ---@field diff fun()
 ---@field diff_edit fun()
 ---@field edit fun()
+---@field fetch fun()
 ---@field force_apply fun()
 ---@field force_edit fun()
 ---@field go_to_bottom fun()
@@ -383,6 +384,7 @@ function wait_refresh() end
 
 ---@class jjui.revisions.bookmark
 ---@field delete fun()
+---@field forget fun()
 ---@field move fun()
 ---@field push fun()
 ---@field rename fun()
@@ -398,6 +400,7 @@ function wait_refresh() end
 
 ---@class jjui.revisions.change_id
 ---@field force_rewrite fun()
+---@field push fun()
 ---@field update fun()
 
 ---@class jjui.revisions.description
