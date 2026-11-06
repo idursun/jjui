@@ -22,6 +22,7 @@ type DisplayContextRenderer struct {
 	dimmedStyle    lipgloss.Style
 	selectedStyle  lipgloss.Style
 	matchedStyle   lipgloss.Style
+	objectStyle    lipgloss.Style
 	selectionFocus bool
 	// focusedObject is drawn as the terminal cursor on the selected row.
 	focusedObject *textObject
@@ -406,6 +407,10 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		tb.Done()
 		if isSelected && r.focusedObject != nil && r.focusedObject.line == i {
 			dl.SetPassiveCursorAt(textObjectCursor(), lineRect.Min.X+r.focusedObject.x, lineRect.Min.Y)
+			if r.focusedObject.Kind != textObjectNode {
+				objectRect := layout.Rect(lineRect.Min.X+r.focusedObject.x, lineRect.Min.Y, r.focusedObject.width, 1)
+				dl.AddAttributes(objectRect, r.objectStyle, 2)
+			}
 		}
 		y++
 	}

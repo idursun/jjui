@@ -379,7 +379,13 @@ function wait_refresh() end
 ---@field reset fun()
 
 ---@class jjui.revisions.bookmark
+---@field create fun()
 ---@field delete fun()
+---@field move fun()
+---@field push fun()
+---@field rename fun()
+---@field track fun()
+---@field untrack fun()
 
 ---@class jjui.revisions.bookmark_target
 ---@field ace_jump fun()

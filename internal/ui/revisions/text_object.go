@@ -29,6 +29,8 @@ type textObject struct {
 	Conflicted bool
 	line       int
 	x          int
+	// width spans the object on its first line.
+	width int
 }
 
 // textObjectKind maps a `--color=debug` labelled segment to the kind of text
@@ -63,8 +65,13 @@ func textObjectsForRow(row parser.Row) []textObject {
 		return &objects[len(objects)-1]
 	}
 	add := func(kind, text string, line, x int) {
-		objects = append(objects, textObject{Kind: kind, Value: text, Index: counts[kind], line: line, x: x})
+		objects = append(objects, textObject{Kind: kind, Value: text, Index: counts[kind], line: line, x: x, width: render.StringWidth(text)})
 		counts[kind]++
+	}
+	extend := func(o *textObject, line, start int, text string) {
+		if o.line == line {
+			o.width = start + render.StringWidth(text) - o.x
+		}
 	}
 
 	gap := false
@@ -91,10 +98,13 @@ func textObjectsForRow(row parser.Row) []textObject {
 				case segment.HasLabel("name"):
 					add(kind, text, lineIndex, start)
 				case prev == nil || prev.Kind != textObjectBookmark:
-				case segment.HasLabel("remote"):
-					prev.Remote = text
-				case text == "??":
-					prev.Conflicted = true
+				default:
+					extend(prev, lineIndex, start, text)
+					if segment.HasLabel("remote") {
+						prev.Remote = text
+					} else if text == "??" {
+						prev.Conflicted = true
+					}
 				}
 				continue
 			}
@@ -107,6 +117,7 @@ func textObjectsForRow(row parser.Row) []textObject {
 					prev.Value += " "
 				}
 				prev.Value += text
+				extend(prev, lineIndex, start, text)
 				continue
 			}
 			add(kind, text, lineIndex, start)
