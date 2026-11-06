@@ -74,10 +74,9 @@ func TestModel_ObjectFocusIsStickyAcrossRowsAndSetsScope(t *testing.T) {
 	model.updateGraphRows(textObjectRows(t), "", true)
 
 	assert.Equal(t, textObjectNode, model.focusedTextObject().Kind)
-	for range 4 {
-		model.Update(intents.RevisionsObjectFocus{Delta: 1})
-	}
+	model.Update(intents.RevisionsObjectFocusKind{Kind: textObjectBookmark})
 	assert.Equal(t, textObjectBookmark, model.focusedTextObject().Kind)
+	assert.True(t, model.InNormalMode(), "focusing a kind does not open its panel")
 	assert.Equal(t, actions.ScopeRevisions+".bookmark", string(model.Scopes()[0].Name))
 
 	model.cursor = 1
@@ -89,6 +88,32 @@ func TestModel_ObjectFocusIsStickyAcrossRowsAndSetsScope(t *testing.T) {
 
 	model.Update(intents.RevisionsObjectNode{})
 	assert.Equal(t, textObjectNode, model.focusedTextObject().Kind)
+}
+
+func TestModel_MovingObjectFocusStaysInNormalMode(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectAuthor
+
+	model.Update(intents.RevisionsObjectFocus{Delta: 1})
+	assert.True(t, model.InNormalMode())
+	assert.Equal(t, textObjectTimestamp, model.focusedTextObject().Kind)
+	scopes := model.Scopes()
+	assert.Equal(t, actions.ScopeRevisions+".timestamp", string(scopes[0].Name))
+	assert.Equal(t, scopeObjects, scopes[len(scopes)-1].Name)
+	assert.True(t, scopes[len(scopes)-1].Global, "h and l stay reachable under details")
+}
+
+func TestModel_ObjectFocusWrapsAroundTheRow(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+
+	model.Update(intents.RevisionsObjectFocus{Delta: -1})
+	assert.Equal(t, textObjectDescription, model.focusedTextObject().Kind)
+
+	model.Update(intents.RevisionsObjectFocus{Delta: 1})
+	assert.Equal(t, textObjectNode, model.focusedTextObject().Kind)
+	assert.Equal(t, actions.ScopeRevisions, string(model.Scopes()[0].Name))
 }
 
 func TestModel_FocusedBookmarkDelete(t *testing.T) {

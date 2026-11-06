@@ -266,6 +266,9 @@ func (m *Model) popLayer() tea.Cmd {
 }
 
 func (m *Model) resetOperations() {
+	if m.detailsOpen() {
+		m.focusedObjectKind, m.focusedObjectIndex = textObjectNode, 0
+	}
 	m.baseOp = operations.NewDefault()
 	m.layers = nil
 }
@@ -399,6 +402,16 @@ func (m *Model) Scopes() []common.Scope {
 		Leak:    leak,
 		Handler: m,
 	})
+	// Global so that h and l still move between objects under details, which
+	// hides the outer scopes.
+	if m.canMoveObjectFocus() {
+		ret = append(ret, common.Scope{
+			Name:    scopeObjects,
+			Leak:    leak,
+			Global:  true,
+			Handler: m,
+		})
+	}
 	return ret
 }
 
@@ -856,10 +869,10 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.navigate(intent), true
 	case intents.RevisionsObjectFocus:
 		m.moveObjectFocus(intent.Delta)
-		return nil, true
+		return m.syncDetails(), true
 	case intents.RevisionsObjectNode:
 		m.focusedObjectKind, m.focusedObjectIndex = textObjectNode, 0
-		return nil, true
+		return m.syncDetails(), true
 	case intents.FocusedBookmarkDelete:
 		return m.deleteFocusedBookmark(), true
 	case intents.FocusedTagDelete:
@@ -1396,7 +1409,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	// Render to DisplayContext
 	m.displayContextRenderer.focusedObject = nil
-	if m.InNormalMode() && !m.IsEditing() {
+	if m.canMoveObjectFocus() {
 		m.displayContextRenderer.focusedObject = m.focusedTextObject()
 	}
 	m.displayContextRenderer.Render(
@@ -1576,6 +1589,36 @@ func (m *Model) focusedTextObject() *textObject {
 		return nil
 	}
 	return resolveTextObject(textObjectsForRow(m.rows[m.cursor]), m.focusedObjectKind, m.focusedObjectIndex)
+}
+
+// scopeObjects holds the keys that move between the text objects of the
+// selected revision.
+const scopeObjects bindings.ScopeName = actions.ScopeRevisions + ".objects"
+
+func (m *Model) detailsOpen() bool {
+	_, ok := m.baseOperation().(*details.Operation)
+	return ok
+}
+
+func (m *Model) canMoveObjectFocus() bool {
+	return len(m.layers) == 0 && !m.IsEditing() && (m.InNormalMode() || m.detailsOpen())
+}
+
+// syncDetails shows details while the change id is focused and closes them
+// once the focus moves on.
+func (m *Model) syncDetails() tea.Cmd {
+	obj := m.focusedTextObject()
+	revision := m.SelectedRevision()
+	if obj != nil && revision != nil && obj.Kind == textObjectChangeId {
+		if m.detailsOpen() {
+			return nil
+		}
+		return m.setBaseOperation(details.NewOperation(m.context, revision))
+	}
+	if m.detailsOpen() {
+		m.baseOp = operations.NewDefault()
+	}
+	return nil
 }
 
 func (m *Model) moveObjectFocus(delta int) {
