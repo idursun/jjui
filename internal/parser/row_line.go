@@ -79,7 +79,8 @@ func (gr *GraphRowLine) chop(indent int) {
 
 	for i, s := range segments {
 		extended := screen.Segment{
-			Style: s.Style,
+			Style:  s.Style,
+			Labels: s.Labels,
 		}
 		var textBuilder strings.Builder
 		for _, p := range s.Text {
@@ -93,8 +94,9 @@ func (gr *GraphRowLine) chop(indent int) {
 		gr.Gutter.Segments = append(gr.Gutter.Segments, &extended)
 		if len(extended.Text) < len(s.Text) {
 			gr.Segments = append(gr.Segments, &screen.Segment{
-				Text:  s.Text[len(extended.Text):],
-				Style: s.Style,
+				Text:   s.Text[len(extended.Text):],
+				Style:  s.Style,
+				Labels: s.Labels,
 			})
 		}
 		if indent <= 0 && len(segments)-i-1 > 0 {
@@ -109,8 +111,9 @@ func (gr *GraphRowLine) chop(indent int) {
 	for _, s := range segments {
 		for _, p := range s.Text {
 			extended := screen.Segment{
-				Text:  string(p),
-				Style: s.Style,
+				Text:   string(p),
+				Style:  s.Style,
+				Labels: s.Labels,
 			}
 			gr.Gutter.Segments = append(gr.Gutter.Segments, &extended)
 		}
@@ -135,4 +138,83 @@ func (gr *GraphRowLine) containsRune(r rune) bool {
 		}
 	}
 	return false
+}
+
+// ParseRevisionNode detects a revision line in `--color=debug` output by its
+// graph node label and returns the index of the first content segment.
+func (gr *GraphRowLine) ParseRevisionNode() (int, *jj.Commit) {
+	for i, segment := range gr.Segments {
+		if !segment.HasLabel("node") {
+			continue
+		}
+		if segment.HasLabel("elided") {
+			return -1, nil
+		}
+		for j := i + 1; j < len(gr.Segments); j++ {
+			if len(gr.Segments[j].Labels) > 0 {
+				return j, &jj.Commit{IsWorkingCopy: segment.HasLabel("working_copy")}
+			}
+		}
+		return -1, nil
+	}
+	return -1, nil
+}
+
+// applyLabels fills in commit metadata from the labelled segments of a line.
+// The first change id and commit id rendered for the revision win.
+func applyLabels(commit *jj.Commit, segments []*screen.Segment) {
+	// Ids are reduced to their `prefix` span so they match the
+	// `shortest()` ids used by jjui's other commands.
+	idOf := func(start int, label string) (string, int) {
+		var full, prefix strings.Builder
+		i := start
+		for ; i < len(segments) && segments[i].HasLabel(label); i++ {
+			full.WriteString(segments[i].Text)
+			if segments[i].HasLabel("prefix") {
+				prefix.WriteString(segments[i].Text)
+			}
+		}
+		if prefix.Len() > 0 {
+			return prefix.String(), i
+		}
+		return full.String(), i
+	}
+	for i := 0; i < len(segments); i++ {
+		s := segments[i]
+		switch {
+		case s.HasLabel("change_id") && commit.ChangeId == "":
+			id, next := idOf(i, "change_id")
+			if next < len(segments) && segments[next].HasLabel("change_offset") {
+				id += segments[next].Text
+				next++
+			}
+			commit.ChangeId = id
+			i = next - 1
+			continue
+		case s.HasLabel("commit_id") && commit.CommitId == "":
+			id, next := idOf(i, "commit_id")
+			commit.CommitId = id
+			i = next - 1
+			continue
+		}
+		if s.HasLabel("bookmarks") && s.HasLabel("name") {
+			commit.HasBookmarks = true
+			isRemote := i+1 < len(segments) && segments[i+1].HasLabel("bookmarks") && segments[i+1].Text == "@"
+			if !isRemote {
+				commit.HasLocalBookmarks = true
+			}
+		}
+		if s.HasLabel("working_copies") || s.HasLabel("working_copy") {
+			commit.HasWorkspace = true
+		}
+		if s.HasLabel("root") {
+			commit.Root = true
+		}
+		if s.HasLabel("empty") {
+			commit.IsEmpty = true
+		}
+		if s.HasLabel("hidden") {
+			commit.Hidden = true
+		}
+	}
 }
