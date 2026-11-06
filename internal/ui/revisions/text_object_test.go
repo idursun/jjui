@@ -341,3 +341,60 @@ func TestModel_FocusedDescriptionEditDescribesOnlyTheFocusedRevision(t *testing.
 	model.focusedObjectKind = textObjectDescription
 	runJJCommand(model.Update(intents.FocusedDescriptionEdit{}))
 }
+
+func TestModel_FocusedBookmarkForget(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("second;.;true;false;false;false;28\n"))
+	commandRunner.Expect(jj.BookmarkForget("second"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectBookmark
+	runJJCommand(model.Update(intents.FocusedBookmarkForget{}))
+}
+
+func TestModel_FocusedBookmarkForgetIncludesRemotesOfTrackedBookmarks(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("second;.;true;false;false;false;28\nsecond;origin;true;true;false;false;28\n"))
+	commandRunner.Expect(jj.BookmarkForgetIncludingRemotes("second"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectBookmark
+	runJJCommand(model.Update(intents.FocusedBookmarkForget{}))
+}
+
+func TestModel_FocusedRemoteBookmarkForgetIncludesRemotes(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkForgetIncludingRemotes("second"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectBookmark
+	model.focusedObjectIndex = 1
+	runJJCommand(model.Update(intents.FocusedBookmarkForget{}))
+}
+
+func TestModel_FocusedChangePush(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitPush("--change", "m"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectChangeId
+	runJJCommand(model.Update(intents.FocusedChangePush{}))
+}
+
+func TestModel_RevisionsFetch(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitFetch())
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	runJJCommand(model.Update(intents.RevisionsFetch{}))
+}
