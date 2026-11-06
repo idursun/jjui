@@ -24,52 +24,6 @@ func NewGraphRowLine(segments []*screen.Segment) GraphRowLine {
 	}
 }
 
-func (gr *GraphRowLine) ParseRowPrefixes() (int, *jj.Commit) {
-	prefixesIdx := -1
-	for i, segment := range gr.Segments {
-		if strings.Contains(segment.Text, jj.JJUIPrefix) {
-			prefixesIdx = i
-			break
-		}
-	}
-
-	if prefixesIdx == -1 {
-		return -1, nil
-	}
-	prefixParts := strings.Split(gr.Segments[prefixesIdx].Text, jj.JJUIPrefix)
-	if len(prefixParts) != 3 && len(prefixParts) != 4 && len(prefixParts) != 5 && len(prefixParts) != 6 && len(prefixParts) != 7 && len(prefixParts) != 8 {
-		return -1, nil
-	}
-	beforePrefix := prefixParts[0]
-	commit := &jj.Commit{
-		ChangeId: strings.TrimSpace(prefixParts[1]),
-		CommitId: strings.TrimSpace(prefixParts[2]),
-	}
-	if len(prefixParts) == 6 || len(prefixParts) == 7 || len(prefixParts) == 8 {
-		commit.HasBookmarks = strings.TrimSpace(prefixParts[3]) == "true"
-		commit.HasLocalBookmarks = strings.TrimSpace(prefixParts[4]) == "true"
-		commit.HasWorkspace = strings.TrimSpace(prefixParts[5]) == "true"
-	}
-	switch len(prefixParts) {
-	case 4:
-		commit.Root = strings.TrimSpace(prefixParts[3]) == "true"
-	case 5:
-		commit.Root = strings.TrimSpace(prefixParts[3]) == "true"
-		commit.IsEmpty = strings.TrimSpace(prefixParts[4]) == "true"
-	case 7, 8:
-		commit.Root = strings.TrimSpace(prefixParts[6]) == "true"
-		if len(prefixParts) == 8 {
-			commit.IsEmpty = strings.TrimSpace(prefixParts[7]) == "true"
-		}
-	}
-
-	// Remove the structured metadata, while keeping everything before the
-	// prefixes.
-	gr.Segments[prefixesIdx] = &screen.Segment{Text: beforePrefix}
-
-	return prefixesIdx + 1, commit
-}
-
 func (gr *GraphRowLine) chop(indent int) {
 	if len(gr.Segments) == 0 {
 		return
@@ -131,6 +85,35 @@ func (gr *GraphRowLine) chop(indent int) {
 	}
 }
 
+// labelledFlags derives the line type from its `--color=debug` labels. Lines
+// without labels only draw the graph; a `~` among them marks the end of the
+// visible history.
+func (gr *GraphRowLine) labelledFlags() RowLineFlags {
+	var flags RowLineFlags
+	labelled := false
+	for _, segment := range append(append([]*screen.Segment{}, gr.Gutter.Segments...), gr.Segments...) {
+		if len(segment.Labels) == 0 {
+			continue
+		}
+		labelled = true
+		switch {
+		case segment.HasLabel("elided"):
+			return Elided
+		case segment.HasLabel("node"):
+			flags |= Revision
+		case segment.HasLabel("description"):
+			flags |= Description
+		}
+	}
+	if !labelled {
+		if gr.containsRune('~') {
+			return Elided
+		}
+		return 0
+	}
+	return flags | Highlightable
+}
+
 func (gr *GraphRowLine) containsRune(r rune) bool {
 	for _, segment := range gr.Gutter.Segments {
 		if strings.ContainsRune(segment.Text, r) {
@@ -154,6 +137,7 @@ func (gr *GraphRowLine) ParseRevisionNode() (int, *jj.Commit) {
 			if len(gr.Segments[j].Labels) > 0 {
 				return j, &jj.Commit{
 					IsWorkingCopy: segment.HasLabel("working_copy"),
+					HasWorkspace:  segment.HasLabel("working_copy"),
 					IsImmutable:   segment.HasLabel("immutable"),
 				}
 			}
@@ -187,9 +171,9 @@ func applyLabels(commit *jj.Commit, segments []*screen.Segment) {
 		switch {
 		case s.HasLabel("change_id") && commit.ChangeId == "":
 			id, next := idOf(i, "change_id")
-			if next < len(segments) && segments[next].HasLabel("change_offset") {
+			// evolog splits the offset into "/" and the number.
+			for ; next < len(segments) && segments[next].HasLabel("change_offset"); next++ {
 				id += segments[next].Text
-				next++
 			}
 			commit.ChangeId = id
 			i = next - 1
@@ -200,9 +184,12 @@ func applyLabels(commit *jj.Commit, segments []*screen.Segment) {
 			i = next - 1
 			continue
 		}
-		if s.HasLabel("bookmarks") && s.HasLabel("name") {
+		// The bookmarks keyword labels remote names by a following `@`;
+		// local_bookmarks and remote_bookmarks label themselves.
+		if s.HasLabel("name") && (s.HasLabel("bookmarks") || s.HasLabel("local_bookmarks") || s.HasLabel("remote_bookmarks")) {
 			commit.HasBookmarks = true
-			isRemote := i+1 < len(segments) && segments[i+1].HasLabel("bookmarks") && segments[i+1].Text == "@"
+			isRemote := s.HasLabel("remote_bookmarks") ||
+				(i+1 < len(segments) && segments[i+1].HasLabel("bookmarks") && segments[i+1].Text == "@")
 			if !isRemote {
 				commit.HasLocalBookmarks = true
 			}

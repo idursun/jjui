@@ -2,7 +2,6 @@ package parser
 
 import (
 	"slices"
-	"strings"
 
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/screen"
@@ -14,6 +13,7 @@ const (
 	Revision RowLineFlags = 1 << iota
 	Highlightable
 	Elided
+	Description
 )
 
 type Row struct {
@@ -52,22 +52,6 @@ func (row *Row) Get(line int, col int) (rune, bool) {
 		return r, true
 	}
 	return ' ', false
-}
-
-func (row *Row) GetNodeIndex() int {
-	for _, line := range row.Lines {
-		if line.Flags&Revision != Revision {
-			continue
-		}
-		for j, g := range line.Gutter.Segments {
-			for _, r := range g.Text {
-				if r == '@' || r == '○' || r == '◆' || r == '×' {
-					return j
-				}
-			}
-		}
-	}
-	return 0
 }
 
 func (row *Row) GetLane(line int, col int) uint64 {
@@ -160,22 +144,10 @@ func (row *Row) AddLine(line *GraphRowLine) {
 	}
 	line.chop(row.Indent)
 	applyLabels(row.Commit, line.Segments)
-	switch len(row.Lines) {
-	case 0:
-		line.Flags = Revision | Highlightable
-		row.Commit.IsWorkingCopy = row.Commit.IsWorkingCopy || line.containsRune('@')
-		for _, segment := range line.Segments {
-			if text := strings.TrimSpace(segment.Text); text == "hidden" || text == "(hidden)" {
-				row.Commit.Hidden = true
-			}
-		}
-	default:
-		if line.containsRune('~') {
-			line.Flags = Elided
-		} else {
-			lastLine := row.Lines[len(row.Lines)-1]
-			line.Flags = lastLine.Flags & ^Revision & ^Elided
-		}
+	line.Flags = line.labelledFlags()
+	if line.Flags == 0 && len(row.Lines) > 0 {
+		// Graph-only lines continue the lanes of the revision above them.
+		line.Flags = row.Lines[len(row.Lines)-1].Flags & Highlightable
 	}
 	row.Lines = append(row.Lines, line)
 }

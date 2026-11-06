@@ -56,7 +56,7 @@ func BreakNewLinesIter(rawSegments <-chan *Segment) <-chan []*Segment {
 				rawSegment.Text = rawSegment.Text[idx+1:]
 				idx = strings.IndexByte(rawSegment.Text, '\n')
 			}
-			if len(rawSegment.Text) > 0 {
+			if len(rawSegment.Text) > 0 || len(rawSegment.Labels) > 0 {
 				currentLine = append(currentLine, rawSegment)
 			}
 		}

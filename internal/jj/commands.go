@@ -26,7 +26,6 @@ const (
 	// the reason is user can use checked commits as revsets
 	// given to jj commands.
 	CheckedCommitIdsPlaceholder = "$checked_commit_ids"
-	JJUIPrefix                  = "_PREFIX:"
 )
 
 type (

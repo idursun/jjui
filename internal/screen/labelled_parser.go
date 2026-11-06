@@ -76,6 +76,11 @@ func (p *labelledParser) parseLine(line string) {
 			p.inSpan = true
 			i += n
 		case p.inSpan && strings.HasPrefix(rest, ">>") && isSpanEnd(rest[2:]):
+			// Empty spans are kept: their labels still say what the line is,
+			// e.g. a blank line inside a description.
+			if p.buffer.Len() == 0 {
+				p.out <- &Segment{Style: p.style, Labels: p.labels}
+			}
 			p.flush()
 			p.labels = nil
 			p.inSpan = false
