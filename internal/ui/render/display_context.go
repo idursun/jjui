@@ -94,6 +94,11 @@ func (dl *DisplayContext) AddPaint(rect layout.Rectangle, style lipgloss.Style, 
 	dl.AddEffect(HighlightEffect{Rect: rect, Style: style, Z: z, Force: true})
 }
 
+// AddAttributes adds an AttributesEffect.
+func (dl *DisplayContext) AddAttributes(rect layout.Rectangle, style lipgloss.Style, z int) {
+	dl.AddEffect(AttributesEffect{Rect: rect, Style: style, Z: z})
+}
+
 // AddInteraction adds an InteractionOp to the display context.
 func (dl *DisplayContext) AddInteraction(rect layout.Rectangle, msg tea.Msg, typ InteractionType, z int) {
 	dl.interactions = append(dl.interactions, interactionOp{
