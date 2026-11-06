@@ -13,6 +13,7 @@ type Commit struct {
 	HasWorkspace      bool
 	Root              bool
 	IsEmpty           bool
+	IsImmutable       bool
 	CommitId          string
 }
 

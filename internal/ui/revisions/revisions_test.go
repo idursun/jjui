@@ -445,12 +445,13 @@ func TestModel_QueryStateReadsCoveredBaseAndTracksReplacement(t *testing.T) {
 }
 
 func TestModel_QueryStateReportsParentAndContentState(t *testing.T) {
-	model := Model{rows: []parser.Row{{Commit: &jj.Commit{ChangeId: "revision", IsEmpty: true}}}}
+	model := Model{rows: []parser.Row{{Commit: &jj.Commit{ChangeId: "revision", IsEmpty: true, IsImmutable: true}}}}
 	for name, want := range map[string]bool{
 		"has_revision": true,
 		"has_parent":   true,
 		"is_root":      false,
 		"is_empty":     true,
+		"is_immutable": true,
 	} {
 		value, ok := model.QueryState(name)
 		assert.True(t, ok, name)
