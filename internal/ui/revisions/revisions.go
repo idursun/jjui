@@ -198,6 +198,8 @@ func (m *Model) QueryState(name string) (any, bool) {
 		return true, true
 	case "is_empty":
 		return selected != nil && selected.IsEmpty, true
+	case "is_immutable":
+		return selected != nil && selected.IsImmutable, true
 	case "is_working_copy":
 		return selected != nil && selected.IsWorkingCopy, true
 	case "working_copy_has_changes":
