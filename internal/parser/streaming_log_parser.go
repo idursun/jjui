@@ -25,10 +25,13 @@ func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batc
 		defer close(rowsChan)
 		var rows []Row
 		var row Row
-		rawSegments := screen.ParseFromReader(reader)
+		rawSegments := screen.ParseLabelledFromReader(reader)
 		for segmentedLine := range screen.BreakNewLinesIter(rawSegments) {
 			rowLine := NewGraphRowLine(segmentedLine)
-			changeIDIdx, commit := rowLine.ParseRowPrefixes()
+			changeIDIdx, commit := rowLine.ParseRevisionNode()
+			if commit == nil {
+				changeIDIdx, commit = rowLine.ParseRowPrefixes()
+			}
 			if changeIDIdx != -1 && changeIDIdx != len(rowLine.Segments)-1 {
 				previousRow := row
 				if len(rows) > batchSize {

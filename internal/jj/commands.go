@@ -42,7 +42,7 @@ func ConfigListAll() CommandArgs {
 }
 
 func Log(revset string, limit int, jjTemplate string) CommandArgs {
-	args := []string{"log", "--color", "always", "--quiet"}
+	args := []string{"log", "--color", "debug", "--quiet"}
 	if revset != "" {
 		args = append(args, "-r", revset)
 	}
@@ -54,10 +54,6 @@ func Log(revset string, limit int, jjTemplate string) CommandArgs {
 	if template == "" {
 		template = jjTemplate
 	}
-	prefix := fmt.Sprintf(
-		"stringify('%s' ++ separate('%s', change_id.shortest() ++ if(divergent, \"/\" ++ change_offset), commit_id.shortest(), bookmarks.len() > 0, local_bookmarks.len() > 0, current_working_copy || working_copies.len() > 0, root, empty))",
-		JJUIPrefix, JJUIPrefix)
-	template = fmt.Sprintf("%s ++ ' ' ++ %s", prefix, template)
 	args = append(args, "-T", template)
 	return args
 }
@@ -382,12 +378,7 @@ func DuplicateInsert(from SelectedRevisions, insertAfter string, insertBefore st
 }
 
 func Evolog(revision string) CommandArgs {
-	prefix := fmt.Sprintf(
-		"stringify('%s' ++ separate('%s', commit.change_id().shortest(), commit.commit_id().shortest(), commit.root(), commit.empty()))",
-		JJUIPrefix, JJUIPrefix)
-	template := "builtin_evolog_compact"
-	template = fmt.Sprintf("%s ++ ' ' ++ %s", prefix, template)
-	return []string{"evolog", "-r", revision, "--color", "always", "--quiet", "--ignore-working-copy", "--template", template}
+	return []string{"evolog", "-r", revision, "--color", "debug", "--quiet", "--ignore-working-copy", "--template", "builtin_evolog_compact"}
 }
 
 func Args(args ...string) CommandArgs {

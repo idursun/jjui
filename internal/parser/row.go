@@ -159,10 +159,11 @@ func (row *Row) AddLine(line *GraphRowLine) {
 		return
 	}
 	line.chop(row.Indent)
+	applyLabels(row.Commit, line.Segments)
 	switch len(row.Lines) {
 	case 0:
 		line.Flags = Revision | Highlightable
-		row.Commit.IsWorkingCopy = line.containsRune('@')
+		row.Commit.IsWorkingCopy = row.Commit.IsWorkingCopy || line.containsRune('@')
 		for _, segment := range line.Segments {
 			if text := strings.TrimSpace(segment.Text); text == "hidden" || text == "(hidden)" {
 				row.Commit.Hidden = true
