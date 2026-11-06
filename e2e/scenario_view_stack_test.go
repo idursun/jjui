@@ -104,10 +104,17 @@ func Test_ViewStack_HelpDoesNotOpenOverDiff(t *testing.T) {
 func Test_ViewStack_DialogKeysDoNotReachRevisions(t *testing.T) {
 	t.Parallel()
 	h := startViewStackRepo(t)
+	h.WriteConfigTOML(`
+[[bindings]]
+action = "ui.open_bookmarks"
+key = "Y"
+scope = "revisions"
+desc = "bookmarks"
+`)
 	h.Start("view stack target")
 	before := countRevisions(t, h.Repo(), h.Env())
 
-	h.Key("b")
+	h.Key("Y")
 	h.WaitText("Bookmark Operations")
 	// "n" is revisions.new; the bookmarks dialog leaves it unbound.
 	h.Key("n")

@@ -99,6 +99,13 @@ lua = """
  """
 
 [[actions]]
+name = "revisions.show_bookmarks"
+lua = """
+ revset.set("bookmarks() | remote_bookmarks()")
+ jjui.builtin.revisions.object_focus({ kind = "bookmark" })
+ """
+
+[[actions]]
 name = "revisions.toggle_select"
 lua = """
  jjui.builtin.revisions.toggle_select()

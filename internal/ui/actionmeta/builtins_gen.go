@@ -269,6 +269,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.new_between.apply":                   {"revisions.new_between"},
 	"revisions.new_between.cancel":                  {"revisions.new_between"},
 	"revisions.new_between.toggle_insert_before":    {"revisions.new_between"},
+	"revisions.object_focus":                        {"revisions"},
 	"revisions.object_next":                         {"revisions"},
 	"revisions.object_node":                         {"revisions"},
 	"revisions.object_prev":                         {"revisions"},
@@ -487,6 +488,9 @@ var builtInActionArgSchemas = map[string]map[string]string{
 	"revisions.inline_describe.confirmation.apply": {
 		"force": "bool",
 	},
+	"revisions.object_focus": {
+		"kind": "string",
+	},
 	"revisions.open_set_bookmark": {
 		"value": "string",
 	},
@@ -530,6 +534,7 @@ var builtInActionRequiredArgs = map[string][]string{
 	"revisions.details.select_file":      {"file"},
 	"revisions.diff_range.target_picker": {"target"},
 	"revisions.duplicate.set_target":     {"target"},
+	"revisions.object_focus":             {"kind"},
 	"revisions.rebase.set_source":        {"source"},
 	"revisions.rebase.set_target":        {"target"},
 	"revisions.revert.set_target":        {"target"},
