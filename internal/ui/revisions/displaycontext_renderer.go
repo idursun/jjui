@@ -642,6 +642,11 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 		if ir.segmentRenderer != nil {
 			rendered := ir.segmentRenderer.RenderSegment(style, segment, ir.row)
 			if rendered != "" {
+				if cursorProvider, ok := ir.segmentRenderer.(operations.InlineCursorProvider); ok {
+					if cursor := cursorProvider.InlineCursor(ir.row.Commit, operations.RenderOverSegment); cursor != nil {
+						ir.dl.SetCursorAt(cursor, x+currentX, y)
+					}
+				}
 				write(rendered)
 				continue
 			}
