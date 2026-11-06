@@ -9,7 +9,7 @@ import (
 func parseRows(reader io.Reader) []row {
 	var rows []row
 	var r row
-	rawSegments := screen.ParseFromReader(reader)
+	rawSegments := screen.ParseLabelledFromReader(reader)
 
 	for segmentedLine := range screen.BreakNewLinesIter(rawSegments) {
 		rowLine := newRowLine(segmentedLine)
