@@ -9,22 +9,28 @@ import (
 	ghostty "go.mitchellh.com/libghostty"
 )
 
-// focusTextOnRow presses ] until the terminal cursor sits on the first
-// occurrence of text on the screen.
+// focusTextOnRow presses l until the terminal cursor sits on the first
+// occurrence of text on the screen. The target is looked up again after each
+// move because an opened panel can scroll the log.
 func focusTextOnRow(t *testing.T, session *ptySession, ctx context.Context, text string) {
 	t.Helper()
-	screen, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, text) })
-	if err != nil {
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, text) }); err != nil {
 		t.Fatalf("%q not on screen: %v", text, err)
 	}
+	var screen []string
 	wantY, wantX := -1, -1
-	for y, line := range screen {
-		if i := strings.Index(line, text); i >= 0 {
-			wantY, wantX = y, len([]rune(line[:i]))
-			break
-		}
-	}
 	for range 10 {
+		var err error
+		if screen, err = session.Snapshot(); err != nil {
+			t.Fatal(err)
+		}
+		wantY, wantX = -1, -1
+		for y, line := range screen {
+			if i := strings.Index(line, text); i >= 0 {
+				wantY, wantX = y, len([]rune(line[:i]))
+				break
+			}
+		}
 		cursor, err := session.Cursor()
 		if err != nil {
 			t.Fatal(err)
@@ -32,7 +38,7 @@ func focusTextOnRow(t *testing.T, session *ptySession, ctx context.Context, text
 		if int(cursor.Y) == wantY && int(cursor.X) == wantX {
 			return
 		}
-		if err := session.SendKey(ghostty.KeyBracketRight, "]", 0); err != nil {
+		if err := session.SendKey(ghostty.KeyL, "l", 0); err != nil {
 			t.Fatal(err)
 		}
 		_, _ = session.WaitForCursor(ctx, func(c cursorPosition) bool { return c != cursor })
