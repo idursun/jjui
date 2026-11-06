@@ -69,6 +69,34 @@ func (e HighlightEffect) Apply(buf uv.Screen) {
 
 func (e HighlightEffect) GetZ() int { return e.Z }
 
+// AttributesEffect adds the text attributes of a style (bold, underline, ...)
+// to the cells in a rectangle while keeping their colors.
+type AttributesEffect struct {
+	Rect  layout.Rectangle
+	Style lipgloss.Style
+	Z     int
+}
+
+func (e AttributesEffect) Apply(buf uv.Screen) {
+	style := lipglossToStyle(e.Style)
+	if style.Attrs == 0 && style.Underline == 0 {
+		return
+	}
+	iterateCells(buf, e.Rect, func(cell *uv.Cell) *uv.Cell {
+		if cell == nil {
+			return nil
+		}
+		newCell := cell.Clone()
+		newCell.Style.Attrs |= style.Attrs
+		if style.Underline != 0 {
+			newCell.Style.Underline = style.Underline
+		}
+		return newCell
+	})
+}
+
+func (e AttributesEffect) GetZ() int { return e.Z }
+
 type FillEffect struct {
 	Rect  layout.Rectangle
 	Char  rune
