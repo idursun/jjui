@@ -315,6 +315,21 @@ type FocusedBookmarkForget struct{}
 
 func (FocusedBookmarkForget) isIntent() {}
 
+//jjui:bind scope=revisions.divergent action=show_all
+type FocusedDivergentShowAll struct{}
+
+func (FocusedDivergentShowAll) isIntent() {}
+
+//jjui:bind scope=revisions.divergent action=abandon
+type FocusedDivergentAbandon struct{}
+
+func (FocusedDivergentAbandon) isIntent() {}
+
+//jjui:bind scope=revisions.divergent action=update_change_id
+type FocusedDivergentUpdateChangeId struct{}
+
+func (FocusedDivergentUpdateChangeId) isIntent() {}
+
 //jjui:bind scope=revisions action=fetch
 type RevisionsFetch struct{}
 

@@ -896,6 +896,12 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.runOnFocusedRevision(textObjectAuthor, jj.MetaeditUpdateAuthor), true
 	case intents.FocusedTimestampReset:
 		return m.runOnFocusedRevision(textObjectTimestamp, jj.MetaeditUpdateAuthorTimestamp), true
+	case intents.FocusedDivergentShowAll:
+		return m.showAllDivergentCopies(), true
+	case intents.FocusedDivergentAbandon:
+		return m.runOnFocusedCommit(textObjectDivergent, jj.AbandonCommit), true
+	case intents.FocusedDivergentUpdateChangeId:
+		return m.runOnFocusedCommit(textObjectDivergent, jj.MetaeditUpdateChangeId), true
 	case intents.FocusedDescriptionEdit:
 		return m.describeFocusedRevision(), true
 	case intents.GoToTop:

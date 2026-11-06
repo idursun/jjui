@@ -1,6 +1,8 @@
 package revisions
 
 import (
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -179,4 +181,26 @@ func (m *Model) isBookmarkTracked(name string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+// runOnFocusedCommit targets the commit id because the change id of a
+// divergent revision is ambiguous.
+func (m *Model) runOnFocusedCommit(kind string, command func(string) jj.CommandArgs) tea.Cmd {
+	obj := m.focusedTextObject()
+	revision := m.SelectedRevision()
+	if obj == nil || obj.Kind != kind || revision == nil {
+		return nil
+	}
+	return m.context.RunCommand(command(revision.CommitId), common.Refresh)
+}
+
+// showAllDivergentCopies limits the log to every copy of the change.
+func (m *Model) showAllDivergentCopies() tea.Cmd {
+	obj := m.focusedTextObject()
+	revision := m.SelectedRevision()
+	if obj == nil || obj.Kind != textObjectDivergent || revision == nil {
+		return nil
+	}
+	changeId, _, _ := strings.Cut(revision.ChangeId, "/")
+	return common.UpdateRevSet("change_id(" + changeId + ")")
 }
