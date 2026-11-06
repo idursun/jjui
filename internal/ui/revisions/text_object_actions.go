@@ -116,3 +116,14 @@ func (m *Model) defaultTrackRemote() string {
 	}
 	return remotes[0]
 }
+
+func (m *Model) deleteFocusedTag() tea.Cmd {
+	obj := m.focusedTextObject()
+	if obj == nil || obj.Kind != textObjectTag {
+		return nil
+	}
+	if obj.Remote != "" {
+		return intents.Invoke(intents.AddMessage{Text: "Only local tags can be deleted"})
+	}
+	return m.context.RunCommand(jj.TagDelete(obj.Value), common.Refresh)
+}

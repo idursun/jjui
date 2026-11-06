@@ -306,6 +306,7 @@ function wait_refresh() end
 ---@field set_bookmark jjui.revisions.set_bookmark
 ---@field set_parents jjui.revisions.set_parents
 ---@field squash jjui.revisions.squash
+---@field tag jjui.revisions.tag
 ---@field target_picker jjui.revisions.target_picker
 ---@field timestamp jjui.revisions.timestamp
 ---@field ace_jump fun()
@@ -535,6 +536,9 @@ function wait_refresh() end
 ---@field target_picker fun()
 ---@field use_destination_msg fun()
 ---@field close fun()
+
+---@class jjui.revisions.tag
+---@field delete fun()
 
 ---@class jjui.revisions.target_picker
 ---@field apply fun(args: {force?: boolean})

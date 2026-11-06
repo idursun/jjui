@@ -299,3 +299,8 @@ func (FocusedBookmarkTrack) isIntent() {}
 type FocusedBookmarkPush struct{}
 
 func (FocusedBookmarkPush) isIntent() {}
+
+//jjui:bind scope=revisions.tag action=delete
+type FocusedTagDelete struct{}
+
+func (FocusedTagDelete) isIntent() {}

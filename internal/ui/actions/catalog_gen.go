@@ -48,6 +48,7 @@ const (
 	ScopeSetBookmark                = "revisions.set_bookmark"
 	ScopeSetParents                 = "revisions.set_parents"
 	ScopeSquash                     = "revisions.squash"
+	ScopeTag                        = "revisions.tag"
 	ScopeTargetPicker               = "revisions.target_picker"
 	ScopeTimestamp                  = "revisions.timestamp"
 	ScopeRevset                     = "revset"
@@ -804,6 +805,11 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.SquashOpenTargetPicker{}, true
 		case keybindings.Action("revisions.squash.use_destination_msg"):
 			return intents.SquashToggleOption{Option: intents.SquashOptionUseDestinationMessage}, true
+		}
+	case ScopeTag:
+		switch action {
+		case keybindings.Action("revisions.tag.delete"):
+			return intents.FocusedTagDelete{}, true
 		}
 	case ScopeTargetPicker:
 		switch action {
