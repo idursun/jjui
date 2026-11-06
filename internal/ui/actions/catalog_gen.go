@@ -30,6 +30,8 @@ const (
 	ScopeAbandon                    = "revisions.abandon"
 	ScopeAbsorb                     = "revisions.absorb"
 	ScopeAceJump                    = "revisions.ace_jump"
+	ScopeAuthor                     = "revisions.author"
+	ScopeBookmark                   = "revisions.bookmark"
 	ScopeBookmarkTarget             = "revisions.bookmark_target"
 	ScopeDetails                    = "revisions.details"
 	ScopeDetailsConfirmation        = "revisions.details.confirmation"
@@ -47,6 +49,7 @@ const (
 	ScopeSetParents                 = "revisions.set_parents"
 	ScopeSquash                     = "revisions.squash"
 	ScopeTargetPicker               = "revisions.target_picker"
+	ScopeTimestamp                  = "revisions.timestamp"
 	ScopeRevset                     = "revset"
 	ScopeStatusInput                = "status.input"
 	ScopeUi                         = "ui"
@@ -450,6 +453,12 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Navigate{Delta: -1}, true
 		case keybindings.Action("revisions.new"):
 			return intents.StartNew{}, true
+		case keybindings.Action("revisions.object_next"):
+			return intents.RevisionsObjectFocus{Delta: 1}, true
+		case keybindings.Action("revisions.object_node"):
+			return intents.RevisionsObjectNode{}, true
+		case keybindings.Action("revisions.object_prev"):
+			return intents.RevisionsObjectFocus{Delta: -1}, true
 		case keybindings.Action("revisions.open_abandon"):
 			return intents.OpenAbandon{}, true
 		case keybindings.Action("revisions.open_absorb"):
@@ -529,6 +538,16 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Apply{}, true
 		case keybindings.Action("revisions.ace_jump.cancel"):
 			return intents.Cancel{}, true
+		}
+	case ScopeAuthor:
+		switch action {
+		case keybindings.Action("revisions.author.reset"):
+			return intents.FocusedAuthorReset{}, true
+		}
+	case ScopeBookmark:
+		switch action {
+		case keybindings.Action("revisions.bookmark.delete"):
+			return intents.FocusedBookmarkDelete{}, true
 		}
 	case ScopeBookmarkTarget:
 		switch action {
@@ -792,6 +811,11 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.TargetPickerNavigate{Delta: 1}, true
 		case keybindings.Action("revisions.target_picker.move_up"):
 			return intents.TargetPickerNavigate{Delta: -1}, true
+		}
+	case ScopeTimestamp:
+		switch action {
+		case keybindings.Action("revisions.timestamp.reset"):
+			return intents.FocusedTimestampReset{}, true
 		}
 	case ScopeRevset:
 		switch action {
