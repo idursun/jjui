@@ -231,6 +231,14 @@ func MetaeditUpdateAuthor(revision string) CommandArgs {
 	return []string{"metaedit", "--update-author", "-r", revision}
 }
 
+func MetaeditUpdateChangeId(revision string) CommandArgs {
+	return []string{"metaedit", "--update-change-id", "-r", revision}
+}
+
+func MetaeditForceRewrite(revision string) CommandArgs {
+	return []string{"metaedit", "--force-rewrite", "-r", revision}
+}
+
 func MetaeditUpdateAuthorTimestamp(revision string) CommandArgs {
 	return []string{"metaedit", "--update-author-timestamp", "-r", revision}
 }

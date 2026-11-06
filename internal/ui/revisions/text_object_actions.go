@@ -127,3 +127,14 @@ func (m *Model) deleteFocusedTag() tea.Cmd {
 	}
 	return m.context.RunCommand(jj.TagDelete(obj.Value), common.Refresh)
 }
+
+// describeFocusedRevision opens the editor for the focused revision only,
+// unlike describe, which applies to the checked revisions.
+func (m *Model) describeFocusedRevision() tea.Cmd {
+	obj := m.focusedTextObject()
+	revision := m.SelectedRevision()
+	if obj == nil || obj.Kind != textObjectDescription || revision == nil {
+		return nil
+	}
+	return m.startDescribe(intents.Describe{Selected: jj.NewSelectedRevisions(revision)})
+}
