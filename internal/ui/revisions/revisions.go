@@ -1587,15 +1587,26 @@ func (m *Model) moveObjectFocus(delta int) {
 	m.focusedObjectKind, m.focusedObjectIndex = objects[next].Kind, objects[next].Index
 }
 
+// deleteFocusedBookmark deletes the local bookmark. For a remote bookmark
+// this marks it deleted so that pushing it deletes it on the remote; an
+// untracked one has no local bookmark until it is tracked.
 func (m *Model) deleteFocusedBookmark() tea.Cmd {
 	obj := m.focusedTextObject()
 	if obj == nil || obj.Kind != textObjectBookmark {
 		return nil
 	}
-	if obj.Remote != "" {
-		return intents.Invoke(intents.AddMessage{Text: "Only local bookmarks can be deleted"})
+	deleteCmd := m.context.RunCommand(jj.BookmarkDelete(obj.Value), common.Refresh)
+	if obj.Remote == "" {
+		return deleteCmd
 	}
-	return m.context.RunCommand(jj.BookmarkDelete(obj.Value), common.Refresh)
+	tracked, err := m.isRemoteBookmarkTracked(obj.Value, obj.Remote)
+	if err != nil {
+		return intents.Invoke(intents.AddMessage{Text: "Could not list bookmarks", Err: err})
+	}
+	if tracked {
+		return deleteCmd
+	}
+	return m.context.RunCommand(jj.BookmarkTrack(obj.Value, obj.Remote), deleteCmd)
 }
 
 func (m *Model) runOnFocusedRevision(kind string, command func(string) jj.CommandArgs) tea.Cmd {
