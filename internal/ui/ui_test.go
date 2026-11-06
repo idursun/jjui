@@ -305,11 +305,15 @@ func TestWrapperView_ClearsCursorWhenInlineDescribeCloses(t *testing.T) {
 	w := &wrapper{ui: model, render: true}
 	view := w.View()
 	require.NotNil(t, view.Cursor)
+	editorCursor := view.Cursor.Position
 
 	model.Update(common.CloseViewMsg{})
 	w.render = true
 	view = w.View()
-	assert.Nil(t, view.Cursor)
+	// Only the text object cursor on the revision's node remains.
+	require.NotNil(t, view.Cursor)
+	assert.NotEqual(t, editorCursor, view.Cursor.Position)
+	assert.Equal(t, 0, view.Cursor.Position.X)
 }
 
 func TestWrapperUpdate_ExecMsgRefreshesCachedCursorBeforeExec(t *testing.T) {

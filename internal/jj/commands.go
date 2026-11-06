@@ -224,6 +224,14 @@ func BookmarkRename(oldName string, newName string) CommandArgs {
 	return []string{"bookmark", "rename", oldName, newName}
 }
 
+func MetaeditUpdateAuthor(revision string) CommandArgs {
+	return []string{"metaedit", "--update-author", "-r", revision}
+}
+
+func MetaeditUpdateAuthorTimestamp(revision string) CommandArgs {
+	return []string{"metaedit", "--update-author-timestamp", "-r", revision}
+}
+
 func BookmarkForget(name string) CommandArgs {
 	return []string{"bookmark", "forget", ExactStringPattern(name)}
 }
