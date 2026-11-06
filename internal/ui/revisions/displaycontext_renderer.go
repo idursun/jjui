@@ -23,6 +23,8 @@ type DisplayContextRenderer struct {
 	selectedStyle  lipgloss.Style
 	matchedStyle   lipgloss.Style
 	selectionFocus bool
+	// focusedObject is drawn as the terminal cursor on the selected row.
+	focusedObject *textObject
 }
 
 // itemRenderer is a helper for rendering individual revision items
@@ -402,6 +404,9 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		tb := dl.Text(lineRect.Min.X, lineRect.Min.Y, 0)
 		ir.renderLine(tb, line, lineRect.Min.X, lineRect.Min.Y)
 		tb.Done()
+		if isSelected && r.focusedObject != nil && r.focusedObject.line == i {
+			dl.SetPassiveCursorAt(textObjectCursor(), lineRect.Min.X+r.focusedObject.x, lineRect.Min.Y)
+		}
 		y++
 	}
 
