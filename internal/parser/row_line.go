@@ -152,7 +152,10 @@ func (gr *GraphRowLine) ParseRevisionNode() (int, *jj.Commit) {
 		}
 		for j := i + 1; j < len(gr.Segments); j++ {
 			if len(gr.Segments[j].Labels) > 0 {
-				return j, &jj.Commit{IsWorkingCopy: segment.HasLabel("working_copy")}
+				return j, &jj.Commit{
+					IsWorkingCopy: segment.HasLabel("working_copy"),
+					IsImmutable:   segment.HasLabel("immutable"),
+				}
 			}
 		}
 		return -1, nil
