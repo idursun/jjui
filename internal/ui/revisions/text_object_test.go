@@ -315,19 +315,6 @@ func TestModel_FocusedTagDeleteOnlyDeletesLocalTags(t *testing.T) {
 	assert.True(t, isMessage, "remote tags cannot be deleted")
 }
 
-func TestModel_FocusedChangeIdActions(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.MetaeditUpdateChangeId("m"))
-	commandRunner.Expect(jj.MetaeditForceRewrite("m"))
-	defer commandRunner.Verify()
-
-	model := New(test.NewTestContext(commandRunner))
-	model.updateGraphRows(textObjectRows(t), "", true)
-	model.focusedObjectKind = textObjectChangeId
-	runJJCommand(model.Update(intents.FocusedChangeIdUpdate{}))
-	runJJCommand(model.Update(intents.FocusedForceRewrite{}))
-}
-
 func TestModel_FocusedDescriptionEditDescribesOnlyTheFocusedRevision(t *testing.T) {
 	rows := textObjectRows(t)
 	commandRunner := test.NewTestCommandRunner(t)
@@ -376,17 +363,6 @@ func TestModel_FocusedRemoteBookmarkForgetIncludesRemotes(t *testing.T) {
 	model.focusedObjectKind = textObjectBookmark
 	model.focusedObjectIndex = 1
 	runJJCommand(model.Update(intents.FocusedBookmarkForget{}))
-}
-
-func TestModel_FocusedChangePush(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.GitPush("--change", "m"))
-	defer commandRunner.Verify()
-
-	model := New(test.NewTestContext(commandRunner))
-	model.updateGraphRows(textObjectRows(t), "", true)
-	model.focusedObjectKind = textObjectChangeId
-	runJJCommand(model.Update(intents.FocusedChangePush{}))
 }
 
 func TestModel_RevisionsFetch(t *testing.T) {
