@@ -18,6 +18,9 @@ const (
 	RenderBeforeChangeId
 	RenderBeforeCommitId
 	RenderOverDescription
+	// RenderOverSegment is where a SegmentRenderer replaced a segment, used to
+	// place an inline cursor inside the replacement.
+	RenderOverSegment
 )
 
 type Operation interface {
