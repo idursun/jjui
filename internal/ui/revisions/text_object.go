@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -102,11 +103,12 @@ func textObjectsForRow(row parser.Row) []textObject {
 				switch {
 				case segment.HasLabel("name"):
 					add(kind, text, lineIndex, start)
+					objects[len(objects)-1].Value = jj.UnquoteRefName(text)
 				case prev == nil || prev.Kind != kind:
 				default:
 					extend(prev, lineIndex, start, text)
 					if segment.HasLabel("remote") {
-						prev.Remote = text
+						prev.Remote = jj.UnquoteRefName(text)
 					} else if text == "??" {
 						prev.Conflicted = true
 					}
