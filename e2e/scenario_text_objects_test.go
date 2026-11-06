@@ -261,3 +261,56 @@ func Test_TextObjects_UpdatesFocusedChangeId(t *testing.T) {
 		return changeId() != before, nil
 	})
 }
+
+func Test_TextObjects_ForgetsFocusedBookmark(t *testing.T) {
+	t.Parallel()
+	repo := newTestRepo(t)
+	repo.JJ("bookmark", "create", "forget-me", "-r", "@")
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "forget-me")
+	focusTextOnRow(t, session, ctx, "forget-me")
+	if err := session.SendKey(ghostty.KeyD, "D", ghostty.ModShift); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		return !bookmarkExists(t, repo.Path(), repo.Env(), "forget-me"), nil
+	})
+}
+
+func Test_TextObjects_PushesFocusedChange(t *testing.T) {
+	t.Parallel()
+	repo, remote := newRepoWithFileRemote(t)
+	repo.JJ("describe", "-m", "push me")
+	changeId := strings.TrimSpace(runCommand(t, repo.Path(), repo.Env(), "jj", "log", "--ignore-working-copy", "-r", "@", "--no-graph", "--color", "never", "-T", "change_id.short(8)"))
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, changeId)
+	focusTextOnRow(t, session, ctx, changeId)
+	if err := session.SendKey(ghostty.KeyG, "G", ghostty.ModShift); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		out, _ := commandOutput(filepath.Dir(repo.Path()), repo.Env(), "git", "--git-dir", remote, "for-each-ref", "--format=%(refname)", "refs/heads/")
+		return strings.Contains(out, "refs/heads/push-"+changeId), nil
+	})
+}
+
+func Test_TextObjects_ForgetsTrackedBookmarkWithItsRemotes(t *testing.T) {
+	t.Parallel()
+	repo, _ := newRepoWithFileRemote(t)
+	repo.JJ("bookmark", "create", "forget-me", "-r", "@-")
+	repo.JJ("bookmark", "track", "forget-me", "--remote", "origin")
+	repo.JJ("git", "push", "--bookmark", "forget-me")
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "forget-me")
+	if err := session.SendKey(ghostty.KeyJ, "j", 0); err != nil {
+		t.Fatal(err)
+	}
+	focusTextOnRow(t, session, ctx, "forget-me")
+	if err := session.SendKey(ghostty.KeyD, "D", ghostty.ModShift); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		out := runCommand(t, repo.Path(), repo.Env(), "jj", "bookmark", "list", "--all-remotes", "--color", "never")
+		return !strings.Contains(out, "forget-me"), nil
+	})
+}

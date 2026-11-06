@@ -436,6 +436,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.DiffEdit{}, true
 		case keybindings.Action("revisions.edit"):
 			return intents.StartEdit{}, true
+		case keybindings.Action("revisions.fetch"):
+			return intents.RevisionsFetch{}, true
 		case keybindings.Action("revisions.force_apply"):
 			return intents.Apply{Force: true}, true
 		case keybindings.Action("revisions.force_edit"):
@@ -551,6 +553,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		switch action {
 		case keybindings.Action("revisions.bookmark.delete"):
 			return intents.FocusedBookmarkDelete{}, true
+		case keybindings.Action("revisions.bookmark.forget"):
+			return intents.FocusedBookmarkForget{}, true
 		case keybindings.Action("revisions.bookmark.move"):
 			return intents.FocusedBookmarkMove{}, true
 		case keybindings.Action("revisions.bookmark.push"):
@@ -577,6 +581,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		switch action {
 		case keybindings.Action("revisions.change_id.force_rewrite"):
 			return intents.FocusedForceRewrite{}, true
+		case keybindings.Action("revisions.change_id.push"):
+			return intents.FocusedChangePush{}, true
 		case keybindings.Action("revisions.change_id.update"):
 			return intents.FocusedChangeIdUpdate{}, true
 		}
