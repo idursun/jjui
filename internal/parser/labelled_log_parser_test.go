@@ -40,6 +40,7 @@ func TestParseRows_LabelledOutput(t *testing.T) {
 	assert.True(t, wc.IsWorkingCopy)
 	assert.True(t, wc.HasWorkspace)
 	assert.True(t, wc.IsEmpty)
+	assert.False(t, wc.IsImmutable)
 	assert.False(t, wc.HasBookmarks)
 	assert.Equal(t, 3, rows[0].Indent)
 
@@ -47,6 +48,7 @@ func TestParseRows_LabelledOutput(t *testing.T) {
 	assert.Equal(t, "m", main.ChangeId)
 	assert.Equal(t, "b", main.CommitId)
 	assert.True(t, main.HasBookmarks)
+	assert.True(t, main.IsImmutable)
 	assert.False(t, main.HasLocalBookmarks)
 	assert.False(t, main.IsWorkingCopy)
 	assert.Len(t, rows[1].Lines, 3, "elided line belongs to the previous revision")
@@ -54,6 +56,7 @@ func TestParseRows_LabelledOutput(t *testing.T) {
 
 	root := rows[2].Commit
 	assert.True(t, root.IsRoot())
+	assert.True(t, root.IsImmutable)
 	assert.Equal(t, "0", root.CommitId)
 
 	var description strings.Builder
