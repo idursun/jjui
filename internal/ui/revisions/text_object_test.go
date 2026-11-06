@@ -9,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,22 +37,22 @@ func TestTextObjectsForRow(t *testing.T) {
 
 	type summary struct {
 		Kind, Value, Remote string
-		Index, line, x      int
+		Index, line, x, w   int
 		Conflicted          bool
 	}
 	var got []summary
 	for _, o := range objects {
-		got = append(got, summary{o.Kind, o.Value, o.Remote, o.Index, o.line, o.x, o.Conflicted})
+		got = append(got, summary{o.Kind, o.Value, o.Remote, o.Index, o.line, o.x, o.width, o.Conflicted})
 	}
 	assert.Equal(t, []summary{
-		{Kind: "node", Value: "○", line: 0, x: 0},
-		{Kind: "change_id", Value: "mmypmnqu", line: 0, x: 3},
-		{Kind: "author", Value: "someone@example.com", line: 0, x: 12},
-		{Kind: "timestamp", Value: "2025-05-22 21:59:38", line: 0, x: 32},
-		{Kind: "bookmark", Value: "second", line: 0, x: 52, Conflicted: true},
-		{Kind: "bookmark", Value: "second", Remote: "origin", Index: 1, line: 0, x: 61},
-		{Kind: "commit_id", Value: "28c8ae4a", line: 0, x: 75},
-		{Kind: "description", Value: "second", line: 1, x: 3},
+		{Kind: "node", Value: "○", line: 0, x: 0, w: 1},
+		{Kind: "change_id", Value: "mmypmnqu", line: 0, x: 3, w: 8},
+		{Kind: "author", Value: "someone@example.com", line: 0, x: 12, w: 19},
+		{Kind: "timestamp", Value: "2025-05-22 21:59:38", line: 0, x: 32, w: 19},
+		{Kind: "bookmark", Value: "second", line: 0, x: 52, w: 8, Conflicted: true},
+		{Kind: "bookmark", Value: "second", Remote: "origin", Index: 1, line: 0, x: 61, w: 13},
+		{Kind: "commit_id", Value: "28c8ae4a", line: 0, x: 75, w: 8},
+		{Kind: "description", Value: "second", line: 1, x: 3, w: 6},
 	}, got)
 }
 
@@ -124,4 +125,47 @@ func runJJCommand(cmd tea.Cmd) {
 	if batch, ok := cmd().(tea.BatchMsg); ok {
 		batch[0]()
 	}
+}
+
+func TestModel_RenameFocusedBookmarkStartsInlineRename(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectBookmark
+
+	model.Update(intents.FocusedBookmarkRename{})
+	_, isRename := model.baseOperation().(*bookmark.RenameBookmarkOperation)
+	assert.True(t, isRename)
+	assert.True(t, model.IsEditing())
+
+	model.resetOperations()
+	model.focusedObjectIndex = 1
+	_, isMessage := model.Update(intents.FocusedBookmarkRename{})().(intents.AddMessage)
+	assert.True(t, isMessage, "remote bookmarks cannot be renamed")
+}
+
+func TestModel_TrackFocusedBookmarkUsesTrackingState(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	listing := "second;.;true;false;true;false;\nsecond;origin;true;true;false;false;28\n"
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(listing))
+	commandRunner.Expect(jj.BookmarkUntrack("second", "origin"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind, model.focusedObjectIndex = textObjectBookmark, 1
+
+	_, isMessage := model.Update(intents.FocusedBookmarkTrack{Track: true})().(intents.AddMessage)
+	assert.True(t, isMessage, "second@origin is already tracked")
+	runJJCommand(model.Update(intents.FocusedBookmarkTrack{Track: false}))
+}
+
+func TestModel_PushFocusedBookmark(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitPush("--bookmark", jj.ExactStringPattern("second")))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectBookmark
+	runJJCommand(model.Update(intents.FocusedBookmarkPush{}))
 }
