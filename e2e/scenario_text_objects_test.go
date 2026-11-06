@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -140,5 +141,82 @@ func Test_TextObjects_MovesFocusedBookmark(t *testing.T) {
 	}
 	waitFor(t, ctx, func() (bool, error) {
 		return bookmarkTarget(t, repo, "mover") == workingCopy, nil
+	})
+}
+
+// newRepoWithFileRemote returns a repository with a bare Git repository as
+// its origin remote.
+func newRepoWithFileRemote(t *testing.T) (*testRepo, string) {
+	repo := newTestRepo(t)
+	root := filepath.Dir(repo.Path())
+	remote := filepath.Join(root, "remote.git")
+	runCommand(t, root, repo.Env(), "git", "init", "--bare", remote)
+	repo.JJ("git", "remote", "add", "origin", remote)
+	return repo, remote
+}
+
+func remoteHasBranch(t *testing.T, repo *testRepo, remote string, branch string) bool {
+	_, err := commandOutput(filepath.Dir(repo.Path()), repo.Env(), "git", "--git-dir", remote, "show-ref", "--verify", "--quiet", "refs/heads/"+branch)
+	return err == nil
+}
+
+func Test_TextObjects_DeletesTrackedBookmarkOnRemote(t *testing.T) {
+	t.Parallel()
+	repo, remote := newRepoWithFileRemote(t)
+	repo.JJ("describe", "-m", "to delete")
+	repo.JJ("bookmark", "create", "gone", "-r", "@")
+	repo.JJ("bookmark", "track", "gone", "--remote", "origin")
+	repo.JJ("git", "push", "--bookmark", "gone")
+	if !remoteHasBranch(t, repo, remote, "gone") {
+		t.Fatal("setup did not push the bookmark")
+	}
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "gone")
+	focusTextOnRow(t, session, ctx, "gone")
+	if err := session.SendKey(ghostty.KeyD, "d", 0); err != nil {
+		t.Fatal(err)
+	}
+	// Deleting the local bookmark leaves the remote one to push.
+	focusTextOnRow(t, session, ctx, "gone@origin")
+	if err := session.SendKey(ghostty.KeyG, "G", ghostty.ModShift); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		return !remoteHasBranch(t, repo, remote, "gone"), nil
+	})
+}
+
+func Test_TextObjects_DeletesUntrackedRemoteBookmark(t *testing.T) {
+	t.Parallel()
+	repo, remote := newRepoWithFileRemote(t)
+	// On @- so that the working copy is not the commit that turns immutable.
+	repo.JJ("bookmark", "create", "other", "-r", "@-")
+	repo.JJ("bookmark", "track", "other", "--remote", "origin")
+	repo.JJ("git", "push", "--bookmark", "other")
+	// Leave only the remote bookmark, untracked.
+	repo.JJ("bookmark", "untrack", "other", "--remote", "origin")
+	repo.JJ("bookmark", "delete", "other")
+	if !remoteHasBranch(t, repo, remote, "other") {
+		t.Fatal("setup did not push the bookmark")
+	}
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "other@origin")
+	if err := session.SendKey(ghostty.KeyJ, "j", 0); err != nil {
+		t.Fatal(err)
+	}
+	focusTextOnRow(t, session, ctx, "other@origin")
+	if err := session.SendKey(ghostty.KeyD, "d", 0); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		out := runCommand(t, repo.Path(), repo.Env(), "jj", "bookmark", "list", "--ignore-working-copy", "other")
+		return strings.Contains(out, "(deleted)"), nil
+	})
+	focusTextOnRow(t, session, ctx, "other@origin")
+	if err := session.SendKey(ghostty.KeyG, "G", ghostty.ModShift); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		return !remoteHasBranch(t, repo, remote, "other"), nil
 	})
 }
