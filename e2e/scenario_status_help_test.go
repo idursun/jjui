@@ -7,9 +7,16 @@ import "testing"
 func Test_StatusHelpDoesNotShowDormantRevsetScopeInStackedView(t *testing.T) {
 	t.Parallel()
 	h := NewHarness(t)
+	h.WriteConfigTOML(`
+[[bindings]]
+action = "ui.open_bookmarks"
+key = "Y"
+scope = "revisions"
+desc = "bookmarks"
+`)
 	h.Start("initial")
 
-	h.Key("b")
+	h.Key("Y")
 	h.WaitText("Bookmark Operations")
 	h.Text("?")
 	if _, err := h.session.WaitForStableScreen(h.ctx, 3, func(screen []string) bool {

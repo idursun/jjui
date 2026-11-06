@@ -458,6 +458,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Navigate{Delta: -1}, true
 		case keybindings.Action("revisions.new"):
 			return intents.StartNew{}, true
+		case keybindings.Action("revisions.object_focus"):
+			return intents.RevisionsObjectFocusKind{Kind: actionargs.StringArg(args, "kind", "")}, true
 		case keybindings.Action("revisions.object_next"):
 			return intents.RevisionsObjectFocus{Delta: 1}, true
 		case keybindings.Action("revisions.object_node"):

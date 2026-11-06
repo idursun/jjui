@@ -334,3 +334,10 @@ func (FocusedChangePush) isIntent() {}
 type RevisionsFetch struct{}
 
 func (RevisionsFetch) isIntent() {}
+
+//jjui:bind scope=revisions action=object_focus set=Kind:$string(kind)
+type RevisionsObjectFocusKind struct {
+	Kind string
+}
+
+func (RevisionsObjectFocusKind) isIntent() {}
