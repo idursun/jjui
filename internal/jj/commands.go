@@ -233,6 +233,10 @@ func BookmarkRename(oldName string, newName string) CommandArgs {
 	return []string{"bookmark", "rename", oldName, newName}
 }
 
+func AbandonCommit(commitId string) CommandArgs {
+	return []string{"abandon", "--retain-bookmarks", commitId}
+}
+
 func MetaeditUpdateAuthor(revision string) CommandArgs {
 	return []string{"metaedit", "--update-author", "-r", revision}
 }

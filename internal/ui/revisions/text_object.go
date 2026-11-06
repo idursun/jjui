@@ -19,6 +19,7 @@ const (
 	textObjectBookmark    = "bookmark"
 	textObjectTag         = "tag"
 	textObjectDescription = "description"
+	textObjectDivergent   = "divergent"
 )
 
 type textObject struct {
@@ -41,7 +42,7 @@ func textObjectKind(segment *screen.Segment) string {
 	switch {
 	case segment.HasLabel("node"):
 		return textObjectNode
-	case segment.HasLabel("change_id"):
+	case segment.HasLabel("change_id"), segment.HasLabel("change_offset"):
 		return textObjectChangeId
 	case segment.HasLabel("commit_id"):
 		return textObjectCommitId
@@ -55,6 +56,8 @@ func textObjectKind(segment *screen.Segment) string {
 		return textObjectTag
 	case segment.HasLabel("description"):
 		return textObjectDescription
+	case segment.HasLabel("divergent"):
+		return textObjectDivergent
 	}
 	return ""
 }
