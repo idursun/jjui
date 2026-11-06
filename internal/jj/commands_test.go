@@ -68,3 +68,10 @@ func TestAnnotationCommandsUseStableMachineReadableOutput(t *testing.T) {
 		GetRevisionSummariesFromRevset("abc123-"),
 	)
 }
+
+func TestUnquoteRefName(t *testing.T) {
+	assert.Equal(t, "main", UnquoteRefName("main"))
+	assert.Equal(t, "a b", UnquoteRefName(`"a b"`))
+	assert.Equal(t, `a"b`, UnquoteRefName(`"a\"b"`))
+	assert.Equal(t, `"broken`, UnquoteRefName(`"broken`))
+}

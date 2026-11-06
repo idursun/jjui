@@ -398,3 +398,13 @@ func TestModel_RevisionsFetch(t *testing.T) {
 	model.updateGraphRows(textObjectRows(t), "", true)
 	runJJCommand(model.Update(intents.RevisionsFetch{}))
 }
+
+func TestTextObjectsForRow_UnquotesRefNames(t *testing.T) {
+	log := `<<log commit node working_copy mutable::@>>  <<log commit change_id shortest prefix::y>> <<log commit bookmarks name::"a b">><<log commit bookmarks::@>><<log commit bookmarks remote::"my remote">> <<log commit commit_id shortest prefix::3>>` + "\n"
+	rows := parser.ParseRows(strings.NewReader(log))
+	require.Len(t, rows, 1)
+	obj := resolveTextObject(textObjectsForRow(rows[0]), textObjectBookmark, 0)
+	require.NotNil(t, obj)
+	assert.Equal(t, "a b", obj.Value)
+	assert.Equal(t, "my remote", obj.Remote)
+}
