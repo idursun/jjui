@@ -27,23 +27,11 @@ func (rl *rowLine) GetSegments() []*screen.Segment {
 
 func (rl *rowLine) FindIdIndex() int {
 	for i, segment := range rl.Segments {
-		if isOperationId(segment.Text) {
+		if segment.HasLabel("op_log") && segment.HasLabel("id") {
 			return i
 		}
 	}
 	return -1
-}
-
-func isOperationId(text string) bool {
-	if len(text) != 12 {
-		return false
-	}
-	for _, r := range text {
-		if !(r >= 'a' && r <= 'f' || r >= '0' && r <= '9') {
-			return false
-		}
-	}
-	return true
 }
 
 func newRowLine(segments []*screen.Segment) rowLine {
