@@ -1,6 +1,6 @@
-[1m[38;5;2m@[0m  [1m[38;5;12mf468151957e6[39m [38;5;3midursun@Ibrahims-MacBook-Pro.local[39m [38;5;14mnow, lasted 26 milliseconds[39m[0m
-│  [1msnapshot working copy[0m
-│  [1m[38;5;13margs: jj op log -n 2 --color always[39m[0m
-○  [38;5;4m5ce8658087d8[39m [38;5;3midursun@Ibrahims-MacBook-Pro.local[39m [38;5;6m2 minutes ago, lasted 27 milliseconds[39m
-│  new empty commit
-│  [38;5;5margs: jj new[39m
+[1m[38;5;2m<<op_log operation node current_operation::@>>[0m    [1m[38;5;12m<<op_log operation current_operation id short::2f7b38830d51>>[39m<<op_log operation current_operation:: >>[38;5;3m<<op_log operation current_operation user::test@example.com>>[39m<<op_log operation current_operation:: >>[38;5;2m<<op_log operation current_operation workspace_name::default@>>[39m<<op_log operation current_operation:: >>[38;5;14m<<op_log operation current_operation time end ago::30 minutes ago>><<op_log operation current_operation time::, lasted >><<op_log operation current_operation time duration::5 milliseconds>>[39m<<op_log operation current_operation::>>[0m
+├─╮  [1m<<op_log operation current_operation description first_line::reconcile divergent operations>><<op_log operation current_operation::>>[0m
+│ │  [1m[38;5;13m<<op_log operation current_operation attributes::args: jj log --no-pager '--color=debug' -r 'all()'>>[39m<<op_log operation current_operation::>>[0m
+<<op_log operation node::○>> │  [38;5;4m<<op_log operation id short::ddc6c6080509>>[39m<<op_log operation:: >>[38;5;3m<<op_log operation user::test@example.com>>[39m<<op_log operation:: >>[38;5;2m<<op_log operation workspace_name::default@>>[39m<<op_log operation:: >>[38;5;6m<<op_log operation time end ago::30 minutes ago>><<op_log operation time::, lasted >><<op_log operation time duration::21 milliseconds>>[39m<<op_log operation::>>
+│ │  <<op_log operation description first_line::describe commit 1511d47ab170ca5d57d75def79b9f498153c6cb1>><<op_log operation::>>
+│ │  [38;5;5m<<op_log operation attributes::args: jj describe -m two>>[39m<<op_log operation::>>

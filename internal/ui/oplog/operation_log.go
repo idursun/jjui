@@ -315,7 +315,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 func (m *Model) load() tea.Cmd {
 	return func() tea.Msg {
-		output, err := m.context.RunCommandImmediate(jj.OpLog(config.Current.OpLog.Limit))
+		output, err := m.context.RunCommandImmediate(jj.OpLogLabelled(config.Current.OpLog.Limit))
 		if err != nil {
 			panic(err)
 		}
