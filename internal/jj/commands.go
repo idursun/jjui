@@ -247,6 +247,10 @@ func BookmarkForget(name string) CommandArgs {
 	return []string{"bookmark", "forget", ExactStringPattern(name)}
 }
 
+func BookmarkForgetIncludingRemotes(name string) CommandArgs {
+	return []string{"bookmark", "forget", "--include-remotes", ExactStringPattern(name)}
+}
+
 func BookmarkTrack(name string, remote string) CommandArgs {
 	args := []string{"bookmark", "track", ExactStringPattern(name)}
 	if remote != "" {

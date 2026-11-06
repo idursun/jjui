@@ -319,3 +319,18 @@ func (FocusedForceRewrite) isIntent() {}
 type FocusedDescriptionEdit struct{}
 
 func (FocusedDescriptionEdit) isIntent() {}
+
+//jjui:bind scope=revisions.bookmark action=forget
+type FocusedBookmarkForget struct{}
+
+func (FocusedBookmarkForget) isIntent() {}
+
+//jjui:bind scope=revisions.change_id action=push
+type FocusedChangePush struct{}
+
+func (FocusedChangePush) isIntent() {}
+
+//jjui:bind scope=revisions action=fetch
+type RevisionsFetch struct{}
+
+func (RevisionsFetch) isIntent() {}

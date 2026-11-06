@@ -864,6 +864,14 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.deleteFocusedBookmark(), true
 	case intents.FocusedTagDelete:
 		return m.deleteFocusedTag(), true
+	case intents.FocusedBookmarkForget:
+		return m.forgetFocusedBookmark(), true
+	case intents.FocusedChangePush:
+		return m.runOnFocusedRevision(textObjectChangeId, func(changeId string) jj.CommandArgs {
+			return jj.GitPush("--change", changeId)
+		}), true
+	case intents.RevisionsFetch:
+		return m.context.RunCommand(jj.GitFetch(), common.Refresh), true
 	case intents.FocusedBookmarkRename:
 		return m.renameFocusedBookmark(), true
 	case intents.FocusedBookmarkMove:
