@@ -243,3 +243,21 @@ func Test_TextObjects_DeletesFocusedTag(t *testing.T) {
 		return !strings.Contains(out, "v1.0"), nil
 	})
 }
+
+func Test_TextObjects_UpdatesFocusedChangeId(t *testing.T) {
+	t.Parallel()
+	repo := newTestRepo(t)
+	changeId := func() string {
+		return strings.TrimSpace(runCommand(t, repo.Path(), repo.Env(), "jj", "log", "--ignore-working-copy", "-r", "@", "--no-graph", "--color", "never", "-T", "change_id.short(8)"))
+	}
+	before := changeId()
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, before)
+	focusTextOnRow(t, session, ctx, before)
+	if err := session.SendKey(ghostty.KeyR, "r", 0); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		return changeId() != before, nil
+	})
+}
