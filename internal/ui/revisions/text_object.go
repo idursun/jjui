@@ -47,7 +47,7 @@ func textObjectKind(segment *screen.Segment) string {
 		return textObjectTimestamp
 	case segment.HasLabel("author"):
 		return textObjectAuthor
-	case segment.HasLabel("bookmarks"):
+	case segment.HasLabel("bookmarks"), segment.HasLabel("local_bookmarks"), segment.HasLabel("remote_bookmarks"):
 		return textObjectBookmark
 	case segment.HasLabel("description"):
 		return textObjectDescription

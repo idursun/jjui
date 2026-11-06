@@ -1,6 +1,7 @@
 package revisions
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Shaped like `jj log --color=debug` output for builtin_log_compact.
@@ -168,4 +170,28 @@ func TestModel_PushFocusedBookmark(t *testing.T) {
 	model.updateGraphRows(textObjectRows(t), "", true)
 	model.focusedObjectKind = textObjectBookmark
 	runJJCommand(model.Update(intents.FocusedBookmarkPush{}))
+}
+
+func TestTextObjectsForRow_DetailedTemplateBookmarks(t *testing.T) {
+	f, err := os.Open("../../../test/testdata/detailed.log")
+	require.NoError(t, err)
+	defer func() { _ = f.Close() }()
+	rows := parser.ParseRows(f)
+	require.Len(t, rows, 2)
+
+	var bookmarks []string
+	for _, o := range textObjectsForRow(rows[1]) {
+		if o.Kind == textObjectBookmark {
+			bookmarks = append(bookmarks, textObjectTitleForTest(o))
+		}
+	}
+	// The detailed template labels them local_bookmarks and remote_bookmarks.
+	assert.Equal(t, []string{"main", "main@git"}, bookmarks)
+}
+
+func textObjectTitleForTest(o textObject) string {
+	if o.Remote != "" {
+		return o.Value + "@" + o.Remote
+	}
+	return o.Value
 }
