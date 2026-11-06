@@ -135,7 +135,7 @@ func (r *RenameBookmarkOperation) InlineCursor(commit *jj.Commit, pos operations
 func localBookmarkSegment(row parser.Row, name string) *screen.Segment {
 	for _, line := range row.Lines {
 		for i, segment := range line.Segments {
-			if segment.Text != name || !segment.HasLabel("name") || segment.HasLabel("remote_bookmarks") {
+			if jj.UnquoteRefName(segment.Text) != name || !segment.HasLabel("name") || segment.HasLabel("remote_bookmarks") {
 				continue
 			}
 			if !segment.HasLabel("bookmarks") && !segment.HasLabel("local_bookmarks") {
