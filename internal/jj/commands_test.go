@@ -7,11 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLogAndEvologIncludeRootMetadata(t *testing.T) {
-	logArgs := strings.Join(Log("@", 0, ""), " ")
+func TestLogAndEvologUseDebugColor(t *testing.T) {
+	logArgs := strings.Join(Log("@", 0, "builtin_log_compact"), " ")
 	evologArgs := strings.Join(Evolog("@"), " ")
-	assert.Contains(t, logArgs, "working_copies.len() > 0, root, empty")
-	assert.Contains(t, evologArgs, "commit.commit_id().shortest(), commit.root(), commit.empty()")
+	assert.Contains(t, logArgs, "--color debug")
+	assert.Contains(t, logArgs, "-T builtin_log_compact")
+	assert.Contains(t, evologArgs, "--color debug")
 }
 
 func TestBookmarkPatternCommandsUseExactStringPatterns(t *testing.T) {
