@@ -106,25 +106,25 @@ func Test_ViewStack_DialogKeysDoNotReachRevisions(t *testing.T) {
 	h := startViewStackRepo(t)
 	h.WriteConfigTOML(`
 [[bindings]]
-action = "ui.open_bookmarks"
+action = "ui.open_git"
 key = "Y"
 scope = "revisions"
-desc = "bookmarks"
+desc = "git"
 `)
 	h.Start("view stack target")
 	before := countRevisions(t, h.Repo(), h.Env())
 
 	h.Key("Y")
-	h.WaitText("Bookmark Operations")
-	// "n" is revisions.new; the bookmarks dialog leaves it unbound.
+	h.WaitText("Git Operations")
+	// "n" is revisions.new; the git dialog leaves it unbound.
 	h.Key("n")
-	h.WaitStableText("Bookmark Operations", 3)
+	h.WaitStableText("Git Operations", 3)
 	h.Key("Escape")
-	h.WaitNoText("Bookmark Operations")
+	h.WaitNoText("Git Operations")
 	h.WaitMode("revisions")
 
 	if after := countRevisions(t, h.Repo(), h.Env()); after != before {
-		t.Fatalf("key under the bookmarks dialog reached revisions: %d revisions, want %d", after, before)
+		t.Fatalf("key under the git dialog reached revisions: %d revisions, want %d", after, before)
 	}
 	h.Quit()
 }

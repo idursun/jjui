@@ -24,7 +24,6 @@ func (ExecShell) isIntent() {}
 //jjui:bind scope=revisions.details action=quit
 //jjui:bind scope=ui action=quit
 //jjui:bind scope=oplog action=quit
-//jjui:bind scope=bookmarks action=quit
 //jjui:bind scope=git action=quit
 type Quit struct{}
 
@@ -74,21 +73,6 @@ type HelpScroll struct {
 
 func (HelpScroll) isIntent() {}
 
-//jjui:bind scope=ui action=open_bookmarks
-type OpenBookmarks struct{}
-
-func (OpenBookmarks) isIntent() {}
-
-//jjui:bind scope=ui action=toggle_bookmark_pane
-type ToggleBookmarkPane struct{}
-
-func (ToggleBookmarkPane) isIntent() {}
-
-//jjui:bind scope=ui action=focus_next_pane
-type FocusNextPane struct{}
-
-func (FocusNextPane) isIntent() {}
-
 //jjui:bind scope=ui action=open_git
 type OpenGit struct{}
 
@@ -101,156 +85,6 @@ type OpenSetBookmark struct {
 }
 
 func (OpenSetBookmark) isIntent() {}
-
-type BookmarksFilterKind string
-
-const (
-	BookmarksFilterMove    BookmarksFilterKind = "move"
-	BookmarksFilterDelete  BookmarksFilterKind = "delete"
-	BookmarksFilterForget  BookmarksFilterKind = "forget"
-	BookmarksFilterTrack   BookmarksFilterKind = "track"
-	BookmarksFilterUntrack BookmarksFilterKind = "untrack"
-)
-
-//jjui:bind scope=bookmarks action=bookmark_move set=Kind:BookmarksFilterMove
-//jjui:bind scope=bookmarks action=bookmark_delete set=Kind:BookmarksFilterDelete
-//jjui:bind scope=bookmarks action=bookmark_forget set=Kind:BookmarksFilterForget
-//jjui:bind scope=bookmarks action=bookmark_track set=Kind:BookmarksFilterTrack
-//jjui:bind scope=bookmarks action=bookmark_untrack set=Kind:BookmarksFilterUntrack
-type BookmarksFilter struct {
-	Kind BookmarksFilterKind
-}
-
-func (BookmarksFilter) isIntent() {}
-
-//jjui:bind scope=bookmarks action=cycle_remotes set=Delta:1
-//jjui:bind scope=bookmarks action=cycle_remotes_back set=Delta:-1
-type BookmarksCycleRemotes struct {
-	Delta int
-}
-
-func (BookmarksCycleRemotes) isIntent() {}
-
-//jjui:bind scope=bookmarks action=filter
-type BookmarksOpenFilter struct{}
-
-func (BookmarksOpenFilter) isIntent() {}
-
-//jjui:bind scope=bookmarks action=move_up set=Delta:-1
-//jjui:bind scope=bookmarks action=move_down set=Delta:1
-//jjui:bind scope=bookmarks action=page_up set=Delta:-1,IsPage:true
-//jjui:bind scope=bookmarks action=page_down set=Delta:1,IsPage:true
-type BookmarksNavigate struct {
-	Delta  int
-	IsPage bool
-}
-
-func (BookmarksNavigate) isIntent() {}
-
-type BookmarksApplyShortcut struct {
-	Key string
-}
-
-func (BookmarksApplyShortcut) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=open_filter
-type BookmarkPaneOpenFilter struct{}
-
-func (BookmarkPaneOpenFilter) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=toggle_expand when="bookmark_pane.can_expand"
-type BookmarkPaneToggleExpand struct{}
-
-func (BookmarkPaneToggleExpand) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=move_up set=Delta:-1
-//jjui:bind scope=bookmark_pane action=move_down set=Delta:1
-//jjui:bind scope=bookmark_pane action=page_up set=Delta:-1,IsPage:true
-//jjui:bind scope=bookmark_pane action=page_down set=Delta:1,IsPage:true
-type BookmarkPaneNavigate struct {
-	Delta  int
-	IsPage bool
-}
-
-func (BookmarkPaneNavigate) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=cycle_remotes set=Delta:1
-//jjui:bind scope=bookmark_pane action=cycle_remotes_back set=Delta:-1
-type BookmarkPaneCycleRemotes struct {
-	Delta int
-}
-
-func (BookmarkPaneCycleRemotes) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=show_in_revision when="bookmark_pane.has_bookmark"
-type BookmarkPaneShowInRevision struct{}
-
-func (BookmarkPaneShowInRevision) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=set_revset when="bookmark_pane.has_bookmark"
-type BookmarkPaneSetRevset struct{}
-
-func (BookmarkPaneSetRevset) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=edit when="bookmark_pane.has_bookmark"
-type BookmarkPaneEdit struct{}
-
-func (BookmarkPaneEdit) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=new when="bookmark_pane.has_commit"
-type BookmarkPaneNew struct{}
-
-func (BookmarkPaneNew) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=rename when="bookmark_pane.has_local_bookmark"
-type BookmarkPaneRename struct{}
-
-func (BookmarkPaneRename) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=delete when="bookmark_pane.can_delete"
-type BookmarkPaneDelete struct{}
-
-func (BookmarkPaneDelete) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=forget when="bookmark_pane.can_forget"
-type BookmarkPaneForget struct{}
-
-func (BookmarkPaneForget) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=track when="bookmark_pane.has_bookmark"
-type BookmarkPaneTrack struct{}
-
-func (BookmarkPaneTrack) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=untrack when="bookmark_pane.can_untrack"
-type BookmarkPaneUntrack struct{}
-
-func (BookmarkPaneUntrack) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=move when="bookmark_pane.has_local_bookmark"
-type BookmarkPaneMove struct{}
-
-func (BookmarkPaneMove) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=toggle_select when="bookmark_pane.has_bookmark"
-type BookmarkPaneToggleSelect struct{}
-
-func (BookmarkPaneToggleSelect) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=create
-type BookmarkPaneCreate struct{}
-
-func (BookmarkPaneCreate) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=push when="bookmark_pane.has_bookmark"
-type BookmarkPanePush struct{}
-
-func (BookmarkPanePush) isIntent() {}
-
-//jjui:bind scope=bookmark_pane action=fetch when="bookmark_pane.has_bookmark"
-type BookmarkPaneFetch struct{}
-
-func (BookmarkPaneFetch) isIntent() {}
 
 type GitFilterKind string
 
@@ -340,7 +174,6 @@ func (ChooseCancel) isIntent() {}
 //jjui:bind scope=revisions.ace_jump action=cancel
 //jjui:bind scope=ui action=cancel
 //jjui:bind scope=help action=cancel
-//jjui:bind scope=bookmarks action=cancel
 //jjui:bind scope=git action=cancel
 //jjui:bind scope=status.input action=cancel
 //jjui:bind scope=file_search action=cancel
@@ -350,9 +183,6 @@ func (ChooseCancel) isIntent() {}
 //jjui:bind scope=input action=cancel
 //jjui:bind scope=undo action=cancel
 //jjui:bind scope=redo action=cancel
-//jjui:bind scope=bookmark_pane action=cancel
-//jjui:bind scope=bookmark_pane.confirmation action=cancel
-//jjui:bind scope=bookmark_pane.filter action=cancel
 type Cancel struct{}
 
 func (Cancel) isIntent() {}
@@ -385,7 +215,6 @@ func (DismissOverlay) isIntent() {}
 //jjui:bind scope=revisions.bookmark_target action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions.bookmark_target action=force_apply set=Force:true
 //jjui:bind scope=revisions.ace_jump action=apply
-//jjui:bind scope=bookmarks action=apply
 //jjui:bind scope=git action=apply
 //jjui:bind scope=revisions action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions action=force_apply set=Force:true
@@ -398,9 +227,6 @@ func (DismissOverlay) isIntent() {}
 //jjui:bind scope=help action=apply
 //jjui:bind scope=undo action=apply
 //jjui:bind scope=redo action=apply
-//jjui:bind scope=bookmark_pane action=apply
-//jjui:bind scope=bookmark_pane.confirmation action=apply set=Force:$bool(force)
-//jjui:bind scope=bookmark_pane.filter action=apply
 type Apply struct {
 	Value string
 	Force bool
@@ -418,8 +244,6 @@ func (Apply) isIntent() {}
 //jjui:bind scope=annotation.confirmation action=prev set=Delta:-1
 //jjui:bind scope=revisions.inline_describe.confirmation action=next set=Delta:1
 //jjui:bind scope=annotation.confirmation action=next set=Delta:1
-//jjui:bind scope=bookmark_pane.confirmation action=prev set=Delta:-1
-//jjui:bind scope=bookmark_pane.confirmation action=next set=Delta:1
 type OptionSelect struct {
 	Delta int
 }

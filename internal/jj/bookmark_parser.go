@@ -28,14 +28,6 @@ func (b Bookmark) IsDeletable() bool {
 	return b.Local != nil && b.Local.Present
 }
 
-func (b Bookmark) IsTrackable() bool {
-	return b.Local != nil && b.Local.Present && len(b.Remotes) == 0
-}
-
-func (b Bookmark) IsDeleted() bool {
-	return b.Local != nil && !b.Local.Present
-}
-
 func (b Bookmark) HasTrackedRemote(remote string) bool {
 	for _, r := range b.Remotes {
 		if r.Remote == remote && r.Tracked {
