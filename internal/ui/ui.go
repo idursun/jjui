@@ -127,6 +127,9 @@ func (m *Model) QueryState(name string) (any, bool) {
 		return m.splitContainer.QueryState(bookmarkContentID, strings.TrimPrefix(name, "bookmark_pane."))
 	}
 
+	if strings.HasPrefix(name, "revset.") {
+		return m.revsetModel.QueryState(strings.TrimPrefix(name, "revset."))
+	}
 	if strings.HasPrefix(name, "revisions.") && m.revisions != nil {
 		return m.revisions.QueryState(strings.TrimPrefix(name, "revisions."))
 	}
