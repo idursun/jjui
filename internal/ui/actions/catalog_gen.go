@@ -457,6 +457,10 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.FocusedBookmarkDelete{}, true
 		case keybindings.Action("revisions.bookmark.forget"):
 			return intents.FocusedBookmarkForget{}, true
+		case keybindings.Action("revisions.bookmark.jump_next"):
+			return intents.RevisionsObjectJump{Delta: 1}, true
+		case keybindings.Action("revisions.bookmark.jump_prev"):
+			return intents.RevisionsObjectJump{Delta: -1}, true
 		case keybindings.Action("revisions.bookmark.move"):
 			return intents.FocusedBookmarkMove{}, true
 		case keybindings.Action("revisions.bookmark.push"):
@@ -555,6 +559,10 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		switch action {
 		case keybindings.Action("revisions.divergent.abandon"):
 			return intents.FocusedDivergentAbandon{}, true
+		case keybindings.Action("revisions.divergent.jump_next"):
+			return intents.RevisionsObjectJump{Delta: 1}, true
+		case keybindings.Action("revisions.divergent.jump_prev"):
+			return intents.RevisionsObjectJump{Delta: -1}, true
 		case keybindings.Action("revisions.divergent.show_all"):
 			return intents.FocusedDivergentShowAll{}, true
 		case keybindings.Action("revisions.divergent.update_change_id"):
@@ -739,6 +747,10 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		switch action {
 		case keybindings.Action("revisions.tag.delete"):
 			return intents.FocusedTagDelete{}, true
+		case keybindings.Action("revisions.tag.jump_next"):
+			return intents.RevisionsObjectJump{Delta: 1}, true
+		case keybindings.Action("revisions.tag.jump_prev"):
+			return intents.RevisionsObjectJump{Delta: -1}, true
 		}
 	case ScopeTargetPicker:
 		switch action {
@@ -766,6 +778,10 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		switch action {
 		case keybindings.Action("revisions.workspace.forget"):
 			return intents.FocusedWorkspaceForget{}, true
+		case keybindings.Action("revisions.workspace.jump_next"):
+			return intents.RevisionsObjectJump{Delta: 1}, true
+		case keybindings.Action("revisions.workspace.jump_prev"):
+			return intents.RevisionsObjectJump{Delta: -1}, true
 		case keybindings.Action("revisions.workspace.rename"):
 			return intents.FocusedWorkspaceRename{}, true
 		case keybindings.Action("revisions.workspace.switch"):

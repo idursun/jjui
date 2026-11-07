@@ -345,6 +345,23 @@ type FocusedWorkspaceRename struct{}
 
 func (FocusedWorkspaceRename) isIntent() {}
 
+// RevisionsObjectJump moves to the nearest revision below (Delta 1) or above
+// (Delta -1) that has an object of the focused kind.
+//
+//jjui:bind scope=revisions.bookmark action=jump_next set=Delta:1
+//jjui:bind scope=revisions.bookmark action=jump_prev set=Delta:-1
+//jjui:bind scope=revisions.tag action=jump_next set=Delta:1
+//jjui:bind scope=revisions.tag action=jump_prev set=Delta:-1
+//jjui:bind scope=revisions.workspace action=jump_next set=Delta:1
+//jjui:bind scope=revisions.workspace action=jump_prev set=Delta:-1
+//jjui:bind scope=revisions.divergent action=jump_next set=Delta:1
+//jjui:bind scope=revisions.divergent action=jump_prev set=Delta:-1
+type RevisionsObjectJump struct {
+	Delta int
+}
+
+func (RevisionsObjectJump) isIntent() {}
+
 //jjui:bind scope=revisions action=fetch
 type RevisionsFetch struct{}
 
