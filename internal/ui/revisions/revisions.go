@@ -879,6 +879,12 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.deleteFocusedBookmark(), true
 	case intents.FocusedTagDelete:
 		return m.deleteFocusedTag(), true
+	case intents.FocusedWorkspaceSwitch:
+		return m.switchToFocusedWorkspace(), true
+	case intents.FocusedWorkspaceForget:
+		return m.forgetFocusedWorkspace(), true
+	case intents.FocusedWorkspaceRename:
+		return m.renameFocusedWorkspace(), true
 	case intents.FocusedBookmarkForget:
 		return m.forgetFocusedBookmark(), true
 	case intents.RevisionsObjectFocusKind:

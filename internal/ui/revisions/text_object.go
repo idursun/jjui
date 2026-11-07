@@ -20,6 +20,7 @@ const (
 	textObjectTag         = "tag"
 	textObjectDescription = "description"
 	textObjectDivergent   = "divergent"
+	textObjectWorkspace   = "workspace"
 )
 
 type textObject struct {
@@ -58,6 +59,8 @@ func textObjectKind(segment *screen.Segment) string {
 		return textObjectDescription
 	case segment.HasLabel("divergent"):
 		return textObjectDivergent
+	case segment.HasLabel("working_copies"):
+		return textObjectWorkspace
 	}
 	return ""
 }
@@ -98,6 +101,20 @@ func textObjectsForRow(row parser.Row) []textObject {
 			gap = false
 			start := x + render.StringWidth(segment.Text[:strings.Index(segment.Text, text)])
 			x += width
+
+			// Workspaces sharing a working-copy commit render as "a@ b@" in one
+			// segment; the value is the name without the @.
+			if kind == textObjectWorkspace {
+				pos := start
+				for _, name := range strings.Split(text, " ") {
+					if name != "" {
+						add(kind, strings.TrimSuffix(name, "@"), lineIndex, pos)
+						objects[len(objects)-1].width = render.StringWidth(name)
+					}
+					pos += render.StringWidth(name) + 1
+				}
+				continue
+			}
 
 			// Bookmarks and tags render as a name followed by @remote and
 			// markers such as ?? or *.

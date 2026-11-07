@@ -110,6 +110,9 @@ bindings = [
     { key = "shift+g", action = "revisions.bookmark.push", scope = "revisions.bookmark", desc = "push bookmark" },
     { key = "shift+d", action = "revisions.bookmark.forget", scope = "revisions.bookmark", desc = "forget bookmark" },
     { key = "d", action = "revisions.tag.delete", scope = "revisions.tag", desc = "delete tag" },
+    { key = "s", action = "revisions.workspace.switch", scope = "revisions.workspace", desc = "switch to workspace" },
+    { key = "r", action = "revisions.workspace.rename", scope = "revisions.workspace", desc = "rename workspace" },
+    { key = "shift+d", action = "revisions.workspace.forget", scope = "revisions.workspace", desc = "forget workspace" },
     { key = "s", action = "revisions.divergent.show_all", scope = "revisions.divergent", desc = "show all copies" },
     { key = "d", action = "revisions.divergent.abandon", scope = "revisions.divergent", desc = "abandon this copy" },
     { key = "r", action = "revisions.divergent.update_change_id", scope = "revisions.divergent", desc = "new change id for this copy" },
@@ -296,6 +299,10 @@ bindings = [
     { key = "enter", action = "revisions.set_bookmark.apply", scope = "revisions.set_bookmark", desc = "apply" },
     { key = "tab", action = "revisions.set_bookmark.autocomplete", scope = "revisions.set_bookmark", desc = "autocomplete" },
     { key = "shift+tab", action = "revisions.set_bookmark.autocomplete_back", scope = "revisions.set_bookmark", desc = "autocomplete back" },
+
+    # revisions.rename_workspace
+    { key = "esc", action = "revisions.rename_workspace.cancel", scope = "revisions.rename_workspace", desc = "cancel" },
+    { key = "enter", action = "revisions.rename_workspace.apply", scope = "revisions.rename_workspace", desc = "apply" },
 
     # revisions.diff_range
     { key = "enter", action = "revisions.diff_range.apply", scope = "revisions.diff_range", desc = "apply" },

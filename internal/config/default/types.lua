@@ -245,6 +245,7 @@ function wait_refresh() end
 ---@field new_between jjui.revisions.new_between
 ---@field quick_search jjui.revisions.quick_search
 ---@field rebase jjui.revisions.rebase
+---@field rename_workspace jjui.revisions.rename_workspace
 ---@field revert jjui.revisions.revert
 ---@field set_bookmark jjui.revisions.set_bookmark
 ---@field set_parents jjui.revisions.set_parents
@@ -252,6 +253,7 @@ function wait_refresh() end
 ---@field tag jjui.revisions.tag
 ---@field target_picker jjui.revisions.target_picker
 ---@field timestamp jjui.revisions.timestamp
+---@field workspace jjui.revisions.workspace
 ---@field ace_jump fun()
 ---@field apply fun(args: {force?: boolean})
 ---@field cancel fun()
@@ -456,6 +458,11 @@ function wait_refresh() end
 ---@field target_picker fun()
 ---@field close fun()
 
+---@class jjui.revisions.rename_workspace
+---@field apply fun()
+---@field cancel fun()
+---@field close fun()
+
 ---@class jjui.revisions.revert
 ---@field apply fun(args: {force?: boolean})
 ---@field cancel fun()
@@ -506,6 +513,11 @@ function wait_refresh() end
 
 ---@class jjui.revisions.timestamp
 ---@field reset fun()
+
+---@class jjui.revisions.workspace
+---@field forget fun()
+---@field rename fun()
+---@field switch fun()
 
 ---@class jjui.revset
 ---@field bookmarks jjui.revset.bookmarks

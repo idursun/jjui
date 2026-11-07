@@ -330,6 +330,21 @@ type FocusedDivergentUpdateChangeId struct{}
 
 func (FocusedDivergentUpdateChangeId) isIntent() {}
 
+//jjui:bind scope=revisions.workspace action=switch
+type FocusedWorkspaceSwitch struct{}
+
+func (FocusedWorkspaceSwitch) isIntent() {}
+
+//jjui:bind scope=revisions.workspace action=forget
+type FocusedWorkspaceForget struct{}
+
+func (FocusedWorkspaceForget) isIntent() {}
+
+//jjui:bind scope=revisions.workspace action=rename
+type FocusedWorkspaceRename struct{}
+
+func (FocusedWorkspaceRename) isIntent() {}
+
 //jjui:bind scope=revisions action=fetch
 type RevisionsFetch struct{}
 

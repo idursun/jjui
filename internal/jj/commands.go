@@ -319,6 +319,20 @@ func TagDelete(name string) CommandArgs {
 	return []string{"tag", "delete", ExactStringPattern(name)}
 }
 
+// WorkspaceRoot prints the root of the named workspace.
+func WorkspaceRoot(name string) CommandArgs {
+	return []string{"workspace", "root", "--name", name, "--ignore-working-copy"}
+}
+
+func WorkspaceForget(name string) CommandArgs {
+	return []string{"workspace", "forget", name}
+}
+
+// WorkspaceRename renames the current workspace; jj cannot rename others.
+func WorkspaceRename(newName string) CommandArgs {
+	return []string{"workspace", "rename", newName}
+}
+
 func TagList() CommandArgs {
 	return []string{"tag", "list", "--template", "name ++ '\n'", "--color", "never", "--ignore-working-copy"}
 }
