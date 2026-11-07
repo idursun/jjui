@@ -517,7 +517,7 @@ func (m *Model) View() string {
 
 func (m *Model) renderRevisionsLayout(box layout.Box) {
 	content, status := m.splitFooter(box)
-	rows := content.V(layout.Fixed(1), layout.Fill(1))
+	rows := content.V(layout.Fixed(m.revsetModel.Height()), layout.Fill(1))
 	m.revsetModel.ViewRect(m.displayContext, rows[0])
 	m.renderSplit(m.revisions, rows[1])
 	m.renderFooter(status)

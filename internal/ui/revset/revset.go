@@ -87,6 +87,14 @@ func (m *Model) Scopes() []common.Scope {
 	}
 }
 
+// Height is the number of lines the revset needs under the tabs.
+func (m *Model) Height() int {
+	if m.bookmarks != nil && !m.editing {
+		return 2
+	}
+	return 1
+}
+
 func (m *Model) IsFocused() bool {
 	return m.editing
 }
@@ -376,17 +384,15 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		// Only render the text input part, not the completions from autoComplete.View()
 		tb.Write(m.autoComplete.TextInput.View())
 		dl.SetCursorInRect(m.autoComplete.TextInput.Cursor(), box.R, render.StringWidth("revset: "), 0)
-	} else if m.bookmarks != nil {
-		cursorX := m.viewBookmarks(tb)
-		if m.bookmarks.filtering {
-			dl.SetCursorInRect(m.bookmarks.filter.Cursor(), box.R, cursorX, 0)
-		}
 	} else {
 		tb.Styled(m.context.CurrentRevset, textStyle)
 	}
 	tb.Done()
 
 	if !m.editing {
+		if m.bookmarks != nil && box.R.Dy() > 1 {
+			m.viewBookmarks(dl, layout.NewBox(layout.Rect(box.R.Min.X, box.R.Min.Y+1, box.R.Dx(), 1)))
+		}
 		return
 	}
 
