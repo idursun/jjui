@@ -72,6 +72,15 @@ func (sc *SplitContainer) ContentFocused() bool {
 	return sc.contentFocused
 }
 
+// ContentEditing reports whether the focused split content is taking text.
+func (sc *SplitContainer) ContentEditing() bool {
+	if !sc.contentFocused {
+		return false
+	}
+	editable, ok := sc.activeContent().(common.Editable)
+	return ok && editable.IsEditing()
+}
+
 func (sc *SplitContainer) ShowContent(id string) (tea.Cmd, bool) {
 	if sc.activeContentID == id {
 		return nil, false

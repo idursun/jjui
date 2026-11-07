@@ -126,6 +126,10 @@ func (m *Model) RequestClose() (tea.Cmd, bool) {
 	return m.confirmation.Init(), false
 }
 
+func (m *Model) IsEditing() bool {
+	return m.editing
+}
+
 func (m *Model) Scopes() []common.Scope {
 	if m.confirmation != nil {
 		return []common.Scope{{
