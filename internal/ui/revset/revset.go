@@ -57,13 +57,17 @@ type Model struct {
 	completionItems    []CompletionItem
 	selectedIndex      int
 	userInput          string // tracks what the user actually typed (separate from preview)
+	bookmarks          *bookmarksView
 }
 
 func (m *Model) IsEditing() bool {
-	return m.editing
+	return m.editing || (m.bookmarks != nil && m.bookmarks.filtering)
 }
 
 func (m *Model) Scopes() []common.Scope {
+	if m.bookmarks != nil && m.bookmarks.filtering {
+		return []common.Scope{{Name: scopeBookmarksFilter, Leak: common.LeakNone, Handler: m}}
+	}
 	if !m.editing {
 		return []common.Scope{
 			{
@@ -124,7 +128,7 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) AddToHistory(input string) {
-	if input == "" {
+	if input == "" || (m.bookmarks != nil && m.bookmarks.issued[input]) {
 		return
 	}
 
@@ -152,6 +156,11 @@ func (m *Model) SetHistory(history []string) {
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if k, ok := msg.(revsetMsg); ok {
 		msg = k.msg
+	}
+	if m.bookmarks != nil {
+		if cmd, handled := m.updateBookmarks(msg); handled {
+			return cmd
+		}
 	}
 
 	switch msg := msg.(type) {
@@ -242,6 +251,9 @@ func (m *Model) updatePreview() {
 }
 
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	if cmd, handled := m.handleBookmarksIntent(intent); handled {
+		return cmd, true
+	}
 	switch intent := intent.(type) {
 	case intents.Set:
 		m.editing = false
@@ -364,6 +376,11 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		// Only render the text input part, not the completions from autoComplete.View()
 		tb.Write(m.autoComplete.TextInput.View())
 		dl.SetCursorInRect(m.autoComplete.TextInput.Cursor(), box.R, render.StringWidth("revset: "), 0)
+	} else if m.bookmarks != nil {
+		cursorX := m.viewBookmarks(tb)
+		if m.bookmarks.filtering {
+			dl.SetCursorInRect(m.bookmarks.filter.Cursor(), box.R, cursorX, 0)
+		}
 	} else {
 		tb.Styled(m.context.CurrentRevset, textStyle)
 	}
