@@ -569,6 +569,9 @@ func (m *Model) dispatchScopes() []common.Scope {
 	if top, ok := m.topLayer(); ok && top.model != primary {
 		scopes = append(scopes, top.model.Scopes()...)
 	} else {
+		if m.revisions.InNormalMode() {
+			scopes = append(scopes, m.revsetModel.BookmarksScopes()...)
+		}
 		scopes = append(scopes, m.splitScopes(primary.Scopes())...)
 	}
 

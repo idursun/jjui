@@ -35,3 +35,36 @@ type CompletionMove struct {
 }
 
 func (CompletionMove) isIntent() {}
+
+//jjui:bind scope=revset action=show_bookmarks
+type RevsetBookmarks struct{}
+
+func (RevsetBookmarks) isIntent() {}
+
+//jjui:bind scope=revset.bookmarks action=next_remote set=Delta:1
+//jjui:bind scope=revset.bookmarks action=prev_remote set=Delta:-1
+type RevsetBookmarksCycleRemote struct {
+	Delta int
+}
+
+func (RevsetBookmarksCycleRemote) isIntent() {}
+
+//jjui:bind scope=revset.bookmarks action=edit_filter
+type RevsetBookmarksFilter struct{}
+
+func (RevsetBookmarksFilter) isIntent() {}
+
+//jjui:bind scope=revset.bookmarks action=exit
+type RevsetBookmarksExit struct{}
+
+func (RevsetBookmarksExit) isIntent() {}
+
+//jjui:bind scope=revset.bookmarks.filter action=accept
+type RevsetBookmarksFilterAccept struct{}
+
+func (RevsetBookmarksFilterAccept) isIntent() {}
+
+//jjui:bind scope=revset.bookmarks.filter action=cancel
+type RevsetBookmarksFilterCancel struct{}
+
+func (RevsetBookmarksFilterCancel) isIntent() {}

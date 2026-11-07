@@ -26,6 +26,12 @@ bindings = [
     { key = "tab", action = "revset.autocomplete", scope = "revset", desc = "autocomplete" },
     { key = "shift+tab", action = "revset.autocomplete_back", scope = "revset", desc = "autocomplete back" },
     { key = ["up", "ctrl+p"], action = "revset.move_up", scope = "revset", desc = "up" },
+    { key = "tab", action = "revset.bookmarks.next_remote", scope = "revset.bookmarks", desc = "next remote" },
+    { key = "shift+tab", action = "revset.bookmarks.prev_remote", scope = "revset.bookmarks", desc = "prev remote" },
+    { key = "/", action = "revset.bookmarks.edit_filter", scope = "revset.bookmarks", desc = "filter" },
+    { key = "esc", action = "revset.bookmarks.leave", scope = "revset.bookmarks", desc = "leave bookmarks" },
+    { key = "enter", action = "revset.bookmarks.filter.accept", scope = "revset.bookmarks.filter", desc = "done" },
+    { key = "esc", action = "revset.bookmarks.filter.cancel", scope = "revset.bookmarks.filter", desc = "cancel" },
     { key = ["down", "ctrl+n"], action = "revset.move_down", scope = "revset", desc = "down" },
 
     # preview
