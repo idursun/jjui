@@ -587,10 +587,11 @@ func (m *Model) dispatchScopes() []common.Scope {
 	if top, ok := m.topLayer(); ok && top.model != primary {
 		scopes = append(scopes, top.model.Scopes()...)
 	} else {
+		content := m.splitScopes(primary.Scopes())
 		if m.revisions.InNormalMode() {
-			scopes = append(scopes, m.revsetModel.BookmarksScopes()...)
+			content = m.withBookmarksScopes(content)
 		}
-		scopes = append(scopes, m.splitScopes(primary.Scopes())...)
+		scopes = append(scopes, content...)
 	}
 
 	if !m.revsetModel.IsEditing() {
@@ -801,6 +802,24 @@ func (m *Model) inputFocused() bool {
 	}
 	editable, ok := receiver.(common.Editable)
 	return ok && editable.IsEditing()
+}
+
+// withBookmarksScopes places the bookmarks view's keys just before the
+// revisions scope, which also binds tab, / and esc. The focused object's scope
+// stays ahead of them so the status bar lists its actions first; a focused
+// remotes line goes first so the log's keys stay away from it.
+func (m *Model) withBookmarksScopes(content []common.Scope) []common.Scope {
+	bookmarks := m.revsetModel.BookmarksScopes()
+	if len(bookmarks) == 0 {
+		return content
+	}
+	i := 0
+	if !m.revsetModel.RemotesFocused() {
+		if j := slices.IndexFunc(content, func(s common.Scope) bool { return s.Name == actions.ScopeRevisions }); j >= 0 {
+			i = j
+		}
+	}
+	return slices.Concat(content[:i], bookmarks, content[i:])
 }
 
 func (m *Model) flashVisible() bool {

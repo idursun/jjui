@@ -76,6 +76,8 @@ end
 	h.Start("bookmarks view target")
 	h.Key("b")
 	h.WaitText("filter:")
+	// The rows have loaded once the bookmark object is focused.
+	h.WaitMode("bookmark")
 	return h
 }
 
@@ -107,5 +109,27 @@ func Test_BookmarksView_EscClosesExpandedHelpFirst(t *testing.T) {
 
 	h.Key("Escape")
 	h.WaitNoText("filter:")
+	h.Quit()
+}
+
+// The focused object's actions lead the status bar; the bookmarks view's keys
+// follow and still work.
+func Test_BookmarksView_StatusLeadsWithFocusedObject(t *testing.T) {
+	t.Parallel()
+	h := startBookmarksView(t)
+
+	screen := h.WaitText("rename bookmark")
+	if !statusHasEntry(screen[len(screen)-1:], "r", "rename bookmark") {
+		t.Fatalf("status bar did not lead with the bookmark actions:\n%s", formatScreen(screen))
+	}
+
+	if err := h.session.SendKey(ghostty.KeyTab, "\t", 0); err != nil {
+		t.Fatal(err)
+	}
+	h.WaitNoText("remote_bookmarks()")
+	h.WaitText("revset: bookmarks()")
+
+	h.Key("k")
+	h.WaitMode("remotes")
 	h.Quit()
 }

@@ -73,6 +73,10 @@ func (m *Model) InBookmarksView() bool {
 	return m.bookmarks != nil
 }
 
+func (m *Model) RemotesFocused() bool {
+	return m.bookmarks != nil && m.bookmarks.focused
+}
+
 // BookmarksScopes are the keys of the bookmarks view outside the filter input.
 // They must sit before the revisions scope so that tab, / and esc reach them.
 func (m *Model) BookmarksScopes() []common.Scope {
