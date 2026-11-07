@@ -21,8 +21,9 @@ const (
 )
 
 var (
-	scopeBookmarks       = bindings.ScopeName(actions.ScopeRevset + ".bookmarks")
-	scopeBookmarksFilter = bindings.ScopeName(actions.ScopeRevset + ".bookmarks.filter")
+	scopeBookmarks        = bindings.ScopeName(actions.ScopeRevset + ".bookmarks")
+	scopeBookmarksFilter  = bindings.ScopeName(actions.ScopeRevset + ".bookmarks.filter")
+	scopeBookmarksRemotes = bindings.ScopeName(actions.ScopeRevset + ".bookmarks.remotes")
 )
 
 // bookmarksView is a revset built from a remote and a name filter. It lasts
@@ -35,6 +36,7 @@ type bookmarksView struct {
 	remoteIdx    int
 	filter       textinput.Model
 	filtering    bool
+	focused      bool // the cursor is on the remotes line
 	filterBefore string
 	revset       string
 	restore      string
@@ -77,7 +79,23 @@ func (m *Model) BookmarksScopes() []common.Scope {
 	if m.bookmarks == nil || m.bookmarks.filtering {
 		return nil
 	}
+	if m.bookmarks.focused {
+		// LeakGlobal keeps the log's keys away from the remotes line.
+		return []common.Scope{
+			{Name: scopeBookmarksRemotes, Leak: common.LeakAll, Handler: m},
+			{Name: scopeBookmarks, Leak: common.LeakGlobal, Handler: m},
+		}
+	}
 	return []common.Scope{{Name: scopeBookmarks, Leak: common.LeakAll, Handler: m}}
+}
+
+func (m *Model) QueryState(name string) (any, bool) {
+	switch name {
+	case "bookmarks.can_fetch":
+		v := m.bookmarks
+		return v != nil && v.focused && v.remotes[v.remoteIdx] != remoteLocal, true
+	}
+	return nil, false
 }
 
 func (m *Model) showBookmarks() tea.Cmd {
@@ -115,6 +133,21 @@ func (m *Model) handleBookmarksIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.RevsetBookmarksCycleRemote:
 		v.remoteIdx = (v.remoteIdx + intent.Delta + len(v.remotes)) % len(v.remotes)
 		return m.applyBookmarks(), true
+	case intents.RevsetBookmarksFocusRemotes:
+		v.focused = true
+		return nil, true
+	case intents.RevsetBookmarksRemotesLeave:
+		v.focused = false
+		return nil, true
+	case intents.RevsetBookmarksRemotesFetch:
+		switch remote := v.remotes[v.remoteIdx]; remote {
+		case remoteLocal:
+			return nil, true
+		case remoteAll:
+			return m.context.RunCommand(jj.GitFetch("--all-remotes"), common.Refresh), true
+		default:
+			return m.context.RunCommand(jj.GitFetch("--remote", remote), common.Refresh), true
+		}
 	case intents.RevsetBookmarksFilter:
 		v.filtering = true
 		v.filterBefore = v.filter.Value()
@@ -181,6 +214,12 @@ func (m *Model) viewBookmarks(dl *render.DisplayContext, box layout.Box) {
 		style := dimmed
 		if i == v.remoteIdx {
 			style = textStyle
+			if v.focused {
+				x, _ := tb.Measure()
+				style = style.Inherit(theme.DefaultPalette.Get("revisions", "", "object", true))
+				// Set before the log draws, so its passive cursor gives way.
+				dl.SetCursorAt(remoteCursor(), box.R.Min.X+x+1, box.R.Min.Y)
+			}
 		}
 		tb.Clickable(" "+remote+" ", style, selectRemoteMsg{index: i})
 	}
@@ -193,4 +232,12 @@ func (m *Model) viewBookmarks(dl *render.DisplayContext, box layout.Box) {
 		tb.Styled(v.filter.Value(), textStyle)
 	}
 	tb.Done()
+}
+
+// remoteCursor matches the cursor of a focused text object in the log.
+func remoteCursor() *tea.Cursor {
+	cursor := tea.NewCursor(0, 0)
+	cursor.Shape = tea.CursorBlock
+	cursor.Blink = true
+	return cursor
 }

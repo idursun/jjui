@@ -56,6 +56,7 @@ const (
 	ScopeRevset                     = "revset"
 	ScopeRevsetBookmarks            = "revset.bookmarks"
 	ScopeRevsetBookmarksFilter      = "revset.bookmarks.filter"
+	ScopeRevsetBookmarksRemotes     = "revset.bookmarks.remotes"
 	ScopeStatusInput                = "status.input"
 	ScopeUi                         = "ui"
 	ScopeUiPreview                  = "ui.preview"
@@ -886,6 +887,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.RevsetBookmarksFilter{}, true
 		case keybindings.Action("revset.bookmarks.exit"):
 			return intents.RevsetBookmarksExit{}, true
+		case keybindings.Action("revset.bookmarks.focus_remotes"):
+			return intents.RevsetBookmarksFocusRemotes{}, true
 		case keybindings.Action("revset.bookmarks.next_remote"):
 			return intents.RevsetBookmarksCycleRemote{Delta: 1}, true
 		case keybindings.Action("revset.bookmarks.prev_remote"):
@@ -897,6 +900,17 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.RevsetBookmarksFilterAccept{}, true
 		case keybindings.Action("revset.bookmarks.filter.cancel"):
 			return intents.RevsetBookmarksFilterCancel{}, true
+		}
+	case ScopeRevsetBookmarksRemotes:
+		switch action {
+		case keybindings.Action("revset.bookmarks.remotes.fetch"):
+			return intents.RevsetBookmarksRemotesFetch{}, true
+		case keybindings.Action("revset.bookmarks.remotes.leave"):
+			return intents.RevsetBookmarksRemotesLeave{}, true
+		case keybindings.Action("revset.bookmarks.remotes.next"):
+			return intents.RevsetBookmarksCycleRemote{Delta: 1}, true
+		case keybindings.Action("revset.bookmarks.remotes.prev"):
+			return intents.RevsetBookmarksCycleRemote{Delta: -1}, true
 		}
 	case ScopeStatusInput:
 		switch action {
