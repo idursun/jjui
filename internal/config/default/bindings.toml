@@ -29,7 +29,7 @@ bindings = [
     { key = "tab", action = "revset.bookmarks.next_remote", scope = "revset.bookmarks", desc = "next remote" },
     { key = "shift+tab", action = "revset.bookmarks.prev_remote", scope = "revset.bookmarks", desc = "prev remote" },
     { key = "/", action = "revset.bookmarks.edit_filter", scope = "revset.bookmarks", desc = "filter" },
-    { key = "esc", action = "revset.bookmarks.leave", scope = "revset.bookmarks", desc = "leave bookmarks" },
+    { key = "esc", action = "revset.bookmarks.leave", scope = "revset.bookmarks", desc = "leave bookmarks", when = "!ui.has_flash && !ui.status_expanded" },
     { key = ["k", "up"], action = "revset.bookmarks.focus_remotes", scope = "revset.bookmarks", desc = "remotes", when = "revisions.at_top" },
     { key = ["l", "right"], action = "revset.bookmarks.remotes.next", scope = "revset.bookmarks.remotes", desc = "next remote" },
     { key = ["h", "left"], action = "revset.bookmarks.remotes.prev", scope = "revset.bookmarks.remotes", desc = "prev remote" },
