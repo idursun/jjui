@@ -80,7 +80,10 @@ type scriptFrame struct {
 
 type triggerAutoRefreshMsg struct{}
 
-const scopeUi keybindings.ScopeName = "ui"
+const (
+	scopeUi      keybindings.ScopeName = "ui"
+	scopeOverlay keybindings.ScopeName = "ui.overlay"
+)
 
 // colorSchemePollInterval is how often to poll the terminal for its
 // current light/dark mode.
@@ -106,12 +109,6 @@ func (m *Model) Selection() common.SelectionSnapshot {
 // Focus and visibility do not participate in lookup; owners decide whether a
 // model is still live and can answer the local property.
 func (m *Model) QueryState(name string) (any, bool) {
-	switch name {
-	case "ui.has_flash":
-		return m.flash.Any(), true
-	case "ui.status_expanded":
-		return m.status != nil && m.status.StatusExpanded(), true
-	}
 	if strings.HasPrefix(name, "ui.preview.") {
 		switch strings.TrimPrefix(name, "ui.preview.") {
 		case "can_expand":
@@ -568,6 +565,18 @@ func (m *Model) dispatchScopes() []common.Scope {
 		scopes = append(scopes, m.password.Scopes()...)
 	}
 
+	// Error and sticky flash messages and the expanded help are drawn over
+	// every view, so esc closes them before it reaches the view underneath.
+	// Messages that expire on their own leave esc to the view.
+	if m.flashVisible() || m.status.StatusExpanded() {
+		scopes = append(scopes, common.Scope{
+			Name:         scopeOverlay,
+			Leak:         common.LeakAll,
+			HideFromHelp: true,
+			Handler:      m,
+		})
+	}
+
 	if m.revsetModel.IsEditing() {
 		scopes = append(scopes, m.revsetModel.Scopes()...)
 	}
@@ -694,6 +703,13 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		m.openScreen(model)
 		return model.Init(), true
 	// --- Status ---
+	case intents.DismissOverlay:
+		if m.flashVisible() {
+			m.flash.DeleteOldestPersistent()
+		} else if m.status.StatusExpanded() {
+			m.status.SetStatusExpanded(false)
+		}
+		return nil, true
 	case intents.ExpandStatusToggle:
 		m.status.ToggleStatusExpand()
 		return nil, true
@@ -769,6 +785,11 @@ func (m *Model) changeTheme(intent intents.ChangeTheme) tea.Cmd {
 func (m *Model) validateRuntimeThemeChange() error {
 	_, err := m.resolveActiveTheme()
 	return err
+}
+
+func (m *Model) flashVisible() bool {
+	scope, ok := m.stackedScope()
+	return m.flash.AnyPersistent() && (!ok || scope != actions.ScopeCommandHistory)
 }
 
 func (m *Model) stackedScope() (keybindings.ScopeName, bool) {

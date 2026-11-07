@@ -614,6 +614,7 @@ function wait_refresh() end
 ---@field close fun()
 
 ---@class jjui.ui
+---@field overlay jjui.ui.overlay
 ---@field preview jjui.ui.preview
 ---@field cancel fun()
 ---@field change_theme fun(value?: string|{name: string})
@@ -643,6 +644,9 @@ function wait_refresh() end
 ---@field suspend fun()
 ---@field toggle_bookmark_pane fun()
 ---@field close fun()
+
+---@class jjui.ui.overlay
+---@field dismiss fun()
 
 ---@class jjui.ui.preview
 ---@field show fun(value?: string|{content: string})
