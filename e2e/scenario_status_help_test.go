@@ -9,18 +9,18 @@ func Test_StatusHelpDoesNotShowDormantRevsetScopeInStackedView(t *testing.T) {
 	h := NewHarness(t)
 	h.WriteConfigTOML(`
 [[bindings]]
-action = "ui.open_bookmarks"
+action = "ui.open_git"
 key = "Y"
 scope = "revisions"
-desc = "bookmarks"
+desc = "git"
 `)
 	h.Start("initial")
 
 	h.Key("Y")
-	h.WaitText("Bookmark Operations")
+	h.WaitText("Git Operations")
 	h.Text("?")
 	if _, err := h.session.WaitForStableScreen(h.ctx, 3, func(screen []string) bool {
-		return screenContains(screen, "Bookmarks") &&
+		return screenContains(screen, "Git") &&
 			statusHasEntry(screen, "tab", "next remote") &&
 			!screenContains(screen, "Revset") &&
 			!statusHasEntry(screen, "tab", "autocomplete")
@@ -29,7 +29,7 @@ desc = "bookmarks"
 		if snapshotErr != nil {
 			t.Fatalf("could not inspect expanded status help: %v", snapshotErr)
 		}
-		t.Fatalf("expanded bookmark help did not show bookmark actions or included dormant revset help:\n%s", formatScreen(screen))
+		t.Fatalf("expanded git help did not show git actions or included dormant revset help:\n%s", formatScreen(screen))
 	}
 
 	h.Key("Escape")

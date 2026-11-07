@@ -5,20 +5,15 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/ui/bookmarkpane"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
-	bookmarkop "github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/internal/ui/preview"
 	"github.com/idursun/jjui/internal/ui/revisions"
 	"github.com/idursun/jjui/internal/ui/split"
 )
 
-const (
-	previewContentID  = "preview"
-	bookmarkContentID = "bookmark-pane"
-)
+const previewContentID = "preview"
 
 func (m *Model) initSplitContainer() {
 	state := split.NewSplitState(config.Current.Preview.WidthPercentage)
@@ -31,7 +26,6 @@ func (m *Model) initSplitContainer() {
 	m.splitContainer = split.NewSplitContainer(state)
 	m.splitContainer.OnPrimaryFocus = m.revisions.SetFocused
 	m.splitContainer.RegisterContent(previewContentID, preview.New(m.context))
-	m.splitContainer.RegisterContent(bookmarkContentID, bookmarkpane.New(m.context))
 	if config.Current.Preview.ShowAtStart {
 		_, _ = m.splitContainer.ShowContent(previewContentID)
 	}
@@ -63,24 +57,6 @@ func (m *Model) handleSplitMsg(msg tea.Msg) (tea.Cmd, bool) {
 		return cmd, true
 	case revisions.ItemClickedMsg, revisions.PaneClickedMsg:
 		m.splitContainer.FocusPrimary()
-	case bookmarkpane.PaneClickedMsg, bookmarkpane.ItemClickedMsg, bookmarkpane.RemoteClickedMsg:
-		if m.splitContainer.ActiveID() == bookmarkContentID {
-			m.splitContainer.FocusSplitContent()
-		}
-	case bookmarkpane.RevealRevisionMsg:
-		m.splitContainer.FocusPrimary()
-		return m.revisions.RevealRevision(msg.CommitID), true
-	case bookmarkpane.BeginMoveBookmarkMsg:
-		m.splitContainer.FocusPrimary()
-		return common.RestoreOperation(bookmarkop.NewMoveBookmarkOperation(m.context, msg.Name, m.revisions.SelectedRevision())), true
-	case bookmarkop.MoveBookmarkCancelledMsg:
-		if m.splitContainer.ActiveID() == bookmarkContentID {
-			m.splitContainer.FocusSplitContent()
-		}
-		return nil, true
-	case bookmarkpane.BeginCreateBookmarkMsg:
-		m.splitContainer.FocusPrimary()
-		return common.RestoreOperation(bookmarkop.NewCreateBookmarkOperation(m.context, m.revisions.SelectedRevision())), true
 	case split.SplitDragMsg:
 		m.splitContainer.StartDrag(msg)
 	}
@@ -95,20 +71,6 @@ func (m *Model) handleSplitIntent(intent intents.Intent) (tea.Cmd, bool) {
 	}
 
 	switch msg := intent.(type) {
-	case intents.ToggleBookmarkPane:
-		if m.splitContainer.ActiveID() == bookmarkContentID {
-			m.splitContainer.Close()
-			return nil, true
-		}
-		m.syncBookmarkPaneContext()
-		cmd, _ := m.splitContainer.ShowContent(bookmarkContentID)
-		m.splitContainer.FocusSplitContent()
-		return cmd, true
-	case intents.FocusNextPane:
-		if m.splitContainer.ActiveID() == bookmarkContentID {
-			m.splitContainer.ToggleFocus()
-		}
-		return nil, true
 	case intents.PreviewToggle:
 		cmd, _ := m.splitContainer.ToggleContent(previewContentID)
 		m.splitContainer.FocusPrimary()
@@ -136,10 +98,6 @@ func (m *Model) handleSplitIntent(intent intents.Intent) (tea.Cmd, bool) {
 }
 
 func (m *Model) updateSplit(msg tea.Msg) tea.Cmd {
-	switch msg.(type) {
-	case common.UpdateRevisionsSuccessMsg, common.SelectionChangedMsg:
-		m.syncBookmarkPaneContext()
-	}
 	return m.splitContainer.Update(msg)
 }
 
@@ -153,19 +111,6 @@ func (m *Model) renderSplit(primary common.ImmediateModel, box layout.Box) {
 
 func (m *Model) updateSplitAutoPosition() {
 	m.splitContainer.SetAutoPosition(m.height >= m.width/2)
-}
-
-// The bookmark pane needs revision context for proximity sorting and for
-// deciding whether a bookmark target can be revealed in the current list.
-func (m *Model) syncBookmarkPaneContext() {
-	currentCommitID := ""
-	if selected := m.revisions.SelectedRevision(); selected != nil {
-		currentCommitID = selected.CommitId
-	}
-	m.splitContainer.UpdateContent(bookmarkContentID, bookmarkpane.RevisionContextMsg{
-		CurrentCommitID:  currentCommitID,
-		VisibleCommitIDs: m.revisions.GetCommitIds(),
-	})
 }
 
 func (m *Model) handleSplitMouseMsg(msg tea.Msg) {

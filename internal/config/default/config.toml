@@ -46,9 +46,6 @@ bindings_profile = ":builtin"
 [askpass]
   enabled = true
 
-[bookmark]
-  interactive_bookmark_pane = false
-
 [[actions]]
 name = "revisions.evolog.split"
 lua = """

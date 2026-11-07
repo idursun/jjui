@@ -20,10 +20,6 @@ var _ operations.Operation = (*MoveBookmarkOperation)(nil)
 var _ common.Focusable = (*MoveBookmarkOperation)(nil)
 var _ common.ScopeProvider = (*MoveBookmarkOperation)(nil)
 
-type MoveBookmarkCancelledMsg struct {
-	Name string
-}
-
 type MoveBookmarkOperation struct {
 	context      *context.MainContext
 	bookmarkName string
@@ -82,9 +78,7 @@ func (m *MoveBookmarkOperation) HandleIntent(intent intents.Intent) (tea.Cmd, bo
 			common.Refresh,
 		), true
 	case intents.Cancel:
-		return tea.Sequence(common.Close, func() tea.Msg {
-			return MoveBookmarkCancelledMsg{Name: m.bookmarkName}
-		}), true
+		return common.Close, true
 	}
 	return nil, false
 }
