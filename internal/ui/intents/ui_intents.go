@@ -357,6 +357,11 @@ type Cancel struct{}
 
 func (Cancel) isIntent() {}
 
+//jjui:bind scope=ui.overlay action=dismiss
+type DismissOverlay struct{}
+
+func (DismissOverlay) isIntent() {}
+
 //jjui:bind scope=revisions.rebase action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions.rebase action=force_apply set=Force:true
 //jjui:bind scope=revisions.squash action=apply set=Force:$bool(force)

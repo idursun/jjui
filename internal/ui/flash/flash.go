@@ -1,6 +1,7 @@
 package flash
 
 import (
+	"slices"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ type flashMessage struct {
 	command string
 	error   error
 	id      uint64
+	sticky  bool
 }
 
 type Model struct {
@@ -97,6 +99,9 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	switch intent := intent.(type) {
 	case intents.AddMessage:
 		id := m.add(intent.Text, intent.Err)
+		if intent.Sticky {
+			m.markSticky(id)
+		}
 		if intent.Err == nil && !intent.Sticky && id != 0 {
 			expiringMessageTimeout := config.GetExpiringFlashMessageTimeout(config.Current)
 			if expiringMessageTimeout > time.Duration(0) {
@@ -214,6 +219,30 @@ func (m *Model) addHistory(msg flashMessage) {
 
 func (m *Model) Any() bool {
 	return len(m.messages) > 0
+}
+
+// AnyPersistent reports a message that stays until it is dismissed.
+func (m *Model) AnyPersistent() bool {
+	return slices.ContainsFunc(m.messages, flashMessage.persistent)
+}
+
+// DeleteOldestPersistent dismisses the oldest message that would not expire.
+func (m *Model) DeleteOldestPersistent() {
+	if i := slices.IndexFunc(m.messages, flashMessage.persistent); i >= 0 {
+		m.messages = slices.Delete(m.messages, i, i+1)
+	}
+}
+
+func (f flashMessage) persistent() bool {
+	return f.error != nil || f.sticky
+}
+
+func (m *Model) markSticky(id uint64) {
+	for i := range m.messages {
+		if m.messages[i].id == id {
+			m.messages[i].sticky = true
+		}
+	}
 }
 
 func (m *Model) LiveMessagesCount() int {

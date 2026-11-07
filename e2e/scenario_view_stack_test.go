@@ -206,3 +206,31 @@ desc = "oplog"
 	h.WaitMode("revisions")
 	h.Quit()
 }
+
+// Error flash messages are drawn over every view, so esc dismisses them before
+// it cancels what is underneath.
+func Test_ViewStack_EscDismissesErrorFlashBeforeOperation(t *testing.T) {
+	t.Parallel()
+	h := startViewStackRepo(t)
+	h.WriteConfigLua(`
+function setup(config)
+  config.action("view-stack-error", function()
+    flash({text = "view-stack-error-message", error = true})
+  end, { key = "Y", scope = "revisions" })
+end
+`)
+	h.Start("view stack target")
+
+	h.Key("Y")
+	h.WaitText("view-stack-error-message")
+	h.Key("r")
+	h.WaitMode("rebase")
+
+	h.Key("Escape")
+	h.WaitNoText("view-stack-error-message")
+	h.WaitStableMode("rebase")
+
+	h.Key("Escape")
+	h.WaitMode("revisions")
+	h.Quit()
+}
