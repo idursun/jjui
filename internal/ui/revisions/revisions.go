@@ -72,9 +72,12 @@ type Model struct {
 	displayContextRenderer *DisplayContextRenderer
 	ensureCursorView       bool
 	requestInFlight        bool
-	checkedRevisions       map[string]appContext.SelectedRevision
-	checkedOrder           []string // commit ids in the order they were checked
-	focused                bool
+	// pendingObjectJump is the object kind a jump keeps looking for once
+	// more rows are loaded.
+	pendingObjectJump string
+	checkedRevisions  map[string]appContext.SelectedRevision
+	checkedOrder      []string // commit ids in the order they were checked
+	focused           bool
 	// focusedObjectKind and focusedObjectIndex are the text object the user
 	// moved to; rows without such an object fall back to the node.
 	focusedObjectKind  string
@@ -645,6 +648,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 		m.streamer = msg.streamer
 		m.offScreenRows = nil
+		m.pendingObjectJump = ""
 		m.hasMore = true
 		m.requestInFlight = false
 
@@ -728,6 +732,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		if cmd := m.operationSelectionChanged(currentSelectedRevision); cmd != nil {
 			cmds = append(cmds, cmd)
+		}
+		if m.pendingObjectJump != "" {
+			cmds = append(cmds, m.jumpToObjectKind(m.pendingObjectJump, 1))
 		}
 		return tea.Batch(cmds...)
 	}
@@ -872,6 +879,12 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.RevisionsObjectFocus:
 		m.moveObjectFocus(intent.Delta)
 		return m.syncDetails(), true
+	case intents.RevisionsObjectJump:
+		obj := m.focusedTextObject()
+		if obj == nil {
+			return nil, true
+		}
+		return m.jumpToObjectKind(obj.Kind, intent.Delta), true
 	case intents.RevisionsObjectNode:
 		m.focusedObjectKind, m.focusedObjectIndex = textObjectNode, 0
 		return m.syncDetails(), true
@@ -1139,6 +1152,7 @@ func (m *Model) goToBottom() tea.Cmd {
 }
 
 func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
+	m.pendingObjectJump = ""
 	if len(m.rows) == 0 {
 		return nil
 	}
@@ -1633,6 +1647,39 @@ func (m *Model) syncDetails() tea.Cmd {
 		m.baseOp = operations.NewDefault()
 	}
 	return nil
+}
+
+// jumpToObjectKind moves the cursor to the nearest revision in the delta
+// direction that has an object of the kind, using the rows already parsed.
+// Going down past the loaded rows loads the next batch and tries again.
+func (m *Model) jumpToObjectKind(kind string, delta int) tea.Cmd {
+	m.pendingObjectJump = ""
+	for i := m.cursor + delta; i >= 0 && i < len(m.rows); i += delta {
+		if m.rows[i].Commit == nil {
+			continue
+		}
+		for _, o := range textObjectsForRow(m.rows[i]) {
+			if o.Kind == kind {
+				m.SetCursor(i)
+				m.focusedObjectKind, m.focusedObjectIndex = kind, o.Index
+				return m.syncDetails()
+			}
+		}
+	}
+	if delta > 0 && m.hasMore {
+		m.pendingObjectJump = kind
+		return m.requestMoreRows(m.tag.Load())
+	}
+	direction := "below"
+	if delta < 0 {
+		direction = "above"
+	}
+	names := map[string]string{textObjectDivergent: "divergent revisions"}
+	name, ok := names[kind]
+	if !ok {
+		name = kind + "s"
+	}
+	return intents.Invoke(intents.AddMessage{Text: "No more " + name + " " + direction})
 }
 
 func (m *Model) moveObjectFocus(delta int) {

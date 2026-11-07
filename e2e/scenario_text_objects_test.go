@@ -285,3 +285,45 @@ func Test_TextObjects_ForgetsTrackedBookmarkWithItsRemotes(t *testing.T) {
 		return !strings.Contains(out, "forget-me"), nil
 	})
 }
+
+// waitForCursorOn waits until the terminal cursor sits on the first
+// occurrence of text on the screen.
+func waitForCursorOn(t *testing.T, session *ptySession, ctx context.Context, text string) {
+	t.Helper()
+	_, err := session.WaitForCursor(ctx, func(c cursorPosition) bool {
+		screen, err := session.Snapshot()
+		if err != nil {
+			return false
+		}
+		for y, line := range screen {
+			if i := strings.Index(line, text); i >= 0 {
+				return int(c.Y) == y && int(c.X) == len([]rune(line[:i]))
+			}
+		}
+		return false
+	})
+	if err != nil {
+		t.Fatalf("cursor did not reach %q: %v", text, err)
+	}
+}
+
+func Test_TextObjects_JumpsBetweenBookmarks(t *testing.T) {
+	t.Parallel()
+	repo := newTestRepo(t)
+	repo.JJ("bookmark", "create", "lower-mark", "-r", "@-")
+	repo.JJ("describe", "-m", "middle")
+	repo.JJ("new", "-m", "upper")
+	repo.JJ("bookmark", "create", "upper-mark", "-r", "@")
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "upper-mark")
+	focusTextOnRow(t, session, ctx, "upper-mark")
+	// shift+j skips "middle", which has no bookmark.
+	if err := session.SendKey(ghostty.KeyJ, "J", ghostty.ModShift); err != nil {
+		t.Fatal(err)
+	}
+	waitForCursorOn(t, session, ctx, "lower-mark")
+	if err := session.SendKey(ghostty.KeyK, "K", ghostty.ModShift); err != nil {
+		t.Fatal(err)
+	}
+	waitForCursorOn(t, session, ctx, "upper-mark")
+}

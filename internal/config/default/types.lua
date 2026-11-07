@@ -329,6 +329,8 @@ function wait_refresh() end
 ---@class jjui.revisions.bookmark
 ---@field delete fun()
 ---@field forget fun()
+---@field jump_next fun()
+---@field jump_prev fun()
 ---@field move fun()
 ---@field push fun()
 ---@field rename fun()
@@ -386,6 +388,8 @@ function wait_refresh() end
 
 ---@class jjui.revisions.divergent
 ---@field abandon fun()
+---@field jump_next fun()
+---@field jump_prev fun()
 ---@field show_all fun()
 ---@field update_change_id fun()
 
@@ -500,6 +504,8 @@ function wait_refresh() end
 
 ---@class jjui.revisions.tag
 ---@field delete fun()
+---@field jump_next fun()
+---@field jump_prev fun()
 
 ---@class jjui.revisions.target_picker
 ---@field apply fun(args: {force?: boolean})
@@ -516,6 +522,8 @@ function wait_refresh() end
 
 ---@class jjui.revisions.workspace
 ---@field forget fun()
+---@field jump_next fun()
+---@field jump_prev fun()
 ---@field rename fun()
 ---@field switch fun()
 

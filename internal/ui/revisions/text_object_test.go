@@ -536,3 +536,52 @@ func TestModel_FocusedWorkspaceRenameOnlyRenamesTheCurrentWorkspace(t *testing.T
 	assert.True(t, isRename)
 	assert.True(t, model.IsEditing())
 }
+
+func jumpLogRow(changeId, bookmark string) string {
+	row := "<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::" + changeId + ">><<log commit mutable:: >>"
+	if bookmark != "" {
+		row += "<<log commit mutable bookmarks name::" + bookmark + ">><<log commit mutable:: >>"
+	}
+	return row + "<<log commit mutable commit_id shortest prefix::" + changeId + "0>><<log commit mutable::>>\n"
+}
+
+func jumpRows(t *testing.T, log string) []parser.Row {
+	return parser.ParseRows(strings.NewReader(log))
+}
+
+func TestModel_ObjectJumpMovesToTheNextRevisionWithTheSameKind(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(jumpRows(t, jumpLogRow("a", "one")+jumpLogRow("b", "")+jumpLogRow("c", "two")), "", true)
+	model.focusedObjectKind = textObjectBookmark
+	assert.Equal(t, "one", model.focusedTextObject().Value)
+
+	model.Update(intents.RevisionsObjectJump{Delta: 1})
+	assert.Equal(t, 2, model.cursor)
+	assert.Equal(t, "two", model.focusedTextObject().Value)
+
+	_, isMessage := model.Update(intents.RevisionsObjectJump{Delta: 1})().(intents.AddMessage)
+	assert.True(t, isMessage, "there is no bookmark below the last one")
+	assert.Equal(t, 2, model.cursor)
+
+	model.Update(intents.RevisionsObjectJump{Delta: -1})
+	assert.Equal(t, 0, model.cursor)
+	assert.Equal(t, "one", model.focusedTextObject().Value)
+}
+
+func TestModel_ObjectJumpContinuesInTheNextBatch(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	first := jumpRows(t, jumpLogRow("a", "one")+jumpLogRow("b", ""))
+	model.updateGraphRows(first, "", true)
+	model.offScreenRows = first
+	model.hasMore = true
+	model.focusedObjectKind = textObjectBookmark
+
+	model.Update(intents.RevisionsObjectJump{Delta: 1})
+	assert.Equal(t, 0, model.cursor, "the cursor waits for the next batch")
+	assert.Equal(t, textObjectBookmark, model.pendingObjectJump)
+
+	model.Update(appendRowsBatchMsg{rows: jumpRows(t, jumpLogRow("c", "two")), tag: model.tag.Load()})
+	assert.Equal(t, 2, model.cursor)
+	assert.Equal(t, "two", model.focusedTextObject().Value)
+	assert.Equal(t, "", model.pendingObjectJump)
+}
