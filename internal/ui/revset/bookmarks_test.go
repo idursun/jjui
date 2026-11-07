@@ -1,6 +1,7 @@
 package revset
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -48,6 +49,7 @@ func simulate(model *Model, revsets *[]string, cmd tea.Cmd) {
 	test.SimulateModel(model, cmd, func(msg tea.Msg) {
 		if r, ok := msg.(common.UpdateRevSetMsg); ok {
 			*revsets = append(*revsets, string(r))
+			model.context.CurrentRevset = string(r) // ui does this in the app
 		}
 	})
 }
@@ -118,10 +120,13 @@ func TestBookmarks_ViewShowsRemotesAndFilter(t *testing.T) {
 	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilter{}))
 	simulate(model, revsets, test.Type("fix"))
 
-	out := test.RenderImmediate(model, 160, 1)
-	for _, s := range []string{"bookmarks", "all", "local", "origin", "upstream", "fix", `substring-i:"fix"`} {
-		assert.Contains(t, out, s)
+	lines := strings.Split(test.RenderImmediate(model, 160, 2), "\n")
+	require.Len(t, lines, 2)
+	assert.Contains(t, lines[0], `revset: bookmarks(substring-i:"fix") | remote_bookmarks(substring-i:"fix")`)
+	for _, s := range []string{"remote:", "all", "local", "origin", "upstream", "filter: fix"} {
+		assert.Contains(t, lines[1], s)
 	}
+	assert.Equal(t, 2, model.Height())
 }
 
 func TestBookmarks_ClickSelectsRemote(t *testing.T) {

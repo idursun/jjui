@@ -10,6 +10,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/theme"
 )
@@ -167,13 +168,15 @@ func (m *Model) updateBookmarks(msg tea.Msg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (m *Model) viewBookmarks(tb *render.TextBuilder) int {
+// viewBookmarks draws the remotes and the filter that built the revset above.
+func (m *Model) viewBookmarks(dl *render.DisplayContext, box layout.Box) {
 	v := m.bookmarks
 	titleStyle := theme.DefaultPalette.Get("revset", "", "title", false)
 	textStyle := theme.DefaultPalette.Get("revset", "", "text", false)
 	dimmed := theme.DefaultPalette.Get("revset", "completion", "dimmed", false)
 
-	tb.Styled("bookmarks ", titleStyle)
+	tb := dl.Text(box.R.Min.X, box.R.Min.Y, render.ZFuzzyInput)
+	tb.Styled("remote: ", titleStyle)
 	for i, remote := range v.remotes {
 		style := dimmed
 		if i == v.remoteIdx {
@@ -181,13 +184,13 @@ func (m *Model) viewBookmarks(tb *render.TextBuilder) int {
 		}
 		tb.Clickable(" "+remote+" ", style, selectRemoteMsg{index: i})
 	}
-	tb.Styled("  / ", titleStyle)
+	tb.Styled("   filter: ", titleStyle)
 	cursorX, _ := tb.Measure()
 	if v.filtering {
 		tb.Write(v.filter.View())
+		dl.SetCursorInRect(v.filter.Cursor(), box.R, cursorX, 0)
 	} else {
 		tb.Styled(v.filter.Value(), textStyle)
 	}
-	tb.Styled("  "+v.revset, dimmed)
-	return cursorX
+	tb.Done()
 }
