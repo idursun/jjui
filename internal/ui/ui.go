@@ -567,8 +567,8 @@ func (m *Model) dispatchScopes() []common.Scope {
 
 	// Error and sticky flash messages and the expanded help are drawn over
 	// every view, so esc closes them before it reaches the view underneath.
-	// Messages that expire on their own leave esc to the view.
-	if m.flashVisible() || m.status.StatusExpanded() {
+	// Messages that expire on their own, and text inputs, keep esc.
+	if (m.flashVisible() || m.status.StatusExpanded()) && !m.inputFocused() {
 		scopes = append(scopes, common.Scope{
 			Name:         scopeOverlay,
 			Leak:         common.LeakAll,
@@ -785,6 +785,22 @@ func (m *Model) changeTheme(intent intents.ChangeTheme) tea.Cmd {
 func (m *Model) validateRuntimeThemeChange() error {
 	_, err := m.resolveActiveTheme()
 	return err
+}
+
+// inputFocused reports whether the model that receives keys is taking text,
+// following the same order as dispatchScopes.
+func (m *Model) inputFocused() bool {
+	if m.revsetModel.IsEditing() {
+		return true
+	}
+	var receiver any = m.primary()
+	if top, ok := m.topLayer(); ok && top.model != m.primary() {
+		receiver = top.model
+	} else if m.splitContainer != nil && m.splitContainer.ContentFocused() {
+		return m.splitContainer.ContentEditing()
+	}
+	editable, ok := receiver.(common.Editable)
+	return ok && editable.IsEditing()
 }
 
 func (m *Model) flashVisible() bool {
