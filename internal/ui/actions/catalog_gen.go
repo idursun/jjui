@@ -59,6 +59,7 @@ const (
 	ScopeRevsetBookmarksRemotes     = "revset.bookmarks.remotes"
 	ScopeStatusInput                = "status.input"
 	ScopeUi                         = "ui"
+	ScopeUiOverlay                  = "ui.overlay"
 	ScopeUiPreview                  = "ui.preview"
 	ScopeUndo                       = "undo"
 )
@@ -985,6 +986,11 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Suspend{}, true
 		case keybindings.Action("ui.toggle_bookmark_pane"):
 			return intents.ToggleBookmarkPane{}, true
+		}
+	case ScopeUiOverlay:
+		switch action {
+		case keybindings.Action("ui.overlay.dismiss"):
+			return intents.DismissOverlay{}, true
 		}
 	case ScopeUiPreview:
 		switch action {

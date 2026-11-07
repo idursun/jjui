@@ -232,7 +232,7 @@ func (m *Model) Help() []help.ScopeGroup {
 
 func firstNamedScope(scopes []common.Scope) (common.Scope, bool) {
 	for _, scope := range scopes {
-		if scope.Name != "" {
+		if scope.Name != "" && !scope.HideFromHelp {
 			return scope, true
 		}
 	}

@@ -381,6 +381,7 @@ var builtInActionScopes = map[string][]string{
 	"ui.open_redo":                                  {"ui"},
 	"ui.open_revset":                                {"ui"},
 	"ui.open_undo":                                  {"ui"},
+	"ui.overlay.dismiss":                            {"ui.overlay"},
 	"ui.preview.show":                               {"ui.preview"},
 	"ui.preview_expand":                             {"ui"},
 	"ui.preview_half_page_down":                     {"ui"},
