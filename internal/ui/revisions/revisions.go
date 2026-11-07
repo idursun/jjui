@@ -183,6 +183,8 @@ func (m *Model) QueryState(name string) (any, bool) {
 	switch name {
 	case "has_revision":
 		return selected != nil, true
+	case "at_top":
+		return m.cursor == 0, true
 	case "has_selection":
 		return len(m.SelectedRevisions().Revisions) > 0, true
 	case "has_checked":

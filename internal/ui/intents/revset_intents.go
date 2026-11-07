@@ -43,6 +43,8 @@ func (RevsetBookmarks) isIntent() {}
 
 //jjui:bind scope=revset.bookmarks action=next_remote set=Delta:1
 //jjui:bind scope=revset.bookmarks action=prev_remote set=Delta:-1
+//jjui:bind scope=revset.bookmarks.remotes action=next set=Delta:1
+//jjui:bind scope=revset.bookmarks.remotes action=prev set=Delta:-1
 type RevsetBookmarksCycleRemote struct {
 	Delta int
 }
@@ -68,3 +70,18 @@ func (RevsetBookmarksFilterAccept) isIntent() {}
 type RevsetBookmarksFilterCancel struct{}
 
 func (RevsetBookmarksFilterCancel) isIntent() {}
+
+//jjui:bind scope=revset.bookmarks action=focus_remotes
+type RevsetBookmarksFocusRemotes struct{}
+
+func (RevsetBookmarksFocusRemotes) isIntent() {}
+
+//jjui:bind scope=revset.bookmarks.remotes action=leave
+type RevsetBookmarksRemotesLeave struct{}
+
+func (RevsetBookmarksRemotesLeave) isIntent() {}
+
+//jjui:bind scope=revset.bookmarks.remotes action=fetch when="revset.bookmarks.can_fetch"
+type RevsetBookmarksRemotesFetch struct{}
+
+func (RevsetBookmarksRemotesFetch) isIntent() {}

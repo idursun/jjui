@@ -582,8 +582,10 @@ function wait_refresh() end
 
 ---@class jjui.revset.bookmarks
 ---@field filter jjui.revset.bookmarks.filter
+---@field remotes jjui.revset.bookmarks.remotes
 ---@field edit_filter fun()
 ---@field exit fun()
+---@field focus_remotes fun()
 ---@field next_remote fun()
 ---@field prev_remote fun()
 
@@ -591,6 +593,12 @@ function wait_refresh() end
 ---@field accept fun()
 ---@field cancel fun()
 ---@field close fun()
+
+---@class jjui.revset.bookmarks.remotes
+---@field fetch fun()
+---@field leave fun()
+---@field next fun()
+---@field prev fun()
 
 ---@class jjui.status
 ---@field input jjui.status.input

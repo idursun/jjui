@@ -8,6 +8,8 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -133,4 +135,44 @@ func TestBookmarks_ClickSelectsRemote(t *testing.T) {
 	model, revsets := openBookmarks(t)
 	simulate(model, revsets, func() tea.Msg { return selectRemoteMsg{index: 3} })
 	assert.Equal(t, `remote_bookmarks(remote=exact:"upstream")`, (*revsets)[len(*revsets)-1])
+}
+
+func TestBookmarks_FetchFromFocusedRemote(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin https://a\n"))
+	commandRunner.Expect(jj.GitFetch("--all-remotes"))
+	commandRunner.Expect(jj.GitFetch("--remote", "origin"))
+
+	model := New(test.NewTestContext(commandRunner))
+	revsets := &[]string{}
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarks{}))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFocusRemotes{}))
+
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesFetch{}))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksCycleRemote{Delta: 1}))
+	canFetch, _ := model.QueryState("bookmarks.can_fetch")
+	assert.Equal(t, false, canFetch, "nothing to fetch for local bookmarks")
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesFetch{}))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksCycleRemote{Delta: 1}))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesFetch{}))
+}
+
+func TestBookmarks_FocusedRemoteHoldsTheCursor(t *testing.T) {
+	model, revsets := openBookmarks(t)
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksCycleRemote{Delta: 2}))
+
+	dl := render.NewDisplayContext()
+	model.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 120, 2)))
+	assert.Nil(t, dl.Cursor(), "no cursor until the remotes line is focused")
+
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFocusRemotes{}))
+	dl = render.NewDisplayContext()
+	model.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 120, 2)))
+	require.NotNil(t, dl.Cursor())
+	assert.Equal(t, 1, dl.Cursor().Y)
+	assert.Equal(t, strings.Index("remote:  all  local  origin ", "origin"), dl.Cursor().X)
+
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesLeave{}))
+	assert.False(t, model.bookmarks.focused)
 }
