@@ -13,6 +13,7 @@ import (
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
+	"github.com/idursun/jjui/internal/ui/operations/workspace"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -456,4 +457,82 @@ func TestModel_FocusedDivergentActions(t *testing.T) {
 
 	cmd, _ := model.HandleIntent(intents.FocusedDivergentShowAll{})
 	assert.Equal(t, common.UpdateRevSetMsg("change_id(nkmpu)"), cmd())
+}
+
+// Two workspaces share the working-copy commit and render in one segment.
+const workspaceLog = "<<log commit node working_copy mutable::@>>  " +
+	"<<log commit working_copy mutable change_id shortest prefix::s>><<log commit working_copy mutable change_id shortest rest::mqwonot>><<log commit working_copy mutable:: >>" +
+	"<<log commit working_copy mutable working_copies::default@ second@>><<log commit working_copy mutable:: >>" +
+	"<<log commit working_copy mutable commit_id shortest prefix::05>><<log commit working_copy mutable commit_id shortest rest::0bef07>><<log commit working_copy mutable::>>\n"
+
+func workspaceModel(t *testing.T, commandRunner *test.CommandRunner, location string) *Model {
+	ctx := test.NewTestContext(commandRunner)
+	ctx.Location = location
+	model := New(ctx)
+	model.updateGraphRows(parser.ParseRows(strings.NewReader(workspaceLog)), "", true)
+	model.focusedObjectKind, model.focusedObjectIndex = textObjectWorkspace, 1
+	return model
+}
+
+func TestTextObjectsForRow_Workspaces(t *testing.T) {
+	rows := parser.ParseRows(strings.NewReader(workspaceLog))
+	require.Len(t, rows, 1)
+
+	type summary struct {
+		Value    string
+		Index, x int
+		w        int
+	}
+	var got []summary
+	for _, o := range textObjectsForRow(rows[0]) {
+		if o.Kind == textObjectWorkspace {
+			got = append(got, summary{o.Value, o.Index, o.x, o.width})
+		}
+	}
+	assert.Equal(t, []summary{{"default", 0, 12, 8}, {"second", 1, 21, 7}}, got)
+}
+
+func TestModel_FocusedWorkspaceSwitchChangesLocation(t *testing.T) {
+	other := t.TempDir()
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.WorkspaceRoot("second")).SetOutput([]byte(other + "\n"))
+	defer commandRunner.Verify()
+
+	model := workspaceModel(t, commandRunner, "/repo")
+	assert.Equal(t, actions.ScopeRevisions+".workspace", string(model.Scopes()[0].Name))
+	model.Update(intents.FocusedWorkspaceSwitch{})
+	assert.Equal(t, other, model.context.Location)
+
+	_, isMessage := model.Update(intents.FocusedWorkspaceSwitch{})().(intents.AddMessage)
+	assert.True(t, isMessage, "switching to the current workspace does nothing")
+}
+
+func TestModel_FocusedWorkspaceForget(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.WorkspaceRoot("second")).SetOutput([]byte("/second"))
+	commandRunner.Expect(jj.WorkspaceForget("second"))
+	defer commandRunner.Verify()
+
+	model := workspaceModel(t, commandRunner, "/repo")
+	runJJCommand(model.Update(intents.FocusedWorkspaceForget{}))
+
+	model.context.Location = "/second"
+	_, isMessage := model.Update(intents.FocusedWorkspaceForget{})().(intents.AddMessage)
+	assert.True(t, isMessage, "the current workspace cannot be forgotten")
+}
+
+func TestModel_FocusedWorkspaceRenameOnlyRenamesTheCurrentWorkspace(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.WorkspaceRoot("second")).SetOutput([]byte("/second"))
+	defer commandRunner.Verify()
+
+	model := workspaceModel(t, commandRunner, "/repo")
+	_, isMessage := model.Update(intents.FocusedWorkspaceRename{})().(intents.AddMessage)
+	assert.True(t, isMessage, "other workspaces cannot be renamed")
+
+	model.context.Location = "/second"
+	model.Update(intents.FocusedWorkspaceRename{})
+	_, isRename := model.baseOperation().(*workspace.RenameWorkspaceOperation)
+	assert.True(t, isRename)
+	assert.True(t, model.IsEditing())
 }

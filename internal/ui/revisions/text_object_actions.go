@@ -1,6 +1,8 @@
 package revisions
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -8,6 +10,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
+	"github.com/idursun/jjui/internal/ui/operations/workspace"
 )
 
 // focusedLocalBookmark returns the focused bookmark when it is a local one,
@@ -203,4 +206,58 @@ func (m *Model) showAllDivergentCopies() tea.Cmd {
 	}
 	changeId, _, _ := strings.Cut(revision.ChangeId, "/")
 	return common.UpdateRevSet("change_id(" + changeId + ")")
+}
+
+// focusedWorkspaceRoot returns the focused workspace and its root directory.
+func (m *Model) focusedWorkspaceRoot() (*textObject, string, tea.Cmd) {
+	obj := m.focusedTextObject()
+	if obj == nil || obj.Kind != textObjectWorkspace {
+		return nil, "", nil
+	}
+	output, err := m.context.RunCommandImmediate(jj.WorkspaceRoot(obj.Value))
+	if err != nil {
+		return nil, "", intents.Invoke(intents.AddMessage{Text: "Could not find workspace " + obj.Value, Err: err})
+	}
+	return obj, filepath.Clean(strings.TrimSpace(string(output))), nil
+}
+
+func (m *Model) isCurrentWorkspace(root string) bool {
+	return root == filepath.Clean(m.context.Location)
+}
+
+func (m *Model) switchToFocusedWorkspace() tea.Cmd {
+	obj, root, cmd := m.focusedWorkspaceRoot()
+	if obj == nil {
+		return cmd
+	}
+	if m.isCurrentWorkspace(root) {
+		return intents.Invoke(intents.AddMessage{Text: "Already in workspace " + obj.Value})
+	}
+	if _, err := os.Stat(root); err != nil {
+		return intents.Invoke(intents.AddMessage{Text: "Workspace " + obj.Value + " is missing on disk", Err: err})
+	}
+	m.context.ChangeWorkspace(root)
+	return common.Refresh
+}
+
+func (m *Model) forgetFocusedWorkspace() tea.Cmd {
+	obj, root, cmd := m.focusedWorkspaceRoot()
+	if obj == nil {
+		return cmd
+	}
+	if m.isCurrentWorkspace(root) {
+		return intents.Invoke(intents.AddMessage{Text: "Switch to another workspace before forgetting " + obj.Value})
+	}
+	return m.context.RunCommand(jj.WorkspaceForget(obj.Value), common.Refresh)
+}
+
+func (m *Model) renameFocusedWorkspace() tea.Cmd {
+	obj, root, cmd := m.focusedWorkspaceRoot()
+	if obj == nil {
+		return cmd
+	}
+	if !m.isCurrentWorkspace(root) {
+		return intents.Invoke(intents.AddMessage{Text: "Only the current workspace can be renamed"})
+	}
+	return m.setBaseOperation(workspace.NewRenameWorkspaceOperation(m.context, m.SelectedRevision().GetChangeId(), obj.Value))
 }

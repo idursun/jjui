@@ -42,6 +42,7 @@ const (
 	ScopeQuickSearch                = "revisions.quick_search"
 	ScopeQuickSearchInput           = "revisions.quick_search.input"
 	ScopeRebase                     = "revisions.rebase"
+	ScopeRenameWorkspace            = "revisions.rename_workspace"
 	ScopeRevert                     = "revisions.revert"
 	ScopeSetBookmark                = "revisions.set_bookmark"
 	ScopeSetParents                 = "revisions.set_parents"
@@ -49,6 +50,7 @@ const (
 	ScopeTag                        = "revisions.tag"
 	ScopeTargetPicker               = "revisions.target_picker"
 	ScopeTimestamp                  = "revisions.timestamp"
+	ScopeWorkspace                  = "revisions.workspace"
 	ScopeRevset                     = "revset"
 	ScopeRevsetBookmarks            = "revset.bookmarks"
 	ScopeRevsetBookmarksFilter      = "revset.bookmarks.filter"
@@ -668,6 +670,13 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.rebase.target_picker"):
 			return intents.RebaseOpenTargetPicker{}, true
 		}
+	case ScopeRenameWorkspace:
+		switch action {
+		case keybindings.Action("revisions.rename_workspace.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("revisions.rename_workspace.cancel"):
+			return intents.Cancel{}, true
+		}
 	case ScopeRevert:
 		switch action {
 		case keybindings.Action("revisions.revert.apply"):
@@ -752,6 +761,15 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		switch action {
 		case keybindings.Action("revisions.timestamp.reset"):
 			return intents.FocusedTimestampReset{}, true
+		}
+	case ScopeWorkspace:
+		switch action {
+		case keybindings.Action("revisions.workspace.forget"):
+			return intents.FocusedWorkspaceForget{}, true
+		case keybindings.Action("revisions.workspace.rename"):
+			return intents.FocusedWorkspaceRename{}, true
+		case keybindings.Action("revisions.workspace.switch"):
+			return intents.FocusedWorkspaceSwitch{}, true
 		}
 	case ScopeRevset:
 		switch action {
