@@ -60,3 +60,52 @@ func Test_BookmarksView_FiltersAndLeaves(t *testing.T) {
 		t.Fatalf("esc did not restore the previous revset: %v", err)
 	}
 }
+
+func startBookmarksView(t *testing.T) *Harness {
+	t.Helper()
+	h := NewHarness(t)
+	h.repo.Write("a.txt", "bookmarks view\n").Commit("bookmarks view target")
+	h.repo.JJ("bookmark", "create", "esc-feature", "-r", "@-")
+	h.WriteConfigLua(`
+function setup(config)
+  config.action("bookmarks-view-flash", function()
+    flash({text = "bookmarks-view-flash-message", error = true})
+  end, { key = "Y", scope = "revisions" })
+end
+`)
+	h.Start("bookmarks view target")
+	h.Key("b")
+	h.WaitText("filter:")
+	return h
+}
+
+// Esc closes what is drawn on top of the bookmarks view before the view itself.
+func Test_BookmarksView_EscClosesFlashFirst(t *testing.T) {
+	t.Parallel()
+	h := startBookmarksView(t)
+
+	h.Key("Y")
+	h.WaitText("bookmarks-view-flash-message")
+	h.Key("Escape")
+	h.WaitNoText("bookmarks-view-flash-message")
+	h.WaitText("filter:")
+
+	h.Key("Escape")
+	h.WaitNoText("filter:")
+	h.Quit()
+}
+
+func Test_BookmarksView_EscClosesExpandedHelpFirst(t *testing.T) {
+	t.Parallel()
+	h := startBookmarksView(t)
+
+	h.Text("?")
+	h.WaitText("Revisions")
+	h.Key("Escape")
+	h.WaitNoText("Revisions")
+	h.WaitText("filter:")
+
+	h.Key("Escape")
+	h.WaitNoText("filter:")
+	h.Quit()
+}
