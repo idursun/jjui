@@ -155,17 +155,6 @@ explicit_false = { fg = "blue", underline = false }
 	}
 }
 
-func TestLoad_BookmarkConfig(t *testing.T) {
-	content := `
-[bookmark]
-interactive_bookmark_pane = true
-`
-	config := &Config{}
-	err := config.Load(content, "")
-	require.NoError(t, err)
-	assert.True(t, config.Bookmark.InteractiveBookmarkPane)
-}
-
 func TestLoad_AskpassConfig(t *testing.T) {
 	config := &Config{}
 	err := config.Load(`

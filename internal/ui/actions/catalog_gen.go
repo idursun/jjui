@@ -11,10 +11,6 @@ const (
 	ScopeAnnotation                 = "annotation"
 	ScopeAnnotationConfirmation     = "annotation.confirmation"
 	ScopeAnnotationEditor           = "annotation.editor"
-	ScopeBookmarkPane               = "bookmark_pane"
-	ScopeBookmarkPaneConfirmation   = "bookmark_pane.confirmation"
-	ScopeBookmarkPaneFilter         = "bookmark_pane.filter"
-	ScopeBookmarks                  = "bookmarks"
 	ScopeChoose                     = "choose"
 	ScopeCommandHistory             = "command_history"
 	ScopeDiff                       = "diff"
@@ -134,108 +130,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.AnnotationEditorCancel{}, true
 		case keybindings.Action("annotation.editor.save"):
 			return intents.AnnotationEditorSave{}, true
-		}
-	case ScopeBookmarkPane:
-		switch action {
-		case keybindings.Action("bookmark_pane.apply"):
-			return intents.Apply{}, true
-		case keybindings.Action("bookmark_pane.cancel"):
-			return intents.Cancel{}, true
-		case keybindings.Action("bookmark_pane.create"):
-			return intents.BookmarkPaneCreate{}, true
-		case keybindings.Action("bookmark_pane.cycle_remotes"):
-			return intents.BookmarkPaneCycleRemotes{Delta: 1}, true
-		case keybindings.Action("bookmark_pane.cycle_remotes_back"):
-			return intents.BookmarkPaneCycleRemotes{Delta: -1}, true
-		case keybindings.Action("bookmark_pane.delete"):
-			return intents.BookmarkPaneDelete{}, true
-		case keybindings.Action("bookmark_pane.edit"):
-			return intents.BookmarkPaneEdit{}, true
-		case keybindings.Action("bookmark_pane.fetch"):
-			return intents.BookmarkPaneFetch{}, true
-		case keybindings.Action("bookmark_pane.forget"):
-			return intents.BookmarkPaneForget{}, true
-		case keybindings.Action("bookmark_pane.move"):
-			return intents.BookmarkPaneMove{}, true
-		case keybindings.Action("bookmark_pane.move_down"):
-			return intents.BookmarkPaneNavigate{Delta: 1}, true
-		case keybindings.Action("bookmark_pane.move_up"):
-			return intents.BookmarkPaneNavigate{Delta: -1}, true
-		case keybindings.Action("bookmark_pane.new"):
-			return intents.BookmarkPaneNew{}, true
-		case keybindings.Action("bookmark_pane.open_filter"):
-			return intents.BookmarkPaneOpenFilter{}, true
-		case keybindings.Action("bookmark_pane.page_down"):
-			return intents.BookmarkPaneNavigate{Delta: 1, IsPage: true}, true
-		case keybindings.Action("bookmark_pane.page_up"):
-			return intents.BookmarkPaneNavigate{Delta: -1, IsPage: true}, true
-		case keybindings.Action("bookmark_pane.push"):
-			return intents.BookmarkPanePush{}, true
-		case keybindings.Action("bookmark_pane.rename"):
-			return intents.BookmarkPaneRename{}, true
-		case keybindings.Action("bookmark_pane.set_revset"):
-			return intents.BookmarkPaneSetRevset{}, true
-		case keybindings.Action("bookmark_pane.show_in_revision"):
-			return intents.BookmarkPaneShowInRevision{}, true
-		case keybindings.Action("bookmark_pane.toggle_expand"):
-			return intents.BookmarkPaneToggleExpand{}, true
-		case keybindings.Action("bookmark_pane.toggle_select"):
-			return intents.BookmarkPaneToggleSelect{}, true
-		case keybindings.Action("bookmark_pane.track"):
-			return intents.BookmarkPaneTrack{}, true
-		case keybindings.Action("bookmark_pane.untrack"):
-			return intents.BookmarkPaneUntrack{}, true
-		}
-	case ScopeBookmarkPaneConfirmation:
-		switch action {
-		case keybindings.Action("bookmark_pane.confirmation.apply"):
-			return intents.Apply{Force: actionargs.BoolArg(args, "force", false)}, true
-		case keybindings.Action("bookmark_pane.confirmation.cancel"):
-			return intents.Cancel{}, true
-		case keybindings.Action("bookmark_pane.confirmation.next"):
-			return intents.OptionSelect{Delta: 1}, true
-		case keybindings.Action("bookmark_pane.confirmation.prev"):
-			return intents.OptionSelect{Delta: -1}, true
-		}
-	case ScopeBookmarkPaneFilter:
-		switch action {
-		case keybindings.Action("bookmark_pane.filter.apply"):
-			return intents.Apply{}, true
-		case keybindings.Action("bookmark_pane.filter.cancel"):
-			return intents.Cancel{}, true
-		}
-	case ScopeBookmarks:
-		switch action {
-		case keybindings.Action("bookmarks.apply"):
-			return intents.Apply{}, true
-		case keybindings.Action("bookmarks.bookmark_delete"):
-			return intents.BookmarksFilter{Kind: intents.BookmarksFilterDelete}, true
-		case keybindings.Action("bookmarks.bookmark_forget"):
-			return intents.BookmarksFilter{Kind: intents.BookmarksFilterForget}, true
-		case keybindings.Action("bookmarks.bookmark_move"):
-			return intents.BookmarksFilter{Kind: intents.BookmarksFilterMove}, true
-		case keybindings.Action("bookmarks.bookmark_track"):
-			return intents.BookmarksFilter{Kind: intents.BookmarksFilterTrack}, true
-		case keybindings.Action("bookmarks.bookmark_untrack"):
-			return intents.BookmarksFilter{Kind: intents.BookmarksFilterUntrack}, true
-		case keybindings.Action("bookmarks.cancel"):
-			return intents.Cancel{}, true
-		case keybindings.Action("bookmarks.cycle_remotes"):
-			return intents.BookmarksCycleRemotes{Delta: 1}, true
-		case keybindings.Action("bookmarks.cycle_remotes_back"):
-			return intents.BookmarksCycleRemotes{Delta: -1}, true
-		case keybindings.Action("bookmarks.filter"):
-			return intents.BookmarksOpenFilter{}, true
-		case keybindings.Action("bookmarks.move_down"):
-			return intents.BookmarksNavigate{Delta: 1}, true
-		case keybindings.Action("bookmarks.move_up"):
-			return intents.BookmarksNavigate{Delta: -1}, true
-		case keybindings.Action("bookmarks.page_down"):
-			return intents.BookmarksNavigate{Delta: 1, IsPage: true}, true
-		case keybindings.Action("bookmarks.page_up"):
-			return intents.BookmarksNavigate{Delta: -1, IsPage: true}, true
-		case keybindings.Action("bookmarks.quit"):
-			return intents.Quit{}, true
 		}
 	case ScopeChoose:
 		switch action {
@@ -944,10 +838,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.ExpandStatusToggle{}, true
 		case keybindings.Action("ui.file_search_toggle"):
 			return intents.FileSearchToggle{}, true
-		case keybindings.Action("ui.focus_next_pane"):
-			return intents.FocusNextPane{}, true
-		case keybindings.Action("ui.open_bookmarks"):
-			return intents.OpenBookmarks{}, true
 		case keybindings.Action("ui.open_command_history"):
 			return intents.CommandHistoryToggle{}, true
 		case keybindings.Action("ui.open_git"):
@@ -984,8 +874,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Quit{}, true
 		case keybindings.Action("ui.suspend"):
 			return intents.Suspend{}, true
-		case keybindings.Action("ui.toggle_bookmark_pane"):
-			return intents.ToggleBookmarkPane{}, true
 		}
 	case ScopeUiOverlay:
 		switch action {

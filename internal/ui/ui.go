@@ -17,7 +17,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/annotation"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
-	"github.com/idursun/jjui/internal/ui/bookmarks"
 	"github.com/idursun/jjui/internal/ui/choose"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
@@ -125,9 +124,6 @@ func (m *Model) QueryState(name string) (any, bool) {
 	}
 	if annotationModel, ok := findLayer[*annotation.Model](m); ok && strings.HasPrefix(name, "annotation.") {
 		return annotationModel.QueryState(strings.TrimPrefix(name, "annotation."))
-	}
-	if strings.HasPrefix(name, "bookmark_pane.") && m.splitContainer != nil {
-		return m.splitContainer.QueryState(bookmarkContentID, strings.TrimPrefix(name, "bookmark_pane."))
 	}
 
 	if strings.HasPrefix(name, "revset.") {
@@ -640,17 +636,6 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	// --- Open stacked views ---
 	case intents.OpenGit:
 		return m.openDialog(git.NewModel(m.context, m.revisions.SelectedRevisions())), true
-	case intents.OpenBookmarks:
-		if config.Current.Bookmark.InteractiveBookmarkPane {
-			cmd, _ := m.handleSplitIntent(intents.ToggleBookmarkPane{})
-			return cmd, true
-		}
-		current := m.revisions.SelectedRevision()
-		if current == nil {
-			return nil, true
-		}
-		commitIds := m.revisions.GetCommitIds()
-		return m.openDialog(bookmarks.NewModel(m.context, current, commitIds)), true
 	case intents.OpLogOpen:
 		model := oplog.New(m.context)
 		m.openScreen(model)
