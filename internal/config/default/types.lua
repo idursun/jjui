@@ -567,6 +567,7 @@ function wait_refresh() end
 ---@field reset fun()
 
 ---@class jjui.revset
+---@field bookmarks jjui.revset.bookmarks
 ---@field apply fun()
 ---@field autocomplete fun()
 ---@field autocomplete_back fun()
@@ -576,6 +577,19 @@ function wait_refresh() end
 ---@field move_up fun()
 ---@field reset fun()
 ---@field set fun(value?: string|{value: string})
+---@field show_bookmarks fun()
+---@field close fun()
+
+---@class jjui.revset.bookmarks
+---@field filter jjui.revset.bookmarks.filter
+---@field edit_filter fun()
+---@field exit fun()
+---@field next_remote fun()
+---@field prev_remote fun()
+
+---@class jjui.revset.bookmarks.filter
+---@field accept fun()
+---@field cancel fun()
 ---@field close fun()
 
 ---@class jjui.status
