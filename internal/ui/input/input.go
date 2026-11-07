@@ -21,6 +21,7 @@ type CancelledMsg struct{}
 var (
 	_ common.ImmediateModel = (*Model)(nil)
 	_ common.Focusable      = (*Model)(nil)
+	_ common.Editable       = (*Model)(nil)
 )
 
 type Model struct {
@@ -30,6 +31,10 @@ type Model struct {
 }
 
 func (m *Model) IsFocused() bool {
+	return true
+}
+
+func (m *Model) IsEditing() bool {
 	return true
 }
 

@@ -234,3 +234,30 @@ end
 	h.WaitMode("revisions")
 	h.Quit()
 }
+
+// Text inputs keep esc: it leaves the input, and the error waits for the next esc.
+func Test_ViewStack_InputKeepsEscOverErrorFlash(t *testing.T) {
+	t.Parallel()
+	h := startViewStackRepo(t)
+	h.WriteConfigLua(`
+function setup(config)
+  config.action("view-stack-error", function()
+    flash({text = "view-stack-error-message", error = true})
+  end, { key = "Y", scope = "revisions" })
+end
+`)
+	h.Start("view stack target")
+
+	h.Key("Y")
+	h.WaitText("view-stack-error-message")
+	h.Key("L")
+	h.WaitMode("revset")
+
+	h.Key("Escape")
+	h.WaitMode("revisions")
+	h.WaitText("view-stack-error-message")
+
+	h.Key("Escape")
+	h.WaitNoText("view-stack-error-message")
+	h.Quit()
+}
