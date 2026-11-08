@@ -9,7 +9,9 @@ import (
 	"github.com/idursun/jjui/internal/ui/confirmation"
 	uiContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,7 +34,71 @@ func loadOperation(t *testing.T, commandRunner *test.CommandRunner, output strin
 
 	operation := NewOperation(test.NewTestContext(commandRunner), commit)
 	test.SimulateModel(operation, operation.Init())
+	operation.navigate(1, false)
 	return operation
+}
+
+func TestOperation_OpensOnTheChangeIdAndMovesThroughFiles(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	t.Cleanup(commandRunner.Verify)
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(revision)).SetOutput([]byte(statusOutput))
+	operation := NewOperation(test.NewTestContext(commandRunner), commit)
+	test.SimulateModel(operation, operation.Init())
+
+	assert.False(t, operation.FileFocused())
+	assert.Nil(t, operation.Selection().Highlighted)
+
+	operation.navigate(1, false)
+	selected, ok := operation.Selection().Highlighted.(common.SelectedFile)
+	require.True(t, ok)
+	assert.Equal(t, "file.txt", selected.File.Path())
+
+	operation.navigate(-1, false)
+	assert.False(t, operation.FileFocused())
+	assert.Nil(t, operation.Selection().Highlighted)
+}
+
+func TestOperation_DrawsTheCursorAtTheStartOfTheFocusedFile(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	t.Cleanup(commandRunner.Verify)
+	operation := loadOperation(t, commandRunner, statusOutput)
+	operation.navigate(1, false)
+	box := layout.Box{R: layout.Rect(3, 5, 40, 2)}
+
+	dl := render.NewDisplayContext()
+	operation.RenderFileList(dl, box)
+	require.NotNil(t, dl.Cursor())
+	assert.Equal(t, 3, dl.Cursor().Position.X)
+	assert.Equal(t, 6, dl.Cursor().Position.Y)
+
+	operation.LeaveFiles()
+	dl = render.NewDisplayContext()
+	operation.RenderFileList(dl, box)
+	assert.Nil(t, dl.Cursor())
+}
+
+func TestOperation_RefreshKeepsTheFocusOnTheChangeId(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	t.Cleanup(commandRunner.Verify)
+	operation := loadOperation(t, commandRunner, statusOutput)
+	operation.LeaveFiles()
+
+	operation.setItems(operation.createListItems(statusOutput, nil))
+
+	assert.False(t, operation.FileFocused())
+}
+
+func TestOperation_FilterFocusesTheFirstMatch(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	t.Cleanup(commandRunner.Verify)
+	operation := loadOperation(t, commandRunner, statusOutput)
+	operation.LeaveFiles()
+
+	operation.setFilter("new", true)
+
+	require.True(t, operation.FileFocused())
+	assert.Equal(t, "newfile.txt", operation.current().fileName.Path())
 }
 
 func TestOperation_InitLoadsStatus(t *testing.T) {
@@ -272,6 +338,7 @@ func TestOperationDisplaysWorkingDirectoryRelativeNamesButSelectsRepositoryPath(
 	assert.Equal(t, "internal/ui/details.go", items[0].fileName.Path())
 
 	operation.setItems(items)
+	operation.navigate(1, false)
 	selected := operation.Selection().Highlighted.(common.SelectedFile)
 	assert.Equal(t, "internal/ui/details.go", selected.File.Path())
 }
