@@ -476,6 +476,30 @@ func workspaceModel(t *testing.T, commandRunner *test.CommandRunner, location st
 	return model
 }
 
+// Shaped like `jj log --color=debug` output for a conflicted row.
+const conflictLog = "<<log commit node mutable conflicted::×>>  " +
+	"<<log commit mutable conflicted change_id shortest prefix::wpz>><<log commit mutable conflicted change_id shortest rest::zoqpo>><<log commit mutable conflicted:: >>" +
+	"<<log commit mutable conflicted commit_id shortest prefix::fc>><<log commit mutable conflicted commit_id shortest rest::efc5f9>><<log commit mutable conflicted:: >>" +
+	"<<log commit mutable conflicted conflict::(conflict)>><<log commit mutable conflicted::>>\n"
+
+func TestTextObjectsForRow_Conflict(t *testing.T) {
+	rows := parser.ParseRows(strings.NewReader(conflictLog))
+	require.Len(t, rows, 1)
+
+	var kinds, values []string
+	var conflicts []string
+	for _, o := range textObjectsForRow(rows[0]) {
+		kinds = append(kinds, o.Kind)
+		values = append(values, o.Value)
+		if o.Kind == textObjectConflict {
+			conflicts = append(conflicts, o.Value)
+		}
+	}
+	assert.Equal(t, []string{"(conflict)"}, conflicts)
+	assert.Equal(t, []string{"node", "change_id", "commit_id", "conflict"}, kinds)
+	assert.Equal(t, []string{"×", "wpzzoqpo", "fcefc5f9", "(conflict)"}, values)
+}
+
 func TestTextObjectsForRow_Workspaces(t *testing.T) {
 	rows := parser.ParseRows(strings.NewReader(workspaceLog))
 	require.Len(t, rows, 1)
