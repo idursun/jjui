@@ -77,6 +77,22 @@ func (m *Model) RemotesFocused() bool {
 	return m.bookmarks != nil && m.bookmarks.focused
 }
 
+// FocusedRemote returns the preview object kind and value of the focused
+// entry on the remotes line.
+func (m *Model) FocusedRemote() (kind, value string, ok bool) {
+	if !m.RemotesFocused() {
+		return "", "", false
+	}
+	switch remote := m.bookmarks.remotes[m.bookmarks.remoteIdx]; remote {
+	case remoteAll:
+		return "remote_all", remote, true
+	case remoteLocal:
+		return "remote_local", remote, true
+	default:
+		return "remote", jj.ExactStringPattern(remote), true
+	}
+}
+
 // BookmarksScopes are the keys of the bookmarks view outside the filter input.
 // They must sit before the revisions scope so that tab, / and esc reach them.
 func (m *Model) BookmarksScopes() []common.Scope {

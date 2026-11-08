@@ -50,6 +50,12 @@ bindings_profile = ":builtin"
     command = ["op", "show", "$object.value", "--color", "always"]
   [preview.object.evolog]
     command = ["evolog", "--color", "always", "-r", "$object.value", "-p", "-n", "1"]
+  [preview.object.remote]
+    command = ["bookmark", "list", "--color", "always", "--remote", "$object.value"]
+  [preview.object.remote_all]
+    command = ["git", "remote", "list"]
+  [preview.object.remote_local]
+    command = ["bookmark", "list", "--color", "always"]
 
 [oplog]
   limit = 200
