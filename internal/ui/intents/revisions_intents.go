@@ -287,6 +287,11 @@ type FocusedBookmarkMove struct{}
 
 func (FocusedBookmarkMove) isIntent() {}
 
+//jjui:bind scope=revisions.bookmark action=advance
+type FocusedBookmarkAdvance struct{}
+
+func (FocusedBookmarkAdvance) isIntent() {}
+
 //jjui:bind scope=revisions.bookmark action=track set=Track:true
 //jjui:bind scope=revisions.bookmark action=untrack set=Track:false
 type FocusedBookmarkTrack struct {

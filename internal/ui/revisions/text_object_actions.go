@@ -42,6 +42,16 @@ func (m *Model) moveFocusedBookmark() tea.Cmd {
 	return m.setBaseOperation(bookmark.NewMoveBookmarkOperation(m.context, obj.Value, m.SelectedRevision()))
 }
 
+// advanceFocusedBookmark moves the bookmark forward to jj's advance target,
+// @ by default.
+func (m *Model) advanceFocusedBookmark() tea.Cmd {
+	obj, cmd := m.focusedLocalBookmark("advanced")
+	if obj == nil {
+		return cmd
+	}
+	return m.context.RunCommand(jj.BookmarkAdvance(obj.Value), common.Refresh)
+}
+
 // pushFocusedBookmark pushes the bookmark; on a remote bookmark it pushes to
 // that remote, which also pushes a deletion marked with d.
 func (m *Model) pushFocusedBookmark() tea.Cmd {

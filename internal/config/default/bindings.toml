@@ -109,6 +109,7 @@ bindings = [
     { key = ["left", "h"], action = "revisions.object_prev", scope = "revisions.objects", desc = "prev object" },
     { key = "r", action = "revisions.bookmark.rename", scope = "revisions.bookmark", desc = "rename bookmark" },
     { key = "m", action = "revisions.bookmark.move", scope = "revisions.bookmark", desc = "move bookmark" },
+    { key = "a", action = "revisions.bookmark.advance", scope = "revisions.bookmark", desc = "advance bookmark" },
     { key = "d", action = "revisions.bookmark.delete", scope = "revisions.bookmark", desc = "delete bookmark" },
     { key = "t", action = "revisions.bookmark.track", scope = "revisions.bookmark", desc = "track bookmark" },
     { key = "shift+t", action = "revisions.bookmark.untrack", scope = "revisions.bookmark", desc = "untrack bookmark" },
