@@ -409,17 +409,18 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 			dl.AddHighlight(lineRect, r.selectedStyle, 1)
 		}
 		tb := dl.Text(lineRect.Min.X, lineRect.Min.Y, 0)
-		ir.renderLine(tb, line, lineRect.Min.X, lineRect.Min.Y)
+		columns := ir.renderLine(tb, line, lineRect.Min.X, lineRect.Min.Y)
 		tb.Done()
 		for _, o := range objects {
 			if o.line == i && o.width > 0 {
-				r.addObjectClick(dl, layout.Rect(lineRect.Min.X+o.x, lineRect.Min.Y, o.width, 1), index, o)
+				r.addObjectClick(dl, layout.Rect(lineRect.Min.X+screenColumn(columns, o.x), lineRect.Min.Y, o.width, 1), index, o)
 			}
 		}
 		if isSelected && r.focusedObject != nil && r.focusedObject.line == i {
-			dl.SetPassiveCursorAt(textObjectCursor(), lineRect.Min.X+r.focusedObject.x, lineRect.Min.Y)
+			objectX := lineRect.Min.X + screenColumn(columns, r.focusedObject.x)
+			dl.SetPassiveCursorAt(textObjectCursor(), objectX, lineRect.Min.Y)
 			if r.focusedObject.Kind != textObjectNode {
-				objectRect := layout.Rect(lineRect.Min.X+r.focusedObject.x, lineRect.Min.Y, r.focusedObject.width, 1)
+				objectRect := layout.Rect(objectX, lineRect.Min.Y, r.focusedObject.width, 1)
 				dl.AddAttributes(objectRect, r.objectStyle, 2)
 			}
 		}
@@ -582,9 +583,31 @@ func renderedHeight(content string) int {
 	return strings.Count(content, "\n") + 1
 }
 
-// renderLine writes a line into a TextBuilder (helper for itemRenderer)
-func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRowLine, x, y int) {
+// segmentColumn is where a segment of the line, at column raw of the jj
+// output, starts on screen. Checkboxes and operation text inserted into the
+// line move the segments after them.
+type segmentColumn struct {
+	raw, screen int
+}
+
+// screenColumn maps a column of the jj output to the column it is drawn at.
+func screenColumn(columns []segmentColumn, raw int) int {
+	screen := raw
+	for _, c := range columns {
+		if c.raw > raw {
+			break
+		}
+		screen = c.screen + raw - c.raw
+	}
+	return screen
+}
+
+// renderLine writes a line into a TextBuilder (helper for itemRenderer) and
+// returns where its segments landed.
+func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRowLine, x, y int) []segmentColumn {
 	currentX := 0
+	rawX := 0
+	var columns []segmentColumn
 	write := func(content string) {
 		tb.Write(content)
 		currentX += render.StringWidth(content)
@@ -599,6 +622,8 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 
 	// Render gutter (no tracer support for now)
 	for _, segment := range line.Gutter.Segments {
+		columns = append(columns, segmentColumn{raw: rawX, screen: currentX})
+		rawX += render.StringWidth(segment.Text)
 		style := segment.Style.Inherit(ir.renderer.textStyle)
 		writeStyled(segment.Text, style)
 	}
@@ -648,6 +673,8 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 			write(beforeCommitID)
 			beforeCommitIDRendered = true
 		}
+		columns = append(columns, segmentColumn{raw: rawX, screen: currentX})
+		rawX += render.StringWidth(segment.Text)
 
 		style := ir.getSegmentStyleForLine(*segment, lineIsHighlightable)
 		if ir.segmentRenderer != nil {
@@ -679,6 +706,7 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 	if line.Flags&parser.Revision == parser.Revision && ir.row.IsAffected {
 		writeStyled(" (affected by last operation)", ir.renderer.dimmedStyle)
 	}
+	return columns
 }
 
 // renderOperationLine renders an operation line with gutter
