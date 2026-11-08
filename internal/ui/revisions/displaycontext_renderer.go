@@ -117,7 +117,7 @@ func (r *DisplayContextRenderer) Render(
 		isSelected := index == cursor && r.selectionFocus
 
 		// Render the item content
-		r.renderItemToDisplayContext(dl, item, rect, isSelected, operation, segmentRenderer, quickSearch)
+		r.renderItemToDisplayContext(dl, index, item, rect, isSelected, operation, segmentRenderer, quickSearch)
 	}
 
 	// Click message factory
@@ -246,6 +246,7 @@ func (r *DisplayContextRenderer) calculateItemHeight(
 // renderItemToDisplayContext renders a single item to the DisplayContext
 func (r *DisplayContextRenderer) renderItemToDisplayContext(
 	dl *render.DisplayContext,
+	index int,
 	item parser.Row,
 	rect layout.Rectangle,
 	isSelected bool,
@@ -343,6 +344,11 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		}
 	}
 
+	var objects []textObject
+	if item.Commit != nil {
+		objects = textObjectsForRow(item)
+	}
+
 	// Render main lines
 	descriptionRendered := false
 	afterRendered := false
@@ -405,6 +411,11 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		tb := dl.Text(lineRect.Min.X, lineRect.Min.Y, 0)
 		ir.renderLine(tb, line, lineRect.Min.X, lineRect.Min.Y)
 		tb.Done()
+		for _, o := range objects {
+			if o.line == i && o.width > 0 {
+				r.addObjectClick(dl, layout.Rect(lineRect.Min.X+o.x, lineRect.Min.Y, o.width, 1), index, o)
+			}
+		}
 		if isSelected && r.focusedObject != nil && r.focusedObject.line == i {
 			dl.SetPassiveCursorAt(textObjectCursor(), lineRect.Min.X+r.focusedObject.x, lineRect.Min.Y)
 			if r.focusedObject.Kind != textObjectNode {
@@ -718,4 +729,16 @@ func (r *DisplayContextRenderer) GetFirstRowIndex() int {
 // GetLastRowIndex returns the last visible row index (inclusive).
 func (r *DisplayContextRenderer) GetLastRowIndex() int {
 	return r.listRenderer.GetLastRowIndex()
+}
+
+// addObjectClick lets a click focus the object; ctrl and alt clicks keep
+// their meaning for the row.
+func (r *DisplayContextRenderer) addObjectClick(dl *render.DisplayContext, rect layout.Rectangle, index int, o textObject) {
+	dl.AddInteractionFn(rect, func(msg tea.MouseMsg) tea.Msg {
+		mouse := msg.Mouse()
+		if mouse.Mod&(tea.ModCtrl|tea.ModAlt) != 0 {
+			return ItemClickedMsg{Index: index, Ctrl: mouse.Mod&tea.ModCtrl != 0, Alt: mouse.Mod&tea.ModAlt != 0}
+		}
+		return ObjectClickedMsg{Index: index, Kind: o.Kind, ObjectIndex: o.Index}
+	}, render.InteractionClick, 1)
 }
