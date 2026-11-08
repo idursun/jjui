@@ -1853,6 +1853,7 @@ func Test_Update_DetailsCloseClearsSelectedFiles(t *testing.T) {
 	test.SimulateModel(model, op.Init())
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
 
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
 	require.Len(t, ctx.Selection().Checked, 1, "details selection should be tracked before close")
 
@@ -1876,6 +1877,7 @@ func Test_Update_RestoreDetailsOperationResyncsSelectedFiles(t *testing.T) {
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	test.SimulateModel(model, op.Init())
 
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
 	require.Len(t, ctx.Selection().Checked, 1, "details selection should be tracked before close")
 
@@ -1989,6 +1991,7 @@ func Test_Update_CommandErrorAfterClosingDetailsWithSelectedFiles_AllowsEscToDis
 	test.SimulateModel(model, op.Init())
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
 
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
 	require.Len(t, ctx.Selection().Checked, 1, "details selection should be tracked before close")
 

@@ -337,6 +337,16 @@ func (s *Operation) Selection() common.SelectionSnapshot {
 	return snapshot
 }
 
+// FileFocused reports whether the cursor is on a file rather than the change id.
+func (s *Operation) FileFocused() bool {
+	return s.current() != nil
+}
+
+// LeaveFiles moves the cursor from the files back to the change id.
+func (s *Operation) LeaveFiles() {
+	s.cursor = -1
+}
+
 func (s *Operation) selectedFile(file jj.FileName) context.SelectedFile {
 	return context.SelectedFile{
 		ChangeId: s.revision.GetChangeId(),
