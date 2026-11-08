@@ -610,3 +610,25 @@ func TestModel_ClickingAnObjectFocusesIt(t *testing.T) {
 	msg, _ = dl.ProcessMouseEvent(tea.MouseClickMsg{X: 63, Y: 0, Button: tea.MouseLeft, Mod: tea.ModCtrl})
 	assert.Equal(t, ItemClickedMsg{Index: 0, Ctrl: true}, msg, "ctrl-click still checks the revision")
 }
+
+// A checked revision draws "✓ " before its change id, which moves the objects
+// after it two columns right.
+func TestModel_ObjectsOnACheckedRevisionFollowTheCheckbox(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.Update(intents.RevisionsToggleSelect{})
+	model.cursor = 0
+	model.focusedObjectKind = textObjectBookmark
+
+	dl := render.NewDisplayContext()
+	model.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 120, 10)))
+
+	cursor := dl.Cursor()
+	require.NotNil(t, cursor)
+	assert.Equal(t, 54, cursor.X, "the bookmark starts at column 52 of the jj output")
+
+	msg, _ := dl.ProcessMouseEvent(tea.MouseClickMsg{X: 52, Y: 0, Button: tea.MouseLeft})
+	assert.Equal(t, ObjectClickedMsg{Index: 0, Kind: textObjectTimestamp}, msg)
+	msg, _ = dl.ProcessMouseEvent(tea.MouseClickMsg{X: 54, Y: 0, Button: tea.MouseLeft})
+	assert.Equal(t, ObjectClickedMsg{Index: 0, Kind: textObjectBookmark}, msg)
+}
