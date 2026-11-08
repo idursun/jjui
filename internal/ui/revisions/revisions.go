@@ -927,6 +927,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.renameFocusedBookmark(), true
 	case intents.FocusedBookmarkMove:
 		return m.moveFocusedBookmark(), true
+	case intents.FocusedBookmarkAdvance:
+		return m.advanceFocusedBookmark(), true
 	case intents.FocusedBookmarkTrack:
 		return m.trackFocusedBookmark(intent.Track), true
 	case intents.FocusedBookmarkPush:

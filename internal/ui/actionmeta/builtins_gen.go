@@ -133,6 +133,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.ace_jump.cancel":                     {"revisions.ace_jump"},
 	"revisions.apply":                               {"revisions"},
 	"revisions.author.reset":                        {"revisions.author"},
+	"revisions.bookmark.advance":                    {"revisions.bookmark"},
 	"revisions.bookmark.delete":                     {"revisions.bookmark"},
 	"revisions.bookmark.forget":                     {"revisions.bookmark"},
 	"revisions.bookmark.jump_next":                  {"revisions.bookmark"},

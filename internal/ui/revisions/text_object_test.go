@@ -632,3 +632,18 @@ func TestModel_ObjectsOnACheckedRevisionFollowTheCheckbox(t *testing.T) {
 	msg, _ = dl.ProcessMouseEvent(tea.MouseClickMsg{X: 54, Y: 0, Button: tea.MouseLeft})
 	assert.Equal(t, ObjectClickedMsg{Index: 0, Kind: textObjectBookmark}, msg)
 }
+
+func TestModel_FocusedBookmarkAdvanceOnlyAdvancesLocalBookmarks(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkAdvance("second"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectBookmark
+	runJJCommand(model.Update(intents.FocusedBookmarkAdvance{}))
+
+	model.focusedObjectIndex = 1
+	_, isMessage := model.Update(intents.FocusedBookmarkAdvance{})().(intents.AddMessage)
+	assert.True(t, isMessage, "remote bookmarks cannot be advanced")
+}

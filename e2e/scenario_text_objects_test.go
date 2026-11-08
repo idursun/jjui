@@ -354,7 +354,27 @@ func Test_TextObjects_ClickFocusesObject(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitForCursorOn(t, session, ctx, "click-me")
-	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "delete bookmark") }); err != nil {
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "rename bookmark") }); err != nil {
 		t.Fatalf("the clicked bookmark's actions are not shown: %v", err)
 	}
+}
+
+func Test_TextObjects_AdvancesFocusedBookmarkToWorkingCopy(t *testing.T) {
+	t.Parallel()
+	repo := newTestRepo(t)
+	repo.JJ("bookmark", "create", "advance-me", "-r", "@-")
+	repo.JJ("describe", "-m", "working copy")
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "advance-me")
+	if err := session.SendKey(ghostty.KeyJ, "j", 0); err != nil {
+		t.Fatal(err)
+	}
+	focusTextOnRow(t, session, ctx, "advance-me")
+	if err := session.SendKey(ghostty.KeyA, "a", 0); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		out := runCommand(t, repo.Path(), repo.Env(), "jj", "log", "--ignore-working-copy", "--no-graph", "--color", "never", "-r", "@", "-T", "bookmarks")
+		return strings.Contains(out, "advance-me"), nil
+	})
 }

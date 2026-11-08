@@ -327,6 +327,7 @@ function wait_refresh() end
 ---@field reset fun()
 
 ---@class jjui.revisions.bookmark
+---@field advance fun()
 ---@field delete fun()
 ---@field forget fun()
 ---@field jump_next fun()
