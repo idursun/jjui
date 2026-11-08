@@ -930,6 +930,10 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.Navigate:
 		return m.navigate(intent), true
 	case intents.RevisionsObjectFocus:
+		if op, ok := m.baseOperation().(*details.Operation); ok && op.FileFocused() {
+			op.LeaveFiles()
+			return nil, true
+		}
 		m.moveObjectFocus(intent.Delta)
 		return m.syncDetails(), true
 	case intents.RevisionsObjectJump:
@@ -1492,7 +1496,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	// Render to DisplayContext
 	m.displayContextRenderer.focusedObject = nil
-	if m.canMoveObjectFocus() {
+	if op, ok := m.baseOperation().(*details.Operation); m.canMoveObjectFocus() && !(ok && op.FileFocused()) {
 		m.displayContextRenderer.focusedObject = m.focusedTextObject()
 	}
 	m.displayContextRenderer.Render(
@@ -1693,7 +1697,8 @@ func (m *Model) syncDetails() tea.Cmd {
 	obj := m.focusedTextObject()
 	revision := m.SelectedRevision()
 	if obj != nil && revision != nil && obj.Kind == textObjectChangeId {
-		if m.detailsOpen() {
+		if op, ok := m.baseOperation().(*details.Operation); ok {
+			op.LeaveFiles()
 			return nil
 		}
 		return m.setBaseOperation(details.NewOperation(m.context, revision))

@@ -48,10 +48,30 @@ func Test_PreviewHotkeys_ScrollPreviewFromDetails(t *testing.T) {
 
 	h.Key("l")
 	h.WaitMode("details")
+	h.Key("j")
 	// Wait for the file preview to replace the revision preview.
 	h.WaitStableText("Added regular file long.txt:", 3)
 	h.KeyTimes("ctrl+n", 20)
 	h.WaitNoText("preview-line-001")
+	h.Quit()
+}
+
+func Test_PreviewHotkeys_FollowDetailsCursor(t *testing.T) {
+	t.Parallel()
+	h := startPreviewHotkeysRepo(t)
+
+	h.Key("l")
+	h.WaitMode("details")
+	h.WaitText("jj show --color always")
+	h.Key("j")
+	h.WaitText("jj diff --color always")
+	h.Key("k")
+	h.WaitText("jj show --color always")
+	h.Key("j")
+	h.WaitText("jj diff --color always")
+	h.Key("h")
+	h.WaitText("jj show --color always")
+	h.WaitStableMode("details")
 	h.Quit()
 }
 

@@ -35,7 +35,8 @@ func newFileListScrollMsg(msg tea.MouseMsg) tea.Msg {
 }
 
 type DetailsList struct {
-	files            []*item
+	files []*item
+	// cursor is -1 while the focus is on the change id above the files.
 	cursor           int
 	listRenderer     *render.ListRenderer
 	selectedHint     string
@@ -110,7 +111,9 @@ func (d *DetailsList) rebuildMatches(preferredFile jj.FileName) {
 		return
 	}
 	if d.cursor < 0 {
-		d.cursor = 0
+		if d.filtering {
+			d.cursor = 0
+		}
 	} else if d.cursor >= visibleLen {
 		d.cursor = visibleLen - 1
 	}
@@ -138,8 +141,10 @@ func (d *DetailsList) navigate(delta int, page bool) {
 	totalItems := d.VisibleLen()
 	newCursor := d.cursor + step
 	if newCursor < 0 {
-		newCursor = 0
-	} else if newCursor >= totalItems {
+		d.cursor = -1
+		return
+	}
+	if newCursor >= totalItems {
 		newCursor = totalItems - 1
 	}
 
@@ -202,6 +207,9 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 		}
 		background := lipgloss.NewStyle().Background(baseStyle.GetBackground())
 		dl.AddFill(rect, ' ', background, 0)
+		if isSelected {
+			dl.SetPassiveCursorAt(fileCursor(), rect.Min.X, rect.Min.Y)
+		}
 
 		tb := dl.Text(rect.Min.X, rect.Min.Y, 0)
 		var match *fileMatch
@@ -273,6 +281,13 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 		hintStyle := detailsPaletteStyle("dimmed", selected)
 		tb.Styled(hint, hintStyle)
 	}
+}
+
+func fileCursor() *tea.Cursor {
+	cursor := tea.NewCursor(0, 0)
+	cursor.Shape = tea.CursorBlock
+	cursor.Blink = true
+	return cursor
 }
 
 func (d *DetailsList) getStatusStyle(s status, selected bool) lipgloss.Style {
