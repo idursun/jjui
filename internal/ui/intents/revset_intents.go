@@ -82,6 +82,25 @@ type RevsetBookmarksRemotesLeave struct{}
 func (RevsetBookmarksRemotesLeave) isIntent() {}
 
 //jjui:bind scope=revset.bookmarks.remotes action=fetch when="revset.bookmarks.can_fetch"
-type RevsetBookmarksRemotesFetch struct{}
+//jjui:bind scope=revset.bookmarks.remotes action=fetch_tracked set=Tracked:true when="revset.bookmarks.can_fetch"
+type RevsetBookmarksRemotesFetch struct {
+	Tracked bool
+}
 
 func (RevsetBookmarksRemotesFetch) isIntent() {}
+
+// RevsetBookmarksRemotesPush pushes to the focused remote: jj's default
+// bookmarks, the tracked ones, the deleted ones, or all of them with the
+// deleted ones.
+//
+//jjui:bind scope=revset.bookmarks.remotes action=push when="revset.bookmarks.can_push"
+//jjui:bind scope=revset.bookmarks.remotes action=push_tracked set=Tracked:true when="revset.bookmarks.can_push"
+//jjui:bind scope=revset.bookmarks.remotes action=push_deleted set=Deleted:true when="revset.bookmarks.can_push"
+//jjui:bind scope=revset.bookmarks.remotes action=push_all_deleted set=All:true,Deleted:true when="revset.bookmarks.can_push"
+type RevsetBookmarksRemotesPush struct {
+	Tracked bool
+	Deleted bool
+	All     bool
+}
+
+func (RevsetBookmarksRemotesPush) isIntent() {}
