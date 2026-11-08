@@ -93,6 +93,14 @@ func (m *Model) BookmarksScopes() []common.Scope {
 	return []common.Scope{{Name: scopeBookmarks, Leak: common.LeakAll, Handler: m}}
 }
 
+// IsStaleRevset reports a revset the bookmarks view issued and has moved on
+// from. Its commands run concurrently, so a quick second change can arrive
+// before the first.
+func (m *Model) IsStaleRevset(revset string) bool {
+	v := m.bookmarks
+	return v != nil && v.issued[revset] && revset != v.revset
+}
+
 func (m *Model) QueryState(name string) (any, bool) {
 	switch name {
 	case "bookmarks.can_fetch":

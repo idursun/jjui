@@ -329,6 +329,9 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 			return common.AutoRefreshMsg{}
 		})
 	case common.UpdateRevSetMsg:
+		if m.revsetModel.IsStaleRevset(string(msg)) {
+			return nil
+		}
 		m.context.CurrentRevset = string(msg)
 		if m.context.CurrentRevset == "" {
 			m.context.CurrentRevset = m.context.DefaultRevset

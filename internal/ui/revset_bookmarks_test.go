@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
@@ -50,4 +51,24 @@ func TestRevsetBookmarks_KAtTopFocusesRemotes(t *testing.T) {
 	assert.Equal(t, intents.RevsetBookmarksCycleRemote{Delta: -1}, resolve(tea.KeyPressMsg{Code: 'h', Text: "h"}))
 	assert.Equal(t, intents.RevsetBookmarksRemotesLeave{}, resolve(tea.KeyPressMsg{Code: 'j', Text: "j"}))
 	assert.Equal(t, intents.RevsetBookmarksRemotesFetch{}, resolve(tea.KeyPressMsg{Code: 'f', Text: "f"}))
+}
+
+// Each revset change of the bookmarks view is delivered by its own command,
+// so two quick changes can arrive out of order. The log must end on the
+// revset the view shows.
+func TestRevsetBookmarks_LateRevsetFromAnEarlierChangeIsIgnored(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin /tmp/remote.git\n"))
+	defer commandRunner.Verify()
+	model := NewUI(test.NewTestContext(commandRunner))
+	model.Update(model.revsetModel.Update(intents.RevsetBookmarks{})())
+	model.revsetModel.Update(intents.RevsetBookmarksFocusRemotes{})
+
+	toLocal := model.revsetModel.Update(intents.RevsetBookmarksCycleRemote{Delta: 1})()
+	toOrigin := model.revsetModel.Update(intents.RevsetBookmarksCycleRemote{Delta: 1})()
+	model.Update(toOrigin)
+	model.Update(toLocal)
+
+	assert.Equal(t, string(toOrigin.(common.UpdateRevSetMsg)), model.context.CurrentRevset)
+	assert.True(t, model.revsetModel.InBookmarksView())
 }

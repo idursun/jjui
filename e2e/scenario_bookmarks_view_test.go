@@ -159,10 +159,8 @@ func Test_BookmarksView_PushesDeletionsToTheFocusedRemote(t *testing.T) {
 	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "back to log") }); err != nil {
 		t.Fatalf("k did not focus the remotes: %v", err)
 	}
+	// Two quick presses: the log must follow the second one.
 	send(ghostty.KeyL, "l")
-	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "revset: bookmarks() ") }); err != nil {
-		t.Fatalf("l did not move to local: %v", err)
-	}
 	send(ghostty.KeyL, "l")
 	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, `remote=exact:"origin"`) }); err != nil {
 		t.Fatalf("l did not move to origin: %v", err)
