@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -326,4 +327,34 @@ func Test_TextObjects_JumpsBetweenBookmarks(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitForCursorOn(t, session, ctx, "upper-mark")
+}
+
+func Test_TextObjects_ClickFocusesObject(t *testing.T) {
+	t.Parallel()
+	repo := newTestRepo(t)
+	repo.JJ("bookmark", "create", "click-me", "-r", "@-")
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "click-me")
+	screen, err := session.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	x, y := -1, -1
+	for row, line := range screen {
+		if i := strings.Index(line, "click-me"); i >= 0 {
+			x, y = len([]rune(line[:i])), row
+			break
+		}
+	}
+	if y < 0 {
+		t.Fatalf("click-me not on screen:\n%s", strings.Join(screen, "\n"))
+	}
+	// SGR mouse press and release, 1-based coordinates.
+	if err := session.SendText(fmt.Sprintf("\x1b[<0;%d;%dM\x1b[<0;%d;%dm", x+2, y+1, x+2, y+1)); err != nil {
+		t.Fatal(err)
+	}
+	waitForCursorOn(t, session, ctx, "click-me")
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "delete bookmark") }); err != nil {
+		t.Fatalf("the clicked bookmark's actions are not shown: %v", err)
+	}
 }
