@@ -1,10 +1,9 @@
 package preview
 
 import (
+	"errors"
 	"testing"
 
-	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -168,12 +167,7 @@ func TestUpdate_PreviewShowDoesNotBreakSelectionRefresh(t *testing.T) {
 
 	selected := common.SelectedRevision{ChangeId: "change", CommitId: "commit"}
 	ctx.SetStateProvider(selectionStateProvider{snapshot: common.SelectionSnapshot{Highlighted: selected}})
-	args := jj.TemplatedArgs(config.Current.Preview.RevisionCommand, map[string]string{
-		jj.RevsetPlaceholder:       ctx.CurrentRevset,
-		jj.ChangeIdPlaceholder:     selected.ChangeId,
-		jj.CommitIdPlaceholder:     selected.CommitId,
-		jj.PreviewWidthPlaceholder: "80",
-	})
+	args := []string{"show", "--color", "always", "-r", "change"}
 	commandRunner.Expect(args).SetOutput([]byte("line 1\nline 2\nline 3\nline 4\nline 5"))
 
 	model.Update(intents.PreviewShow{Content: "manual"})
@@ -214,4 +208,75 @@ func TestSetContent_ResetsTabStopsAfterNewlines(t *testing.T) {
 
 	rendered := test.Stripped(test.RenderImmediate(model, 12, 2))
 	assert.Equal(t, "a   b\nab  c", rendered)
+}
+
+func refreshWith(t *testing.T, commandRunner *test.CommandRunner, item common.SelectedItem) *Model {
+	t.Helper()
+	ctx := test.NewTestContext(commandRunner)
+	model := New(ctx)
+	model.ViewRect(render.NewDisplayContext(), layout.NewBox(layout.Rect(0, 0, 80, 5)))
+	ctx.SetStateProvider(selectionStateProvider{snapshot: common.SelectionSnapshot{Highlighted: item}})
+	cmd := model.Update(common.RefreshMsg{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+	return model
+}
+
+func TestRefresh_BookmarkObjectRunsBookmarkCommand(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	commandRunner.Expect([]string{"diff", "--color", "always", "--from", "fork_point(trunk() | main@origin)", "--to", "main@origin"}).
+		SetOutput([]byte("bookmark diff"))
+
+	model := refreshWith(t, commandRunner, common.SelectedRevision{
+		ChangeId: "change", CommitId: "commit", ObjectKind: "bookmark", ObjectValue: "main@origin",
+	})
+
+	assert.Equal(t, "bookmark diff", model.content)
+	assert.Equal(t, "jj diff --color always --from fork_point(trunk() | main@origin) --to main@origin", model.commandLine)
+}
+
+func TestRefresh_KindWithoutConfigFallsBackToNode(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	commandRunner.Expect([]string{"show", "--color", "always", "-r", "change"}).SetOutput([]byte("node show"))
+
+	model := refreshWith(t, commandRunner, common.SelectedRevision{
+		ChangeId: "change", CommitId: "commit", ObjectKind: "author", ObjectValue: "someone",
+	})
+
+	assert.Equal(t, "node show", model.content)
+}
+
+func TestRefresh_CommandErrorIsShown(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	commandRunner.Expect([]string{"show", "--color", "always", "-r", "change"}).SetError(errors.New("Error: boom\n"))
+
+	model := refreshWith(t, commandRunner, common.SelectedRevision{ChangeId: "change", CommitId: "commit"})
+
+	assert.Equal(t, "Error: boom", model.content)
+}
+
+func TestView_CommandLineIsPinnedAboveContent(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+	model.SetContent("one\ntwo\nthree")
+	model.commandLine = "jj show -r abcdef"
+	model.Scroll(1)
+
+	rendered := test.Stripped(test.RenderImmediate(model, 10, 3))
+	assert.Equal(t, "jj show -r\ntwo\nthree", rendered)
+
+	test.RenderImmediate(model, 10, 1)
+	test.RenderImmediate(model, 10, 0)
+}
+
+func TestUpdate_PreviewShowClearsCommandLine(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.commandLine = "jj show"
+
+	model.Update(intents.PreviewShow{Content: "manual"})
+
+	assert.Empty(t, model.commandLine)
 }

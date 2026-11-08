@@ -538,3 +538,23 @@ func TestSetupLuaTypes_PreservesExistingLuaRC(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, string(embeddedTypes), string(typesData))
 }
+
+func TestLoadPreviewObjectOverrideKeepsOtherDefaultKinds(t *testing.T) {
+	cfg := loadDefaultConfig()
+	defaultNode := cfg.Preview.Object["node"]
+	require.NotEmpty(t, defaultNode.Command)
+
+	err := cfg.Load(`
+[preview.object.bookmark]
+command = ["show", "$object.value"]
+
+[preview.object.tag]
+command = ["log", "-r", "$object.value"]
+`, "")
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"show", "$object.value"}, cfg.Preview.Object["bookmark"].Command)
+	assert.Equal(t, []string{"log", "-r", "$object.value"}, cfg.Preview.Object["tag"].Command)
+	assert.Equal(t, defaultNode, cfg.Preview.Object["node"])
+	assert.NotEmpty(t, cfg.Preview.Object["file"].Command)
+}

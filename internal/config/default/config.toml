@@ -28,14 +28,28 @@ bindings_profile = ":builtin"
   # revset = "zzzzzzz"               # overrides jj's revsets.log
 
 [preview]
-  revision_command = ["show", "--color", "always", "-r", "$change_id"]
-  evolog_command = ["evolog", "--color", "always", "-r", "$commit_id", "-p", "-n", "1"]
-  oplog_command = ["op", "show", "$operation_id", "--color", "always"]
-  file_command = ["diff", "--color", "always", "-r", "$change_id", "$file"]
   position = "auto"
   show_at_start = false
   width_percentage = 50.0
   width_increment_percentage = 5.0
+
+  # Kinds without an entry fall back to "node".
+  [preview.object.node]
+    command = ["show", "--color", "always", "-r", "$object.change_id"]
+  [preview.object.description]
+    command = ["log", "--color", "always", "-r", "$object.change_id", "--no-graph", "-T", "description"]
+  [preview.object.bookmark]
+    command = ["diff", "--color", "always", "--from", "fork_point(trunk() | $object.value)", "--to", "$object.value"]
+  [preview.object.conflicted_bookmark]
+    command = ["bookmark", "list", "--color", "always", "$object.value"]
+  [preview.object.conflict]
+    command = ["resolve", "--color", "always", "--list", "-r", "$object.change_id"]
+  [preview.object.file]
+    command = ["diff", "--color", "always", "-r", "$object.change_id", "$object.value"]
+  [preview.object.operation]
+    command = ["op", "show", "$object.value", "--color", "always"]
+  [preview.object.evolog]
+    command = ["evolog", "--color", "always", "-r", "$object.value", "-p", "-n", "1"]
 
 [oplog]
   limit = 200

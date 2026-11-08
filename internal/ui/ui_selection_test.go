@@ -160,9 +160,9 @@ func TestDispatchActionCompletesAfterHighlightNotification(t *testing.T) {
 }
 
 func TestUpdateHighlightNotificationRefreshesPreview(t *testing.T) {
-	oldCommand := config.Current.Preview.RevisionCommand
-	t.Cleanup(func() { config.Current.Preview.RevisionCommand = oldCommand })
-	config.Current.Preview.RevisionCommand = []string{"diff", "-r", "$change_id"}
+	oldCommand := config.Current.Preview.Object["node"]
+	t.Cleanup(func() { config.Current.Preview.Object["node"] = oldCommand })
+	config.Current.Preview.Object["node"] = config.PreviewObjectConfig{Command: []string{"diff", "-r", "$object.change_id"}}
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect([]string{"diff", "-r", "first"}).SetOutput([]byte("updated preview"))
 	defer commandRunner.Verify()
