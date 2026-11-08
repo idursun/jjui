@@ -20,6 +20,7 @@ const (
 	textObjectTag         = "tag"
 	textObjectDescription = "description"
 	textObjectDivergent   = "divergent"
+	textObjectConflict    = "conflict"
 	textObjectWorkspace   = "workspace"
 )
 
@@ -59,6 +60,8 @@ func textObjectKind(segment *screen.Segment) string {
 		return textObjectDescription
 	case segment.HasLabel("divergent"):
 		return textObjectDivergent
+	case segment.HasLabel("conflict"):
+		return textObjectConflict
 	case segment.HasLabel("working_copies"):
 		return textObjectWorkspace
 	}
