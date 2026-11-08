@@ -49,3 +49,36 @@ func Test_PreviewObjects_ConflictListsConflictedFiles(t *testing.T) {
 		t.Fatalf("conflicted files not listed: %v", err)
 	}
 }
+
+func Test_PreviewObjects_FollowsFocusedRemote(t *testing.T) {
+	t.Parallel()
+	repo, _ := newRepoWithFileRemote(t)
+	repo.JJ("bookmark", "create", "shipped", "-r", "@-")
+	repo.JJ("bookmark", "track", "shipped", "--remote", "origin")
+	repo.JJ("git", "push", "--bookmark", "shipped")
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "initial")
+	send := func(key ghostty.Key, text string) {
+		t.Helper()
+		if err := session.SendKey(key, text, 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wait := func(text string) {
+		t.Helper()
+		if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, text) }); err != nil {
+			t.Fatalf("%q not on screen: %v", text, err)
+		}
+	}
+	send(ghostty.KeyB, "b")
+	wait("shipped")
+	send(ghostty.KeyP, "p")
+	wait("jj diff --color always")
+
+	send(ghostty.KeyK, "k")
+	wait("jj git remote list")
+	send(ghostty.KeyL, "l")
+	wait("jj bookmark list --color always")
+	send(ghostty.KeyL, "l")
+	wait("--remote")
+}
