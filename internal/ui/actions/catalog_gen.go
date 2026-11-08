@@ -834,12 +834,22 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		switch action {
 		case keybindings.Action("revset.bookmarks.remotes.fetch"):
 			return intents.RevsetBookmarksRemotesFetch{}, true
+		case keybindings.Action("revset.bookmarks.remotes.fetch_tracked"):
+			return intents.RevsetBookmarksRemotesFetch{Tracked: true}, true
 		case keybindings.Action("revset.bookmarks.remotes.leave"):
 			return intents.RevsetBookmarksRemotesLeave{}, true
 		case keybindings.Action("revset.bookmarks.remotes.next"):
 			return intents.RevsetBookmarksCycleRemote{Delta: 1}, true
 		case keybindings.Action("revset.bookmarks.remotes.prev"):
 			return intents.RevsetBookmarksCycleRemote{Delta: -1}, true
+		case keybindings.Action("revset.bookmarks.remotes.push"):
+			return intents.RevsetBookmarksRemotesPush{}, true
+		case keybindings.Action("revset.bookmarks.remotes.push_all_deleted"):
+			return intents.RevsetBookmarksRemotesPush{All: true, Deleted: true}, true
+		case keybindings.Action("revset.bookmarks.remotes.push_deleted"):
+			return intents.RevsetBookmarksRemotesPush{Deleted: true}, true
+		case keybindings.Action("revset.bookmarks.remotes.push_tracked"):
+			return intents.RevsetBookmarksRemotesPush{Tracked: true}, true
 		}
 	case ScopeStatusInput:
 		switch action {

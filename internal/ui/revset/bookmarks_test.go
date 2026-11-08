@@ -176,3 +176,46 @@ func TestBookmarks_FocusedRemoteHoldsTheCursor(t *testing.T) {
 	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesLeave{}))
 	assert.False(t, model.bookmarks.focused)
 }
+
+func TestBookmarks_FetchTrackedFromFocusedRemote(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin https://a\n"))
+	commandRunner.Expect(jj.GitFetch("--tracked", "--all-remotes"))
+	commandRunner.Expect(jj.GitFetch("--tracked", "--remote", "origin"))
+
+	model := New(test.NewTestContext(commandRunner))
+	revsets := &[]string{}
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarks{}))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFocusRemotes{}))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesFetch{Tracked: true}))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksCycleRemote{Delta: 2}))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesFetch{Tracked: true}))
+}
+
+func TestBookmarks_PushToFocusedRemote(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin https://a\n"))
+	commandRunner.Expect(jj.GitPush("--remote", "origin"))
+	commandRunner.Expect(jj.GitPush("--tracked", "--remote", "origin"))
+	commandRunner.Expect(jj.GitPush("--deleted", "--remote", "origin"))
+	commandRunner.Expect(jj.GitPush("--all", "--deleted", "--remote", "origin"))
+
+	model := New(test.NewTestContext(commandRunner))
+	revsets := &[]string{}
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarks{}))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFocusRemotes{}))
+	for _, remote := range []string{"all", "local"} {
+		canPush, _ := model.QueryState("bookmarks.can_push")
+		assert.Equal(t, false, canPush, "jj pushes to one remote, so %s offers no push", remote)
+		simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesPush{}))
+		simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksCycleRemote{Delta: 1}))
+	}
+	canPush, _ := model.QueryState("bookmarks.can_push")
+	assert.Equal(t, true, canPush)
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesPush{}))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesPush{Tracked: true}))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesPush{Deleted: true}))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesPush{All: true, Deleted: true}))
+}

@@ -133,3 +133,44 @@ func Test_BookmarksView_StatusLeadsWithFocusedObject(t *testing.T) {
 	h.WaitMode("remotes")
 	h.Quit()
 }
+
+func Test_BookmarksView_PushesDeletionsToTheFocusedRemote(t *testing.T) {
+	t.Parallel()
+	repo, remote := newRepoWithFileRemote(t)
+	repo.JJ("bookmark", "create", "gone", "-r", "@-")
+	repo.JJ("bookmark", "track", "gone", "--remote", "origin")
+	repo.JJ("git", "push", "--bookmark", "gone")
+	repo.JJ("bookmark", "delete", "gone")
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "initial")
+	send := func(key ghostty.Key, text string) {
+		t.Helper()
+		if err := session.SendKey(key, text, 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	send(ghostty.KeyB, "b")
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "gone@origin") }); err != nil {
+		t.Fatalf("the bookmarks view did not open: %v", err)
+	}
+	// k on the top revision focuses the remotes; l moves from all to local
+	// to origin.
+	send(ghostty.KeyK, "k")
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "back to log") }); err != nil {
+		t.Fatalf("k did not focus the remotes: %v", err)
+	}
+	send(ghostty.KeyL, "l")
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "revset: bookmarks() ") }); err != nil {
+		t.Fatalf("l did not move to local: %v", err)
+	}
+	send(ghostty.KeyL, "l")
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, `remote=exact:"origin"`) }); err != nil {
+		t.Fatalf("l did not move to origin: %v", err)
+	}
+	if err := session.SendKey(ghostty.KeyD, "d", 0); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		return !remoteHasBranch(t, repo, remote, "gone"), nil
+	})
+}

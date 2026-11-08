@@ -98,6 +98,9 @@ func (m *Model) QueryState(name string) (any, bool) {
 	case "bookmarks.can_fetch":
 		v := m.bookmarks
 		return v != nil && v.focused && v.remotes[v.remoteIdx] != remoteLocal, true
+	case "bookmarks.can_push":
+		v := m.bookmarks
+		return v != nil && v.focused && v.remotes[v.remoteIdx] != remoteLocal && v.remotes[v.remoteIdx] != remoteAll, true
 	}
 	return nil, false
 }
@@ -144,14 +147,36 @@ func (m *Model) handleBookmarksIntent(intent intents.Intent) (tea.Cmd, bool) {
 		v.focused = false
 		return nil, true
 	case intents.RevsetBookmarksRemotesFetch:
+		var flags []string
+		if intent.Tracked {
+			flags = append(flags, "--tracked")
+		}
 		switch remote := v.remotes[v.remoteIdx]; remote {
 		case remoteLocal:
 			return nil, true
 		case remoteAll:
-			return m.context.RunCommand(jj.GitFetch("--all-remotes"), common.Refresh), true
+			flags = append(flags, "--all-remotes")
 		default:
-			return m.context.RunCommand(jj.GitFetch("--remote", remote), common.Refresh), true
+			flags = append(flags, "--remote", remote)
 		}
+		return m.context.RunCommand(jj.GitFetch(flags...), common.Refresh), true
+	case intents.RevsetBookmarksRemotesPush:
+		remote := v.remotes[v.remoteIdx]
+		if remote == remoteLocal || remote == remoteAll {
+			return nil, true
+		}
+		var flags []string
+		if intent.All {
+			flags = append(flags, "--all")
+		}
+		if intent.Tracked {
+			flags = append(flags, "--tracked")
+		}
+		if intent.Deleted {
+			flags = append(flags, "--deleted")
+		}
+		flags = append(flags, "--remote", remote)
+		return m.context.RunCommand(jj.GitPush(flags...), common.Refresh), true
 	case intents.RevsetBookmarksFilter:
 		v.filtering = true
 		v.filterBefore = v.filter.Value()

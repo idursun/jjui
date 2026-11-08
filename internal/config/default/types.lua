@@ -557,9 +557,14 @@ function wait_refresh() end
 
 ---@class jjui.revset.bookmarks.remotes
 ---@field fetch fun()
+---@field fetch_tracked fun()
 ---@field leave fun()
 ---@field next fun()
 ---@field prev fun()
+---@field push fun()
+---@field push_all_deleted fun()
+---@field push_deleted fun()
+---@field push_tracked fun()
 
 ---@class jjui.status
 ---@field input jjui.status.input
