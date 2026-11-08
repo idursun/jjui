@@ -12,8 +12,10 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/internal/ui/operations/workspace"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -584,4 +586,27 @@ func TestModel_ObjectJumpContinuesInTheNextBatch(t *testing.T) {
 	assert.Equal(t, 2, model.cursor)
 	assert.Equal(t, "two", model.focusedTextObject().Value)
 	assert.Equal(t, "", model.pendingObjectJump)
+}
+
+func TestModel_ClickingAnObjectFocusesIt(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.cursor = 1
+
+	dl := render.NewDisplayContext()
+	model.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 120, 10)))
+
+	// The remote bookmark second@origin starts at column 61 of the first row.
+	msg, handled := dl.ProcessMouseEvent(tea.MouseClickMsg{X: 63, Y: 0, Button: tea.MouseLeft})
+	require.True(t, handled)
+	assert.Equal(t, ObjectClickedMsg{Index: 0, Kind: textObjectBookmark, ObjectIndex: 1}, msg)
+
+	model.Update(msg)
+	assert.Equal(t, 0, model.cursor)
+	obj := model.focusedTextObject()
+	assert.Equal(t, textObjectBookmark, obj.Kind)
+	assert.Equal(t, "origin", obj.Remote)
+
+	msg, _ = dl.ProcessMouseEvent(tea.MouseClickMsg{X: 63, Y: 0, Button: tea.MouseLeft, Mod: tea.ModCtrl})
+	assert.Equal(t, ItemClickedMsg{Index: 0, Ctrl: true}, msg, "ctrl-click still checks the revision")
 }

@@ -106,6 +106,13 @@ type ItemClickedMsg struct {
 	Alt   bool
 }
 
+// ObjectClickedMsg is a click on a text object of the row at Index.
+type ObjectClickedMsg struct {
+	Index       int
+	Kind        string
+	ObjectIndex int
+}
+
 type PaneClickedMsg struct{}
 
 type ViewportScrollMsg struct {
@@ -547,6 +554,17 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.SetCursor(msg.Index)
 		}
 		return nil
+	case ObjectClickedMsg:
+		if m.IsEditing() || (m.IsOverlay() && !m.detailsOpen()) || msg.Index < 0 || msg.Index >= len(m.rows) {
+			return nil
+		}
+		// Details show the revision they were opened for.
+		if msg.Index != m.cursor && m.detailsOpen() {
+			m.baseOp = operations.NewDefault()
+		}
+		m.SetCursor(msg.Index)
+		m.focusedObjectKind, m.focusedObjectIndex = msg.Kind, msg.ObjectIndex
+		return m.syncDetails()
 	case ViewportScrollMsg:
 		if msg.Horizontal {
 			return nil
