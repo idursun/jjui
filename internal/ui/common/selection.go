@@ -36,11 +36,15 @@ type ApplicationStateProvider interface {
 type SelectedRevision struct {
 	ChangeId string
 	CommitId string
+	// ObjectKind and ObjectValue describe the focused text object, if any.
+	ObjectKind  string
+	ObjectValue string
 }
 
 func (s SelectedRevision) Equal(other SelectedItem) bool {
 	if o, ok := other.(SelectedRevision); ok {
-		return s.ChangeId == o.ChangeId && s.CommitId == o.CommitId
+		return s.ChangeId == o.ChangeId && s.CommitId == o.CommitId &&
+			s.ObjectKind == o.ObjectKind && s.ObjectValue == o.ObjectValue
 	}
 	return false
 }

@@ -7,6 +7,7 @@ import (
 
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
@@ -23,6 +24,7 @@ var _ common.ImmediateModel = (*Model)(nil)
 type Model struct {
 	view        viewport.Model
 	content     string
+	commandLine string
 	contentItem common.SelectedItem
 	context     *context.MainContext
 }
@@ -39,6 +41,7 @@ type previewMsg struct {
 type updatePreviewContentMsg struct {
 	contentItem common.SelectedItem
 	content     string
+	command     string
 }
 
 type ScrollMsg struct {
@@ -161,6 +164,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case updatePreviewContentMsg:
 		m.contentItem = msg.contentItem
 		m.SetContent(msg.content)
+		m.commandLine = msg.command
 		return nil
 	}
 	return nil
@@ -176,16 +180,25 @@ func (m *Model) SetContent(content string) {
 		content = strings.Join(lines, "\n")
 	}
 	m.reset()
+	m.commandLine = ""
 	m.content = content
 	m.view.SetContent(content)
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	surfaceStyle := theme.DefaultPalette.Get("preview", "", "", false)
-	m.view.SetWidth(box.R.Dx())
-	m.view.SetHeight(box.R.Dy())
 	dl.AddFill(box.R, ' ', surfaceStyle, render.ZPreview)
-	dl.AddDraw(box.R, m.view.View(), render.ZPreview, render.PreserveBackground())
+
+	body := box.R
+	if m.commandLine != "" && box.R.Dy() > 1 {
+		dimmed := theme.DefaultPalette.Get("preview", "", "dimmed", false)
+		line := ansi.Truncate(m.commandLine, box.R.Dx(), "")
+		dl.AddDraw(layout.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), 1), dimmed.Render(line), render.ZPreview, render.PreserveBackground())
+		body = layout.Rect(box.R.Min.X, box.R.Min.Y+1, box.R.Dx(), box.R.Dy()-1)
+	}
+	m.view.SetWidth(body.Dx())
+	m.view.SetHeight(body.Dy())
+	dl.AddDraw(body, m.view.View(), render.ZPreview, render.PreserveBackground())
 
 	scrollRect := layout.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), box.R.Dy())
 	dl.AddInteractionFn(scrollRect, newScrollMsg, render.InteractionScroll, render.ZPreview)
@@ -198,37 +211,34 @@ func (m *Model) reset() {
 
 func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
 	return common.Debounce(debounceId, debounceDuration, func() tea.Msg {
-		var args []string
-		previewWidth := strconv.Itoa(m.view.Width())
+		kind, value, changeId, commitId := "node", "", "", ""
 		switch sel := item.(type) {
 		case common.SelectedFile:
-			args = jj.TemplatedArgs(config.Current.Preview.FileCommand, map[string]string{
-				jj.RevsetPlaceholder:       m.context.CurrentRevset,
-				jj.ChangeIdPlaceholder:     sel.ChangeId,
-				jj.CommitIdPlaceholder:     sel.CommitId,
-				jj.FilePlaceholder:         sel.File.Path(),
-				jj.PreviewWidthPlaceholder: previewWidth,
-			})
+			kind, value, changeId, commitId = "file", sel.File.Escaped(), sel.ChangeId, sel.CommitId
 		case common.SelectedRevision:
-			args = jj.TemplatedArgs(config.Current.Preview.RevisionCommand, map[string]string{
-				jj.RevsetPlaceholder:       m.context.CurrentRevset,
-				jj.ChangeIdPlaceholder:     sel.ChangeId,
-				jj.CommitIdPlaceholder:     sel.CommitId,
-				jj.PreviewWidthPlaceholder: previewWidth,
-			})
+			if sel.ObjectKind != "" {
+				kind = sel.ObjectKind
+			}
+			value, changeId, commitId = sel.ObjectValue, sel.ChangeId, sel.CommitId
 		case common.SelectedCommit:
-			args = jj.TemplatedArgs(config.Current.Preview.EvologCommand, map[string]string{
-				jj.RevsetPlaceholder:       m.context.CurrentRevset,
-				jj.CommitIdPlaceholder:     sel.CommitId,
-				jj.PreviewWidthPlaceholder: previewWidth,
-			})
+			kind, value, commitId = "evolog", sel.CommitId, sel.CommitId
 		case common.SelectedOperation:
-			args = jj.TemplatedArgs(config.Current.Preview.OplogCommand, map[string]string{
-				jj.RevsetPlaceholder:       m.context.CurrentRevset,
-				jj.OperationIdPlaceholder:  sel.OperationId,
-				jj.PreviewWidthPlaceholder: previewWidth,
-			})
+			kind, value = "operation", sel.OperationId
 		}
+		object, ok := config.Current.Preview.Object[kind]
+		if !ok {
+			object = config.Current.Preview.Object["node"]
+		}
+		if len(object.Command) == 0 {
+			return nil
+		}
+		args := jj.TemplatedArgs(object.Command, map[string]string{
+			jj.RevsetPlaceholder:         m.context.CurrentRevset,
+			jj.ObjectValuePlaceholder:    value,
+			jj.ObjectChangeIdPlaceholder: changeId,
+			jj.ObjectCommitIdPlaceholder: commitId,
+			jj.PreviewWidthPlaceholder:   strconv.Itoa(m.view.Width()),
+		})
 
 		env := []string{
 			// The preview subprocess does not run in a pane-sized PTY, so let
@@ -241,10 +251,15 @@ func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
 		if m.contentItem != nil && m.contentItem.Equal(item) {
 			return nil
 		}
-		output, _ := m.context.RunCommandImmediateWithEnv(args, env)
+		output, err := m.context.RunCommandImmediateWithEnv(args, env)
+		content := string(output)
+		if err != nil {
+			content = err.Error()
+		}
 		return updatePreviewContentMsg{
 			contentItem: item,
-			content:     string(output),
+			content:     strings.TrimRight(content, " \t\r\n"),
+			command:     "jj " + strings.Join(args, " "),
 		}
 	})
 }

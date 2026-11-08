@@ -1,6 +1,7 @@
 package scripting
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -377,4 +378,22 @@ func findBinding(bindings []config.BindingConfig, action, scope string) (config.
 		}
 	}
 	return config.BindingConfig{}, false
+}
+
+func TestRunSetupPreviewObjectCommands(t *testing.T) {
+	ctx := setupVM(t)
+	cfg := *config.Current
+	cfg.Preview.Object = maps.Clone(cfg.Preview.Object)
+
+	source := `
+function setup(config)
+  config.preview.object.bookmark.command = { "show", "$object.value" }
+  config.preview.object.tag = { command = { "log", "-r", "$object.value" } }
+end
+`
+	require.NoError(t, RunSetup(ctx, &cfg, source))
+
+	assert.Equal(t, []string{"show", "$object.value"}, cfg.Preview.Object["bookmark"].Command)
+	assert.Equal(t, []string{"log", "-r", "$object.value"}, cfg.Preview.Object["tag"].Command)
+	assert.Equal(t, config.Current.Preview.Object["node"], cfg.Preview.Object["node"])
 }

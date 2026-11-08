@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -453,15 +454,49 @@ func (m *Model) Selection() common.SelectionSnapshot {
 
 	if snapshot.Highlighted == nil {
 		if rev := m.SelectedRevision(); rev != nil {
-			snapshot.Highlighted = appContext.SelectedRevision{
+			selected := appContext.SelectedRevision{
 				ChangeId: rev.GetChangeId(),
 				CommitId: rev.CommitId,
 			}
+			if m.canMoveObjectFocus() {
+				if obj := m.focusedTextObject(); obj != nil {
+					selected.ObjectKind, selected.ObjectValue = previewObject(obj)
+				}
+			}
+			snapshot.Highlighted = selected
 		}
 	}
 
 	snapshot.Checked = append(snapshot.Checked, m.checkedRevisionItems()...)
 	return snapshot
+}
+
+// previewObject returns the kind and the jj argument that identify obj for the preview.
+func previewObject(obj *textObject) (string, string) {
+	if obj.Kind != textObjectBookmark {
+		return obj.Kind, obj.Value
+	}
+	if obj.Conflicted {
+		return "conflicted_bookmark", jj.ExactStringPattern(obj.Value)
+	}
+	value := revsetSymbol(obj.Value)
+	if obj.Remote != "" {
+		value += "@" + revsetSymbol(obj.Remote)
+	}
+	return obj.Kind, value
+}
+
+func revsetSymbol(name string) string {
+	for i, r := range name {
+		safe := r == '_' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9'
+		if !safe && (i == 0 || !strings.ContainsRune("-./+", r)) {
+			return strconv.Quote(name)
+		}
+	}
+	if name == "" {
+		return `""`
+	}
+	return name
 }
 
 // checkedCommits keeps selection order; `jj new` uses it as the parent order.
