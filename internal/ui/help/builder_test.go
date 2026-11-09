@@ -147,13 +147,13 @@ func TestMarkOverriddenKeys_DisabledInnerBindingDoesNotShadowOuterBinding(t *tes
 
 func TestBuildFromContinuations_SortsAndAnnotatesNonLeaf(t *testing.T) {
 	entries := BuildFromContinuations([]dispatch.Continuation{
-		{Key: "g", Action: "ui.open_git", IsLeaf: false},
+		{Key: "g", Action: "ui.open_oplog", IsLeaf: false},
 		{Key: "b", Action: "ui.open_bookmarks", IsLeaf: true},
 	})
 
 	assert.Equal(t, []Entry{
 		{Label: "b", Desc: "open bookmarks"},
-		{Label: "g", Desc: "open git ..."},
+		{Label: "g", Desc: "open oplog ..."},
 	}, entries)
 }
 

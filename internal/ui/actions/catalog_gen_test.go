@@ -28,6 +28,6 @@ func TestResolveIntent_UnknownScopeOrAction(t *testing.T) {
 	_, ok := ResolveIntent("unknown.scope", keybindings.Action("revisions.apply"), nil)
 	require.False(t, ok)
 
-	_, ok = ResolveIntent(ScopeSquash, keybindings.Action("ui.open_git"), nil)
+	_, ok = ResolveIntent(ScopeSquash, keybindings.Action("ui.open_oplog"), nil)
 	require.False(t, ok)
 }

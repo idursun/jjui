@@ -240,3 +240,16 @@ func TestBookmarks_FocusedRemoteIdentifiesThePreviewObject(t *testing.T) {
 	assert.Equal(t, "remote", kind)
 	assert.Equal(t, jj.ExactStringPattern("origin"), value)
 }
+
+func TestBookmarks_OpensWithTheRemotesFocused(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin https://a\n"))
+	defer commandRunner.Verify()
+	model := New(test.NewTestContext(commandRunner))
+	revsets := &[]string{}
+
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarks{FocusRemotes: true}))
+
+	assert.True(t, model.InBookmarksView())
+	assert.True(t, model.RemotesFocused())
+}

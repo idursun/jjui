@@ -3,59 +3,37 @@
 package main
 
 import (
-	"path/filepath"
 	"testing"
 
 	ghostty "go.mitchellh.com/libghostty"
 )
 
-func Test_Git_PushesBookmarkToFileRemote(t *testing.T) {
+func Test_Git_GOpensTheRemotesAndPushes(t *testing.T) {
 	t.Parallel()
-	repo := newTestRepo(t)
-	root := filepath.Dir(repo.Path())
-	remote := filepath.Join(root, "remote.git")
+	repo, remote := newRepoWithFileRemote(t)
+	repo.JJ("bookmark", "create", "gone", "-r", "@-")
+	repo.JJ("bookmark", "track", "gone", "--remote", "origin")
+	repo.JJ("git", "push", "--bookmark", "gone")
+	repo.JJ("bookmark", "delete", "gone")
 
-	// A bare repository gives the scenario a real Git remote without requiring
-	// a network service. The same setup works inside the Docker test image.
-	runCommand(t, root, repo.Env(), "git", "init", "--bare", remote)
-	repo.
-		JJ("git", "remote", "add", "origin", remote).
-		JJ("describe", "-m", "remote main").
-		Bookmark("main", "@")
-
-	jjuiBin := jjuiBinary(t)
-	session, ctx := startJJUITestWithRepo(t, jjuiBin, repo, "initial")
-
-	// Open Git Operations, select the push actions, and push the bookmark.
-	if err := session.SendKey(ghostty.KeyG, "g", 0); err != nil {
-		t.Fatal(err)
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "initial")
+	send := func(key ghostty.Key, text string) {
+		t.Helper()
+		if err := session.SendKey(key, text, 0); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, "origin")
-	}); err != nil {
-		t.Fatalf("git operations menu did not show origin: %v", err)
+	send(ghostty.KeyG, "g")
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "back to log") }); err != nil {
+		t.Fatalf("g did not focus the remotes: %v", err)
 	}
-	if err := session.SendKey(ghostty.KeyP, "p", 0); err != nil {
-		t.Fatal(err)
+	send(ghostty.KeyL, "l")
+	send(ghostty.KeyL, "l")
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, `remote=exact:"origin"`) }); err != nil {
+		t.Fatalf("l did not move to origin: %v", err)
 	}
-	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, "git push")
-	}); err != nil {
-		t.Fatalf("git push actions did not render: %v", err)
-	}
-	if err := session.SendKey(ghostty.KeyB, "b", 0); err != nil {
-		t.Fatal(err)
-	}
-
+	send(ghostty.KeyD, "d")
 	waitFor(t, ctx, func() (bool, error) {
-		_, err := commandOutput(root, repo.Env(), "git", "--git-dir", remote, "show-ref", "--verify", "--quiet", "refs/heads/main")
-		return err == nil, nil
+		return !remoteHasBranch(t, repo, remote, "gone"), nil
 	})
-
-	if err := session.SendKey(ghostty.KeyQ, "q", 0); err != nil {
-		t.Fatal(err)
-	}
-	if err := session.WaitContext(ctx); err != nil {
-		t.Fatalf("jjui exited with error: %v", err)
-	}
 }

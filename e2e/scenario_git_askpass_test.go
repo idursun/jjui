@@ -168,23 +168,15 @@ func newGitCredentialServer(t *testing.T, resultPath string) (string, func()) {
 
 func startGitPush(t *testing.T, session *ptySession, ctx context.Context) {
 	t.Helper()
-	if err := session.SendKey(ghostty.KeyG, "g", 0); err != nil {
+	if err := session.SendKey(ghostty.KeyL, "l", 0); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, "origin")
+		return screenContains(screen, "details")
 	}); err != nil {
-		t.Fatalf("git operations menu did not show origin: %v", err)
+		t.Fatalf("the change id was not focused: %v", err)
 	}
-	if err := session.SendKey(ghostty.KeyP, "p", 0); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, "git push")
-	}); err != nil {
-		t.Fatalf("git push actions did not render: %v", err)
-	}
-	if err := session.SendKey(ghostty.KeyB, "b", 0); err != nil {
+	if err := session.SendKey(ghostty.KeyG, "G", ghostty.ModShift); err != nil {
 		t.Fatal(err)
 	}
 }
