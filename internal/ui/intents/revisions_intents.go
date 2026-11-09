@@ -372,11 +372,6 @@ type RevisionsObjectJump struct {
 
 func (RevisionsObjectJump) isIntent() {}
 
-//jjui:bind scope=revisions action=fetch
-type RevisionsFetch struct{}
-
-func (RevisionsFetch) isIntent() {}
-
 //jjui:bind scope=revisions action=object_focus set=Kind:$string(kind)
 type RevisionsObjectFocusKind struct {
 	Kind string

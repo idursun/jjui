@@ -983,8 +983,6 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.RevisionsObjectFocusKind:
 		m.focusedObjectKind, m.focusedObjectIndex = intent.Kind, 0
 		return nil, true
-	case intents.RevisionsFetch:
-		return m.context.RunCommand(jj.GitFetch(), common.Refresh), true
 	case intents.FocusedBookmarkRename:
 		return m.renameFocusedBookmark(), true
 	case intents.FocusedBookmarkMove:
