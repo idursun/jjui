@@ -414,6 +414,16 @@ func (m *Model) Scopes() []common.Scope {
 		Leak:    leak,
 		Handler: m,
 	})
+	// Global because details, which focusing the change id opens, hides the
+	// outer scopes.
+	if m.changeIdFocusedInDetails() {
+		ret = append(ret, common.Scope{
+			Name:    scopeChangeId,
+			Leak:    leak,
+			Global:  true,
+			Handler: m,
+		})
+	}
 	// Global so that h and l still move between objects under details, which
 	// hides the outer scopes.
 	if m.canMoveObjectFocus() {
@@ -983,6 +993,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.advanceBookmarks(), true
 	case intents.FocusedBookmarkTrack:
 		return m.trackBookmarks(intent.Track), true
+	case intents.FocusedChangePush:
+		return m.pushChanges(), true
 	case intents.FocusedBookmarkPush:
 		return m.pushBookmarks(), true
 	case intents.FocusedAuthorReset:
@@ -1692,10 +1704,20 @@ func (m *Model) focusedTextObject() *textObject {
 // scopeObjects holds the keys that move between the text objects of the
 // selected revision.
 const scopeObjects bindings.ScopeName = actions.ScopeRevisions + ".objects"
+const scopeChangeId bindings.ScopeName = actions.ScopeRevisions + "." + textObjectChangeId
 
 func (m *Model) detailsOpen() bool {
 	_, ok := m.baseOperation().(*details.Operation)
 	return ok
+}
+
+func (m *Model) changeIdFocusedInDetails() bool {
+	op, ok := m.baseOperation().(*details.Operation)
+	if !ok || op.FileFocused() || len(m.layers) > 0 {
+		return false
+	}
+	obj := m.focusedTextObject()
+	return obj != nil && obj.Kind == textObjectChangeId
 }
 
 func (m *Model) canMoveObjectFocus() bool {

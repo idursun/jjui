@@ -378,3 +378,30 @@ func Test_TextObjects_AdvancesFocusedBookmarkToWorkingCopy(t *testing.T) {
 		return strings.Contains(out, "advance-me"), nil
 	})
 }
+
+func Test_TextObjects_PushesFocusedChange(t *testing.T) {
+	t.Parallel()
+	repo, remote := newRepoWithFileRemote(t)
+	repo.JJ("describe", "-m", "push me")
+	output, err := commandOutput(repo.Path(), repo.Env(), "jj", "log", "--no-graph", "-r", "@", "-T", "change_id.short(12)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	changeId := strings.TrimSpace(output)
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "push me")
+	if err := session.SendKey(ghostty.KeyL, "l", 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
+		return screenContains(screen, "details")
+	}); err != nil {
+		t.Fatalf("details did not open: %v", err)
+	}
+	if err := session.SendKey(ghostty.KeyG, "G", ghostty.ModShift); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		return remoteHasBranch(t, repo, remote, "push-"+changeId), nil
+	})
+}
