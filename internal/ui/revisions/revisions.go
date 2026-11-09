@@ -198,7 +198,7 @@ func (m *Model) QueryState(name string) (any, bool) {
 	case "has_selection":
 		return len(m.SelectedRevisions().Revisions) > 0, true
 	case "has_checked":
-		return len(m.checked) > 0, true
+		return slices.ContainsFunc(m.checked, func(c checkedObject) bool { return c.kind != textObjectFile }), true
 	case "is_root":
 		return selected != nil && selected.IsRoot(), true
 	case "has_parent":
@@ -281,12 +281,20 @@ func (m *Model) resetOperations() {
 	if m.detailsOpen() {
 		m.focusedObjectKind, m.focusedObjectIndex = textObjectNode, 0
 	}
-	m.baseOp = operations.NewDefault()
+	m.setBase(operations.NewDefault())
 	m.layers = nil
 }
 
-func (m *Model) setBaseOperation(op operations.Operation) tea.Cmd {
+// setBase is the only place that replaces baseOp; file checks live only as long as details.
+func (m *Model) setBase(op operations.Operation) {
+	if _, ok := op.(*details.Operation); !ok {
+		m.checked = slices.DeleteFunc(m.checked, func(c checkedObject) bool { return c.kind == textObjectFile })
+	}
 	m.baseOp = op
+}
+
+func (m *Model) setBaseOperation(op operations.Operation) tea.Cmd {
+	m.setBase(op)
 	m.layers = nil
 
 	return op.Init()
@@ -532,6 +540,9 @@ func (m *Model) checkedTargetCommits() []*jj.Commit {
 		}
 	}
 	for _, object := range m.checked {
+		if object.kind == textObjectFile {
+			continue
+		}
 		if object.kind != textObjectBookmark {
 			add(loaded[object.commitId])
 			continue
@@ -560,14 +571,31 @@ func (m *Model) toggleChecked(object checkedObject) {
 	m.checked = append(m.checked, object)
 }
 
+func (m *Model) fileChecks() details.FileChecks {
+	return details.FileChecks{
+		IsChecked: func(changeId string, file jj.FileName) bool {
+			return slices.Contains(m.checked, checkedFile(changeId, file.Path()))
+		},
+		Toggle: func(changeId string, file jj.FileName) {
+			m.toggleChecked(checkedFile(changeId, file.Path()))
+		},
+	}
+}
+
 func (m *Model) clearChecked() {
 	m.checked = nil
 }
 
 // CheckedCount is the number of checked objects, including files checked in
-// the active operation.
+// the active operation. File entries in m.checked are counted through the
+// operation's selection, which only lists files that still exist.
 func (m *Model) CheckedCount() int {
-	count := len(m.checked)
+	count := 0
+	for _, object := range m.checked {
+		if object.kind != textObjectFile {
+			count++
+		}
+	}
 	if provider, ok := m.activeModel().(common.SelectionProvider); ok {
 		count += len(provider.Selection().Checked)
 	}
@@ -618,7 +646,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		// Details show the revision they were opened for.
 		if msg.Index != m.cursor && m.detailsOpen() {
-			m.baseOp = operations.NewDefault()
+			m.setBase(operations.NewDefault())
 		}
 		m.SetCursor(msg.Index)
 		m.focusedObjectKind, m.focusedObjectIndex = msg.Kind, msg.ObjectIndex
@@ -637,7 +665,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case common.RestoreOperationMsg:
 		if op, ok := msg.Operation.(operations.Operation); ok {
-			m.baseOp = op
+			m.setBase(op)
 			m.layers = nil
 			return nil
 		}
@@ -1061,7 +1089,8 @@ func (m *Model) startBookmarkSet(intent intents.OpenSetBookmark) tea.Cmd {
 
 func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
 	if !intent.KeepSelections {
-		m.clearChecked()
+		detailsOpen := m.detailsOpen()
+		m.checked = slices.DeleteFunc(m.checked, func(c checkedObject) bool { return c.kind != textObjectFile || !detailsOpen })
 	}
 	m.isLoading = true
 	currentTag := m.tag.Add(1)
@@ -1080,8 +1109,7 @@ func (m *Model) openDetails(_ intents.OpenDetails) tea.Cmd {
 	if m.SelectedRevision() == nil {
 		return nil
 	}
-	model := details.NewOperation(m.context, m.SelectedRevision())
-	return m.setBaseOperation(model)
+	return m.setBaseOperation(details.NewOperation(m.context, m.SelectedRevision(), m.fileChecks()))
 }
 
 func (m *Model) startSquash(intent intents.OpenSquash) tea.Cmd {
@@ -1740,10 +1768,10 @@ func (m *Model) syncDetails() tea.Cmd {
 			op.LeaveFiles()
 			return nil
 		}
-		return m.setBaseOperation(details.NewOperation(m.context, revision))
+		return m.setBaseOperation(details.NewOperation(m.context, revision, m.fileChecks()))
 	}
 	if m.detailsOpen() {
-		m.baseOp = operations.NewDefault()
+		m.setBase(operations.NewDefault())
 	}
 	return nil
 }

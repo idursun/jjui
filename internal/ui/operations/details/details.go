@@ -3,7 +3,6 @@ package details
 import (
 	"bufio"
 	"fmt"
-	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -23,8 +22,7 @@ import (
 )
 
 type updateCommitStatusMsg struct {
-	summary       string
-	selectedFiles []jj.FileName
+	summary string
 }
 
 type filterState uint8
@@ -44,6 +42,12 @@ var (
 	_ common.ScopeProvider         = (*Operation)(nil)
 	_ common.SelectionProvider     = (*Operation)(nil)
 )
+
+// FileChecks is the store of checked files, owned by the caller and keyed by change id.
+type FileChecks struct {
+	IsChecked func(changeId string, file jj.FileName) bool
+	Toggle    func(changeId string, file jj.FileName)
+}
 
 type Operation struct {
 	*DetailsList
@@ -115,7 +119,7 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 		}
 		return s.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
 	case updateCommitStatusMsg:
-		items := s.createListItems(msg.summary, msg.selectedFiles)
+		items := s.createListItems(msg.summary)
 		s.setItems(items)
 		return nil
 	default:
@@ -314,7 +318,9 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.DetailsSelectFile:
 		for i := range s.files {
 			if s.files[i].fileName.Path() == intent.File {
-				s.files[i].selected = true
+				if !s.isChecked(s.files[i].fileName) {
+					s.toggle(s.files[i].fileName)
+				}
 				break
 			}
 		}
@@ -330,7 +336,7 @@ func (s *Operation) Selection() common.SelectionSnapshot {
 		snapshot.Highlighted = s.selectedFile(current.fileName)
 	}
 	for _, file := range s.files {
-		if file.selected {
+		if s.isChecked(file.fileName) {
 			snapshot.Checked = append(snapshot.Checked, s.selectedFile(file.fileName))
 		}
 	}
@@ -508,7 +514,7 @@ func (s *Operation) getSelectedFiles(allowVirtualSelection bool) []jj.FileName {
 	}
 
 	for _, f := range s.files {
-		if f.selected {
+		if s.isChecked(f.fileName) {
 			selectedFiles = append(selectedFiles, f.fileName)
 		}
 	}
@@ -520,7 +526,7 @@ func (s *Operation) getSelectedFiles(allowVirtualSelection bool) []jj.FileName {
 	return selectedFiles
 }
 
-func (s *Operation) createListItems(content string, selectedFiles []jj.FileName) []*item {
+func (s *Operation) createListItems(content string) []*item {
 	var items []*item
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	scanner.Split(bufio.ScanWords)
@@ -562,7 +568,6 @@ func (s *Operation) createListItems(content string, selectedFiles []jj.FileName)
 			status:   status,
 			name:     summary.Display(s.context.Location, s.context.WorkingDirectory),
 			fileName: summary.FileName,
-			selected: slices.Contains(selectedFiles, summary.FileName),
 			conflict: conflicts[index],
 		})
 		index++
@@ -577,8 +582,7 @@ func (s *Operation) load(revision string) tea.Cmd {
 		if err == nil {
 			return func() tea.Msg {
 				summary := string(output)
-				selectedFiles := s.getSelectedFiles(false)
-				return updateCommitStatusMsg{summary, selectedFiles}
+				return updateCommitStatusMsg{summary}
 			}
 		}
 	}
@@ -590,18 +594,20 @@ func (s *Operation) load(revision string) tea.Cmd {
 	}
 }
 
-func NewOperation(context *context.MainContext, selected *jj.Commit) *Operation {
-	l := NewDetailsList()
+func NewOperation(context *context.MainContext, selected *jj.Commit, checks FileChecks) *Operation {
 	filterInput := textinput.New()
 	filterInput.Prompt = "/ "
 	filterInput.CharLimit = 0
 	filterInput.SetVirtualCursor(false)
 	op := &Operation{
-		DetailsList: l,
 		context:     context,
 		revision:    selected,
 		Current:     selected,
 		filterInput: filterInput,
 	}
+	op.DetailsList = NewDetailsList(
+		func(file jj.FileName) bool { return checks.IsChecked(op.revision.GetChangeId(), file) },
+		func(file jj.FileName) { checks.Toggle(op.revision.GetChangeId(), file) },
+	)
 	return op
 }
