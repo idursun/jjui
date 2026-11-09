@@ -372,3 +372,12 @@ type RevisionsObjectFocusKind struct {
 }
 
 func (RevisionsObjectFocusKind) isIntent() {}
+
+// RevisionsObjectCycleKind focuses the first object of a kind on the row, or the next one when already focused on that kind.
+//
+//jjui:bind scope=revisions action=object_cycle set=Kind:$string(kind) when="revisions.has_revision"
+type RevisionsObjectCycleKind struct {
+	Kind string
+}
+
+func (RevisionsObjectCycleKind) isIntent() {}
