@@ -2,6 +2,7 @@ package bookmark
 
 import (
 	"fmt"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -21,21 +22,21 @@ var _ common.Focusable = (*MoveBookmarkOperation)(nil)
 var _ common.ScopeProvider = (*MoveBookmarkOperation)(nil)
 
 type MoveBookmarkOperation struct {
-	context      *context.MainContext
-	bookmarkName string
-	target       *jj.Commit
-	styles       struct {
+	context       *context.MainContext
+	bookmarkNames []string
+	target        *jj.Commit
+	styles        struct {
 		targetMarker lipgloss.Style
 		dimmed       lipgloss.Style
 		changeId     lipgloss.Style
 	}
 }
 
-func NewMoveBookmarkOperation(context *context.MainContext, bookmarkName string, target *jj.Commit) *MoveBookmarkOperation {
+func NewMoveBookmarkOperation(context *context.MainContext, bookmarkNames []string, target *jj.Commit) *MoveBookmarkOperation {
 	op := &MoveBookmarkOperation{
-		context:      context,
-		bookmarkName: bookmarkName,
-		target:       target,
+		context:       context,
+		bookmarkNames: bookmarkNames,
+		target:        target,
 	}
 	op.styles.targetMarker = theme.DefaultPalette.Get("revisions", "", "", true)
 	op.styles.dimmed = theme.DefaultPalette.Get("revisions", "", "dimmed", false)
@@ -73,7 +74,7 @@ func (m *MoveBookmarkOperation) HandleIntent(intent intents.Intent) (tea.Cmd, bo
 			extraFlags = append(extraFlags, "--allow-backwards")
 		}
 		return m.context.RunCommand(
-			jj.BookmarkMove(m.target.GetChangeId(), m.bookmarkName, extraFlags...),
+			jj.BookmarkMove(m.target.GetChangeId(), m.bookmarkNames, extraFlags...),
 			common.CloseApplied,
 			common.Refresh,
 		), true
@@ -108,10 +109,10 @@ func (m *MoveBookmarkOperation) Render(commit *jj.Commit, pos operations.RenderP
 		lipgloss.Left,
 		m.styles.targetMarker.Render("<< onto >>"),
 		m.styles.dimmed.Render(" move bookmark "),
-		m.styles.changeId.Render(m.bookmarkName),
+		m.styles.changeId.Render(strings.Join(m.bookmarkNames, ", ")),
 	)
 }
 
 func (m *MoveBookmarkOperation) Name() string {
-	return fmt.Sprintf("move bookmark %s", m.bookmarkName)
+	return fmt.Sprintf("move bookmark %s", strings.Join(m.bookmarkNames, ", "))
 }
