@@ -22,6 +22,7 @@ error = "red"
 "revisions details dimmed:selected" = { fg = "bright cyan" }
 "revisions matched" = { underline = false, reverse = true }
 "revisions object:selected" = { underline = true }
+"revisions checked" = { reverse = true }
 "oplog matched" = { underline = false, reverse = true }
 "revset title" = "magenta"
 "revset text" = { fg = "green", bold = true }

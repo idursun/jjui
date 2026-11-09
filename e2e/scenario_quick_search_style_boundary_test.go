@@ -45,7 +45,7 @@ func assertQuickSearchCrossesStyleBoundary(t *testing.T, idTemplate string) {
 	})
 
 	h.Key(" ")
-	waitForCheckedRevisions(h, "target")
+	waitForCheckedCount(h, 1)
 
 	h.Quit()
 }

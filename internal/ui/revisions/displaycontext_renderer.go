@@ -18,16 +18,16 @@ import (
 // DisplayContextRenderer renders the revisions list using the DisplayContext approach
 type DisplayContextRenderer struct {
 	listRenderer   *render.ListRenderer
-	selections     map[string]bool
 	textStyle      lipgloss.Style
 	dimmedStyle    lipgloss.Style
 	selectedStyle  lipgloss.Style
 	matchedStyle   lipgloss.Style
 	objectStyle    lipgloss.Style
+	checkedStyle   lipgloss.Style
 	selectionFocus bool
 	// focusedObject is drawn as the terminal cursor on the selected row.
-	focusedObject    *textObject
-	checkedBookmarks []checkedBookmark
+	focusedObject *textObject
+	checked       []checkedObject
 }
 
 // itemRenderer is a helper for rendering individual revision items
@@ -39,7 +39,6 @@ type itemRenderer struct {
 	op              operations.Operation
 	segmentRenderer operations.SegmentRenderer
 	SearchText      string
-	isChecked       bool
 }
 
 // getSegmentStyleForLine returns the style for a segment, considering whether the line is highlightable.
@@ -79,11 +78,6 @@ func NewDisplayContextRenderer() *DisplayContextRenderer {
 		listRenderer:   render.NewListRenderer(newViewportScrollMsg),
 		selectionFocus: true,
 	}
-}
-
-// SetSelections sets the selected revisions for rendering checkboxes
-func (r *DisplayContextRenderer) SetSelections(selections map[string]bool) {
-	r.selections = selections
 }
 
 func (r *DisplayContextRenderer) SetSelectionFocused(focused bool) {
@@ -269,11 +263,6 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		SearchText:      quickSearch,
 	}
 
-	// Check if this revision is selected (for checkbox)
-	if item.Commit != nil && r.selections != nil {
-		ir.isChecked = r.selections[item.Commit.ChangeId]
-	}
-
 	// Handle operation rendering for before section
 	if operation != nil && item.Commit != nil {
 		before := operation.Render(item.Commit, operations.RenderPositionBefore)
@@ -417,8 +406,9 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 			if o.line == i && o.width > 0 {
 				objectRect := layout.Rect(lineRect.Min.X+screenColumn(columns, o.x), lineRect.Min.Y, o.width, 1)
 				r.addObjectClick(dl, objectRect, index, o)
-				if o.Kind == textObjectBookmark && slices.Contains(r.checkedBookmarks, checkedBookmark{o.Value, o.Remote}) {
-					dl.AddAttributes(objectRect, r.objectStyle, 2)
+				if key, ok := checkedObjectFor(o, item.Commit); ok && slices.Contains(r.checked, key) {
+					dl.AddPaint(objectRect, r.checkedStyle, 2)
+					dl.AddAttributes(objectRect, r.checkedStyle, 2)
 				}
 			}
 		}
@@ -590,8 +580,7 @@ func renderedHeight(content string) int {
 }
 
 // segmentColumn is where a segment of the line, at column raw of the jj
-// output, starts on screen. Checkboxes and operation text inserted into the
-// line move the segments after them.
+// output, starts on screen. Operation text inserted into the line moves the segments after them.
 type segmentColumn struct {
 	raw, screen int
 }
@@ -634,11 +623,8 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 		writeStyled(segment.Text, style)
 	}
 
-	// Add checkbox and operation content before ChangeID
+	// Add operation content before ChangeID
 	if line.Flags&parser.Revision == parser.Revision {
-		if ir.isChecked {
-			writeStyled("✓ ", ir.renderer.selectedStyle)
-		}
 		if ir.op != nil {
 			beforeChangeID := ir.op.Render(ir.row.Commit, operations.RenderBeforeChangeId)
 			if beforeChangeID != "" {

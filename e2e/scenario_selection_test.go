@@ -24,9 +24,9 @@ func Test_Revisions_SelectionMovesCursorDown(t *testing.T) {
 
 	h.Key("j")
 	h.Key(" ")
-	waitForCheckedRevisions(h, "newer")
+	waitForCheckedCount(h, 1)
 	h.Key(" ")
-	waitForCheckedRevisions(h, "newer", "older")
+	waitForCheckedCount(h, 2)
 
 	h.Quit()
 }
@@ -38,7 +38,7 @@ func Test_Revisions_SelectionClearsWithEscape(t *testing.T) {
 	if err := session.SendKey(ghostty.KeySpace, " ", 0); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := session.WaitForScreen(ctx, screenContainsCheckmark); err != nil {
+	if _, err := session.WaitForScreen(ctx, screenContainsCheckedCount); err != nil {
 		t.Fatalf("space did not select the focused revision: %v\nraw output:\n%s", err, session.RawOutput())
 	}
 
@@ -46,7 +46,7 @@ func Test_Revisions_SelectionClearsWithEscape(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := session.WaitForStableScreen(ctx, 3, func(screen []string) bool {
-		return screenContains(screen, "initial") && !screenContainsCheckmark(screen)
+		return screenContains(screen, "initial") && !screenContainsCheckedCount(screen)
 	}); err != nil {
 		t.Fatalf("escape did not clear the revision selection: %v\nraw output:\n%s", err, session.RawOutput())
 	}

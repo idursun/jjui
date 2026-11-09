@@ -26,7 +26,7 @@ func Test_Revisions_RebasesSourceWithInsertBetween(t *testing.T) {
 	h.Key("j")
 	h.Key("j")
 	h.Key(" ")
-	waitForCheckedRevisions(h, "source")
+	waitForCheckedCount(h, 1)
 
 	// Space moved the cursor down to base, which becomes the insert-after end.
 	h.Key("r")

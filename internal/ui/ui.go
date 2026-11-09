@@ -470,6 +470,7 @@ func (m *Model) updateStatus() {
 			m.sequenceHelp = []help.Entry{}
 		}
 	}
+	m.status.SetCheckedCount(m.revisions.CheckedCount())
 	m.status.Sync(m.dispatchScopes(), m.sequenceHelp)
 }
 
