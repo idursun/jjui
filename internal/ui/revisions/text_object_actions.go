@@ -76,50 +76,32 @@ func (m *Model) advanceBookmarks() tea.Cmd {
 	return m.runBookmarkCommands([]jj.CommandArgs{jj.BookmarkAdvance(names...)})
 }
 
-// checkedBookmark identifies a bookmark by name and remote, which unlike its
-// position in the row survives a refresh.
-type checkedBookmark struct {
-	name   string
-	remote string
-}
-
-func (m *Model) toggleCheckedBookmark(obj *textObject) {
-	bookmark := checkedBookmark{obj.Value, obj.Remote}
-	if i := slices.Index(m.checkedBookmarks, bookmark); i >= 0 {
-		m.checkedBookmarks = slices.Delete(m.checkedBookmarks, i, i+1)
-		return
-	}
-	m.checkedBookmarks = append(m.checkedBookmarks, bookmark)
-}
-
 type loadedBookmark struct {
 	textObject
 	commit *jj.Commit
 }
 
-// loadedCheckedBookmarks returns the checked bookmarks on loaded rows in the
-// order they were checked. A conflicted bookmark appears once per revision.
-func (m *Model) loadedCheckedBookmarks() []loadedBookmark {
-	if len(m.checkedBookmarks) == 0 {
-		return nil
+// checkedBookmarkRows finds the checked bookmarks on loaded rows. A conflicted
+// bookmark has one entry per revision.
+func (m *Model) checkedBookmarkRows() map[checkedObject][]loadedBookmark {
+	found := make(map[checkedObject][]loadedBookmark)
+	if !slices.ContainsFunc(m.checked, func(c checkedObject) bool { return c.kind == textObjectBookmark }) {
+		return found
 	}
-	found := make(map[checkedBookmark][]loadedBookmark, len(m.checkedBookmarks))
 	for _, row := range m.rows {
 		if row.Commit == nil {
 			continue
 		}
 		for _, o := range textObjectsForRow(row) {
-			key := checkedBookmark{o.Value, o.Remote}
-			if o.Kind == textObjectBookmark && slices.Contains(m.checkedBookmarks, key) {
+			if o.Kind != textObjectBookmark {
+				continue
+			}
+			if key := checkedBookmark(o.Value, o.Remote); slices.Contains(m.checked, key) {
 				found[key] = append(found[key], loadedBookmark{o, row.Commit})
 			}
 		}
 	}
-	var bookmarks []loadedBookmark
-	for _, key := range m.checkedBookmarks {
-		bookmarks = append(bookmarks, found[key]...)
-	}
-	return bookmarks
+	return found
 }
 
 // bookmarkTargets returns what a bookmark action applies to: the checked
@@ -130,12 +112,10 @@ func (m *Model) bookmarkTargets() []textObject {
 		return nil
 	}
 	var targets []textObject
-	seen := make(map[checkedBookmark]bool)
-	for _, bookmark := range m.loadedCheckedBookmarks() {
-		key := checkedBookmark{bookmark.Value, bookmark.Remote}
-		if !seen[key] {
-			seen[key] = true
-			targets = append(targets, bookmark.textObject)
+	found := m.checkedBookmarkRows()
+	for _, object := range m.checked {
+		if rows := found[object]; len(rows) > 0 {
+			targets = append(targets, rows[0].textObject)
 		}
 	}
 	if len(targets) == 0 {
@@ -302,15 +282,40 @@ func (m *Model) deleteFocusedTag() tea.Cmd {
 	return m.context.RunCommand(jj.TagDelete(obj.Value), common.Refresh)
 }
 
-// describeFocusedRevision opens the editor for the focused revision only,
-// unlike describe, which applies to the checked revisions.
-func (m *Model) describeFocusedRevision() tea.Cmd {
+// revisionPartTargets returns the revisions owning the checked objects of the
+// focused kind, or the focused revision when none are checked.
+func (m *Model) revisionPartTargets(kind string) []*jj.Commit {
 	obj := m.focusedTextObject()
 	revision := m.SelectedRevision()
-	if obj == nil || obj.Kind != textObjectDescription || revision == nil {
+	if obj == nil || obj.Kind != kind || revision == nil {
 		return nil
 	}
-	return m.startDescribe(intents.Describe{Selected: jj.NewSelectedRevisions(revision)})
+	loaded := make(map[string]*jj.Commit, len(m.rows))
+	for _, row := range m.rows {
+		if row.Commit != nil {
+			loaded[row.Commit.CommitId] = row.Commit
+		}
+	}
+	var commits []*jj.Commit
+	for _, object := range m.checked {
+		if commit, ok := loaded[object.commitId]; ok && object.kind == kind {
+			commits = append(commits, commit)
+		}
+	}
+	if len(commits) == 0 {
+		return []*jj.Commit{revision}
+	}
+	return commits
+}
+
+// describeRevisionParts opens the editor for the revisions of the checked
+// descriptions; checked revisions alone do not count.
+func (m *Model) describeRevisionParts() tea.Cmd {
+	commits := m.revisionPartTargets(textObjectDescription)
+	if len(commits) == 0 {
+		return nil
+	}
+	return m.startDescribe(intents.Describe{Selected: jj.NewSelectedRevisions(commits...)})
 }
 
 // forgetBookmarks forgets the bookmarks without marking a deletion to push.
