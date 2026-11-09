@@ -115,6 +115,7 @@ bindings = [
     { key = "shift+t", action = "revisions.bookmark.untrack", scope = "revisions.bookmark", desc = "untrack bookmark" },
     { key = "shift+g", action = "revisions.bookmark.push", scope = "revisions.bookmark", desc = "push bookmark" },
     { key = "shift+d", action = "revisions.bookmark.forget", scope = "revisions.bookmark", desc = "forget bookmark" },
+    { key = "shift+g", action = "revisions.change_id.push", scope = "revisions.change_id", desc = "push change" },
     { key = "d", action = "revisions.tag.delete", scope = "revisions.tag", desc = "delete tag" },
     { key = "s", action = "revisions.workspace.switch", scope = "revisions.workspace", desc = "switch to workspace" },
     { key = "r", action = "revisions.workspace.rename", scope = "revisions.workspace", desc = "rename workspace" },

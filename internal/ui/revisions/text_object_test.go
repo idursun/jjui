@@ -13,6 +13,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
+	"github.com/idursun/jjui/internal/ui/operations/details"
 	"github.com/idursun/jjui/internal/ui/operations/workspace"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/test"
@@ -844,4 +845,60 @@ func TestModel_RevisionActionsResolveCheckedDescriptions(t *testing.T) {
 
 	assert.Equal(t, []checkedObject{{kind: textObjectDescription, commitId: model.rows[0].Commit.CommitId}}, model.checked)
 	require.Len(t, model.SelectedRevisions().Revisions, 1)
+}
+
+func changeIdFocusedUnderDetails(t *testing.T, commandRunner *test.CommandRunner) *Model {
+	t.Helper()
+	ctx := test.NewTestContext(commandRunner)
+	model := New(ctx)
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectChangeId
+	commit := model.SelectedRevision()
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(commit.GetChangeId())).SetOutput([]byte("false false $\nM file.txt\n"))
+	op := details.NewOperation(ctx, commit)
+	test.SimulateModel(op, op.Init())
+	model.baseOp = op
+	return model
+}
+
+func scopeNames(model *Model) []string {
+	var names []string
+	for _, scope := range model.Scopes() {
+		names = append(names, string(scope.Name))
+	}
+	return names
+}
+
+func TestModel_ChangeIdScopeIsVisibleUnderDetailsOnlyOnTheChangeId(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	model := changeIdFocusedUnderDetails(t, commandRunner)
+	assert.Contains(t, scopeNames(model), actions.ScopeRevisions+".change_id")
+
+	model.baseOp.(*details.Operation).HandleIntent(intents.DetailsNavigate{Delta: 1})
+	assert.NotContains(t, scopeNames(model), actions.ScopeRevisions+".change_id")
+}
+
+func TestModel_PushFocusedChange(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	model := changeIdFocusedUnderDetails(t, commandRunner)
+	commandRunner.Expect(jj.GitPush("--change", model.SelectedRevision().GetChangeId()))
+	defer commandRunner.Verify()
+
+	runJJCommand(model.Update(intents.FocusedChangePush{}))
+}
+
+func TestModel_PushChangesPushesCheckedRevisionsInOneCommand(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	first, second := model.rows[0].Commit, model.rows[1].Commit
+	commandRunner.Expect(jj.GitPush("--change", first.GetChangeId(), "--change", second.GetChangeId()))
+	defer commandRunner.Verify()
+
+	model.toggleChecked(checkedRevision(first))
+	model.toggleChecked(checkedRevision(second))
+	model.focusedObjectKind = textObjectChangeId
+	runJJCommand(model.Update(intents.FocusedChangePush{}))
 }
