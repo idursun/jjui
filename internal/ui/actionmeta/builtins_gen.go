@@ -148,6 +148,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.bookmark_target.cancel":              {"revisions.bookmark_target"},
 	"revisions.bookmark_target.force_apply":         {"revisions.bookmark_target"},
 	"revisions.cancel":                              {"revisions"},
+	"revisions.change_id.push":                      {"revisions.change_id"},
 	"revisions.commit":                              {"revisions"},
 	"revisions.describe":                            {"revisions"},
 	"revisions.description.edit":                    {"revisions.description"},

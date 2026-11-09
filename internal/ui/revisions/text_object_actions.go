@@ -199,6 +199,16 @@ func (m *Model) pushBookmarks() tea.Cmd {
 	return m.runBookmarkCommands(commands)
 }
 
+// pushChanges pushes the checked revisions, or the highlighted one when none
+// are checked, each to a bookmark jj generates for it.
+func (m *Model) pushChanges() tea.Cmd {
+	if m.SelectedRevision() == nil {
+		return nil
+	}
+	flags := m.SelectedRevisions().AsPrefixedArgs("--change")
+	return m.context.RunCommand(jj.GitPush(flags...), common.Refresh)
+}
+
 // trackBookmarks tracks or untracks remote bookmarks, or local bookmarks
 // against the default remote. Bookmarks already in that state are skipped.
 func (m *Model) trackBookmarks(track bool) tea.Cmd {
