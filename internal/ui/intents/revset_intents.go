@@ -37,7 +37,10 @@ type CompletionMove struct {
 func (CompletionMove) isIntent() {}
 
 //jjui:bind scope=revset action=show_bookmarks
-type RevsetBookmarks struct{}
+//jjui:bind scope=revset action=show_remotes set=FocusRemotes:true
+type RevsetBookmarks struct {
+	FocusRemotes bool
+}
 
 func (RevsetBookmarks) isIntent() {}
 

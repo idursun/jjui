@@ -229,7 +229,7 @@ func TestLoad_MergesBindingsByShadowRules(t *testing.T) {
 	cfg := &Config{
 		Bindings: []BindingConfig{
 			{Scope: "revisions", Action: "revisions.move_up", Key: StringList{"k", "up"}},
-			{Scope: "revisions", Action: "ui.open_git", Seq: StringList{"g", "g"}},
+			{Scope: "revisions", Action: "ui.open_oplog", Seq: StringList{"g", "g"}},
 			{Scope: "ui", Action: "ui.quit", Key: StringList{"q"}},
 		},
 	}
@@ -261,7 +261,7 @@ key = "esc"
 	})
 	assert.Contains(t, cfg.Bindings, BindingConfig{
 		Scope:  "revisions",
-		Action: "ui.open_git",
+		Action: "ui.open_oplog",
 		Seq:    StringList{"g", "g"},
 	})
 	// overlay bindings are appended

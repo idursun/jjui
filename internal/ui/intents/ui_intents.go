@@ -24,7 +24,6 @@ func (ExecShell) isIntent() {}
 //jjui:bind scope=revisions.details action=quit
 //jjui:bind scope=ui action=quit
 //jjui:bind scope=oplog action=quit
-//jjui:bind scope=git action=quit
 type Quit struct{}
 
 func (Quit) isIntent() {}
@@ -73,11 +72,6 @@ type HelpScroll struct {
 
 func (HelpScroll) isIntent() {}
 
-//jjui:bind scope=ui action=open_git
-type OpenGit struct{}
-
-func (OpenGit) isIntent() {}
-
 //jjui:bind scope=revisions action=open_set_bookmark set=Value:$string?(value)
 type OpenSetBookmark struct {
 	Value    string
@@ -85,51 +79,6 @@ type OpenSetBookmark struct {
 }
 
 func (OpenSetBookmark) isIntent() {}
-
-type GitFilterKind string
-
-const (
-	GitFilterPush  GitFilterKind = "push"
-	GitFilterFetch GitFilterKind = "fetch"
-)
-
-//jjui:bind scope=git action=push set=Kind:GitFilterPush
-//jjui:bind scope=git action=fetch set=Kind:GitFilterFetch
-type GitFilter struct {
-	Kind GitFilterKind
-}
-
-func (GitFilter) isIntent() {}
-
-//jjui:bind scope=git action=cycle_remotes set=Delta:1
-//jjui:bind scope=git action=cycle_remotes_back set=Delta:-1
-type GitCycleRemotes struct {
-	Delta int
-}
-
-func (GitCycleRemotes) isIntent() {}
-
-//jjui:bind scope=git action=filter
-type GitOpenFilter struct{}
-
-func (GitOpenFilter) isIntent() {}
-
-//jjui:bind scope=git action=move_up set=Delta:-1
-//jjui:bind scope=git action=move_down set=Delta:1
-//jjui:bind scope=git action=page_up set=Delta:-1,IsPage:true
-//jjui:bind scope=git action=page_down set=Delta:1,IsPage:true
-type GitNavigate struct {
-	Delta  int
-	IsPage bool
-}
-
-func (GitNavigate) isIntent() {}
-
-type GitApplyShortcut struct {
-	Key string
-}
-
-func (GitApplyShortcut) isIntent() {}
 
 //jjui:bind scope=choose action=filter
 type ChooseOpenFilter struct{}
@@ -175,7 +124,6 @@ func (ChooseCancel) isIntent() {}
 //jjui:bind scope=revisions.ace_jump action=cancel
 //jjui:bind scope=ui action=cancel
 //jjui:bind scope=help action=cancel
-//jjui:bind scope=git action=cancel
 //jjui:bind scope=status.input action=cancel
 //jjui:bind scope=file_search action=cancel
 //jjui:bind scope=revisions.quick_search.input action=cancel
@@ -217,7 +165,6 @@ func (DismissOverlay) isIntent() {}
 //jjui:bind scope=revisions.bookmark_target action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions.bookmark_target action=force_apply set=Force:true
 //jjui:bind scope=revisions.ace_jump action=apply
-//jjui:bind scope=git action=apply
 //jjui:bind scope=revisions action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions action=force_apply set=Force:true
 //jjui:bind scope=status.input action=apply

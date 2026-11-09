@@ -26,7 +26,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/exec_prompt"
-	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/help"
 	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -563,56 +562,6 @@ func TestRedoDialogRawConfirmationKeysStillWork(t *testing.T) {
 	assert.False(t, ok, "pressing n should close the redo confirmation")
 }
 
-// this test verifies that when `git` is activated and `status` is expanded,
-// pressing `esc` closes expanded `status`
-func Test_GitWithExpandedStatus_EscClosesStackedFirst(t *testing.T) {
-	origBindings := config.Current.Bindings
-	defer func() {
-		config.Current.Bindings = origBindings
-	}()
-	config.Current.Bindings = []config.BindingConfig{
-		{Action: "ui.expand_status", Scope: "ui", Key: config.StringList{"?"}},
-		{Action: "ui.cancel", Scope: "ui", Key: config.StringList{"esc"}},
-		{Action: "git.move_up", Scope: "git", Key: config.StringList{"k"}},
-		{Action: "git.move_down", Scope: "git", Key: config.StringList{"j"}},
-		{Action: "git.apply", Scope: "git", Key: config.StringList{"enter"}},
-		{Action: "git.push", Scope: "git", Key: config.StringList{"p"}},
-		{Action: "git.fetch", Scope: "git", Key: config.StringList{"f"}},
-		{Action: "git.filter", Scope: "git", Key: config.StringList{"/"}},
-		{Action: "git.cycle_remotes", Scope: "git", Key: config.StringList{"tab"}},
-	}
-
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin"))
-	defer commandRunner.Verify()
-
-	ctx := test.NewTestContext(commandRunner)
-	ctx.Histories = config.NewHistories()
-	model := NewUI(ctx)
-
-	model.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
-
-	// Directly set stacked to git model (simulates pressing 'g')
-	gitModel := git.NewModel(ctx, jj.NewSelectedRevisions())
-	test.SimulateModel(gitModel, gitModel.Init())
-	pushDialog(model, gitModel)
-	assert.NotNil(t, model.dialog(), "stacked (git) should be set")
-
-	// Render to trigger status truncation detection
-	_ = model.View()
-
-	// Expand status directly; this test validates esc precedence while git is stacked.
-	model.status.SetStatusExpanded(true)
-	assert.True(t, model.status.StatusExpanded(), "status should be expanded before pressing esc")
-
-	// Press 'esc' to close stacked first.
-	test.SimulateModel(model, test.Press(tea.KeyEscape))
-	assert.True(t, model.status.StatusExpanded(), "status should remain expanded while stacked is closed first")
-
-	// Stacked (git) should be closed first
-	assert.Nil(t, model.dialog(), "stacked (git) should close before expanded status")
-}
-
 func Test_AnnotationWithExpandedStatus_EscClosesStatusFirst(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
@@ -647,28 +596,6 @@ func Test_AnnotationWithExpandedStatus_AppliedCloseStillClosesAnnotation(t *test
 
 	assert.True(t, model.status.StatusExpanded(), "applied close should not collapse expanded status")
 	assert.Nil(t, layerOf[*annotation.Model](model), "applied close should close annotation")
-}
-
-func Test_Update_GitFilteredShortcutKeysDoNotLeakToRevisions(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
-	defer commandRunner.Verify()
-
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
-
-	gitModel := git.NewModel(ctx, jj.NewSelectedRevisions())
-	test.SimulateModel(gitModel, gitModel.Init())
-	test.SimulateModel(gitModel, func() tea.Msg { return intents.GitFilter{Kind: intents.GitFilterFetch} })
-	pushDialog(model, gitModel)
-
-	key := tea.KeyPressMsg{Text: "a", Code: 'a'}
-	result := model.resolver.ResolveKey(key, model.dispatchScopes())
-	assert.Nil(t, result.Intent, "git shortcut keys should bypass bound outer scopes and fall through as raw input")
-	assert.False(t, result.Consumed, "git shortcut key should remain unbound at resolver level")
-
-	cmd := model.Update(key)
-	assert.NotNil(t, cmd, "git model should receive raw shortcut key and produce command")
 }
 
 func Test_Update_GlobalBindingsFromConfigOverrideLegacyGlobalKeys(t *testing.T) {
@@ -771,7 +698,7 @@ func Test_Update_SequencePrefixBeatsSingleKeyBinding(t *testing.T) {
 		config.Current.Bindings = origBindings
 	}()
 	config.Current.Bindings = []config.BindingConfig{
-		{Action: "ui.open_git", Scope: "revisions", Key: config.StringList{"g"}},
+		{Action: "ui.open_oplog", Scope: "revisions", Key: config.StringList{"g"}},
 		{Action: "revset.edit", Scope: "revisions", Seq: config.StringList{"g", "r"}},
 	}
 
@@ -783,7 +710,7 @@ func Test_Update_SequencePrefixBeatsSingleKeyBinding(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	// First key only starts pending sequence, should not trigger open_git.
+	// First key only starts pending sequence, should not trigger open_oplog.
 	model.Update(tea.KeyPressMsg{Text: "g", Code: 'g'})
 	assert.Nil(t, model.dialog())
 
@@ -798,7 +725,7 @@ func Test_Update_PendingSequenceAutoExpandsStatusWithContinuations(t *testing.T)
 		config.Current.Bindings = origBindings
 	}()
 	config.Current.Bindings = []config.BindingConfig{
-		{Action: "ui.open_git", Scope: "revisions", Key: config.StringList{"g"}},
+		{Action: "ui.open_oplog", Scope: "revisions", Key: config.StringList{"g"}},
 		{Action: "revset.edit", Scope: "revisions", Seq: config.StringList{"g", "r"}},
 	}
 
@@ -823,7 +750,7 @@ func Test_Update_PendingSequenceMismatchClearsAutoExpandedStatus(t *testing.T) {
 		config.Current.Bindings = origBindings
 	}()
 	config.Current.Bindings = []config.BindingConfig{
-		{Action: "ui.open_git", Scope: "revisions", Key: config.StringList{"g"}},
+		{Action: "ui.open_oplog", Scope: "revisions", Key: config.StringList{"g"}},
 		{Action: "revset.edit", Scope: "revisions", Seq: config.StringList{"g", "r"}},
 	}
 
@@ -868,44 +795,6 @@ func Test_Update_RevsetEditingInterceptsQuitKey(t *testing.T) {
 		_, quit := msg.(tea.QuitMsg)
 		assert.False(t, quit, "q in revset editing should not dispatch global quit")
 	}
-}
-
-func Test_Update_GitFilterEditingEnterDoesNotTriggerApply(t *testing.T) {
-	origBindings := config.Current.Bindings
-	defer func() {
-		config.Current.Bindings = origBindings
-	}()
-	config.Current.Bindings = []config.BindingConfig{
-		{Action: "git.filter", Scope: "git", Key: config.StringList{"/"}},
-		{Action: "git.apply", Scope: "git", Key: config.StringList{"enter"}},
-		{Action: "ui.cancel", Scope: "ui", Key: config.StringList{"esc"}},
-	}
-
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(""))
-	defer commandRunner.Verify()
-
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
-	gitModel := git.NewModel(ctx, jj.NewSelectedRevisions())
-	test.SimulateModel(gitModel, gitModel.Init())
-	pushDialog(model, gitModel)
-
-	// Start filter editing.
-	model.Update(tea.KeyPressMsg{Text: "/", Code: '/'})
-
-	// Enter while editing applies filter only and must not execute actionApply.
-	model.Update(tea.KeyPressMsg{Text: "f", Code: 'f'})
-	model.Update(tea.KeyPressMsg{Text: "e", Code: 'e'})
-	model.Update(tea.KeyPressMsg{Text: "t", Code: 't'})
-	model.Update(tea.KeyPressMsg{Text: "c", Code: 'c'})
-	model.Update(tea.KeyPressMsg{Text: "h", Code: 'h'})
-	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	assert.Nil(t, cmd, "enter in filter-edit mode should not dispatch apply")
-
-	// Apply should now route through normal git scope after leaving filter-edit mode.
-	_, handled := dispatchAction(model, keybindings.Action("git.apply"), nil)
-	assert.True(t, handled, "apply should dispatch after filter-edit mode")
 }
 
 func pushDialog(m *Model, dialog common.StackedModel) {

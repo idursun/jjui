@@ -9,19 +9,18 @@ func Test_StatusHelpDoesNotShowDormantRevsetScopeInStackedView(t *testing.T) {
 	h := NewHarness(t)
 	h.WriteConfigTOML(`
 [[bindings]]
-action = "ui.open_git"
+action = "ui.open_undo"
 key = "Y"
 scope = "revisions"
-desc = "git"
+desc = "undo"
 `)
 	h.Start("initial")
 
 	h.Key("Y")
-	h.WaitText("Git Operations")
+	h.WaitText("Are you sure you want to undo")
 	h.Text("?")
 	if _, err := h.session.WaitForStableScreen(h.ctx, 3, func(screen []string) bool {
-		return screenContains(screen, "Git") &&
-			statusHasEntry(screen, "tab", "next remote") &&
+		return statusHasEntry(screen, "enter", "apply") &&
 			!screenContains(screen, "Revset") &&
 			!statusHasEntry(screen, "tab", "autocomplete")
 	}); err != nil {
@@ -29,9 +28,11 @@ desc = "git"
 		if snapshotErr != nil {
 			t.Fatalf("could not inspect expanded status help: %v", snapshotErr)
 		}
-		t.Fatalf("expanded git help did not show git actions or included dormant revset help:\n%s", formatScreen(screen))
+		t.Fatalf("expanded undo help did not show undo actions or included dormant revset help:\n%s", formatScreen(screen))
 	}
 
 	h.Key("Escape")
+	h.Key("Escape")
+	h.WaitNoText("Are you sure you want to undo")
 	h.Quit()
 }

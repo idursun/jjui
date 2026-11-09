@@ -106,25 +106,30 @@ func Test_ViewStack_DialogKeysDoNotReachRevisions(t *testing.T) {
 	h := startViewStackRepo(t)
 	h.WriteConfigTOML(`
 [[bindings]]
-action = "ui.open_git"
+action = "ui.open_undo"
 key = "Y"
 scope = "revisions"
-desc = "git"
+desc = "undo"
+
+[[bindings]]
+action = "revisions.new"
+key = "Z"
+scope = "revisions"
+desc = "new"
 `)
 	h.Start("view stack target")
 	before := countRevisions(t, h.Repo(), h.Env())
 
 	h.Key("Y")
-	h.WaitText("Git Operations")
-	// "n" is revisions.new; the git dialog leaves it unbound.
-	h.Key("n")
-	h.WaitStableText("Git Operations", 3)
+	h.WaitText("Are you sure you want to undo")
+	h.Key("Z")
+	h.WaitStableText("Are you sure you want to undo", 3)
 	h.Key("Escape")
-	h.WaitNoText("Git Operations")
+	h.WaitNoText("Are you sure you want to undo")
 	h.WaitMode("revisions")
 
 	if after := countRevisions(t, h.Repo(), h.Env()); after != before {
-		t.Fatalf("key under the git dialog reached revisions: %d revisions, want %d", after, before)
+		t.Fatalf("key under the undo dialog reached revisions: %d revisions, want %d", after, before)
 	}
 	h.Quit()
 }
@@ -160,19 +165,19 @@ func Test_ViewStack_DialogOverDiffClosesFirst(t *testing.T) {
 	h := startViewStackRepo(t)
 	h.WriteConfigTOML(`
 [[bindings]]
-action = "ui.open_git"
+action = "ui.open_undo"
 key = "Y"
 scope = "ui"
-desc = "git"
+desc = "undo"
 `)
 	h.Start("view stack target")
 
 	openTargetDiff(h)
 	h.Key("Y")
-	h.WaitText("Git Operations")
+	h.WaitText("Are you sure you want to undo")
 
 	h.Key("Escape")
-	h.WaitNoText("Git Operations")
+	h.WaitNoText("Are you sure you want to undo")
 	h.WaitMode("diff")
 	h.WaitText("view stack content")
 

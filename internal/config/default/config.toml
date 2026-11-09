@@ -123,6 +123,13 @@ lua = """
  """
 
 [[actions]]
+name = "revisions.show_remotes"
+lua = """
+ jjui.builtin.revset.show_remotes()
+ jjui.builtin.revisions.object_focus({ kind = "bookmark" })
+ """
+
+[[actions]]
 name = "revset.bookmarks.leave"
 lua = """
  jjui.builtin.revset.bookmarks.exit()

@@ -167,21 +167,6 @@ function wait_refresh() end
 ---@field toggle fun()
 ---@field close fun()
 
----@class jjui.git
----@field apply fun()
----@field cancel fun()
----@field cycle_remotes fun()
----@field cycle_remotes_back fun()
----@field fetch fun()
----@field filter fun()
----@field move_down fun()
----@field move_up fun()
----@field page_down fun()
----@field page_up fun()
----@field push fun()
----@field quit fun()
----@field close fun()
-
 ---@class jjui.help
 ---@field apply fun()
 ---@field cancel fun()
@@ -544,6 +529,7 @@ function wait_refresh() end
 ---@field reset fun()
 ---@field set fun(value?: string|{value: string})
 ---@field show_bookmarks fun()
+---@field show_remotes fun()
 ---@field close fun()
 
 ---@class jjui.revset.bookmarks
@@ -594,7 +580,6 @@ function wait_refresh() end
 ---@field expand_status fun()
 ---@field file_search_toggle fun()
 ---@field open_command_history fun()
----@field open_git fun()
 ---@field open_help fun()
 ---@field open_oplog fun()
 ---@field open_redo fun()
@@ -636,7 +621,6 @@ function wait_refresh() end
 ---@field command_history jjui.command_history
 ---@field diff jjui.diff
 ---@field file_search jjui.file_search
----@field git jjui.git
 ---@field help jjui.help
 ---@field input jjui.input
 ---@field oplog jjui.oplog
@@ -666,7 +650,6 @@ function wait_refresh() end
 ---@field command_history jjui.command_history
 ---@field diff jjui.diff
 ---@field file_search jjui.file_search
----@field git jjui.git
 ---@field help jjui.help
 ---@field input jjui.input
 ---@field oplog jjui.oplog

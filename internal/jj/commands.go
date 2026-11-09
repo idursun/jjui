@@ -325,10 +325,6 @@ func Squash(from SelectedRevisions, destination string, files []FileName, keepEm
 	return args
 }
 
-func BookmarkList(revset string) CommandArgs {
-	return []string{"bookmark", "list", "-a", "-r", revset, "--template", allBookmarkTemplate, "--color", "never", "--ignore-working-copy"}
-}
-
 func BookmarkListMovable(revision string) CommandArgs {
 	revsetBefore := fmt.Sprintf("::%s", revision)
 	revsetAfter := fmt.Sprintf("%s::", revision)

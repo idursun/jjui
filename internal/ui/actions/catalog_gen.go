@@ -15,7 +15,6 @@ const (
 	ScopeCommandHistory             = "command_history"
 	ScopeDiff                       = "diff"
 	ScopeFileSearch                 = "file_search"
-	ScopeGit                        = "git"
 	ScopeHelp                       = "help"
 	ScopeInput                      = "input"
 	ScopeOplog                      = "oplog"
@@ -213,33 +212,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.FileSearchPreviewScroll{Kind: intents.PreviewHalfPageUp}, true
 		case keybindings.Action("file_search.toggle"):
 			return intents.FileSearchTogglePreview{}, true
-		}
-	case ScopeGit:
-		switch action {
-		case keybindings.Action("git.apply"):
-			return intents.Apply{}, true
-		case keybindings.Action("git.cancel"):
-			return intents.Cancel{}, true
-		case keybindings.Action("git.cycle_remotes"):
-			return intents.GitCycleRemotes{Delta: 1}, true
-		case keybindings.Action("git.cycle_remotes_back"):
-			return intents.GitCycleRemotes{Delta: -1}, true
-		case keybindings.Action("git.fetch"):
-			return intents.GitFilter{Kind: intents.GitFilterFetch}, true
-		case keybindings.Action("git.filter"):
-			return intents.GitOpenFilter{}, true
-		case keybindings.Action("git.move_down"):
-			return intents.GitNavigate{Delta: 1}, true
-		case keybindings.Action("git.move_up"):
-			return intents.GitNavigate{Delta: -1}, true
-		case keybindings.Action("git.page_down"):
-			return intents.GitNavigate{Delta: 1, IsPage: true}, true
-		case keybindings.Action("git.page_up"):
-			return intents.GitNavigate{Delta: -1, IsPage: true}, true
-		case keybindings.Action("git.push"):
-			return intents.GitFilter{Kind: intents.GitFilterPush}, true
-		case keybindings.Action("git.quit"):
-			return intents.Quit{}, true
 		}
 	case ScopeHelp:
 		switch action {
@@ -817,6 +789,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Set{Value: actionargs.StringArg(args, "value", "")}, true
 		case keybindings.Action("revset.show_bookmarks"):
 			return intents.RevsetBookmarks{}, true
+		case keybindings.Action("revset.show_remotes"):
+			return intents.RevsetBookmarks{FocusRemotes: true}, true
 		}
 	case ScopeRevsetBookmarks:
 		switch action {
@@ -892,8 +866,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.FileSearchToggle{}, true
 		case keybindings.Action("ui.open_command_history"):
 			return intents.CommandHistoryToggle{}, true
-		case keybindings.Action("ui.open_git"):
-			return intents.OpenGit{}, true
 		case keybindings.Action("ui.open_help"):
 			return intents.OpenHelp{}, true
 		case keybindings.Action("ui.open_oplog"):

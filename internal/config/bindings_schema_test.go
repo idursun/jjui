@@ -20,7 +20,7 @@ scope = "revisions.squash"
 key = ["alt+shift+enter"]
 
 [[bindings]]
-action = "ui.open_git"
+action = "ui.open_oplog"
 scope = "revisions"
 seq = ["g", "g"]
 `
@@ -146,7 +146,7 @@ seq = ["g", "x"]
 			name: "binding invalid key and seq together",
 			content: `
 [[bindings]]
-action = "ui.open_git"
+action = "ui.open_oplog"
 scope = "revisions"
 key = ["g"]
 seq = ["g", "f"]
