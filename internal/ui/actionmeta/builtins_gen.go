@@ -193,7 +193,6 @@ var builtInActionScopes = map[string][]string{
 	"revisions.evolog.page_up":                      {"revisions.evolog"},
 	"revisions.evolog.quit":                         {"revisions.evolog"},
 	"revisions.evolog.restore":                      {"revisions.evolog"},
-	"revisions.fetch":                               {"revisions"},
 	"revisions.force_apply":                         {"revisions"},
 	"revisions.force_edit":                          {"revisions"},
 	"revisions.go_to_bottom":                        {"revisions"},

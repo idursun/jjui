@@ -309,8 +309,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.DiffEdit{}, true
 		case keybindings.Action("revisions.edit"):
 			return intents.StartEdit{}, true
-		case keybindings.Action("revisions.fetch"):
-			return intents.RevisionsFetch{}, true
 		case keybindings.Action("revisions.force_apply"):
 			return intents.Apply{Force: true}, true
 		case keybindings.Action("revisions.force_edit"):
