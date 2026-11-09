@@ -892,3 +892,23 @@ func TestModel_PushChangesPushesCheckedRevisionsInOneCommand(t *testing.T) {
 	model.focusedObjectKind = textObjectChangeId
 	runJJCommand(model.Update(intents.FocusedChangePush{}))
 }
+
+func TestModel_ObjectScopeSitsBeforeRevisionsOffTheNode(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+
+	names := func() []string {
+		var ret []string
+		for _, s := range model.Scopes() {
+			ret = append(ret, string(s.Name))
+		}
+		return ret
+	}
+
+	model.Update(intents.RevisionsObjectFocusKind{Kind: textObjectBookmark})
+	got := names()
+	assert.Equal(t, []string{"revisions.bookmark", "revisions.object", "revisions"}, got[:3])
+
+	model.Update(intents.RevisionsObjectNode{})
+	assert.NotContains(t, names(), "revisions.object")
+}

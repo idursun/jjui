@@ -405,6 +405,10 @@ func (m *Model) Scopes() []common.Scope {
 				Name:    bindings.ScopeName(actions.ScopeRevisions + "." + obj.Kind),
 				Leak:    leak,
 				Handler: m,
+			}, common.Scope{
+				Name:    scopeObject,
+				Leak:    leak,
+				Handler: m,
 			})
 		}
 	}
@@ -1702,6 +1706,10 @@ func (m *Model) focusedTextObject() *textObject {
 // scopeObjects holds the keys that move between the text objects of the
 // selected revision.
 const scopeObjects bindings.ScopeName = actions.ScopeRevisions + ".objects"
+
+// scopeObject holds the keys shared by every non-node object kind; it sits
+// before the plain revisions scope so that it beats jump_to_parent.
+const scopeObject bindings.ScopeName = actions.ScopeRevisions + ".object"
 const scopeChangeId bindings.ScopeName = actions.ScopeRevisions + "." + textObjectChangeId
 
 func (m *Model) detailsOpen() bool {
@@ -1765,7 +1773,11 @@ func (m *Model) jumpToObjectKind(kind string, delta int) tea.Cmd {
 	if delta < 0 {
 		direction = "above"
 	}
-	names := map[string]string{textObjectDivergent: "divergent revisions"}
+	names := map[string]string{
+		textObjectDivergent: "divergent revisions",
+		textObjectCommitId:  "commit ids",
+		textObjectChangeId:  "change ids",
+	}
 	name, ok := names[kind]
 	if !ok {
 		name = kind + "s"
