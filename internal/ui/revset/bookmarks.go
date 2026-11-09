@@ -153,8 +153,10 @@ func (m *Model) applyBookmarks() tea.Cmd {
 }
 
 func (m *Model) handleBookmarksIntent(intent intents.Intent) (tea.Cmd, bool) {
-	if _, ok := intent.(intents.RevsetBookmarks); ok {
-		return m.showBookmarks(), true
+	if intent, ok := intent.(intents.RevsetBookmarks); ok {
+		cmd := m.showBookmarks()
+		m.bookmarks.focused = intent.FocusRemotes
+		return cmd, true
 	}
 	v := m.bookmarks
 	if v == nil {

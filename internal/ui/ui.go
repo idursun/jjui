@@ -26,7 +26,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/exec_prompt"
 	"github.com/idursun/jjui/internal/ui/flash"
 	"github.com/idursun/jjui/internal/ui/fuzzy_files"
-	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/help"
 	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -644,8 +643,6 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return nil, false
 
 	// --- Open stacked views ---
-	case intents.OpenGit:
-		return m.openDialog(git.NewModel(m.context, m.revisions.SelectedRevisions())), true
 	case intents.OpLogOpen:
 		model := oplog.New(m.context)
 		m.openScreen(model)
