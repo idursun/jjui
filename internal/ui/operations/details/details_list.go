@@ -243,23 +243,22 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 
 // renderItemContent renders a single item to a string
 func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, index int, match *fileMatch, style lipgloss.Style, selected bool) {
-	// Build title with checkbox
 	title := item.Title()
+	tb.Styled(" ", style)
+	titleStyle := style
 	if item.selected {
-		tb.Styled("✓", style)
-	} else {
-		tb.Styled(" ", style)
+		titleStyle = theme.DefaultPalette.Get("revisions", "", "checked", false).Inherit(style)
 	}
 	if match == nil || match.start == match.end {
-		tb.Styled(title, style)
+		tb.Styled(title, titleStyle)
 	} else {
 		offset := len(title) - len(item.name)
 		start := offset + match.start
 		end := offset + match.end
 		matchStyle := detailsPaletteStyle("matched", selected)
-		tb.Styled(title[:start], style)
+		tb.Styled(title[:start], titleStyle)
 		tb.Styled(title[start:end], matchStyle)
-		tb.Styled(title[end:], style)
+		tb.Styled(title[end:], titleStyle)
 	}
 	tb.Styled(" ", style)
 

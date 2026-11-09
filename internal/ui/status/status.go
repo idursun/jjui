@@ -1,6 +1,7 @@
 package status
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -25,6 +26,7 @@ type Model struct {
 	mode            string
 	statusExpanded  bool
 	statusTruncated bool
+	checkedCount    int
 	conditionCache  map[string]actionmeta.Condition
 }
 
@@ -46,13 +48,14 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	width := box.R.Dx()
 	dl.AddFill(box.R, ' ', textStyle, 0)
 	// without a mode label, indent by the label's left padding to line up with the prompt label above
-	statusLine := textStyle.Render(" ") + m.renderHelpBar(max(0, width-1), textStyle, shortcutStyle, dimmedStyle)
+	prefix := textStyle.Render(" ")
 	if m.mode != "" {
-		modeWidth := max(10, len(m.mode)+2)
-		mode := titleStyle.Width(modeWidth).Render(m.mode)
-		helpBar := m.renderHelpBar(max(0, width-modeWidth-1), textStyle, shortcutStyle, dimmedStyle)
-		statusLine = lipgloss.JoinHorizontal(lipgloss.Left, mode, textStyle.Render(" "), helpBar)
+		prefix = titleStyle.Width(max(10, len(m.mode)+2)).Render(m.mode) + prefix
 	}
+	if m.checkedCount > 0 {
+		prefix += shortcutStyle.Render(fmt.Sprintf("%d checked", m.checkedCount)) + textStyle.Render(" ")
+	}
+	statusLine := prefix + m.renderHelpBar(max(0, width-lipgloss.Width(prefix)), textStyle, shortcutStyle, dimmedStyle)
 	dl.AddDraw(box.R, statusLine, 0)
 	m.renderExpandedStatus(dl, box, width, textStyle, titleStyle, shortcutStyle, dimmedStyle)
 }
@@ -120,6 +123,10 @@ func (m *Model) renderExpandedStatusContent(dl *render.DisplayContext, box layou
 		contentRect := layout.Rect(box.R.Min.X, y, width, 1)
 		dl.AddDraw(contentRect, contentLine, render.ZExpandedStatus)
 	}
+}
+
+func (m *Model) SetCheckedCount(count int) {
+	m.checkedCount = count
 }
 
 func (m *Model) Sync(scopes []common.Scope, sequenceHelp []help.Entry) {

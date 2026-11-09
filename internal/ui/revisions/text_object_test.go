@@ -10,7 +10,6 @@ import (
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
-	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
@@ -353,7 +352,7 @@ func TestModel_FocusedDescriptionEditDescribesOnlyTheFocusedRevision(t *testing.
 	model := New(test.NewTestContext(commandRunner))
 	model.updateGraphRows(rows, "", true)
 	// A checked revision would otherwise be described too.
-	model.toggleCheckedRevision(appContext.SelectedRevision{ChangeId: rows[1].Commit.ChangeId, CommitId: rows[1].Commit.CommitId})
+	model.toggleChecked(checkedRevision(rows[1].Commit))
 	model.focusedObjectKind = textObjectDescription
 	runJJCommand(model.Update(intents.FocusedDescriptionEdit{}))
 }
@@ -635,9 +634,7 @@ func TestModel_ClickingAnObjectFocusesIt(t *testing.T) {
 	assert.Equal(t, ItemClickedMsg{Index: 0, Ctrl: true}, msg, "ctrl-click still checks the revision")
 }
 
-// A checked revision draws "✓ " before its change id, which moves the objects
-// after it two columns right.
-func TestModel_ObjectsOnACheckedRevisionFollowTheCheckbox(t *testing.T) {
+func TestModel_CheckingARevisionDoesNotMoveItsObjects(t *testing.T) {
 	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
 	model.updateGraphRows(textObjectRows(t), "", true)
 	model.Update(intents.RevisionsToggleSelect{})
@@ -649,11 +646,11 @@ func TestModel_ObjectsOnACheckedRevisionFollowTheCheckbox(t *testing.T) {
 
 	cursor := dl.Cursor()
 	require.NotNil(t, cursor)
-	assert.Equal(t, 54, cursor.X, "the bookmark starts at column 52 of the jj output")
+	assert.Equal(t, 52, cursor.X, "the bookmark starts at column 52 of the jj output")
 
-	msg, _ := dl.ProcessMouseEvent(tea.MouseClickMsg{X: 52, Y: 0, Button: tea.MouseLeft})
+	msg, _ := dl.ProcessMouseEvent(tea.MouseClickMsg{X: 50, Y: 0, Button: tea.MouseLeft})
 	assert.Equal(t, ObjectClickedMsg{Index: 0, Kind: textObjectTimestamp}, msg)
-	msg, _ = dl.ProcessMouseEvent(tea.MouseClickMsg{X: 54, Y: 0, Button: tea.MouseLeft})
+	msg, _ = dl.ProcessMouseEvent(tea.MouseClickMsg{X: 52, Y: 0, Button: tea.MouseLeft})
 	assert.Equal(t, ObjectClickedMsg{Index: 0, Kind: textObjectBookmark}, msg)
 }
 
@@ -685,11 +682,10 @@ func checkBookmarksOnTwoRevisions(t *testing.T, commandRunner *test.CommandRunne
 func TestModel_ToggleSelectChecksTheFocusedBookmarkNotItsRevision(t *testing.T) {
 	model := checkBookmarksOnTwoRevisions(t, test.NewTestCommandRunner(t))
 
-	assert.Equal(t, []checkedBookmark{{name: "one"}, {name: "two"}}, model.checkedBookmarks)
-	assert.Empty(t, model.checkedRevisions)
+	assert.Equal(t, []checkedObject{checkedBookmark("one", ""), checkedBookmark("two", "")}, model.checked)
 
 	model.Update(intents.RevisionsToggleSelect{})
-	assert.Equal(t, []checkedBookmark{{name: "one"}}, model.checkedBookmarks)
+	assert.Equal(t, []checkedObject{checkedBookmark("one", "")}, model.checked)
 }
 
 func TestModel_RevisionActionsResolveCheckedBookmarksToTheirRevisions(t *testing.T) {
@@ -739,9 +735,9 @@ func TestModel_BookmarkPushRunsOncePerRemote(t *testing.T) {
 func TestModel_RefreshClearsCheckedBookmarksUnlessKept(t *testing.T) {
 	model := checkBookmarksOnTwoRevisions(t, test.NewTestCommandRunner(t))
 	model.refresh(intents.Refresh{KeepSelections: true})
-	assert.Len(t, model.checkedBookmarks, 2)
+	assert.Len(t, model.checked, 2)
 	model.refresh(intents.Refresh{})
-	assert.Empty(t, model.checkedBookmarks)
+	assert.Empty(t, model.checked)
 }
 
 func TestModel_BookmarkAdvanceAppliesToCheckedLocalBookmarks(t *testing.T) {
@@ -786,4 +782,66 @@ func TestModel_BookmarkMoveOnlyRemoteBookmarksShowsMessage(t *testing.T) {
 
 	_, isMessage := model.Update(intents.FocusedBookmarkMove{})().(intents.AddMessage)
 	assert.True(t, isMessage)
+}
+
+func TestModel_CheckedTargetsKeepCheckOrderAcrossKinds(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(jumpRows(t, jumpLogRow("a", "one")+jumpLogRow("b", "two")), "", true)
+	model.toggleChecked(checkedBookmark("two", ""))
+	model.toggleChecked(checkedRevision(model.rows[0].Commit))
+
+	commits := model.checkedTargetCommits()
+	require.Len(t, commits, 2)
+	assert.Equal(t, model.rows[1].Commit.CommitId, commits[0].CommitId)
+	assert.Equal(t, model.rows[0].Commit.CommitId, commits[1].CommitId)
+	assert.Equal(t, 2, model.CheckedCount())
+}
+
+func checkDescriptionsAndAuthorsOnTwoRevisions(t *testing.T, commandRunner *test.CommandRunner) *Model {
+	description := func(text string) string {
+		return "│  <<log commit mutable description first_line::" + text + ">><<log commit mutable::>>\n"
+	}
+	author := "<<log commit mutable author email local::me>><<log commit mutable:: >>"
+	header := func(changeId string) string {
+		return "<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::" + changeId + ">><<log commit mutable:: >>" +
+			author + "<<log commit mutable commit_id shortest prefix::" + changeId + "0>><<log commit mutable::>>\n"
+	}
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(jumpRows(t, header("a")+description("x")+header("b")+description("y")), "", true)
+	for _, kind := range []string{textObjectDescription, textObjectAuthor} {
+		model.focusedObjectKind, model.focusedObjectIndex = kind, 0
+		for cursor := range model.rows {
+			model.cursor = cursor
+			model.Update(intents.RevisionsToggleSelect{})
+		}
+	}
+	return model
+}
+
+func TestModel_DescriptionEditAppliesToCheckedDescriptions(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	model := checkDescriptionsAndAuthorsOnTwoRevisions(t, commandRunner)
+	commandRunner.Expect(jj.Describe(jj.NewSelectedRevisions(model.rows[0].Commit, model.rows[1].Commit)))
+	defer commandRunner.Verify()
+
+	model.focusedObjectKind = textObjectDescription
+	runJJCommand(model.Update(intents.FocusedDescriptionEdit{}))
+}
+
+func TestModel_AuthorResetAppliesToCheckedAuthors(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.MetaeditUpdateAuthor("a", "b"))
+	defer commandRunner.Verify()
+
+	runJJCommand(checkDescriptionsAndAuthorsOnTwoRevisions(t, commandRunner).Update(intents.FocusedAuthorReset{}))
+}
+
+func TestModel_RevisionActionsResolveCheckedDescriptions(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectDescription
+	model.Update(intents.RevisionsToggleSelect{})
+
+	assert.Equal(t, []checkedObject{{kind: textObjectDescription, commitId: model.rows[0].Commit.CommitId}}, model.checked)
+	require.Len(t, model.SelectedRevisions().Revisions, 1)
 }

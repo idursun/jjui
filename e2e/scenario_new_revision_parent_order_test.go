@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -24,11 +25,11 @@ func Test_Revisions_NewRevisionKeepsSelectionOrderForParents(t *testing.T) {
 	h.Key("j")
 	h.Key("j")
 	h.Key(" ")
-	waitForCheckedRevisions(h, "older")
+	waitForCheckedCount(h, 1)
 	h.Key("k")
 	h.Key("k")
 	h.Key(" ")
-	waitForCheckedRevisions(h, "newer", "older")
+	waitForCheckedCount(h, 2)
 	h.Key("n")
 
 	var parents string
@@ -49,28 +50,13 @@ func Test_Revisions_NewRevisionKeepsSelectionOrderForParents(t *testing.T) {
 	h.Quit()
 }
 
-// The checkmark is on the header row, directly above the description.
-func waitForCheckedRevisions(h *Harness, descriptions ...string) {
+func waitForCheckedCount(h *Harness, count int) {
 	h.t.Helper()
+	want := fmt.Sprintf("%d checked", count)
 	_, err := h.session.WaitForStableScreen(h.ctx, 3, func(screen []string) bool {
-		checked := 0
-		for _, row := range screen {
-			if strings.Contains(row, "✓") {
-				checked++
-			}
-		}
-		if checked != len(descriptions) {
-			return false
-		}
-		for _, description := range descriptions {
-			row := screenRowIndexContaining(screen, description)
-			if row < 1 || !strings.Contains(screen[row-1], "✓") {
-				return false
-			}
-		}
-		return true
+		return screenContains(screen, want)
 	})
 	if err != nil {
-		h.t.Fatalf("waiting for checked revisions %q: %v", descriptions, err)
+		h.t.Fatalf("waiting for %q: %v", want, err)
 	}
 }

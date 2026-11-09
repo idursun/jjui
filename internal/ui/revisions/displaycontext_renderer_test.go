@@ -69,7 +69,6 @@ func TestDisplayContextRenderer_DetailsRendersBeforeElidedMarker(t *testing.T) {
 
 	// Render just the target row with the details operation active.
 	r := NewDisplayContextRenderer()
-	r.SetSelections(nil)
 
 	width, height := 100, 15
 	dl := render.NewDisplayContext()
@@ -165,7 +164,6 @@ func TestDisplayContextRenderer_SingleRowDescriptionOverlay(t *testing.T) {
 	op := describe.NewOperation(ctx, targetRow.Commit)
 
 	r := NewDisplayContextRenderer()
-	r.SetSelections(nil)
 	r.selectedStyle = lipgloss.NewStyle().Background(lipgloss.Color("4"))
 
 	width, height := 70, 10

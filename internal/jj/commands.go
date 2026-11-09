@@ -247,16 +247,24 @@ func AbandonCommit(commitId string) CommandArgs {
 	return []string{"abandon", "--retain-bookmarks", commitId}
 }
 
-func MetaeditUpdateAuthor(revision string) CommandArgs {
-	return []string{"metaedit", "--update-author", "-r", revision}
+func MetaeditUpdateAuthor(revisions ...string) CommandArgs {
+	return append([]string{"metaedit", "--update-author"}, revisionFlags(revisions)...)
 }
 
 func MetaeditUpdateChangeId(revision string) CommandArgs {
 	return []string{"metaedit", "--update-change-id", "-r", revision}
 }
 
-func MetaeditUpdateAuthorTimestamp(revision string) CommandArgs {
-	return []string{"metaedit", "--update-author-timestamp", "-r", revision}
+func MetaeditUpdateAuthorTimestamp(revisions ...string) CommandArgs {
+	return append([]string{"metaedit", "--update-author-timestamp"}, revisionFlags(revisions)...)
+}
+
+func revisionFlags(revisions []string) []string {
+	flags := make([]string, 0, 2*len(revisions))
+	for _, revision := range revisions {
+		flags = append(flags, "-r", revision)
+	}
+	return flags
 }
 
 func BookmarkForget(names ...string) CommandArgs {

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -62,8 +64,10 @@ func screenContains(screen []string, want string) bool {
 	return false
 }
 
-func screenContainsCheckmark(screen []string) bool {
-	return screenContains(screen, "✓")
+var checkedCountPattern = regexp.MustCompile(`\d+ checked`)
+
+func screenContainsCheckedCount(screen []string) bool {
+	return slices.ContainsFunc(screen, checkedCountPattern.MatchString)
 }
 
 func screenRowIndexContaining(screen []string, want string) int {

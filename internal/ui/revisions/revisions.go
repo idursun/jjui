@@ -76,9 +76,7 @@ type Model struct {
 	// pendingObjectJump is the object kind a jump keeps looking for once
 	// more rows are loaded.
 	pendingObjectJump string
-	checkedRevisions  map[string]appContext.SelectedRevision
-	checkedOrder      []string // commit ids in the order they were checked
-	checkedBookmarks  []checkedBookmark
+	checked           []checkedObject // in the order they were checked
 	focused           bool
 	// focusedObjectKind and focusedObjectIndex are the text object the user
 	// moved to; rows without such an object fall back to the node.
@@ -200,7 +198,7 @@ func (m *Model) QueryState(name string) (any, bool) {
 	case "has_selection":
 		return len(m.SelectedRevisions().Revisions) > 0, true
 	case "has_checked":
-		return len(m.checkedRevisions) > 0 || len(m.checkedBookmarks) > 0, true
+		return len(m.checked) > 0, true
 	case "is_root":
 		return selected != nil && selected.IsRoot(), true
 	case "has_parent":
@@ -500,30 +498,32 @@ func revsetSymbol(name string) string {
 	return name
 }
 
-// checkedCommits keeps selection order; `jj new` uses it as the parent order.
-func (m *Model) checkedCommits() []*jj.Commit {
+// checkedTargetCommits resolves the checked objects to their revisions in the
+// order they were checked; `jj new` uses it as the parent order.
+func (m *Model) checkedTargetCommits() []*jj.Commit {
+	if len(m.checked) == 0 {
+		return nil
+	}
 	loaded := make(map[string]*jj.Commit, len(m.rows))
 	for _, row := range m.rows {
 		if row.Commit != nil {
 			loaded[row.Commit.CommitId] = row.Commit
 		}
 	}
+	bookmarks := m.checkedBookmarkRows()
 	var commits []*jj.Commit
-	for _, commitId := range m.checkedOrder {
-		if commit, ok := loaded[commitId]; ok {
+	add := func(commit *jj.Commit) {
+		if commit != nil && !slices.ContainsFunc(commits, func(c *jj.Commit) bool { return c.CommitId == commit.CommitId }) {
 			commits = append(commits, commit)
 		}
 	}
-	return commits
-}
-
-// checkedTargetCommits adds the revisions that checked bookmarks point at to
-// the checked revisions.
-func (m *Model) checkedTargetCommits() []*jj.Commit {
-	commits := m.checkedCommits()
-	for _, bookmark := range m.loadedCheckedBookmarks() {
-		if !slices.ContainsFunc(commits, func(c *jj.Commit) bool { return c.CommitId == bookmark.commit.CommitId }) {
-			commits = append(commits, bookmark.commit)
+	for _, object := range m.checked {
+		if object.kind != textObjectBookmark {
+			add(loaded[object.commitId])
+			continue
+		}
+		for _, bookmark := range bookmarks[object] {
+			add(bookmark.commit)
 		}
 	}
 	return commits
@@ -533,39 +533,31 @@ func (m *Model) checkedRevisionItems() []common.SelectedItem {
 	commits := m.checkedTargetCommits()
 	items := make([]common.SelectedItem, 0, len(commits))
 	for _, commit := range commits {
-		item, ok := m.checkedRevisions[commit.CommitId]
-		if !ok {
-			item = appContext.SelectedRevision{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId}
-		}
-		items = append(items, item)
+		items = append(items, appContext.SelectedRevision{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId})
 	}
 	return items
 }
 
-func (m *Model) checkedRevisionMap() map[string]bool {
-	selected := make(map[string]bool, len(m.checkedRevisions))
-	for _, item := range m.checkedRevisions {
-		selected[item.ChangeId] = true
-	}
-	return selected
-}
-
-func (m *Model) toggleCheckedRevision(item appContext.SelectedRevision) {
-	if _, ok := m.checkedRevisions[item.CommitId]; ok {
-		delete(m.checkedRevisions, item.CommitId)
-		m.checkedOrder = slices.DeleteFunc(m.checkedOrder, func(commitId string) bool {
-			return commitId == item.CommitId
-		})
+func (m *Model) toggleChecked(object checkedObject) {
+	if i := slices.Index(m.checked, object); i >= 0 {
+		m.checked = slices.Delete(m.checked, i, i+1)
 		return
 	}
-	m.checkedRevisions[item.CommitId] = item
-	m.checkedOrder = append(m.checkedOrder, item.CommitId)
+	m.checked = append(m.checked, object)
 }
 
 func (m *Model) clearChecked() {
-	clear(m.checkedRevisions)
-	m.checkedOrder = nil
-	m.checkedBookmarks = nil
+	m.checked = nil
+}
+
+// CheckedCount is the number of checked objects, including files checked in
+// the active operation.
+func (m *Model) CheckedCount() int {
+	count := len(m.checked)
+	if provider, ok := m.activeModel().(common.SelectionProvider); ok {
+		count += len(provider.Selection().Checked)
+	}
+	return count
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -600,8 +592,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case msg.Ctrl:
 			m.SetCursor(msg.Index)
 			if commit := m.rows[msg.Index].Commit; commit != nil {
-				item := appContext.SelectedRevision{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId}
-				m.toggleCheckedRevision(item)
+				m.toggleChecked(checkedRevision(commit))
 			}
 		default:
 			m.SetCursor(msg.Index)
@@ -876,7 +867,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			}
 		}
 		// Clear checked items and reset to default operation
-		if len(m.checkedRevisions) > 0 || len(m.checkedBookmarks) > 0 || !m.InNormalMode() {
+		if len(m.checked) > 0 || !m.InNormalMode() {
 			m.clearChecked()
 			m.resetOperations()
 			return nil, true
@@ -937,17 +928,17 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.OpenSetBookmark:
 		return m.startBookmarkSet(intent), true
 	case intents.RevisionsToggleSelect:
-		if obj := m.focusedTextObject(); obj != nil && obj.Kind == textObjectBookmark {
-			m.toggleCheckedBookmark(obj)
-			return nil, true
-		}
 		commit := m.SelectedRevision()
 		if commit == nil {
 			return nil, true
 		}
-		changeId := commit.GetChangeId()
-		item := appContext.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
-		m.toggleCheckedRevision(item)
+		if obj := m.focusedTextObject(); obj != nil {
+			if object, ok := checkedObjectFor(*obj, commit); ok {
+				m.toggleChecked(object)
+				return nil, true
+			}
+		}
+		m.toggleChecked(checkedRevision(commit))
 		return nil, true
 	case intents.Navigate:
 		return m.navigate(intent), true
@@ -995,9 +986,9 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.FocusedBookmarkPush:
 		return m.pushBookmarks(), true
 	case intents.FocusedAuthorReset:
-		return m.runOnFocusedRevision(textObjectAuthor, jj.MetaeditUpdateAuthor), true
+		return m.runOnRevisionParts(textObjectAuthor, jj.MetaeditUpdateAuthor), true
 	case intents.FocusedTimestampReset:
-		return m.runOnFocusedRevision(textObjectTimestamp, jj.MetaeditUpdateAuthorTimestamp), true
+		return m.runOnRevisionParts(textObjectTimestamp, jj.MetaeditUpdateAuthorTimestamp), true
 	case intents.FocusedDivergentShowAll:
 		return m.showAllDivergentCopies(), true
 	case intents.FocusedDivergentAbandon:
@@ -1005,7 +996,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.FocusedDivergentUpdateChangeId:
 		return m.runOnFocusedCommit(textObjectDivergent, jj.MetaeditUpdateChangeId), true
 	case intents.FocusedDescriptionEdit:
-		return m.describeFocusedRevision(), true
+		return m.describeRevisionParts(), true
 	case intents.GoToTop:
 		return m.goToTop(), true
 	case intents.GoToBottom:
@@ -1481,6 +1472,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.displayContextRenderer.selectedStyle = selectedStyle
 	m.displayContextRenderer.matchedStyle = matchedStyle
 	m.displayContextRenderer.objectStyle = theme.DefaultPalette.Get("revisions", "", "object", true)
+	m.displayContextRenderer.checkedStyle = theme.DefaultPalette.Get("revisions", "", "checked", false)
 
 	dl.AddInteraction(box.R, PaneClickedMsg{}, render.InteractionClick, -1)
 
@@ -1495,9 +1487,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
-	// Set selections
-	m.displayContextRenderer.SetSelections(m.checkedRevisionMap())
-	m.displayContextRenderer.checkedBookmarks = m.checkedBookmarks
+	m.displayContextRenderer.checked = m.checked
 	m.displayContextRenderer.SetSelectionFocused(m.focused)
 
 	renderOp := m.baseOperation()
@@ -1659,14 +1649,13 @@ func (m *Model) RevealRevision(revision string) tea.Cmd {
 
 func New(c *appContext.MainContext) *Model {
 	m := Model{
-		context:          c,
-		rows:             nil,
-		offScreenRows:    nil,
-		baseOp:           operations.NewDefault(),
-		layers:           nil,
-		cursor:           0,
-		checkedRevisions: make(map[string]appContext.SelectedRevision),
-		focused:          true,
+		context:       c,
+		rows:          nil,
+		offScreenRows: nil,
+		baseOp:        operations.NewDefault(),
+		layers:        nil,
+		cursor:        0,
+		focused:       true,
 	}
 	m.displayContextRenderer = NewDisplayContextRenderer()
 	return &m
@@ -1678,8 +1667,7 @@ func (m *Model) rangeSelect(to int) {
 	for i := lo; i <= hi; i++ {
 		if i >= 0 && i < len(m.rows) {
 			if commit := m.rows[i].Commit; commit != nil {
-				item := appContext.SelectedRevision{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId}
-				m.toggleCheckedRevision(item)
+				m.toggleChecked(checkedRevision(commit))
 			}
 		}
 	}
@@ -1785,11 +1773,14 @@ func (m *Model) moveObjectFocus(delta int) {
 	m.focusedObjectKind, m.focusedObjectIndex = objects[next].Kind, objects[next].Index
 }
 
-func (m *Model) runOnFocusedRevision(kind string, command func(string) jj.CommandArgs) tea.Cmd {
-	obj := m.focusedTextObject()
-	revision := m.SelectedRevision()
-	if obj == nil || obj.Kind != kind || revision == nil {
+func (m *Model) runOnRevisionParts(kind string, command func(...string) jj.CommandArgs) tea.Cmd {
+	commits := m.revisionPartTargets(kind)
+	if len(commits) == 0 {
 		return nil
 	}
-	return m.context.RunCommand(command(revision.GetChangeId()), common.Refresh)
+	revisions := make([]string, len(commits))
+	for i, commit := range commits {
+		revisions[i] = commit.GetChangeId()
+	}
+	return m.context.RunCommand(command(revisions...), common.Refresh)
 }
