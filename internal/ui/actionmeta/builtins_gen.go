@@ -214,6 +214,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.new_between.toggle_insert_before":    {"revisions.new_between"},
 	"revisions.object.jump_next":                    {"revisions.object"},
 	"revisions.object.jump_prev":                    {"revisions.object"},
+	"revisions.object_cycle":                        {"revisions"},
 	"revisions.object_focus":                        {"revisions"},
 	"revisions.object_next":                         {"revisions"},
 	"revisions.object_node":                         {"revisions"},
@@ -375,6 +376,7 @@ var builtInActionConditions = map[string]string{
 	"revisions.force_edit":                      "revisions.has_revision",
 	"revisions.jump_to_children":                "revisions.has_revision",
 	"revisions.jump_to_parent":                  "revisions.has_selection && revisions.has_parent",
+	"revisions.object_cycle":                    "revisions.has_revision",
 	"revisions.object_next":                     "revisions.has_revision",
 	"revisions.object_node":                     "revisions.has_revision",
 	"revisions.object_prev":                     "revisions.has_revision",
@@ -442,6 +444,9 @@ var builtInActionArgSchemas = map[string]map[string]string{
 	"revisions.inline_describe.confirmation.apply": {
 		"force": "bool",
 	},
+	"revisions.object_cycle": {
+		"kind": "string",
+	},
 	"revisions.object_focus": {
 		"kind": "string",
 	},
@@ -488,6 +493,7 @@ var builtInActionRequiredArgs = map[string][]string{
 	"revisions.details.select_file":      {"file"},
 	"revisions.diff_range.target_picker": {"target"},
 	"revisions.duplicate.set_target":     {"target"},
+	"revisions.object_cycle":             {"kind"},
 	"revisions.object_focus":             {"kind"},
 	"revisions.rebase.set_source":        {"source"},
 	"revisions.rebase.set_target":        {"target"},

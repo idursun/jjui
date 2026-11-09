@@ -1003,3 +1003,52 @@ func TestModel_FileChecksAreDroppedWhenDetailsClose(t *testing.T) {
 		})
 	}
 }
+
+func TestModel_ObjectCycleKindFocusesFirstThenCyclesWithWrapAround(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+
+	_, handled := model.HandleIntent(intents.RevisionsObjectCycleKind{Kind: textObjectBookmark})
+	assert.True(t, handled)
+	assert.Equal(t, textObjectBookmark, model.focusedObjectKind)
+	assert.Equal(t, 0, model.focusedObjectIndex)
+
+	model.HandleIntent(intents.RevisionsObjectCycleKind{Kind: textObjectBookmark})
+	assert.Equal(t, 1, model.focusedObjectIndex)
+
+	model.HandleIntent(intents.RevisionsObjectCycleKind{Kind: textObjectBookmark})
+	assert.Equal(t, 0, model.focusedObjectIndex)
+}
+
+func TestModel_ObjectCycleKindStartsAtFirstWhenAnotherKindIsFocused(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind, model.focusedObjectIndex = textObjectAuthor, 0
+
+	model.HandleIntent(intents.RevisionsObjectCycleKind{Kind: textObjectBookmark})
+	assert.Equal(t, textObjectBookmark, model.focusedObjectKind)
+	assert.Equal(t, 0, model.focusedObjectIndex)
+}
+
+func TestModel_ObjectCycleKindWithoutMatchKeepsFocusAndReportsIt(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind, model.focusedObjectIndex = textObjectAuthor, 0
+
+	cmd, handled := model.HandleIntent(intents.RevisionsObjectCycleKind{Kind: textObjectTag})
+	assert.True(t, handled)
+	assert.Equal(t, textObjectAuthor, model.focusedObjectKind)
+	require.NotNil(t, cmd)
+	invoke, ok := cmd().(intents.Intent)
+	require.True(t, ok)
+	assert.Equal(t, intents.AddMessage{Text: "No tag on this revision"}, invoke)
+}
+
+func TestModel_ObjectFocusKindDoesNotCycle(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+
+	model.HandleIntent(intents.RevisionsObjectFocusKind{Kind: textObjectBookmark})
+	model.HandleIntent(intents.RevisionsObjectFocusKind{Kind: textObjectBookmark})
+	assert.Equal(t, 0, model.focusedObjectIndex)
+}

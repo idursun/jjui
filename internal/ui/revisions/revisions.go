@@ -193,6 +193,9 @@ func (m *Model) QueryState(name string) (any, bool) {
 	switch name {
 	case "has_revision":
 		return selected != nil, true
+	case "files_focused":
+		op, ok := m.baseOperation().(*details.Operation)
+		return ok && op.FileFocused(), true
 	case "at_top":
 		return m.cursor == 0, true
 	case "has_selection":
@@ -1015,6 +1018,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.RevisionsObjectFocusKind:
 		m.focusedObjectKind, m.focusedObjectIndex = intent.Kind, 0
 		return nil, true
+	case intents.RevisionsObjectCycleKind:
+		return m.cycleObjectKind(intent.Kind), true
 	case intents.FocusedBookmarkRename:
 		return m.renameFocusedBookmark(), true
 	case intents.FocusedBookmarkMove:
@@ -1811,6 +1816,37 @@ func (m *Model) jumpToObjectKind(kind string, delta int) tea.Cmd {
 		name = kind + "s"
 	}
 	return intents.Invoke(intents.AddMessage{Text: "No more " + name + " " + direction})
+}
+
+// cycleObjectKind focuses the first object of the kind on the current row, or
+// the next one when that kind is already focused.
+func (m *Model) cycleObjectKind(kind string) tea.Cmd {
+	if m.cursor < 0 || m.cursor >= len(m.rows) {
+		return nil
+	}
+	var matches []textObject
+	for _, o := range textObjectsForRow(m.rows[m.cursor]) {
+		if o.Kind == kind {
+			matches = append(matches, o)
+		}
+	}
+	if len(matches) == 0 {
+		names := map[string]string{
+			textObjectChangeId: "change id", textObjectCommitId: "commit id",
+			textObjectDivergent: "divergent change", textObjectConflict: "conflict",
+		}
+		name, ok := names[kind]
+		if !ok {
+			name = kind
+		}
+		return intents.Invoke(intents.AddMessage{Text: "No " + name + " on this revision"})
+	}
+	next := 0
+	if obj := m.focusedTextObject(); obj != nil && obj.Kind == kind {
+		next = (obj.Index + 1) % len(matches)
+	}
+	m.focusedObjectKind, m.focusedObjectIndex = kind, matches[next].Index
+	return m.syncDetails()
 }
 
 func (m *Model) moveObjectFocus(delta int) {
