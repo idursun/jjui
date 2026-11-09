@@ -27,12 +27,38 @@ var commit = &jj.Commit{
 	CommitId: revision,
 }
 
+type fakeChecks struct {
+	checked map[string]bool
+	toggles []string
+}
+
+func newFakeChecks() *fakeChecks { return &fakeChecks{checked: map[string]bool{}} }
+
+func (f *fakeChecks) fileChecks() FileChecks {
+	return FileChecks{IsChecked: f.isChecked, Toggle: f.toggle}
+}
+
+func (f *fakeChecks) isChecked(changeId string, file jj.FileName) bool {
+	return f.checked[changeId+"/"+file.Path()]
+}
+
+func (f *fakeChecks) toggle(changeId string, file jj.FileName) {
+	key := changeId + "/" + file.Path()
+	f.checked[key] = !f.checked[key]
+	f.toggles = append(f.toggles, key)
+}
+
 func loadOperation(t *testing.T, commandRunner *test.CommandRunner, output string) *Operation {
+	t.Helper()
+	return loadOperationWith(t, commandRunner, output, newFakeChecks())
+}
+
+func loadOperationWith(t *testing.T, commandRunner *test.CommandRunner, output string, checks *fakeChecks) *Operation {
 	t.Helper()
 	commandRunner.Expect(jj.Snapshot())
 	commandRunner.Expect(jj.Status(revision)).SetOutput([]byte(output))
 
-	operation := NewOperation(test.NewTestContext(commandRunner), commit)
+	operation := NewOperation(test.NewTestContext(commandRunner), commit, checks.fileChecks())
 	test.SimulateModel(operation, operation.Init())
 	operation.navigate(1, false)
 	return operation
@@ -43,7 +69,7 @@ func TestOperation_OpensOnTheChangeIdAndMovesThroughFiles(t *testing.T) {
 	t.Cleanup(commandRunner.Verify)
 	commandRunner.Expect(jj.Snapshot())
 	commandRunner.Expect(jj.Status(revision)).SetOutput([]byte(statusOutput))
-	operation := NewOperation(test.NewTestContext(commandRunner), commit)
+	operation := NewOperation(test.NewTestContext(commandRunner), commit, newFakeChecks().fileChecks())
 	test.SimulateModel(operation, operation.Init())
 
 	assert.False(t, operation.FileFocused())
@@ -84,7 +110,7 @@ func TestOperation_RefreshKeepsTheFocusOnTheChangeId(t *testing.T) {
 	operation := loadOperation(t, commandRunner, statusOutput)
 	operation.LeaveFiles()
 
-	operation.setItems(operation.createListItems(statusOutput, nil))
+	operation.setItems(operation.createListItems(statusOutput))
 
 	assert.False(t, operation.FileFocused())
 }
@@ -169,27 +195,29 @@ func TestOperation_Split(t *testing.T) {
 func TestOperation_InvertSelection(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	t.Cleanup(commandRunner.Verify)
-	operation := loadOperation(t, commandRunner, statusOutput)
+	checks := newFakeChecks()
+	operation := loadOperationWith(t, commandRunner, statusOutput, checks)
 
 	_, handled := operation.HandleIntent(intents.DetailsInvertSelection{})
 	require.True(t, handled)
-	assert.False(t, operation.files[0].selected)
-	assert.True(t, operation.files[1].selected)
+	assert.False(t, checks.checked[revision+"/file.txt"])
+	assert.True(t, checks.checked[revision+"/newfile.txt"])
 	assert.Equal(t, []jj.FileName{jj.NewFileName("newfile.txt")}, operation.getSelectedFiles(true))
 
 	_, handled = operation.HandleIntent(intents.DetailsInvertSelection{})
 	require.True(t, handled)
-	assert.True(t, operation.files[0].selected)
-	assert.False(t, operation.files[1].selected)
+	assert.True(t, checks.checked[revision+"/file.txt"])
+	assert.False(t, checks.checked[revision+"/newfile.txt"])
 	assert.Equal(t, []jj.FileName{jj.NewFileName("file.txt")}, operation.getSelectedFiles(true))
 }
 
 func TestOperation_InvertSelectionTreatsEmptySelectionAsVirtual(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	t.Cleanup(commandRunner.Verify)
-	operation := loadOperation(t, commandRunner, statusOutput)
-	operation.files[0].selected = true
-	operation.files[1].selected = true
+	checks := newFakeChecks()
+	operation := loadOperationWith(t, commandRunner, statusOutput, checks)
+	checks.checked[revision+"/file.txt"] = true
+	checks.checked[revision+"/newfile.txt"] = true
 
 	_, handled := operation.HandleIntent(intents.DetailsInvertSelection{})
 	require.True(t, handled)
@@ -199,27 +227,67 @@ func TestOperation_InvertSelectionTreatsEmptySelectionAsVirtual(t *testing.T) {
 func TestOperation_InvertSelectionIncludesFilteredOutFiles(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	t.Cleanup(commandRunner.Verify)
-	operation := loadOperation(t, commandRunner, statusOutput)
+	checks := newFakeChecks()
+	operation := loadOperationWith(t, commandRunner, statusOutput, checks)
 	operation.setFilter("new", true)
 
 	_, handled := operation.HandleIntent(intents.DetailsInvertSelection{})
 	require.True(t, handled)
-	assert.True(t, operation.files[0].selected)
-	assert.False(t, operation.files[1].selected)
+	assert.True(t, checks.checked[revision+"/file.txt"])
+	assert.False(t, checks.checked[revision+"/newfile.txt"])
 	assert.Equal(t, []jj.FileName{jj.NewFileName("file.txt")}, operation.getSelectedFiles(true))
 }
 
 func TestOperation_RefreshPreservesCheckedButNotHighlightedFile(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	t.Cleanup(commandRunner.Verify)
-	operation := loadOperation(t, commandRunner, statusOutput)
+	checks := newFakeChecks()
+	operation := loadOperationWith(t, commandRunner, statusOutput, checks)
 
 	test.SimulateModel(operation, func() tea.Msg { return intents.DetailsToggleSelect{} })
 	require.Equal(t, 1, operation.cursor)
 	test.SimulateModel(operation, common.Refresh)
 
-	assert.True(t, operation.files[0].selected)
-	assert.False(t, operation.files[1].selected)
+	assert.True(t, checks.checked[revision+"/file.txt"])
+	assert.False(t, checks.checked[revision+"/newfile.txt"])
+	assert.Equal(t, []jj.FileName{jj.NewFileName("file.txt")}, operation.getSelectedFiles(false))
+	assert.Equal(t, []string{revision + "/file.txt"}, checks.toggles, "a reload must not write to the store")
+}
+
+func TestOperation_TogglesUseTheDisplayedChangeId(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	t.Cleanup(commandRunner.Verify)
+	checks := newFakeChecks()
+	operation := loadOperationWith(t, commandRunner, statusOutput, checks)
+
+	commandRunner.Expect(jj.Status("other")).SetOutput([]byte(statusOutput))
+	test.SimulateModel(operation, func() tea.Msg {
+		return common.SelectionChangedMsg{Item: common.SelectedRevision{ChangeId: "other", CommitId: "other-commit"}}
+	})
+	operation.navigate(1, false)
+	test.SimulateModel(operation, func() tea.Msg { return intents.DetailsToggleSelect{} })
+
+	assert.Equal(t, []string{"other/newfile.txt"}, checks.toggles)
+}
+
+func TestOperation_OnlyTheDisplayedRevisionsChecksAreUsed(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	t.Cleanup(commandRunner.Verify)
+	checks := newFakeChecks()
+	checks.checked["other/file.txt"] = true
+	checks.checked[revision+"/newfile.txt"] = true
+	commandRunner.Expect(jj.Split(revision, []jj.FileName{jj.NewFileName("newfile.txt")}, false, false))
+	commandRunner.Expect(jj.Restore(revision, []jj.FileName{jj.NewFileName("newfile.txt")}, false))
+	operation := loadOperationWith(t, commandRunner, statusOutput, checks)
+
+	require.Len(t, operation.Selection().Checked, 1)
+	assert.Equal(t, "newfile.txt", operation.Selection().Checked[0].(uiContext.SelectedFile).File.Path())
+
+	test.SimulateModel(operation, func() tea.Msg { return intents.DetailsSplit{} })
+	test.SimulateModel(operation, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
+	test.SimulateModel(operation, func() tea.Msg { return confirmation.CloseMsg{} })
+	test.SimulateModel(operation, func() tea.Msg { return intents.DetailsRestore{} })
+	test.SimulateModel(operation, func() tea.Msg { return confirmation.SelectOptionMsg{Index: 0} })
 }
 
 func TestOperation_HandleIntentUpdatesSelectionAfterNavigation(t *testing.T) {
@@ -273,9 +341,9 @@ func TestOperation_FilterLifecycle(t *testing.T) {
 func TestOperation_FilterKeepsHiddenCheckedFilesInActions(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	t.Cleanup(commandRunner.Verify)
-	operation := loadOperation(t, commandRunner, statusOutput)
-
-	operation.files[0].selected = true
+	checks := newFakeChecks()
+	operation := loadOperationWith(t, commandRunner, statusOutput, checks)
+	checks.checked[revision+"/file.txt"] = true
 	operation.setFilter("new", true)
 
 	assert.Equal(t, []jj.FileName{jj.NewFileName("file.txt")}, operation.getSelectedFiles(true))
@@ -307,7 +375,7 @@ func TestOperation_FilterNoMatchesRendersInsideDetails(t *testing.T) {
 }
 
 func TestOperation_createListItems(t *testing.T) {
-	operation := NewOperation(test.NewTestContext(test.NewTestCommandRunner(t)), commit)
+	operation := NewOperation(test.NewTestContext(test.NewTestCommandRunner(t)), commit, newFakeChecks().fileChecks())
 	content := `true false true false true $
 A added.txt
 D deleted.txt
@@ -315,11 +383,11 @@ M modified.txt
 R src/{old => renamed}.txt
 C copied.txt`
 
-	got := operation.createListItems(content, []jj.FileName{jj.NewFileName("deleted.txt")})
+	got := operation.createListItems(content)
 
 	assert.Equal(t, []*item{
 		{status: Added, name: "added.txt", fileName: jj.NewFileName("added.txt"), conflict: true},
-		{status: Deleted, name: "deleted.txt", fileName: jj.NewFileName("deleted.txt"), selected: true},
+		{status: Deleted, name: "deleted.txt", fileName: jj.NewFileName("deleted.txt")},
 		{status: Modified, name: "modified.txt", fileName: jj.NewFileName("modified.txt"), conflict: true},
 		{status: Renamed, name: "src/{ol => rename}d.txt", fileName: jj.NewFileName("src/renamed.txt")},
 		{status: Copied, name: "copied.txt", fileName: jj.NewFileName("copied.txt"), conflict: true},
@@ -330,9 +398,9 @@ func TestOperationDisplaysWorkingDirectoryRelativeNamesButSelectsRepositoryPath(
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 	ctx.Location = "/work/repo"
 	ctx.WorkingDirectory = "/work/repo/internal"
-	operation := NewOperation(ctx, commit)
+	operation := NewOperation(ctx, commit, newFakeChecks().fileChecks())
 
-	items := operation.createListItems("false $\nM internal/ui/details.go\n", nil)
+	items := operation.createListItems("false $\nM internal/ui/details.go\n")
 	require.Len(t, items, 1)
 	assert.Equal(t, "ui/details.go", items[0].name)
 	assert.Equal(t, "internal/ui/details.go", items[0].fileName.Path())

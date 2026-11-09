@@ -45,14 +45,18 @@ type DetailsList struct {
 	filtering        bool
 	filterQuery      string
 	matches          []fileMatch
+	isChecked        func(jj.FileName) bool
+	toggle           func(jj.FileName)
 }
 
-func NewDetailsList() *DetailsList {
+func NewDetailsList(isChecked func(jj.FileName) bool, toggle func(jj.FileName)) *DetailsList {
 	d := &DetailsList{
 		files:          []*item{},
 		cursor:         -1,
 		selectedHint:   "",
 		unselectedHint: "",
+		isChecked:      isChecked,
+		toggle:         toggle,
 	}
 	d.listRenderer = render.NewListRenderer(newFileListScrollMsg)
 	return d
@@ -246,7 +250,7 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 	title := item.Title()
 	tb.Styled(" ", style)
 	titleStyle := style
-	if item.selected {
+	if d.isChecked(item.fileName) {
 		titleStyle = theme.DefaultPalette.Get("revisions", "", "checked", false).Inherit(style)
 	}
 	if match == nil || match.start == match.end {
@@ -272,7 +276,7 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 	hint := ""
 	if d.showHint() {
 		hint = d.unselectedHint
-		if item.selected || (!d.hasSelectedItems() && index == d.cursor) {
+		if d.isChecked(item.fileName) || (!d.hasSelectedItems() && index == d.cursor) {
 			hint = d.selectedHint
 		}
 	}
@@ -324,14 +328,14 @@ func (d *DetailsList) rangeSelect(from, to int) {
 	hi := max(from, to)
 	for i := lo; i <= hi; i++ {
 		if item := d.itemAt(i); item != nil {
-			item.selected = !item.selected
+			d.toggle(item.fileName)
 		}
 	}
 }
 
 func (d *DetailsList) toggleSelection() {
 	if current := d.current(); current != nil {
-		current.selected = !current.selected
+		d.toggle(current.fileName)
 	}
 }
 
@@ -341,10 +345,10 @@ func (d *DetailsList) invertSelection() {
 		if current == nil {
 			return
 		}
-		current.selected = true
+		d.toggle(current.fileName)
 	}
 	for _, item := range d.files {
-		item.selected = !item.selected
+		d.toggle(item.fileName)
 	}
 }
 
@@ -389,7 +393,7 @@ func findSubstringFold(candidate, query string) (int, int, bool) {
 
 func (d *DetailsList) hasSelectedItems() bool {
 	for _, item := range d.files {
-		if item.selected {
+		if d.isChecked(item.fileName) {
 			return true
 		}
 	}

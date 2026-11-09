@@ -10,8 +10,10 @@ import (
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
+	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
+	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/internal/ui/operations/details"
 	"github.com/idursun/jjui/internal/ui/operations/workspace"
@@ -846,7 +848,7 @@ func changeIdFocusedUnderDetails(t *testing.T, commandRunner *test.CommandRunner
 	commit := model.SelectedRevision()
 	commandRunner.Expect(jj.Snapshot())
 	commandRunner.Expect(jj.Status(commit.GetChangeId())).SetOutput([]byte("false false $\nM file.txt\n"))
-	op := details.NewOperation(ctx, commit)
+	op := details.NewOperation(ctx, commit, model.fileChecks())
 	test.SimulateModel(op, op.Init())
 	model.baseOp = op
 	return model
@@ -911,4 +913,93 @@ func TestModel_ObjectScopeSitsBeforeRevisionsOffTheNode(t *testing.T) {
 
 	model.Update(intents.RevisionsObjectNode{})
 	assert.NotContains(t, names(), "revisions.object")
+}
+
+func checkFileUnderDetails(t *testing.T, model *Model) {
+	t.Helper()
+	op := model.baseOp.(*details.Operation)
+	op.HandleIntent(intents.DetailsNavigate{Delta: 1})
+	op.HandleIntent(intents.DetailsToggleSelect{})
+}
+
+func TestModel_CheckedFileIsNotARevisionTarget(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	model := changeIdFocusedUnderDetails(t, commandRunner)
+	checkFileUnderDetails(t, model)
+
+	require.Len(t, model.checked, 1)
+	assert.Equal(t, textObjectFile, model.checked[0].kind)
+	assert.Equal(t, model.SelectedRevision().GetChangeId(), model.checked[0].changeId)
+	assert.Equal(t, "file.txt", model.checked[0].name)
+	assert.Empty(t, model.checkedTargetCommits())
+	assert.Empty(t, model.checkedRevisionItems())
+	require.Len(t, model.SelectedRevisions().Revisions, 1)
+	assert.Equal(t, model.SelectedRevision().CommitId, model.SelectedRevisions().Revisions[0].CommitId)
+	hasChecked, _ := model.QueryState("has_checked")
+	assert.Equal(t, false, hasChecked)
+}
+
+func TestModel_CheckedFileIsCountedAndListedOnce(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	model := changeIdFocusedUnderDetails(t, commandRunner)
+	checkFileUnderDetails(t, model)
+	model.toggleChecked(checkedRevision(model.rows[1].Commit))
+
+	assert.Equal(t, 2, model.CheckedCount())
+	var files, revisions int
+	for _, item := range model.Selection().Checked {
+		switch item.(type) {
+		case appContext.SelectedFile:
+			files++
+		case appContext.SelectedRevision:
+			revisions++
+		}
+	}
+	assert.Equal(t, 1, files)
+	assert.Equal(t, 1, revisions)
+}
+
+func TestModel_FileChecksBelongToTheirRevision(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	model := changeIdFocusedUnderDetails(t, commandRunner)
+	model.toggleChecked(checkedFile("another-change", "file.txt"))
+
+	assert.Empty(t, model.baseOp.(*details.Operation).Selection().Checked)
+	assert.Equal(t, 0, model.CheckedCount())
+}
+
+func TestModel_FileChecksSurviveRefreshWhileDetailsStayOpen(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	model := changeIdFocusedUnderDetails(t, commandRunner)
+	checkFileUnderDetails(t, model)
+	model.toggleChecked(checkedBookmark("second", ""))
+
+	model.refresh(intents.Refresh{})
+
+	require.Len(t, model.checked, 1)
+	assert.Equal(t, textObjectFile, model.checked[0].kind)
+}
+
+func TestModel_FileChecksAreDroppedWhenDetailsClose(t *testing.T) {
+	for name, closeDetails := range map[string]func(*Model){
+		"reset operations":              func(m *Model) { m.resetOperations() },
+		"sync details":                  func(m *Model) { m.focusedObjectKind = textObjectNode; m.syncDetails() },
+		"replaced by another operation": func(m *Model) { m.setBaseOperation(operations.NewDefault()) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			commandRunner := test.NewTestCommandRunner(t)
+			model := changeIdFocusedUnderDetails(t, commandRunner)
+			checkFileUnderDetails(t, model)
+			model.toggleChecked(checkedBookmark("second", ""))
+			require.Len(t, model.checked, 2)
+
+			closeDetails(model)
+
+			assert.Equal(t, []checkedObject{checkedBookmark("second", "")}, model.checked)
+		})
+	}
 }

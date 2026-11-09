@@ -64,7 +64,10 @@ func TestDisplayContextRenderer_DetailsRendersBeforeElidedMarker(t *testing.T) {
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
-	op := details.NewOperation(ctx, targetRow.Commit)
+	op := details.NewOperation(ctx, targetRow.Commit, details.FileChecks{
+		IsChecked: func(string, jj.FileName) bool { return false },
+		Toggle:    func(string, jj.FileName) {},
+	})
 	test.SimulateModel(op, op.Init())
 
 	// Render just the target row with the details operation active.

@@ -22,6 +22,7 @@ const (
 	textObjectDivergent   = "divergent"
 	textObjectConflict    = "conflict"
 	textObjectWorkspace   = "workspace"
+	textObjectFile        = "file"
 )
 
 type textObject struct {
@@ -43,12 +44,18 @@ type textObject struct {
 type checkedObject struct {
 	kind     string
 	commitId string
+	changeId string
 	name     string
 	remote   string
 }
 
 func checkedRevision(commit *jj.Commit) checkedObject {
 	return checkedObject{kind: textObjectNode, commitId: commit.CommitId}
+}
+
+// checkedFile is keyed by change id because details actions rewrite the commit id.
+func checkedFile(changeId, path string) checkedObject {
+	return checkedObject{kind: textObjectFile, changeId: changeId, name: path}
 }
 
 func checkedBookmark(name, remote string) checkedObject {

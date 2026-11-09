@@ -20,7 +20,6 @@ type item struct {
 	status   status
 	name     string
 	fileName jj.FileName
-	selected bool
 	conflict bool
 }
 

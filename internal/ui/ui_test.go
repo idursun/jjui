@@ -1218,7 +1218,7 @@ func Test_Update_OperationScopedConfiguredActionOverridesBuiltInIntent(t *testin
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
 
@@ -1294,7 +1294,7 @@ func Test_Update_DiffEscClosesDiffAndRestoresDetails(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
 	require.Equal(t, "details", model.revisions.CurrentOperation().Name())
@@ -1527,7 +1527,7 @@ func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing
 	require.NotNil(t, model.revisions.SelectedRevision())
 	require.Equal(t, "child", model.revisions.SelectedRevision().GetChangeId())
 
-	model.Update(common.RestoreOperationMsg{Operation: details.NewOperation(ctx, model.revisions.SelectedRevision())})
+	model.Update(common.RestoreOperationMsg{Operation: details.NewOperation(ctx, model.revisions.SelectedRevision(), newTestFileChecks())})
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
 
 	cmd := model.Update(common.RunLuaScriptMsg{Script: `
@@ -1717,7 +1717,7 @@ func Test_Update_DetailsCloseClearsSelectedFiles(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	test.SimulateModel(model, op.Init())
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
@@ -1742,7 +1742,7 @@ func Test_Update_RestoreDetailsOperationResyncsSelectedFiles(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	test.SimulateModel(model, op.Init())
 
@@ -1772,7 +1772,7 @@ func Test_Update_DetailsEscClosesOperation(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
 
@@ -1795,7 +1795,7 @@ func Test_Update_DetailsEscClosesOperation_WithDefaultBindings(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
 
@@ -1820,7 +1820,7 @@ func Test_Update_DetailsFilterUsesDefaultBindingsAndClearsBeforeClose(t *testing
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	test.SimulateModel(model, op.Init())
 
@@ -1855,7 +1855,7 @@ func Test_Update_CommandErrorAfterClosingDetailsWithSelectedFiles_AllowsEscToDis
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
+	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	test.SimulateModel(model, op.Init())
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
@@ -2181,4 +2181,15 @@ func TestUpdate_FailedExecReopensPromptWithLine(t *testing.T) {
 	view := ansi.Strip(model.View())
 	assert.Contains(t, view, "exec sh")
 	assert.Contains(t, view, "$ bogus-subcommand")
+}
+
+func newTestFileChecks() details.FileChecks {
+	checked := map[string]bool{}
+	return details.FileChecks{
+		IsChecked: func(changeId string, file jj.FileName) bool { return checked[changeId+"\x00"+file.Path()] },
+		Toggle: func(changeId string, file jj.FileName) {
+			key := changeId + "\x00" + file.Path()
+			checked[key] = !checked[key]
+		},
+	}
 }
