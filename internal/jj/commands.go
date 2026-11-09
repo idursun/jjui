@@ -220,8 +220,9 @@ func UnquoteRefName(rendered string) string {
 	return rendered
 }
 
-func BookmarkMove(revision string, bookmark string, extraFlags ...string) CommandArgs {
-	args := []string{"bookmark", "move", ExactStringPattern(bookmark), "--to", revision}
+func BookmarkMove(revision string, bookmarks []string, extraFlags ...string) CommandArgs {
+	args := append([]string{"bookmark", "move"}, exactStringPatterns(bookmarks)...)
+	args = append(args, "--to", revision)
 	if extraFlags != nil {
 		args = append(args, extraFlags...)
 	}
@@ -230,12 +231,12 @@ func BookmarkMove(revision string, bookmark string, extraFlags ...string) Comman
 
 // BookmarkAdvance moves the bookmark forward to revsets.bookmark-advance-to,
 // which defaults to @.
-func BookmarkAdvance(name string) CommandArgs {
-	return []string{"bookmark", "advance", ExactStringPattern(name)}
+func BookmarkAdvance(names ...string) CommandArgs {
+	return append([]string{"bookmark", "advance"}, exactStringPatterns(names)...)
 }
 
-func BookmarkDelete(name string) CommandArgs {
-	return []string{"bookmark", "delete", ExactStringPattern(name)}
+func BookmarkDelete(names ...string) CommandArgs {
+	return append([]string{"bookmark", "delete"}, exactStringPatterns(names)...)
 }
 
 func BookmarkRename(oldName string, newName string) CommandArgs {
@@ -258,12 +259,20 @@ func MetaeditUpdateAuthorTimestamp(revision string) CommandArgs {
 	return []string{"metaedit", "--update-author-timestamp", "-r", revision}
 }
 
-func BookmarkForget(name string) CommandArgs {
-	return []string{"bookmark", "forget", ExactStringPattern(name)}
+func BookmarkForget(names ...string) CommandArgs {
+	return append([]string{"bookmark", "forget"}, exactStringPatterns(names)...)
 }
 
-func BookmarkForgetIncludingRemotes(name string) CommandArgs {
-	return []string{"bookmark", "forget", "--include-remotes", ExactStringPattern(name)}
+func BookmarkForgetIncludingRemotes(names ...string) CommandArgs {
+	return append([]string{"bookmark", "forget", "--include-remotes"}, exactStringPatterns(names)...)
+}
+
+func exactStringPatterns(values []string) []string {
+	patterns := make([]string, len(values))
+	for i, value := range values {
+		patterns[i] = ExactStringPattern(value)
+	}
+	return patterns
 }
 
 func BookmarkTrack(name string, remote string) CommandArgs {

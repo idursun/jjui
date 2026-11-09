@@ -78,6 +78,7 @@ type Model struct {
 	pendingObjectJump string
 	checkedRevisions  map[string]appContext.SelectedRevision
 	checkedOrder      []string // commit ids in the order they were checked
+	checkedBookmarks  []checkedBookmark
 	focused           bool
 	// focusedObjectKind and focusedObjectIndex are the text object the user
 	// moved to; rows without such an object fall back to the node.
@@ -199,7 +200,7 @@ func (m *Model) QueryState(name string) (any, bool) {
 	case "has_selection":
 		return len(m.SelectedRevisions().Revisions) > 0, true
 	case "has_checked":
-		return len(m.checkedRevisions) > 0, true
+		return len(m.checkedRevisions) > 0 || len(m.checkedBookmarks) > 0, true
 	case "is_root":
 		return selected != nil && selected.IsRoot(), true
 	case "has_parent":
@@ -436,7 +437,7 @@ func (m *Model) SelectedRevision() *jj.Commit {
 }
 
 func (m *Model) SelectedRevisions() jj.SelectedRevisions {
-	selected := m.checkedCommits()
+	selected := m.checkedTargetCommits()
 	if len(selected) == 0 {
 		return jj.NewSelectedRevisions(m.SelectedRevision())
 	}
@@ -516,11 +517,27 @@ func (m *Model) checkedCommits() []*jj.Commit {
 	return commits
 }
 
-func (m *Model) checkedRevisionItems() []common.SelectedItem {
+// checkedTargetCommits adds the revisions that checked bookmarks point at to
+// the checked revisions.
+func (m *Model) checkedTargetCommits() []*jj.Commit {
 	commits := m.checkedCommits()
+	for _, bookmark := range m.loadedCheckedBookmarks() {
+		if !slices.ContainsFunc(commits, func(c *jj.Commit) bool { return c.CommitId == bookmark.commit.CommitId }) {
+			commits = append(commits, bookmark.commit)
+		}
+	}
+	return commits
+}
+
+func (m *Model) checkedRevisionItems() []common.SelectedItem {
+	commits := m.checkedTargetCommits()
 	items := make([]common.SelectedItem, 0, len(commits))
 	for _, commit := range commits {
-		items = append(items, m.checkedRevisions[commit.CommitId])
+		item, ok := m.checkedRevisions[commit.CommitId]
+		if !ok {
+			item = appContext.SelectedRevision{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId}
+		}
+		items = append(items, item)
 	}
 	return items
 }
@@ -545,9 +562,10 @@ func (m *Model) toggleCheckedRevision(item appContext.SelectedRevision) {
 	m.checkedOrder = append(m.checkedOrder, item.CommitId)
 }
 
-func (m *Model) clearCheckedRevisions() {
+func (m *Model) clearChecked() {
 	clear(m.checkedRevisions)
 	m.checkedOrder = nil
+	m.checkedBookmarks = nil
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -858,8 +876,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			}
 		}
 		// Clear checked items and reset to default operation
-		if len(m.checkedRevisions) > 0 || !m.InNormalMode() {
-			m.clearCheckedRevisions()
+		if len(m.checkedRevisions) > 0 || len(m.checkedBookmarks) > 0 || !m.InNormalMode() {
+			m.clearChecked()
 			m.resetOperations()
 			return nil, true
 		}
@@ -919,6 +937,10 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.OpenSetBookmark:
 		return m.startBookmarkSet(intent), true
 	case intents.RevisionsToggleSelect:
+		if obj := m.focusedTextObject(); obj != nil && obj.Kind == textObjectBookmark {
+			m.toggleCheckedBookmark(obj)
+			return nil, true
+		}
 		commit := m.SelectedRevision()
 		if commit == nil {
 			return nil, true
@@ -946,7 +968,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		m.focusedObjectKind, m.focusedObjectIndex = textObjectNode, 0
 		return m.syncDetails(), true
 	case intents.FocusedBookmarkDelete:
-		return m.deleteFocusedBookmark(), true
+		return m.deleteBookmarks(), true
 	case intents.FocusedTagDelete:
 		return m.deleteFocusedTag(), true
 	case intents.FocusedWorkspaceSwitch:
@@ -956,7 +978,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.FocusedWorkspaceRename:
 		return m.renameFocusedWorkspace(), true
 	case intents.FocusedBookmarkForget:
-		return m.forgetFocusedBookmark(), true
+		return m.forgetBookmarks(), true
 	case intents.RevisionsObjectFocusKind:
 		m.focusedObjectKind, m.focusedObjectIndex = intent.Kind, 0
 		return nil, true
@@ -965,13 +987,13 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.FocusedBookmarkRename:
 		return m.renameFocusedBookmark(), true
 	case intents.FocusedBookmarkMove:
-		return m.moveFocusedBookmark(), true
+		return m.moveBookmarks(), true
 	case intents.FocusedBookmarkAdvance:
-		return m.advanceFocusedBookmark(), true
+		return m.advanceBookmarks(), true
 	case intents.FocusedBookmarkTrack:
-		return m.trackFocusedBookmark(intent.Track), true
+		return m.trackBookmarks(intent.Track), true
 	case intents.FocusedBookmarkPush:
-		return m.pushFocusedBookmark(), true
+		return m.pushBookmarks(), true
 	case intents.FocusedAuthorReset:
 		return m.runOnFocusedRevision(textObjectAuthor, jj.MetaeditUpdateAuthor), true
 	case intents.FocusedTimestampReset:
@@ -1034,7 +1056,7 @@ func (m *Model) startBookmarkSet(intent intents.OpenSetBookmark) tea.Cmd {
 
 func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
 	if !intent.KeepSelections {
-		m.clearCheckedRevisions()
+		m.clearChecked()
 	}
 	m.isLoading = true
 	currentTag := m.tag.Add(1)
@@ -1475,6 +1497,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	// Set selections
 	m.displayContextRenderer.SetSelections(m.checkedRevisionMap())
+	m.displayContextRenderer.checkedBookmarks = m.checkedBookmarks
 	m.displayContextRenderer.SetSelectionFocused(m.focused)
 
 	renderOp := m.baseOperation()
@@ -1760,28 +1783,6 @@ func (m *Model) moveObjectFocus(delta int) {
 	}
 	next := ((current+delta)%len(objects) + len(objects)) % len(objects)
 	m.focusedObjectKind, m.focusedObjectIndex = objects[next].Kind, objects[next].Index
-}
-
-// deleteFocusedBookmark deletes the local bookmark. For a remote bookmark
-// this marks it deleted so that pushing it deletes it on the remote; an
-// untracked one has no local bookmark until it is tracked.
-func (m *Model) deleteFocusedBookmark() tea.Cmd {
-	obj := m.focusedTextObject()
-	if obj == nil || obj.Kind != textObjectBookmark {
-		return nil
-	}
-	deleteCmd := m.context.RunCommand(jj.BookmarkDelete(obj.Value), common.Refresh)
-	if obj.Remote == "" {
-		return deleteCmd
-	}
-	tracked, err := m.isRemoteBookmarkTracked(obj.Value, obj.Remote)
-	if err != nil {
-		return intents.Invoke(intents.AddMessage{Text: "Could not list bookmarks", Err: err})
-	}
-	if tracked {
-		return deleteCmd
-	}
-	return m.context.RunCommand(jj.BookmarkTrack(obj.Value, obj.Remote), deleteCmd)
 }
 
 func (m *Model) runOnFocusedRevision(kind string, command func(string) jj.CommandArgs) tea.Cmd {

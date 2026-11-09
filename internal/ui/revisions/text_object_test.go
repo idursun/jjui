@@ -671,3 +671,119 @@ func TestModel_FocusedBookmarkAdvanceOnlyAdvancesLocalBookmarks(t *testing.T) {
 	_, isMessage := model.Update(intents.FocusedBookmarkAdvance{})().(intents.AddMessage)
 	assert.True(t, isMessage, "remote bookmarks cannot be advanced")
 }
+
+func checkBookmarksOnTwoRevisions(t *testing.T, commandRunner *test.CommandRunner) *Model {
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(jumpRows(t, jumpLogRow("a", "one")+jumpLogRow("b", "two")), "", true)
+	model.focusedObjectKind = textObjectBookmark
+	model.Update(intents.RevisionsToggleSelect{})
+	model.cursor = 1
+	model.Update(intents.RevisionsToggleSelect{})
+	return model
+}
+
+func TestModel_ToggleSelectChecksTheFocusedBookmarkNotItsRevision(t *testing.T) {
+	model := checkBookmarksOnTwoRevisions(t, test.NewTestCommandRunner(t))
+
+	assert.Equal(t, []checkedBookmark{{name: "one"}, {name: "two"}}, model.checkedBookmarks)
+	assert.Empty(t, model.checkedRevisions)
+
+	model.Update(intents.RevisionsToggleSelect{})
+	assert.Equal(t, []checkedBookmark{{name: "one"}}, model.checkedBookmarks)
+}
+
+func TestModel_RevisionActionsResolveCheckedBookmarksToTheirRevisions(t *testing.T) {
+	model := checkBookmarksOnTwoRevisions(t, test.NewTestCommandRunner(t))
+
+	var changeIds []string
+	for _, commit := range model.SelectedRevisions().Revisions {
+		changeIds = append(changeIds, commit.GetChangeId())
+	}
+	assert.Equal(t, []string{model.rows[0].Commit.GetChangeId(), model.rows[1].Commit.GetChangeId()}, changeIds)
+	assert.Len(t, model.Selection().Checked, 2)
+}
+
+func TestModel_BookmarkDeleteAppliesToCheckedBookmarks(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkDelete("one", "two"))
+	defer commandRunner.Verify()
+
+	runAllJJCommands(checkBookmarksOnTwoRevisions(t, commandRunner).Update(intents.FocusedBookmarkDelete{}))
+}
+
+func TestModel_BookmarkActionsPreferCheckedOverFocused(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkDelete("one"))
+	defer commandRunner.Verify()
+
+	model := checkBookmarksOnTwoRevisions(t, commandRunner)
+	model.Update(intents.RevisionsToggleSelect{}) // unchecks "two", the cursor stays on it
+	runAllJJCommands(model.Update(intents.FocusedBookmarkDelete{}))
+}
+
+func TestModel_BookmarkPushRunsOncePerRemote(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitPush("--bookmark", jj.ExactStringPattern("second")))
+	commandRunner.Expect(jj.GitPush("--bookmark", jj.ExactStringPattern("second"), "--remote", "origin"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectBookmark
+	model.Update(intents.RevisionsToggleSelect{})
+	model.focusedObjectIndex = 1
+	model.Update(intents.RevisionsToggleSelect{})
+	runAllJJCommands(model.Update(intents.FocusedBookmarkPush{}))
+}
+
+func TestModel_RefreshClearsCheckedBookmarksUnlessKept(t *testing.T) {
+	model := checkBookmarksOnTwoRevisions(t, test.NewTestCommandRunner(t))
+	model.refresh(intents.Refresh{KeepSelections: true})
+	assert.Len(t, model.checkedBookmarks, 2)
+	model.refresh(intents.Refresh{})
+	assert.Empty(t, model.checkedBookmarks)
+}
+
+func TestModel_BookmarkAdvanceAppliesToCheckedLocalBookmarks(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkAdvance("one", "two"))
+	defer commandRunner.Verify()
+
+	runAllJJCommands(checkBookmarksOnTwoRevisions(t, commandRunner).Update(intents.FocusedBookmarkAdvance{}))
+}
+
+func TestModel_BookmarkAdvanceSkipsCheckedRemoteBookmarks(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkAdvance("second"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectBookmark
+	model.Update(intents.RevisionsToggleSelect{})
+	model.focusedObjectIndex = 1
+	model.Update(intents.RevisionsToggleSelect{})
+	runAllJJCommands(model.Update(intents.FocusedBookmarkAdvance{}))
+}
+
+func TestModel_BookmarkMoveAppliesToCheckedBookmarks(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkMove("a", []string{"one", "two"}))
+	defer commandRunner.Verify()
+
+	model := checkBookmarksOnTwoRevisions(t, commandRunner)
+	model.Update(intents.FocusedBookmarkMove{})
+	operation, ok := model.baseOperation().(*bookmark.MoveBookmarkOperation)
+	require.True(t, ok)
+	operation.SetSelectedRevision(model.rows[0].Commit)
+	runAllJJCommands(operation.Update(intents.Apply{}))
+}
+
+func TestModel_BookmarkMoveOnlyRemoteBookmarksShowsMessage(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind, model.focusedObjectIndex = textObjectBookmark, 1
+
+	_, isMessage := model.Update(intents.FocusedBookmarkMove{})().(intents.AddMessage)
+	assert.True(t, isMessage)
+}

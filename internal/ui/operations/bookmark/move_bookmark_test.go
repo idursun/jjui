@@ -11,10 +11,10 @@ import (
 
 func TestMoveBookmarkOperation_ApplyRunsMove(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkMove("target", "main"))
+	commandRunner.Expect(jj.BookmarkMove("target", []string{"main"}))
 	defer commandRunner.Verify()
 
-	op := NewMoveBookmarkOperation(test.NewTestContext(commandRunner), "main", nil)
+	op := NewMoveBookmarkOperation(test.NewTestContext(commandRunner), []string{"main"}, nil)
 	require.Nil(t, op.SetSelectedRevision(&jj.Commit{ChangeId: "target"}))
 
 	cmd := op.Update(intents.Apply{})
@@ -24,10 +24,10 @@ func TestMoveBookmarkOperation_ApplyRunsMove(t *testing.T) {
 
 func TestMoveBookmarkOperation_ForceApplyRunsMoveWithAllowBackwards(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.BookmarkMove("target", "main", "--allow-backwards"))
+	commandRunner.Expect(jj.BookmarkMove("target", []string{"main"}, "--allow-backwards"))
 	defer commandRunner.Verify()
 
-	op := NewMoveBookmarkOperation(test.NewTestContext(commandRunner), "main", nil)
+	op := NewMoveBookmarkOperation(test.NewTestContext(commandRunner), []string{"main"}, nil)
 	require.Nil(t, op.SetSelectedRevision(&jj.Commit{ChangeId: "target"}))
 
 	cmd := op.Update(intents.Apply{Force: true})
@@ -36,7 +36,7 @@ func TestMoveBookmarkOperation_ForceApplyRunsMoveWithAllowBackwards(t *testing.T
 }
 
 func TestMoveBookmarkOperation_CancelReturnsCommand(t *testing.T) {
-	op := NewMoveBookmarkOperation(test.NewTestContext(test.NewTestCommandRunner(t)), "main", nil)
+	op := NewMoveBookmarkOperation(test.NewTestContext(test.NewTestCommandRunner(t)), []string{"main"}, nil)
 
 	cmd := op.Update(intents.Cancel{})
 	require.NotNil(t, cmd)
