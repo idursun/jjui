@@ -259,6 +259,7 @@ function wait_refresh() end
 ---@field move_down fun()
 ---@field move_up fun()
 ---@field new fun()
+---@field object_cycle fun(value?: string|{kind: string})
 ---@field object_focus fun(value?: string|{kind: string})
 ---@field object_next fun()
 ---@field object_node fun()
