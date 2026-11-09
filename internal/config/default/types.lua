@@ -248,7 +248,6 @@ function wait_refresh() end
 ---@field diff fun()
 ---@field diff_edit fun()
 ---@field edit fun()
----@field fetch fun()
 ---@field force_apply fun()
 ---@field force_edit fun()
 ---@field go_to_bottom fun()

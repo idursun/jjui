@@ -102,7 +102,6 @@ bindings = [
     { key = "shift+p", action = "ui.preview_toggle_bottom", scope = "revisions", desc = "move preview to bottom" },
     { key = "esc", action = "revisions.cancel", scope = "revisions", desc = "clear selection" },
     { key = "0", action = "revisions.object_node", scope = "revisions", desc = "back to revision" },
-    { key = "shift+f", action = "revisions.fetch", scope = "revisions", desc = "git fetch" },
 
     # revisions text objects
     { key = ["right", "l"], action = "revisions.object_next", scope = "revisions.objects", desc = "next object" },

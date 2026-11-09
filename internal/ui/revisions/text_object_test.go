@@ -394,16 +394,6 @@ func TestModel_FocusedRemoteBookmarkForgetIncludesRemotes(t *testing.T) {
 	runJJCommand(model.Update(intents.FocusedBookmarkForget{}))
 }
 
-func TestModel_RevisionsFetch(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.GitFetch())
-	defer commandRunner.Verify()
-
-	model := New(test.NewTestContext(commandRunner))
-	model.updateGraphRows(textObjectRows(t), "", true)
-	runJJCommand(model.Update(intents.RevisionsFetch{}))
-}
-
 func TestModel_ObjectFocusKind(t *testing.T) {
 	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
 	model.updateGraphRows(textObjectRows(t), "", true)
