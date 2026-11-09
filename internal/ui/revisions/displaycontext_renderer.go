@@ -1,6 +1,7 @@
 package revisions
 
 import (
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -25,7 +26,8 @@ type DisplayContextRenderer struct {
 	objectStyle    lipgloss.Style
 	selectionFocus bool
 	// focusedObject is drawn as the terminal cursor on the selected row.
-	focusedObject *textObject
+	focusedObject    *textObject
+	checkedBookmarks []checkedBookmark
 }
 
 // itemRenderer is a helper for rendering individual revision items
@@ -413,7 +415,11 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		tb.Done()
 		for _, o := range objects {
 			if o.line == i && o.width > 0 {
-				r.addObjectClick(dl, layout.Rect(lineRect.Min.X+screenColumn(columns, o.x), lineRect.Min.Y, o.width, 1), index, o)
+				objectRect := layout.Rect(lineRect.Min.X+screenColumn(columns, o.x), lineRect.Min.Y, o.width, 1)
+				r.addObjectClick(dl, objectRect, index, o)
+				if o.Kind == textObjectBookmark && slices.Contains(r.checkedBookmarks, checkedBookmark{o.Value, o.Remote}) {
+					dl.AddAttributes(objectRect, r.objectStyle, 2)
+				}
 			}
 		}
 		if isSelected && r.focusedObject != nil && r.focusedObject.line == i {
