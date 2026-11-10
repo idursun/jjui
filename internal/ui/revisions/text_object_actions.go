@@ -173,20 +173,35 @@ func (m *Model) deleteBookmarks() tea.Cmd {
 }
 
 // pushBookmarks pushes the bookmarks; remote bookmarks go to their remote,
-// which also pushes a deletion marked with d. A push takes a single remote, so
-// there is one command per remote.
+// which also pushes a deletion marked with x.
 func (m *Model) pushBookmarks() tea.Cmd {
 	targets := m.bookmarkTargets()
 	if len(targets) == 0 {
 		return nil
 	}
+	return m.runBookmarkCommands(bookmarkCommandsByRemote(targets, "--bookmark", jj.GitPush))
+}
+
+// fetchBookmarks fetches the bookmarks; remote bookmarks come from their
+// remote, local ones from jj's default fetch remotes.
+func (m *Model) fetchBookmarks() tea.Cmd {
+	targets := m.bookmarkTargets()
+	if len(targets) == 0 {
+		return nil
+	}
+	return m.runBookmarkCommands(bookmarkCommandsByRemote(targets, "--branch", jj.GitFetch))
+}
+
+// bookmarkCommandsByRemote builds one command per remote because push and
+// fetch take a single remote.
+func bookmarkCommandsByRemote(targets []textObject, flag string, command func(...string) jj.CommandArgs) []jj.CommandArgs {
 	var remotes []string
 	byRemote := make(map[string][]string)
 	for _, target := range targets {
 		if _, ok := byRemote[target.Remote]; !ok {
 			remotes = append(remotes, target.Remote)
 		}
-		byRemote[target.Remote] = append(byRemote[target.Remote], "--bookmark", jj.ExactStringPattern(target.Value))
+		byRemote[target.Remote] = append(byRemote[target.Remote], flag, jj.ExactStringPattern(target.Value))
 	}
 	commands := make([]jj.CommandArgs, 0, len(remotes))
 	for _, remote := range remotes {
@@ -194,9 +209,9 @@ func (m *Model) pushBookmarks() tea.Cmd {
 		if remote != "" {
 			args = append(args, "--remote", remote)
 		}
-		commands = append(commands, jj.GitPush(args...))
+		commands = append(commands, command(args...))
 	}
-	return m.runBookmarkCommands(commands)
+	return commands
 }
 
 // pushChanges pushes the checked revisions, or the highlighted one when none

@@ -124,6 +124,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.author.reset":                        {"revisions.author"},
 	"revisions.bookmark.advance":                    {"revisions.bookmark"},
 	"revisions.bookmark.delete":                     {"revisions.bookmark"},
+	"revisions.bookmark.fetch":                      {"revisions.bookmark"},
 	"revisions.bookmark.forget":                     {"revisions.bookmark"},
 	"revisions.bookmark.move":                       {"revisions.bookmark"},
 	"revisions.bookmark.push":                       {"revisions.bookmark"},
