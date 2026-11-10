@@ -158,6 +158,11 @@ func newGitCredentialServer(t *testing.T, resultPath string) (string, func()) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
+		// Git's dumb-HTTP push sends a PROPFIND with empty credentials.
+		if username == "" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		if err := os.WriteFile(resultPath, []byte(fmt.Sprintf("%s\n%s\n", username, password)), 0o600); err != nil {
 			t.Logf("recording Git credentials: %v", err)
 		}
