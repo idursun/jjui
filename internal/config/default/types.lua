@@ -242,6 +242,7 @@ function wait_refresh() end
 ---@field timestamp jjui.revisions.timestamp
 ---@field workspace jjui.revisions.workspace
 ---@field ace_jump fun()
+---@field add_to_revset fun()
 ---@field apply fun(args: {force?: boolean})
 ---@field cancel fun()
 ---@field commit fun()
@@ -339,6 +340,7 @@ function wait_refresh() end
 ---@class jjui.revisions.details
 ---@field confirmation jjui.revisions.details.confirmation
 ---@field absorb fun()
+---@field add_to_revset fun()
 ---@field cancel fun()
 ---@field diff fun()
 ---@field filter fun()
@@ -352,7 +354,6 @@ function wait_refresh() end
 ---@field quit fun()
 ---@field refresh fun()
 ---@field restore fun()
----@field revisions_changing_file fun()
 ---@field select_file fun(value?: string|{file: string})
 ---@field split fun()
 ---@field split_parallel fun()

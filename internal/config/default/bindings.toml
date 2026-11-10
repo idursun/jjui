@@ -106,6 +106,7 @@ bindings = [
     # revisions text objects
     { key = ["right", "l"], action = "revisions.object_next", scope = "revisions.objects", desc = "next object" },
     { key = ["left", "h"], action = "revisions.object_prev", scope = "revisions.objects", desc = "prev object" },
+    { key = "*", action = "revisions.add_to_revset", scope = "revisions.objects", desc = "add to revset" },
     { seq = ["i", "b"], action = "revisions.object_cycle", scope = "revisions.objects", desc = "bookmark", when = "!revisions.files_focused", args = { kind = "bookmark" } },
     { seq = ["i", "t"], action = "revisions.object_cycle", scope = "revisions.objects", desc = "tag", when = "!revisions.files_focused", args = { kind = "tag" } },
     { seq = ["i", "d"], action = "revisions.object_cycle", scope = "revisions.objects", desc = "description", when = "!revisions.files_focused", args = { kind = "description" } },
@@ -234,7 +235,7 @@ bindings = [
     { key = "shift+s", action = "revisions.details.squash", scope = "revisions.details", desc = "squash" },
     { key = "r", action = "revisions.details.restore", scope = "revisions.details", desc = "restore" },
     { key = "shift+a", action = "revisions.details.absorb", scope = "revisions.details", desc = "absorb" },
-    { key = "*", action = "revisions.details.revisions_changing_file", scope = "revisions.details", desc = "revisions changing file" },
+    { key = "*", action = "revisions.details.add_to_revset", scope = "revisions.details", desc = "add to revset" },
     { key = "p", action = "ui.preview_toggle", scope = "revisions.details", desc = "preview" },
     { key = "shift+p", action = "ui.preview_toggle_bottom", scope = "revisions.details", desc = "move preview to bottom" },
     { key = "enter", action = "revisions.details.filter_apply", scope = "revisions.details.filter", desc = "apply" },

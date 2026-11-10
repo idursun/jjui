@@ -296,6 +296,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		switch action {
 		case keybindings.Action("revisions.ace_jump"):
 			return intents.StartAceJump{}, true
+		case keybindings.Action("revisions.add_to_revset"):
+			return intents.RevisionsObjectAddToRevset{}, true
 		case keybindings.Action("revisions.apply"):
 			return intents.Apply{Force: actionargs.BoolArg(args, "force", false)}, true
 		case keybindings.Action("revisions.cancel"):
@@ -469,6 +471,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		switch action {
 		case keybindings.Action("revisions.details.absorb"):
 			return intents.DetailsAbsorb{}, true
+		case keybindings.Action("revisions.details.add_to_revset"):
+			return intents.DetailsAddToRevset{}, true
 		case keybindings.Action("revisions.details.cancel"):
 			return intents.DetailsClose{}, true
 		case keybindings.Action("revisions.details.diff"):
@@ -495,8 +499,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Refresh{}, true
 		case keybindings.Action("revisions.details.restore"):
 			return intents.DetailsRestore{}, true
-		case keybindings.Action("revisions.details.revisions_changing_file"):
-			return intents.DetailsRevisionsChangingFile{}, true
 		case keybindings.Action("revisions.details.select_file"):
 			return intents.DetailsSelectFile{File: actionargs.StringArg(args, "file", "")}, true
 		case keybindings.Action("revisions.details.split"):

@@ -310,9 +310,9 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.DetailsInvertSelection:
 		s.invertSelection()
 		return nil, true
-	case intents.DetailsRevisionsChangingFile:
+	case intents.DetailsAddToRevset:
 		if current := s.current(); current != nil {
-			return tea.Batch(common.Close, common.UpdateRevSet(fmt.Sprintf("files(%s)", current.fileName.Escaped()))), true
+			return common.UpdateRevSet(s.context.NarrowedRevset(fmt.Sprintf("files(%s)", current.fileName.Escaped()))), true
 		}
 		return nil, true
 	case intents.DetailsSelectFile:

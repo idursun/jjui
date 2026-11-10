@@ -1000,6 +1000,16 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return nil, true
 		}
 		return m.jumpToObjectKind(obj.Kind, intent.Delta), true
+	case intents.RevisionsObjectAddToRevset:
+		obj, commit := m.focusedTextObject(), m.SelectedRevision()
+		if obj == nil || commit == nil {
+			return nil, true
+		}
+		condition, reason := revsetCondition(obj, commit)
+		if reason != "" {
+			return intents.Invoke(intents.AddMessage{Text: reason}), true
+		}
+		return common.UpdateRevSet(m.context.NarrowedRevset(condition)), true
 	case intents.RevisionsObjectNode:
 		m.focusedObjectKind, m.focusedObjectIndex = textObjectNode, 0
 		return m.syncDetails(), true
