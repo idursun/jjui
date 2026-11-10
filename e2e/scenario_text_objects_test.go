@@ -220,6 +220,42 @@ func Test_TextObjects_DeletesTrackedBookmarkOnRemote(t *testing.T) {
 	})
 }
 
+func Test_TextObjects_FetchesFocusedBookmarkOnly(t *testing.T) {
+	t.Parallel()
+	repo, remote := newRepoWithFileRemote(t)
+	repo.JJ("describe", "-m", "first")
+	repo.JJ("bookmark", "create", "fetch-me", "-r", "@")
+	repo.JJ("new", "-m", "second")
+	repo.JJ("bookmark", "create", "leave-me", "-r", "@")
+	repo.JJ("bookmark", "track", "fetch-me", "leave-me", "--remote", "origin")
+	repo.JJ("git", "push", "--bookmark", "fetch-me", "--bookmark", "leave-me")
+	// Swap the bookmarks on the remote so that both have something to fetch.
+	root := filepath.Dir(repo.Path())
+	first := runCommand(t, root, repo.Env(), "git", "--git-dir", remote, "rev-parse", "refs/heads/fetch-me")
+	second := runCommand(t, root, repo.Env(), "git", "--git-dir", remote, "rev-parse", "refs/heads/leave-me")
+	runCommand(t, root, repo.Env(), "git", "--git-dir", remote, "update-ref", "refs/heads/fetch-me", strings.TrimSpace(second))
+	runCommand(t, root, repo.Env(), "git", "--git-dir", remote, "update-ref", "refs/heads/leave-me", strings.TrimSpace(first))
+	remoteDescription := func(bookmark string) string {
+		out, _ := commandOutput(repo.Path(), repo.Env(), "jj", "log", "--ignore-working-copy", "--no-graph", "-r", bookmark+"@origin", "-T", "description.first_line()")
+		return strings.TrimSpace(out)
+	}
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "fetch-me")
+	if err := session.SendKey(ghostty.KeyJ, "j", 0); err != nil {
+		t.Fatal(err)
+	}
+	focusTextOnRow(t, session, ctx, "fetch-me")
+	if err := session.SendKey(ghostty.KeyF, "F", ghostty.ModShift); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		return remoteDescription("fetch-me") == "second", nil
+	})
+	if got := remoteDescription("leave-me"); got != "second" {
+		t.Fatalf("leave-me@origin moved to %q; only the focused bookmark should be fetched", got)
+	}
+}
+
 func Test_TextObjects_DeletesUntrackedRemoteBookmark(t *testing.T) {
 	t.Parallel()
 	repo, remote := newRepoWithFileRemote(t)
