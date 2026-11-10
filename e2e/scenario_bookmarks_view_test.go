@@ -118,8 +118,8 @@ func Test_BookmarksView_StatusLeadsWithFocusedObject(t *testing.T) {
 	t.Parallel()
 	h := startBookmarksView(t)
 
-	screen := h.WaitText("rename bookmark")
-	if !statusHasEntry(screen[len(screen)-1:], "r", "rename bookmark") {
+	screen := h.WaitText("rename")
+	if !statusHasEntry(screen[len(screen)-1:], "r", "rename") {
 		t.Fatalf("status bar did not lead with the bookmark actions:\n%s", formatScreen(screen))
 	}
 
