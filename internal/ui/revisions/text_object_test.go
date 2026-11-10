@@ -1052,3 +1052,26 @@ func TestModel_ObjectFocusKindDoesNotCycle(t *testing.T) {
 	model.HandleIntent(intents.RevisionsObjectFocusKind{Kind: textObjectBookmark})
 	assert.Equal(t, 0, model.focusedObjectIndex)
 }
+
+func TestModel_ShowDiffOnFocusedBookmark(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		index int
+		args  jj.CommandArgs
+	}{
+		{name: "diffs the bookmark from its fork point", index: 1, args: jj.DiffRange("fork_point(trunk() | second@origin)", "second@origin")},
+		{name: "conflicted bookmark diffs the revision", index: 0, args: jj.Diff("m", jj.FileName{})},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			commandRunner := test.NewTestCommandRunner(t)
+			commandRunner.Expect(tc.args)
+			defer commandRunner.Verify()
+
+			model := New(test.NewTestContext(commandRunner))
+			model.updateGraphRows(textObjectRows(t), "", true)
+			model.focusedObjectKind, model.focusedObjectIndex = textObjectBookmark, tc.index
+			msg := model.Update(intents.ShowDiff{})()
+			assert.Equal(t, []string(tc.args), msg.(intents.DiffShow).Args)
+		})
+	}
+}

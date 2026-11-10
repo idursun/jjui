@@ -56,12 +56,36 @@ func Test_TextObjects_DeletesFocusedBookmark(t *testing.T) {
 
 	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "focus-me")
 	focusTextOnRow(t, session, ctx, "focus-me")
-	if err := session.SendKey(ghostty.KeyD, "d", 0); err != nil {
+	if err := session.SendKey(ghostty.KeyX, "x", 0); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, ctx, func() (bool, error) {
 		return !bookmarkExists(t, repo.Path(), repo.Env(), "focus-me"), nil
 	})
+}
+
+func Test_TextObjects_DiffsFocusedBookmarkFromItsForkPoint(t *testing.T) {
+	t.Parallel()
+	repo := newTestRepo(t)
+	repo.Write("base.txt", "on the base\n")
+	repo.JJ("commit", "-m", "base")
+	repo.Write("branch.txt", "on the branch\n")
+	repo.JJ("describe", "-m", "bookmarked")
+	repo.JJ("bookmark", "create", "focus-me", "-r", "@")
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "focus-me")
+	focusTextOnRow(t, session, ctx, "focus-me")
+	if err := session.SendKey(ghostty.KeyD, "d", 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
+		return screenContains(screen, "diff      ↑/k") && screenContains(screen, "on the branch")
+	}); err != nil {
+		t.Fatalf("d did not open the bookmark's range diff: %v", err)
+	}
+	if !bookmarkExists(t, repo.Path(), repo.Env(), "focus-me") {
+		t.Fatal("d deleted the focused bookmark")
+	}
 }
 
 func Test_TextObjects_ResetsFocusedAuthor(t *testing.T) {
@@ -183,7 +207,7 @@ func Test_TextObjects_DeletesTrackedBookmarkOnRemote(t *testing.T) {
 
 	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "gone")
 	focusTextOnRow(t, session, ctx, "gone")
-	if err := session.SendKey(ghostty.KeyD, "d", 0); err != nil {
+	if err := session.SendKey(ghostty.KeyX, "x", 0); err != nil {
 		t.Fatal(err)
 	}
 	// Deleting the local bookmark leaves the remote one to push.
@@ -215,7 +239,7 @@ func Test_TextObjects_DeletesUntrackedRemoteBookmark(t *testing.T) {
 		t.Fatal(err)
 	}
 	focusTextOnRow(t, session, ctx, "other@origin")
-	if err := session.SendKey(ghostty.KeyD, "d", 0); err != nil {
+	if err := session.SendKey(ghostty.KeyX, "x", 0); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, ctx, func() (bool, error) {
@@ -242,7 +266,7 @@ func Test_TextObjects_DeletesFocusedTag(t *testing.T) {
 		t.Fatal(err)
 	}
 	focusTextOnRow(t, session, ctx, "v1.0")
-	if err := session.SendKey(ghostty.KeyD, "d", 0); err != nil {
+	if err := session.SendKey(ghostty.KeyX, "x", 0); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, ctx, func() (bool, error) {
@@ -258,7 +282,7 @@ func Test_TextObjects_ForgetsFocusedBookmark(t *testing.T) {
 
 	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "forget-me")
 	focusTextOnRow(t, session, ctx, "forget-me")
-	if err := session.SendKey(ghostty.KeyD, "D", ghostty.ModShift); err != nil {
+	if err := session.SendKey(ghostty.KeyX, "X", ghostty.ModShift); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, ctx, func() (bool, error) {
@@ -278,7 +302,7 @@ func Test_TextObjects_ForgetsTrackedBookmarkWithItsRemotes(t *testing.T) {
 		t.Fatal(err)
 	}
 	focusTextOnRow(t, session, ctx, "forget-me")
-	if err := session.SendKey(ghostty.KeyD, "D", ghostty.ModShift); err != nil {
+	if err := session.SendKey(ghostty.KeyX, "X", ghostty.ModShift); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, ctx, func() (bool, error) {
