@@ -29,8 +29,8 @@ func Test_Bookmarks_DeletesSpecialName(t *testing.T) {
 		t.Fatalf("bookmarks revset did not render the special bookmark name: %v\nraw output:\n%s", err, session.RawOutput())
 	}
 
-	// b focuses the bookmark, so d deletes it.
-	if err := session.SendKey(ghostty.KeyD, "d", 0); err != nil {
+	// b focuses the bookmark, so x deletes it.
+	if err := session.SendKey(ghostty.KeyX, "x", 0); err != nil {
 		t.Fatal(err)
 	}
 

@@ -29,7 +29,7 @@ func Test_WorkspaceObjects_ForgetsFocusedWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 	focusTextOnRow(t, session, ctx, "side@")
-	if err := session.SendKey(ghostty.KeyD, "D", ghostty.ModShift); err != nil {
+	if err := session.SendKey(ghostty.KeyX, "x", 0); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, ctx, func() (bool, error) {

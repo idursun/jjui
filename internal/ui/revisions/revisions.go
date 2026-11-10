@@ -1427,9 +1427,13 @@ func (m *Model) showDiff(intent intents.ShowDiff) tea.Cmd {
 	if commit == nil {
 		return nil
 	}
-	changeId := commit.GetChangeId()
+	args := jj.Diff(commit.GetChangeId(), jj.FileName{})
+	if obj := m.focusedTextObject(); intent.Selected == nil && obj != nil && obj.Kind == textObjectBookmark {
+		if kind, value := previewObject(obj); kind == textObjectBookmark {
+			args = jj.DiffRange("fork_point(trunk() | "+value+")", value)
+		}
+	}
 	return func() tea.Msg {
-		args := jj.Diff(changeId, jj.FileName{})
 		output, _ := m.context.RunCommandImmediateWithEnv(args, m.context.DiffEnv())
 		return intents.DiffShow{Content: string(output), Args: args}
 	}
