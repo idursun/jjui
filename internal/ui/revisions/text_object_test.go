@@ -1075,3 +1075,33 @@ func TestModel_ShowDiffOnFocusedBookmark(t *testing.T) {
 		})
 	}
 }
+
+func TestModel_FetchFocusedBookmark(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitFetch("--branch", jj.ExactStringPattern("second")))
+	commandRunner.Expect(jj.GitFetch("--branch", jj.ExactStringPattern("second"), "--remote", "origin"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectBookmark
+	runJJCommand(model.Update(intents.FocusedBookmarkFetch{}))
+
+	model.focusedObjectIndex = 1
+	runJJCommand(model.Update(intents.FocusedBookmarkFetch{}))
+}
+
+func TestModel_BookmarkFetchRunsOncePerRemote(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitFetch("--branch", jj.ExactStringPattern("second")))
+	commandRunner.Expect(jj.GitFetch("--branch", jj.ExactStringPattern("second"), "--remote", "origin"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectBookmark
+	model.Update(intents.RevisionsToggleSelect{})
+	model.focusedObjectIndex = 1
+	model.Update(intents.RevisionsToggleSelect{})
+	runAllJJCommands(model.Update(intents.FocusedBookmarkFetch{}))
+}
