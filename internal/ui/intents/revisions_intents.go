@@ -381,3 +381,8 @@ type RevisionsObjectCycleKind struct {
 }
 
 func (RevisionsObjectCycleKind) isIntent() {}
+
+//jjui:bind scope=revisions action=add_to_revset when="revisions.has_revision"
+type RevisionsObjectAddToRevset struct{}
+
+func (RevisionsObjectAddToRevset) isIntent() {}
