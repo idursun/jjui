@@ -80,60 +80,58 @@ func (a *MainCommandRunner) RunCommandStreaming(ctx context.Context, args []stri
 func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, continuations []tea.Cmd) tea.Cmd {
 	id := a.nextID()
 	command := "jj " + strings.Join(args, " ")
-	commands := make([]tea.Cmd, 0)
-	commands = append(commands,
-		func() tea.Msg {
-			started, cancel, env := a.Askpass.NewSubprocess(strings.Join(args, " "))
-			defer cancel()
-			if !slices.Contains(args, "--color") {
-				args = append([]string{"--color", "always"}, args...)
-			}
-			c := exec.Command("jj", args...)
-			c.Dir = a.Location
-			c.Env = append(os.Environ(), env...)
+	run := func() tea.Msg {
+		started, cancel, env := a.Askpass.NewSubprocess(strings.Join(args, " "))
+		defer cancel()
+		if !slices.Contains(args, "--color") {
+			args = append([]string{"--color", "always"}, args...)
+		}
+		c := exec.Command("jj", args...)
+		c.Dir = a.Location
+		c.Env = append(os.Environ(), env...)
 
-			if input != nil {
-				stdin, err := c.StdinPipe()
-				if err != nil {
-					return common.CommandCompletedMsg{
-						ID:  id,
-						Err: err,
-					}
-				}
-				go func() {
-					defer stdin.Close()
-					io.WriteString(stdin, *input)
-				}()
-			}
-
-			var output bytes.Buffer
-			c.Stderr = &output
-			if err := c.Start(); err != nil {
+		if input != nil {
+			stdin, err := c.StdinPipe()
+			if err != nil {
 				return common.CommandCompletedMsg{
 					ID:  id,
 					Err: err,
 				}
 			}
-			started(c.Process.Pid)
+			go func() {
+				defer stdin.Close()
+				io.WriteString(stdin, *input)
+			}()
+		}
 
-			err := c.Wait()
-			if err != nil {
-				if _, ok := errors.AsType[*exec.ExitError](err); ok {
-					err = errors.New(output.String())
-				}
-			}
+		var output bytes.Buffer
+		c.Stderr = &output
+		if err := c.Start(); err != nil {
 			return common.CommandCompletedMsg{
-				ID:     id,
-				Output: output.String(),
-				Err:    err,
+				ID:  id,
+				Err: err,
 			}
-		})
-	commands = append(commands, continuations...)
+		}
+		started(c.Process.Pid)
+
+		err := c.Wait()
+		if err != nil {
+			if _, ok := errors.AsType[*exec.ExitError](err); ok {
+				err = errors.New(output.String())
+			}
+		}
+		completed := common.CommandCompletedMsg{ID: id, Output: output.String(), Err: err}
+		if err != nil {
+			return completed
+		}
+		// continuations run only after a successful command
+		return tea.Sequence(append([]tea.Cmd{func() tea.Msg { return completed }}, continuations...)...)()
+	}
 	return tea.Batch(
 		func() tea.Msg {
 			return common.CommandRunningMsg{ID: id, Command: command}
 		},
-		tea.Sequence(commands...),
+		run,
 	)
 }
 
