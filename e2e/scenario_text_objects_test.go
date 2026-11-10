@@ -414,7 +414,7 @@ func Test_TextObjects_ClickFocusesObject(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitForCursorOn(t, session, ctx, "click-me")
-	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "rename bookmark") }); err != nil {
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return statusHasEntry(screen, "r", "rename") }); err != nil {
 		t.Fatalf("the clicked bookmark's actions are not shown: %v", err)
 	}
 }
