@@ -70,10 +70,10 @@ type DetailsInvertSelection struct{}
 
 func (DetailsInvertSelection) isIntent() {}
 
-//jjui:bind scope=revisions.details action=revisions_changing_file when="revisions.details.has_file"
-type DetailsRevisionsChangingFile struct{}
+//jjui:bind scope=revisions.details action=add_to_revset when="revisions.details.has_file"
+type DetailsAddToRevset struct{}
 
-func (DetailsRevisionsChangingFile) isIntent() {}
+func (DetailsAddToRevset) isIntent() {}
 
 //jjui:bind scope=revisions.details action=select_file set=File:$string(file)
 type DetailsSelectFile struct {
