@@ -305,6 +305,11 @@ type FocusedBookmarkPush struct{}
 
 func (FocusedBookmarkPush) isIntent() {}
 
+//jjui:bind scope=revisions.bookmark action=fetch
+type FocusedBookmarkFetch struct{}
+
+func (FocusedBookmarkFetch) isIntent() {}
+
 //jjui:bind scope=revisions.change_id action=push
 type FocusedChangePush struct{}
 

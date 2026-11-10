@@ -124,6 +124,7 @@ bindings = [
     { key = "t", action = "revisions.bookmark.track", scope = "revisions.bookmark", desc = "track bookmark" },
     { key = "shift+t", action = "revisions.bookmark.untrack", scope = "revisions.bookmark", desc = "untrack bookmark" },
     { key = "shift+g", action = "revisions.bookmark.push", scope = "revisions.bookmark", desc = "push bookmark" },
+    { key = "shift+f", action = "revisions.bookmark.fetch", scope = "revisions.bookmark", desc = "fetch bookmark" },
     { key = "shift+x", action = "revisions.bookmark.forget", scope = "revisions.bookmark", desc = "forget bookmark" },
     { key = "shift+g", action = "revisions.change_id.push", scope = "revisions.change_id", desc = "push change" },
     { key = "x", action = "revisions.tag.delete", scope = "revisions.tag", desc = "delete tag" },

@@ -1042,6 +1042,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.pushChanges(), true
 	case intents.FocusedBookmarkPush:
 		return m.pushBookmarks(), true
+	case intents.FocusedBookmarkFetch:
+		return m.fetchBookmarks(), true
 	case intents.FocusedAuthorReset:
 		return m.runOnRevisionParts(textObjectAuthor, jj.MetaeditUpdateAuthor), true
 	case intents.FocusedTimestampReset:

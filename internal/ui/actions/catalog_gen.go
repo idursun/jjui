@@ -433,6 +433,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.FocusedBookmarkAdvance{}, true
 		case keybindings.Action("revisions.bookmark.delete"):
 			return intents.FocusedBookmarkDelete{}, true
+		case keybindings.Action("revisions.bookmark.fetch"):
+			return intents.FocusedBookmarkFetch{}, true
 		case keybindings.Action("revisions.bookmark.forget"):
 			return intents.FocusedBookmarkForget{}, true
 		case keybindings.Action("revisions.bookmark.move"):
