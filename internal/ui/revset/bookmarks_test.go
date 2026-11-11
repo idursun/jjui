@@ -253,3 +253,92 @@ func TestBookmarks_OpensWithTheRemotesFocused(t *testing.T) {
 	assert.True(t, model.InBookmarksView())
 	assert.True(t, model.RemotesFocused())
 }
+
+// openOnOrigin opens the view with origin and upstream and focuses origin. The
+// returned remote list answers every later reload too.
+func openOnOrigin(t *testing.T, commandRunner *test.CommandRunner) (*Model, *[]string, *test.ExpectedCommand) {
+	remoteList := commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin https://a\nupstream https://b\n"))
+	model := New(test.NewTestContext(commandRunner))
+	revsets := &[]string{}
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarks{FocusRemotes: true}))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksCycleRemote{Delta: 2}))
+	return model, revsets, remoteList
+}
+
+func TestBookmarks_RenameFocusedRemote(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	model, revsets, remoteList := openOnOrigin(t, commandRunner)
+	commandRunner.Expect(jj.GitRemoteRename("origin", "mine"))
+
+	canEdit, _ := model.QueryState("bookmarks.can_edit_remote")
+	assert.Equal(t, true, canEdit)
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesRename{}))
+	require.True(t, model.IsEditing())
+	assert.Equal(t, scopeRemotesEditor, model.Scopes()[0].Name)
+	assert.Nil(t, model.BookmarksScopes(), "the editor holds the keys")
+
+	lines := strings.Split(test.RenderImmediate(model, 160, 2), "\n")
+	assert.Contains(t, lines[1], "origin")
+
+	for range len("origin") {
+		simulate(model, revsets, test.Press(tea.KeyBackspace))
+	}
+	simulate(model, revsets, test.Type("mine"))
+	remoteList.SetOutput([]byte("mine https://a\nupstream https://b\n"))
+	simulate(model, revsets, intents.Invoke(intents.Apply{}))
+
+	assert.False(t, model.IsEditing())
+	assert.Equal(t, `remote_bookmarks(remote=exact:"mine")`, (*revsets)[len(*revsets)-1])
+	assert.True(t, model.RemotesFocused())
+}
+
+func TestBookmarks_RenameCancelRunsNothing(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	model, revsets, _ := openOnOrigin(t, commandRunner)
+
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesRename{}))
+	simulate(model, revsets, test.Type("x"))
+	simulate(model, revsets, intents.Invoke(intents.Cancel{}))
+	assert.False(t, model.IsEditing())
+
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesRename{}))
+	simulate(model, revsets, intents.Invoke(intents.Apply{}))
+	assert.False(t, model.IsEditing(), "an unchanged name runs nothing")
+}
+
+func TestBookmarks_RemoveFocusedRemoteAsksFirst(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	model, revsets, remoteList := openOnOrigin(t, commandRunner)
+	commandRunner.Expect(jj.GitRemoteRemove("origin"))
+
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesRemove{}))
+	require.True(t, model.IsEditing())
+	assert.Equal(t, scopeRemotesConfirm, model.Scopes()[0].Name)
+	assert.Contains(t, test.RenderImmediate(model, 160, 6), "Remove remote origin")
+
+	simulate(model, revsets, test.Type("n"))
+	assert.False(t, model.IsEditing(), "no keeps the remote")
+
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesRemove{}))
+	remoteList.SetOutput([]byte("upstream https://b\n"))
+	simulate(model, revsets, test.Type("y"))
+
+	assert.False(t, model.IsEditing())
+	assert.Equal(t, `remote_bookmarks(remote=exact:"upstream")`, (*revsets)[len(*revsets)-1])
+}
+
+func TestBookmarks_NoRenameOrRemoveForAllOrLocal(t *testing.T) {
+	model, revsets := openBookmarks(t)
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFocusRemotes{}))
+	for range 2 {
+		canEdit, _ := model.QueryState("bookmarks.can_edit_remote")
+		assert.Equal(t, false, canEdit)
+		simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesRename{}))
+		simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksRemotesRemove{}))
+		assert.False(t, model.IsEditing())
+		simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksCycleRemote{Delta: 1}))
+	}
+}

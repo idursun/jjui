@@ -546,6 +546,8 @@ function wait_refresh() end
 ---@field close fun()
 
 ---@class jjui.revset.bookmarks.remotes
+---@field confirmation jjui.revset.bookmarks.remotes.confirmation
+---@field editor jjui.revset.bookmarks.remotes.editor
 ---@field fetch fun()
 ---@field fetch_tracked fun()
 ---@field leave fun()
@@ -555,6 +557,20 @@ function wait_refresh() end
 ---@field push_all_deleted fun()
 ---@field push_deleted fun()
 ---@field push_tracked fun()
+---@field remove fun()
+---@field rename fun()
+
+---@class jjui.revset.bookmarks.remotes.confirmation
+---@field apply fun()
+---@field cancel fun()
+---@field next fun()
+---@field prev fun()
+---@field close fun()
+
+---@class jjui.revset.bookmarks.remotes.editor
+---@field apply fun()
+---@field cancel fun()
+---@field close fun()
 
 ---@class jjui.status
 ---@field input jjui.status.input

@@ -1,14 +1,18 @@
 package revset
 
 import (
+	"slices"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -24,6 +28,8 @@ var (
 	scopeBookmarks        = bindings.ScopeName(actions.ScopeRevset + ".bookmarks")
 	scopeBookmarksFilter  = bindings.ScopeName(actions.ScopeRevset + ".bookmarks.filter")
 	scopeBookmarksRemotes = bindings.ScopeName(actions.ScopeRevset + ".bookmarks.remotes")
+	scopeRemotesEditor    = bindings.ScopeName(actions.ScopeRevset + ".bookmarks.remotes.editor")
+	scopeRemotesConfirm   = bindings.ScopeName(actions.ScopeRevset + ".bookmarks.remotes.confirmation")
 )
 
 // bookmarksView is a revset built from a remote and a name filter. It lasts
@@ -37,6 +43,9 @@ type bookmarksView struct {
 	filter       textinput.Model
 	filtering    bool
 	focused      bool // the cursor is on the remotes line
+	renaming     bool // the focused remote's name is being edited
+	rename       textinput.Model
+	confirm      *confirmation.Model // asks before removing the focused remote
 	filterBefore string
 	revset       string
 	restore      string
@@ -44,6 +53,39 @@ type bookmarksView struct {
 
 type selectRemoteMsg struct {
 	index int
+}
+
+// remotesChangedMsg reloads the remotes, keeping the cursor on focus when it
+// is still there.
+type remotesChangedMsg struct {
+	focus string
+}
+
+type removeRemoteMsg struct {
+	name string
+}
+
+func remotesChanged(focus string) tea.Cmd {
+	return func() tea.Msg { return remotesChangedMsg{focus: focus} }
+}
+
+// inputScope is the scope of the input that holds the keys, if one is open.
+func (v *bookmarksView) inputScope() (bindings.ScopeName, bool) {
+	switch {
+	case v.filtering:
+		return scopeBookmarksFilter, true
+	case v.renaming:
+		return scopeRemotesEditor, true
+	case v.confirm != nil:
+		return scopeRemotesConfirm, true
+	}
+	return "", false
+}
+
+// gitRemote returns the focused remote unless it is all or local.
+func (v *bookmarksView) gitRemote() (string, bool) {
+	remote := v.remotes[v.remoteIdx]
+	return remote, v.focused && remote != remoteLocal && remote != remoteAll
 }
 
 func bookmarksRevset(filter, remote string) string {
@@ -96,7 +138,10 @@ func (m *Model) FocusedRemote() (kind, value string, ok bool) {
 // BookmarksScopes are the keys of the bookmarks view outside the filter input.
 // They must sit before the revisions scope so that tab, / and esc reach them.
 func (m *Model) BookmarksScopes() []common.Scope {
-	if m.bookmarks == nil || m.bookmarks.filtering {
+	if m.bookmarks == nil {
+		return nil
+	}
+	if _, ok := m.bookmarks.inputScope(); ok {
 		return nil
 	}
 	if m.bookmarks.focused {
@@ -122,9 +167,12 @@ func (m *Model) QueryState(name string) (any, bool) {
 	case "bookmarks.can_fetch":
 		v := m.bookmarks
 		return v != nil && v.focused && v.remotes[v.remoteIdx] != remoteLocal, true
-	case "bookmarks.can_push":
-		v := m.bookmarks
-		return v != nil && v.focused && v.remotes[v.remoteIdx] != remoteLocal && v.remotes[v.remoteIdx] != remoteAll, true
+	case "bookmarks.can_push", "bookmarks.can_edit_remote":
+		if m.bookmarks == nil {
+			return false, true
+		}
+		_, ok := m.bookmarks.gitRemote()
+		return ok, true
 	}
 	return nil, false
 }
@@ -134,15 +182,61 @@ func (m *Model) showBookmarks() tea.Cmd {
 	if m.bookmarks != nil {
 		restore = m.bookmarks.restore
 	}
+	m.bookmarks = &bookmarksView{remotes: m.loadRemotes(), filter: newBookmarksInput(""), restore: restore, issued: map[string]bool{}}
+	return m.applyBookmarks()
+}
+
+func newBookmarksInput(value string) textinput.Model {
+	ti := textinput.New()
+	ti.Prompt = ""
+	ti.SetVirtualCursor(false)
+	ti.SetValue(value)
+	ti.CursorEnd()
+	return ti
+}
+
+func (m *Model) loadRemotes() []string {
 	remotes := []string{remoteAll, remoteLocal}
 	if out, err := m.context.RunCommandImmediate(jj.GitRemoteList()); err == nil {
 		remotes = append(remotes, jj.ParseRemoteListOutput(string(out))...)
 	}
-	ti := textinput.New()
-	ti.Prompt = ""
-	ti.SetVirtualCursor(false)
-	m.bookmarks = &bookmarksView{remotes: remotes, filter: ti, restore: restore, issued: map[string]bool{}}
-	return m.applyBookmarks()
+	return remotes
+}
+
+// reloadRemotes keeps the cursor on focus, or on the same place when focus
+// is gone.
+func (m *Model) reloadRemotes(focus string) {
+	v := m.bookmarks
+	v.remotes = m.loadRemotes()
+	v.remoteIdx = min(v.remoteIdx, len(v.remotes)-1)
+	if i := slices.Index(v.remotes, focus); i >= 0 {
+		v.remoteIdx = i
+	}
+}
+
+func (m *Model) handleRemoteInputIntent(intent intents.Intent) (tea.Cmd, bool) {
+	v := m.bookmarks
+	if v.confirm != nil {
+		switch intent.(type) {
+		case intents.Apply, intents.Cancel, intents.OptionSelect:
+			return v.confirm.Update(intent), true
+		}
+		return nil, false
+	}
+	switch intent.(type) {
+	case intents.Cancel:
+		v.renaming = false
+		return nil, true
+	case intents.Apply:
+		v.renaming = false
+		oldName := v.remotes[v.remoteIdx]
+		newName := strings.TrimSpace(v.rename.Value())
+		if newName == "" || newName == oldName {
+			return nil, true
+		}
+		return m.context.RunCommand(jj.GitRemoteRename(oldName, newName), remotesChanged(newName)), true
+	}
+	return nil, false
 }
 
 func (m *Model) applyBookmarks() tea.Cmd {
@@ -162,7 +256,30 @@ func (m *Model) handleBookmarksIntent(intent intents.Intent) (tea.Cmd, bool) {
 	if v == nil {
 		return nil, false
 	}
+	if v.renaming || v.confirm != nil {
+		return m.handleRemoteInputIntent(intent)
+	}
 	switch intent := intent.(type) {
+	case intents.RevsetBookmarksRemotesRename:
+		remote, ok := v.gitRemote()
+		if !ok {
+			return nil, true
+		}
+		v.renaming = true
+		v.rename = newBookmarksInput(remote)
+		return v.rename.Focus(), true
+	case intents.RevsetBookmarksRemotesRemove:
+		remote, ok := v.gitRemote()
+		if !ok {
+			return nil, true
+		}
+		v.confirm = confirmation.New(
+			[]string{"Remove remote " + remote + " and forget its bookmarks?"},
+			confirmation.WithZIndex(render.ZDialogs),
+			confirmation.WithOption("Yes", func() tea.Msg { return removeRemoteMsg{name: remote} }, key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
+			confirmation.WithOption("No", confirmation.Close, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
+		)
+		return v.confirm.Init(), true
 	case intents.RevsetBookmarksCycleRemote:
 		v.remoteIdx = (v.remoteIdx + intent.Delta + len(v.remotes)) % len(v.remotes)
 		return m.applyBookmarks(), true
@@ -239,9 +356,37 @@ func (m *Model) updateBookmarks(msg tea.Msg) (tea.Cmd, bool) {
 		}
 		return nil, true
 	case selectRemoteMsg:
+		if v.renaming || v.confirm != nil {
+			return nil, true
+		}
 		v.remoteIdx = msg.index
 		return m.applyBookmarks(), true
+	case remotesChangedMsg:
+		m.reloadRemotes(msg.focus)
+		return m.applyBookmarks(), true
+	case removeRemoteMsg:
+		v.confirm = nil
+		return m.context.RunCommand(jj.GitRemoteRemove(msg.name), remotesChanged("")), true
+	case confirmation.CloseMsg:
+		if v.confirm == nil {
+			return nil, false
+		}
+		v.confirm = nil
+		return nil, true
+	case confirmation.SelectOptionMsg:
+		if v.confirm == nil {
+			return nil, false
+		}
+		return v.confirm.Update(msg), true
 	case tea.KeyMsg:
+		if v.confirm != nil {
+			return v.confirm.Update(msg), true
+		}
+		if v.renaming {
+			var cmd tea.Cmd
+			v.rename, cmd = v.rename.Update(msg)
+			return cmd, true
+		}
 		if !v.filtering {
 			return nil, false
 		}
@@ -266,6 +411,12 @@ func (m *Model) viewBookmarks(dl *render.DisplayContext, box layout.Box) {
 	tb := dl.Text(box.R.Min.X, box.R.Min.Y, render.ZFuzzyInput)
 	tb.Styled("remote: ", titleStyle)
 	for i, remote := range v.remotes {
+		if i == v.remoteIdx && v.renaming {
+			x, _ := tb.Measure()
+			tb.Write(" " + v.rename.View() + " ")
+			dl.SetCursorInRect(v.rename.Cursor(), box.R, x+1, 0)
+			continue
+		}
 		style := dimmed
 		if i == v.remoteIdx {
 			style = textStyle
@@ -287,6 +438,11 @@ func (m *Model) viewBookmarks(dl *render.DisplayContext, box layout.Box) {
 		tb.Styled(v.filter.Value(), textStyle)
 	}
 	tb.Done()
+
+	if v.confirm != nil {
+		w, h := lipgloss.Size(v.confirm.View())
+		v.confirm.ViewRect(dl, layout.NewBox(layout.Rect(box.R.Min.X, box.R.Max.Y, w, h)))
+	}
 }
 
 // remoteCursor matches the cursor of a focused text object in the log.

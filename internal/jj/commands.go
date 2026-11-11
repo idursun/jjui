@@ -379,6 +379,14 @@ func GitRemoteList() CommandArgs {
 	return []string{"git", "remote", "list"}
 }
 
+func GitRemoteRename(oldName string, newName string) CommandArgs {
+	return []string{"git", "remote", "rename", oldName, newName}
+}
+
+func GitRemoteRemove(name string) CommandArgs {
+	return []string{"git", "remote", "remove", name}
+}
+
 func Rebase(from SelectedRevisions, sourcePrefix string, to string, target string, skipEmptied bool, ignoreImmutable bool) CommandArgs {
 	args := []string{"rebase"}
 	args = append(args, from.AsPrefixedArgs(sourcePrefix)...)

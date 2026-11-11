@@ -111,6 +111,8 @@ func (ChooseCancel) isIntent() {}
 //jjui:bind scope=revisions.details.confirmation action=cancel
 //jjui:bind scope=revisions.inline_describe.confirmation action=cancel
 //jjui:bind scope=annotation.confirmation action=cancel
+//jjui:bind scope=revset.bookmarks.remotes.editor action=cancel
+//jjui:bind scope=revset.bookmarks.remotes.confirmation action=cancel
 //jjui:bind scope=revisions.evolog action=cancel
 //jjui:bind scope=revisions.abandon action=cancel
 //jjui:bind scope=revisions.absorb action=cancel
@@ -152,6 +154,8 @@ func (DismissOverlay) isIntent() {}
 //jjui:bind scope=revisions.details.confirmation action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions.inline_describe.confirmation action=apply set=Force:$bool(force)
 //jjui:bind scope=annotation.confirmation action=apply set=Force:$bool(force)
+//jjui:bind scope=revset.bookmarks.remotes.editor action=apply
+//jjui:bind scope=revset.bookmarks.remotes.confirmation action=apply
 //jjui:bind scope=revisions.details.confirmation action=force_apply set=Force:true
 //jjui:bind scope=revisions.evolog action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions.abandon action=apply set=Force:$bool(force)
@@ -193,6 +197,8 @@ func (Apply) isIntent() {}
 //jjui:bind scope=annotation.confirmation action=prev set=Delta:-1
 //jjui:bind scope=revisions.inline_describe.confirmation action=next set=Delta:1
 //jjui:bind scope=annotation.confirmation action=next set=Delta:1
+//jjui:bind scope=revset.bookmarks.remotes.confirmation action=prev set=Delta:-1
+//jjui:bind scope=revset.bookmarks.remotes.confirmation action=next set=Delta:1
 type OptionSelect struct {
 	Delta int
 }

@@ -61,12 +61,19 @@ type Model struct {
 }
 
 func (m *Model) IsEditing() bool {
-	return m.editing || (m.bookmarks != nil && m.bookmarks.filtering)
+	if m.bookmarks != nil {
+		if _, ok := m.bookmarks.inputScope(); ok {
+			return true
+		}
+	}
+	return m.editing
 }
 
 func (m *Model) Scopes() []common.Scope {
-	if m.bookmarks != nil && m.bookmarks.filtering {
-		return []common.Scope{{Name: scopeBookmarksFilter, Leak: common.LeakNone, Handler: m}}
+	if m.bookmarks != nil {
+		if scope, ok := m.bookmarks.inputScope(); ok {
+			return []common.Scope{{Name: scope, Leak: common.LeakNone, Handler: m}}
+		}
 	}
 	if !m.editing {
 		return []common.Scope{
@@ -175,6 +182,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case intents.Intent:
 		cmd, _ := m.HandleIntent(msg)
 		return cmd
+	case remotesChangedMsg:
+		// The bookmarks view closed before the command finished.
+		return common.Refresh
 	case completionScrollMsg:
 		if msg.Horizontal {
 			return nil
