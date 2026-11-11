@@ -201,7 +201,7 @@ func TestTargetPickerLoadsSummaryFiles(t *testing.T) {
 	require.Len(t, openMsg.Sources, 2)
 	staticItems, err := openMsg.Sources[0].Fetch(nil)
 	require.NoError(t, err)
-	assert.Equal(t, []source.Item{{Name: allFilesTargetLabel}}, staticItems)
+	assert.Equal(t, []source.Item{{Name: allFilesTargetLabel, Kind: source.KindFile}}, staticItems)
 	items, err := openMsg.Sources[1].Fetch(nil)
 	require.NoError(t, err)
 	assert.Equal(t, []source.Item{

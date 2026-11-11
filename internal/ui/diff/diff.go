@@ -438,7 +438,7 @@ func (m *Model) openTargetPicker() tea.Cmd {
 		return intents.Invoke(intents.AddMessage{Text: "No files found in diff summary"})
 	}
 	return common.OpenTargetPickerWithPayload(targetPickerPayload{},
-		source.StaticSource{Items: []source.Item{{Name: allFilesTargetLabel}}},
+		source.StaticSource{Items: []source.Item{{Name: allFilesTargetLabel, Kind: source.KindFile}}},
 		source.FileSource{Files: m.targetFiles},
 	)
 }
