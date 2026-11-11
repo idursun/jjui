@@ -107,3 +107,13 @@ type RevsetBookmarksRemotesPush struct {
 }
 
 func (RevsetBookmarksRemotesPush) isIntent() {}
+
+//jjui:bind scope=revset.bookmarks.remotes action=rename when="revset.bookmarks.can_edit_remote"
+type RevsetBookmarksRemotesRename struct{}
+
+func (RevsetBookmarksRemotesRename) isIntent() {}
+
+//jjui:bind scope=revset.bookmarks.remotes action=remove when="revset.bookmarks.can_edit_remote"
+type RevsetBookmarksRemotesRemove struct{}
+
+func (RevsetBookmarksRemotesRemove) isIntent() {}
