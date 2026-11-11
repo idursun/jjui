@@ -1431,10 +1431,8 @@ func (m *Model) showDiff(intent intents.ShowDiff) tea.Cmd {
 		return nil
 	}
 	args := jj.Diff(commit.GetChangeId(), jj.FileName{})
-	if obj := m.focusedTextObject(); intent.Selected == nil && obj != nil && obj.Kind == textObjectBookmark {
-		if kind, value := previewObject(obj); kind == textObjectBookmark {
-			args = jj.DiffRange("fork_point(trunk() | "+value+")", value)
-		}
+	if bookmark, ok := m.focusedBookmark(); intent.Selected == nil && ok {
+		args = jj.DiffRange(jj.BookmarkForkPoint(bookmark), bookmark)
 	}
 	return func() tea.Msg {
 		output, _ := m.context.RunCommandImmediateWithEnv(args, m.context.DiffEnv())
@@ -1450,11 +1448,23 @@ func (m *Model) openAnnotation(intent intents.OpenAnnotation) tea.Cmd {
 	if commit == nil || commit.IsRoot() {
 		return nil
 	}
-	return func() tea.Msg {
-		return intents.AnnotationShow{
-			ChangeID: commit.GetChangeId(),
-		}
+	show := intents.AnnotationShow{ChangeID: commit.GetChangeId()}
+	if bookmark, ok := m.focusedBookmark(); intent.Selected == nil && ok {
+		show = intents.AnnotationShow{ChangeID: bookmark, From: jj.BookmarkForkPoint(bookmark)}
 	}
+	return func() tea.Msg { return show }
+}
+
+// focusedBookmark returns the revset of the focused bookmark, whose branch the
+// diff and annotation views show in place of the revision. Conflicted
+// bookmarks have no single target, so they are left out.
+func (m *Model) focusedBookmark() (string, bool) {
+	obj := m.focusedTextObject()
+	if obj == nil || obj.Kind != textObjectBookmark {
+		return "", false
+	}
+	kind, value := previewObject(obj)
+	return value, kind == textObjectBookmark
 }
 
 func (m *Model) startSplit(intent intents.StartSplit) tea.Cmd {

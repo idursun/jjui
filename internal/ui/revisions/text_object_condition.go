@@ -20,7 +20,7 @@ func revsetCondition(obj *textObject, commit *jj.Commit) (string, string) {
 		if kind != textObjectBookmark {
 			return "", "Conflicted bookmarks cannot be added to the revset"
 		}
-		return "fork_point(trunk() | " + value + ").." + value, ""
+		return jj.BookmarkForkPoint(value) + ".." + value, ""
 	case textObjectTag:
 		return "::" + revsetSymbol(obj.Value), ""
 	case textObjectWorkspace:

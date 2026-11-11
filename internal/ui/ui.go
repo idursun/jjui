@@ -693,7 +693,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		if intent.ChangeID == "" {
 			return nil, true
 		}
-		model := annotation.New(m.context, intent.ChangeID)
+		model := annotation.NewRange(m.context, intent.From, intent.ChangeID)
 		m.openScreen(model)
 		return model.Init(), true
 	// --- Status ---
