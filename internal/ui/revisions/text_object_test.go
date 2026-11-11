@@ -1105,3 +1105,21 @@ func TestModel_BookmarkFetchRunsOncePerRemote(t *testing.T) {
 	model.Update(intents.RevisionsToggleSelect{})
 	runAllJJCommands(model.Update(intents.FocusedBookmarkFetch{}))
 }
+
+func TestModel_SelectionCarriesTheFocusedObjectAsShown(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+
+	model.focusedObjectKind, model.focusedObjectIndex = textObjectBookmark, 0
+	rev := model.Selection().Highlighted.(appContext.SelectedRevision)
+	assert.Equal(t, "second", rev.ObjectText)
+	assert.Empty(t, rev.ObjectRemote)
+	assert.True(t, rev.ObjectConflicted)
+
+	model.focusedObjectKind, model.focusedObjectIndex = textObjectBookmark, 1
+	rev = model.Selection().Highlighted.(appContext.SelectedRevision)
+	assert.Equal(t, "second@origin", rev.ObjectValue, "the preview keeps its jj argument")
+	assert.Equal(t, "second", rev.ObjectText)
+	assert.Equal(t, "origin", rev.ObjectRemote)
+	assert.False(t, rev.ObjectConflicted)
+}

@@ -119,19 +119,19 @@ func (m *Model) RemotesFocused() bool {
 	return m.bookmarks != nil && m.bookmarks.focused
 }
 
-// FocusedRemote returns the preview object kind and value of the focused
-// entry on the remotes line.
-func (m *Model) FocusedRemote() (kind, value string, ok bool) {
+// FocusedRemote returns the preview object kind and value, and the name, of
+// the focused entry on the remotes line.
+func (m *Model) FocusedRemote() (kind, value, name string, ok bool) {
 	if !m.RemotesFocused() {
-		return "", "", false
+		return "", "", "", false
 	}
 	switch remote := m.bookmarks.remotes[m.bookmarks.remoteIdx]; remote {
 	case remoteAll:
-		return "remote_all", remote, true
+		return "remote_all", remote, remote, true
 	case remoteLocal:
-		return "remote_local", remote, true
+		return "remote_local", remote, remote, true
 	default:
-		return "remote", jj.ExactStringPattern(remote), true
+		return "remote", jj.ExactStringPattern(remote), remote, true
 	}
 }
 
