@@ -367,9 +367,11 @@ var builtInActionScopes = map[string][]string{
 
 var builtInActionConditions = map[string]string{
 	"annotation.add":                            "annotation.can_annotate",
+	"annotation.child_revision":                 "annotation.can_navigate_revisions",
 	"annotation.clear":                          "annotation.has_annotations",
 	"annotation.copy":                           "annotation.has_annotations",
 	"annotation.delete":                         "annotation.has_annotation_at_cursor",
+	"annotation.parent_revision":                "annotation.can_navigate_revisions",
 	"revisions.add_to_revset":                   "revisions.has_revision",
 	"revisions.commit":                          "revisions.working_copy_has_changes",
 	"revisions.describe":                        "revisions.has_selection",

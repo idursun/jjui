@@ -109,11 +109,6 @@ func formatAnnotationsMarkdown(annotations []Annotation) string {
 		if index > 0 {
 			out.WriteString("\n\n")
 		}
-		revision := annotation.ChangeID
-		if revision == "" {
-			revision = "unknown"
-		}
-
 		locations := make([]string, 0, 2)
 		if annotation.OldLines.Start != 0 || annotation.OldLines.End != 0 {
 			locations = append(locations, "old "+formatLineRange(annotation.OldLines))
@@ -125,7 +120,7 @@ func formatAnnotationsMarkdown(annotations []Annotation) string {
 			locations = append(locations, "line 0")
 		}
 
-		out.WriteString(fmt.Sprintf("### @%s (revision %s; %s)", annotation.File, revision, strings.Join(locations, ", ")))
+		out.WriteString(fmt.Sprintf("### @%s (%s)", annotation.File, strings.Join(locations, ", ")))
 		out.WriteString("\n\n")
 		out.WriteString("```diff\n")
 		out.WriteString(annotation.Snippet)

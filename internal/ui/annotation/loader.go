@@ -39,17 +39,23 @@ type annotationLoader struct {
 	context *appContext.MainContext
 }
 
-func (l annotationLoader) LoadRevision(changeID string, fullFile bool, requestID uint64) tea.Cmd {
+// LoadRevision loads the changes of changeID, or from from to changeID when
+// from is set.
+func (l annotationLoader) LoadRevision(from, changeID string, fullFile bool, requestID uint64) tea.Cmd {
 	if l.context == nil || changeID == "" {
 		return nil
 	}
 	return func() tea.Msg {
-		descriptionOutput, descriptionErr := l.context.RunCommandImmediate(jj.GetDescription(changeID))
-		description := "(description unavailable)"
-		if descriptionErr == nil {
-			description = descriptionSummary(string(descriptionOutput))
+		diffArgs := jj.AnnotationDiff(changeID)
+		description := from + ".." + changeID
+		if from != "" {
+			diffArgs = jj.AnnotationDiffRange(from, changeID)
+		} else if output, err := l.context.RunCommandImmediate(jj.GetDescription(changeID)); err == nil {
+			description = descriptionSummary(string(output))
+		} else {
+			description = "(description unavailable)"
 		}
-		diffOutput, err := l.context.RunCommandImmediate(jj.AnnotationDiff(changeID))
+		diffOutput, err := l.context.RunCommandImmediate(diffArgs)
 		if err != nil {
 			return revisionLoadedMsg{
 				ChangeID:    changeID,
@@ -62,7 +68,7 @@ func (l annotationLoader) LoadRevision(changeID string, fullFile bool, requestID
 		if fullFile && len(files) > 0 {
 			file := &files[0]
 			output, fileErr := l.context.RunCommandImmediate(
-				jj.FileShow(fileRevision(changeID, file), file.Path),
+				jj.FileShow(fileRevision(from, changeID, file), file.Path),
 			)
 			file.ContentErr = fileErr
 			file.ContentLoaded = fileErr == nil
@@ -79,12 +85,12 @@ func (l annotationLoader) LoadRevision(changeID string, fullFile bool, requestID
 	}
 }
 
-func (l annotationLoader) LoadFile(changeID string, file *fileItem) tea.Cmd {
+func (l annotationLoader) LoadFile(from, changeID string, file *fileItem) tea.Cmd {
 	if l.context == nil || file == nil || file.ContentLoaded || file.ContentErr != nil {
 		return nil
 	}
 	path := file.Path
-	revision := fileRevision(changeID, file)
+	revision := fileRevision(from, changeID, file)
 	return func() tea.Msg {
 		output, err := l.context.RunCommandImmediate(jj.FileShow(revision, path))
 		return fileLoadedMsg{
@@ -148,9 +154,14 @@ func descriptionSummary(description string) string {
 	return "(no description set)"
 }
 
-func fileRevision(changeID string, file *fileItem) string {
-	if file.Patch != nil && file.Patch.NewPath == "" {
-		return changeID + "-"
+// fileRevision is where the file of changeID can be read: a deleted file is
+// read before the change.
+func fileRevision(from, changeID string, file *fileItem) string {
+	if file.Patch == nil || file.Patch.NewPath != "" {
+		return changeID
 	}
-	return changeID
+	if from != "" {
+		return from
+	}
+	return changeID + "-"
 }

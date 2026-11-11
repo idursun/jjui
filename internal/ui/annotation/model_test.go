@@ -1119,3 +1119,29 @@ func TestCloseConfirmationDiscardsOnlyWhenSelected(t *testing.T) {
 	require.NotNil(t, cmd)
 	assert.Equal(t, common.CloseViewMsg{Applied: true}, cmd())
 }
+
+func TestRangeReviewsTheChangesBetweenTwoRevisions(t *testing.T) {
+	runner := test.NewTestCommandRunner(t)
+	defer runner.Verify()
+	runner.Expect(jj.AnnotationDiffRange("fork", "feature")).SetOutput([]byte(`diff --git a/gone.go b/gone.go
+deleted file mode 100644
+--- a/gone.go
++++ /dev/null
+@@ -1 +0,0 @@
+-old`))
+	runner.Expect(jj.FileShow("fork", "gone.go")).SetOutput([]byte("old"))
+
+	model := NewRange(test.NewTestContext(runner), "fork", "feature")
+	require.Nil(t, model.Update(model.Init()()))
+	assert.Contains(t, test.Stripped(test.RenderImmediate(model, 80, 10)), "feature · fork..feature")
+
+	cmd, _ := model.HandleIntent(intents.AnnotationTogglePresentation{})
+	require.Nil(t, model.Update(cmd()))
+	assert.Equal(t, []string{"old"}, model.currentFile().Content, "a deleted file is read where the range starts")
+
+	canNavigate, _ := model.QueryState("can_navigate_revisions")
+	assert.Equal(t, false, canNavigate)
+	cmd, handled := model.HandleIntent(intents.AnnotationNavigateParent{})
+	assert.True(t, handled)
+	assert.Nil(t, cmd, "a range has no parent to move to")
+}

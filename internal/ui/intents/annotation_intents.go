@@ -11,6 +11,8 @@ func (OpenAnnotation) isIntent() {}
 
 type AnnotationShow struct {
 	ChangeID string
+	// From, when set, reviews the changes from it to ChangeID instead.
+	From string
 }
 
 func (AnnotationShow) isIntent() {}
@@ -58,12 +60,12 @@ type AnnotationOpenCommentPicker struct{}
 
 func (AnnotationOpenCommentPicker) isIntent() {}
 
-//jjui:bind scope=annotation action=parent_revision
+//jjui:bind scope=annotation action=parent_revision when="annotation.can_navigate_revisions"
 type AnnotationNavigateParent struct{}
 
 func (AnnotationNavigateParent) isIntent() {}
 
-//jjui:bind scope=annotation action=child_revision
+//jjui:bind scope=annotation action=child_revision when="annotation.can_navigate_revisions"
 type AnnotationNavigateChild struct{}
 
 func (AnnotationNavigateChild) isIntent() {}

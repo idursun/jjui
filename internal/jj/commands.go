@@ -158,6 +158,15 @@ func AnnotationDiff(revision string) CommandArgs {
 	return []string{"diff", "-r", revision, "--git", "--color", "never", "--ignore-working-copy"}
 }
 
+func AnnotationDiffRange(from string, to string) CommandArgs {
+	return []string{"diff", "--from", from, "--to", to, "--git", "--color", "never", "--ignore-working-copy"}
+}
+
+// BookmarkForkPoint is where the branch of bookmark leaves trunk.
+func BookmarkForkPoint(bookmark string) string {
+	return "fork_point(trunk() | " + bookmark + ")"
+}
+
 func FileShow(revision string, fileName string) CommandArgs {
 	return []string{
 		"file", "show", "-r", revision,
