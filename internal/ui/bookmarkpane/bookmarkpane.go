@@ -377,7 +377,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case input.SelectedMsg:
 		if m.pendingInput == pendingInputRename {
 			m.pendingInput = pendingInputNone
-			value := strings.TrimSpace(msg.Value)
+			value := strings.ReplaceAll(strings.TrimSpace(msg.Value), " ", "-")
 			selected, ok := m.selectedBookmark()
 			if !ok || value == "" || value == selected.Name || selected.Local == nil || !selected.Local.Present {
 				return nil

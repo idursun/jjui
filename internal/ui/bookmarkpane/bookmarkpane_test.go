@@ -9,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
+	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -104,6 +105,21 @@ func TestRenameSelected_LocalBookmarkOpensPrompt(t *testing.T) {
 	showInput, ok := cmd().(common.ShowInputMsg)
 	require.True(t, ok, "rename should request input")
 	assert.Equal(t, "main", showInput.Value)
+}
+
+func TestRenameSelected_ReplacesSpacesWithHyphens(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.BookmarkRename("main", "my-new-name"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.SyncRevisionContext("dest123", nil)
+	test.SimulateModel(model, model.OnShow())
+	model.SetFocused(true)
+
+	model.Update(intents.BookmarkPaneRename{})
+	test.SimulateModel(model, func() tea.Msg { return input.SelectedMsg{Value: " my new name "} })
 }
 
 func TestCreateSelected_ReturnsBeginCreateMessage(t *testing.T) {
