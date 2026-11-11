@@ -72,3 +72,29 @@ func TestRevsetBookmarks_LateRevsetFromAnEarlierChangeIsIgnored(t *testing.T) {
 	assert.Equal(t, string(toOrigin.(common.UpdateRevSetMsg)), model.context.CurrentRevset)
 	assert.True(t, model.revsetModel.InBookmarksView())
 }
+
+func TestRevsetBookmarks_RenameAndRemoveKeys(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin /tmp/remote.git\n"))
+	defer commandRunner.Verify()
+	model := NewUI(test.NewTestContext(commandRunner))
+	model.revsetModel.Update(intents.RevsetBookmarks{FocusRemotes: true})
+	model.revsetModel.Update(intents.RevsetBookmarksCycleRemote{Delta: 2})
+	resolve := func(key tea.KeyPressMsg) intents.Intent {
+		return model.resolver.ResolveKey(key, model.dispatchScopes()).Intent
+	}
+
+	assert.Equal(t, intents.RevsetBookmarksRemotesRename{}, resolve(tea.KeyPressMsg{Code: 'r', Text: "r"}))
+	assert.Equal(t, intents.RevsetBookmarksRemotesRemove{}, resolve(tea.KeyPressMsg{Code: 'x', Text: "x"}))
+
+	model.revsetModel.Update(intents.RevsetBookmarksRemotesRename{})
+	assert.Equal(t, "revset.bookmarks.remotes.editor", string(model.dispatchScopes()[0].Name))
+	assert.Equal(t, intents.Apply{}, resolve(tea.KeyPressMsg{Code: tea.KeyEnter}))
+	assert.Nil(t, resolve(tea.KeyPressMsg{Code: 'x', Text: "x"}), "x is typed into the name")
+	model.revsetModel.Update(intents.Cancel{})
+
+	model.revsetModel.Update(intents.RevsetBookmarksRemotesRemove{})
+	assert.Equal(t, "revset.bookmarks.remotes.confirmation", string(model.dispatchScopes()[0].Name))
+	assert.Equal(t, intents.Apply{}, resolve(tea.KeyPressMsg{Code: tea.KeyEnter}))
+	assert.Nil(t, resolve(tea.KeyPressMsg{Code: 'y', Text: "y"}), "y reaches the confirmation's own keys")
+}

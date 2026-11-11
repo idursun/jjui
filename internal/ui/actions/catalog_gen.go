@@ -8,59 +8,61 @@ import (
 )
 
 const (
-	ScopeAnnotation                 = "annotation"
-	ScopeAnnotationConfirmation     = "annotation.confirmation"
-	ScopeAnnotationEditor           = "annotation.editor"
-	ScopeChoose                     = "choose"
-	ScopeCommandHistory             = "command_history"
-	ScopeDiff                       = "diff"
-	ScopeFileSearch                 = "file_search"
-	ScopeHelp                       = "help"
-	ScopeInput                      = "input"
-	ScopeOplog                      = "oplog"
-	ScopeOplogQuickSearch           = "oplog.quick_search"
-	ScopePassword                   = "password"
-	ScopeRedo                       = "redo"
-	ScopeRevisions                  = "revisions"
-	ScopeAbandon                    = "revisions.abandon"
-	ScopeAbsorb                     = "revisions.absorb"
-	ScopeAceJump                    = "revisions.ace_jump"
-	ScopeAuthor                     = "revisions.author"
-	ScopeBookmark                   = "revisions.bookmark"
-	ScopeBookmarkTarget             = "revisions.bookmark_target"
-	ScopeChangeId                   = "revisions.change_id"
-	ScopeDescription                = "revisions.description"
-	ScopeDetails                    = "revisions.details"
-	ScopeDetailsConfirmation        = "revisions.details.confirmation"
-	ScopeDiffRange                  = "revisions.diff_range"
-	ScopeDivergent                  = "revisions.divergent"
-	ScopeDuplicate                  = "revisions.duplicate"
-	ScopeEvolog                     = "revisions.evolog"
-	ScopeInlineDescribe             = "revisions.inline_describe"
-	ScopeInlineDescribeConfirmation = "revisions.inline_describe.confirmation"
-	ScopeNewBetween                 = "revisions.new_between"
-	ScopeObject                     = "revisions.object"
-	ScopeQuickSearch                = "revisions.quick_search"
-	ScopeQuickSearchInput           = "revisions.quick_search.input"
-	ScopeRebase                     = "revisions.rebase"
-	ScopeRenameWorkspace            = "revisions.rename_workspace"
-	ScopeRevert                     = "revisions.revert"
-	ScopeSetBookmark                = "revisions.set_bookmark"
-	ScopeSetParents                 = "revisions.set_parents"
-	ScopeSquash                     = "revisions.squash"
-	ScopeTag                        = "revisions.tag"
-	ScopeTargetPicker               = "revisions.target_picker"
-	ScopeTimestamp                  = "revisions.timestamp"
-	ScopeWorkspace                  = "revisions.workspace"
-	ScopeRevset                     = "revset"
-	ScopeRevsetBookmarks            = "revset.bookmarks"
-	ScopeRevsetBookmarksFilter      = "revset.bookmarks.filter"
-	ScopeRevsetBookmarksRemotes     = "revset.bookmarks.remotes"
-	ScopeStatusInput                = "status.input"
-	ScopeUi                         = "ui"
-	ScopeUiOverlay                  = "ui.overlay"
-	ScopeUiPreview                  = "ui.preview"
-	ScopeUndo                       = "undo"
+	ScopeAnnotation                         = "annotation"
+	ScopeAnnotationConfirmation             = "annotation.confirmation"
+	ScopeAnnotationEditor                   = "annotation.editor"
+	ScopeChoose                             = "choose"
+	ScopeCommandHistory                     = "command_history"
+	ScopeDiff                               = "diff"
+	ScopeFileSearch                         = "file_search"
+	ScopeHelp                               = "help"
+	ScopeInput                              = "input"
+	ScopeOplog                              = "oplog"
+	ScopeOplogQuickSearch                   = "oplog.quick_search"
+	ScopePassword                           = "password"
+	ScopeRedo                               = "redo"
+	ScopeRevisions                          = "revisions"
+	ScopeAbandon                            = "revisions.abandon"
+	ScopeAbsorb                             = "revisions.absorb"
+	ScopeAceJump                            = "revisions.ace_jump"
+	ScopeAuthor                             = "revisions.author"
+	ScopeBookmark                           = "revisions.bookmark"
+	ScopeBookmarkTarget                     = "revisions.bookmark_target"
+	ScopeChangeId                           = "revisions.change_id"
+	ScopeDescription                        = "revisions.description"
+	ScopeDetails                            = "revisions.details"
+	ScopeDetailsConfirmation                = "revisions.details.confirmation"
+	ScopeDiffRange                          = "revisions.diff_range"
+	ScopeDivergent                          = "revisions.divergent"
+	ScopeDuplicate                          = "revisions.duplicate"
+	ScopeEvolog                             = "revisions.evolog"
+	ScopeInlineDescribe                     = "revisions.inline_describe"
+	ScopeInlineDescribeConfirmation         = "revisions.inline_describe.confirmation"
+	ScopeNewBetween                         = "revisions.new_between"
+	ScopeObject                             = "revisions.object"
+	ScopeQuickSearch                        = "revisions.quick_search"
+	ScopeQuickSearchInput                   = "revisions.quick_search.input"
+	ScopeRebase                             = "revisions.rebase"
+	ScopeRenameWorkspace                    = "revisions.rename_workspace"
+	ScopeRevert                             = "revisions.revert"
+	ScopeSetBookmark                        = "revisions.set_bookmark"
+	ScopeSetParents                         = "revisions.set_parents"
+	ScopeSquash                             = "revisions.squash"
+	ScopeTag                                = "revisions.tag"
+	ScopeTargetPicker                       = "revisions.target_picker"
+	ScopeTimestamp                          = "revisions.timestamp"
+	ScopeWorkspace                          = "revisions.workspace"
+	ScopeRevset                             = "revset"
+	ScopeRevsetBookmarks                    = "revset.bookmarks"
+	ScopeRevsetBookmarksFilter              = "revset.bookmarks.filter"
+	ScopeRevsetBookmarksRemotes             = "revset.bookmarks.remotes"
+	ScopeRevsetBookmarksRemotesConfirmation = "revset.bookmarks.remotes.confirmation"
+	ScopeRevsetBookmarksRemotesEditor       = "revset.bookmarks.remotes.editor"
+	ScopeStatusInput                        = "status.input"
+	ScopeUi                                 = "ui"
+	ScopeUiOverlay                          = "ui.overlay"
+	ScopeUiPreview                          = "ui.preview"
+	ScopeUndo                               = "undo"
 )
 
 func ResolveIntent(scope string, action keybindings.Action, args map[string]any) (intents.Intent, bool) {
@@ -828,6 +830,28 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.RevsetBookmarksRemotesPush{Deleted: true}, true
 		case keybindings.Action("revset.bookmarks.remotes.push_tracked"):
 			return intents.RevsetBookmarksRemotesPush{Tracked: true}, true
+		case keybindings.Action("revset.bookmarks.remotes.remove"):
+			return intents.RevsetBookmarksRemotesRemove{}, true
+		case keybindings.Action("revset.bookmarks.remotes.rename"):
+			return intents.RevsetBookmarksRemotesRename{}, true
+		}
+	case ScopeRevsetBookmarksRemotesConfirmation:
+		switch action {
+		case keybindings.Action("revset.bookmarks.remotes.confirmation.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("revset.bookmarks.remotes.confirmation.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("revset.bookmarks.remotes.confirmation.next"):
+			return intents.OptionSelect{Delta: 1}, true
+		case keybindings.Action("revset.bookmarks.remotes.confirmation.prev"):
+			return intents.OptionSelect{Delta: -1}, true
+		}
+	case ScopeRevsetBookmarksRemotesEditor:
+		switch action {
+		case keybindings.Action("revset.bookmarks.remotes.editor.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("revset.bookmarks.remotes.editor.cancel"):
+			return intents.Cancel{}, true
 		}
 	case ScopeStatusInput:
 		switch action {
