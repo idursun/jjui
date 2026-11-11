@@ -478,3 +478,35 @@ func TestRunner_WaitRefreshResumesOnUpdateRevisions(t *testing.T) {
 		})
 	}
 }
+
+func TestContext_Object(t *testing.T) {
+	ctx := contextWithSelection(uicontext.SelectedRevision{
+		ChangeId: "abc", CommitId: "def",
+		ObjectKind: "bookmark", ObjectValue: `"a b"@origin`,
+		ObjectText: "a b", ObjectRemote: "origin", ObjectConflicted: true,
+	})
+	got := runScriptAndGetGlobals(t, ctx, `
+		local o = context.object()
+		kind, value, remote, conflicted = o.kind, o.value, o.remote, o.conflicted
+	`, "kind", "value", "remote", "conflicted")
+	assert.Equal(t, []lua.LValue{lua.LString("bookmark"), lua.LString("a b"), lua.LString("origin"), lua.LTrue}, got)
+
+	ctx = contextWithSelection(uicontext.SelectedRevision{ObjectKind: "remote", ObjectValue: `exact:"origin"`, ObjectText: "origin"})
+	got = runScriptAndGetGlobals(t, ctx, `
+		local o = context.object()
+		kind, value, remote, conflicted = o.kind, o.value, o.remote, o.conflicted
+	`, "kind", "value", "remote", "conflicted")
+	assert.Equal(t, []lua.LValue{lua.LString("remote"), lua.LString("origin"), lua.LNil, lua.LNil}, got)
+}
+
+func TestContext_ObjectIsNilWithoutAFocusedObject(t *testing.T) {
+	for name, ctx := range map[string]*uicontext.MainContext{
+		"node":         contextWithSelection(uicontext.SelectedRevision{ChangeId: "abc", ObjectKind: "node", ObjectValue: "○", ObjectText: "○"}),
+		"no object":    contextWithSelection(uicontext.SelectedRevision{ChangeId: "abc"}),
+		"file":         contextWithSelection(uicontext.SelectedFile{ChangeId: "abc", File: jj.NewFileName("a.go")}),
+		"no selection": {},
+	} {
+		got := runScriptAndGetGlobal(t, ctx, `o = context.object()`, "o")
+		assert.Equal(t, lua.LNil, got, name)
+	}
+}

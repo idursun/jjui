@@ -240,6 +240,24 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		}
 		return 0
 	}))
+	contextTable.RawSetString("object", L.NewFunction(func(L *lua.LState) int {
+		item, ok := ctx.Selection().Highlighted.(uicontext.SelectedRevision)
+		// The node stands for the revision itself, not an object on it.
+		if !ok || item.ObjectKind == "" || item.ObjectKind == "node" {
+			return 0
+		}
+		tbl := L.NewTable()
+		tbl.RawSetString("kind", lua.LString(item.ObjectKind))
+		tbl.RawSetString("value", lua.LString(item.ObjectText))
+		if item.ObjectRemote != "" {
+			tbl.RawSetString("remote", lua.LString(item.ObjectRemote))
+		}
+		if item.ObjectConflicted {
+			tbl.RawSetString("conflicted", lua.LTrue)
+		}
+		L.Push(tbl)
+		return 1
+	}))
 	contextTable.RawSetString("checked_files", L.NewFunction(func(L *lua.LState) int {
 		tbl := L.NewTable()
 		for _, item := range ctx.Selection().Checked {
