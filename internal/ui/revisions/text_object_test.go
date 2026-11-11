@@ -1123,3 +1123,21 @@ func TestModel_SelectionCarriesTheFocusedObjectAsShown(t *testing.T) {
 	assert.Equal(t, "origin", rev.ObjectRemote)
 	assert.False(t, rev.ObjectConflicted)
 }
+
+func TestModel_OpenAnnotationOnFocusedBookmark(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		index int
+		want  intents.AnnotationShow
+	}{
+		{name: "reviews the bookmark from its fork point", index: 1, want: intents.AnnotationShow{ChangeID: "second@origin", From: "fork_point(trunk() | second@origin)"}},
+		{name: "conflicted bookmark reviews the revision", index: 0, want: intents.AnnotationShow{ChangeID: "m"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+			model.updateGraphRows(textObjectRows(t), "", true)
+			model.focusedObjectKind, model.focusedObjectIndex = textObjectBookmark, tc.index
+			assert.Equal(t, tc.want, model.Update(intents.OpenAnnotation{})())
+		})
+	}
+}

@@ -18,7 +18,9 @@ type fileItem struct {
 }
 
 type reviewDocument struct {
-	revision        string
+	revision string
+	// from, when set, makes the document the changes from it to revision.
+	from            string
 	loadingRevision string
 	description     string
 	files           []fileItem

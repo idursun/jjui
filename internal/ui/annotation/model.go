@@ -104,6 +104,14 @@ func New(ctx *appContext.MainContext, revision string) *Model {
 	}
 }
 
+// NewRange reviews the changes from from to revision, or revision alone when
+// from is empty.
+func NewRange(ctx *appContext.MainContext, from, revision string) *Model {
+	m := New(ctx, revision)
+	m.document.from = from
+	return m
+}
+
 func (m *Model) Init() tea.Cmd {
 	return m.loadRevision(m.changeID())
 }
@@ -160,6 +168,8 @@ func (m *Model) QueryState(name string) (any, bool) {
 		return len(m.annotationAtCursor()) > 0, true
 	case "has_annotations":
 		return len(m.annotations.All()) > 0, true
+	case "can_navigate_revisions":
+		return m.document.from == "", true
 	}
 	return nil, false
 }
@@ -856,6 +866,9 @@ func (m *Model) selectFile(path string) tea.Cmd {
 }
 
 func (m *Model) navigateRevision(direction revisionDirection) tea.Cmd {
+	if m.document.from != "" {
+		return nil
+	}
 	if m.editing {
 		return revisionNavigationBlockedMessage()
 	}
@@ -968,7 +981,7 @@ func (m *Model) clampScroll(total int) {
 func (m *Model) loadRevision(changeID string) tea.Cmd {
 	m.revisionTargetsRequestID = 0
 	requestID := m.nextRequest()
-	cmd := m.loader.LoadRevision(changeID, m.document.presentation == filePresentation, requestID)
+	cmd := m.loader.LoadRevision(m.document.from, changeID, m.document.presentation == filePresentation, requestID)
 	if cmd != nil {
 		m.revisionLoadRequestID = requestID
 	}
@@ -985,7 +998,7 @@ func revisionNavigationBlockedMessage() tea.Cmd {
 }
 
 func (m *Model) loadCurrentFile() tea.Cmd {
-	return m.loader.LoadFile(m.changeID(), m.currentFile())
+	return m.loader.LoadFile(m.document.from, m.changeID(), m.currentFile())
 }
 
 func (m *Model) changeID() string {
