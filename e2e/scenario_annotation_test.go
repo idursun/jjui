@@ -51,8 +51,7 @@ func Test_Annotation_CreateEditDeleteAndCopy(t *testing.T) {
 
 	h.Key("y")
 	payload := waitAnnotationClipboard(t, h)
-	revision := strings.TrimSpace(runCommand(t, h.Repo(), h.Env(), "jj", "log", "-r", "@-", "--no-graph", "-T", "change_id.shortest()"))
-	want := fmt.Sprintf("### @review.go (revision %s; new 1-2)\n\n```diff\n+first line\n+second line\n```\n\ncheck both lines updated", revision)
+	want := "### @review.go (new 1-2)\n\n```diff\n+first line\n+second line\n```\n\ncheck both lines updated"
 	if payload != want {
 		t.Fatalf("clipboard = %q; want %q", payload, want)
 	}
@@ -210,7 +209,7 @@ func Test_Annotation_DeletedFileUsesOldLines(t *testing.T) {
 	assertCommentAfter(t, screen, "deleted first", "comment: old side note")
 	h.Key("y")
 	payload := waitAnnotationClipboard(t, h)
-	if !strings.Contains(payload, "; old 1)") || !strings.Contains(payload, "\n deleted first\n") {
+	if !strings.Contains(payload, "(old 1)") || !strings.Contains(payload, "\n deleted first\n") {
 		t.Fatalf("deleted-file clipboard lost old-side location or snippet: %s", payload)
 	}
 	closeAnnotation(t, h)
