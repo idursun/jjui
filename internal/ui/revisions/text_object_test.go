@@ -757,6 +757,7 @@ func TestModel_BookmarkAdvanceSkipsCheckedRemoteBookmarks(t *testing.T) {
 
 func TestModel_BookmarkMoveAppliesToCheckedBookmarks(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkMoveDirections("a", []string{"one", "two"})).SetOutput([]byte("f\nf\n"))
 	commandRunner.Expect(jj.BookmarkMove("a", []string{"one", "two"}))
 	defer commandRunner.Verify()
 

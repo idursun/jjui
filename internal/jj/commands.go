@@ -292,6 +292,17 @@ func exactStringPatterns(values []string) []string {
 	return patterns
 }
 
+// BookmarkMoveDirections prints a line per commit the bookmarks are on: f
+// when target descends from it, b when target is its ancestor, s otherwise.
+func BookmarkMoveDirections(target string, bookmarks []string) CommandArgs {
+	revsets := make([]string, len(bookmarks))
+	for i, pattern := range exactStringPatterns(bookmarks) {
+		revsets[i] = "bookmarks(" + pattern + ")"
+	}
+	template := `if(self.contained_in("::` + target + `"), "f", if(self.contained_in("` + target + `::"), "b", "s")) ++ "\n"`
+	return []string{"log", "-r", strings.Join(revsets, " | "), "--no-graph", "--color", "never", "--ignore-working-copy", "--quiet", "-T", template}
+}
+
 func BookmarkTrack(name string, remote string) CommandArgs {
 	args := []string{"bookmark", "track", ExactStringPattern(name)}
 	if remote != "" {
