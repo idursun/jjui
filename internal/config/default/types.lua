@@ -625,7 +625,6 @@ function wait_refresh() end
 
 ---@class jjui.ui.preview
 ---@field show fun(value?: string|{content: string})
----@field y_offset fun(): integer|nil
 
 ---@class jjui.undo
 ---@field apply fun()
