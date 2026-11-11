@@ -223,22 +223,23 @@ func TestBookmarks_PushToFocusedRemote(t *testing.T) {
 func TestBookmarks_FocusedRemoteIdentifiesThePreviewObject(t *testing.T) {
 	model, revsets := openBookmarks(t)
 
-	_, _, ok := model.FocusedRemote()
+	_, _, _, ok := model.FocusedRemote()
 	assert.False(t, ok, "the cursor is still on the log")
 
 	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFocusRemotes{}))
-	kind, _, ok := model.FocusedRemote()
+	kind, _, _, ok := model.FocusedRemote()
 	assert.True(t, ok)
 	assert.Equal(t, "remote_all", kind)
 
 	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksCycleRemote{Delta: 1}))
-	kind, _, _ = model.FocusedRemote()
+	kind, _, _, _ = model.FocusedRemote()
 	assert.Equal(t, "remote_local", kind)
 
 	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksCycleRemote{Delta: 1}))
-	kind, value, _ := model.FocusedRemote()
+	kind, value, name, _ := model.FocusedRemote()
 	assert.Equal(t, "remote", kind)
 	assert.Equal(t, jj.ExactStringPattern("origin"), value)
+	assert.Equal(t, "origin", name)
 }
 
 func TestBookmarks_OpensWithTheRemotesFocused(t *testing.T) {

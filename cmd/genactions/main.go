@@ -1181,9 +1181,16 @@ const luaHandWrittenClasses = `---@class jjui.revisions
 ---@field commit_id fun(): string? Get selected item's commit ID
 ---@field file fun(): string? Get selected file path
 ---@field operation_id fun(): string? Get selected operation ID
+---@field object fun(): jjui.context.object? Get the focused text object, nil when the revision itself is focused
 ---@field checked_files fun(): string[] Get array of checked files
 ---@field checked_change_ids fun(): string[] Get array of checked change IDs
 ---@field checked_commit_ids fun(): string[] Get array of checked commit IDs
+
+---@class jjui.context.object
+---@field kind string Object kind, e.g. "bookmark", "tag", "change_id", "description", "remote"
+---@field value string Object text as shown, e.g. the bookmark or remote name
+---@field remote? string Remote of a remote bookmark or tag
+---@field conflicted? boolean True for a conflicted bookmark
 
 `
 

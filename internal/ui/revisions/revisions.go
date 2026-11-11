@@ -485,6 +485,7 @@ func (m *Model) Selection() common.SelectionSnapshot {
 			if m.canMoveObjectFocus() {
 				if obj := m.focusedTextObject(); obj != nil {
 					selected.ObjectKind, selected.ObjectValue = previewObject(obj)
+					selected.ObjectText, selected.ObjectRemote, selected.ObjectConflicted = obj.Value, obj.Remote, obj.Conflicted
 				}
 			}
 			snapshot.Highlighted = selected

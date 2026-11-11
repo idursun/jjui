@@ -37,8 +37,12 @@ type SelectedRevision struct {
 	ChangeId string
 	CommitId string
 	// ObjectKind and ObjectValue describe the focused text object, if any.
-	ObjectKind  string
-	ObjectValue string
+	// ObjectValue is encoded as a jj argument; the fields below are as shown.
+	ObjectKind       string
+	ObjectValue      string
+	ObjectText       string
+	ObjectRemote     string
+	ObjectConflicted bool
 }
 
 func (s SelectedRevision) Equal(other SelectedItem) bool {
