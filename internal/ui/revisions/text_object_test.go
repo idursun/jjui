@@ -539,20 +539,37 @@ func TestModel_FocusedWorkspaceForget(t *testing.T) {
 	assert.True(t, isMessage, "the current workspace cannot be forgotten")
 }
 
-func TestModel_FocusedWorkspaceRenameOnlyRenamesTheCurrentWorkspace(t *testing.T) {
+func TestModel_FocusedWorkspaceRenameRenamesAnotherWorkspace(t *testing.T) {
+	other := t.TempDir()
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.WorkspaceRoot("second")).SetOutput([]byte("/second"))
+	commandRunner.Expect(jj.WorkspaceRoot("second")).SetOutput([]byte(other + "\n"))
+	commandRunner.Expect(jj.WorkspaceRename(other, "renamed"))
+	defer commandRunner.Verify()
+
+	model := workspaceModel(t, commandRunner, "/repo")
+	model.Update(intents.FocusedWorkspaceRename{})
+	op, isRename := model.baseOperation().(*workspace.RenameWorkspaceOperation)
+	require.True(t, isRename)
+	assert.True(t, model.IsEditing())
+
+	for range "second" {
+		op.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	}
+	for _, r := range "renamed" {
+		op.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	cmd, _ := op.HandleIntent(intents.Apply{})
+	runJJCommand(cmd)
+}
+
+func TestModel_FocusedWorkspaceRenameRequiresTheWorkspaceOnDisk(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.WorkspaceRoot("second")).SetOutput([]byte("/does/not/exist"))
 	defer commandRunner.Verify()
 
 	model := workspaceModel(t, commandRunner, "/repo")
 	_, isMessage := model.Update(intents.FocusedWorkspaceRename{})().(intents.AddMessage)
-	assert.True(t, isMessage, "other workspaces cannot be renamed")
-
-	model.context.Location = "/second"
-	model.Update(intents.FocusedWorkspaceRename{})
-	_, isRename := model.baseOperation().(*workspace.RenameWorkspaceOperation)
-	assert.True(t, isRename)
-	assert.True(t, model.IsEditing())
+	assert.True(t, isMessage, "a missing workspace cannot be renamed")
 }
 
 func jumpLogRow(changeId, bookmark string) string {

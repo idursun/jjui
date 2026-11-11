@@ -465,8 +465,8 @@ func (m *Model) renameFocusedWorkspace() tea.Cmd {
 	if obj == nil {
 		return cmd
 	}
-	if !m.isCurrentWorkspace(root) {
-		return intents.Invoke(intents.AddMessage{Text: "Only the current workspace can be renamed"})
+	if _, err := os.Stat(root); err != nil {
+		return intents.Invoke(intents.AddMessage{Text: "Workspace " + obj.Value + " is missing on disk", Err: err})
 	}
-	return m.setBaseOperation(workspace.NewRenameWorkspaceOperation(m.context, m.SelectedRevision().GetChangeId(), obj.Value))
+	return m.setBaseOperation(workspace.NewRenameWorkspaceOperation(m.context, m.SelectedRevision().GetChangeId(), root, obj.Value))
 }

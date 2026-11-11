@@ -24,11 +24,12 @@ var _ common.Editable = (*RenameWorkspaceOperation)(nil)
 var _ common.ScopeProvider = (*RenameWorkspaceOperation)(nil)
 var _ operations.SegmentRenderer = (*RenameWorkspaceOperation)(nil)
 
-// RenameWorkspaceOperation edits the current workspace's name in place on its
+// RenameWorkspaceOperation edits a workspace's name in place on its
 // working-copy commit.
 type RenameWorkspaceOperation struct {
 	context  *context.MainContext
 	revision string
+	root     string
 	oldName  string
 	name     textinput.Model
 	// cursorOffset is the width of the workspace names rendered before the
@@ -36,7 +37,7 @@ type RenameWorkspaceOperation struct {
 	cursorOffset int
 }
 
-func NewRenameWorkspaceOperation(context *context.MainContext, changeId string, oldName string) *RenameWorkspaceOperation {
+func NewRenameWorkspaceOperation(context *context.MainContext, changeId string, root string, oldName string) *RenameWorkspaceOperation {
 	t := textinput.New()
 	t.CharLimit = 120
 	t.Prompt = ""
@@ -48,6 +49,7 @@ func NewRenameWorkspaceOperation(context *context.MainContext, changeId string, 
 	return &RenameWorkspaceOperation{
 		context:  context,
 		revision: changeId,
+		root:     root,
 		oldName:  oldName,
 		name:     t,
 	}
@@ -76,7 +78,7 @@ func (r *RenameWorkspaceOperation) HandleIntent(intent intents.Intent) (tea.Cmd,
 		if newName == "" || newName == r.oldName {
 			return common.Close, true
 		}
-		return r.context.RunCommand(jj.WorkspaceRename(newName), common.CloseApplied, common.Refresh), true
+		return r.context.RunCommand(jj.WorkspaceRename(r.root, newName), common.CloseApplied, common.Refresh), true
 	}
 	return nil, false
 }
