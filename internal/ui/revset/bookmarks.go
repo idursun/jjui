@@ -47,6 +47,7 @@ type bookmarksView struct {
 	rename       textinput.Model
 	confirm      *confirmation.Model // asks before removing the focused remote
 	filterBefore string
+	accepting    bool // the filter stays open until its revset loads
 	revset       string
 	restore      string
 }
@@ -239,11 +240,21 @@ func (m *Model) handleRemoteInputIntent(intent intents.Intent) (tea.Cmd, bool) {
 	return nil, false
 }
 
+func (v *bookmarksView) buildRevset() string {
+	return bookmarksRevset(strings.TrimSpace(v.filter.Value()), v.remotes[v.remoteIdx])
+}
+
 func (m *Model) applyBookmarks() tea.Cmd {
 	v := m.bookmarks
-	v.revset = bookmarksRevset(strings.TrimSpace(v.filter.Value()), v.remotes[v.remoteIdx])
+	v.revset = v.buildRevset()
 	v.issued[v.revset] = true
 	return common.UpdateRevSet(v.revset)
+}
+
+func (v *bookmarksView) closeFilter() {
+	v.filtering = false
+	v.accepting = false
+	v.filter.Blur()
 }
 
 func (m *Model) handleBookmarksIntent(intent intents.Intent) (tea.Cmd, bool) {
@@ -326,16 +337,18 @@ func (m *Model) handleBookmarksIntent(intent intents.Intent) (tea.Cmd, bool) {
 		v.filter.CursorEnd()
 		return v.filter.Focus(), true
 	case intents.RevsetBookmarksFilterAccept:
-		v.filtering = false
-		v.filter.Blur()
-		return nil, true
-	case intents.RevsetBookmarksFilterCancel:
-		v.filtering = false
-		v.filter.Blur()
-		if v.filter.Value() == v.filterBefore {
+		if v.buildRevset() == v.revset {
+			v.closeFilter()
 			return nil, true
 		}
+		v.accepting = true
+		return m.applyBookmarks(), true
+	case intents.RevsetBookmarksFilterCancel:
+		v.closeFilter()
 		v.filter.SetValue(v.filterBefore)
+		if v.buildRevset() == v.revset {
+			return nil, true
+		}
 		return m.applyBookmarks(), true
 	case intents.RevsetBookmarksExit:
 		m.bookmarks = nil
@@ -355,6 +368,14 @@ func (m *Model) updateBookmarks(msg tea.Msg) (tea.Cmd, bool) {
 			return nil, false
 		}
 		return nil, true
+	case common.UpdateRevisionsSuccessMsg:
+		if v.accepting {
+			v.closeFilter()
+		}
+		return nil, false
+	case common.UpdateRevisionsFailedMsg:
+		v.accepting = false
+		return nil, false
 	case selectRemoteMsg:
 		if v.renaming || v.confirm != nil {
 			return nil, true
@@ -390,13 +411,9 @@ func (m *Model) updateBookmarks(msg tea.Msg) (tea.Cmd, bool) {
 		if !v.filtering {
 			return nil, false
 		}
-		before := v.filter.Value()
 		var cmd tea.Cmd
 		v.filter, cmd = v.filter.Update(msg)
-		if v.filter.Value() == before {
-			return cmd, true
-		}
-		return tea.Batch(cmd, m.applyBookmarks()), true
+		return cmd, true
 	}
 	return nil, false
 }
