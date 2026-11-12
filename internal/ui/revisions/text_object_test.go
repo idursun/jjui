@@ -1196,3 +1196,15 @@ func TestModel_FocusedElidedWidensTheRevset(t *testing.T) {
 	cmd, _ = model.HandleIntent(intents.FocusedElidedShowAll{})
 	assert.Equal(t, common.UpdateRevSetMsg("(@ | main | x) | connected(@ | main | x)"), cmd())
 }
+
+func TestModel_ElidedObjectIsNotTheDefaultFocus(t *testing.T) {
+	model := elidedModel(t)
+	model.SetCursor(0)
+	model.Update(intents.Navigate{Delta: 1})
+	require.Equal(t, 1, model.cursor)
+	assert.Equal(t, textObjectNode, model.focusedTextObject().Kind)
+
+	// The elided line is the last line of its row, so h from the node wraps to it.
+	model.Update(intents.RevisionsObjectFocus{Delta: -1})
+	assert.Equal(t, textObjectElided, model.focusedTextObject().Kind)
+}
