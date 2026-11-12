@@ -14,13 +14,15 @@ const (
 	Modified
 	Renamed
 	Copied
+	Unchanged
 )
 
 type item struct {
-	status   status
-	name     string
-	fileName jj.FileName
-	conflict bool
+	status        status
+	name          string
+	fileName      jj.FileName
+	conflict      bool
+	conflictSides int
 }
 
 func (f item) Title() string {
@@ -36,6 +38,8 @@ func (f item) Title() string {
 		status = "R"
 	case Copied:
 		status = "C"
+	case Unchanged:
+		status = " "
 	}
 
 	return fmt.Sprintf("%s %s", status, f.name)

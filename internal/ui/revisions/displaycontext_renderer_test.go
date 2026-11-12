@@ -57,7 +57,7 @@ func TestDisplayContextRenderer_DetailsRendersBeforeElidedMarker(t *testing.T) {
 	require.NotNil(t, targetRow.Commit)
 
 	// Prepare details operation with a file list.
-	const statusOutput = "false $\nM file.txt\n"
+	const statusOutput = "<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n"
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.Snapshot())
 	commandRunner.Expect(jj.Status(targetRow.Commit.GetChangeId())).SetOutput([]byte(statusOutput))

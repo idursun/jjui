@@ -19,7 +19,7 @@ import (
 
 const (
 	revision     = "ignored"
-	statusOutput = "false false $\nM file.txt\nA newfile.txt\n"
+	statusOutput = "<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n<<file status_char::A>><<file:: >><<file display_diff_path::newfile.txt>>\n"
 )
 
 var commit = &jj.Commit{
@@ -376,22 +376,38 @@ func TestOperation_FilterNoMatchesRendersInsideDetails(t *testing.T) {
 
 func TestOperation_createListItems(t *testing.T) {
 	operation := NewOperation(test.NewTestContext(test.NewTestCommandRunner(t)), commit, newFakeChecks().fileChecks())
-	content := `true false true false true $
-A added.txt
-D deleted.txt
-M modified.txt
-R src/{old => renamed}.txt
-C copied.txt`
+	// Captured from jj 0.46 running jj.Status on a child of a 3-parent merge.
+	content := "\x1b[38;5;2m<<log commit diff files map join file status_char::A>><<log commit diff files map join file:: >><<log commit diff files map join file display_diff_path::added.txt>><<log commit diff files map join::>>\n" +
+		"<<log commit diff files map join file status_char::D>><<log commit diff files map join file:: >><<log commit diff files map join file display_diff_path::deleted.txt>><<log commit diff files map join::>>\n" +
+		"<<log commit diff files map join file conflicted status_char::M>><<log commit diff files map join file conflicted:: >><<log commit diff files map join file conflicted display_diff_path::three.txt>><<log commit diff files map join file conflicted:: >><<log commit diff files map join file conflicted target conflict_side_count::3>><<log commit diff files map join::>>\n" +
+		"<<log commit diff files map join file status_char::R>><<log commit diff files map join file:: >><<log commit diff files map join file display_diff_path::src/{old => renamed}.txt>><<log commit diff files map join::>>\n" +
+		"<<log commit diff files map join file status_char::C>><<log commit diff files map join file:: >><<log commit diff files map join file display_diff_path::copied.txt>><<log commit::>>\n" +
+		"<<log commit conflicted_files map join conflicted_file path::three.txt>><<log commit conflicted_files map join conflicted_file:: >><<log commit conflicted_files map join conflicted_file conflict_side_count::3>><<log commit conflicted_files map join::>>\n" +
+		"<<log commit conflicted_files map join conflicted_file path::two.txt>><<log commit conflicted_files map join conflicted_file:: >><<log commit conflicted_files map join conflicted_file conflict_side_count::2>><<log commit::>>\x1b[39m\n"
 
 	got := operation.createListItems(content)
 
 	assert.Equal(t, []*item{
-		{status: Added, name: "added.txt", fileName: jj.NewFileName("added.txt"), conflict: true},
+		{status: Added, name: "added.txt", fileName: jj.NewFileName("added.txt")},
 		{status: Deleted, name: "deleted.txt", fileName: jj.NewFileName("deleted.txt")},
-		{status: Modified, name: "modified.txt", fileName: jj.NewFileName("modified.txt"), conflict: true},
+		{status: Modified, name: "three.txt", fileName: jj.NewFileName("three.txt"), conflict: true, conflictSides: 3},
 		{status: Renamed, name: "src/{ol => rename}d.txt", fileName: jj.NewFileName("src/renamed.txt")},
-		{status: Copied, name: "copied.txt", fileName: jj.NewFileName("copied.txt"), conflict: true},
+		{status: Copied, name: "copied.txt", fileName: jj.NewFileName("copied.txt")},
+		{status: Unchanged, name: "two.txt", fileName: jj.NewFileName("two.txt"), conflict: true, conflictSides: 2},
 	}, got)
+}
+
+func TestOperation_createListItemsListsConflictsOfRevisionWithEmptyDiff(t *testing.T) {
+	operation := NewOperation(test.NewTestContext(test.NewTestCommandRunner(t)), commit, newFakeChecks().fileChecks())
+	content := "<<log commit::>>\n" +
+		"<<log commit conflicted_files map join conflicted_file path::has space.txt>><<log commit conflicted_files map join conflicted_file:: >><<log commit conflicted_files map join conflicted_file conflict_side_count::2>><<log commit::>>\n"
+
+	got := operation.createListItems(content)
+
+	assert.Equal(t, []*item{
+		{status: Unchanged, name: "has space.txt", fileName: jj.NewFileName("has space.txt"), conflict: true, conflictSides: 2},
+	}, got)
+	assert.Equal(t, "  has space.txt", got[0].Title())
 }
 
 func TestOperationDisplaysWorkingDirectoryRelativeNamesButSelectsRepositoryPath(t *testing.T) {
@@ -400,7 +416,7 @@ func TestOperationDisplaysWorkingDirectoryRelativeNamesButSelectsRepositoryPath(
 	ctx.WorkingDirectory = "/work/repo/internal"
 	operation := NewOperation(ctx, commit, newFakeChecks().fileChecks())
 
-	items := operation.createListItems("false $\nM internal/ui/details.go\n")
+	items := operation.createListItems("<<file status_char::M>><<file:: >><<file display_diff_path::internal/ui/details.go>>\n")
 	require.Len(t, items, 1)
 	assert.Equal(t, "ui/details.go", items[0].name)
 	assert.Equal(t, "internal/ui/details.go", items[0].fileName.Path())
