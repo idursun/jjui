@@ -149,6 +149,10 @@ func (m *Model) Cursor() int {
 
 func (m *Model) SetCursor(index int) {
 	if index >= 0 && index < len(m.rows) {
+		// Unlike other kinds, elided focus does not follow the cursor to other rows.
+		if index != m.cursor && m.focusedObjectKind == textObjectElided {
+			m.focusedObjectKind, m.focusedObjectIndex = textObjectNode, 0
+		}
 		m.cursor = index
 		m.ensureCursorView = true
 	}
