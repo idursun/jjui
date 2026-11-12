@@ -1,6 +1,8 @@
 package revset
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -397,7 +399,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	} else {
 		tb.Styled(m.context.CurrentRevset, textStyle)
 	}
+	revsetWidth, _ := tb.Measure()
 	tb.Done()
+	m.viewLocation(dl, layout.Rect(box.R.Min.X+revsetWidth+1, box.R.Min.Y, box.R.Dx()-revsetWidth-1, 1))
 
 	if !m.editing {
 		if m.bookmarks != nil && box.R.Dy() > 1 {
@@ -537,4 +541,33 @@ func (m *Model) applyCompletion(input string, item CompletionItem) string {
 		item.ReplaceStart = len(input)
 	}
 	return input[:item.ReplaceStart] + insertText
+}
+
+// viewLocation right-aligns the repository path in rect. A revset too long
+// to leave room for all of it hides its start.
+func (m *Model) viewLocation(dl *render.DisplayContext, rect layout.Rectangle) {
+	location := []rune(displayPath(m.context.Location))
+	for len(location) > 0 && render.StringWidth(string(location)) > rect.Dx() {
+		location = location[1:]
+	}
+	if len(location) == 0 {
+		return
+	}
+	width := render.StringWidth(string(location))
+	dimmed := theme.DefaultPalette.Get("revset", "", "dimmed", false)
+	dl.AddDraw(layout.Rect(rect.Max.X-width, rect.Min.Y, width, 1), dimmed.Render(string(location)), render.ZFuzzyInput)
+}
+
+func displayPath(path string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return path
+	}
+	if rel, err := filepath.Rel(home, path); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		if rel == "." {
+			return "~"
+		}
+		return filepath.Join("~", rel)
+	}
+	return path
 }
