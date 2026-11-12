@@ -1,8 +1,8 @@
 package details
 
 import (
-	"bufio"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/confirmation"
@@ -528,51 +529,92 @@ func (s *Operation) getSelectedFiles(allowVirtualSelection bool) []jj.FileName {
 
 func (s *Operation) createListItems(content string) []*item {
 	var items []*item
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	scanner.Split(bufio.ScanWords)
-	var conflicts []bool
-	for scanner.Scan() {
-		field := scanner.Text()
-		if field == "$" {
-			break
+	seen := map[string]*item{}
+	segments := screen.ParseLabelledFromReader(strings.NewReader(content))
+	for line := range screen.BreakNewLinesIter(segments) {
+		fields := labelledFields(line)
+		switch {
+		case fields.kind == "file":
+			summary, ok := jj.ParseSummaryFile(fields.status + " " + fields.path)
+			if !ok {
+				continue
+			}
+			it := &item{
+				status:        summaryStatus(summary.Status),
+				name:          summary.Display(s.context.Location, s.context.WorkingDirectory),
+				fileName:      summary.FileName,
+				conflict:      fields.conflicted,
+				conflictSides: fields.sides,
+			}
+			items = append(items, it)
+			seen[it.fileName.Path()] = it
+		case fields.kind == "conflicted_file" && fields.path != "":
+			if existing, ok := seen[fields.path]; ok {
+				existing.conflict = true
+				existing.conflictSides = fields.sides
+				continue
+			}
+			fileName := jj.NewFileName(fields.path)
+			it := &item{
+				status:        Unchanged,
+				name:          fileName.Display(s.context.Location, s.context.WorkingDirectory),
+				fileName:      fileName,
+				conflict:      true,
+				conflictSides: fields.sides,
+			}
+			items = append(items, it)
+			seen[fields.path] = it
 		}
-		conflicts = append(conflicts, field == "true")
-	}
-
-	_, after, _ := strings.Cut(content, "$")
-	scanner = bufio.NewScanner(strings.NewReader(after))
-	index := 0
-	for scanner.Scan() {
-		file := strings.TrimSpace(scanner.Text())
-		if file == "" {
-			continue
-		}
-		summary, ok := jj.ParseSummaryFile(file)
-		if !ok {
-			continue
-		}
-		var status status
-		switch summary.Status {
-		case 'A':
-			status = Added
-		case 'D':
-			status = Deleted
-		case 'M':
-			status = Modified
-		case 'R':
-			status = Renamed
-		case 'C':
-			status = Copied
-		}
-		items = append(items, &item{
-			status:   status,
-			name:     summary.Display(s.context.Location, s.context.WorkingDirectory),
-			fileName: summary.FileName,
-			conflict: conflicts[index],
-		})
-		index++
 	}
 	return items
+}
+
+type statusFields struct {
+	kind       string
+	status     string
+	path       string
+	conflicted bool
+	sides      int
+}
+
+func labelledFields(line []*screen.Segment) statusFields {
+	var f statusFields
+	for _, segment := range line {
+		switch {
+		case segment.HasLabel("conflicted_file"):
+			f.kind = "conflicted_file"
+		case segment.HasLabel("file"):
+			f.kind = "file"
+		}
+		if segment.HasLabel("conflicted") {
+			f.conflicted = true
+		}
+		switch {
+		case segment.HasLabel("status_char"):
+			f.status += segment.Text
+		case segment.HasLabel("display_diff_path"), segment.HasLabel("path"):
+			f.path += segment.Text
+		case segment.HasLabel("conflict_side_count"):
+			f.sides, _ = strconv.Atoi(strings.TrimSpace(segment.Text))
+		}
+	}
+	return f
+}
+
+func summaryStatus(r rune) status {
+	switch r {
+	case 'A':
+		return Added
+	case 'D':
+		return Deleted
+	case 'M':
+		return Modified
+	case 'R':
+		return Renamed
+	case 'C':
+		return Copied
+	}
+	return Added
 }
 
 func (s *Operation) load(revision string) tea.Cmd {

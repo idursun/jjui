@@ -207,8 +207,8 @@ func Snapshot() CommandArgs {
 }
 
 func Status(revision string) CommandArgs {
-	template := `separate(";", diff.files().map(|x| x.target().conflict())) ++ " $\n"`
-	return []string{"log", "-r", revision, "--summary", "--no-graph", "--color", "never", "--quiet", "--template", template, "--ignore-working-copy"}
+	template := `self.diff().files().map(|e| label("file" ++ if(e.target().conflict(), " conflicted"), e.status_char() ++ " " ++ e.display_diff_path() ++ if(e.target().conflict(), " " ++ e.target().conflict_side_count()))).join("\n") ++ "\n" ++ self.conflicted_files().map(|c| label("conflicted_file", c.path() ++ " " ++ c.conflict_side_count())).join("\n") ++ "\n"`
+	return []string{"log", "-r", revision, "--no-graph", "--color", "debug", "--quiet", "--template", template, "--ignore-working-copy"}
 }
 
 func BookmarkSet(revision string, name string) CommandArgs {
