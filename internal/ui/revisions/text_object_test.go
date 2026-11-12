@@ -1208,3 +1208,26 @@ func TestModel_ElidedObjectIsNotTheDefaultFocus(t *testing.T) {
 	model.Update(intents.RevisionsObjectFocus{Delta: -1})
 	assert.Equal(t, textObjectElided, model.focusedTextObject().Kind)
 }
+
+func TestModel_ElidedFocusDoesNotStickAcrossRows(t *testing.T) {
+	rows := parser.ParseRows(strings.NewReader(
+		jumpLogRow("aaaa", "") + elidedLine + jumpLogRow("bbbb", "") + elidedLine + jumpLogRow("cccc", "")))
+	require.Len(t, rows, 3)
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(rows, "", true)
+
+	model.SetCursor(0)
+	model.Update(intents.RevisionsObjectCycleKind{Kind: textObjectElided})
+	require.Equal(t, textObjectElided, model.focusedTextObject().Kind)
+	model.Update(intents.Navigate{Delta: 1})
+	require.Equal(t, 1, model.cursor)
+	assert.Equal(t, textObjectNode, model.focusedTextObject().Kind)
+
+	model.SetCursor(0)
+	model.Update(intents.RevisionsObjectCycleKind{Kind: textObjectElided})
+	runJJCommand(model.Update(intents.RevisionsObjectJump{Delta: 1}))
+	require.Equal(t, 1, model.cursor)
+	assert.Equal(t, textObjectElided, model.focusedTextObject().Kind)
+}
+
+const elidedLine = "<<log commit node elided::~>>  <<elided::(elided revisions)>>\n"
