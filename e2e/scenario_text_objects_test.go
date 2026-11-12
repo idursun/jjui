@@ -465,3 +465,45 @@ func Test_TextObjects_PushesFocusedChange(t *testing.T) {
 		return remoteHasBranch(t, repo, remote, "push-"+changeId), nil
 	})
 }
+
+func Test_TextObjects_MovesConflictedBookmark(t *testing.T) {
+	t.Parallel()
+	repo := newTestRepo(t)
+	repo.JJ("bookmark", "create", "base", "-r", "@-")
+	repo.JJ("new", "base", "-m", "left")
+	repo.JJ("bookmark", "create", "split", "-r", "@")
+	repo.JJ("new", "base", "-m", "right")
+	op := strings.TrimSpace(runCommand(t, repo.Path(), repo.Env(), "jj", "op", "log", "--no-graph", "--limit", "1", "-T", "id"))
+	repo.JJ("bookmark", "set", "split", "-r", "@", "--allow-backwards")
+	repo.JJ("--at-op", op, "bookmark", "set", "split", "-r", "base", "--allow-backwards")
+	repo.JJ("new", "description(exact:'left\n')", "description(exact:'right\n')", "-m", "merge")
+	merge := bookmarkTarget(t, repo, "@")
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "split??")
+	if err := session.SendKey(ghostty.KeyJ, "j", 0); err != nil {
+		t.Fatal(err)
+	}
+	focusTextOnRow(t, session, ctx, "split??")
+	if err := session.SendKey(ghostty.KeyM, "m", 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "<< onto >>") }); err != nil {
+		t.Fatalf("move bookmark did not start: %v", err)
+	}
+	// Up to the merge of both sides.
+	if err := session.SendKey(ghostty.KeyK, "k", 0); err != nil {
+		t.Fatal(err)
+	}
+	// Wait for the frame that moves the target before applying.
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "<< onto >>") }); err != nil {
+		t.Fatalf("move target did not follow the cursor: %v", err)
+	}
+	if err := session.SendKey(ghostty.KeyEnter, "", 0); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		// A conflicted bookmark does not resolve to one revision until it moves.
+		output, err := commandOutput(repo.Path(), repo.Env(), "jj", "log", "--ignore-working-copy", "--no-graph", "--color", "never", "-r", "split", "-T", "change_id")
+		return err == nil && strings.TrimSpace(output) == merge, nil
+	})
+}
