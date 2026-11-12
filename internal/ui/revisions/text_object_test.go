@@ -1159,3 +1159,40 @@ func TestModel_OpenAnnotationOnFocusedBookmark(t *testing.T) {
 		})
 	}
 }
+
+func elidedModel(t *testing.T) *Model {
+	f, err := os.Open("testdata/jj-log-with-elided.log")
+	require.NoError(t, err)
+	defer func() { _ = f.Close() }()
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.CurrentRevset = "@ | main | x"
+	model := New(ctx)
+	model.updateGraphRows(parser.ParseRows(f), "", true)
+	return model
+}
+
+func TestTextObjectsForRow_Elided(t *testing.T) {
+	model := elidedModel(t)
+	var elided []textObject
+	for _, o := range textObjectsForRow(model.rows[1]) {
+		if o.Kind == textObjectElided {
+			elided = append(elided, o)
+		}
+	}
+	require.Len(t, elided, 1)
+	assert.Equal(t, "~ (elided revisions)", elided[0].Value)
+	assert.Equal(t, []int{2, 2, 21}, []int{elided[0].line, elided[0].x, elided[0].width})
+}
+
+func TestModel_FocusedElidedWidensTheRevset(t *testing.T) {
+	model := elidedModel(t)
+	model.SetCursor(1)
+	model.Update(intents.RevisionsObjectCycleKind{Kind: textObjectElided})
+	require.Equal(t, textObjectElided, model.focusedTextObject().Kind)
+
+	cmd, _ := model.HandleIntent(intents.RevisionsObjectAddToRevset{})
+	assert.Equal(t, common.UpdateRevSetMsg("(@ | main | x) | heads((@ | main | x) & ::cf-)::cf"), cmd())
+
+	cmd, _ = model.HandleIntent(intents.FocusedElidedShowAll{})
+	assert.Equal(t, common.UpdateRevSetMsg("(@ | main | x) | connected(@ | main | x)"), cmd())
+}

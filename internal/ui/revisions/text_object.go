@@ -23,6 +23,7 @@ const (
 	textObjectConflict    = "conflict"
 	textObjectWorkspace   = "workspace"
 	textObjectFile        = "file"
+	textObjectElided      = "elided"
 )
 
 type textObject struct {
@@ -79,6 +80,8 @@ func checkedObjectFor(o textObject, commit *jj.Commit) (checkedObject, bool) {
 // object it belongs to.
 func textObjectKind(segment *screen.Segment) string {
 	switch {
+	case segment.HasLabel("elided"):
+		return textObjectElided
 	case segment.HasLabel("node"):
 		return textObjectNode
 	case segment.HasLabel("change_id"), segment.HasLabel("change_offset"):
@@ -177,7 +180,7 @@ func textObjectsForRow(row parser.Row) []textObject {
 			}
 			// Consecutive spans of the same kind (e.g. the local part, @ and the
 			// domain of an email) form one object.
-			if prev := last(); prev != nil && prev.Kind == kind && kind != textObjectNode {
+			if prev := last(); prev != nil && prev.Kind == kind && kind != textObjectNode && (kind != textObjectElided || prev.line == lineIndex) {
 				if prev.line != lineIndex {
 					prev.Value += "\n"
 				} else if joinWithSpace {
