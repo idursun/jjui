@@ -74,20 +74,53 @@ func TestBookmarks_CyclesThroughRemotes(t *testing.T) {
 	assert.True(t, model.InBookmarksView(), "its own revsets must not end the view")
 }
 
-func TestBookmarks_FilterAppliesWhileTyping(t *testing.T) {
+func TestBookmarks_FilterAppliesOnAccept(t *testing.T) {
 	model, revsets := openBookmarks(t)
 	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksCycleRemote{Delta: 2}))
 	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilter{}))
 	require.True(t, model.IsEditing())
 	simulate(model, revsets, test.Type("fi"))
-	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilterAccept{}))
+	assert.Len(t, *revsets, 2, "typing does not apply the filter")
 
-	assert.False(t, model.IsEditing())
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilterAccept{}))
 	assert.Equal(t, []string{
-		`remote_bookmarks(substring-i:"f", remote=exact:"origin")`,
 		`remote_bookmarks(substring-i:"fi", remote=exact:"origin")`,
 	}, (*revsets)[2:])
+	assert.True(t, model.IsEditing(), "the filter stays open until the revset loads")
+
+	model.Update(common.UpdateRevisionsSuccessMsg{})
+	assert.False(t, model.IsEditing())
 	assert.Empty(t, model.History, "generated revsets stay out of the history")
+}
+
+func TestBookmarks_FilterStaysOpenWhenRevsetFails(t *testing.T) {
+	model, revsets := openBookmarks(t)
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilter{}))
+	simulate(model, revsets, test.Type("zz"))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilterAccept{}))
+	model.Update(common.UpdateRevisionsFailedMsg{})
+	assert.True(t, model.IsEditing())
+
+	simulate(model, revsets, test.Type("x"))
+	model.Update(common.UpdateRevisionsSuccessMsg{})
+	assert.True(t, model.IsEditing(), "a later load does not close the filter before enter")
+
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilterAccept{}))
+	model.Update(common.UpdateRevisionsSuccessMsg{})
+	assert.False(t, model.IsEditing())
+	assert.Equal(t, `bookmarks(substring-i:"zzx") | remote_bookmarks(substring-i:"zzx")`, (*revsets)[len(*revsets)-1])
+}
+
+func TestBookmarks_FilterCancelAfterFailedAcceptRestores(t *testing.T) {
+	model, revsets := openBookmarks(t)
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilter{}))
+	simulate(model, revsets, test.Type("zz"))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilterAccept{}))
+	model.Update(common.UpdateRevisionsFailedMsg{})
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilterCancel{}))
+
+	assert.False(t, model.IsEditing())
+	assert.Equal(t, `bookmarks() | remote_bookmarks()`, (*revsets)[len(*revsets)-1])
 }
 
 func TestBookmarks_FilterCancelRestoresPreviousFilter(t *testing.T) {
@@ -95,6 +128,7 @@ func TestBookmarks_FilterCancelRestoresPreviousFilter(t *testing.T) {
 	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilter{}))
 	simulate(model, revsets, test.Type("a"))
 	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilterAccept{}))
+	model.Update(common.UpdateRevisionsSuccessMsg{})
 	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilter{}))
 	simulate(model, revsets, test.Type("b"))
 	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilterCancel{}))
@@ -121,6 +155,7 @@ func TestBookmarks_ViewShowsRemotesAndFilter(t *testing.T) {
 	model, revsets := openBookmarks(t)
 	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilter{}))
 	simulate(model, revsets, test.Type("fix"))
+	simulate(model, revsets, intents.Invoke(intents.RevsetBookmarksFilterAccept{}))
 
 	lines := strings.Split(test.RenderImmediate(model, 160, 2), "\n")
 	require.Len(t, lines, 2)
