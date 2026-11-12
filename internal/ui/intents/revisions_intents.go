@@ -345,6 +345,11 @@ type FocusedDivergentUpdateChangeId struct{}
 
 func (FocusedDivergentUpdateChangeId) isIntent() {}
 
+//jjui:bind scope=revisions.elided action=show_all
+type FocusedElidedShowAll struct{}
+
+func (FocusedElidedShowAll) isIntent() {}
+
 //jjui:bind scope=revisions.workspace action=switch
 type FocusedWorkspaceSwitch struct{}
 
