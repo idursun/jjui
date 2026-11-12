@@ -196,7 +196,7 @@ func Redo() CommandArgs {
 }
 
 func Snapshot() CommandArgs {
-	return []string{"debug", "snapshot"}
+	return []string{"util", "snapshot"}
 }
 
 func Status(revision string) CommandArgs {
