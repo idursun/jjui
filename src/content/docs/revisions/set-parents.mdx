@@ -18,9 +18,12 @@ Navigate to any revision and press `space` to toggle it. Pressing `space` on a n
 
 This is how you create or dissolve merge commits — adding two parents creates a merge, removing one parent of a merge resolves it.
 
-Under the hood runs:
-```
-jj rebase -s <target> -d "parents(<target>) ~ <removed...>" -d <added...>
+Parents that remain keep their original order. New parents are appended in the order you marked them for addition, so adding a parent does not reorder the existing parents.
+
+Under the hood, jjui passes each parent separately, using change IDs:
+
+```shell
+jj rebase -s <target> -d <retained-parent-1> -d <retained-parent-2> -d <added-parent-1>
 ```
 
 ## Keys

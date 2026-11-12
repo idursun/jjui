@@ -10,9 +10,7 @@ jjui can execute both `jj` commands and shell commands directly from the UI.
 - `:`: execute a `jj` command
 - `$`: execute a shell command
 
-Both inputs use the status bar line editor. When an input is active, its own
-row appears above the status bar so the mode and shortcut labels remain
-visible.
+Each command prompt appears above the status bar, keeping the mode and shortcut labels visible.
 
 ## Placeholders
 
@@ -31,6 +29,7 @@ Commands can use context-aware placeholders:
 - Commands run interactively in your terminal.
 - If a command fails, jjui restores it in the input so you can edit and retry.
 - History is stored under `$XDG_CACHE_HOME/jjui/history/` in `exec_jj` and `exec_sh` files.
+- When history suggestions are shown, use the mouse wheel to scroll them. Clicking a suggestion executes that command.
 
 You can browse and delete saved entries from [Command History](/jjui/command-history) (`shift+w`).
 

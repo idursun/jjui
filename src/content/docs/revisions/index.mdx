@@ -14,11 +14,13 @@ Revisions is the default view in `jjui`. All other views (Git, Oplog, Bookmarks,
 - `@`: jump to working copy
 - `shift+j`: jump to parent
 - `shift+k`: jump to children
-- `space`: toggle revision selection
+- `space`: toggle revision selection and move down one row
 
 ## Selection
 
-The highlighted revision is the default source for all operations. `space` selects additional revisions — operations that support multi-select will use all of them.
+The highlighted revision is the default source for all operations. `space` selects additional revisions and moves down one row — operations that support multi-select will use all of them.
+
+When you press `n` with multiple revisions selected, they become the new revision's parents in the order you selected them. Select the revision you want as the first parent first; parent order matters when the merge is pushed to Git.
 
 - Select multiple revisions then press `r` → all selected become the rebase source.
 - Select multiple revisions then press `a` → abandon applies to all of them.
@@ -50,7 +52,7 @@ The highlighted revision is the default source for all operations. `space` selec
 
 ## Creating a revision at a specific position
 
-`n` always creates a new revision as a child of the highlighted revision. To place it elsewhere, create it first then rebase it into position:
+`n` creates a new revision as a child of the selected revisions, or the highlighted revision when nothing is selected. To place it elsewhere, create it first then rebase it into position:
 
 1. Press `n` to create the revision.
 2. Navigate to the new revision.

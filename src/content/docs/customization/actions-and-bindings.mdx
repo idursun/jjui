@@ -179,12 +179,12 @@ end
 
 Both examples override `move_down` to show a flash message with the change ID after each move, while still performing the original navigation via `jjui.builtin.revisions.move_down()`.
 
-You can use this pattern with any built-in action — for example, making `toggle_select` automatically advance the cursor:
+By default, `space` toggles selection and moves down one row. To restore the previous behavior of jumping to the parent after selecting, override `revisions.toggle_select`:
 
 ```lua
 config.action("revisions.toggle_select", function()
   jjui.builtin.revisions.toggle_select()
-  jjui.builtin.revisions.move_down()
+  jjui.builtin.revisions.jump_to_parent()
 end)
 ```
 

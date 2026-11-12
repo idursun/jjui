@@ -8,17 +8,17 @@ description: Fuzzy File Finder
 jjui features a fuzzy file finder that can be activated using `ctrl+t` shortcut by default.
 
 
-## Selecting a file
+## Selecting a file or directory
 
-When activated, you will see the list of all files that are present on the current revision. Press `esc` to cancel the file search.
+When activated, the finder loads files and directories present at the current revision without blocking the UI. It shows a loading message until the paths are ready. Press `esc` to cancel the file search.
 
 File paths are displayed relative to the directory where jjui was started. The selected path is still passed to jj and the resulting revset uses the repository-relative file.
 
-When you select a file (via `enter`) the current `revset` will be changed to show all revisions that have touched the selected file.
+Press `enter` or click a result to update the current `revset` and close the finder. Selecting a file shows revisions that touched that file. Selecting a directory shows revisions that touched any file within it, including subdirectories.
 
-You can navigate the candidates list using `up`/`down` and `ctrl+n`/`ctrl+p` as you'd expect on shell prompts.
+You can navigate the candidates list using `up`/`down` and `ctrl+n`/`ctrl+p` as you'd expect on shell prompts, or scroll it with the mouse wheel.
 
-Using `tab` will accept the selected file, updating the revset, but will not close the file search like `enter` does.
+Using `tab` accepts the selected path and updates the revset without closing the finder.
 
 ## Refined search
 
