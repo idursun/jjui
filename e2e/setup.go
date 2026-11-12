@@ -71,7 +71,13 @@ func jjuiBinary(t *testing.T) string {
 func newTestRepo(t *testing.T) *testRepo {
 	t.Helper()
 
-	root := t.TempDir()
+	// Not t.TempDir: the revset line shows the repo path, and a test name in
+	// it would match the screen assertions.
+	root, err := os.MkdirTemp("", "jjui-e2e-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(root) })
 	repo := filepath.Join(root, "repo")
 	configHome := filepath.Join(root, "config")
 	jjuiConfig := filepath.Join(root, "jjui-config")
