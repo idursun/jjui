@@ -182,6 +182,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.duplicate.set_target":                {"revisions.duplicate"},
 	"revisions.duplicate.target_picker":             {"revisions.duplicate"},
 	"revisions.edit":                                {"revisions"},
+	"revisions.elided.show_all":                     {"revisions.elided"},
 	"revisions.evolog.apply":                        {"revisions.evolog"},
 	"revisions.evolog.cancel":                       {"revisions.evolog"},
 	"revisions.evolog.diff":                         {"revisions.evolog"},

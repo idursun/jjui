@@ -35,6 +35,7 @@ const (
 	ScopeDiffRange                          = "revisions.diff_range"
 	ScopeDivergent                          = "revisions.divergent"
 	ScopeDuplicate                          = "revisions.duplicate"
+	ScopeElided                             = "revisions.elided"
 	ScopeEvolog                             = "revisions.evolog"
 	ScopeInlineDescribe                     = "revisions.inline_describe"
 	ScopeInlineDescribeConfirmation         = "revisions.inline_describe.confirmation"
@@ -563,6 +564,11 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.DuplicateSetTarget{Target: enumArgModeTarget(args, "target")}, true
 		case keybindings.Action("revisions.duplicate.target_picker"):
 			return intents.DuplicateOpenTargetPicker{}, true
+		}
+	case ScopeElided:
+		switch action {
+		case keybindings.Action("revisions.elided.show_all"):
+			return intents.FocusedElidedShowAll{}, true
 		}
 	case ScopeEvolog:
 		switch action {

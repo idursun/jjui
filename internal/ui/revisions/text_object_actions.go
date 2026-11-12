@@ -417,6 +417,33 @@ func (m *Model) showAllDivergentCopies() tea.Cmd {
 	return common.UpdateRevSet("change_id(" + changeId + ")")
 }
 
+// widenedRevset unions the current revset with extra, or explains why it
+// cannot.
+func (m *Model) widenedRevset(extra func(current string) string) tea.Cmd {
+	current := strings.TrimSpace(m.context.CurrentRevset)
+	if current == "" {
+		return intents.Invoke(intents.AddMessage{Text: "The revset cannot be widened without an explicit revset"})
+	}
+	current = "(" + current + ")"
+	return common.UpdateRevSet(current + " | " + extra(current))
+}
+
+// showElidedBelow adds the revisions hidden between revision and its nearest
+// shown ancestors.
+func (m *Model) showElidedBelow(revision *jj.Commit) tea.Cmd {
+	return m.widenedRevset(func(current string) string {
+		return "heads(" + current + " & ::" + revision.CommitId + "-)::" + revision.CommitId
+	})
+}
+
+func (m *Model) showAllElided() tea.Cmd {
+	obj := m.focusedTextObject()
+	if obj == nil || obj.Kind != textObjectElided {
+		return nil
+	}
+	return m.widenedRevset(func(current string) string { return "connected" + current })
+}
+
 // focusedWorkspaceRoot returns the focused workspace and its root directory.
 func (m *Model) focusedWorkspaceRoot() (*textObject, string, tea.Cmd) {
 	obj := m.focusedTextObject()

@@ -233,6 +233,7 @@ function wait_refresh() end
 ---@field diff_range jjui.revisions.diff_range
 ---@field divergent jjui.revisions.divergent
 ---@field duplicate jjui.revisions.duplicate
+---@field elided jjui.revisions.elided
 ---@field evolog jjui.revisions.evolog
 ---@field inline_describe jjui.revisions.inline_describe
 ---@field new_between jjui.revisions.new_between
@@ -398,6 +399,9 @@ function wait_refresh() end
 ---@field set_target fun(args: {target: "onto"|"after"|"before"|"insert"})
 ---@field target_picker fun()
 ---@field close fun()
+
+---@class jjui.revisions.elided
+---@field show_all fun()
 
 ---@class jjui.revisions.evolog
 ---@field apply fun(args: {force?: boolean})

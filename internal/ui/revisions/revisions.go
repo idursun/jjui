@@ -1006,6 +1006,9 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		if obj == nil || commit == nil {
 			return nil, true
 		}
+		if obj.Kind == textObjectElided {
+			return m.showElidedBelow(commit), true
+		}
 		condition, reason := revsetCondition(obj, commit)
 		if reason != "" {
 			return intents.Invoke(intents.AddMessage{Text: reason}), true
@@ -1051,6 +1054,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.runOnRevisionParts(textObjectTimestamp, jj.MetaeditUpdateAuthorTimestamp), true
 	case intents.FocusedDivergentShowAll:
 		return m.showAllDivergentCopies(), true
+	case intents.FocusedElidedShowAll:
+		return m.showAllElided(), true
 	case intents.FocusedDivergentAbandon:
 		return m.runOnFocusedCommit(textObjectDivergent, jj.AbandonCommit), true
 	case intents.FocusedDivergentUpdateChangeId:
@@ -1837,6 +1842,7 @@ func (m *Model) jumpToObjectKind(kind string, delta int) tea.Cmd {
 		textObjectDivergent: "divergent revisions",
 		textObjectCommitId:  "commit ids",
 		textObjectChangeId:  "change ids",
+		textObjectElided:    "elided revisions",
 	}
 	name, ok := names[kind]
 	if !ok {
