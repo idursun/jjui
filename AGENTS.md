@@ -54,7 +54,7 @@ task check
 ## Requirements
 
 - The Go version declared by `go.mod` or later
-- `jj` v0.37+
+- `jj` v0.39+
 
 ## Verification Expectations
 
