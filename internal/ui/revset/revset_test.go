@@ -2,6 +2,7 @@ package revset
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -303,4 +304,18 @@ func renderExpectedCellColors(t *testing.T, content string) (any, any) {
 	dl.Render(buf)
 	cell := buf.CellAt(0, 0)
 	return cell.Style.Fg, cell.Style.Bg
+}
+
+func TestModel_ViewShowsLocationOnTheRight(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.Location = "/srv/repos/jjui"
+	ctx.CurrentRevset = "::@"
+	model := New(ctx)
+
+	line := strings.Split(test.RenderImmediate(model, 40, 1), "\n")[0]
+	assert.Equal(t, "revset: ::@              /srv/repos/jjui", line)
+
+	ctx.CurrentRevset = "trunk()..@ | bookmarks()"
+	line = strings.Split(test.RenderImmediate(model, 40, 1), "\n")[0]
+	assert.Equal(t, "revset: trunk()..@ | bookmarks() os/jjui", line, "a long revset hides the start of the path")
 }
