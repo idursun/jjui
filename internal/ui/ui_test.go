@@ -1522,7 +1522,7 @@ func Test_Update_LuaActionRejectsInvalidBuiltInArgs(t *testing.T) {
 }
 
 func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing.T) {
-	const statusOutput = "false false $\nM file.txt\n"
+	const statusOutput = "<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n"
 	const logOutput = "<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::child>><<log commit mutable:: >><<log commit mutable commit_id shortest prefix::childcommit>><<log commit mutable::>>\n" +
 		"<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::parent>><<log commit mutable:: >><<log commit mutable commit_id shortest prefix::parentcommit>><<log commit mutable::>>\n"
 
@@ -1727,7 +1727,7 @@ func Test_Update_InlineDescribeDispatcherKeysWorkWhileEditing(t *testing.T) {
 }
 
 func Test_Update_DetailsCloseClearsSelectedFiles(t *testing.T) {
-	const statusOutput = "false false $\nM file.txt\nA newfile.txt\n"
+	const statusOutput = "<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n<<file status_char::A>><<file:: >><<file display_diff_path::newfile.txt>>\n"
 
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.Snapshot())
@@ -1752,7 +1752,7 @@ func Test_Update_DetailsCloseClearsSelectedFiles(t *testing.T) {
 }
 
 func Test_Update_RestoreDetailsOperationResyncsSelectedFiles(t *testing.T) {
-	const statusOutput = "false false $\nM file.txt\nA newfile.txt\n"
+	const statusOutput = "<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n<<file status_char::A>><<file:: >><<file display_diff_path::newfile.txt>>\n"
 
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.Snapshot())
@@ -1831,7 +1831,7 @@ func Test_Update_DetailsEscClosesOperation_WithDefaultBindings(t *testing.T) {
 }
 
 func Test_Update_DetailsFilterUsesDefaultBindingsAndClearsBeforeClose(t *testing.T) {
-	const statusOutput = "false false $\nM file.txt\nA newfile.txt\n"
+	const statusOutput = "<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n<<file status_char::A>><<file:: >><<file display_diff_path::newfile.txt>>\n"
 
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.Snapshot())
@@ -1865,7 +1865,7 @@ func Test_Update_DetailsFilterUsesDefaultBindingsAndClearsBeforeClose(t *testing
 }
 
 func Test_Update_CommandErrorAfterClosingDetailsWithSelectedFiles_AllowsEscToDismissFlash(t *testing.T) {
-	const statusOutput = "false false $\nM file.txt\nA newfile.txt\n"
+	const statusOutput = "<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n<<file status_char::A>><<file:: >><<file display_diff_path::newfile.txt>>\n"
 
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.Snapshot())

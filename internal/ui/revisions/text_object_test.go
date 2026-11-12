@@ -865,7 +865,7 @@ func changeIdFocusedUnderDetails(t *testing.T, commandRunner *test.CommandRunner
 	model.focusedObjectKind = textObjectChangeId
 	commit := model.SelectedRevision()
 	commandRunner.Expect(jj.Snapshot())
-	commandRunner.Expect(jj.Status(commit.GetChangeId())).SetOutput([]byte("false false $\nM file.txt\n"))
+	commandRunner.Expect(jj.Status(commit.GetChangeId())).SetOutput([]byte("<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n"))
 	op := details.NewOperation(ctx, commit, model.fileChecks())
 	test.SimulateModel(op, op.Init())
 	model.baseOp = op
