@@ -388,16 +388,12 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		}
 	case ScopeAbandon:
 		switch action {
-		case keybindings.Action("revisions.abandon.ace_jump"):
-			return intents.StartAceJump{}, true
 		case keybindings.Action("revisions.abandon.apply"):
 			return intents.Apply{Force: actionargs.BoolArg(args, "force", false)}, true
 		case keybindings.Action("revisions.abandon.cancel"):
 			return intents.Cancel{}, true
 		case keybindings.Action("revisions.abandon.force_apply"):
 			return intents.Apply{Force: true}, true
-		case keybindings.Action("revisions.abandon.jump_to_working_copy"):
-			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
 		case keybindings.Action("revisions.abandon.select_descendants"):
 			return intents.AbandonSelectDescendants{}, true
 		case keybindings.Action("revisions.abandon.toggle_select"):
@@ -405,14 +401,10 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		}
 	case ScopeAbsorb:
 		switch action {
-		case keybindings.Action("revisions.absorb.ace_jump"):
-			return intents.StartAceJump{}, true
 		case keybindings.Action("revisions.absorb.apply"):
 			return intents.Apply{}, true
 		case keybindings.Action("revisions.absorb.cancel"):
 			return intents.Cancel{}, true
-		case keybindings.Action("revisions.absorb.jump_to_working_copy"):
-			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
 		case keybindings.Action("revisions.absorb.select_descendants"):
 			return intents.AbsorbSelectDescendants{}, true
 		case keybindings.Action("revisions.absorb.toggle_select"):
@@ -453,8 +445,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		}
 	case ScopeBookmarkTarget:
 		switch action {
-		case keybindings.Action("revisions.bookmark_target.ace_jump"):
-			return intents.StartAceJump{}, true
 		case keybindings.Action("revisions.bookmark_target.apply"):
 			return intents.Apply{Force: actionargs.BoolArg(args, "force", false)}, true
 		case keybindings.Action("revisions.bookmark_target.cancel"):
@@ -550,16 +540,12 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		}
 	case ScopeDuplicate:
 		switch action {
-		case keybindings.Action("revisions.duplicate.ace_jump"):
-			return intents.StartAceJump{}, true
 		case keybindings.Action("revisions.duplicate.apply"):
 			return intents.Apply{Force: actionargs.BoolArg(args, "force", false)}, true
 		case keybindings.Action("revisions.duplicate.cancel"):
 			return intents.Cancel{}, true
 		case keybindings.Action("revisions.duplicate.force_apply"):
 			return intents.Apply{Force: true}, true
-		case keybindings.Action("revisions.duplicate.jump_to_working_copy"):
-			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
 		case keybindings.Action("revisions.duplicate.set_target"):
 			return intents.DuplicateSetTarget{Target: enumArgModeTarget(args, "target")}, true
 		case keybindings.Action("revisions.duplicate.target_picker"):
@@ -651,16 +637,12 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		}
 	case ScopeRebase:
 		switch action {
-		case keybindings.Action("revisions.rebase.ace_jump"):
-			return intents.StartAceJump{}, true
 		case keybindings.Action("revisions.rebase.apply"):
 			return intents.Apply{Force: actionargs.BoolArg(args, "force", false)}, true
 		case keybindings.Action("revisions.rebase.cancel"):
 			return intents.Cancel{}, true
 		case keybindings.Action("revisions.rebase.force_apply"):
 			return intents.Apply{Force: true}, true
-		case keybindings.Action("revisions.rebase.jump_to_working_copy"):
-			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
 		case keybindings.Action("revisions.rebase.set_source"):
 			return intents.RebaseSetSource{Source: enumArgRebaseSource(args, "source")}, true
 		case keybindings.Action("revisions.rebase.set_target"):
@@ -703,21 +685,15 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		}
 	case ScopeSetParents:
 		switch action {
-		case keybindings.Action("revisions.set_parents.ace_jump"):
-			return intents.StartAceJump{}, true
 		case keybindings.Action("revisions.set_parents.apply"):
 			return intents.Apply{}, true
 		case keybindings.Action("revisions.set_parents.cancel"):
 			return intents.Cancel{}, true
-		case keybindings.Action("revisions.set_parents.jump_to_working_copy"):
-			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
 		case keybindings.Action("revisions.set_parents.toggle_select"):
 			return intents.SetParentsToggleSelect{}, true
 		}
 	case ScopeSquash:
 		switch action {
-		case keybindings.Action("revisions.squash.ace_jump"):
-			return intents.StartAceJump{}, true
 		case keybindings.Action("revisions.squash.apply"):
 			return intents.Apply{Force: actionargs.BoolArg(args, "force", false)}, true
 		case keybindings.Action("revisions.squash.cancel"):
@@ -726,8 +702,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Apply{Force: true}, true
 		case keybindings.Action("revisions.squash.interactive"):
 			return intents.SquashToggleOption{Option: intents.SquashOptionInteractive}, true
-		case keybindings.Action("revisions.squash.jump_to_working_copy"):
-			return intents.Navigate{Target: intents.TargetWorkingCopy}, true
 		case keybindings.Action("revisions.squash.keep_emptied"):
 			return intents.SquashToggleOption{Option: intents.SquashOptionKeepEmptied}, true
 		case keybindings.Action("revisions.squash.target_picker"):

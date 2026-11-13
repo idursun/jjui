@@ -409,11 +409,6 @@ func (m *Model) Scopes() []common.Scope {
 		})
 	}
 
-	var scope bindings.ScopeName = actions.ScopeRevisions
-	if !m.InNormalMode() {
-		scope = ""
-	}
-
 	if m.InNormalMode() {
 		if obj := m.focusedTextObject(); obj != nil && obj.Kind != textObjectNode {
 			ret = append(ret, common.Scope{
@@ -428,8 +423,15 @@ func (m *Model) Scopes() []common.Scope {
 		}
 	}
 
+	if m.InNormalMode() {
+		ret = append(ret, common.Scope{
+			Name:    actions.ScopeRevisions,
+			Leak:    leak,
+			Handler: m,
+		})
+	}
 	ret = append(ret, common.Scope{
-		Name:    scope,
+		Name:    scopeNav,
 		Leak:    leak,
 		Handler: m,
 	})
@@ -1775,6 +1777,9 @@ func (m *Model) focusedTextObject() *textObject {
 // scopeObjects holds the keys that move between the text objects of the
 // selected revision.
 const scopeObjects bindings.ScopeName = actions.ScopeRevisions + ".objects"
+
+// scopeNav holds the cursor keys, which stay active inside operations.
+const scopeNav bindings.ScopeName = actions.ScopeRevisions + ".nav"
 
 // scopeObject holds the keys shared by every non-node object kind; it sits
 // before the plain revisions scope so that it beats jump_to_parent.

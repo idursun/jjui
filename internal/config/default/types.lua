@@ -296,20 +296,16 @@ function wait_refresh() end
 ---@field close fun()
 
 ---@class jjui.revisions.abandon
----@field ace_jump fun()
 ---@field apply fun(args: {force?: boolean})
 ---@field cancel fun()
 ---@field force_apply fun()
----@field jump_to_working_copy fun()
 ---@field select_descendants fun()
 ---@field toggle_select fun()
 ---@field close fun()
 
 ---@class jjui.revisions.absorb
----@field ace_jump fun()
 ---@field apply fun()
 ---@field cancel fun()
----@field jump_to_working_copy fun()
 ---@field select_descendants fun()
 ---@field toggle_select fun()
 ---@field close fun()
@@ -334,7 +330,6 @@ function wait_refresh() end
 ---@field untrack fun()
 
 ---@class jjui.revisions.bookmark_target
----@field ace_jump fun()
 ---@field apply fun(args: {force?: boolean})
 ---@field cancel fun()
 ---@field force_apply fun()
@@ -391,11 +386,9 @@ function wait_refresh() end
 ---@field update_change_id fun()
 
 ---@class jjui.revisions.duplicate
----@field ace_jump fun()
 ---@field apply fun(args: {force?: boolean})
 ---@field cancel fun()
 ---@field force_apply fun()
----@field jump_to_working_copy fun()
 ---@field set_target fun(args: {target: "onto"|"after"|"before"|"insert"})
 ---@field target_picker fun()
 ---@field close fun()
@@ -455,11 +448,9 @@ function wait_refresh() end
 ---@field close fun()
 
 ---@class jjui.revisions.rebase
----@field ace_jump fun()
 ---@field apply fun(args: {force?: boolean})
 ---@field cancel fun()
 ---@field force_apply fun()
----@field jump_to_working_copy fun()
 ---@field set_source fun(args: {source: "revision"|"branch"|"source"})
 ---@field set_target fun(args: {target: "onto"|"after"|"before"|"insert"})
 ---@field skip_emptied fun()
@@ -487,20 +478,16 @@ function wait_refresh() end
 ---@field close fun()
 
 ---@class jjui.revisions.set_parents
----@field ace_jump fun()
 ---@field apply fun()
 ---@field cancel fun()
----@field jump_to_working_copy fun()
 ---@field toggle_select fun()
 ---@field close fun()
 
 ---@class jjui.revisions.squash
----@field ace_jump fun()
 ---@field apply fun(args: {force?: boolean})
 ---@field cancel fun()
 ---@field force_apply fun()
 ---@field interactive fun()
----@field jump_to_working_copy fun()
 ---@field keep_emptied fun()
 ---@field target_picker fun()
 ---@field use_destination_msg fun()
