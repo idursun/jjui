@@ -168,6 +168,8 @@ Each scope's leak policy decides how far routing continues past it:
 - `LeakGlobal`: only outer scopes marked `Global` stay visible
 - `LeakNone`: routing stops here, typically while editing text
 
+The revisions view emits its `revisions` scope (verbs such as squash and rebase) only in normal mode, and always emits `revisions.nav` after it, which holds the cursor navigation keys so operations do not re-bind them.
+
 Two scopes are `Global`: the root `ui` scope, which is available everywhere, and the preview. The preview cannot take focus, so being `Global` lets its hotkeys work through the primary view's own `LeakGlobal` modes such as details and evolog. It is only in the chain while the primary view is on top.
 
 ## Root UI Responsibilities

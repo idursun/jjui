@@ -107,12 +107,6 @@ func (GoToBottom) isIntent() {}
 //jjui:bind scope=revisions action=jump_to_parent set=Target:TargetParent when="revisions.has_selection && revisions.has_parent"
 //jjui:bind scope=revisions action=jump_to_children set=Target:TargetChild when="revisions.has_revision"
 //jjui:bind scope=revisions action=jump_to_working_copy set=Target:TargetWorkingCopy
-//jjui:bind scope=revisions.rebase action=jump_to_working_copy set=Target:TargetWorkingCopy
-//jjui:bind scope=revisions.squash action=jump_to_working_copy set=Target:TargetWorkingCopy
-//jjui:bind scope=revisions.duplicate action=jump_to_working_copy set=Target:TargetWorkingCopy
-//jjui:bind scope=revisions.abandon action=jump_to_working_copy set=Target:TargetWorkingCopy
-//jjui:bind scope=revisions.absorb action=jump_to_working_copy set=Target:TargetWorkingCopy
-//jjui:bind scope=revisions.set_parents action=jump_to_working_copy set=Target:TargetWorkingCopy
 type Navigate struct {
 	Delta       int              // +N down, -N up
 	IsPage      bool             // use page-sized step when true
