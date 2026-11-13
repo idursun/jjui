@@ -46,7 +46,6 @@ import (
 )
 
 var (
-	_ common.Focusable         = (*Model)(nil)
 	_ common.Editable          = (*Model)(nil)
 	_ common.ImmediateModel    = (*Model)(nil)
 	_ common.ScopeProvider     = (*Model)(nil)
@@ -343,18 +342,6 @@ func (m *Model) IsOverlay() bool {
 		return overlay.IsOverlay()
 	}
 	return false
-}
-
-func (m *Model) IsFocused() bool {
-	if layer := m.topLayer(); layer != nil {
-		if focusable, ok := layer.(common.Focusable); ok {
-			return focusable.IsFocused()
-		}
-	}
-	if focusable, ok := m.baseOperation().(common.Focusable); ok {
-		return focusable.IsFocused()
-	}
-	return m.focused
 }
 
 func (m *Model) SetFocused(focused bool) {
@@ -875,12 +862,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	if m.IsOverlay() {
 		return m.activeModel().Update(msg)
-	}
-
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		if m.IsFocused() {
-			return m.activeModel().Update(keyMsg)
-		}
 	}
 
 	return nil

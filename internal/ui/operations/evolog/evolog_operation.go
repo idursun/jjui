@@ -45,7 +45,6 @@ const (
 
 var _ operations.Operation = (*Operation)(nil)
 var _ operations.EmbeddedOperation = (*Operation)(nil)
-var _ common.Focusable = (*Operation)(nil)
 var _ common.Overlay = (*Operation)(nil)
 var _ common.ScopeProvider = (*Operation)(nil)
 var _ common.SelectionProvider = (*Operation)(nil)
@@ -95,10 +94,6 @@ func (o *Operation) Scopes() []common.Scope {
 			Handler: o,
 		},
 	}
-}
-
-func (o *Operation) IsFocused() bool {
-	return true
 }
 
 func (o *Operation) Init() tea.Cmd {

@@ -19,7 +19,6 @@ import (
 )
 
 var _ operations.Operation = (*Operation)(nil)
-var _ common.Focusable = (*Operation)(nil)
 var _ common.ScopeProvider = (*Operation)(nil)
 var _ common.ScopeHandler = (*Operation)(nil)
 
@@ -31,10 +30,6 @@ type Operation struct {
 	fromName string
 	swapped  bool
 	hasTo    bool
-}
-
-func (o *Operation) IsFocused() bool {
-	return true
 }
 
 func (o *Operation) Scopes() []common.Scope {

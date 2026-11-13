@@ -93,10 +93,6 @@ func (s *SetBookmarkOperation) ViewRect(dl *render.DisplayContext, box layout.Bo
 	dl.SetCursorInRect(s.name.Cursor(), rect, 0, 0)
 }
 
-func (s *SetBookmarkOperation) IsFocused() bool {
-	return true
-}
-
 func (s *SetBookmarkOperation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
 	if pos != operations.RenderBeforeCommitId || commit.GetChangeId() != s.revision {
 		return ""

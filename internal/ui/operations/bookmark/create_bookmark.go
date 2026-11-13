@@ -15,7 +15,6 @@ import (
 )
 
 var _ operations.Operation = (*CreateBookmarkOperation)(nil)
-var _ common.Focusable = (*CreateBookmarkOperation)(nil)
 var _ common.ScopeProvider = (*CreateBookmarkOperation)(nil)
 
 type CreateBookmarkOperation struct {
@@ -35,8 +34,6 @@ func NewCreateBookmarkOperation(context *context.MainContext, target *jj.Commit)
 }
 
 func (c *CreateBookmarkOperation) Init() tea.Cmd { return nil }
-
-func (c *CreateBookmarkOperation) IsFocused() bool { return true }
 
 func (c *CreateBookmarkOperation) Scopes() []common.Scope {
 	return []common.Scope{
