@@ -21,7 +21,6 @@ import (
 var (
 	_ operations.Operation       = (*Operation)(nil)
 	_ operations.SegmentRenderer = (*Operation)(nil)
-	_ common.Focusable           = (*Operation)(nil)
 	_ common.ScopeProvider       = (*Operation)(nil)
 )
 
@@ -45,10 +44,6 @@ type Operation struct {
 
 type addSelectionMsg struct {
 	jj.SelectedRevisions
-}
-
-func (a *Operation) IsFocused() bool {
-	return true
 }
 
 func (a *Operation) Scopes() []common.Scope {

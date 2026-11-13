@@ -18,7 +18,6 @@ import (
 var (
 	_ common.StackedModel = (*Model)(nil)
 	_ common.Editable     = (*Model)(nil)
-	_ common.Focusable    = (*Model)(nil)
 )
 
 var scopeDisplayNames = map[string]string{
@@ -107,10 +106,6 @@ func newHelpScrollMsg(msg tea.MouseMsg) tea.Msg {
 }
 
 func (m *Model) IsEditing() bool {
-	return m.filtering
-}
-
-func (m *Model) IsFocused() bool {
 	return m.filtering
 }
 

@@ -19,7 +19,6 @@ import (
 var (
 	_ operations.Operation       = (*Operation)(nil)
 	_ operations.SegmentRenderer = (*Operation)(nil)
-	_ common.Focusable           = (*Operation)(nil)
 	_ common.Editable            = (*Operation)(nil)
 	_ common.ScopeProvider       = (*Operation)(nil)
 )
@@ -32,10 +31,6 @@ type Operation struct {
 }
 
 func (o *Operation) IsEditing() bool {
-	return true
-}
-
-func (o *Operation) IsFocused() bool {
 	return true
 }
 

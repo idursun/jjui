@@ -106,10 +106,6 @@ func (r *RenameWorkspaceOperation) ViewRect(dl *render.DisplayContext, box layou
 	dl.SetCursorInRect(r.name.Cursor(), rect, 0, 0)
 }
 
-func (r *RenameWorkspaceOperation) IsFocused() bool {
-	return true
-}
-
 func (r *RenameWorkspaceOperation) Render(*jj.Commit, operations.RenderPosition) string {
 	return ""
 }

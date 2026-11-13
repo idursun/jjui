@@ -30,7 +30,6 @@ var (
 	_ operations.Operation = (*Model)(nil)
 	_ common.ScopeProvider = (*Model)(nil)
 	_ common.ScopeHandler  = (*Model)(nil)
-	_ common.Focusable     = (*Model)(nil)
 	_ common.Editable      = (*Model)(nil)
 	_ common.Overlay       = (*Model)(nil)
 )
@@ -75,7 +74,6 @@ type TargetSelectedMsg struct {
 
 type TargetPickerCancelMsg struct{}
 
-func (m *Model) IsFocused() bool { return true }
 func (m *Model) IsEditing() bool { return true }
 func (m *Model) IsOverlay() bool { return true }
 

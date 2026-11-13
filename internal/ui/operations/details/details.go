@@ -37,7 +37,6 @@ const (
 var (
 	_ operations.Operation         = (*Operation)(nil)
 	_ operations.EmbeddedOperation = (*Operation)(nil)
-	_ common.Focusable             = (*Operation)(nil)
 	_ common.Editable              = (*Operation)(nil)
 	_ common.Overlay               = (*Operation)(nil)
 	_ common.ScopeProvider         = (*Operation)(nil)
@@ -61,10 +60,6 @@ type Operation struct {
 }
 
 func (s *Operation) IsOverlay() bool {
-	return true
-}
-
-func (s *Operation) IsFocused() bool {
 	return true
 }
 

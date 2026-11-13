@@ -20,7 +20,6 @@ import (
 
 var (
 	_ operations.Operation = (*Operation)(nil)
-	_ common.Focusable     = (*Operation)(nil)
 	_ common.ScopeProvider = (*Operation)(nil)
 )
 
@@ -34,10 +33,6 @@ type Operation struct {
 
 type setTargetsMsg struct {
 	targets []string
-}
-
-func (o *Operation) IsFocused() bool {
-	return true
 }
 
 func (o *Operation) Init() tea.Cmd {

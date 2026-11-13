@@ -104,10 +104,6 @@ func (m *Model) Height() int {
 	return 1
 }
 
-func (m *Model) IsFocused() bool {
-	return m.editing
-}
-
 func (m *Model) GetValue() string {
 	return m.autoComplete.Value()
 }

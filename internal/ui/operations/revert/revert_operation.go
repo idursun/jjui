@@ -28,7 +28,6 @@ var (
 )
 
 var _ operations.Operation = (*Operation)(nil)
-var _ common.Focusable = (*Operation)(nil)
 var _ common.ScopeProvider = (*Operation)(nil)
 
 type Operation struct {
@@ -39,10 +38,6 @@ type Operation struct {
 	Target         intents.ModeTarget
 	targetName     string
 	highlightedIds []string
-}
-
-func (r *Operation) IsFocused() bool {
-	return true
 }
 
 func (r *Operation) Scopes() []common.Scope {

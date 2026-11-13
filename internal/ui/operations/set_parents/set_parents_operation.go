@@ -18,7 +18,6 @@ import (
 )
 
 var _ operations.Operation = (*Model)(nil)
-var _ common.Focusable = (*Model)(nil)
 var _ common.ScopeProvider = (*Model)(nil)
 
 type Model struct {
@@ -28,10 +27,6 @@ type Model struct {
 	toRemove map[string]bool
 	toAdd    []string
 	parents  []string
-}
-
-func (m *Model) IsFocused() bool {
-	return true
 }
 
 func (m *Model) Init() tea.Cmd {
