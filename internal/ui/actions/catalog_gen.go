@@ -480,6 +480,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.DetailsCancelFilter{}, true
 		case keybindings.Action("revisions.details.invert_selection"):
 			return intents.DetailsInvertSelection{}, true
+		case keybindings.Action("revisions.details.leave"):
+			return intents.DetailsLeave{}, true
 		case keybindings.Action("revisions.details.move_down"):
 			return intents.DetailsNavigate{Delta: 1}, true
 		case keybindings.Action("revisions.details.move_up"):

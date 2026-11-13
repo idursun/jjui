@@ -47,8 +47,10 @@ func Test_PreviewHotkeys_ScrollPreviewFromDetails(t *testing.T) {
 	h := startPreviewHotkeysRepo(t)
 
 	h.Key("l")
-	h.WaitMode("details")
+	// statusMode reads the first word of the "change id" mode label.
+	h.WaitMode("change")
 	h.Key("j")
+	h.WaitMode("details")
 	// Wait for the file preview to replace the revision preview.
 	h.WaitStableText("Added regular file long.txt:", 3)
 	h.KeyTimes("ctrl+n", 20)
@@ -61,7 +63,7 @@ func Test_PreviewHotkeys_FollowDetailsCursor(t *testing.T) {
 	h := startPreviewHotkeysRepo(t)
 
 	h.Key("l")
-	h.WaitMode("details")
+	h.WaitMode("change")
 	h.WaitText("jj show --color always")
 	h.Key("j")
 	h.WaitText("jj diff --color always")
@@ -71,7 +73,7 @@ func Test_PreviewHotkeys_FollowDetailsCursor(t *testing.T) {
 	h.WaitText("jj diff --color always")
 	h.Key("h")
 	h.WaitText("jj show --color always")
-	h.WaitStableMode("details")
+	h.WaitStableMode("change")
 	h.Quit()
 }
 

@@ -254,6 +254,43 @@ func TestOperation_RefreshPreservesCheckedButNotHighlightedFile(t *testing.T) {
 	assert.Equal(t, []string{revision + "/file.txt"}, checks.toggles, "a reload must not write to the store")
 }
 
+func TestOperation_LeavingTheFilesForTheChangeIdUnchecksThem(t *testing.T) {
+	for name, leave := range map[string]intents.Intent{
+		"move up past the first file": intents.DetailsNavigate{Delta: -1, IsPage: true},
+		"leave":                       intents.DetailsLeave{},
+	} {
+		t.Run(name, func(t *testing.T) {
+			commandRunner := test.NewTestCommandRunner(t)
+			t.Cleanup(commandRunner.Verify)
+			checks := newFakeChecks()
+			operation := loadOperationWith(t, commandRunner, statusOutput, checks)
+
+			operation.HandleIntent(intents.DetailsToggleSelect{})
+			operation.HandleIntent(intents.DetailsToggleSelect{})
+			operation.HandleIntent(intents.DetailsNavigate{Delta: -1})
+			require.True(t, operation.FileFocused())
+			require.Len(t, operation.Selection().Checked, 2, "checks survive moving between files")
+
+			_, handled := operation.HandleIntent(leave)
+			require.True(t, handled)
+			assert.False(t, operation.FileFocused())
+			assert.Empty(t, operation.Selection().Checked)
+			assert.Empty(t, operation.getSelectedFiles(true))
+		})
+	}
+}
+
+func TestOperation_ScopesOnlyWhileAFileIsFocused(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	t.Cleanup(commandRunner.Verify)
+	operation := loadOperation(t, commandRunner, statusOutput)
+	require.Len(t, operation.Scopes(), 1)
+	assert.Equal(t, common.LeakGlobal, operation.Scopes()[0].Leak)
+
+	operation.LeaveFiles()
+	assert.Empty(t, operation.Scopes())
+}
+
 func TestOperation_TogglesUseTheDisplayedChangeId(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	t.Cleanup(commandRunner.Verify)
