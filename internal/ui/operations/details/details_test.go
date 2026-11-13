@@ -338,6 +338,35 @@ func TestOperation_FilterLifecycle(t *testing.T) {
 	assert.Empty(t, operation.filterInput.Value())
 }
 
+func TestOperation_ApplyCancelAndOptionSelectAreHandledOnlyWhenConsumed(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	t.Cleanup(commandRunner.Verify)
+	operation := loadOperation(t, commandRunner, statusOutput)
+
+	for _, intent := range []intents.Intent{intents.Apply{}, intents.Cancel{}, intents.OptionSelect{Delta: 1}} {
+		_, handled := operation.HandleIntent(intent)
+		assert.False(t, handled, "%T with no confirmation or filter", intent)
+	}
+
+	operation.HandleIntent(intents.DetailsOpenFilter{})
+	operation.Update(tea.PasteMsg{Content: "new"})
+	_, handled := operation.HandleIntent(intents.Apply{})
+	assert.True(t, handled, "apply while editing the filter")
+	assert.Equal(t, filterApplied, operation.filterState)
+	_, handled = operation.HandleIntent(intents.Apply{})
+	assert.False(t, handled, "apply with the filter already applied")
+	_, handled = operation.HandleIntent(intents.Cancel{})
+	assert.True(t, handled, "cancel clears the applied filter")
+	assert.Equal(t, filterOff, operation.filterState)
+
+	operation.HandleIntent(intents.DetailsRestore{})
+	require.NotNil(t, operation.confirmation)
+	for _, intent := range []intents.Intent{intents.OptionSelect{Delta: 1}, intents.Cancel{}} {
+		_, handled = operation.HandleIntent(intent)
+		assert.True(t, handled, "%T with a confirmation open", intent)
+	}
+}
+
 func TestOperation_FilterKeepsHiddenCheckedFilesInActions(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	t.Cleanup(commandRunner.Verify)
