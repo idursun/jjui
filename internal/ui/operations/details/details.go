@@ -177,21 +177,23 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		}
 		if s.filterState == filterEditing {
 			s.applyFilter()
+			return nil, true
 		}
-		return nil, true
+		return nil, false
 	case intents.Cancel:
 		if s.confirmation != nil {
 			return s.confirmation.Update(intent), true
 		}
 		if s.filterState != filterOff {
 			s.clearFilter()
+			return nil, true
 		}
-		return nil, true
+		return nil, false
 	case intents.OptionSelect:
 		if s.confirmation != nil {
 			return s.confirmation.Update(intent), true
 		}
-		return nil, true
+		return nil, false
 	case intents.DetailsNavigate:
 		s.navigate(intent.Delta, intent.IsPage)
 		return nil, true
