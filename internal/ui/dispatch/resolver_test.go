@@ -6,7 +6,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/config"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/stretchr/testify/assert"
 )
@@ -287,25 +286,4 @@ func TestNewResolver_LastActionDefinitionClearsEarlierAvailability(t *testing.T)
 	result := r.ResolveAction("custom", nil)
 	assert.True(t, result.Consumed)
 	assert.Equal(t, "second", result.LuaScript)
-}
-
-func TestDeriveScope(t *testing.T) {
-	tests := []struct {
-		action keybindings.Action
-		want   string
-	}{
-		{"ui.quit", "ui"},
-		{"revisions.move_down", "revisions"},
-		{"move_down", ""},
-		{"preview_toggle", ""},
-		{"revisions.quick_search.next", "revisions.quick_search"},
-		{"revisions.rebase.apply", "revisions.rebase"},
-		{"my_action", ""},
-	}
-	for _, tt := range tests {
-		t.Run(string(tt.action), func(t *testing.T) {
-			got := common.DeriveScope(tt.action)
-			assert.Equal(t, tt.want, got)
-		})
-	}
 }

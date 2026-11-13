@@ -120,20 +120,10 @@ func (r *Resolver) resolveAction(action keybindings.Action, args map[string]any,
 	}
 
 	// try catalog resolution
-	if intent, scope, ok := r.resolveFromCatalog(action, args); ok {
-		return Result{Intent: intent, Scope: scope, Args: args, Consumed: true}
+	if intent, ok := actions.ResolveByAction(action, args); ok {
+		return Result{Intent: intent, Args: args, Consumed: true}
 	}
 
 	// 4. Unresolved — action was matched by binding but has no handler
 	return Result{Consumed: false}
-}
-
-func (r *Resolver) resolveFromCatalog(action keybindings.Action, args map[string]any) (intents.Intent, string, bool) {
-	intent, ok := actions.ResolveByAction(action, args)
-	if !ok {
-		return nil, "", false
-	}
-
-	scope := common.DeriveScope(action)
-	return intent, scope, true
 }
