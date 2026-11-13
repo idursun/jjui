@@ -429,13 +429,6 @@ func (m *Model) Scopes() []common.Scope {
 		Leak:    leak,
 		Handler: m,
 	})
-	if m.InNormalMode() {
-		ret = append(ret, common.Scope{
-			Name:    scopeObjects,
-			Leak:    leak,
-			Handler: m,
-		})
-	}
 	return ret
 }
 
@@ -1737,10 +1730,6 @@ func (m *Model) focusedTextObject() *textObject {
 	}
 	return resolveTextObject(textObjectsForRow(m.rows[m.cursor]), m.focusedObjectKind, m.focusedObjectIndex)
 }
-
-// scopeObjects holds the keys that move between the text objects of the
-// selected revision.
-const scopeObjects bindings.ScopeName = actions.ScopeRevisions + ".objects"
 
 // scopeNav holds the cursor keys, which stay active inside operations.
 const scopeNav bindings.ScopeName = actions.ScopeRevisions + ".nav"

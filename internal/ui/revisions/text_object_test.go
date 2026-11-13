@@ -106,7 +106,7 @@ func TestModel_MovingObjectFocusStaysInNormalMode(t *testing.T) {
 	assert.Equal(t, textObjectTimestamp, model.focusedTextObject().Kind)
 	scopes := model.Scopes()
 	assert.Equal(t, actions.ScopeRevisions+".timestamp", string(scopes[0].Name))
-	assert.Equal(t, scopeObjects, scopes[len(scopes)-1].Name)
+	assert.Equal(t, scopeNav, scopes[len(scopes)-1].Name)
 	assert.False(t, scopes[len(scopes)-1].Global, "details on the change id no longer hide the outer scopes")
 }
 
@@ -885,7 +885,7 @@ func TestModel_DetailsAreNormalModeUntilAFileIsFocused(t *testing.T) {
 	defer commandRunner.Verify()
 	model := changeIdFocusedUnderDetails(t, commandRunner)
 	assert.True(t, model.InNormalMode())
-	assert.Equal(t, []string{"revisions.change_id", "revisions.object", "revisions", "revisions.nav", "revisions.objects"}, scopeNames(model))
+	assert.Equal(t, []string{"revisions.change_id", "revisions.object", "revisions", "revisions.nav"}, scopeNames(model))
 	for _, scope := range model.Scopes() {
 		assert.False(t, scope.Global, scope.Name)
 	}

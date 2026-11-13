@@ -168,9 +168,9 @@ Each scope's leak policy decides how far routing continues past it:
 - `LeakGlobal`: only outer scopes marked `Global` stay visible
 - `LeakNone`: routing stops here, typically while editing text
 
-The revisions view emits its `revisions` scope (verbs such as squash and rebase) only in normal mode, and always emits `revisions.nav` after it, which holds the cursor navigation keys so operations do not re-bind them. In normal mode a focused text object other than the node puts `revisions.<kind>` and `revisions.object` before `revisions`, and `revisions.objects` (moving between objects) comes last.
+The revisions view emits its `revisions` scope (verbs such as squash and rebase) only in normal mode, and always emits `revisions.nav` after it, which holds the cursor navigation keys so operations do not re-bind them. In normal mode a focused text object other than the node puts `revisions.<kind>` and `revisions.object` before `revisions`.
 
-Focusing the change id shows the revision's files under it, but that is still normal mode: the chain is `revisions.change_id`, `revisions.object`, `revisions`, `revisions.nav`, `revisions.objects`, and `revisions.change_id` binds the keys that enter the file list. Only while a file is focused does details emit `revisions.details`, a `LeakGlobal` scope that hides the revisions scopes. Files are checked only while the file list has the focus; returning to the change id unchecks them.
+Focusing the change id shows the revision's files under it, but that is still normal mode: the chain is `revisions.change_id`, `revisions.object`, `revisions`, and `revisions.nav`; `revisions.change_id` binds the keys that enter the file list. Only while a file is focused does details emit `revisions.details`, a `LeakGlobal` scope that hides the revisions scopes. Files are checked only while the file list has the focus; returning to the change id unchecks them.
 
 Two scopes are `Global`: the root `ui` scope, which is available everywhere, and the preview. The preview cannot take focus, so being `Global` lets its hotkeys work through the primary view's own `LeakGlobal` modes such as a focused file in details and evolog. It is only in the chain while the primary view is on top.
 
