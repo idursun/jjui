@@ -654,14 +654,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		m.resetOperations()
 		return nil
-	case common.RestoreOperationMsg:
-		if op, ok := msg.Operation.(operations.Operation); ok {
-			m.setBase(op)
-			m.layers = nil
-			return nil
-		}
-		m.resetOperations()
-		return nil
 	case common.StartAceJumpMsg:
 		cmd, _ := m.HandleIntent(intents.StartAceJump{})
 		return cmd
