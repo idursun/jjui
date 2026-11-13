@@ -177,7 +177,7 @@ func startGitPush(t *testing.T, session *ptySession, ctx context.Context) {
 		t.Fatal(err)
 	}
 	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, "details")
+		return screenContains(screen, "change id")
 	}); err != nil {
 		t.Fatalf("the change id was not focused: %v", err)
 	}

@@ -145,7 +145,7 @@ func (d *DetailsList) navigate(delta int, page bool) {
 	totalItems := d.VisibleLen()
 	newCursor := d.cursor + step
 	if newCursor < 0 {
-		d.cursor = -1
+		d.LeaveFiles()
 		return
 	}
 	if newCursor >= totalItems {
@@ -153,6 +153,16 @@ func (d *DetailsList) navigate(delta int, page bool) {
 	}
 
 	d.setCursor(newCursor)
+}
+
+// LeaveFiles moves the cursor to the change id and unchecks the files, which are only checked while a file is focused.
+func (d *DetailsList) LeaveFiles() {
+	d.cursor = -1
+	for _, item := range d.files {
+		if d.isChecked(item.fileName) {
+			d.toggle(item.fileName)
+		}
+	}
 }
 
 func (d *DetailsList) setCursor(index int) {

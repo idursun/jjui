@@ -1220,7 +1220,7 @@ func Test_Update_OperationScopedConfiguredActionOverridesBuiltInIntent(t *testin
 
 	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
-	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
+	require.Equal(t, "details", model.revisions.CurrentOperation().Name(), "details operation should be active")
 
 	cmd := model.Update(common.DispatchActionMsg{Action: "revisions.details.refresh"})
 	require.NotNil(t, cmd)
@@ -1296,8 +1296,7 @@ func Test_Update_DiffEscClosesDiffAndRestoresDetails(t *testing.T) {
 
 	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
-	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
-	require.Equal(t, "details", model.revisions.CurrentOperation().Name())
+	require.Equal(t, "details", model.revisions.CurrentOperation().Name(), "details operation should be active")
 
 	model.Update(intents.DiffShow{Content: "diff content"})
 	require.NotNil(t, layerOf[*diff.Model](model), "diff should open over details")
@@ -1309,8 +1308,7 @@ func Test_Update_DiffEscClosesDiffAndRestoresDetails(t *testing.T) {
 
 	model.Update(closeMsg)
 	assert.Nil(t, layerOf[*diff.Model](model), "diff should close after esc")
-	require.False(t, model.revisions.InNormalMode(), "details should remain active after closing diff")
-	assert.Equal(t, "details", model.revisions.CurrentOperation().Name())
+	assert.Equal(t, "details", model.revisions.CurrentOperation().Name(), "details should remain active after closing diff")
 }
 
 func Test_Update_OpenTargetPickerWhileDiffActiveCreatesRootOverlay(t *testing.T) {
@@ -1501,6 +1499,48 @@ func Test_Update_LuaActionRejectsInvalidBuiltInArgs(t *testing.T) {
 	assert.Empty(t, model.scriptRunners, "script should finish after invalid action args are reported")
 }
 
+func Test_Update_ChangeIdKeysWorkTheFileList(t *testing.T) {
+	const statusOutput = "<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n"
+	const logOutput = "<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::child>><<log commit mutable:: >><<log commit mutable commit_id shortest prefix::childcommit>><<log commit mutable::>>\n"
+
+	origLogBatching := config.Current.Revisions.LogBatching
+	defer func() {
+		config.Current.Revisions.LogBatching = origLogBatching
+	}()
+	config.Current.Revisions.LogBatching = false
+
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	commandRunner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log)).SetOutput([]byte(logOutput))
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status("child")).SetOutput([]byte(statusOutput))
+	defer commandRunner.Verify()
+
+	model := NewUI(ctx)
+	test.SimulateModel(model, model.revisions.Update(common.RefreshMsg{SelectedRevision: "child"}))
+
+	test.SimulateModel(model, test.Type("l"))
+	require.Equal(t, "details", model.revisions.CurrentOperation().Name(), "focusing the change id opens details")
+	assert.True(t, model.revisions.InNormalMode())
+
+	test.SimulateModel(model, test.Type("j "))
+	assert.False(t, model.revisions.InNormalMode(), "j enters the file list")
+	require.Len(t, ctx.Selection().Checked, 1)
+
+	test.SimulateModel(model, test.Type("k"))
+	assert.True(t, model.revisions.InNormalMode(), "k past the first file returns to the change id")
+	assert.Empty(t, ctx.Selection().Checked, "leaving the files unchecks them")
+
+	test.SimulateModel(model, test.Type("/"))
+	assert.False(t, model.revisions.InNormalMode(), "/ on the change id filters the files")
+	test.SimulateModel(model, test.Press(tea.KeyEsc))
+	test.SimulateModel(model, test.Type("h"))
+	assert.True(t, model.revisions.InNormalMode(), "h leaves the files")
+
+	test.SimulateModel(model, test.Press(tea.KeyEsc))
+	assert.Equal(t, "normal", model.revisions.CurrentOperation().Name(), "esc on the change id closes details")
+}
+
 func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing.T) {
 	const statusOutput = "<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n"
 	const logOutput = "<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::child>><<log commit mutable:: >><<log commit mutable commit_id shortest prefix::childcommit>><<log commit mutable::>>\n" +
@@ -1528,7 +1568,7 @@ func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing
 	require.Equal(t, "child", model.revisions.SelectedRevision().GetChangeId())
 
 	model.Update(common.RestoreOperationMsg{Operation: details.NewOperation(ctx, model.revisions.SelectedRevision(), newTestFileChecks())})
-	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
+	require.Equal(t, "details", model.revisions.CurrentOperation().Name(), "details operation should be active")
 
 	cmd := model.Update(common.RunLuaScriptMsg{Script: `
 		revisions.details.close()
@@ -1720,14 +1760,14 @@ func Test_Update_DetailsCloseClearsSelectedFiles(t *testing.T) {
 	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	test.SimulateModel(model, op.Init())
-	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
+	require.Equal(t, "details", model.revisions.CurrentOperation().Name(), "details operation should be active")
 
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
 	require.Len(t, ctx.Selection().Checked, 1, "details selection should be tracked before close")
 
 	test.SimulateModel(model, test.Press(tea.KeyEsc))
-	assert.True(t, model.revisions.InNormalMode(), "esc should close details")
+	assert.Equal(t, "normal", model.revisions.CurrentOperation().Name(), "esc should close details")
 	assert.Empty(t, ctx.Selection().Checked, "closing details should clear selected files from context")
 }
 
@@ -1769,12 +1809,16 @@ func Test_Update_DetailsEscClosesOperation(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
 
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte("<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n"))
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
 	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
-	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
+	test.SimulateModel(model, op.Init())
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
+	require.False(t, model.revisions.InNormalMode(), "a focused file puts details in front")
 
 	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	require.NotNil(t, cmd, "esc should resolve to revisions.details.cancel")
@@ -1785,19 +1829,23 @@ func Test_Update_DetailsEscClosesOperation(t *testing.T) {
 	assert.False(t, closeMsg.Applied, "plain esc should close without applied state")
 
 	model.Update(closeMsg)
-	assert.True(t, model.revisions.InNormalMode(), "details esc should close details operation")
+	assert.Equal(t, "normal", model.revisions.CurrentOperation().Name(), "details esc should close details operation")
 }
 
 func Test_Update_DetailsEscClosesOperation_WithDefaultBindings(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
 
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte("<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n"))
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
 	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
-	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
+	test.SimulateModel(model, op.Init())
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
+	require.False(t, model.revisions.InNormalMode(), "a focused file puts details in front")
 
 	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	require.NotNil(t, cmd, "default esc binding should resolve in details scope")
@@ -1807,7 +1855,7 @@ func Test_Update_DetailsEscClosesOperation_WithDefaultBindings(t *testing.T) {
 	require.True(t, ok, "default details esc should dispatch a close-view message")
 
 	model.Update(closeMsg)
-	assert.True(t, model.revisions.InNormalMode(), "default details esc should close details operation")
+	assert.Equal(t, "normal", model.revisions.CurrentOperation().Name(), "default details esc should close details operation")
 }
 
 func Test_Update_DetailsFilterUsesDefaultBindingsAndClearsBeforeClose(t *testing.T) {
@@ -1823,6 +1871,7 @@ func Test_Update_DetailsFilterUsesDefaultBindingsAndClearsBeforeClose(t *testing
 	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	test.SimulateModel(model, op.Init())
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
 
 	model.Update(tea.KeyPressMsg{Text: "/", Code: '/'})
 	assert.True(t, op.IsEditing())
@@ -1841,7 +1890,7 @@ func Test_Update_DetailsFilterUsesDefaultBindingsAndClearsBeforeClose(t *testing
 	cmd = model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	require.NotNil(t, cmd, "second esc should close details")
 	test.SimulateModel(model, cmd)
-	assert.True(t, model.revisions.InNormalMode())
+	assert.Equal(t, "normal", model.revisions.CurrentOperation().Name())
 }
 
 func Test_Update_CommandErrorAfterClosingDetailsWithSelectedFiles_AllowsEscToDismissFlash(t *testing.T) {
@@ -1858,7 +1907,7 @@ func Test_Update_CommandErrorAfterClosingDetailsWithSelectedFiles_AllowsEscToDis
 	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	test.SimulateModel(model, op.Init())
-	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
+	require.Equal(t, "details", model.revisions.CurrentOperation().Name(), "details operation should be active")
 
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
@@ -1867,7 +1916,7 @@ func Test_Update_CommandErrorAfterClosingDetailsWithSelectedFiles_AllowsEscToDis
 	model.Update(common.CloseViewMsg{})
 	model.Update(common.CommandCompletedMsg{Err: errors.New("split failed")})
 
-	assert.True(t, model.revisions.InNormalMode(), "closing details should return to revisions")
+	assert.Equal(t, "normal", model.revisions.CurrentOperation().Name(), "closing details should return to revisions")
 	assert.True(t, model.flash.Any(), "command failure should surface as a flash message")
 	assert.Empty(t, ctx.Selection().Checked, "selected files should be cleared when leaving details")
 

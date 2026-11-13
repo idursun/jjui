@@ -454,7 +454,7 @@ func Test_TextObjects_PushesFocusedChange(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := session.WaitForScreen(ctx, func(screen []string) bool {
-		return screenContains(screen, "details")
+		return screenContains(screen, "change id")
 	}); err != nil {
 		t.Fatalf("details did not open: %v", err)
 	}
