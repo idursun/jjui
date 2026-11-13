@@ -87,11 +87,13 @@ func (s *Operation) Scopes() []common.Scope {
 			Handler: s,
 		})
 	}
-	ret = append(ret, common.Scope{
-		Name:    actions.ScopeDetails,
-		Leak:    common.LeakGlobal,
-		Handler: s,
-	})
+	if s.FileFocused() {
+		ret = append(ret, common.Scope{
+			Name:    actions.ScopeDetails,
+			Leak:    common.LeakGlobal,
+			Handler: s,
+		})
+	}
 	return ret
 }
 
@@ -199,6 +201,9 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return nil, true
 	case intents.DetailsClose:
 		return common.Close, true
+	case intents.DetailsLeave:
+		s.LeaveFiles()
+		return nil, true
 	case intents.DetailsOpenFilter:
 		return s.openFilter(), true
 	case intents.DetailsApplyFilter:
@@ -344,11 +349,6 @@ func (s *Operation) Selection() common.SelectionSnapshot {
 // FileFocused reports whether the cursor is on a file rather than the change id.
 func (s *Operation) FileFocused() bool {
 	return s.current() != nil
-}
-
-// LeaveFiles moves the cursor from the files back to the change id.
-func (s *Operation) LeaveFiles() {
-	s.cursor = -1
 }
 
 func (s *Operation) selectedFile(file jj.FileName) context.SelectedFile {

@@ -196,9 +196,6 @@ func (m *Model) QueryState(name string) (any, bool) {
 	switch name {
 	case "has_revision":
 		return selected != nil, true
-	case "files_focused":
-		op, ok := m.baseOperation().(*details.Operation)
-		return ok && op.FileFocused(), true
 	case "at_top":
 		return m.cursor == 0, true
 	case "has_selection":
@@ -284,9 +281,6 @@ func (m *Model) popLayer() tea.Cmd {
 }
 
 func (m *Model) resetOperations() {
-	if m.detailsOpen() {
-		m.focusedObjectKind, m.focusedObjectIndex = textObjectNode, 0
-	}
 	m.setBase(operations.NewDefault())
 	m.layers = nil
 }
@@ -295,6 +289,10 @@ func (m *Model) resetOperations() {
 func (m *Model) setBase(op operations.Operation) {
 	if _, ok := op.(*details.Operation); !ok {
 		m.checked = slices.DeleteFunc(m.checked, func(c checkedObject) bool { return c.kind == textObjectFile })
+		// The change id stays focused only while its details are shown.
+		if m.focusedObjectKind == textObjectChangeId {
+			m.focusedObjectKind, m.focusedObjectIndex = textObjectNode, 0
+		}
 	}
 	m.baseOp = op
 }
@@ -363,9 +361,18 @@ func (m *Model) baseOperationRendersEmbedded() bool {
 		embedded.CanEmbed(commit, operations.RenderOverDescription)
 }
 
+// InNormalMode includes details while the change id rather than a file is focused.
 func (m *Model) InNormalMode() bool {
-	_, isDefault := m.baseOperation().(*operations.Default)
-	return isDefault && len(m.layers) == 0
+	if len(m.layers) > 0 {
+		return false
+	}
+	switch op := m.baseOperation().(type) {
+	case *operations.Default:
+		return true
+	case *details.Operation:
+		return !op.FileFocused() && !op.IsEditing()
+	}
+	return false
 }
 
 func (m *Model) HasQuickSearch() bool {
@@ -422,23 +429,10 @@ func (m *Model) Scopes() []common.Scope {
 		Leak:    leak,
 		Handler: m,
 	})
-	// Global because details, which focusing the change id opens, hides the
-	// outer scopes.
-	if m.changeIdFocusedInDetails() {
-		ret = append(ret, common.Scope{
-			Name:    scopeChangeId,
-			Leak:    leak,
-			Global:  true,
-			Handler: m,
-		})
-	}
-	// Global so that h and l still move between objects under details, which
-	// hides the outer scopes.
-	if m.canMoveObjectFocus() {
+	if m.InNormalMode() {
 		ret = append(ret, common.Scope{
 			Name:    scopeObjects,
 			Leak:    leak,
-			Global:  true,
 			Handler: m,
 		})
 	}
@@ -475,7 +469,7 @@ func (m *Model) Selection() common.SelectionSnapshot {
 				ChangeId: rev.GetChangeId(),
 				CommitId: rev.CommitId,
 			}
-			if m.canMoveObjectFocus() {
+			if m.InNormalMode() {
 				if obj := m.focusedTextObject(); obj != nil {
 					selected.ObjectKind, selected.ObjectValue = previewObject(obj)
 					selected.ObjectText, selected.ObjectRemote, selected.ObjectConflicted = obj.Value, obj.Remote, obj.Conflicted
@@ -976,10 +970,6 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.Navigate:
 		return m.navigate(intent), true
 	case intents.RevisionsObjectFocus:
-		if op, ok := m.baseOperation().(*details.Operation); ok && op.FileFocused() {
-			op.LeaveFiles()
-			return nil, true
-		}
 		m.moveObjectFocus(intent.Delta)
 		return m.syncDetails(), true
 	case intents.RevisionsObjectJump:
@@ -1018,7 +1008,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.forgetBookmarks(), true
 	case intents.RevisionsObjectFocusKind:
 		m.focusedObjectKind, m.focusedObjectIndex = intent.Kind, 0
-		return nil, true
+		return m.syncDetails(), true
 	case intents.RevisionsObjectCycleKind:
 		return m.cycleObjectKind(intent.Kind), true
 	case intents.FocusedBookmarkRename:
@@ -1119,7 +1109,8 @@ func (m *Model) openDetails(_ intents.OpenDetails) tea.Cmd {
 	if m.SelectedRevision() == nil {
 		return nil
 	}
-	return m.setBaseOperation(details.NewOperation(m.context, m.SelectedRevision(), m.fileChecks()))
+	m.focusedObjectKind, m.focusedObjectIndex = textObjectChangeId, 0
+	return m.syncDetails()
 }
 
 func (m *Model) startSquash(intent intents.OpenSquash) tea.Cmd {
@@ -1575,7 +1566,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	// Render to DisplayContext
 	m.displayContextRenderer.focusedObject = nil
-	if op, ok := m.baseOperation().(*details.Operation); m.canMoveObjectFocus() && !(ok && op.FileFocused()) {
+	if m.InNormalMode() {
 		m.displayContextRenderer.focusedObject = m.focusedTextObject()
 	}
 	m.displayContextRenderer.Render(
@@ -1765,24 +1756,10 @@ const scopeNav bindings.ScopeName = actions.ScopeRevisions + ".nav"
 // scopeObject holds the keys shared by every non-node object kind; it sits
 // before the plain revisions scope so that it beats jump_to_parent.
 const scopeObject bindings.ScopeName = actions.ScopeRevisions + ".object"
-const scopeChangeId bindings.ScopeName = actions.ScopeRevisions + "." + textObjectChangeId
 
 func (m *Model) detailsOpen() bool {
 	_, ok := m.baseOperation().(*details.Operation)
 	return ok
-}
-
-func (m *Model) changeIdFocusedInDetails() bool {
-	op, ok := m.baseOperation().(*details.Operation)
-	if !ok || op.FileFocused() || len(m.layers) > 0 {
-		return false
-	}
-	obj := m.focusedTextObject()
-	return obj != nil && obj.Kind == textObjectChangeId
-}
-
-func (m *Model) canMoveObjectFocus() bool {
-	return len(m.layers) == 0 && !m.IsEditing() && (m.InNormalMode() || m.detailsOpen())
 }
 
 // syncDetails shows details while the change id is focused and closes them

@@ -5,6 +5,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -22,21 +24,30 @@ func TestHandleIntent_RevisionsModeOpeners(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := New(ctx)
-	model.updateGraphRows(rows, "a", true)
+	// open_details opens through the change id, so the rows need one.
+	labelled := make([]parser.Row, len(rows))
+	for i, row := range rows {
+		labelled[i] = parser.Row{Commit: row.Commit, Lines: []*parser.GraphRowLine{{
+			Segments: []*screen.Segment{{Text: row.Commit.ChangeId, Labels: []string{"change_id"}}},
+			Flags:    parser.Revision,
+		}}}
+	}
+	model.updateGraphRows(labelled, "a", true)
 
 	_, handled := model.HandleIntent(intents.OpenDetails{})
 	assert.True(t, handled, "open_details should be handled by revisions")
 	assert.Equal(t, "details", model.CurrentOperation().Name())
 
-	model.Update(intents.Cancel{})
-	model.updateGraphRows(rows, "a", true)
+	model.Update(intents.RevisionsObjectNode{})
+	assert.Equal(t, "normal", model.CurrentOperation().Name(), "leaving the change id closes details")
+	model.updateGraphRows(labelled, "a", true)
 
 	_, handled = model.HandleIntent(intents.OpenRebase{})
 	assert.True(t, handled, "open_rebase should be handled by revisions")
 	assert.Equal(t, "rebase", model.CurrentOperation().Name())
 
 	model.Update(intents.Cancel{})
-	model.updateGraphRows(rows, "a", true)
+	model.updateGraphRows(labelled, "a", true)
 	_, handled = model.HandleIntent(intents.OpenDuplicate{})
 	assert.True(t, handled, "open_duplicate should be handled by revisions")
 	assert.Equal(t, "duplicate", model.CurrentOperation().Name())

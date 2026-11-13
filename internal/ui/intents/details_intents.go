@@ -16,6 +16,11 @@ type DetailsClose struct{}
 
 func (DetailsClose) isIntent() {}
 
+//jjui:bind scope=revisions.details action=leave
+type DetailsLeave struct{}
+
+func (DetailsLeave) isIntent() {}
+
 //jjui:bind scope=revisions.details action=filter
 type DetailsOpenFilter struct{}
 

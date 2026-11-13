@@ -107,7 +107,7 @@ func TestModel_MovingObjectFocusStaysInNormalMode(t *testing.T) {
 	scopes := model.Scopes()
 	assert.Equal(t, actions.ScopeRevisions+".timestamp", string(scopes[0].Name))
 	assert.Equal(t, scopeObjects, scopes[len(scopes)-1].Name)
-	assert.True(t, scopes[len(scopes)-1].Global, "h and l stay reachable under details")
+	assert.False(t, scopes[len(scopes)-1].Global, "details on the change id no longer hide the outer scopes")
 }
 
 func TestModel_ObjectFocusWrapsAroundTheRow(t *testing.T) {
@@ -880,14 +880,44 @@ func scopeNames(model *Model) []string {
 	return names
 }
 
-func TestModel_ChangeIdScopeIsVisibleUnderDetailsOnlyOnTheChangeId(t *testing.T) {
+func TestModel_DetailsAreNormalModeUntilAFileIsFocused(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
 	model := changeIdFocusedUnderDetails(t, commandRunner)
-	assert.Contains(t, scopeNames(model), actions.ScopeRevisions+".change_id")
+	assert.True(t, model.InNormalMode())
+	assert.Equal(t, []string{"revisions.change_id", "revisions.object", "revisions", "revisions.nav", "revisions.objects"}, scopeNames(model))
+	for _, scope := range model.Scopes() {
+		assert.False(t, scope.Global, scope.Name)
+	}
 
-	model.baseOp.(*details.Operation).HandleIntent(intents.DetailsNavigate{Delta: 1})
-	assert.NotContains(t, scopeNames(model), actions.ScopeRevisions+".change_id")
+	model.Update(intents.DetailsNavigate{Delta: 1})
+	assert.False(t, model.InNormalMode())
+	assert.Equal(t, []string{"revisions.details", "revisions.nav"}, scopeNames(model))
+	assert.Equal(t, common.LeakGlobal, model.Scopes()[0].Leak)
+}
+
+func TestModel_ReplacingDetailsMovesTheFocusOffTheChangeId(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	model := changeIdFocusedUnderDetails(t, commandRunner)
+
+	model.setBaseOperation(operations.NewDefault())
+
+	assert.Equal(t, textObjectNode, model.focusedTextObject().Kind)
+}
+
+func TestModel_OpenDetailsFocusesTheChangeId(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status(model.SelectedRevision().GetChangeId()))
+
+	test.SimulateModel(model, func() tea.Msg { return intents.OpenDetails{} })
+
+	assert.Equal(t, textObjectChangeId, model.focusedTextObject().Kind)
+	assert.Equal(t, "details", model.CurrentOperation().Name())
 }
 
 func TestModel_PushFocusedChange(t *testing.T) {

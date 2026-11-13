@@ -148,6 +148,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.details.filter_apply":                {"revisions.details"},
 	"revisions.details.filter_cancel":               {"revisions.details"},
 	"revisions.details.invert_selection":            {"revisions.details"},
+	"revisions.details.leave":                       {"revisions.details"},
 	"revisions.details.move_down":                   {"revisions.details"},
 	"revisions.details.move_up":                     {"revisions.details"},
 	"revisions.details.page_down":                   {"revisions.details"},
