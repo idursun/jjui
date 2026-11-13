@@ -103,10 +103,6 @@ func (r *RenameBookmarkOperation) ViewRect(dl *render.DisplayContext, box layout
 	dl.SetCursorInRect(r.name.Cursor(), rect, 0, 0)
 }
 
-func (r *RenameBookmarkOperation) IsFocused() bool {
-	return true
-}
-
 func (r *RenameBookmarkOperation) Render(*jj.Commit, operations.RenderPosition) string {
 	return ""
 }

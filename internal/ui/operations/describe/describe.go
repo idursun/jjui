@@ -47,10 +47,6 @@ func (o *Operation) QueryState(name string) (any, bool) {
 	return nil, false
 }
 
-func (o *Operation) IsFocused() bool {
-	return true
-}
-
 func (o *Operation) Scopes() []common.Scope {
 	var scopes []common.Scope
 	if o.confirmation != nil {

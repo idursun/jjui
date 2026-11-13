@@ -44,7 +44,6 @@ var (
 
 var (
 	_ operations.Operation = (*Operation)(nil)
-	_ common.Focusable     = (*Operation)(nil)
 	_ common.ScopeProvider = (*Operation)(nil)
 )
 
@@ -65,10 +64,6 @@ type updateHighlightedIdsMsg struct {
 }
 
 const debounceDuration = 250 * time.Millisecond
-
-func (r *Operation) IsFocused() bool {
-	return true
-}
 
 func (r *Operation) Scopes() []common.Scope {
 	return []common.Scope{

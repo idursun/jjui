@@ -18,7 +18,6 @@ import (
 )
 
 var _ operations.Operation = (*MoveBookmarkOperation)(nil)
-var _ common.Focusable = (*MoveBookmarkOperation)(nil)
 var _ common.ScopeProvider = (*MoveBookmarkOperation)(nil)
 
 type moveDirection string
@@ -91,8 +90,6 @@ func (m *MoveBookmarkOperation) queryDirection(target string) moveDirection {
 	}
 	return direction
 }
-
-func (m *MoveBookmarkOperation) IsFocused() bool { return true }
 
 func (m *MoveBookmarkOperation) Scopes() []common.Scope {
 	return []common.Scope{

@@ -20,7 +20,6 @@ import (
 
 var (
 	_ operations.Operation = (*Operation)(nil)
-	_ common.Focusable     = (*Operation)(nil)
 	_ common.ScopeProvider = (*Operation)(nil)
 )
 
@@ -33,10 +32,6 @@ type Operation struct {
 	keepEmptied           bool
 	useDestinationMessage bool
 	interactive           bool
-}
-
-func (s *Operation) IsFocused() bool {
-	return true
 }
 
 func (s *Operation) Scopes() []common.Scope {

@@ -24,19 +24,16 @@ func TestNewOperation_Mode(t *testing.T) {
 	tests := []struct {
 		name      string
 		mode      mode
-		isFocused bool
 		isOverlay bool
 	}{
 		{
 			name:      "select mode is editing",
 			mode:      selectMode,
-			isFocused: true,
 			isOverlay: true,
 		},
 		{
 			name:      "restore mode is not editing",
 			mode:      restoreMode,
-			isFocused: true,
 			isOverlay: false,
 		},
 	}
@@ -47,7 +44,6 @@ func TestNewOperation_Mode(t *testing.T) {
 			operation := NewOperation(context, revision)
 			operation.mode = args.mode
 
-			assert.Equal(t, args.isFocused, operation.IsFocused())
 			assert.Equal(t, args.isOverlay, operation.IsOverlay())
 		})
 	}

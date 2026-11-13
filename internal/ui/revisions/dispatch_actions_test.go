@@ -82,7 +82,6 @@ func (o *confirmationTrackingOp) HandleIntent(intent intents.Intent) (tea.Cmd, b
 func (o *confirmationTrackingOp) Update(msg tea.Msg) tea.Cmd                      { return nil }
 func (o *confirmationTrackingOp) Init() tea.Cmd                                   { return nil }
 func (o *confirmationTrackingOp) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
-func (o *confirmationTrackingOp) IsFocused() bool                                 { return true }
 func (o *confirmationTrackingOp) IsEditing() bool                                 { return true }
 func (o *confirmationTrackingOp) Name() string                                    { return "details" }
 func (o *confirmationTrackingOp) Render(_ *jj.Commit, _ operations.RenderPosition) string {
@@ -126,7 +125,6 @@ func (o *applyTrackingOp) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 func (o *applyTrackingOp) Update(msg tea.Msg) tea.Cmd                      { return nil }
 func (o *applyTrackingOp) Init() tea.Cmd                                   { return nil }
 func (o *applyTrackingOp) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
-func (o *applyTrackingOp) IsFocused() bool                                 { return true }
 func (o *applyTrackingOp) IsEditing() bool                                 { return true }
 func (o *applyTrackingOp) Name() string                                    { return "squash" }
 func (o *applyTrackingOp) Render(_ *jj.Commit, _ operations.RenderPosition) string {
