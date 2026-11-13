@@ -7,9 +7,9 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,14 +35,14 @@ func TestDetailsList_RenderFileListShowsCheckedAndUncheckedHints(t *testing.T) {
 }
 
 func TestDetailsList_SelectedDeletedKeepsStatusForeground(t *testing.T) {
-	originalPalette := common.DefaultPalette
-	t.Cleanup(func() { common.DefaultPalette = originalPalette })
-	palette := common.NewPalette()
+	originalPalette := theme.DefaultPalette
+	t.Cleanup(func() { theme.DefaultPalette = originalPalette })
+	palette := theme.NewPalette()
 	palette.Update(map[string]config.Color{
 		"revisions details deleted":  {Fg: "#ff5555"},
 		"revisions details:selected": {Bg: "#220044"},
 	})
-	common.DefaultPalette = palette
+	theme.DefaultPalette = palette
 
 	style := NewDetailsList().getStatusStyle(Deleted, true)
 

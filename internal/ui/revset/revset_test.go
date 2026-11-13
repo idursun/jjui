@@ -12,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -75,8 +76,8 @@ func TestModel_View_KeepsCompletionListForPreviewedFunctionCompletion(t *testing
 }
 
 func TestModel_View_SelectedCompletionPaintsTextBackground(t *testing.T) {
-	originalPalette := common.DefaultPalette
-	palette := common.NewPalette()
+	originalPalette := theme.DefaultPalette
+	palette := theme.NewPalette()
 	palette.Update(map[string]config.Color{
 		"revset completion":                  {Bg: "black"},
 		"revset completion text":             {Fg: "green"},
@@ -86,8 +87,8 @@ func TestModel_View_SelectedCompletionPaintsTextBackground(t *testing.T) {
 		"revset completion matched:selected": {Bold: new(true)},
 		"revset completion dimmed:selected":  {Fg: "bright cyan"},
 	})
-	common.DefaultPalette = palette
-	defer func() { common.DefaultPalette = originalPalette }()
+	theme.DefaultPalette = palette
+	defer func() { theme.DefaultPalette = originalPalette }()
 
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
@@ -293,9 +294,6 @@ func TestModel_Update_ApplyEmptyUsesDefaultRevset(t *testing.T) {
 	})
 	assert.Equal(t, ctx.DefaultRevset, updated, "empty apply should resolve to default revset")
 }
-
-//go:fix inline
-func boolPtr(v bool) *bool { return new(v) }
 
 func renderExpectedCellColors(t *testing.T, content string) (any, any) {
 	t.Helper()

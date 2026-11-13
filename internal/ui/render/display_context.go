@@ -295,5 +295,5 @@ func (dl *DisplayContext) ProcessMouseEvent(msg tea.MouseMsg) (tea.Msg, bool) {
 		return sorted[i].order < sorted[j].order
 	})
 
-	return processMouseEvent(sorted, msg, func(interactionOp) bool { return true })
+	return processMouseEvent(sorted, msg)
 }

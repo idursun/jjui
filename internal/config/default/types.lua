@@ -86,6 +86,7 @@ function wait_close() end
 function wait_refresh() end
 
 ---@class jjui.annotation
+---@field confirmation jjui.annotation.confirmation
 ---@field editor jjui.annotation.editor
 ---@field add fun()
 ---@field child_revision fun()
@@ -111,6 +112,13 @@ function wait_refresh() end
 ---@field target_picker fun()
 ---@field toggle_presentation fun()
 ---@field toggle_wrap fun()
+
+---@class jjui.annotation.confirmation
+---@field apply fun(args: {force?: boolean})
+---@field cancel fun()
+---@field next fun()
+---@field prev fun()
+---@field close fun()
 
 ---@class jjui.annotation.editor
 ---@field cancel fun()
@@ -435,9 +443,11 @@ function wait_refresh() end
 ---@field confirmation jjui.revisions.inline_describe.confirmation
 ---@field accept fun(args: {force?: boolean})
 ---@field cancel fun()
+---@field clear fun()
 ---@field editor fun()
 ---@field force_accept fun()
 ---@field new_line fun()
+---@field content fun(): string|nil
 ---@field close fun()
 
 ---@class jjui.revisions.inline_describe.confirmation
@@ -579,6 +589,7 @@ function wait_refresh() end
 
 ---@class jjui.ui.preview
 ---@field show fun(value?: string|{content: string})
+---@field y_offset fun(): integer|nil
 
 ---@class jjui.undo
 ---@field apply fun()

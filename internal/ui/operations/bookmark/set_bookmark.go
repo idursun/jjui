@@ -14,6 +14,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var _ operations.Operation = (*SetBookmarkOperation)(nil)
@@ -136,8 +137,8 @@ func NewSetBookmarkOperation(context *context.MainContext, changeId string, init
 }
 
 func (s *SetBookmarkOperation) viewContent() string {
-	dimmedStyle := common.DefaultPalette.Get("revisions", "", "dimmed", false).Inline(true)
-	textStyle := common.DefaultPalette.Get("revisions", "", "text", false).Inline(true)
+	dimmedStyle := theme.DefaultPalette.Get("revisions", "", "dimmed", false).Inline(true)
+	textStyle := theme.DefaultPalette.Get("revisions", "", "text", false).Inline(true)
 	styles := s.name.Styles()
 	styles.Focused.Text = textStyle
 	styles.Focused.Prompt = textStyle

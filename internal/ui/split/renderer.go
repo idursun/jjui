@@ -72,7 +72,7 @@ func (s *SplitRenderer) renderBoth(
 			secondaryBox.R.Max.Y += thickness
 			primary.ViewRect(dl, boxes[0])
 			secondary.ViewRect(dl, secondaryBox)
-			dl.AddInteraction(sepRect, SplitDragMsg{Renderer: s}, render.InteractionDrag, 0)
+			dl.AddInteractionFn(sepRect, s.dragStartMsg, render.InteractionDrag, 0)
 			drawRect, content := separatorContent(sepRect, s.vertical)
 			if drawRect.Dx() > 0 && drawRect.Dy() > 0 && content != "" {
 				dl.AddDraw(drawRect, content, render.ZPreview)
@@ -106,7 +106,7 @@ func (s *SplitRenderer) renderBoth(
 		secondaryBox.R.Max.X += thickness
 		primary.ViewRect(dl, boxes[0])
 		secondary.ViewRect(dl, secondaryBox)
-		dl.AddInteraction(sepRect, SplitDragMsg{Renderer: s}, render.InteractionDrag, 0)
+		dl.AddInteractionFn(sepRect, s.dragStartMsg, render.InteractionDrag, 0)
 		drawRect, content := separatorContent(sepRect, s.vertical)
 		if drawRect.Dx() > 0 && drawRect.Dy() > 0 && content != "" {
 			dl.AddDraw(drawRect, content, render.ZPreview)
@@ -130,10 +130,9 @@ type SplitDragMsg struct {
 	Y        int
 }
 
-func (m SplitDragMsg) SetDragStart(x, y int) tea.Msg {
-	m.X = x
-	m.Y = y
-	return m
+func (s *SplitRenderer) dragStartMsg(msg tea.MouseMsg) tea.Msg {
+	mouse := msg.Mouse()
+	return SplitDragMsg{Renderer: s, X: mouse.X, Y: mouse.Y}
 }
 
 func separatorContent(sepRect layout.Rectangle, vertical bool) (layout.Rectangle, string) {

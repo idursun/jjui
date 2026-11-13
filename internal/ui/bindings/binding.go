@@ -3,12 +3,15 @@ package bindings
 import (
 	"fmt"
 	"slices"
+
+	"github.com/idursun/jjui/internal/ui/actionmeta"
 )
 
 // Binding maps a key (or key sequence) to an action in a scope.
 type Binding struct {
 	Action Action
 	Desc   string
+	When   string
 	Scope  ScopeName
 	Key    []string
 	Seq    []string
@@ -21,6 +24,10 @@ func (b Binding) validate() error {
 	}
 	if b.Scope == "" {
 		return fmt.Errorf("binding scope is required")
+	}
+
+	if _, err := actionmeta.ParseCondition(b.When); err != nil {
+		return fmt.Errorf("binding %q in scope %q: %w", b.Action, b.Scope, err)
 	}
 
 	hasKey := len(b.Key) > 0

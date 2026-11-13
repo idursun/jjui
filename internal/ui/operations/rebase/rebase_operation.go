@@ -18,6 +18,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 type Source int
@@ -194,10 +195,10 @@ func (r *Operation) refreshHighlightedIds() tea.Cmd {
 }
 
 func (r *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
-	changeIdStyle := common.DefaultPalette.Get("rebase", "", "change_id", false)
-	dimmedStyle := common.DefaultPalette.Get("rebase", "", "dimmed", false)
-	sourceMarkerStyle := common.DefaultPalette.Get("rebase", "", "source_marker", false)
-	targetMarkerStyle := common.DefaultPalette.Get("rebase", "", "target_marker", false)
+	changeIdStyle := theme.DefaultPalette.Get("rebase", "", "change_id", false)
+	dimmedStyle := theme.DefaultPalette.Get("rebase", "", "dimmed", false)
+	sourceMarkerStyle := theme.DefaultPalette.Get("rebase", "", "source_marker", false)
+	targetMarkerStyle := theme.DefaultPalette.Get("rebase", "", "target_marker", false)
 
 	if pos == operations.RenderBeforeChangeId {
 		changeId := commit.GetChangeId()

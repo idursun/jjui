@@ -18,6 +18,14 @@ func TestParseBindDirectives_RejectsUnknownKey(t *testing.T) {
 	require.NotEmpty(t, parsed[0].Errs)
 }
 
+func TestParseBindDirectives_ParsesQuotedActionCondition(t *testing.T) {
+	doc := &ast.CommentGroup{List: []*ast.Comment{{Text: `//jjui:bind scope=revisions action=diff when="revisions.has_revision && !revisions.is_empty"`}}}
+	parsed := parseBindDirectives(doc, "ShowDiff")
+	require.Len(t, parsed, 1)
+	require.Empty(t, parsed[0].Errs)
+	require.Equal(t, "revisions.has_revision && !revisions.is_empty", parsed[0].Rule.When)
+}
+
 func TestValidateRules_RejectsTypeMismatch(t *testing.T) {
 	rules := []bindRule{{
 		Scope:  "revisions.squash",
@@ -64,6 +72,22 @@ func TestValidateActionMetadata_RejectsMissingScopes(t *testing.T) {
 	require.Contains(t, err.Error(), "has no scopes")
 }
 
+func TestDeriveActionConditions(t *testing.T) {
+	rules := []bindRule{
+		{Scope: "revisions", Action: "diff", When: "revisions.has_revision&&!revisions.is_empty"},
+		{Scope: "revisions", Action: "split", When: "revisions.has_revision&&!revisions.is_empty"},
+		{Scope: "revisions", Action: "split_parallel", When: "revisions.has_revision&&!revisions.is_empty"},
+	}
+	conditions, err := deriveActionConditions(rules)
+	require.NoError(t, err)
+	require.Equal(t, "revisions.has_revision&&!revisions.is_empty", conditions["revisions.diff"])
+
+	rules = append(rules, bindRule{Scope: "revisions", Action: "diff", When: "false"})
+	_, err = deriveActionConditions(rules)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "conflicting when conditions")
+}
+
 func TestGeneratedCatalogIsUpToDate(t *testing.T) {
 	root := repoRoot(t)
 
@@ -92,7 +116,9 @@ func TestGeneratedCatalogIsUpToDate(t *testing.T) {
 	scopes := deriveActionScopes(rules)
 	err = validateActionMetadata(actionIDs, scopes)
 	require.NoError(t, err)
-	metaGenerated, err := generateActionMetaSource(schemas, requiredArgs, scopes)
+	conditions, err := deriveActionConditions(rules)
+	require.NoError(t, err)
+	metaGenerated, err := generateActionMetaSource(schemas, requiredArgs, scopes, conditions)
 	require.NoError(t, err)
 	metaCurrent, err := os.ReadFile(filepath.Join(root, "internal/ui/actionmeta/builtins_gen.go"))
 	require.NoError(t, err)

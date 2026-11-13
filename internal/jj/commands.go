@@ -55,7 +55,7 @@ func Log(revset string, limit int, jjTemplate string) CommandArgs {
 		template = jjTemplate
 	}
 	prefix := fmt.Sprintf(
-		"stringify('%s' ++ separate('%s', change_id.shortest() ++ if(divergent, \"/\" ++ change_offset), commit_id.shortest()))",
+		"stringify('%s' ++ separate('%s', change_id.shortest() ++ if(divergent, \"/\" ++ change_offset), commit_id.shortest(), bookmarks.len() > 0, local_bookmarks.len() > 0, current_working_copy || working_copies.len() > 0, root, empty))",
 		JJUIPrefix, JJUIPrefix)
 	template = fmt.Sprintf("%s ++ ' ' ++ %s", prefix, template)
 	args = append(args, "-T", template)
@@ -196,7 +196,7 @@ func Redo() CommandArgs {
 }
 
 func Snapshot() CommandArgs {
-	return []string{"debug", "snapshot"}
+	return []string{"util", "snapshot"}
 }
 
 func Status(revision string) CommandArgs {
@@ -208,12 +208,13 @@ func BookmarkSet(revision string, name string) CommandArgs {
 	return []string{"bookmark", "set", "-r", revision, name}
 }
 
-func exactStringPattern(value string) string {
+// ExactStringPattern quotes a name so jj matches it exactly.
+func ExactStringPattern(value string) string {
 	return "exact:" + strconv.Quote(value)
 }
 
 func BookmarkMove(revision string, bookmark string, extraFlags ...string) CommandArgs {
-	args := []string{"bookmark", "move", exactStringPattern(bookmark), "--to", revision}
+	args := []string{"bookmark", "move", ExactStringPattern(bookmark), "--to", revision}
 	if extraFlags != nil {
 		args = append(args, extraFlags...)
 	}
@@ -221,7 +222,7 @@ func BookmarkMove(revision string, bookmark string, extraFlags ...string) Comman
 }
 
 func BookmarkDelete(name string) CommandArgs {
-	return []string{"bookmark", "delete", exactStringPattern(name)}
+	return []string{"bookmark", "delete", ExactStringPattern(name)}
 }
 
 func BookmarkRename(oldName string, newName string) CommandArgs {
@@ -229,21 +230,21 @@ func BookmarkRename(oldName string, newName string) CommandArgs {
 }
 
 func BookmarkForget(name string) CommandArgs {
-	return []string{"bookmark", "forget", exactStringPattern(name)}
+	return []string{"bookmark", "forget", ExactStringPattern(name)}
 }
 
 func BookmarkTrack(name string, remote string) CommandArgs {
-	args := []string{"bookmark", "track", exactStringPattern(name)}
+	args := []string{"bookmark", "track", ExactStringPattern(name)}
 	if remote != "" {
-		args = append(args, "--remote", exactStringPattern(remote))
+		args = append(args, "--remote", ExactStringPattern(remote))
 	}
 	return args
 }
 
 func BookmarkUntrack(name string, remote string) CommandArgs {
-	args := []string{"bookmark", "untrack", exactStringPattern(name)}
+	args := []string{"bookmark", "untrack", ExactStringPattern(name)}
 	if remote != "" {
-		args = append(args, "--remote", exactStringPattern(remote))
+		args = append(args, "--remote", ExactStringPattern(remote))
 	}
 	return args
 }
@@ -341,18 +342,11 @@ func RebaseInsert(from SelectedRevisions, sourcePrefix string, insertAfter strin
 	return args
 }
 
-func SetParents(to string, parentsToAdd []string, parentsToRemove []string) CommandArgs {
-	var b strings.Builder
-	b.WriteString("parents(")
-	b.WriteString(to)
-	b.WriteString(")")
-	for _, remove := range parentsToRemove {
-		b.WriteString(" ~ ")
-		b.WriteString(remove)
-	}
-	args := []string{"rebase", "-s", to, "-d", b.String()}
-	for _, add := range parentsToAdd {
-		args = append(args, "-d", add)
+// One -d per parent: jj keeps -d order, but a `parents(x)` revset comes back in log order.
+func SetParents(to string, parents []string) CommandArgs {
+	args := []string{"rebase", "-s", to}
+	for _, parent := range parents {
+		args = append(args, "-d", parent)
 	}
 	return args
 }
@@ -389,7 +383,7 @@ func DuplicateInsert(from SelectedRevisions, insertAfter string, insertBefore st
 
 func Evolog(revision string) CommandArgs {
 	prefix := fmt.Sprintf(
-		"stringify('%s' ++ separate('%s', commit.change_id().shortest(), commit.commit_id().shortest()))",
+		"stringify('%s' ++ separate('%s', commit.change_id().shortest(), commit.commit_id().shortest(), commit.root(), commit.empty()))",
 		JJUIPrefix, JJUIPrefix)
 	template := "builtin_evolog_compact"
 	template = fmt.Sprintf("%s ++ ' ' ++ %s", prefix, template)
@@ -469,9 +463,10 @@ func GetParent(revisions SelectedRevisions) CommandArgs {
 	return args
 }
 
+// Change ids, so a parent rewritten by a snapshot still resolves to its latest version.
 func GetParents(revision string) CommandArgs {
 	args := []string{"log", "-r", revision}
-	args = append(args, "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", "parents.map(|x| x.commit_id().shortest())")
+	args = append(args, "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", `parents.map(|x| x.change_id().shortest() ++ if(x.divergent(), "/" ++ x.change_offset()))`)
 	return args
 }
 

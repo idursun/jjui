@@ -15,6 +15,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var (
@@ -134,8 +135,8 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if pos != operations.RenderBeforeChangeId {
 		return ""
 	}
-	sourceMarkerStyle := common.DefaultPalette.Get("absorb", "", "source_marker", false)
-	targetMarkerStyle := common.DefaultPalette.Get("absorb", "", "target_marker", false)
+	sourceMarkerStyle := theme.DefaultPalette.Get("absorb", "", "source_marker", false)
+	targetMarkerStyle := theme.DefaultPalette.Get("absorb", "", "target_marker", false)
 
 	changeId := commit.GetChangeId()
 	if changeId == o.source.GetChangeId() {

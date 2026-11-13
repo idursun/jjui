@@ -12,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var _ common.ImmediateModel = (*Model)(nil)
@@ -144,16 +145,16 @@ func (m *Model) renderPendingCommands(dl *render.DisplayContext, area layout.Rec
 		y -= h
 		rect := layout.Rect(area.Max.X-w, y, w, h)
 		dl.AddDraw(rect, content, render.ZOverlay)
-		dl.AddPaint(rect, common.DefaultPalette.Get("flash", "", "text", false), render.ZOverlay)
+		dl.AddPaint(rect, theme.DefaultPalette.Get("flash", "", "text", false), render.ZOverlay)
 	}
 	return y
 }
 
 func flashBackgroundStyle(err error) lipgloss.Style {
 	if err != nil {
-		return common.DefaultPalette.Get("flash", "", "error", false)
+		return theme.DefaultPalette.Get("flash", "", "error", false)
 	}
-	return common.DefaultPalette.Get("flash", "", "success", false)
+	return theme.DefaultPalette.Get("flash", "", "success", false)
 }
 
 func (m *Model) removeLiveMessageByID(id uint64) bool {

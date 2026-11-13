@@ -11,38 +11,37 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/idursun/jjui/internal/ui/actions"
-	"github.com/idursun/jjui/internal/ui/bindings"
-	"github.com/idursun/jjui/internal/ui/intents"
-	"github.com/idursun/jjui/internal/ui/layout"
-	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
-	"github.com/idursun/jjui/internal/ui/operations/diff_range"
-	"github.com/idursun/jjui/internal/ui/operations/duplicate"
-	"github.com/idursun/jjui/internal/ui/operations/new_between"
-	"github.com/idursun/jjui/internal/ui/operations/revert"
-	"github.com/idursun/jjui/internal/ui/operations/set_parents"
-	"github.com/idursun/jjui/internal/ui/operations/target_picker"
-	"github.com/idursun/jjui/internal/ui/render"
-
-	"github.com/idursun/jjui/internal/parser"
-	"github.com/idursun/jjui/internal/screen"
-	"github.com/idursun/jjui/internal/ui/operations/describe"
-
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/actions"
+	"github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/graph"
+	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/operations/abandon"
 	"github.com/idursun/jjui/internal/ui/operations/absorb"
+	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
+	"github.com/idursun/jjui/internal/ui/operations/describe"
 	"github.com/idursun/jjui/internal/ui/operations/details"
+	"github.com/idursun/jjui/internal/ui/operations/diff_range"
+	"github.com/idursun/jjui/internal/ui/operations/duplicate"
 	"github.com/idursun/jjui/internal/ui/operations/evolog"
+	"github.com/idursun/jjui/internal/ui/operations/new_between"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
+	"github.com/idursun/jjui/internal/ui/operations/revert"
+	"github.com/idursun/jjui/internal/ui/operations/set_parents"
 	"github.com/idursun/jjui/internal/ui/operations/squash"
+	"github.com/idursun/jjui/internal/ui/operations/target_picker"
+	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var (
@@ -51,6 +50,7 @@ var (
 	_ common.ImmediateModel    = (*Model)(nil)
 	_ common.ScopeProvider     = (*Model)(nil)
 	_ common.SelectionProvider = (*Model)(nil)
+	_ common.StateProvider     = (*Model)(nil)
 )
 
 type Model struct {
@@ -73,6 +73,7 @@ type Model struct {
 	ensureCursorView       bool
 	requestInFlight        bool
 	checkedRevisions       map[string]appContext.SelectedRevision
+	checkedOrder           []string // commit ids in the order they were checked
 	focused                bool
 }
 
@@ -105,10 +106,9 @@ type ViewportScrollMsg struct {
 	Horizontal bool
 }
 
-func (v ViewportScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	v.Delta = delta
-	v.Horizontal = horizontal
-	return v
+func newViewportScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return ViewportScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 type updateRevisionsMsg struct {
@@ -169,6 +169,73 @@ func (m *Model) activeModel() common.ImmediateModel {
 		return m.layers[len(m.layers)-1]
 	}
 	return m.baseOperation()
+}
+
+// QueryState searches every retained revision operation from the newest layer
+// back to the base operation. It deliberately ignores focus and visibility;
+// a state owner remains queryable until its layer is popped or replaced.
+func (m *Model) QueryState(name string) (any, bool) {
+	selected := m.SelectedRevision()
+	switch name {
+	case "has_revision":
+		return selected != nil, true
+	case "has_selection":
+		return len(m.SelectedRevisions().Revisions) > 0, true
+	case "has_checked":
+		return len(m.checkedRevisions) > 0, true
+	case "is_root":
+		return selected != nil && selected.IsRoot(), true
+	case "has_parent":
+		selectedRevisions := m.SelectedRevisions().Revisions
+		if len(selectedRevisions) == 0 {
+			return false, true
+		}
+		for _, revision := range selectedRevisions {
+			if revision.IsRoot() {
+				return false, true
+			}
+		}
+		return true, true
+	case "is_empty":
+		return selected != nil && selected.IsEmpty, true
+	case "is_working_copy":
+		return selected != nil && selected.IsWorkingCopy, true
+	case "working_copy_has_changes":
+		for _, row := range m.rows {
+			if row.Commit != nil && row.Commit.IsWorkingCopy {
+				return !row.Commit.IsEmpty, true
+			}
+		}
+		return false, true
+	case "has_bookmarks":
+		return selected != nil && selected.HasBookmarks, true
+	case "has_local_bookmarks":
+		return selected != nil && selected.HasLocalBookmarks, true
+	case "has_workspace":
+		return selected != nil && (selected.HasWorkspace || selected.IsWorkingCopy), true
+	}
+
+	module, property, ok := strings.Cut(name, ".")
+	if !ok {
+		return nil, false
+	}
+	query := func(model common.ImmediateModel) (any, bool) {
+		op, ok := model.(operations.Operation)
+		if !ok || op.Name() != module {
+			return nil, false
+		}
+		provider, ok := model.(common.StateProvider)
+		if !ok {
+			return nil, false
+		}
+		return provider.QueryState(property)
+	}
+	for _, v := range slices.Backward(m.layers) {
+		if value, found := query(v); found {
+			return value, true
+		}
+	}
+	return query(m.baseOperation())
 }
 
 func (m *Model) activeOperation() operations.Operation {
@@ -327,16 +394,7 @@ func (m *Model) SelectedRevision() *jj.Commit {
 }
 
 func (m *Model) SelectedRevisions() jj.SelectedRevisions {
-	var selected []*jj.Commit
-	for _, row := range m.rows {
-		if row.Commit == nil {
-			continue
-		}
-		if _, ok := m.checkedRevisions[row.Commit.CommitId]; ok {
-			selected = append(selected, row.Commit)
-		}
-	}
-
+	selected := m.checkedCommits()
 	if len(selected) == 0 {
 		return jj.NewSelectedRevisions(m.SelectedRevision())
 	}
@@ -361,21 +419,32 @@ func (m *Model) Selection() common.SelectionSnapshot {
 		}
 	}
 
-	for _, item := range m.checkedRevisionItems() {
-		snapshot.Checked = append(snapshot.Checked, item)
-	}
+	snapshot.Checked = append(snapshot.Checked, m.checkedRevisionItems()...)
 	return snapshot
 }
 
-func (m *Model) checkedRevisionItems() []common.SelectedItem {
-	items := make([]common.SelectedItem, 0, len(m.checkedRevisions))
+// checkedCommits keeps selection order; `jj new` uses it as the parent order.
+func (m *Model) checkedCommits() []*jj.Commit {
+	loaded := make(map[string]*jj.Commit, len(m.rows))
 	for _, row := range m.rows {
-		if row.Commit == nil {
-			continue
+		if row.Commit != nil {
+			loaded[row.Commit.CommitId] = row.Commit
 		}
-		if item, ok := m.checkedRevisions[row.Commit.CommitId]; ok {
-			items = append(items, item)
+	}
+	var commits []*jj.Commit
+	for _, commitId := range m.checkedOrder {
+		if commit, ok := loaded[commitId]; ok {
+			commits = append(commits, commit)
 		}
+	}
+	return commits
+}
+
+func (m *Model) checkedRevisionItems() []common.SelectedItem {
+	commits := m.checkedCommits()
+	items := make([]common.SelectedItem, 0, len(commits))
+	for _, commit := range commits {
+		items = append(items, m.checkedRevisions[commit.CommitId])
 	}
 	return items
 }
@@ -391,13 +460,18 @@ func (m *Model) checkedRevisionMap() map[string]bool {
 func (m *Model) toggleCheckedRevision(item appContext.SelectedRevision) {
 	if _, ok := m.checkedRevisions[item.CommitId]; ok {
 		delete(m.checkedRevisions, item.CommitId)
+		m.checkedOrder = slices.DeleteFunc(m.checkedOrder, func(commitId string) bool {
+			return commitId == item.CommitId
+		})
 		return
 	}
 	m.checkedRevisions[item.CommitId] = item
+	m.checkedOrder = append(m.checkedOrder, item.CommitId)
 }
 
 func (m *Model) clearCheckedRevisions() {
 	clear(m.checkedRevisions)
+	m.checkedOrder = nil
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -545,7 +619,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 		// If the revision to select is not set, use the currently selected item
 		if m.pendingReload.tag == msg.tag && m.pendingReload.selectedRevision == "" {
-			switch selected := m.context.SelectedItem.(type) {
+			switch selected := m.context.Selection().Highlighted.(type) {
 			case appContext.SelectedRevision:
 				m.pendingReload.selectedRevision = selected.ChangeId
 			case appContext.SelectedFile:
@@ -1139,7 +1213,7 @@ func (m *Model) showDiff(intent intents.ShowDiff) tea.Cmd {
 	changeId := commit.GetChangeId()
 	return func() tea.Msg {
 		args := jj.Diff(changeId, jj.FileName{})
-		output, _ := m.context.RunCommandImmediate(args)
+		output, _ := m.context.RunCommandImmediateWithEnv(args, m.context.DiffEnv())
 		return intents.DiffShow{Content: string(output), Args: args}
 	}
 }
@@ -1228,10 +1302,10 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string, requ
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	textStyle := common.DefaultPalette.Get("revisions", "", "text", false)
-	dimmedStyle := common.DefaultPalette.Get("revisions", "", "dimmed", false)
-	selectedStyle := common.DefaultPalette.GetBlended("revisions", "", "", true)
-	matchedStyle := common.DefaultPalette.Get("revisions", "", "matched", false)
+	textStyle := theme.DefaultPalette.Get("revisions", "", "text", false)
+	dimmedStyle := theme.DefaultPalette.Get("revisions", "", "dimmed", false)
+	selectedStyle := theme.DefaultPalette.GetBlended("revisions", "", "", true)
+	matchedStyle := theme.DefaultPalette.Get("revisions", "", "matched", false)
 
 	m.displayContextRenderer.textStyle = textStyle
 	m.displayContextRenderer.dimmedStyle = dimmedStyle

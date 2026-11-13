@@ -1,3 +1,4 @@
+# Action availability conditions are declared with the action metadata.
 bindings = [
     # ui
     { key = "esc", action = "ui.cancel", scope = "ui", desc = "cancel" },
@@ -255,6 +256,7 @@ bindings = [
     { key = ["alt+enter", "ctrl+s"], action = "revisions.inline_describe.accept", scope = "revisions.inline_describe", desc = "accept" },
     { key = "alt+shift+enter", action = "revisions.inline_describe.force_accept", scope = "revisions.inline_describe", desc = "force accept" },
     { key = "enter", action = "revisions.inline_describe.new_line", scope = "revisions.inline_describe", desc = "new line" },
+    { key = "ctrl+x", action = "revisions.inline_describe.clear", scope = "revisions.inline_describe", desc = "clear" },
     { key = ["left", "h"], action = "revisions.inline_describe.confirmation.prev", scope = "revisions.inline_describe.confirmation", desc = "prev" },
     { key = ["right", "l"], action = "revisions.inline_describe.confirmation.next", scope = "revisions.inline_describe.confirmation", desc = "next" },
     { key = "enter", action = "revisions.inline_describe.confirmation.apply", scope = "revisions.inline_describe.confirmation", desc = "apply" },
@@ -354,8 +356,8 @@ bindings = [
 
     # bookmark_pane
     { key = "tab", action = "ui.focus_next_pane", scope = "bookmark_pane", desc = "next pane" },
-    { key = ["up", "k"], action = "bookmark_pane.move_up", scope = "bookmark_pane", desc = "up" },
-    { key = ["down", "j"], action = "bookmark_pane.move_down", scope = "bookmark_pane", desc = "down" },
+    { key = ["up", "k", "ctrl+p"], action = "bookmark_pane.move_up", scope = "bookmark_pane", desc = "up" },
+    { key = ["down", "j", "ctrl+n"], action = "bookmark_pane.move_down", scope = "bookmark_pane", desc = "down" },
     { key = ["right", "l"], action = "bookmark_pane.cycle_remotes", scope = "bookmark_pane", desc = "next remote" },
     { key = ["left", "h"], action = "bookmark_pane.cycle_remotes_back", scope = "bookmark_pane", desc = "prev remote" },
     { key = ["pgup", "shift+k"], action = "bookmark_pane.page_up", scope = "bookmark_pane", desc = "page up" },
@@ -471,6 +473,12 @@ bindings = [
     { key = "y", action = "annotation.copy", scope = "annotation", desc = "copy annotations" },
     { key = "shift+x", action = "annotation.clear", scope = "annotation", desc = "clear comments" },
     { key = "esc", action = "ui.cancel", scope = "annotation", desc = "close" },
+
+    # annotation.confirmation
+    { key = ["left", "h"], action = "annotation.confirmation.prev", scope = "annotation.confirmation", desc = "prev" },
+    { key = ["right", "l"], action = "annotation.confirmation.next", scope = "annotation.confirmation", desc = "next" },
+    { key = "enter", action = "annotation.confirmation.apply", scope = "annotation.confirmation", desc = "apply" },
+    { key = "esc", action = "annotation.confirmation.cancel", scope = "annotation.confirmation", desc = "keep reviewing" },
 
     # annotation.editor
     { key = ["alt+enter", "ctrl+s"], action = "annotation.editor.save", scope = "annotation.editor", desc = "save" },

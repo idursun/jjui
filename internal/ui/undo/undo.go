@@ -12,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var _ common.ImmediateModel = (*Model)(nil)
@@ -55,7 +56,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	m.confirmation.Styles.Border = common.DefaultPalette.GetBorder("undo", "", "border", false, lipgloss.NormalBorder()).Padding(1)
+	m.confirmation.Styles.Border = theme.DefaultPalette.GetBorder("undo", "", "border", false, lipgloss.NormalBorder()).Padding(1)
 	v := m.confirmation.View()
 	w, h := lipgloss.Size(v)
 	pw, ph := box.R.Dx(), box.R.Dy()

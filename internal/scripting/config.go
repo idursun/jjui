@@ -70,6 +70,7 @@ func RunSetup(ctx *uicontext.MainContext, current *config.Config, source string)
 
 		desc := ""
 		scope := ""
+		when := ""
 		var key []string
 		var seq []string
 		hasKey := false
@@ -98,6 +99,7 @@ func RunSetup(ctx *uicontext.MainContext, current *config.Config, source string)
 					}
 					scope = scopeStr.String()
 				}
+				when = stringFieldFromTable(optsTbl, "when")
 				if keyVal := optsTbl.RawGetString("key"); keyVal != lua.LNil {
 					parsed, err := stringListFromValue(keyVal, "opts.key")
 					if err != nil {
@@ -145,6 +147,7 @@ func RunSetup(ctx *uicontext.MainContext, current *config.Config, source string)
 		actionsTable.Append(toLuaTable(L, config.ActionConfig{
 			Name: name,
 			Lua:  fmt.Sprintf(`%s[%q]()`, actionRegistryName, id),
+			When: when,
 		}))
 		if hasKey || hasSeq {
 			binding := config.BindingConfig{
@@ -168,6 +171,7 @@ func RunSetup(ctx *uicontext.MainContext, current *config.Config, source string)
 		binding := config.BindingConfig{
 			Action: stringFieldFromTable(tbl, "action"),
 			Desc:   stringFieldFromTable(tbl, "desc"),
+			When:   stringFieldFromTable(tbl, "when"),
 			Scope:  stringFieldFromTable(tbl, "scope"),
 		}
 		if key := stringListFieldFromTable(tbl, "key"); len(key) > 0 {

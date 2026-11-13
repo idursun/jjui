@@ -2,12 +2,12 @@ package intents
 
 import "github.com/idursun/jjui/internal/jj"
 
-//jjui:bind scope=revisions action=open_details
+//jjui:bind scope=revisions action=open_details when="revisions.has_revision"
 type OpenDetails struct{}
 
 func (OpenDetails) isIntent() {}
 
-//jjui:bind scope=revisions action=open_squash
+//jjui:bind scope=revisions action=open_squash when="revisions.has_selection"
 type OpenSquash struct {
 	Selected jj.SelectedRevisions
 	Files    []jj.FileName
@@ -15,7 +15,7 @@ type OpenSquash struct {
 
 func (OpenSquash) isIntent() {}
 
-//jjui:bind scope=revisions action=open_rebase
+//jjui:bind scope=revisions action=open_rebase when="revisions.has_revision"
 type OpenRebase struct {
 	Selected jj.SelectedRevisions
 	Source   RebaseSource
@@ -24,7 +24,7 @@ type OpenRebase struct {
 
 func (OpenRebase) isIntent() {}
 
-//jjui:bind scope=revisions action=open_revert
+//jjui:bind scope=revisions action=open_revert when="revisions.has_selection"
 type OpenRevert struct {
 	Selected jj.SelectedRevisions
 	Target   ModeTarget
@@ -32,36 +32,36 @@ type OpenRevert struct {
 
 func (OpenRevert) isIntent() {}
 
-//jjui:bind scope=revisions action=describe
+//jjui:bind scope=revisions action=describe when="revisions.has_selection"
 type Describe struct {
 	Selected jj.SelectedRevisions
 }
 
 func (Describe) isIntent() {}
 
-//jjui:bind scope=revisions action=open_inline_describe
+//jjui:bind scope=revisions action=open_inline_describe when="revisions.has_revision"
 type OpenInlineDescribe struct {
 	Selected *jj.Commit
 }
 
 func (OpenInlineDescribe) isIntent() {}
 
-//jjui:bind scope=revisions action=open_evolog
+//jjui:bind scope=revisions action=open_evolog when="revisions.has_revision"
 type OpenEvolog struct {
 	Selected *jj.Commit
 }
 
 func (OpenEvolog) isIntent() {}
 
-//jjui:bind scope=revisions action=diff
+//jjui:bind scope=revisions action=diff when="revisions.has_revision && !revisions.is_empty"
 type ShowDiff struct {
 	Selected *jj.Commit
 }
 
 func (ShowDiff) isIntent() {}
 
-//jjui:bind scope=revisions action=split
-//jjui:bind scope=revisions action=split_parallel set=IsParallel:true
+//jjui:bind scope=revisions action=split when="revisions.has_revision && !revisions.is_empty"
+//jjui:bind scope=revisions action=split_parallel set=IsParallel:true when="revisions.has_revision && !revisions.is_empty"
 type StartSplit struct {
 	Selected      *jj.Commit
 	IsParallel    bool
@@ -71,7 +71,7 @@ type StartSplit struct {
 
 func (StartSplit) isIntent() {}
 
-//jjui:bind scope=revisions action=toggle_select
+//jjui:bind scope=revisions action=toggle_select when="revisions.has_revision"
 type RevisionsToggleSelect struct{}
 
 func (RevisionsToggleSelect) isIntent() {}
@@ -104,8 +104,8 @@ func (GoToBottom) isIntent() {}
 //jjui:bind scope=revisions action=move_down set=Delta:1
 //jjui:bind scope=revisions action=page_up set=Delta:-1,IsPage:true
 //jjui:bind scope=revisions action=page_down set=Delta:1,IsPage:true
-//jjui:bind scope=revisions action=jump_to_parent set=Target:TargetParent
-//jjui:bind scope=revisions action=jump_to_children set=Target:TargetChild
+//jjui:bind scope=revisions action=jump_to_parent set=Target:TargetParent when="revisions.has_selection && revisions.has_parent"
+//jjui:bind scope=revisions action=jump_to_children set=Target:TargetChild when="revisions.has_revision"
 //jjui:bind scope=revisions action=jump_to_working_copy set=Target:TargetWorkingCopy
 //jjui:bind scope=revisions.rebase action=jump_to_working_copy set=Target:TargetWorkingCopy
 //jjui:bind scope=revisions.squash action=jump_to_working_copy set=Target:TargetWorkingCopy
@@ -132,13 +132,13 @@ type StartNew struct {
 
 func (StartNew) isIntent() {}
 
-//jjui:bind scope=revisions action=commit
+//jjui:bind scope=revisions action=commit when="revisions.working_copy_has_changes"
 type CommitWorkingCopy struct{}
 
 func (CommitWorkingCopy) isIntent() {}
 
-//jjui:bind scope=revisions action=edit
-//jjui:bind scope=revisions action=force_edit set=IgnoreImmutable:true
+//jjui:bind scope=revisions action=edit when="revisions.has_revision"
+//jjui:bind scope=revisions action=force_edit set=IgnoreImmutable:true when="revisions.has_revision"
 type StartEdit struct {
 	Selected        *jj.Commit
 	IgnoreImmutable bool
@@ -146,14 +146,14 @@ type StartEdit struct {
 
 func (StartEdit) isIntent() {}
 
-//jjui:bind scope=revisions action=diff_edit
+//jjui:bind scope=revisions action=diff_edit when="revisions.has_revision"
 type DiffEdit struct {
 	Selected *jj.Commit
 }
 
 func (DiffEdit) isIntent() {}
 
-//jjui:bind scope=revisions action=open_absorb
+//jjui:bind scope=revisions action=open_absorb when="revisions.has_revision && !revisions.is_empty"
 type OpenAbsorb struct {
 	Selected *jj.Commit
 }
@@ -170,7 +170,7 @@ type AbsorbSelectDescendants struct{}
 
 func (AbsorbSelectDescendants) isIntent() {}
 
-//jjui:bind scope=revisions action=open_abandon
+//jjui:bind scope=revisions action=open_abandon when="revisions.has_selection"
 type OpenAbandon struct {
 	Selected jj.SelectedRevisions
 }
@@ -187,14 +187,14 @@ type AbandonSelectDescendants struct{}
 
 func (AbandonSelectDescendants) isIntent() {}
 
-//jjui:bind scope=revisions action=open_duplicate
+//jjui:bind scope=revisions action=open_duplicate when="revisions.has_selection"
 type OpenDuplicate struct {
 	Selected jj.SelectedRevisions
 }
 
 func (OpenDuplicate) isIntent() {}
 
-//jjui:bind scope=revisions action=open_set_parents
+//jjui:bind scope=revisions action=open_set_parents when="revisions.has_revision && !revisions.is_root"
 type OpenSetParents struct {
 	Selected *jj.Commit
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var _ common.ImmediateModel = (*Model)(nil)
@@ -45,10 +46,9 @@ type ScrollMsg struct {
 	Horizontal bool
 }
 
-func (s ScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	s.Delta = delta
-	s.Horizontal = horizontal
-	return s
+func newScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return ScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 func (m *Model) Scopes() []common.Scope {
@@ -159,9 +159,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.SetContent(msg.Content)
 		return nil
 	case common.SelectionChangedMsg:
-		return m.refreshPreviewForItem(m.context.SelectedItem)
+		return m.refreshPreviewForItem(m.context.Selection().Highlighted)
 	case common.RefreshMsg:
-		return m.refreshPreviewForItem(m.context.SelectedItem)
+		return m.refreshPreviewForItem(m.context.Selection().Highlighted)
 	case updatePreviewContentMsg:
 		m.contentItem = msg.contentItem
 		m.SetContent(msg.content)
@@ -185,14 +185,14 @@ func (m *Model) SetContent(content string) {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	surfaceStyle := common.DefaultPalette.Get("preview", "", "", false)
+	surfaceStyle := theme.DefaultPalette.Get("preview", "", "", false)
 	m.view.SetWidth(box.R.Dx())
 	m.view.SetHeight(box.R.Dy())
 	dl.AddFill(box.R, ' ', surfaceStyle, render.ZPreview)
 	dl.AddDraw(box.R, m.view.View(), render.ZPreview, render.PreserveBackground())
 
 	scrollRect := layout.Rect(box.R.Min.X, box.R.Min.Y, box.R.Dx(), box.R.Dy())
-	dl.AddInteraction(scrollRect, ScrollMsg{}, render.InteractionScroll, render.ZPreview)
+	dl.AddInteractionFn(scrollRect, newScrollMsg, render.InteractionScroll, render.ZPreview)
 }
 
 func (m *Model) reset() {

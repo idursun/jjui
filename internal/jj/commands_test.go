@@ -1,10 +1,18 @@
 package jj
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestLogAndEvologIncludeRootMetadata(t *testing.T) {
+	logArgs := strings.Join(Log("@", 0, ""), " ")
+	evologArgs := strings.Join(Evolog("@"), " ")
+	assert.Contains(t, logArgs, "working_copies.len() > 0, root, empty")
+	assert.Contains(t, evologArgs, "commit.commit_id().shortest(), commit.root(), commit.empty()")
+}
 
 func TestBookmarkPatternCommandsUseExactStringPatterns(t *testing.T) {
 	name := `1.3.63-+-json-length-"fix"\branch`

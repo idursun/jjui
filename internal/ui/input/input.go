@@ -9,6 +9,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 type SelectedMsg struct {
@@ -102,10 +103,10 @@ func (m *Model) selectCurrent() tea.Cmd {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	borderStyle := common.DefaultPalette.GetBorder("input", "", "border", false, lipgloss.RoundedBorder())
-	textStyle := common.DefaultPalette.Get("input", "", "text", false)
-	titleStyle := common.DefaultPalette.Get("input", "", "title", false)
-	surfaceStyle := common.DefaultPalette.Get("input", "", "", false)
+	borderStyle := theme.DefaultPalette.GetBorder("input", "", "border", false, lipgloss.RoundedBorder())
+	textStyle := theme.DefaultPalette.Get("input", "", "text", false)
+	titleStyle := theme.DefaultPalette.Get("input", "", "title", false)
+	surfaceStyle := theme.DefaultPalette.Get("input", "", "", false)
 
 	var rows []string
 	if m.title != "" {

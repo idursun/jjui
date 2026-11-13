@@ -8,49 +8,48 @@ import (
 	"strings"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/actionmeta"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/annotation"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
-	"github.com/idursun/jjui/internal/ui/dispatch"
-	"github.com/idursun/jjui/internal/ui/flash"
-	"github.com/idursun/jjui/internal/ui/intents"
-	"github.com/idursun/jjui/internal/ui/layout"
-	"github.com/idursun/jjui/internal/ui/password"
-	"github.com/idursun/jjui/internal/ui/render"
-
-	tea "charm.land/bubbletea/v2"
-	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/bookmarks"
 	"github.com/idursun/jjui/internal/ui/choose"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/diff"
+	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/exec_process"
+	"github.com/idursun/jjui/internal/ui/exec_prompt"
+	"github.com/idursun/jjui/internal/ui/flash"
+	"github.com/idursun/jjui/internal/ui/fuzzy_files"
 	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/help"
-
 	"github.com/idursun/jjui/internal/ui/input"
+	"github.com/idursun/jjui/internal/ui/intents"
+	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/oplog"
+	"github.com/idursun/jjui/internal/ui/password"
+	"github.com/idursun/jjui/internal/ui/quick_search"
 	"github.com/idursun/jjui/internal/ui/redo"
+	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revisions"
 	"github.com/idursun/jjui/internal/ui/revset"
 	"github.com/idursun/jjui/internal/ui/split"
 	"github.com/idursun/jjui/internal/ui/status"
+	"github.com/idursun/jjui/internal/ui/theme"
 	"github.com/idursun/jjui/internal/ui/undo"
 )
 
 type Model struct {
 	revisions        *revisions.Model
-	oplog            *oplog.Model
+	layers           []layer
 	revsetModel      *revset.Model
-	diff             *diff.Model
-	annotation       *annotation.Model
 	flash            *flash.Model
 	state            common.State
 	status           *status.Model
@@ -60,9 +59,9 @@ type Model struct {
 	sequenceHelp     []help.Entry
 	sequenceAutoOpen bool
 	resolver         *dispatch.Resolver
-	stacked          common.StackedModel
 	displayContext   *render.DisplayContext
 	frameCursor      *tea.Cursor
+	lastHighlighted  common.SelectedItem
 	width            int
 	height           int
 	splitContainer   *split.SplitContainer
@@ -71,6 +70,8 @@ type Model struct {
 	// mode 2031 push. Once true, the OSC 11 polling loop stops.
 	mode2031Supported bool
 }
+
+var _ common.ApplicationStateProvider = (*Model)(nil)
 
 type scriptFrame struct {
 	runner       *scripting.Runner
@@ -89,7 +90,7 @@ func (m *Model) Init() tea.Cmd {
 	return tea.Batch(m.revisions.Init(), m.scheduleAutoRefresh())
 }
 
-func (m *Model) selectionSnapshot() common.SelectionSnapshot {
+func (m *Model) Selection() common.SelectionSnapshot {
 	var snapshot common.SelectionSnapshot
 	for _, provider := range m.selectionProviders() {
 		part := provider.Selection()
@@ -101,13 +102,43 @@ func (m *Model) selectionSnapshot() common.SelectionSnapshot {
 	return snapshot
 }
 
+// QueryState resolves public binding and Lua state paths against retained model owners.
+// Focus and visibility do not participate in lookup; owners decide whether a
+// model is still live and can answer the local property.
+func (m *Model) QueryState(name string) (any, bool) {
+	if strings.HasPrefix(name, "ui.preview.") {
+		switch strings.TrimPrefix(name, "ui.preview.") {
+		case "can_expand":
+			if m.splitContainer == nil {
+				return false, true
+			}
+			return m.splitContainer.CanResize(config.Current.Preview.WidthIncrementPercentage), true
+		case "can_shrink":
+			if m.splitContainer == nil {
+				return false, true
+			}
+			return m.splitContainer.CanResize(-config.Current.Preview.WidthIncrementPercentage), true
+		}
+	}
+	if annotationModel, ok := findLayer[*annotation.Model](m); ok && strings.HasPrefix(name, "annotation.") {
+		return annotationModel.QueryState(strings.TrimPrefix(name, "annotation."))
+	}
+	if strings.HasPrefix(name, "bookmark_pane.") && m.splitContainer != nil {
+		return m.splitContainer.QueryState(bookmarkContentID, strings.TrimPrefix(name, "bookmark_pane."))
+	}
+
+	if strings.HasPrefix(name, "revisions.") && m.revisions != nil {
+		return m.revisions.QueryState(strings.TrimPrefix(name, "revisions."))
+	}
+	return nil, false
+}
+
 func (m *Model) selectionProviders() []common.SelectionProvider {
 	var providers []common.SelectionProvider
-	if provider, ok := m.stacked.(common.SelectionProvider); ok {
-		providers = append(providers, provider)
-	}
-	if m.oplog != nil {
-		providers = append(providers, m.oplog)
+	for _, l := range slices.Backward(m.layers) {
+		if provider, ok := l.model.(common.SelectionProvider); ok {
+			providers = append(providers, provider)
+		}
 	}
 	if m.revisions != nil {
 		providers = append(providers, m.revisions)
@@ -115,40 +146,31 @@ func (m *Model) selectionProviders() []common.SelectionProvider {
 	return providers
 }
 
-func (m *Model) syncSelection() tea.Cmd {
-	if m.context == nil {
+func (m *Model) notifyHighlightChange() tea.Cmd {
+	snapshot := m.Selection()
+	if selectedItemsEqual(snapshot.Highlighted, m.lastHighlighted) {
 		return nil
 	}
-	return m.context.SetSelection(m.selectionSnapshot())
+	m.lastHighlighted = snapshot.Highlighted
+	return common.SelectionChanged(snapshot.Highlighted)
 }
 
-func (m *Model) withSelectionSync(cmd tea.Cmd) tea.Cmd {
-	return tea.Batch(cmd, m.syncSelection())
+func selectedItemsEqual(a, b common.SelectedItem) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return a.Equal(b)
 }
 
 func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
 	// The expanded status help is an overlay over the active view. When there
-	// is no stacked modal, close the overlay before closing that view.
-	if !msg.Applied && m.stacked == nil && m.status != nil && m.status.StatusExpanded() {
+	// is no dialog, close the overlay before closing that view.
+	if !msg.Applied && m.dialog() == nil && m.status != nil && m.status.StatusExpanded() {
 		m.status.SetStatusExpanded(false)
 		return nil, true
 	}
-	if m.annotation != nil {
-		m.annotation = nil
-		return nil, true
-	}
-	if m.diff != nil {
-		m.diff = nil
-		return nil, true
-	}
-	if m.stacked != nil {
-		cmd := m.stacked.Update(msg)
-		m.stacked = nil
-		return cmd, true
-	}
-	if m.oplog != nil {
-		m.oplog = nil
-		return nil, true
+	if len(m.layers) > 0 {
+		return m.closeTopLayer(msg), true
 	}
 	if m.splitContainer.ContentFocused() && m.splitContainer.Close() {
 		return nil, true
@@ -156,22 +178,32 @@ func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (m *Model) Update(msg tea.Msg) tea.Cmd {
+func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
+	var completionID string
+	defer func() {
+		cmd = tea.Batch(cmd, m.notifyHighlightChange())
+		// Dispatched actions must finish their commands and selection notification
+		// before Lua resumes. Batching around the completion sequence would race it.
+		cmd = tea.Sequence(cmd, actionCompleted(completionID))
+	}()
+
 	if closeMsg, ok := msg.(common.CloseViewMsg); ok {
 		if cmd, handled := m.closeTopScope(closeMsg); handled {
-			return m.withSelectionSync(cmd)
+			return cmd
 		}
 	}
 
 	var cmds []tea.Cmd
 
 	if cmd, handled := m.handleSplitMsg(msg); handled {
-		return m.withSelectionSync(cmd)
+		return cmd
 	} else if cmd != nil {
 		cmds = append(cmds, cmd)
 	}
 
 	switch msg := msg.(type) {
+	case common.ReloadThemeMsg:
+		return m.reloadActiveTheme()
 	case tea.ModeReportMsg:
 		if msg.Mode == ansi.ModeUnicodeCore {
 			if msg.Value == ansi.ModeReset || msg.Value == ansi.ModeSet || msg.Value == ansi.ModePermanentlySet {
@@ -224,9 +256,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return tea.Batch(tea.RequestBackgroundColor, scheduleColorSchemePoll())
 	case tea.MouseReleaseMsg, tea.MouseMotionMsg:
-		if m.handleSplitMouseMsg(msg) {
-			return nil
-		}
+		// Only the split separator drag follows the mouse; clicks and wheel
+		// events go through the frame's interactions below.
+		m.handleSplitMouseMsg(msg)
+		return nil
 	case tea.MouseClickMsg, tea.MouseWheelMsg:
 		if m.displayContext != nil {
 			if interactionMsg, handled := m.displayContext.ProcessMouseEvent(msg.(tea.MouseMsg)); handled {
@@ -257,7 +290,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 					return nil
 				}
 				if cmd, handled := common.RouteIntent(scopes[start:], result.Intent); handled {
-					return m.withSelectionSync(cmd)
+					return cmd
 				}
 				if scopes[start].Leak != common.LeakAll {
 					return m.updateBlockingScope(scopes[start], msg)
@@ -278,12 +311,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case intents.Intent:
 		if cmd, handled := m.HandleIntent(msg); handled {
-			return m.withSelectionSync(cmd)
+			return cmd
 		}
 	case common.ExecMsg:
 		return exec_process.ExecLine(m.context, msg)
 	case common.ExecProcessCompletedMsg:
 		cmds = append(cmds, common.Refresh)
+		if msg.Err != nil {
+			cmds = append(cmds, m.openDialog(exec_prompt.New(m.context, msg.Msg.Mode, msg.Msg.Line)))
+		}
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
 	case triggerAutoRefreshMsg:
@@ -318,15 +354,19 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return tea.Sequence(cmd, actionCompleted(msg.CompletionID))
 	case common.DispatchActionMsg:
-		if actionmeta.IsBuiltInAction(msg.Action) {
-			if err := actionmeta.ValidateBuiltInActionArgs(msg.Action, msg.Args); err != nil {
+		if m.resolver == nil {
+			return actionCompleted(msg.CompletionID)
+		}
+		actionName := strings.TrimSpace(msg.Action)
+		if actionmeta.IsBuiltInAction(actionName) {
+			if err := actionmeta.ValidateBuiltInActionArgs(actionName, msg.Args); err != nil {
 				return tea.Sequence(
 					intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err}),
 					actionCompleted(msg.CompletionID),
 				)
 			}
 		}
-		action := keybindings.Action(strings.TrimSpace(msg.Action))
+		action := keybindings.Action(actionName)
 		var result dispatch.Result
 		if msg.BuiltIn {
 			result = m.resolver.ResolveBuiltInAction(action, msg.Args)
@@ -339,51 +379,44 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if result.Intent != nil {
 			scopes := m.dispatchScopes()
 			cmd, _ := common.RouteIntent(scopes, result.Intent)
-			return tea.Sequence(m.withSelectionSync(cmd), actionCompleted(msg.CompletionID))
+			completionID = msg.CompletionID
+			return cmd
 		}
 		return actionCompleted(msg.CompletionID)
 	case common.ShowChooseMsg:
-		model := choose.NewWithOptions(msg.Options, msg.Title, msg.Ordered)
-		m.stacked = model
-		return m.stacked.Init()
-	case choose.SelectedMsg:
-		m.stacked = nil
-	case choose.CancelledMsg:
-		m.stacked = nil
+		return m.openDialog(choose.NewWithOptions(msg.Options, msg.Title, msg.Ordered))
+	case choose.SelectedMsg, choose.CancelledMsg:
+		m.closeDialog()
 	case common.ShowInputMsg:
-		model := input.NewWithTitle(msg.Title, msg.Prompt, msg.Value)
-		m.stacked = model
-		return m.stacked.Init()
+		return m.openDialog(input.NewWithTitle(msg.Title, msg.Prompt, msg.Value))
 	case input.SelectedMsg, input.CancelledMsg:
-		m.stacked = nil
+		m.closeDialog()
 	case common.OpenTargetPickerMsg:
-		if m.annotation != nil || m.diff != nil {
-			model := target_picker.NewModel(m.context, msg.Payload, msg.Sources...)
-			m.stacked = model
-			return m.stacked.Init()
+		if m.acceptsTargets() {
+			return m.openDialog(target_picker.NewModel(m.context, msg.Payload, msg.Sources...))
 		}
 	case target_picker.TargetSelectedMsg:
-		if m.annotation != nil && m.stacked != nil {
-			m.stacked = nil
-			return m.annotation.Update(msg)
-		}
-		if m.diff != nil && m.stacked != nil {
-			m.stacked = nil
-			return m.diff.Update(msg)
+		if m.acceptsTargets() && m.dialog() != nil {
+			m.closeDialog()
+			return m.screen().Update(msg)
 		}
 	case target_picker.TargetPickerCancelMsg:
-		if (m.annotation != nil || m.diff != nil) && m.stacked != nil {
-			m.stacked = nil
+		if m.acceptsTargets() && m.dialog() != nil {
+			m.closeDialog()
 			return nil
 		}
 	case common.TogglePasswordMsg:
-		if m.password != nil {
-			// let the current prompt clean itself
-			m.password.Update(msg)
-		}
 		if msg.Password == nil {
-			m.password = nil
+			if m.password != nil && m.password.ID() == msg.ID {
+				// let the current prompt clean itself
+				m.password.Update(msg)
+				m.password = nil
+			}
 		} else {
+			if m.password != nil {
+				// Close the superseded prompt's response channel.
+				m.password.Update(common.TogglePasswordMsg{ID: m.password.ID()})
+			}
 			// overwrite current prompt. This can happen for ssh-sk keys:
 			//   - first prompt reads "Confirm user presence for ..."
 			//   - if the user denies the request on the device, a new prompt automatically happen "Enter PIN for ...
@@ -392,31 +425,18 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.context.SetTerminalSize(msg.Width, msg.Height)
 	}
 
-	// Unhandled key messages go to the main view (oplog or revisions)
-	// Other messages are broadcast to all models
-	if common.IsInputMessage(msg) {
-		if m.oplog != nil {
-			cmds = append(cmds, m.oplog.Update(msg))
-		} else {
-			cmds = append(cmds, m.revisions.Update(msg))
-		}
-		return m.withSelectionSync(tea.Batch(cmds...))
-	}
-
+	// Keys and mouse events have returned above. Every other message is
+	// broadcast to all models.
+	primary := m.primary()
 	cmds = append(cmds, m.revsetModel.Update(msg))
-	cmds = append(cmds, m.status.Update(msg))
 	cmds = append(cmds, m.flash.Update(msg))
-	if m.diff != nil {
-		cmds = append(cmds, m.diff.Update(msg))
-	}
-	if m.annotation != nil {
-		cmds = append(cmds, m.annotation.Update(msg))
-	}
-
-	if m.stacked != nil {
-		cmds = append(cmds, m.stacked.Update(msg))
+	for _, l := range m.layers {
+		if l.model != primary {
+			cmds = append(cmds, l.model.Update(msg))
+		}
 	}
 
 	if len(m.scriptRunners) > 0 {
@@ -425,18 +445,20 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 	}
 
-	if m.oplog != nil {
-		cmds = append(cmds, m.oplog.Update(msg))
-	} else {
-		cmds = append(cmds, m.revisions.Update(msg))
-	}
+	cmds = append(cmds, primary.Update(msg))
 
 	cmds = append(cmds, m.updateSplit(msg))
 
-	return m.withSelectionSync(tea.Batch(cmds...))
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) updateStatus() {
+	if m.sequenceHelp != nil && m.resolver != nil {
+		m.sequenceHelp = help.BuildFromContinuations(m.resolver.Continuations(m.dispatchScopes()))
+		if m.sequenceHelp == nil {
+			m.sequenceHelp = []help.Entry{}
+		}
+	}
 	m.status.Sync(m.dispatchScopes(), m.sequenceHelp)
 }
 
@@ -452,29 +474,33 @@ func (m *Model) View() string {
 	box := layout.NewBox(layout.Rect(0, 0, m.width, m.height))
 	screenBuf := render.NewScreenBuffer(m.width, m.height)
 
-	if m.annotation != nil {
-		m.renderAnnotationLayout(box)
-	} else if m.diff != nil {
-		m.renderDiffLayout(box)
-	} else {
+	switch screen := m.screen().(type) {
+	case nil:
 		m.updateSplitAutoPosition()
-		if m.oplog != nil {
-			m.renderOpLogLayout(box)
-		} else {
-			m.renderRevisionsLayout(box)
-		}
+		m.renderRevisionsLayout(box)
+	case *oplog.Model:
+		m.updateSplitAutoPosition()
+		m.renderWithStatus(box, func(content layout.Box) {
+			m.renderSplit(screen, content)
+		})
+	default:
+		m.renderWithStatus(box, func(content layout.Box) {
+			screen.ViewRect(m.displayContext, content)
+		})
 	}
 
-	if m.stacked != nil {
-		m.stacked.ViewRect(m.displayContext, box)
+	for _, l := range m.layers[m.screenIndex()+1:] {
+		l.model.ViewRect(m.displayContext, box)
 	}
 
-	if scope, ok := m.stackedScope(); !ok || scope != actions.ScopeCommandHistory {
-		flashBox := box
-		if footerHeight := m.footerHeight(box); footerHeight > 0 {
-			flashBox, _ = box.CutBottom(footerHeight)
+	if m.password == nil {
+		if scope, ok := m.stackedScope(); !ok || scope != actions.ScopeCommandHistory {
+			flashBox := box
+			if box.R.Dy() > 0 {
+				flashBox, _ = box.CutBottom(1)
+			}
+			m.flash.ViewRect(m.displayContext, flashBox)
 		}
-		m.flash.ViewRect(m.displayContext, flashBox)
 	}
 
 	m.splitContainer.RenderOverlay(m.displayContext, box)
@@ -489,72 +515,30 @@ func (m *Model) View() string {
 	return strings.ReplaceAll(finalView, "\r", "")
 }
 
-func (m *Model) renderDiffLayout(box layout.Box) {
-	m.renderWithStatus(box, func(content layout.Box) {
-		m.diff.ViewRect(m.displayContext, content)
-	})
-}
-
-func (m *Model) renderAnnotationLayout(box layout.Box) {
-	m.renderWithStatus(box, func(content layout.Box) {
-		m.annotation.ViewRect(m.displayContext, content)
-	})
-}
-
-func (m *Model) renderOpLogLayout(box layout.Box) {
-	m.renderWithStatus(box, func(content layout.Box) {
-		m.renderSplit(m.oplog, content)
-	})
-}
-
 func (m *Model) renderRevisionsLayout(box layout.Box) {
-	content, input, status := m.splitFooter(box)
+	content, status := m.splitFooter(box)
 	rows := content.V(layout.Fixed(1), layout.Fill(1))
 	m.revsetModel.ViewRect(m.displayContext, rows[0])
 	m.renderSplit(m.revisions, rows[1])
-	m.renderFooter(input, status)
+	m.renderFooter(status)
 }
 
 func (m *Model) renderWithStatus(box layout.Box, renderContent func(layout.Box)) {
-	content, input, status := m.splitFooter(box)
+	content, status := m.splitFooter(box)
 	renderContent(content)
-	m.renderFooter(input, status)
+	m.renderFooter(status)
 }
 
-func (m *Model) splitFooter(box layout.Box) (content, input, status layout.Box) {
-	content = box
-	footerHeight := m.footerHeight(box)
-	if footerHeight == 0 {
-		return content, input, status
+func (m *Model) splitFooter(box layout.Box) (content, status layout.Box) {
+	if box.R.Dy() == 0 {
+		return box, status
 	}
-
-	content, footer := box.CutBottom(footerHeight)
-	if m.status.IsFocused() {
-		if footerHeight == 1 {
-			input = footer
-			return content, input, status
-		}
-		rows := footer.V(layout.Fixed(1), layout.Fixed(1))
-		input, status = rows[0], rows[1]
-		return content, input, status
-	}
-	status = footer
-	return content, input, status
+	return box.CutBottom(1)
 }
 
-func (m *Model) footerHeight(box layout.Box) int {
-	if m.status.IsFocused() {
-		return min(box.R.Dy(), 2)
-	}
-	return min(box.R.Dy(), 1)
-}
-
-func (m *Model) renderFooter(input, status layout.Box) {
-	if input.R.Dy() > 0 {
-		m.status.ViewInputRect(m.displayContext, input)
-	}
+func (m *Model) renderFooter(status layout.Box) {
 	if status.R.Dy() > 0 {
-		m.status.ViewStatusRect(m.displayContext, status)
+		m.status.ViewRect(m.displayContext, status)
 	}
 }
 
@@ -575,27 +559,17 @@ func (m *Model) dispatchScopes() []common.Scope {
 		scopes = append(scopes, m.password.Scopes()...)
 	}
 
-	scopes = append(scopes, m.status.Scopes()...)
 	if m.revsetModel.IsEditing() {
 		scopes = append(scopes, m.revsetModel.Scopes()...)
 	}
 
-	if m.stacked != nil && (m.diff != nil || m.annotation != nil) {
-		scopes = append(scopes, m.stacked.Scopes()...)
-	}
-
-	if m.annotation != nil {
-		scopes = append(scopes, m.annotation.Scopes()...)
-	} else if m.diff != nil {
-		scopes = append(scopes, m.diff.Scopes()...)
-	}
-
-	if m.stacked != nil && m.diff == nil && m.annotation == nil {
-		scopes = append(scopes, m.stacked.Scopes()...)
-	} else if m.oplog != nil {
-		scopes = append(scopes, m.splitScopes(m.oplog.Scopes())...)
+	// Only the top layer receives keys. The split panes beside the primary
+	// view (preview, bookmark pane) join only while the primary view is on top.
+	primary := m.primary()
+	if top, ok := m.topLayer(); ok && top.model != primary {
+		scopes = append(scopes, top.model.Scopes()...)
 	} else {
-		scopes = append(scopes, m.splitScopes(m.revisions.Scopes())...)
+		scopes = append(scopes, m.splitScopes(primary.Scopes())...)
 	}
 
 	if !m.revsetModel.IsEditing() {
@@ -632,7 +606,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			m.flash.DeleteOldest()
 			return nil, true
 		}
-		if m.stacked != nil || m.diff != nil || m.annotation != nil || m.oplog != nil {
+		if len(m.layers) > 0 {
 			return common.Close, true
 		}
 		if m.status.StatusExpanded() {
@@ -643,9 +617,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 
 	// --- Open stacked views ---
 	case intents.OpenGit:
-		model := git.NewModel(m.context, m.revisions.SelectedRevisions())
-		m.stacked = model
-		return m.stacked.Init(), true
+		return m.openDialog(git.NewModel(m.context, m.revisions.SelectedRevisions())), true
 	case intents.OpenBookmarks:
 		if config.Current.Bookmark.InteractiveBookmarkPane {
 			cmd, _ := m.handleSplitIntent(intents.ToggleBookmarkPane{})
@@ -655,65 +627,60 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		if current == nil {
 			return nil, true
 		}
-		changeIds := m.revisions.GetCommitIds()
-		model := bookmarks.NewModel(m.context, current, changeIds)
-		m.stacked = model
-		return m.stacked.Init(), true
+		commitIds := m.revisions.GetCommitIds()
+		return m.openDialog(bookmarks.NewModel(m.context, current, commitIds)), true
 	case intents.OpLogOpen:
-		m.oplog = oplog.New(m.context)
-		return m.oplog.Init(), true
+		model := oplog.New(m.context)
+		m.openScreen(model)
+		return model.Init(), true
 	case intents.Undo:
-		model := undo.NewModel(m.context)
-		m.stacked = model
-		return m.stacked.Init(), true
+		return m.openDialog(undo.NewModel(m.context)), true
 	case intents.Redo:
-		model := redo.NewModel(m.context)
-		m.stacked = model
-		return m.stacked.Init(), true
+		return m.openDialog(redo.NewModel(m.context)), true
 	case intents.OpenHelp:
-		if m.stacked != nil || m.diff != nil || m.annotation != nil {
+		// Help opens only over the revisions view or the oplog.
+		if top, ok := m.topLayer(); ok && top.model != m.primary() {
 			return nil, true
 		}
-		model := help.New()
-		m.stacked = model
-		return m.stacked.Init(), true
+		return m.openDialog(help.New()), true
 	case intents.CommandHistoryToggle:
 		if scope, ok := m.stackedScope(); ok && scope == actions.ScopeCommandHistory {
-			m.stacked = nil
+			m.closeDialog()
 			return nil, true
 		}
-		m.stacked = m.flash.NewHistory()
-		return m.stacked.Init(), true
+		return m.openDialog(m.flash.NewHistory()), true
 
 	// --- Activate input modes ---
 	case intents.Edit:
 		return m.revsetModel.Update(intent), true
 	case intents.ExecJJ:
-		return m.status.StartExec(common.ExecJJ), true
+		return m.openDialog(exec_prompt.New(m.context, common.ExecJJ, "")), true
 	case intents.ExecShell:
-		return m.status.StartExec(common.ExecShell), true
+		return m.openDialog(exec_prompt.New(m.context, common.ExecShell, "")), true
 	case intents.QuickSearch:
-		return m.status.StartQuickSearch(), true
+		return m.openDialog(quick_search.New(m.context)), true
 	case intents.FileSearchToggle:
 		rev := m.revisions.SelectedRevision()
 		if rev == nil {
 			return nil, true
 		}
-		out, _ := m.context.RunCommandImmediate(jj.FilesInRevision(rev))
-		return common.FileSearch(m.context.CurrentRevset, rev, out, m.context.Location, m.context.WorkingDirectory), true
+		return m.openDialog(fuzzy_files.New(m.context, m.context.CurrentRevset, rev)), true
 
 	// --- Delegated intents ---
 	case intents.DiffShow:
-		if m.diff == nil {
-			m.diff = diff.NewWithContext(m.context, "", nil)
+		model, ok := findLayer[*diff.Model](m)
+		if !ok {
+			model = diff.NewWithContext(m.context, "", nil)
 		}
-		return m.diff.Update(intent), true
+		m.openScreen(model)
+		return model.Update(intent), true
 	case intents.AnnotationShow:
 		if intent.ChangeID == "" {
 			return nil, true
 		}
-		m.annotation = annotation.New(m.context, intent.ChangeID)
-		return m.annotation.Init(), true
+		model := annotation.New(m.context, intent.ChangeID)
+		m.openScreen(model)
+		return model.Init(), true
 	// --- Status ---
 	case intents.ExpandStatusToggle:
 		m.status.ToggleStatusExpand()
@@ -793,10 +760,11 @@ func (m *Model) validateRuntimeThemeChange() error {
 }
 
 func (m *Model) stackedScope() (keybindings.ScopeName, bool) {
-	if m.stacked == nil {
+	dialog := m.dialog()
+	if dialog == nil {
 		return "", false
 	}
-	scopes := m.stacked.Scopes()
+	scopes := dialog.Scopes()
 	if len(scopes) == 0 || scopes[0].Name == "" {
 		return "", false
 	}
@@ -810,7 +778,7 @@ func (m *Model) updateBlockingScope(scope common.Scope, msg tea.KeyMsg) tea.Cmd 
 	if scope.Handler == m.revsetModel {
 		m.state = common.Loading
 	}
-	return m.withSelectionSync(scope.Handler.Update(msg))
+	return scope.Handler.Update(msg)
 }
 
 var _ tea.Model = (*wrapper)(nil)
@@ -856,8 +824,7 @@ func (w *wrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		w.scheduledNextFrame = false
 		return w, nil
 	}
-	var cmd tea.Cmd
-	cmd = w.ui.Update(msg)
+	cmd := w.ui.Update(msg)
 	if _, ok := msg.(common.ExecMsg); ok {
 		// Force a fresh frame before Bubble Tea releases/restores the terminal
 		// for tea.Exec. Otherwise RestoreTerminal can repaint using the last
@@ -913,6 +880,7 @@ func NewUI(c *context.MainContext) *Model {
 		revsetModel: revsetModel,
 		flash:       flashView,
 	}
+	c.SetStateProvider(ui)
 	ui.initSplitContainer()
 	ui.initResolver()
 	return ui
@@ -950,8 +918,10 @@ func (m *Model) initResolver() {
 	bindings := config.BindingsToRuntime(config.Current.Bindings)
 	dispatcher, err := dispatch.NewDispatcher(bindings)
 	if err != nil {
+		log.Printf("failed to initialise key bindings: %v", err)
 		return
 	}
+	dispatcher.SetStateProvider(m)
 	m.resolver = dispatch.NewResolver(dispatcher)
 }
 
@@ -994,27 +964,32 @@ func (m *Model) applyTerminalBackground(background string, isDark bool) tea.Cmd 
 }
 
 func (m *Model) reloadActiveTheme() tea.Cmd {
-	theme, err := m.resolveActiveTheme()
+	resolvedTheme, err := m.resolveActiveTheme()
 	if err != nil {
 		log.Printf("failed to resolve theme: %v", err)
 		return nil
 	}
-	m.context.ThemeBackgroundBlend = theme.BackgroundBlend
-	common.DefaultPalette.Update(theme.Colors)
-	common.DefaultPalette.ConfigureBackgroundBlend(
-		theme.BackgroundBlend,
+	blendEnabled := m.context.ThemeBackgroundBlend == 0 && resolvedTheme.BackgroundBlend > 0
+	m.context.ThemeBackgroundBlend = resolvedTheme.BackgroundBlend
+	theme.DefaultPalette.Update(resolvedTheme.Colors)
+	theme.DefaultPalette.ConfigureBackgroundBlend(
+		resolvedTheme.BackgroundBlend,
 		m.context.TerminalBackground,
 		m.context.TerminalPalette,
 	)
-	return func() tea.Msg { return common.ThemeChangedMsg{} }
+	cmd := func() tea.Msg { return common.ThemeChangedMsg{} }
+	if blendEnabled {
+		return tea.Batch(cmd, requestTerminalPalette())
+	}
+	return cmd
 }
 
 func (m *Model) resolveActiveTheme() (config.ResolvedTheme, error) {
-	theme, err := config.ResolveTheme(m.context.TerminalHasDarkBackground, m.context.JJConfig.GetApplicableColors())
+	resolvedTheme, err := config.ResolveTheme(m.context.TerminalHasDarkBackground, m.context.JJConfig.GetApplicableColors())
 	if err != nil {
 		return config.ResolvedTheme{}, err
 	}
-	return theme, nil
+	return resolvedTheme, nil
 }
 
 func New(c *context.MainContext) tea.Model {

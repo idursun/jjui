@@ -43,8 +43,8 @@ bindings_profile = ":builtin"
 [git]
   default_remote = "origin"
 
-[ssh]
-  hijack_askpass = false
+[askpass]
+  enabled = true
 
 [bookmark]
   interactive_bookmark_pane = false
@@ -98,10 +98,9 @@ lua = """
  jjui.builtin.revisions.refresh()
  """
 
-# Backwards compatibility
 [[actions]]
 name = "revisions.toggle_select"
 lua = """
  jjui.builtin.revisions.toggle_select()
- jjui.builtin.revisions.jump_to_parent()
+ jjui.builtin.revisions.move_down()
  """

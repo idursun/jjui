@@ -37,6 +37,7 @@ type ActionConfig struct {
 	Lua   string         `toml:"lua"`
 	Args  map[string]any `toml:"args"`
 	Desc  string         `toml:"desc"`
+	When  string         `toml:"when"`
 	Key   StringList     `toml:"key"`
 	Seq   StringList     `toml:"seq"`
 	Scope string         `toml:"scope"`
@@ -45,6 +46,7 @@ type ActionConfig struct {
 type BindingConfig struct {
 	Action string         `toml:"action"`
 	Desc   string         `toml:"desc"`
+	When   string         `toml:"when"`
 	Key    StringList     `toml:"key"`
 	Seq    StringList     `toml:"seq"`
 	Scope  string         `toml:"scope"`
@@ -64,6 +66,20 @@ func (c *Config) ValidateBindingsAndActions() error {
 	return nil
 }
 
+// ActionWhen returns the action-level availability condition. A configured
+// action can add or override the generated built-in condition.
+func (c *Config) ActionWhen(action string) string {
+	for i := len(c.Actions) - 1; i >= 0; i-- {
+		if strings.TrimSpace(c.Actions[i].Name) == strings.TrimSpace(action) {
+			if when := strings.TrimSpace(c.Actions[i].When); when != "" {
+				return when
+			}
+			return actionmeta.ActionWhen(action)
+		}
+	}
+	return actionmeta.ActionWhen(action)
+}
+
 func validateActions(actions []ActionConfig) error {
 	for i, action := range actions {
 		name := strings.TrimSpace(action.Name)
@@ -76,6 +92,9 @@ func validateActions(actions []ActionConfig) error {
 		}
 		if strings.TrimSpace(action.Lua) == "" {
 			return fmt.Errorf("actions[%d]: lua is required", i)
+		}
+		if _, err := actionmeta.ParseCondition(action.When); err != nil {
+			return fmt.Errorf("actions[%d]: %w", i, err)
 		}
 	}
 	return nil
@@ -94,6 +113,7 @@ func BindingsToRuntime(bindings []BindingConfig) []keybindings.Binding {
 		out = append(out, keybindings.Binding{
 			Action: action,
 			Desc:   strings.TrimSpace(binding.Desc),
+			When:   strings.TrimSpace(binding.When),
 			Scope:  scope,
 			Key:    append([]string(nil), binding.Key...),
 			Seq:    append([]string(nil), binding.Seq...),

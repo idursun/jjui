@@ -158,7 +158,7 @@ type BookmarkPaneOpenFilter struct{}
 
 func (BookmarkPaneOpenFilter) isIntent() {}
 
-//jjui:bind scope=bookmark_pane action=toggle_expand
+//jjui:bind scope=bookmark_pane action=toggle_expand when="bookmark_pane.can_expand"
 type BookmarkPaneToggleExpand struct{}
 
 func (BookmarkPaneToggleExpand) isIntent() {}
@@ -182,57 +182,57 @@ type BookmarkPaneCycleRemotes struct {
 
 func (BookmarkPaneCycleRemotes) isIntent() {}
 
-//jjui:bind scope=bookmark_pane action=show_in_revision
+//jjui:bind scope=bookmark_pane action=show_in_revision when="bookmark_pane.has_bookmark"
 type BookmarkPaneShowInRevision struct{}
 
 func (BookmarkPaneShowInRevision) isIntent() {}
 
-//jjui:bind scope=bookmark_pane action=set_revset
+//jjui:bind scope=bookmark_pane action=set_revset when="bookmark_pane.has_bookmark"
 type BookmarkPaneSetRevset struct{}
 
 func (BookmarkPaneSetRevset) isIntent() {}
 
-//jjui:bind scope=bookmark_pane action=edit
+//jjui:bind scope=bookmark_pane action=edit when="bookmark_pane.has_bookmark"
 type BookmarkPaneEdit struct{}
 
 func (BookmarkPaneEdit) isIntent() {}
 
-//jjui:bind scope=bookmark_pane action=new
+//jjui:bind scope=bookmark_pane action=new when="bookmark_pane.has_commit"
 type BookmarkPaneNew struct{}
 
 func (BookmarkPaneNew) isIntent() {}
 
-//jjui:bind scope=bookmark_pane action=rename
+//jjui:bind scope=bookmark_pane action=rename when="bookmark_pane.has_local_bookmark"
 type BookmarkPaneRename struct{}
 
 func (BookmarkPaneRename) isIntent() {}
 
-//jjui:bind scope=bookmark_pane action=delete
+//jjui:bind scope=bookmark_pane action=delete when="bookmark_pane.can_delete"
 type BookmarkPaneDelete struct{}
 
 func (BookmarkPaneDelete) isIntent() {}
 
-//jjui:bind scope=bookmark_pane action=forget
+//jjui:bind scope=bookmark_pane action=forget when="bookmark_pane.can_forget"
 type BookmarkPaneForget struct{}
 
 func (BookmarkPaneForget) isIntent() {}
 
-//jjui:bind scope=bookmark_pane action=track
+//jjui:bind scope=bookmark_pane action=track when="bookmark_pane.has_bookmark"
 type BookmarkPaneTrack struct{}
 
 func (BookmarkPaneTrack) isIntent() {}
 
-//jjui:bind scope=bookmark_pane action=untrack
+//jjui:bind scope=bookmark_pane action=untrack when="bookmark_pane.can_untrack"
 type BookmarkPaneUntrack struct{}
 
 func (BookmarkPaneUntrack) isIntent() {}
 
-//jjui:bind scope=bookmark_pane action=move
+//jjui:bind scope=bookmark_pane action=move when="bookmark_pane.has_local_bookmark"
 type BookmarkPaneMove struct{}
 
 func (BookmarkPaneMove) isIntent() {}
 
-//jjui:bind scope=bookmark_pane action=toggle_select
+//jjui:bind scope=bookmark_pane action=toggle_select when="bookmark_pane.has_bookmark"
 type BookmarkPaneToggleSelect struct{}
 
 func (BookmarkPaneToggleSelect) isIntent() {}
@@ -242,12 +242,12 @@ type BookmarkPaneCreate struct{}
 
 func (BookmarkPaneCreate) isIntent() {}
 
-//jjui:bind scope=bookmark_pane action=push
+//jjui:bind scope=bookmark_pane action=push when="bookmark_pane.has_bookmark"
 type BookmarkPanePush struct{}
 
 func (BookmarkPanePush) isIntent() {}
 
-//jjui:bind scope=bookmark_pane action=fetch
+//jjui:bind scope=bookmark_pane action=fetch when="bookmark_pane.has_bookmark"
 type BookmarkPaneFetch struct{}
 
 func (BookmarkPaneFetch) isIntent() {}
@@ -327,6 +327,7 @@ func (ChooseCancel) isIntent() {}
 //jjui:bind scope=revisions action=cancel
 //jjui:bind scope=revisions.details.confirmation action=cancel
 //jjui:bind scope=revisions.inline_describe.confirmation action=cancel
+//jjui:bind scope=annotation.confirmation action=cancel
 //jjui:bind scope=revisions.evolog action=cancel
 //jjui:bind scope=revisions.abandon action=cancel
 //jjui:bind scope=revisions.absorb action=cancel
@@ -366,6 +367,7 @@ func (Cancel) isIntent() {}
 //jjui:bind scope=revisions.duplicate action=force_apply set=Force:true
 //jjui:bind scope=revisions.details.confirmation action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions.inline_describe.confirmation action=apply set=Force:$bool(force)
+//jjui:bind scope=annotation.confirmation action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions.details.confirmation action=force_apply set=Force:true
 //jjui:bind scope=revisions.evolog action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions.abandon action=apply set=Force:$bool(force)
@@ -408,7 +410,9 @@ func (Apply) isIntent() {}
 //jjui:bind scope=revisions.details.confirmation action=prev set=Delta:-1
 //jjui:bind scope=revisions.details.confirmation action=next set=Delta:1
 //jjui:bind scope=revisions.inline_describe.confirmation action=prev set=Delta:-1
+//jjui:bind scope=annotation.confirmation action=prev set=Delta:-1
 //jjui:bind scope=revisions.inline_describe.confirmation action=next set=Delta:1
+//jjui:bind scope=annotation.confirmation action=next set=Delta:1
 //jjui:bind scope=bookmark_pane.confirmation action=prev set=Delta:-1
 //jjui:bind scope=bookmark_pane.confirmation action=next set=Delta:1
 type OptionSelect struct {

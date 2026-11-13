@@ -5,12 +5,12 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/theme"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestWithStyleScope(t *testing.T) {
-	palette := common.NewPalette()
+	palette := theme.NewPalette()
 	palette.Update(map[string]config.Color{
 		":selected":       {Fg: "red"},
 		"matched":         {Fg: "white"},
@@ -18,9 +18,9 @@ func TestWithStyleScope(t *testing.T) {
 		"revset matched":  {Fg: "blue"},
 	})
 
-	originalPalette := common.DefaultPalette
-	common.DefaultPalette = palette
-	defer func() { common.DefaultPalette = originalPalette }()
+	originalPalette := theme.DefaultPalette
+	theme.DefaultPalette = palette
+	defer func() { theme.DefaultPalette = originalPalette }()
 
 	scoped := &AutoCompletionInput{}
 	WithStyleScope("revset")(scoped)

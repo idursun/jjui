@@ -10,12 +10,12 @@ type PreviewToggleBottom struct{}
 
 func (PreviewToggleBottom) isIntent() {}
 
-//jjui:bind scope=ui action=preview_expand
+//jjui:bind scope=ui action=preview_expand when="ui.preview.can_expand"
 type PreviewExpand struct{}
 
 func (PreviewExpand) isIntent() {}
 
-//jjui:bind scope=ui action=preview_shrink
+//jjui:bind scope=ui action=preview_shrink when="ui.preview.can_shrink"
 type PreviewShrink struct{}
 
 func (PreviewShrink) isIntent() {}

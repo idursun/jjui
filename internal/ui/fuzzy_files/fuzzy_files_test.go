@@ -5,13 +5,14 @@ import (
 
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/sahilm/fuzzy"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUpdateRevSet_WithPath(t *testing.T) {
-	model := &fuzzyFiles{
+	model := &Model{
 		revset: "all()",
 		paths:  fileNames("file1.txt", "path/to/file2.go", "special file.txt"),
 	}
@@ -33,7 +34,7 @@ func TestUpdateRevSet_WithPath(t *testing.T) {
 }
 
 func TestUpdateRevSet_WithPathContainingSpaces(t *testing.T) {
-	model := &fuzzyFiles{
+	model := &Model{
 		revset: "all()",
 		paths:  fileNames("file with spaces.txt"),
 	}
@@ -52,7 +53,7 @@ func TestUpdateRevSet_WithPathContainingSpaces(t *testing.T) {
 }
 
 func TestUpdateRevSet_WithPathContainingBraces(t *testing.T) {
-	model := &fuzzyFiles{
+	model := &Model{
 		revset: "all()",
 		paths:  fileNames("file{with}braces.txt"),
 	}
@@ -71,7 +72,7 @@ func TestUpdateRevSet_WithPathContainingBraces(t *testing.T) {
 }
 
 func TestUpdateRevSet_WithDirectory(t *testing.T) {
-	model := &fuzzyFiles{
+	model := &Model{
 		revset: "all()",
 		paths:  fileNames("path/to/"),
 	}
@@ -83,11 +84,11 @@ func TestUpdateRevSet_WithDirectory(t *testing.T) {
 	msg := cmd()
 	updateMsg, ok := msg.(common.UpdateRevSetMsg)
 	assert.True(t, ok)
-	assert.Equal(t, `files(file:"path/to/")`, string(updateMsg))
+	assert.Equal(t, `files(root:"path/to/")`, string(updateMsg))
 }
 
 func TestUpdateRevSet_NoPath(t *testing.T) {
-	model := &fuzzyFiles{
+	model := &Model{
 		revset:  "all()",
 		paths:   []jj.FileName{},
 		matches: fuzzy.Matches{},
@@ -103,7 +104,7 @@ func TestUpdateRevSet_NoPath(t *testing.T) {
 }
 
 func TestUpdateRevSet_EmptyMatches(t *testing.T) {
-	model := &fuzzyFiles{
+	model := &Model{
 		revset:  "@",
 		paths:   fileNames("file1.txt"),
 		matches: fuzzy.Matches{},
@@ -132,24 +133,24 @@ func TestBuildPathEntries_IncludesDirectories(t *testing.T) {
 }
 
 func TestFileSearchDisplaysRelativePathsButUsesRepositoryPath(t *testing.T) {
-	model := &fuzzyFiles{
-		revset:           "all()",
-		paths:            fileNames("internal/ui/ui.go"),
-		repoRoot:         "/work/repo",
-		workingDirectory: "/work/repo/internal",
-		matches:          fuzzy.Matches{{Index: 0, Str: "ui/ui.go"}},
+	model := &Model{
+		revset:  "all()",
+		paths:   fileNames("internal/ui/ui.go"),
+		context: &context.MainContext{Location: "/work/repo", WorkingDirectory: "/work/repo/internal"},
+		matches: fuzzy.Matches{{Index: 0, Str: "ui/ui.go"}},
 	}
 
 	assert.Equal(t, "ui/ui.go", model.String(0))
 	msg := model.updateRevSet()()
 	assert.Equal(t, `files(file:"internal/ui/ui.go")`, string(msg.(common.UpdateRevSetMsg)))
 
-	edit := model.handleIntent(intents.FileSearchEdit{})().(common.ExecMsg)
+	cmd, _ := model.HandleIntent(intents.FileSearchEdit{})
+	edit := cmd().(common.ExecMsg)
 	assert.Contains(t, edit.Line, " 'internal/ui/ui.go'")
 }
 
 func TestFileSearchSafelyEscapesApostrophes(t *testing.T) {
-	model := &fuzzyFiles{
+	model := &Model{
 		revset:  "all()",
 		paths:   fileNames("it's complicated.go"),
 		matches: fuzzy.Matches{{Index: 0, Str: "it's complicated.go"}},
@@ -158,7 +159,8 @@ func TestFileSearchSafelyEscapesApostrophes(t *testing.T) {
 	msg := model.updateRevSet()()
 	assert.Equal(t, `files(file:"it's complicated.go")`, string(msg.(common.UpdateRevSetMsg)))
 
-	edit := model.handleIntent(intents.FileSearchEdit{})().(common.ExecMsg)
+	cmd, _ := model.HandleIntent(intents.FileSearchEdit{})
+	edit := cmd().(common.ExecMsg)
 	assert.Contains(t, edit.Line, ` 'it'\''s complicated.go'`)
 }
 
@@ -172,4 +174,22 @@ func fileNames(paths ...string) []jj.FileName {
 
 func TestBuildPathEntries_EmptyOutput(t *testing.T) {
 	assert.Empty(t, buildPathEntries(nil))
+}
+
+func TestFilesLoaded_SearchesAndNavigatesWithWrap(t *testing.T) {
+	model := New(&context.MainContext{}, "@", &jj.Commit{CommitId: "abc"})
+	model.Update(filesLoadedMsg{paths: fileNames("a.go", "b.go", "c.go")})
+	assert.Len(t, model.matches, 3)
+
+	model.moveCursor(-1)
+	assert.Equal(t, 2, model.cursor)
+	model.moveCursor(1)
+	assert.Equal(t, 0, model.cursor)
+}
+
+func TestCancel_RestoresRevsetAndCloses(t *testing.T) {
+	model := New(&context.MainContext{}, "trunk()", &jj.Commit{CommitId: "abc"})
+	cmd, handled := model.HandleIntent(intents.Cancel{})
+	assert.True(t, handled)
+	assert.NotNil(t, cmd)
 }

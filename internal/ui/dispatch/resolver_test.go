@@ -190,11 +190,34 @@ func TestResolveAction_ConfiguredLuaTakesPrecedenceOverBuiltIn(t *testing.T) {
 	r := makeResolver(nil, map[keybindings.Action]config.ActionConfig{
 		"revisions.details.diff": {Lua: "flash('override')"},
 	})
+	r.dispatcher.SetStateProvider(conditionState{"revisions.details.has_file": true})
 
 	result := r.ResolveAction("revisions.details.diff", nil)
 	assert.True(t, result.Consumed)
 	assert.Nil(t, result.Intent)
 	assert.Equal(t, "flash('override')", result.LuaScript)
+}
+
+func TestResolveAction_DeclaredAvailabilityBlocksDirectInvocation(t *testing.T) {
+	r := makeResolver(nil, nil)
+	r.dispatcher.SetStateProvider(conditionState{"revisions.has_revision": false})
+
+	result := r.ResolveAction("revisions.diff", nil)
+	assert.True(t, result.Consumed)
+	assert.Nil(t, result.Intent)
+}
+
+func TestResolveKey_DisabledActionFallsThroughToOuterBinding(t *testing.T) {
+	r := makeResolver([]keybindings.Binding{
+		{Action: "revisions.diff", Scope: "revisions", Key: []string{"x"}},
+		{Action: "ui.quit", Scope: "ui", Key: []string{"x"}},
+	}, nil)
+	r.dispatcher.SetStateProvider(conditionState{"revisions.has_revision": false})
+
+	result := r.ResolveKey(keyMsg("x"), createScopes("revisions", "ui"))
+	assert.True(t, result.Consumed)
+	_, ok := result.Intent.(intents.Quit)
+	assert.True(t, ok)
 }
 
 func TestResolveKey_ConfiguredActionWithoutLuaIsNoop(t *testing.T) {
@@ -232,6 +255,38 @@ func TestResolveBuiltInAction_IgnoresConfiguredLuaOverride(t *testing.T) {
 	assert.NotNil(t, result.Intent)
 	_, isQuit := result.Intent.(intents.Quit)
 	assert.True(t, isQuit)
+}
+
+func TestResolveBuiltInAction_IgnoresConfiguredAvailabilityOverride(t *testing.T) {
+	d, err := NewDispatcher(nil)
+	assert.NoError(t, err)
+	d.SetStateProvider(conditionState{"revisions.has_revision": false, "revisions.is_empty": false})
+	r := newResolverWithActions(d, []config.ActionConfig{{
+		Name: "revisions.diff",
+		Lua:  "print('custom diff')",
+		When: "true",
+	}})
+
+	configured := r.ResolveAction("revisions.diff", nil)
+	assert.Equal(t, "print('custom diff')", configured.LuaScript)
+
+	builtIn := r.ResolveBuiltInAction("revisions.diff", nil)
+	assert.True(t, builtIn.Consumed)
+	assert.Nil(t, builtIn.Intent)
+	assert.Empty(t, builtIn.LuaScript)
+}
+
+func TestNewResolver_LastActionDefinitionClearsEarlierAvailability(t *testing.T) {
+	d, err := NewDispatcher(nil)
+	assert.NoError(t, err)
+	r := newResolverWithActions(d, []config.ActionConfig{
+		{Name: "custom", Lua: "first", When: "false"},
+		{Name: "custom", Lua: "second"},
+	})
+
+	result := r.ResolveAction("custom", nil)
+	assert.True(t, result.Consumed)
+	assert.Equal(t, "second", result.LuaScript)
 }
 
 func TestDeriveScope(t *testing.T) {

@@ -4,8 +4,11 @@ import (
 	"testing"
 
 	"charm.land/bubbles/v2/textarea"
+	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -59,24 +62,25 @@ func TestLargeDiffDoesNotThrashHighlightCacheOnLayoutChange(t *testing.T) {
 }
 
 func TestThemeChangeInvalidatesRenderedData(t *testing.T) {
+	previous := theme.DefaultPalette
+	t.Cleanup(func() { theme.DefaultPalette = previous })
+	theme.DefaultPalette = theme.NewPalette()
+	theme.DefaultPalette.Update(map[string]config.Color{"syntax keyword": {Fg: "#123456"}})
 	model := mouseTestModel(1)
 	model.document.files[0].Patch.Lines[0].Content = "package main"
-	renderer := newAnnotationRenderer(false)
+	model.renderer = newAnnotationRenderer(false)
 	box := layout.NewBox(layout.Rect(0, 0, 40, 3))
-
-	lightDisplay := render.NewDisplayContext()
-	renderer.Render(lightDisplay, box, model.viewState(), false)
-	lightHighlighter := renderer.highlighter
-	lightRendered := lightDisplay.RenderToString(40, 3)
-	require.Equal(t, 1, lightHighlighter.highlightMisses)
-
-	darkDisplay := render.NewDisplayContext()
-	renderer.Render(darkDisplay, box, model.viewState(), true)
-	darkRendered := darkDisplay.RenderToString(40, 3)
-
-	assert.NotSame(t, lightHighlighter, renderer.highlighter)
-	assert.Equal(t, 1, renderer.highlighter.highlightMisses)
-	assert.NotEqual(t, lightRendered, darkRendered)
+	before := render.NewDisplayContext()
+	model.ViewRect(before, box)
+	oldHighlighter := model.renderer.highlighter
+	theme.DefaultPalette.Update(map[string]config.Color{"syntax keyword": {Fg: "#abcdef"}})
+	model.Update(common.ThemeChangedMsg{})
+	after := render.NewDisplayContext()
+	model.ViewRect(after, box)
+	assert.NotSame(t, oldHighlighter, model.renderer.highlighter)
+	assert.Equal(t, 1, model.renderer.highlighter.highlightMisses)
+	assert.NotEqual(t, before.RenderToString(40, 3), after.RenderToString(40, 3))
+	assert.Contains(t, after.RenderToString(40, 3), "38;2;171;205;239")
 }
 
 func BenchmarkCachedLargeDiffCursorRender(b *testing.B) {

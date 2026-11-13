@@ -13,6 +13,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/config"
@@ -24,6 +25,7 @@ import (
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/diff"
+	"github.com/idursun/jjui/internal/ui/exec_prompt"
 	"github.com/idursun/jjui/internal/ui/git"
 	"github.com/idursun/jjui/internal/ui/help"
 	"github.com/idursun/jjui/internal/ui/input"
@@ -37,11 +39,22 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revset"
+	"github.com/idursun/jjui/internal/ui/theme"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	lua "github.com/yuin/gopher-lua"
 )
+
+func TestQueryStateKeepsUnknownPreviewPropertiesUnavailable(t *testing.T) {
+	model := Model{}
+	if _, ok := model.QueryState("ui.preview.typo"); ok {
+		t.Fatal("unknown preview property was reported as available")
+	}
+	if value, ok := model.QueryState("ui.preview.can_expand"); !ok || value != false {
+		t.Fatalf("recognized preview property without an open preview = (%v, %v), want (false, true)", value, ok)
+	}
+}
 
 func showPreview(t *testing.T, model *Model, content string) {
 	t.Helper()
@@ -50,6 +63,37 @@ func showPreview(t *testing.T, model *Model, content string) {
 }
 
 type blankImmediateModel struct{}
+
+type selectionDialog struct {
+	*input.Model
+	snapshot common.SelectionSnapshot
+}
+
+func (m *selectionDialog) Selection() common.SelectionSnapshot { return m.snapshot }
+
+func TestLiveSelectionPreservesChangeNotificationsAndCommandReplacements(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := NewUI(ctx)
+	dialog := &selectionDialog{Model: input.NewWithTitle("", "", "")}
+	pushDialog(model, dialog)
+	assert.Nil(t, model.Update(tea.ModeReportMsg{}))
+	first := common.SelectedRevision{ChangeId: "first", CommitId: "commit1"}
+	dialog.snapshot.Highlighted = first
+	assert.Equal(t, first, ctx.Selection().Highlighted, "reads must not wait for synchronization")
+	assert.Equal(t, "first", ctx.CreateReplacements()[jj.ChangeIdPlaceholder])
+	cmd := model.Update(tea.ModeReportMsg{})
+	require.NotNil(t, cmd)
+	assert.Equal(t, common.SelectionChangedMsg{Item: first}, cmd())
+	assert.Nil(t, model.Update(tea.ModeReportMsg{}), "unchanged highlights should not emit events")
+	dialog.snapshot.Checked = []common.SelectedItem{first}
+	assert.Equal(t, "commit1", ctx.CreateReplacements()[jj.CheckedCommitIdsPlaceholder])
+	assert.Nil(t, model.Update(tea.ModeReportMsg{}), "checking items alone does not change the highlight")
+	dialog.snapshot.Highlighted = nil
+	cmd = model.Update(tea.ModeReportMsg{})
+	require.NotNil(t, cmd)
+	assert.Equal(t, common.SelectionChangedMsg{}, cmd())
+	assert.Nil(t, model.Update(tea.ModeReportMsg{}))
+}
 
 func (blankImmediateModel) Init() tea.Cmd { return nil }
 
@@ -97,31 +141,22 @@ func TestSplitFooter(t *testing.T) {
 	ctx.Histories = config.NewHistories()
 
 	tests := []struct {
-		name                               string
-		height                             int
-		focused                            bool
-		wantContent, wantInput, wantStatus int
+		name                    string
+		height                  int
+		wantContent, wantStatus int
 	}{
-		{name: "empty inactive", height: 0},
-		{name: "inactive one row", height: 1, wantStatus: 1},
-		{name: "inactive content and status", height: 2, wantContent: 1, wantStatus: 1},
-		{name: "empty active", height: 0, focused: true},
-		{name: "active one row prioritizes input", height: 1, focused: true, wantInput: 1},
-		{name: "active input and status", height: 2, focused: true, wantInput: 1, wantStatus: 1},
-		{name: "active content input and status", height: 3, focused: true, wantContent: 1, wantInput: 1, wantStatus: 1},
+		{name: "empty", height: 0},
+		{name: "one row", height: 1, wantStatus: 1},
+		{name: "content and status", height: 2, wantContent: 1, wantStatus: 1},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			model := NewUI(ctx)
-			if tt.focused {
-				model.status.StartExec(common.ExecShell)
-			}
 
-			content, input, status := model.splitFooter(layout.NewBox(layout.Rect(0, 0, 40, tt.height)))
+			content, status := model.splitFooter(layout.NewBox(layout.Rect(0, 0, 40, tt.height)))
 
 			assert.Equal(t, tt.wantContent, content.R.Dy())
-			assert.Equal(t, tt.wantInput, input.R.Dy())
 			assert.Equal(t, tt.wantStatus, status.R.Dy())
 		})
 	}
@@ -133,7 +168,7 @@ func TestView_ActiveInputUsesRowAboveStatus(t *testing.T) {
 	model := NewUI(ctx)
 	model.width = 30
 	model.height = 3
-	model.status.StartExec(common.ExecShell)
+	model.openDialog(exec_prompt.New(ctx, common.ExecShell, ""))
 
 	view := model.View()
 	lines := strings.Split(view, "\n")
@@ -235,7 +270,7 @@ func TestWrapperView_ForwardsCursorFromRenderedFrame(t *testing.T) {
 	model := NewUI(ctx)
 	model.width = 80
 	model.height = 20
-	model.stacked = input.NewWithTitle("Prompt", "Text: ", "")
+	pushDialog(model, input.NewWithTitle("Prompt", "Text: ", ""))
 
 	w := &wrapper{ui: model, render: true}
 	view := w.View()
@@ -283,7 +318,7 @@ func TestWrapperUpdate_ExecMsgRefreshesCachedCursorBeforeExec(t *testing.T) {
 	model := NewUI(ctx)
 	model.width = 80
 	model.height = 20
-	model.stacked = input.NewWithTitle("Prompt", "Text: ", "")
+	pushDialog(model, input.NewWithTitle("Prompt", "Text: ", ""))
 
 	w := &wrapper{ui: model, render: true}
 	view := w.View()
@@ -291,7 +326,7 @@ func TestWrapperUpdate_ExecMsgRefreshesCachedCursorBeforeExec(t *testing.T) {
 
 	// Simulate the state after Apply cleared focus but before tea.Exec releases
 	// and restores the terminal.
-	model.stacked = nil
+	model.closeDialog()
 
 	updated, cmd := w.Update(common.ExecMsg{Line: "log", Mode: common.ExecJJ})
 	require.NotNil(t, cmd)
@@ -556,8 +591,8 @@ func Test_GitWithExpandedStatus_EscClosesStackedFirst(t *testing.T) {
 	// Directly set stacked to git model (simulates pressing 'g')
 	gitModel := git.NewModel(ctx, jj.NewSelectedRevisions())
 	test.SimulateModel(gitModel, gitModel.Init())
-	model.stacked = gitModel
-	assert.NotNil(t, model.stacked, "stacked (git) should be set")
+	pushDialog(model, gitModel)
+	assert.NotNil(t, model.dialog(), "stacked (git) should be set")
 
 	// Render to trigger status truncation detection
 	_ = model.View()
@@ -571,7 +606,7 @@ func Test_GitWithExpandedStatus_EscClosesStackedFirst(t *testing.T) {
 	assert.True(t, model.status.StatusExpanded(), "status should remain expanded while stacked is closed first")
 
 	// Stacked (git) should be closed first
-	assert.Nil(t, model.stacked, "stacked (git) should close before expanded status")
+	assert.Nil(t, model.dialog(), "stacked (git) should close before expanded status")
 }
 
 func Test_AnnotationWithExpandedStatus_EscClosesStatusFirst(t *testing.T) {
@@ -579,7 +614,7 @@ func Test_AnnotationWithExpandedStatus_EscClosesStatusFirst(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	model.annotation = annotation.New(ctx, "change")
+	model.openScreen(annotation.New(ctx, "change"))
 	model.status.SetStatusExpanded(true)
 
 	cmd, handled := dispatchAction(model, keybindings.Action("ui.cancel"), nil)
@@ -587,13 +622,13 @@ func Test_AnnotationWithExpandedStatus_EscClosesStatusFirst(t *testing.T) {
 	test.SimulateModel(model, cmd)
 
 	assert.False(t, model.status.StatusExpanded(), "expanded status should close first")
-	assert.NotNil(t, model.annotation, "annotation view should remain open")
+	assert.NotNil(t, layerOf[*annotation.Model](model), "annotation view should remain open")
 
 	cmd, handled = dispatchAction(model, keybindings.Action("ui.cancel"), nil)
 	require.True(t, handled)
 	test.SimulateModel(model, cmd)
 
-	assert.Nil(t, model.annotation, "annotation view should close after expanded status")
+	assert.Nil(t, layerOf[*annotation.Model](model), "annotation view should close after expanded status")
 }
 
 func Test_AnnotationWithExpandedStatus_AppliedCloseStillClosesAnnotation(t *testing.T) {
@@ -601,13 +636,13 @@ func Test_AnnotationWithExpandedStatus_AppliedCloseStillClosesAnnotation(t *test
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	model.annotation = annotation.New(ctx, "change")
+	model.openScreen(annotation.New(ctx, "change"))
 	model.status.SetStatusExpanded(true)
 
 	model.Update(common.CloseApplied())
 
 	assert.True(t, model.status.StatusExpanded(), "applied close should not collapse expanded status")
-	assert.Nil(t, model.annotation, "applied close should close annotation")
+	assert.Nil(t, layerOf[*annotation.Model](model), "applied close should close annotation")
 }
 
 func Test_Update_GitFilteredShortcutKeysDoNotLeakToRevisions(t *testing.T) {
@@ -621,7 +656,7 @@ func Test_Update_GitFilteredShortcutKeysDoNotLeakToRevisions(t *testing.T) {
 	gitModel := git.NewModel(ctx, jj.NewSelectedRevisions())
 	test.SimulateModel(gitModel, gitModel.Init())
 	test.SimulateModel(gitModel, func() tea.Msg { return intents.GitFilter{Kind: intents.GitFilterFetch} })
-	model.stacked = gitModel
+	pushDialog(model, gitModel)
 
 	key := tea.KeyPressMsg{Text: "a", Code: 'a'}
 	result := model.resolver.ResolveKey(key, model.dispatchScopes())
@@ -676,11 +711,11 @@ func Test_Update_RevisionsEscClearsCheckedSelections_WithDefaultBindings(t *test
 	test.SimulateModel(model, model.revisions.Update(common.RefreshMsg{}))
 
 	test.SimulateModel(model, model.Update(intents.RevisionsToggleSelect{}))
-	require.Len(t, ctx.CheckedItems, 1, "setup should create a checked revision through the root sync path")
+	require.Len(t, ctx.Selection().Checked, 1, "setup should create a checked revision through the root sync path")
 
 	cmd := model.Update(intents.Cancel{})
 	test.SimulateModel(model, cmd)
-	assert.Empty(t, ctx.CheckedItems, "esc should clear checked revisions in normal revisions mode")
+	assert.Empty(t, ctx.Selection().Checked, "esc should clear checked revisions in normal revisions mode")
 }
 
 func Test_UpdateStatus_UsesBindingDeclarationOrderForRevisions(t *testing.T) {
@@ -691,7 +726,7 @@ func Test_UpdateStatus_UsesBindingDeclarationOrderForRevisions(t *testing.T) {
 	config.Current.Bindings = []config.BindingConfig{
 		{Action: "revisions.move_down", Scope: "revisions", Key: config.StringList{"j"}},
 		{Action: "revisions.move_up", Scope: "revisions", Key: config.StringList{"k"}},
-		{Action: "revisions.open_rebase", Scope: "revisions", Key: config.StringList{"r"}},
+		{Action: "revisions.refresh", Scope: "revisions", Key: config.StringList{"r"}},
 		{Action: "ui.cancel", Scope: "ui", Key: config.StringList{"esc"}},
 	}
 
@@ -723,7 +758,7 @@ func Test_UpdateStatus_IncludesAlwaysOnUiBindings(t *testing.T) {
 	model := NewUI(ctx)
 
 	model.updateStatus()
-	assert.Contains(t, help.FlatEntries(model.status.Help()), help.Entry{Label: "W", Desc: "command history"})
+	assert.Contains(t, help.FlatEntries(model.status.Help()), help.Entry{Action: "ui.show_command_history", Label: "W", Desc: "command history"})
 }
 
 func Test_Update_SequencePrefixBeatsSingleKeyBinding(t *testing.T) {
@@ -746,7 +781,7 @@ func Test_Update_SequencePrefixBeatsSingleKeyBinding(t *testing.T) {
 
 	// First key only starts pending sequence, should not trigger open_git.
 	model.Update(tea.KeyPressMsg{Text: "g", Code: 'g'})
-	assert.Nil(t, model.stacked)
+	assert.Nil(t, model.dialog())
 
 	// Completing sequence should trigger ui.open_revset.
 	model.Update(tea.KeyPressMsg{Text: "r", Code: 'r'})
@@ -850,7 +885,7 @@ func Test_Update_GitFilterEditingEnterDoesNotTriggerApply(t *testing.T) {
 	model := NewUI(ctx)
 	gitModel := git.NewModel(ctx, jj.NewSelectedRevisions())
 	test.SimulateModel(gitModel, gitModel.Init())
-	model.stacked = gitModel
+	pushDialog(model, gitModel)
 
 	// Start filter editing.
 	model.Update(tea.KeyPressMsg{Text: "/", Code: '/'})
@@ -867,6 +902,15 @@ func Test_Update_GitFilterEditingEnterDoesNotTriggerApply(t *testing.T) {
 	// Apply should now route through normal git scope after leaving filter-edit mode.
 	_, handled := dispatchAction(model, keybindings.Action("git.apply"), nil)
 	assert.True(t, handled, "apply should dispatch after filter-edit mode")
+}
+
+func pushDialog(m *Model, dialog common.StackedModel) {
+	m.layers = append(m.layers, layer{model: dialog})
+}
+
+func layerOf[T common.StackedModel](m *Model) T {
+	model, _ := findLayer[T](m)
+	return model
 }
 
 type scopeOnlyStackedModel struct {
@@ -905,7 +949,7 @@ func Test_DispatchScopes_UsesStackedScope(t *testing.T) {
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
 
-	model.stacked = &scopeOnlyStackedModel{scope: actions.ScopeUndo}
+	pushDialog(model, &scopeOnlyStackedModel{scope: actions.ScopeUndo})
 	scopes := model.dispatchScopes()
 	require.NotEmpty(t, scopes)
 	assert.Equal(t, keybindings.ScopeName(actions.ScopeUndo), scopes[0].Name)
@@ -917,7 +961,7 @@ func Test_HandleDispatchedAction_UsesStackedScope(t *testing.T) {
 	model := NewUI(ctx)
 
 	stacked := &scopeOnlyStackedModel{scope: actions.ScopeChoose}
-	model.stacked = stacked
+	pushDialog(model, stacked)
 
 	cmd, handled := dispatchAction(model, keybindings.Action("choose.move_down"), nil)
 	assert.True(t, handled)
@@ -944,7 +988,7 @@ func Test_Update_BlockingScopeHandledNilCmdDoesNotReceiveRawKeyAgain(t *testing.
 	model := NewUI(ctx)
 
 	stacked := &scopeOnlyStackedModel{scope: actions.ScopeChoose}
-	model.stacked = stacked
+	pushDialog(model, stacked)
 
 	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	assert.Nil(t, cmd, "choose.cancel handler returns nil cmd")
@@ -1013,6 +1057,60 @@ func Test_HandleIntent_EditEntersRevsetInNormalMode(t *testing.T) {
 	assert.True(t, handled)
 	assert.NotNil(t, cmd)
 	assert.True(t, model.revsetModel.IsEditing())
+}
+
+func Test_Update_ReloadThemeReadsFileAndKeepsPaletteOnError(t *testing.T) {
+	setupThemeTestConfig(t)
+	originalPalette := theme.DefaultPalette
+	theme.DefaultPalette = theme.NewPalette()
+	t.Cleanup(func() { theme.DefaultPalette = originalPalette })
+	config.Current.UI.Theme.Dark = "runtime_dark"
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.TerminalHasDarkBackground = true
+	model := NewUI(ctx)
+	themePath := filepath.Join(config.GetConfigDir(), "themes", "runtime_dark.toml")
+	for _, foreground := range []string{"#ff0000", "#00ff00"} {
+		require.NoError(t, os.WriteFile(themePath, []byte(`title = { fg = "`+foreground+`" }`), 0o644))
+		cmd := model.Update(common.ReloadThemeMsg{})
+		changed, _, _ := inspectTerminalRefresh(cmd)
+		require.True(t, changed)
+		assert.Equal(t, lipgloss.Color(foreground), theme.DefaultPalette.Get("", "title", "", false).GetForeground())
+	}
+	require.NoError(t, os.WriteFile(themePath, []byte(`title = {`), 0o644))
+	changed, _, _ := inspectTerminalRefresh(model.Update(common.ReloadThemeMsg{}))
+	assert.False(t, changed)
+	assert.Equal(t, lipgloss.Color("#00ff00"), theme.DefaultPalette.Get("", "title", "", false).GetForeground())
+}
+
+func Test_Update_ReloadThemeEnablesBackgroundBlend(t *testing.T) {
+	setupThemeTestConfig(t)
+	originalPalette := theme.DefaultPalette
+	theme.DefaultPalette = theme.NewPalette()
+	t.Cleanup(func() { theme.DefaultPalette = originalPalette })
+	originalBlend := config.Current.UI.BackgroundBlend
+	config.Current.UI.BackgroundBlend = config.BackgroundBlendConfig{}
+	t.Cleanup(func() { config.Current.UI.BackgroundBlend = originalBlend })
+	config.Current.UI.Theme.Dark = "runtime_dark"
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.TerminalHasDarkBackground = true
+	ctx.TerminalBackground = "#000000"
+	model := NewUI(ctx)
+	themePath := filepath.Join(config.GetConfigDir(), "themes", "runtime_dark.toml")
+	changed, requested, _ := inspectTerminalRefresh(model.Update(common.ReloadThemeMsg{}))
+	require.True(t, changed)
+	require.False(t, requested, "disabled blending does not need terminal palette queries")
+	require.NoError(t, os.WriteFile(themePath, []byte(`[dark]
+background_blend = 0.75
+[dark.colors]
+"picker badge" = { bg = "green" }
+`), 0o644))
+	changed, requested, _ = inspectTerminalRefresh(model.Update(common.ReloadThemeMsg{}))
+	require.True(t, changed)
+	require.True(t, requested, "enabling blending must query terminal ANSI colors")
+	changed, requested, _ = inspectTerminalRefresh(model.Update(uv.UnknownOscEvent("\x1b]4;2;rgb:00/aa/00\x07")))
+	require.True(t, changed)
+	assert.False(t, requested, "palette replies must not trigger more queries")
+	assert.Equal(t, lipgloss.Color("#005500"), theme.DefaultPalette.GetBlended("picker", "", "badge", false).GetBackground())
 }
 
 func Test_HandleIntent_ChangeThemeUpdatesCurrentMode(t *testing.T) {
@@ -1218,7 +1316,7 @@ func Test_Update_OperationScopedConfiguredActionOverridesBuiltInIntent(t *testin
 		config.Current.Actions = origActions
 	}()
 	config.Current.Actions = []config.ActionConfig{
-		{Name: "revisions.details.diff", Lua: `flash("override")`},
+		{Name: "revisions.details.refresh", Lua: `flash("override")`},
 	}
 
 	commandRunner := test.NewTestCommandRunner(t)
@@ -1231,7 +1329,7 @@ func Test_Update_OperationScopedConfiguredActionOverridesBuiltInIntent(t *testin
 	model.Update(common.RestoreOperationMsg{Operation: op})
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
 
-	cmd := model.Update(common.DispatchActionMsg{Action: "revisions.details.diff"})
+	cmd := model.Update(common.DispatchActionMsg{Action: "revisions.details.refresh"})
 	require.NotNil(t, cmd)
 	msg := cmd()
 	runLua, ok := msg.(common.RunLuaScriptMsg)
@@ -1252,8 +1350,8 @@ func Test_Update_DispatchedDiffShowOpensAndUpdatesDiff(t *testing.T) {
 		BuiltIn: true,
 	})
 	require.Nil(t, cmd)
-	require.NotNil(t, model.diff)
-	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(model.diff, 20, 3)))
+	require.NotNil(t, layerOf[*diff.Model](model))
+	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(layerOf[*diff.Model](model), 20, 3)))
 }
 
 func Test_Update_DispatchedDiffShowUpdatesExistingDiff(t *testing.T) {
@@ -1262,7 +1360,7 @@ func Test_Update_DispatchedDiffShowUpdatesExistingDiff(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.diff = diff.New("old")
+	model.openScreen(diff.New("old"))
 
 	cmd := model.Update(common.DispatchActionMsg{
 		Action:  "diff.show",
@@ -1270,8 +1368,8 @@ func Test_Update_DispatchedDiffShowUpdatesExistingDiff(t *testing.T) {
 		BuiltIn: true,
 	})
 	require.Nil(t, cmd)
-	require.NotNil(t, model.diff)
-	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(model.diff, 20, 3)))
+	require.NotNil(t, layerOf[*diff.Model](model))
+	assert.Equal(t, "new", test.Stripped(test.RenderImmediate(layerOf[*diff.Model](model), 20, 3)))
 }
 
 func Test_Update_AnnotationShowOpensTopLevelAnnotationView(t *testing.T) {
@@ -1284,16 +1382,16 @@ func Test_Update_AnnotationShowOpensTopLevelAnnotationView(t *testing.T) {
 	})
 
 	require.NotNil(t, cmd)
-	require.NotNil(t, model.annotation)
-	firstAnnotation := model.annotation
+	require.NotNil(t, layerOf[*annotation.Model](model))
+	firstAnnotation := layerOf[*annotation.Model](model)
 	model.Update(common.CloseViewMsg{})
-	assert.Nil(t, model.annotation)
+	assert.Nil(t, layerOf[*annotation.Model](model))
 
 	model.Update(intents.AnnotationShow{
 		ChangeID: commit.ChangeId,
 	})
-	require.NotNil(t, model.annotation)
-	assert.NotSame(t, firstAnnotation, model.annotation)
+	require.NotNil(t, layerOf[*annotation.Model](model))
+	assert.NotSame(t, firstAnnotation, layerOf[*annotation.Model](model))
 }
 
 func Test_Update_DiffEscClosesDiffAndRestoresDetails(t *testing.T) {
@@ -1309,7 +1407,7 @@ func Test_Update_DiffEscClosesDiffAndRestoresDetails(t *testing.T) {
 	require.Equal(t, "details", model.revisions.CurrentOperation().Name())
 
 	model.Update(intents.DiffShow{Content: "diff content"})
-	require.NotNil(t, model.diff, "diff should open over details")
+	require.NotNil(t, layerOf[*diff.Model](model), "diff should open over details")
 
 	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	require.NotNil(t, cmd, "esc in diff should close diff")
@@ -1317,7 +1415,7 @@ func Test_Update_DiffEscClosesDiffAndRestoresDetails(t *testing.T) {
 	require.True(t, ok, "esc in diff should dispatch close-view")
 
 	model.Update(closeMsg)
-	assert.Nil(t, model.diff, "diff should close after esc")
+	assert.Nil(t, layerOf[*diff.Model](model), "diff should close after esc")
 	require.False(t, model.revisions.InNormalMode(), "details should remain active after closing diff")
 	assert.Equal(t, "details", model.revisions.CurrentOperation().Name())
 }
@@ -1328,7 +1426,7 @@ func Test_Update_OpenTargetPickerWhileDiffActiveCreatesRootOverlay(t *testing.T)
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.diff = diff.NewWithContext(ctx, "diff content", jj.Diff("abc123", jj.FileName{}))
+	model.openScreen(diff.NewWithContext(ctx, "diff content", jj.Diff("abc123", jj.FileName{})))
 
 	cmd := model.Update(common.OpenTargetPickerMsg{
 		Sources: []source.Source{source.FileSource{Files: []jj.FileName{jj.NewFileName("a.go")}}},
@@ -1336,8 +1434,8 @@ func Test_Update_OpenTargetPickerWhileDiffActiveCreatesRootOverlay(t *testing.T)
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
 
-	require.NotNil(t, model.stacked)
-	_, ok := model.stacked.(*target_picker.Model)
+	require.NotNil(t, model.dialog())
+	_, ok := model.dialog().(*target_picker.Model)
 	require.True(t, ok)
 
 	model.Update(tea.WindowSizeMsg{Width: 40, Height: 8})
@@ -1351,27 +1449,27 @@ func Test_Update_DiffTargetPickerClosesOnSelectionAndCancel(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.diff = diff.NewWithContext(ctx, "diff content", jj.Diff("abc123", jj.FileName{}))
+	model.openScreen(diff.NewWithContext(ctx, "diff content", jj.Diff("abc123", jj.FileName{})))
 
 	cmd := model.Update(common.OpenTargetPickerMsg{
 		Sources: []source.Source{source.FileSource{Files: []jj.FileName{jj.NewFileName("a.go")}}},
 	})
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
-	require.NotNil(t, model.stacked)
+	require.NotNil(t, model.dialog())
 
 	model.Update(target_picker.TargetSelectedMsg{File: jj.NewFileName("a.go")})
-	assert.Nil(t, model.stacked)
+	assert.Nil(t, model.dialog())
 
 	cmd = model.Update(common.OpenTargetPickerMsg{
 		Sources: []source.Source{source.FileSource{Files: []jj.FileName{jj.NewFileName("a.go")}}},
 	})
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
-	require.NotNil(t, model.stacked)
+	require.NotNil(t, model.dialog())
 
 	model.Update(target_picker.TargetPickerCancelMsg{})
-	assert.Nil(t, model.stacked)
+	assert.Nil(t, model.dialog())
 }
 
 func Test_Update_OpenTargetPickerWhileAnnotationActiveCreatesRootOverlay(t *testing.T) {
@@ -1380,7 +1478,7 @@ func Test_Update_OpenTargetPickerWhileAnnotationActiveCreatesRootOverlay(t *test
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.annotation = annotation.New(ctx, "")
+	model.openScreen(annotation.New(ctx, ""))
 
 	cmd := model.Update(common.OpenTargetPickerMsg{
 		Sources: []source.Source{source.FileSource{Files: []jj.FileName{jj.NewFileName("a.go")}}},
@@ -1388,13 +1486,13 @@ func Test_Update_OpenTargetPickerWhileAnnotationActiveCreatesRootOverlay(t *test
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
 
-	require.NotNil(t, model.stacked)
-	_, ok := model.stacked.(*target_picker.Model)
+	require.NotNil(t, model.dialog())
+	_, ok := model.dialog().(*target_picker.Model)
 	require.True(t, ok)
 
 	model.Update(target_picker.TargetPickerCancelMsg{})
-	assert.Nil(t, model.stacked)
-	assert.NotNil(t, model.annotation)
+	assert.Nil(t, model.dialog())
+	assert.NotNil(t, layerOf[*annotation.Model](model))
 }
 
 func evalLuaGlobals(t *testing.T, model *Model, script string, names ...string) []lua.LValue {
@@ -1421,6 +1519,17 @@ func scrollPreview(t *testing.T, model *Model, kind intents.PreviewScrollKind) {
 	}
 }
 
+// fixedSelectionProvider keeps the root model's live state but reports a fixed
+// highlighted item, so Lua selection getters can be checked next to preview getters.
+type fixedSelectionProvider struct {
+	common.ApplicationStateProvider
+	highlighted common.SelectedItem
+}
+
+func (p fixedSelectionProvider) Selection() common.SelectionSnapshot {
+	return common.SelectionSnapshot{Highlighted: p.highlighted}
+}
+
 func TestLuaPreviewGetters_RuntimeWiring(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
@@ -1430,11 +1539,14 @@ func TestLuaPreviewGetters_RuntimeWiring(t *testing.T) {
 	defer scripting.CloseVM(ctx)
 
 	model := NewUI(ctx)
-	ctx.SelectedItem = common.SelectedFile{
-		ChangeId: "abc123",
-		CommitId: "def456",
-		File:     jj.NewFileName("path/to/file.go"),
-	}
+	ctx.SetStateProvider(fixedSelectionProvider{
+		ApplicationStateProvider: model,
+		highlighted: common.SelectedFile{
+			ChangeId: "abc123",
+			CommitId: "def456",
+			File:     jj.NewFileName("path/to/file.go"),
+		},
+	})
 
 	var content strings.Builder
 	for i := range 30 {
@@ -1620,13 +1732,13 @@ func Test_Update_LuaInputEscCancelsAndFinishesScript(t *testing.T) {
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
 	require.NotEmpty(t, model.scriptRunners, "script should wait for input")
-	require.NotNil(t, model.stacked, "input view should be stacked")
+	require.NotNil(t, model.dialog(), "input view should be stacked")
 
 	cmd = model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	require.NotNil(t, cmd, "esc in input scope should forward cancel to input model")
 	test.SimulateModel(model, cmd)
 
-	assert.Nil(t, model.stacked, "input should close after esc")
+	assert.Nil(t, model.dialog(), "input should close after esc")
 	assert.Empty(t, model.scriptRunners, "script should finish after input cancel")
 }
 
@@ -1651,13 +1763,13 @@ func Test_Update_LuaChooseEscViaUiCancelFinishesScript(t *testing.T) {
 	require.NotNil(t, cmd)
 	test.SimulateModel(model, cmd)
 	require.NotEmpty(t, model.scriptRunners, "script should wait for choose")
-	require.NotNil(t, model.stacked, "choose view should be stacked")
+	require.NotNil(t, model.dialog(), "choose view should be stacked")
 
 	cmd = model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	require.NotNil(t, cmd, "esc should dispatch ui.cancel when choose.cancel is not configured")
 	test.SimulateModel(model, cmd)
 
-	assert.Nil(t, model.stacked, "choose should close after esc")
+	assert.Nil(t, model.dialog(), "choose should close after esc")
 	assert.Empty(t, model.scriptRunners, "script should finish after choose cancel")
 }
 
@@ -1709,6 +1821,7 @@ func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing
 	cmd := model.Update(common.RunLuaScriptMsg{Script: `
 		revisions.details.close()
 		revisions.jump_to_parent()
+		selection_after_jump = context.change_id()
 		revisions.open_details()
 	`})
 	require.NotNil(t, cmd)
@@ -1716,6 +1829,7 @@ func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing
 
 	require.NotNil(t, model.revisions.SelectedRevision())
 	assert.Equal(t, "parent", model.revisions.SelectedRevision().GetChangeId())
+	assert.Equal(t, lua.LString("parent"), ctx.ScriptVM.GetGlobal("selection_after_jump"))
 	assert.Equal(t, "details", model.revisions.CurrentOperation().Name())
 	assert.Empty(t, model.scriptRunners)
 }
@@ -1749,16 +1863,26 @@ func Test_Update_ExecHistoryUpDownNavigationInStatusInputScope(t *testing.T) {
 
 	model := NewUI(ctx)
 
+	model.width = 60
+	model.height = 10
 	model.Update(tea.KeyPressMsg{Text: "$", Code: '$'})
-	assert.True(t, model.status.IsFocused(), "exec shell should focus status input")
+	_, ok := model.dialog().(*exec_prompt.Model)
+	assert.True(t, ok, "exec shell should open the exec prompt")
+	assert.True(t, hasScope(model, string(actions.ScopeStatusInput)))
+
+	inputLine := func() string {
+		lines := strings.Split(ansi.Strip(model.View()), "\n")
+		return strings.TrimSpace(lines[len(lines)-2])
+	}
+	initial := inputLine()
 
 	model.Update(tea.KeyPressMsg{Code: tea.KeyUp})
-	firstNav := model.status.InputValue()
-	assert.NotEmpty(t, firstNav, "up should navigate to a history command")
+	firstNav := inputLine()
+	assert.NotEqual(t, initial, firstNav, "up should navigate to a history command")
 
 	model.Update(tea.KeyPressMsg{Code: tea.KeyDown})
-	secondNav := model.status.InputValue()
-	assert.NotEmpty(t, secondNav, "down should navigate to a history command")
+	secondNav := inputLine()
+	assert.NotEqual(t, initial, secondNav, "down should navigate to a history command")
 	assert.NotEqual(t, firstNav, secondNav, "down should move to a different history entry")
 }
 
@@ -1887,11 +2011,11 @@ func Test_Update_DetailsCloseClearsSelectedFiles(t *testing.T) {
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
 
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
-	require.Len(t, ctx.CheckedItems, 1, "details selection should be tracked before close")
+	require.Len(t, ctx.Selection().Checked, 1, "details selection should be tracked before close")
 
 	test.SimulateModel(model, test.Press(tea.KeyEsc))
 	assert.True(t, model.revisions.InNormalMode(), "esc should close details")
-	assert.Empty(t, ctx.CheckedItems, "closing details should clear selected files from context")
+	assert.Empty(t, ctx.Selection().Checked, "closing details should clear selected files from context")
 }
 
 func Test_Update_RestoreDetailsOperationResyncsSelectedFiles(t *testing.T) {
@@ -1910,13 +2034,13 @@ func Test_Update_RestoreDetailsOperationResyncsSelectedFiles(t *testing.T) {
 	test.SimulateModel(model, op.Init())
 
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
-	require.Len(t, ctx.CheckedItems, 1, "details selection should be tracked before close")
+	require.Len(t, ctx.Selection().Checked, 1, "details selection should be tracked before close")
 
 	model.Update(common.CloseViewMsg{})
-	assert.Empty(t, ctx.CheckedItems, "closing details should clear selected files from context")
+	assert.Empty(t, ctx.Selection().Checked, "closing details should clear selected files from context")
 
 	model.Update(common.RestoreOperationMsg{Operation: op})
-	assert.Len(t, ctx.CheckedItems, 1, "restoring details should resync checked files from the operation state")
+	assert.Len(t, ctx.Selection().Checked, 1, "restoring details should resync checked files from the operation state")
 }
 
 func Test_Update_DetailsEscClosesOperation(t *testing.T) {
@@ -2023,14 +2147,14 @@ func Test_Update_CommandErrorAfterClosingDetailsWithSelectedFiles_AllowsEscToDis
 	require.False(t, model.revisions.InNormalMode(), "details operation should be active")
 
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
-	require.Len(t, ctx.CheckedItems, 1, "details selection should be tracked before close")
+	require.Len(t, ctx.Selection().Checked, 1, "details selection should be tracked before close")
 
 	model.Update(common.CloseViewMsg{})
 	model.Update(common.CommandCompletedMsg{Err: errors.New("split failed")})
 
 	assert.True(t, model.revisions.InNormalMode(), "closing details should return to revisions")
 	assert.True(t, model.flash.Any(), "command failure should surface as a flash message")
-	assert.Empty(t, ctx.CheckedItems, "selected files should be cleared when leaving details")
+	assert.Empty(t, ctx.Selection().Checked, "selected files should be cleared when leaving details")
 
 	cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	assert.Nil(t, cmd, "esc should dismiss the flash instead of being consumed by stale checked items")
@@ -2320,4 +2444,26 @@ func Test_ResumeMsg_SkipsTerminalPaletteQueryWhenBackgroundBlendDisabled(t *test
 
 	_, foundPaletteRequest, _ := inspectTerminalRefresh(cmd)
 	assert.False(t, foundPaletteRequest)
+}
+
+func TestUpdate_FailedExecReopensPromptWithLine(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.Histories = config.NewHistories()
+	model := NewUI(ctx)
+	model.width = 40
+	model.height = 5
+
+	model.Update(common.ExecProcessCompletedMsg{Msg: common.ExecMsg{Line: "status", Mode: common.ExecJJ}})
+	assert.Nil(t, model.dialog(), "successful exec should not reopen the prompt")
+
+	model.Update(common.ExecProcessCompletedMsg{
+		Err: errors.New("exit status 1"),
+		Msg: common.ExecMsg{Line: "bogus-subcommand", Mode: common.ExecShell},
+	})
+	_, ok := model.dialog().(*exec_prompt.Model)
+	require.True(t, ok, "failed exec should reopen the exec prompt")
+	assert.True(t, hasScope(model, string(actions.ScopeStatusInput)))
+	view := ansi.Strip(model.View())
+	assert.Contains(t, view, "exec sh")
+	assert.Contains(t, view, "$ bogus-subcommand")
 }

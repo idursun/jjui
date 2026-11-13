@@ -2,7 +2,7 @@ package intents
 
 import "github.com/idursun/jjui/internal/jj"
 
-//jjui:bind scope=revisions action=open_annotation
+//jjui:bind scope=revisions action=open_annotation when="revisions.has_revision && !revisions.is_root && !revisions.is_empty"
 type OpenAnnotation struct {
 	Selected *jj.Commit
 }
@@ -86,22 +86,22 @@ type AnnotationToggleWrap struct{}
 
 func (AnnotationToggleWrap) isIntent() {}
 
-//jjui:bind scope=annotation action=add
+//jjui:bind scope=annotation action=add when="annotation.can_annotate"
 type AnnotationAdd struct{}
 
 func (AnnotationAdd) isIntent() {}
 
-//jjui:bind scope=annotation action=delete
+//jjui:bind scope=annotation action=delete when="annotation.has_annotation_at_cursor"
 type AnnotationDelete struct{}
 
 func (AnnotationDelete) isIntent() {}
 
-//jjui:bind scope=annotation action=clear
+//jjui:bind scope=annotation action=clear when="annotation.has_annotations"
 type AnnotationClear struct{}
 
 func (AnnotationClear) isIntent() {}
 
-//jjui:bind scope=annotation action=copy
+//jjui:bind scope=annotation action=copy when="annotation.has_annotations"
 type AnnotationCopy struct{}
 
 func (AnnotationCopy) isIntent() {}

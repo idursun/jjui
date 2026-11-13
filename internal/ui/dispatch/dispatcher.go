@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/idursun/jjui/internal/ui/actionmeta"
 	"github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 )
@@ -34,7 +35,11 @@ type candidate struct {
 
 // Dispatcher resolves key presses against active scopes and bindings.
 type Dispatcher struct {
-	bindings map[bindings.ScopeName][]bindings.Binding
+	bindings        map[bindings.ScopeName][]bindings.Binding
+	conditions      map[string]actionmeta.Condition
+	builtInActions  map[bindings.Action]actionmeta.Condition
+	actionOverrides map[bindings.Action]actionmeta.Condition
+	state           common.StateProvider
 
 	buffered   []tea.Key
 	candidates []candidate
@@ -45,11 +50,82 @@ func NewDispatcher(availableBindings []bindings.Binding) (*Dispatcher, error) {
 		return nil, err
 	}
 
-	d := &Dispatcher{bindings: make(map[bindings.ScopeName][]bindings.Binding)}
+	d := &Dispatcher{
+		bindings:        make(map[bindings.ScopeName][]bindings.Binding),
+		conditions:      make(map[string]actionmeta.Condition),
+		builtInActions:  make(map[bindings.Action]actionmeta.Condition),
+		actionOverrides: make(map[bindings.Action]actionmeta.Condition),
+	}
+	for _, action := range actionmeta.BuiltInActions() {
+		when := actionmeta.ActionWhen(action)
+		if when == "" {
+			continue
+		}
+		condition, _ := actionmeta.ParseCondition(when)
+		d.builtInActions[bindings.Action(action)] = condition
+	}
 	for _, binding := range availableBindings {
+		d.conditions[binding.When], _ = actionmeta.ParseCondition(binding.When)
 		d.bindings[binding.Scope] = append(d.bindings[binding.Scope], binding)
 	}
 	return d, nil
+}
+
+func (d *Dispatcher) SetStateProvider(state common.StateProvider) { d.state = state }
+
+// SetActionWhen sets the state condition that controls an action's availability.
+func (d *Dispatcher) SetActionWhen(action bindings.Action, when string) {
+	if d == nil {
+		return
+	}
+	condition, err := actionmeta.ParseCondition(when)
+	if err != nil {
+		delete(d.actionOverrides, action)
+		return
+	}
+	if strings.TrimSpace(when) == "" {
+		delete(d.actionOverrides, action)
+		return
+	}
+	d.actionOverrides[action] = condition
+}
+
+// ActionEnabled reports whether the action's declared state condition matches.
+func (d *Dispatcher) ActionEnabled(action bindings.Action) bool {
+	if d == nil {
+		return true
+	}
+	if condition, ok := d.actionOverrides[action]; ok {
+		return condition.Matches(d.state)
+	}
+	return d.BuiltInActionEnabled(action)
+}
+
+// BuiltInActionEnabled tests only generated built-in availability, ignoring
+// conditions attached to configured Lua overrides.
+func (d *Dispatcher) BuiltInActionEnabled(action bindings.Action) bool {
+	if d == nil {
+		return true
+	}
+	condition, ok := d.builtInActions[action]
+	return !ok || condition.Matches(d.state)
+}
+
+func (d *Dispatcher) enabled(binding bindings.Binding) bool {
+	return d.conditions[binding.When].Matches(d.state) && d.ActionEnabled(binding.Action)
+}
+
+// Continuations refreshes pending candidates against live state and visible scopes.
+// An empty sequence remains pending until the next key is swallowed or cancelled.
+func (d *Dispatcher) Continuations(scopes []common.Scope) []Continuation {
+	return d.pendingContinuations(d.eligibleCandidates(scopes))
+}
+
+func (d *Dispatcher) eligibleCandidates(scopes []common.Scope) []candidate {
+	visible := common.VisibleScopes(scopes)
+	return slices.DeleteFunc(slices.Clone(d.candidates), func(c candidate) bool {
+		return !d.enabled(c.binding) || !slices.ContainsFunc(visible, func(s common.Scope) bool { return s.Name == c.scope })
+	})
 }
 
 func (d *Dispatcher) ResetSequence() {
@@ -65,8 +141,8 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []common.Scope) ResolveResul
 	}
 	key := msg.Key()
 
-	if len(d.candidates) > 0 {
-		return d.resolveSequenceKey(key)
+	if len(d.buffered) > 0 {
+		return d.resolveSequenceKey(key, d.eligibleCandidates(scopes))
 	}
 
 	seqCandidates := d.initialSequenceCandidates(key, scopes)
@@ -76,7 +152,7 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []common.Scope) ResolveResul
 		return ResolveResult{
 			Pending:       true,
 			Consumed:      true,
-			Continuations: d.pendingContinuations(),
+			Continuations: d.pendingContinuations(d.candidates),
 		}
 	}
 
@@ -84,7 +160,7 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []common.Scope) ResolveResul
 		scopeBindings := d.bindings[scope.Name]
 		for _, binding := range slices.Backward(scopeBindings) {
 
-			if len(binding.Key) == 0 {
+			if len(binding.Key) == 0 || !d.enabled(binding) {
 				continue
 			}
 			for _, candidateKey := range binding.Key {
@@ -98,7 +174,7 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []common.Scope) ResolveResul
 	return ResolveResult{}
 }
 
-func (d *Dispatcher) resolveSequenceKey(key tea.Key) ResolveResult {
+func (d *Dispatcher) resolveSequenceKey(key tea.Key, candidates []candidate) ResolveResult {
 	if keyMatches("esc", key) {
 		d.ResetSequence()
 		return ResolveResult{Consumed: true}
@@ -106,7 +182,7 @@ func (d *Dispatcher) resolveSequenceKey(key tea.Key) ResolveResult {
 
 	nextBuffer := append(append([]tea.Key(nil), d.buffered...), key)
 	filtered := make([]candidate, 0, len(d.candidates))
-	for _, c := range d.candidates {
+	for _, c := range candidates {
 		if isPrefix(c.binding.Seq, nextBuffer) {
 			filtered = append(filtered, c)
 		}
@@ -148,7 +224,7 @@ func (d *Dispatcher) resolveSequenceKey(key tea.Key) ResolveResult {
 	return ResolveResult{
 		Pending:       true,
 		Consumed:      true,
-		Continuations: d.pendingContinuations(),
+		Continuations: d.pendingContinuations(d.candidates),
 	}
 }
 
@@ -156,7 +232,7 @@ func (d *Dispatcher) initialSequenceCandidates(key tea.Key, scopes []common.Scop
 	var candidates []candidate
 	for _, scope := range common.VisibleScopes(scopes) {
 		for _, binding := range d.bindings[scope.Name] {
-			if len(binding.Seq) > 0 && keyMatches(binding.Seq[0], key) {
+			if d.enabled(binding) && len(binding.Seq) > 0 && keyMatches(binding.Seq[0], key) {
 				candidates = append(candidates, candidate{scope: scope.Name, binding: binding})
 			}
 		}
@@ -164,14 +240,14 @@ func (d *Dispatcher) initialSequenceCandidates(key tea.Key, scopes []common.Scop
 	return candidates
 }
 
-func (d *Dispatcher) pendingContinuations() []Continuation {
+func (d *Dispatcher) pendingContinuations(candidates []candidate) []Continuation {
 	type entry struct {
 		cont  Continuation
 		descs []string
 	}
 	order := make([]string, 0, len(d.candidates))
 	byKey := make(map[string]*entry, len(d.candidates))
-	for _, c := range d.candidates {
+	for _, c := range candidates {
 		idx := len(d.buffered)
 		if idx >= len(c.binding.Seq) {
 			continue

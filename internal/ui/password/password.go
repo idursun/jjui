@@ -9,11 +9,13 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var _ common.ImmediateModel = (*Model)(nil)
 
 type Model struct {
+	id         uint64
 	textInput  textinput.Model
 	passwordCh chan<- []byte
 }
@@ -21,15 +23,20 @@ type Model struct {
 func New(msg common.TogglePasswordMsg) *Model {
 	ti := textinput.New()
 	ti.Prompt = msg.Prompt
-	ti.EchoMode = textinput.EchoPassword
+	if msg.EchoPassword {
+		ti.EchoMode = textinput.EchoPassword
+	}
 	ti.SetVirtualCursor(false)
 	ti.Focus()
 
 	return &Model{
+		id:         msg.ID,
 		textInput:  ti,
 		passwordCh: msg.Password,
 	}
 }
+
+func (m *Model) ID() uint64 { return m.id }
 
 func (m *Model) Scopes() []common.Scope {
 	return []common.Scope{
@@ -45,12 +52,12 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent.(type) {
 	case intents.Cancel:
 		return func() tea.Msg {
-			return common.TogglePasswordMsg{}
+			return common.TogglePasswordMsg{ID: m.id}
 		}, true
 	case intents.Apply:
 		m.passwordCh <- []byte(m.textInput.Value())
 		return func() tea.Msg {
-			return common.TogglePasswordMsg{}
+			return common.TogglePasswordMsg{ID: m.id}
 		}, true
 	}
 	return nil, false
@@ -76,11 +83,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	borderStyle := common.DefaultPalette.GetBorder("password", "", "border", false, lipgloss.NormalBorder()).Padding(1)
-	surfaceStyle := common.DefaultPalette.Get("password", "", "", false)
+	dl.AddBackdrop(box.R, render.ZPassword-1)
+	borderStyle := theme.DefaultPalette.GetBorder("password", "", "border", false, lipgloss.NormalBorder()).Padding(1)
+	surfaceStyle := theme.DefaultPalette.Get("password", "", "", false)
 	ps := m.textInput.Styles()
-	ps.Focused.Prompt = common.DefaultPalette.Get("password", "", "title", false)
-	ps.Blurred.Prompt = common.DefaultPalette.Get("password", "", "title", false)
+	ps.Focused.Prompt = theme.DefaultPalette.Get("password", "", "title", false)
+	ps.Blurred.Prompt = theme.DefaultPalette.Get("password", "", "title", false)
 	m.textInput.SetStyles(ps)
 
 	v := borderStyle.Width(max(box.R.Dx()-2, 0)).Render(m.textInput.View())

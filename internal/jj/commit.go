@@ -5,14 +5,21 @@ const (
 )
 
 type Commit struct {
-	ChangeId      string
-	IsWorkingCopy bool
-	Hidden        bool
-	CommitId      string
+	ChangeId          string
+	IsWorkingCopy     bool
+	Hidden            bool
+	HasBookmarks      bool
+	HasLocalBookmarks bool
+	HasWorkspace      bool
+	Root              bool
+	IsEmpty           bool
+	CommitId          string
 }
 
 func (c Commit) IsRoot() bool {
-	return c.ChangeId == RootChangeId
+	// The log template displays shortened change IDs, so the root ID in a
+	// parsed row is not necessarily the canonical RootChangeId.
+	return c.Root || c.ChangeId == RootChangeId
 }
 
 func (c Commit) GetChangeId() string {

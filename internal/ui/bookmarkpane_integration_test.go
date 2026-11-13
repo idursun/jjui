@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actions"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
@@ -36,6 +37,55 @@ func bookmarkPaneFocused(model *Model) bool {
 
 func bookmarkPaneVisible(model *Model) bool {
 	return strings.Contains(renderSplitView(model, 100, 20), "Bookmarks")
+}
+
+func Test_BookmarkPaneReadlineNavigation(t *testing.T) {
+	model := newBookmarkPaneModel(t, "local;.;true;false;false;false;abc123\nremote;origin;true;true;false;false;def456\n")
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	require.True(t, bookmarkPaneFocused(model))
+
+	for _, step := range []struct {
+		key      rune
+		hasLocal bool
+	}{
+		{'p', true},  // Clamp at the first bookmark.
+		{'n', false}, // Move to the remote-only bookmark.
+		{'n', false}, // Clamp at the last bookmark.
+		{'p', true},  // Return to the local bookmark.
+	} {
+		test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: step.key, Mod: tea.ModCtrl}))
+		value, ok := model.QueryState("bookmark_pane.has_local_bookmark")
+		require.True(t, ok)
+		assert.Equal(t, step.hasLocal, value, "after ctrl+%c", step.key)
+	}
+}
+
+func Test_GitOverlayDoesNotHideBehindBookmarkPane(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("main;.;true;false;false;false;abc123\n"))
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin\n"))
+	t.Cleanup(commandRunner.Verify)
+	model := NewUI(test.NewTestContext(commandRunner))
+	test.SimulateModel(model, model.Update(intents.ToggleBookmarkPane{}))
+	test.SimulateModel(model, model.Update(intents.FocusNextPane{}))
+	_, handled := model.HandleIntent(intents.OpenGit{})
+	require.True(t, handled)
+	require.Equal(t, bookmarkContentID, model.splitContainer.ActiveID(), "opening Git should preserve the bookmark pane")
+
+	model.width, model.height = 100, 24
+	view := ansi.Strip(model.View())
+	lines := strings.Split(view, "\n")
+	// At this width the Git modal spans the split boundary. Its right border
+	// must be visible even where the bookmark pane fills the background.
+	border := []rune(lines[2])
+	assert.Equal(t, '│', border[88], "Git modal's right border was obscured:\n%s", view)
+	assert.Contains(t, view, "Git Operations")
+	assert.NotContains(t, lines[1], "Bookmarks", "bookmark title must stay behind Git's top border")
+
+	// Closing Git reveals the still-open bookmark pane without reopening it.
+	test.SimulateModel(model, func() tea.Msg { return common.CloseViewMsg{} })
+	require.Equal(t, bookmarkContentID, model.splitContainer.ActiveID())
+	assert.Contains(t, renderSplitView(model, 100, 20), "Bookmarks")
 }
 
 func Test_ToggleBookmarkPane_OpensFocusedPaneAndTabReturnsFocusToRevisions(t *testing.T) {
@@ -71,8 +121,8 @@ func Test_BookmarkPaneShortcutsDoNotShadowRevisionsWhenRevisionsFocused(t *testi
 	require.False(t, bookmarkPaneFocused(model))
 	require.True(t, model.revisions.IsFocused())
 
-	result := model.resolver.ResolveKey(tea.KeyPressMsg{Text: "r", Code: 'r'}, model.dispatchScopes())
-	_, ok := result.Intent.(intents.OpenRebase)
+	result := model.resolver.ResolveKey(tea.KeyPressMsg{Text: "p", Code: 'p'}, model.dispatchScopes())
+	_, ok := result.Intent.(intents.PreviewToggle)
 	assert.True(t, ok, "revision shortcuts should win while revisions are focused")
 }
 

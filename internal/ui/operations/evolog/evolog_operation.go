@@ -15,6 +15,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 type updateEvologMsg struct {
@@ -30,7 +31,8 @@ type EvologScrollMsg struct {
 	Horizontal bool
 }
 
-func (e EvologScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
+func newEvologScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
 	return EvologScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
@@ -162,7 +164,7 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return func() tea.Msg {
 			selectedCommitId := o.getSelectedEvolog().CommitId
 			args := jj.Diff(selectedCommitId, jj.FileName{})
-			output, _ := o.context.RunCommandImmediate(args)
+			output, _ := o.context.RunCommandImmediateWithEnv(args, o.context.DiffEnv())
 			return intents.DiffShow{Content: string(output), Args: args}
 		}, true
 	case intents.EvologRestore:
@@ -231,10 +233,10 @@ func (o *Operation) Selection() common.SelectionSnapshot {
 func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
 	if o.mode == restoreMode && pos == operations.RenderPositionBefore && o.target != nil && o.target.GetChangeId() == commit.GetChangeId() {
 
-		dimmedStyle := common.DefaultPalette.Get("evolog", "", "dimmed", false)
-		commitIdStyle := common.DefaultPalette.Get("evolog", "", "commit_id", false)
-		changeIdStyle := common.DefaultPalette.Get("evolog", "", "change_id", false)
-		markerStyle := common.DefaultPalette.Get("evolog", "", "target_marker", false)
+		dimmedStyle := theme.DefaultPalette.Get("evolog", "", "dimmed", false)
+		commitIdStyle := theme.DefaultPalette.Get("evolog", "", "commit_id", false)
+		changeIdStyle := theme.DefaultPalette.Get("evolog", "", "change_id", false)
+		markerStyle := theme.DefaultPalette.Get("evolog", "", "target_marker", false)
 
 		selectedCommitId := o.getSelectedEvolog().CommitId
 		return lipgloss.JoinHorizontal(0,
@@ -299,7 +301,7 @@ func NewOperation(context *context.MainContext, revision *jj.Commit) *Operation 
 		target:     revision,
 		rows:       nil,
 		cursor:     0,
-		dlRenderer: render.NewListRenderer(EvologScrollMsg{}),
+		dlRenderer: render.NewListRenderer(newEvologScrollMsg),
 	}
 	return o
 }
@@ -311,12 +313,12 @@ func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if len(o.rows) == 0 {
 		content := "loading"
 		lineRect := layout.Rect(rect.Min.X, rect.Min.Y, rect.Dx(), 1)
-		dl.AddFill(lineRect, ' ', common.DefaultPalette.Get("evolog", "", "text", false), 0)
+		dl.AddFill(lineRect, ' ', theme.DefaultPalette.Get("evolog", "", "text", false), 0)
 		dl.AddDraw(lineRect, content, 0, render.PreserveBackground())
 		return
 	}
-	textStyle := common.DefaultPalette.Get("evolog", "", "text", false)
-	selectedStyle := common.DefaultPalette.GetBlended("evolog", "", "", true)
+	textStyle := theme.DefaultPalette.Get("evolog", "", "text", false)
+	selectedStyle := theme.DefaultPalette.GetBlended("evolog", "", "", true)
 
 	totalHeight := 0
 	for _, row := range o.rows {

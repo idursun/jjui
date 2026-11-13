@@ -8,10 +8,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,7 +23,7 @@ const (
 )
 
 func TestConfirmationWithoutStyleScope(t *testing.T) {
-	palette := common.NewPalette()
+	palette := theme.NewPalette()
 	palette.Update(map[string]config.Color{
 		"confirmation text":             {Fg: White},
 		"confirmation:selected":         {Fg: Green},
@@ -31,9 +31,9 @@ func TestConfirmationWithoutStyleScope(t *testing.T) {
 		"details confirmation:selected": {Fg: Red},
 	})
 
-	originalPalette := common.DefaultPalette
-	common.DefaultPalette = palette
-	defer func() { common.DefaultPalette = originalPalette }()
+	originalPalette := theme.DefaultPalette
+	theme.DefaultPalette = palette
+	defer func() { theme.DefaultPalette = originalPalette }()
 
 	defaultModel := New([]string{"Test message"})
 	assert.Equal(t, lipgloss.Color(White), defaultModel.Styles.Text.GetForeground())
@@ -41,7 +41,7 @@ func TestConfirmationWithoutStyleScope(t *testing.T) {
 }
 
 func TestConfirmationWithStyleScope(t *testing.T) {
-	palette := common.NewPalette()
+	palette := theme.NewPalette()
 	palette.Update(map[string]config.Color{
 		"confirmation text":             {Fg: White},
 		"confirmation:selected":         {Fg: Green},
@@ -49,9 +49,9 @@ func TestConfirmationWithStyleScope(t *testing.T) {
 		"details confirmation:selected": {Fg: Red},
 	})
 
-	originalPalette := common.DefaultPalette
-	common.DefaultPalette = palette
-	defer func() { common.DefaultPalette = originalPalette }()
+	originalPalette := theme.DefaultPalette
+	theme.DefaultPalette = palette
+	defer func() { theme.DefaultPalette = originalPalette }()
 
 	detailsModel := New(
 		[]string{"Test message"},

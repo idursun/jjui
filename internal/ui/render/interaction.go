@@ -24,94 +24,66 @@ type InteractionOp struct {
 	Z     int                        // Z-index for overlapping regions (higher = priority)
 }
 
-// ScrollDeltaCarrier is an interface for messages that carry scroll delta information.
-// The ProcessMouseEvent function will set the Delta field for scroll interactions.
-type ScrollDeltaCarrier interface {
-	SetDelta(delta int, horizontal bool) tea.Msg
+// WheelDelta converts a mouse wheel event into a scroll delta.
+// It returns a zero delta for events that are not wheel scrolls.
+func WheelDelta(msg tea.MouseMsg) (delta int, horizontal bool) {
+	switch msg.Mouse().Button {
+	case tea.MouseWheelUp:
+		return -3, false
+	case tea.MouseWheelDown:
+		return 3, false
+	case tea.MouseWheelLeft:
+		return -3, true
+	case tea.MouseWheelRight:
+		return 3, true
+	}
+	return 0, false
 }
 
-// DragStartCarrier is an interface for messages that carry drag start coordinates.
-// The ProcessMouseEvent function will set the drag start position for drag interactions.
-type DragStartCarrier interface {
-	SetDragStart(x, y int) tea.Msg
-}
-
-type interactionMatcher func(interactionOp) bool
-
-func processMouseEvent(interactions []interactionOp, msg tea.MouseMsg, match interactionMatcher) (tea.Msg, bool) {
+func processMouseEvent(interactions []interactionOp, msg tea.MouseMsg) (tea.Msg, bool) {
 	mouse := msg.Mouse()
+	pos := layout.Pos(mouse.X, mouse.Y)
 	switch msg.(type) {
 	case tea.MouseClickMsg:
-		if mouse.Button == tea.MouseLeft {
-			// Find highest-Z draggable region containing this point
-			for _, interaction := range interactions {
-				if !match(interaction) || interaction.Type&InteractionDrag == 0 {
-					continue
-				}
-				if mouse.X >= interaction.Rect.Min.X && mouse.X < interaction.Rect.Max.X &&
-					mouse.Y >= interaction.Rect.Min.Y && mouse.Y < interaction.Rect.Max.Y {
-					if interaction.MsgFn != nil {
-						return interaction.MsgFn(msg), true
-					}
-					if carrier, ok := interaction.Msg.(DragStartCarrier); ok {
-						return carrier.SetDragStart(mouse.X, mouse.Y), true
-					}
-					return interaction.Msg, true
-				}
+		if mouse.Button != tea.MouseLeft {
+			return nil, false
+		}
+		// Find highest-Z draggable region containing this point
+		if interaction, ok := findInteraction(interactions, pos, InteractionDrag); ok {
+			if interaction.MsgFn != nil {
+				return interaction.MsgFn(msg), true
 			}
-
-			// Find highest-Z clickable region containing this point
-			for _, interaction := range interactions {
-				if !match(interaction) || interaction.Type&InteractionClick == 0 {
-					continue
-				}
-				if mouse.X >= interaction.Rect.Min.X && mouse.X < interaction.Rect.Max.X &&
-					mouse.Y >= interaction.Rect.Min.Y && mouse.Y < interaction.Rect.Max.Y {
-					if interaction.MsgFn != nil {
-						return interaction.MsgFn(msg), true
-					}
-					return interaction.Msg, true
-				}
+			return interaction.Msg, true
+		}
+		// Find highest-Z clickable region containing this point
+		if interaction, ok := findInteraction(interactions, pos, InteractionClick); ok {
+			if interaction.MsgFn != nil {
+				return interaction.MsgFn(msg), true
 			}
+			return interaction.Msg, true
 		}
 	case tea.MouseWheelMsg:
-		switch mouse.Button {
-		case tea.MouseWheelUp, tea.MouseWheelDown:
-			delta := -3
-			if mouse.Button == tea.MouseWheelDown {
-				delta = 3
+		if delta, _ := WheelDelta(msg); delta == 0 {
+			return nil, false
+		}
+		if interaction, ok := findInteraction(interactions, pos, InteractionScroll); ok {
+			if interaction.MsgFn != nil {
+				return interaction.MsgFn(msg), true
 			}
-			for _, interaction := range interactions {
-				if !match(interaction) || interaction.Type&InteractionScroll == 0 {
-					continue
-				}
-				if mouse.X >= interaction.Rect.Min.X && mouse.X < interaction.Rect.Max.X &&
-					mouse.Y >= interaction.Rect.Min.Y && mouse.Y < interaction.Rect.Max.Y {
-					if carrier, ok := interaction.Msg.(ScrollDeltaCarrier); ok {
-						return carrier.SetDelta(delta, false), true
-					}
-					return interaction.Msg, true
-				}
-			}
-		case tea.MouseWheelLeft, tea.MouseWheelRight:
-			delta := -3
-			if mouse.Button == tea.MouseWheelRight {
-				delta = 3
-			}
-			for _, interaction := range interactions {
-				if !match(interaction) || interaction.Type&InteractionScroll == 0 {
-					continue
-				}
-				if mouse.X >= interaction.Rect.Min.X && mouse.X < interaction.Rect.Max.X &&
-					mouse.Y >= interaction.Rect.Min.Y && mouse.Y < interaction.Rect.Max.Y {
-					if carrier, ok := interaction.Msg.(ScrollDeltaCarrier); ok {
-						return carrier.SetDelta(delta, true), true
-					}
-					return interaction.Msg, true
-				}
-			}
+			return interaction.Msg, true
 		}
 	}
 
 	return nil, false
+}
+
+// findInteraction returns the first interaction of the given type containing pos.
+// Interactions are expected to be sorted by priority.
+func findInteraction(interactions []interactionOp, pos layout.Position, typ InteractionType) (interactionOp, bool) {
+	for _, interaction := range interactions {
+		if interaction.Type&typ != 0 && pos.In(interaction.Rect) {
+			return interaction, true
+		}
+	}
+	return interactionOp{}, false
 }

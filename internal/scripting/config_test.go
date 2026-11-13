@@ -120,6 +120,28 @@ end
 	assert.Contains(t, err.Error(), "opts.scope is required")
 }
 
+func TestRunSetupActionWhenIsAvailabilityAndNotBindingFilter(t *testing.T) {
+	ctx := setupVM(t)
+	cfg := *config.Current
+
+	err := RunSetup(ctx, &cfg, `
+function setup(config)
+  config.action("available-action", function() end, {
+    key = "x",
+    scope = "revisions",
+    when = "revisions.has_revision",
+  })
+end
+`)
+	require.NoError(t, err)
+	action, ok := findActionByName(cfg.Actions, "available-action")
+	require.True(t, ok)
+	assert.Equal(t, "revisions.has_revision", action.When)
+	binding, ok := findBinding(cfg.Bindings, "available-action", "revisions")
+	require.True(t, ok)
+	assert.Empty(t, binding.When)
+}
+
 func TestRunSetupCanRequirePluginFromConfigDir(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("JJUI_CONFIG_DIR", configDir)

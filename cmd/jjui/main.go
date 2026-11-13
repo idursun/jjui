@@ -12,18 +12,19 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"sync/atomic"
 	"unicode"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/askpass"
-	"github.com/idursun/jjui/internal/ui/common"
-
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/scripting"
-	"github.com/idursun/jjui/internal/ui/context"
-
-	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/ui"
+	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/context"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var Version string
@@ -218,21 +219,21 @@ func run() int {
 		}
 	}
 
-	var theme config.ResolvedTheme
+	var resolvedTheme config.ResolvedTheme
 	if !appContext.TerminalThemeDetected {
 		appContext.TerminalHasDarkBackground = lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
 		appContext.TerminalThemeDetected = true
 	}
 
-	theme, err = config.ResolveTheme(appContext.TerminalHasDarkBackground, appContext.JJConfig.GetApplicableColors())
+	resolvedTheme, err = config.ResolveTheme(appContext.TerminalHasDarkBackground, appContext.JJConfig.GetApplicableColors())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading theme: %v\n", err)
 		return 1
 	}
-	appContext.ThemeBackgroundBlend = theme.BackgroundBlend
-	common.DefaultPalette.Update(theme.Colors)
-	common.DefaultPalette.ConfigureBackgroundBlend(
-		theme.BackgroundBlend,
+	appContext.ThemeBackgroundBlend = resolvedTheme.BackgroundBlend
+	theme.DefaultPalette.Update(resolvedTheme.Colors)
+	theme.DefaultPalette.ConfigureBackgroundBlend(
+		resolvedTheme.BackgroundBlend,
 		appContext.TerminalBackground,
 		appContext.TerminalPalette,
 	)
@@ -253,17 +254,19 @@ func run() int {
 	appContext.CurrentRevset = appContext.DefaultRevset
 
 	p := tea.NewProgram(ui.New(appContext), tea.WithInput(os.Stdin))
-	if config.Current.Ssh.HijackAskpass {
-		if err := askpassServer.StartListening(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: ssh.hijack_askpass: %v\n", err)
+	stopThemeReload := watchThemeReloadSignals(p)
+	defer stopThemeReload()
+	if config.Current.AskpassEnabled() {
+		switch err := askpassServer.StartListening(); {
+		case err == nil:
+			defer askpassServer.Close()
+			go askpassServer.Serve(showPassword(p.Send))
+		case errors.Is(err, askpass.ErrUnsupported):
+			// run without askpass; jj prompts the usual way
+		default:
+			fmt.Fprintf(os.Stderr, "Error: askpass.enabled: %v\n", err)
 			return 1
 		}
-		defer askpassServer.Close()
-
-		go askpassServer.Serve(showPassword(p.Send))
-
-		// uncomment the line below to show a fake prompt upon startup
-		// go showPassword(p.Send)("test", "Enter PIN for 'ssh': ", make(<-chan struct{}))
 	}
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error running program: %v\n", err)
@@ -273,28 +276,52 @@ func run() int {
 }
 
 func showPassword(send func(tea.Msg)) func(name, prompt string, done <-chan struct{}) []byte {
-	adjustPrompt := func(s string) string {
-		// ensure that the prompt is not only made of spaces
-		for _, r := range s {
-			if !unicode.IsSpace(r) {
-				return s
-			}
-		}
-		return "ssh-askpass: "
-	}
+	var promptID atomic.Uint64
 	return func(name, prompt string, done <-chan struct{}) []byte {
+		id := promptID.Add(1)
 		password := make(chan []byte, 1)
 		send(common.TogglePasswordMsg{
-			Prompt:   adjustPrompt(prompt),
-			Password: password,
+			ID:           id,
+			Prompt:       adjustAskpassPrompt(prompt),
+			Password:     password,
+			EchoPassword: isSecretPrompt(prompt),
 		})
 
 		select {
 		case <-done:
-			send(common.TogglePasswordMsg{})
+			send(common.TogglePasswordMsg{ID: id})
 			return nil
 		case pw := <-password:
 			return pw
 		}
 	}
+}
+
+func adjustAskpassPrompt(prompt string) string {
+	prompt = ansi.Strip(prompt)
+	prompt = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, prompt)
+	prompt = strings.TrimSpace(prompt)
+	if prompt == "" {
+		return "askpass: "
+	}
+	if strings.HasSuffix(prompt, ":") {
+		prompt += " "
+	}
+	const maxPromptLength = 200
+	if runes := []rune(prompt); len(runes) > maxPromptLength {
+		return string(runes[:maxPromptLength]) + "…"
+	}
+	return prompt
+}
+
+func isSecretPrompt(prompt string) bool {
+	prompt = strings.ToLower(ansi.Strip(prompt))
+	return !strings.Contains(prompt, "username") &&
+		!strings.Contains(prompt, "user name") &&
+		!strings.Contains(prompt, "login")
 }

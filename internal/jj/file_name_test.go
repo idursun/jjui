@@ -42,6 +42,8 @@ func TestFileNameEscaped(t *testing.T) {
 		`a"quote.go`:  `file:"a\"quote.go"`,
 		`dir\file.go`: `file:"dir\\file.go"`,
 		`both\".go`:   `file:"both\\\".go"`,
+		"src/pkg/":    `root:"src/pkg/"`,
+		`a "dir"/`:    `root:"a \"dir\"/"`,
 	}
 	for path, want := range tests {
 		assert.Equal(t, want, NewFileName(path).Escaped())

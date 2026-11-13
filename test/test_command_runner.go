@@ -18,6 +18,7 @@ import (
 
 type ExpectedCommand struct {
 	args   []string
+	env    []string
 	output []byte
 	called bool
 	err    error
@@ -30,6 +31,11 @@ func (e *ExpectedCommand) SetOutput(output []byte) *ExpectedCommand {
 
 func (e *ExpectedCommand) SetError(err error) *ExpectedCommand {
 	e.err = err
+	return e
+}
+
+func (e *ExpectedCommand) SetEnv(env []string) *ExpectedCommand {
+	e.env = env
 	return e
 }
 
@@ -59,8 +65,25 @@ func (t *CommandRunner) RunCommandImmediate(args []string) ([]byte, error) {
 	return nil, nil
 }
 
-func (t *CommandRunner) RunCommandImmediateWithEnv(args []string, _ []string) ([]byte, error) {
-	return t.RunCommandImmediate(args)
+func (t *CommandRunner) RunCommandImmediateWithEnv(args []string, env []string) ([]byte, error) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	subCommand := args[0]
+	expectations, ok := t.expectations[subCommand]
+	if !ok || len(expectations) == 0 {
+		assert.Fail(t, "unexpected command", subCommand)
+		return nil, nil
+	}
+
+	for _, e := range expectations {
+		if slices.Equal(e.args, args) && (e.env == nil || slices.Equal(e.env, env)) {
+			e.called = true
+			return e.output, e.err
+		}
+	}
+	assert.Fail(t, "unexpected command", subCommand)
+	return nil, nil
 }
 
 func (t *CommandRunner) RunCommandStreaming(_ context.Context, args []string) (*appContext.StreamingCommand, error) {
@@ -116,6 +139,10 @@ func (t *CommandRunner) Expect(args []string) *ExpectedCommand {
 	return e
 }
 
+func (t *CommandRunner) ExpectWithEnv(args []string, env []string) *ExpectedCommand {
+	return t.Expect(args).SetEnv(env)
+}
+
 func (t *CommandRunner) Verify() {
 	for subCommand, subCommandExpectations := range t.expectations {
 		for _, e := range subCommandExpectations {
@@ -148,6 +175,5 @@ func NewTestContext(commandRunner appContext.CommandRunner) *appContext.MainCont
 	return &appContext.MainContext{
 		CommandRunner: commandRunner,
 		JJConfig:      &config.JJConfig{},
-		SelectedItem:  nil,
 	}
 }

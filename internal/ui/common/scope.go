@@ -24,10 +24,11 @@ const (
 // Scope represents one routing layer in the intent dispatch chain.
 // Scopes are ordered from innermost (highest priority) to outermost.
 type Scope struct {
-	Name    keybindings.ScopeName
-	Leak    LeakPolicy
-	Global  bool
-	Handler ScopeHandler
+	Name         keybindings.ScopeName
+	Leak         LeakPolicy
+	Global       bool
+	HideFromHelp bool
+	Handler      ScopeHandler
 }
 
 type ScopeHandler interface {

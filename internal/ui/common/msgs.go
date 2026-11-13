@@ -3,7 +3,6 @@ package common
 import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/jj/source"
 )
 
@@ -13,6 +12,7 @@ type (
 	}
 	AutoRefreshMsg  struct{}
 	ThemeChangedMsg struct{}
+	ReloadThemeMsg  struct{}
 	RefreshMsg      struct {
 		SelectedRevision string
 		KeepSelections   bool
@@ -58,13 +58,6 @@ type (
 		Err error
 		Msg ExecMsg
 	}
-	FileSearchMsg struct {
-		Revset           string
-		Commit           *jj.Commit
-		RawFileOut       []byte // raw output from `jj file list`
-		RepoRoot         string
-		WorkingDirectory string
-	}
 	ShowPreview     struct{}
 	RunLuaScriptMsg struct {
 		Script       string
@@ -80,8 +73,10 @@ type (
 		ID string
 	}
 	TogglePasswordMsg struct {
-		Prompt   string
-		Password chan []byte
+		ID           uint64
+		Prompt       string
+		Password     chan []byte
+		EchoPassword bool
 	}
 	RestoreOperationMsg struct {
 		Operation any
@@ -167,18 +162,6 @@ func Refresh() tea.Msg {
 func UpdateRevSet(revset string) tea.Cmd {
 	return func() tea.Msg {
 		return UpdateRevSetMsg(revset)
-	}
-}
-
-func FileSearch(revset string, commit *jj.Commit, rawFileOut []byte, repoRoot, workingDirectory string) tea.Cmd {
-	return func() tea.Msg {
-		return FileSearchMsg{
-			Commit:           commit,
-			RawFileOut:       rawFileOut,
-			Revset:           revset,
-			RepoRoot:         repoRoot,
-			WorkingDirectory: workingDirectory,
-		}
 	}
 }
 

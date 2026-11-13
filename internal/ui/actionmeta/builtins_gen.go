@@ -3,6 +3,7 @@ package actionmeta
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -12,6 +13,10 @@ var builtInActionScopes = map[string][]string{
 	"annotation.child_revision":                     {"annotation"},
 	"annotation.clear":                              {"annotation"},
 	"annotation.comment_picker":                     {"annotation"},
+	"annotation.confirmation.apply":                 {"annotation.confirmation"},
+	"annotation.confirmation.cancel":                {"annotation.confirmation"},
+	"annotation.confirmation.next":                  {"annotation.confirmation"},
+	"annotation.confirmation.prev":                  {"annotation.confirmation"},
 	"annotation.copy":                               {"annotation"},
 	"annotation.delete":                             {"annotation"},
 	"annotation.editor.cancel":                      {"annotation.editor"},
@@ -233,6 +238,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.go_to_top":                           {"revisions"},
 	"revisions.inline_describe.accept":              {"revisions.inline_describe"},
 	"revisions.inline_describe.cancel":              {"revisions.inline_describe"},
+	"revisions.inline_describe.clear":               {"revisions.inline_describe"},
 	"revisions.inline_describe.confirmation.apply":  {"revisions.inline_describe.confirmation"},
 	"revisions.inline_describe.confirmation.cancel": {"revisions.inline_describe.confirmation"},
 	"revisions.inline_describe.confirmation.next":   {"revisions.inline_describe.confirmation"},
@@ -363,7 +369,63 @@ var builtInActionScopes = map[string][]string{
 	"undo.prev":                                     {"undo"},
 }
 
+var builtInActionConditions = map[string]string{
+	"annotation.add":                            "annotation.can_annotate",
+	"annotation.clear":                          "annotation.has_annotations",
+	"annotation.copy":                           "annotation.has_annotations",
+	"annotation.delete":                         "annotation.has_annotation_at_cursor",
+	"bookmark_pane.delete":                      "bookmark_pane.can_delete",
+	"bookmark_pane.edit":                        "bookmark_pane.has_bookmark",
+	"bookmark_pane.fetch":                       "bookmark_pane.has_bookmark",
+	"bookmark_pane.forget":                      "bookmark_pane.can_forget",
+	"bookmark_pane.move":                        "bookmark_pane.has_local_bookmark",
+	"bookmark_pane.new":                         "bookmark_pane.has_commit",
+	"bookmark_pane.push":                        "bookmark_pane.has_bookmark",
+	"bookmark_pane.rename":                      "bookmark_pane.has_local_bookmark",
+	"bookmark_pane.set_revset":                  "bookmark_pane.has_bookmark",
+	"bookmark_pane.show_in_revision":            "bookmark_pane.has_bookmark",
+	"bookmark_pane.toggle_expand":               "bookmark_pane.can_expand",
+	"bookmark_pane.toggle_select":               "bookmark_pane.has_bookmark",
+	"bookmark_pane.track":                       "bookmark_pane.has_bookmark",
+	"bookmark_pane.untrack":                     "bookmark_pane.can_untrack",
+	"revisions.commit":                          "revisions.working_copy_has_changes",
+	"revisions.describe":                        "revisions.has_selection",
+	"revisions.details.absorb":                  "revisions.details.has_selection",
+	"revisions.details.diff":                    "revisions.details.has_file",
+	"revisions.details.restore":                 "revisions.details.has_selection",
+	"revisions.details.revisions_changing_file": "revisions.details.has_file",
+	"revisions.details.split":                   "revisions.details.has_selection",
+	"revisions.details.split_parallel":          "revisions.details.has_selection",
+	"revisions.details.squash":                  "revisions.details.has_selection",
+	"revisions.details.toggle_select":           "revisions.details.has_file",
+	"revisions.diff":                            "revisions.has_revision && !revisions.is_empty",
+	"revisions.diff_edit":                       "revisions.has_revision",
+	"revisions.edit":                            "revisions.has_revision",
+	"revisions.force_edit":                      "revisions.has_revision",
+	"revisions.jump_to_children":                "revisions.has_revision",
+	"revisions.jump_to_parent":                  "revisions.has_selection && revisions.has_parent",
+	"revisions.open_abandon":                    "revisions.has_selection",
+	"revisions.open_absorb":                     "revisions.has_revision && !revisions.is_empty",
+	"revisions.open_annotation":                 "revisions.has_revision && !revisions.is_root && !revisions.is_empty",
+	"revisions.open_details":                    "revisions.has_revision",
+	"revisions.open_duplicate":                  "revisions.has_selection",
+	"revisions.open_evolog":                     "revisions.has_revision",
+	"revisions.open_inline_describe":            "revisions.has_revision",
+	"revisions.open_rebase":                     "revisions.has_revision",
+	"revisions.open_revert":                     "revisions.has_selection",
+	"revisions.open_set_parents":                "revisions.has_revision && !revisions.is_root",
+	"revisions.open_squash":                     "revisions.has_selection",
+	"revisions.split":                           "revisions.has_revision && !revisions.is_empty",
+	"revisions.split_parallel":                  "revisions.has_revision && !revisions.is_empty",
+	"revisions.toggle_select":                   "revisions.has_revision",
+	"ui.preview_expand":                         "ui.preview.can_expand",
+	"ui.preview_shrink":                         "ui.preview.can_shrink",
+}
+
 var builtInActionArgSchemas = map[string]map[string]string{
+	"annotation.confirmation.apply": {
+		"force": "bool",
+	},
 	"bookmark_pane.confirmation.apply": {
 		"force": "bool",
 	},
@@ -463,6 +525,10 @@ func ActionScopes(action string) []string {
 	return append([]string(nil), scopes...)
 }
 
+func ActionWhen(action string) string {
+	return builtInActionConditions[strings.TrimSpace(action)]
+}
+
 func ActionArgSchema(action string) map[string]string {
 	return builtInActionArgSchemas[action]
 }
@@ -518,14 +584,7 @@ func ValidateBuiltInActionArgs(action string, args map[string]any) error {
 					return fmt.Errorf("action %q arg %q expects string enum", action, key)
 				}
 				allowed := strings.Split(strings.TrimPrefix(expectedType, "enum:"), "|")
-				valid := false
-				for _, item := range allowed {
-					if s == item {
-						valid = true
-						break
-					}
-				}
-				if !valid {
+				if !slices.Contains(allowed, s) {
 					return fmt.Errorf("action %q arg %q invalid value %q (accepted: %s)", action, key, s, strings.Join(allowed, ", "))
 				}
 				continue

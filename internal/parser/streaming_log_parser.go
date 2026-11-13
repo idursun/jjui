@@ -28,7 +28,7 @@ func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batc
 		rawSegments := screen.ParseFromReader(reader)
 		for segmentedLine := range screen.BreakNewLinesIter(rawSegments) {
 			rowLine := NewGraphRowLine(segmentedLine)
-			changeIDIdx, changeID, commitID := rowLine.ParseRowPrefixes()
+			changeIDIdx, commit := rowLine.ParseRowPrefixes()
 			if changeIDIdx != -1 && changeIDIdx != len(rowLine.Segments)-1 {
 				previousRow := row
 				if len(rows) > batchSize {
@@ -52,8 +52,7 @@ func ParseRowsStreaming(reader io.Reader, controlChannel <-chan ControlMsg, batc
 				for j := range changeIDIdx {
 					row.Indent += utf8.RuneCountInString(rowLine.Segments[j].Text)
 				}
-				row.Commit.ChangeId = changeID
-				row.Commit.CommitId = commitID
+				row.Commit = commit
 			}
 			row.AddLine(&rowLine)
 		}

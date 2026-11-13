@@ -14,6 +14,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var _ operations.Operation = (*Model)(nil)
@@ -81,7 +82,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return nil, true
 		}
 
-		if slices.Contains(m.parents, m.current.CommitId) {
+		if slices.Contains(m.parents, m.current.GetChangeId()) {
 			if m.toRemove[m.current.GetChangeId()] {
 				delete(m.toRemove, m.current.GetChangeId())
 			} else {
@@ -101,14 +102,15 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return common.Close, true
 		}
 
-		parentsToAdd := slices.Clone(m.toAdd)
-		var parentsToRemove []string
-
-		for changeId := range m.toRemove {
-			parentsToRemove = append(parentsToRemove, changeId)
+		var parents []string
+		for _, changeId := range m.parents {
+			if !m.toRemove[changeId] {
+				parents = append(parents, changeId)
+			}
 		}
+		parents = append(parents, m.toAdd...)
 
-		return m.context.RunCommand(jj.SetParents(m.target.GetChangeId(), parentsToAdd, parentsToRemove), common.RefreshAndSelect(m.target.GetChangeId()), common.CloseApplied), true
+		return m.context.RunCommand(jj.SetParents(m.target.GetChangeId(), parents), common.RefreshAndSelect(m.target.GetChangeId()), common.CloseApplied), true
 	case intents.Cancel:
 		return common.Close, true
 	}
@@ -119,9 +121,9 @@ func (m *Model) Render(commit *jj.Commit, renderPosition operations.RenderPositi
 	if renderPosition != operations.RenderBeforeChangeId {
 		return ""
 	}
-	sourceMarker := common.DefaultPalette.Get("set_parents", "", "source_marker", false)
-	targetMarker := common.DefaultPalette.Get("set_parents", "", "target_marker", false)
-	dimmedStyle := common.DefaultPalette.Get("set_parents", "", "dimmed", false)
+	sourceMarker := theme.DefaultPalette.Get("set_parents", "", "source_marker", false)
+	targetMarker := theme.DefaultPalette.Get("set_parents", "", "target_marker", false)
+	dimmedStyle := theme.DefaultPalette.Get("set_parents", "", "dimmed", false)
 
 	if slices.Contains(m.toAdd, commit.GetChangeId()) {
 		return sourceMarker.Render("<< add >>")
@@ -130,7 +132,7 @@ func (m *Model) Render(commit *jj.Commit, renderPosition operations.RenderPositi
 		return sourceMarker.Render("<< remove >>")
 	}
 
-	if slices.Contains(m.parents, commit.CommitId) {
+	if slices.Contains(m.parents, commit.GetChangeId()) {
 		return dimmedStyle.Render("<< parent >>")
 	}
 	if commit.GetChangeId() == m.target.GetChangeId() {

@@ -208,3 +208,50 @@ key = ["b"]
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "requires arg")
 }
+
+func TestLoad_BindingWhenCondition(t *testing.T) {
+	cfg := &Config{}
+	err := cfg.Load(`[[bindings]]
+action = "ui.open_help"
+scope = "revisions"
+key = "x"
+when = "revisions.has_bookmarks && !revisions.is_root"`, "")
+	require.NoError(t, err)
+	require.Equal(t, "revisions.has_bookmarks && !revisions.is_root", cfg.Bindings[0].When)
+	runtime := BindingsToRuntime(cfg.Bindings)
+	require.Equal(t, cfg.Bindings[0].When, runtime[0].When)
+}
+
+func TestLoad_ActionWhenBelongsToActionAndNotItsGeneratedBinding(t *testing.T) {
+	cfg := &Config{}
+	err := cfg.Load(`[[actions]]
+name = "custom"
+lua = "flash('custom')"
+scope = "revisions"
+key = "x"
+when = "revisions.has_selection"
+
+[[bindings]]
+action = "custom"
+scope = "ui"
+key = "y"
+when = "ui.preview.can_expand"`, "")
+	require.NoError(t, err)
+	require.Len(t, cfg.Actions, 1)
+	require.Len(t, cfg.Bindings, 2)
+	assert.Equal(t, "revisions.has_selection", cfg.Actions[0].When)
+	assert.Empty(t, cfg.Bindings[0].When)
+	assert.Equal(t, "ui.preview.can_expand", cfg.Bindings[1].When)
+	assert.Equal(t, "revisions.has_selection", cfg.ActionWhen("custom"))
+}
+
+func TestLoad_RejectsInvalidBindingWhenCondition(t *testing.T) {
+	cfg := &Config{}
+	err := cfg.Load(`[[bindings]]
+action = "ui.open_help"
+scope = "revisions"
+key = "x"
+when = "not a condition"`, "")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "when condition")
+}

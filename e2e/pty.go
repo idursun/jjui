@@ -72,6 +72,17 @@ func startPTY(term *ghostty.Terminal, command []string, dir string, env []string
 		exitDone:  make(chan struct{}),
 		startedAt: time.Now(),
 	}
+	// VTWrite invokes this callback while session.mu is held. Forward terminal
+	// query replies directly, without re-entering the session's locking helpers.
+	term.SetEffectWritePty(func(_ *ghostty.Terminal, data []byte) {
+		n, err := master.Write(data)
+		if err == nil && n != len(data) {
+			err = io.ErrShortWrite
+		}
+		if err != nil {
+			session.addTraceLocked(fmt.Sprintf("terminal reply failed: %v", err))
+		}
+	})
 	session.addTrace("started " + strings.Join(command, " "))
 	go session.readOutput()
 	go session.waitProcess()

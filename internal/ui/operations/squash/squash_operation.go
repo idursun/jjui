@@ -15,6 +15,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var (
@@ -114,8 +115,8 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 	if pos != operations.RenderBeforeChangeId {
 		return ""
 	}
-	sourceMarkerStyle := common.DefaultPalette.Get("squash", "", "source_marker", false)
-	targetMarkerStyle := common.DefaultPalette.Get("squash", "", "target_marker", false)
+	sourceMarkerStyle := theme.DefaultPalette.Get("squash", "", "source_marker", false)
+	targetMarkerStyle := theme.DefaultPalette.Get("squash", "", "target_marker", false)
 
 	isSelected := s.current != nil && s.current.GetChangeId() == commit.GetChangeId()
 	if isSelected {

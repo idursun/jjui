@@ -13,6 +13,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var _ operations.Operation = (*MoveBookmarkOperation)(nil)
@@ -40,9 +41,9 @@ func NewMoveBookmarkOperation(context *context.MainContext, bookmarkName string,
 		bookmarkName: bookmarkName,
 		target:       target,
 	}
-	op.styles.targetMarker = common.DefaultPalette.Get("revisions", "", "", true)
-	op.styles.dimmed = common.DefaultPalette.Get("revisions", "", "dimmed", false)
-	op.styles.changeId = common.DefaultPalette.Get("revisions", "", "text", false)
+	op.styles.targetMarker = theme.DefaultPalette.Get("revisions", "", "", true)
+	op.styles.dimmed = theme.DefaultPalette.Get("revisions", "", "dimmed", false)
+	op.styles.changeId = theme.DefaultPalette.Get("revisions", "", "text", false)
 	return op
 }
 

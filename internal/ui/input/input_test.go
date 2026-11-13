@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -72,8 +72,8 @@ func TestModel_ViewRect_SetsAbsoluteCursorPosition(t *testing.T) {
 	cursor := dl.Cursor()
 	require.NotNil(t, cursor)
 
-	borderStyle := common.DefaultPalette.GetBorder("input", "", "border", false, lipgloss.RoundedBorder())
-	titleStyle := common.DefaultPalette.Get("input", "", "title", false)
+	borderStyle := theme.DefaultPalette.GetBorder("input", "", "border", false, lipgloss.RoundedBorder())
+	titleStyle := theme.DefaultPalette.Get("input", "", "title", false)
 	rows := []string{titleStyle.Render(model.title), model.input.View()}
 	content := lipgloss.JoinVertical(0, rows...)
 	content = borderStyle.Padding(0, 1).Render(content)

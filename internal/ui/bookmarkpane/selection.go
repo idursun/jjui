@@ -293,3 +293,28 @@ func (m *Model) selectionsForBookmarkOperation() []bookmarkSelection {
 	}
 	return selections
 }
+
+// QueryState shares the same eligibility checks as the bookmark commands,
+// including checked bookmarks when an operation supports multiple targets.
+func (m *Model) QueryState(name string) (any, bool) {
+	switch name {
+	case "has_bookmark":
+		_, _, ok := m.selectedBookmarkAndNode()
+		return ok, true
+	case "has_local_bookmark":
+		_, _, ok := m.selectedLocalBookmark()
+		return ok, true
+	case "has_commit":
+		return m.selectedCommitID() != "", true
+	case "can_expand":
+		row, ok := m.selectedRow()
+		return ok && row.Depth == 0 && row.HasChildren, true
+	case "can_delete":
+		return len(m.deleteCommands()) > 0, true
+	case "can_forget":
+		return len(m.forgetCommands()) > 0, true
+	case "can_untrack":
+		return len(m.untrackCommands()) > 0, true
+	}
+	return nil, false
+}

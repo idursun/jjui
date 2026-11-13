@@ -127,6 +127,16 @@ func (sc *SplitContainer) Resize(delta float64) {
 	}
 }
 
+func (sc *SplitContainer) CanResize(delta float64) bool {
+	if sc.activeContent() == nil || delta == 0 {
+		return false
+	}
+	if delta > 0 {
+		return sc.state.Percent < sc.state.MaxPercent
+	}
+	return sc.state.Percent > sc.state.MinPercent
+}
+
 func (sc *SplitContainer) TogglePosition() {
 	sc.state.TogglePosition()
 }
@@ -151,6 +161,20 @@ func (sc *SplitContainer) UpdateContent(id string, msg tea.Msg) (tea.Cmd, bool) 
 		return nil, false
 	}
 	return content.Update(msg), true
+}
+
+// QueryState looks up a property on any registered split content, regardless
+// of which content is currently active or focused.
+func (sc *SplitContainer) QueryState(id, name string) (any, bool) {
+	content, ok := sc.contents[id]
+	if !ok {
+		return nil, false
+	}
+	provider, ok := content.(common.StateProvider)
+	if !ok {
+		return nil, false
+	}
+	return provider.QueryState(name)
 }
 
 func (sc *SplitContainer) Scopes(primary []common.Scope) []common.Scope {

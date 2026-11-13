@@ -2,6 +2,7 @@ package diff
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -15,6 +16,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 type viewMode interface {
@@ -50,7 +52,7 @@ func (v *defaultView) scrollHorizontal(delta int, viewportWidth int) {
 func (v *defaultView) ViewRect(dl *render.DisplayContext, box layout.Box, scrollY int) {
 	width := box.R.Dx()
 	height := box.R.Dy()
-	surfaceStyle := common.DefaultPalette.Get("diff", "", "", false)
+	surfaceStyle := theme.DefaultPalette.Get("diff", "", "", false)
 	buf := render.NewScreenBuffer(width, height)
 	firstLine := max(0, scrollY)
 	lineW := max(width, v.maxLineWidth)
@@ -129,7 +131,7 @@ func (v *wrappedView) scrollHorizontal(_ int, _ int) {}
 func (v *wrappedView) ViewRect(dl *render.DisplayContext, box layout.Box, scrollY int) {
 	width := box.R.Dx()
 	height := box.R.Dy()
-	surfaceStyle := common.DefaultPalette.Get("diff", "", "", false)
+	surfaceStyle := theme.DefaultPalette.Get("diff", "", "", false)
 	v.ensureIndex(width)
 	buf := render.NewScreenBuffer(width, height)
 	firstLine, skip := v.firstLine(scrollY, width)
@@ -314,10 +316,9 @@ type ScrollMsg struct {
 	Horizontal bool
 }
 
-func (s ScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	s.Delta = delta
-	s.Horizontal = horizontal
-	return s
+func newScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return ScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 func (m *Model) clampScroll(width, height int) {
@@ -408,7 +409,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.clampScroll(width, height)
 
 	m.mode.ViewRect(dl, box, m.scrollY)
-	dl.AddInteraction(box.R, ScrollMsg{}, render.InteractionScroll, 0)
+	dl.AddInteractionFn(box.R, newScrollMsg, render.InteractionScroll, 0)
 }
 
 func New(output string) *Model {
@@ -451,10 +452,29 @@ func (m *Model) loadFile(file jj.FileName) tea.Cmd {
 		args = append(args, file.Escaped())
 	}
 	return func() tea.Msg {
-		output, err := m.context.RunCommandImmediate(args)
+		output, err := m.context.RunCommandImmediateWithEnv(args, m.diffEnv())
 		if err != nil {
 			return fileLoadedMsg{file: file, err: err}
 		}
 		return fileLoadedMsg{content: string(output), file: file}
+	}
+}
+
+// diffEnv prefers the live viewport width for per-file reloads so difftastic
+// wraps at the size the content is actually rendered at. Falls back to the
+// terminal size recorded on the context.
+func (m *Model) diffEnv() []string {
+	width := m.viewportWidth
+	height := m.viewportHeight
+	if width <= 0 && m.context != nil {
+		return m.context.DiffEnv()
+	}
+	if height <= 0 {
+		height = 24
+	}
+	return []string{
+		"DFT_WIDTH=" + strconv.Itoa(width),
+		"COLUMNS=" + strconv.Itoa(width),
+		"LINES=" + strconv.Itoa(height),
 	}
 }

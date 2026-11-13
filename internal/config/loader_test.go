@@ -12,11 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:fix inline
-func boolPtr(v bool) *bool {
-	return new(v)
-}
-
 func TestLoadTheme(t *testing.T) {
 	themeData := []byte(`
 title = { fg = "blue", bold = true }

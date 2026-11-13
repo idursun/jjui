@@ -9,6 +9,29 @@ import (
 	ghostty "go.mitchellh.com/libghostty"
 )
 
+func statusHasEntry(screen []string, key, description string) bool {
+	descriptionFields := strings.Fields(description)
+	for _, line := range screen {
+		fields := strings.Fields(line)
+		for i := 0; i+len(descriptionFields) < len(fields); i++ {
+			if fields[i] != key {
+				continue
+			}
+			matches := true
+			for j, part := range descriptionFields {
+				if fields[i+1+j] != part {
+					matches = false
+					break
+				}
+			}
+			if matches {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func Test_Lua_ChooseResumesWithSelectedValue(t *testing.T) {
 	t.Parallel()
 	h := NewHarness(t)
@@ -264,4 +287,88 @@ end
 		h.StartProcess()
 		h.ExpectStartupError("Error in config.lua", "lua-setup-marker")
 	})
+}
+
+func Test_Lua_ConditionalBindingsFollowLiveRevisionState(t *testing.T) {
+	t.Parallel()
+	h := NewHarness(t)
+	h.WriteConfigLua(`
+function setup(config)
+ config.action("conditional-fallback", function() flash("conditional-fallback") end, {
+  key = "X", scope = "revisions",
+ })
+ config.action("conditional-workspace", function() flash("conditional-workspace") end, {
+  key = "X", scope = "revisions", when = "revisions.has_workspace",
+ })
+end
+`)
+	h.Start("initial")
+	h.Key("X")
+	h.WaitText("conditional-workspace")
+	h.WaitNoText("conditional-workspace")
+	h.Key("j")
+	h.WaitRowContaining("initial")
+	h.Key("X")
+	h.WaitText("conditional-fallback")
+	h.Quit()
+}
+
+func Test_DefaultStatusBindingsFollowEmptyAndRootRevisionState(t *testing.T) {
+	t.Parallel()
+	h := NewHarness(t)
+	h.Start("initial")
+	h.Text("?")
+	if _, err := h.session.WaitForStableScreen(h.ctx, 3, func(screen []string) bool {
+		return statusHasEntry(screen, "d", "diff") &&
+			statusHasEntry(screen, "shift+c", "annotate") &&
+			statusHasEntry(screen, "s", "split") &&
+			statusHasEntry(screen, "alt+s", "split") &&
+			statusHasEntry(screen, "shift+a", "absorb") &&
+			statusHasEntry(screen, "shift+e", "diff") &&
+			statusHasEntry(screen, "c", "commit")
+	}); err != nil {
+		t.Fatalf("expanded status help did not show available and unavailable actions for the empty working copy: %v", err)
+	}
+	h.Key("Escape")
+	h.Key("ArrowDown")
+	h.Text("?")
+	if _, err := h.session.WaitForStableScreen(h.ctx, 3, func(screen []string) bool {
+		return statusHasEntry(screen, "d", "diff") &&
+			statusHasEntry(screen, "shift+c", "annotate") &&
+			statusHasEntry(screen, "s", "split") &&
+			statusHasEntry(screen, "alt+s", "split") &&
+			statusHasEntry(screen, "shift+a", "absorb") &&
+			statusHasEntry(screen, "shift+e", "diff") &&
+			statusHasEntry(screen, "c", "commit")
+	}); err != nil {
+		t.Fatalf("content operations were not available for the non-empty revision: %v", err)
+	}
+	h.Key("Escape")
+	h.Key("ArrowDown")
+	h.Text("?")
+	if _, err := h.session.WaitForStableScreen(h.ctx, 3, func(screen []string) bool {
+		return statusHasEntry(screen, "d", "diff") &&
+			statusHasEntry(screen, "shift+c", "annotate") &&
+			statusHasEntry(screen, "shift+m", "set parents") &&
+			statusHasEntry(screen, "shift+j", "jump to parent")
+	}); err != nil {
+		t.Fatalf("expanded status help did not show unavailable actions for the root revision: %v", err)
+	}
+	h.Quit()
+}
+
+func Test_DefaultCommitStatusFollowsWorkingCopyState(t *testing.T) {
+	t.Parallel()
+	h := NewHarness(t)
+	h.repo.Write("dirty.txt", "uncommitted change\n")
+	h.repo.JJ("status") // Snapshot the working copy before the UI loads revisions.
+	h.Start("initial")
+	h.Key("ArrowDown")
+	h.Text("?")
+	if _, err := h.session.WaitForStableScreen(h.ctx, 3, func(screen []string) bool {
+		return statusHasEntry(screen, "c", "commit")
+	}); err != nil {
+		t.Fatalf("commit was hidden while the working copy had changes and another revision was selected: %v", err)
+	}
+	h.Quit()
 }

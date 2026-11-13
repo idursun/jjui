@@ -31,13 +31,13 @@ type DetailsCancelFilter struct{}
 
 func (DetailsCancelFilter) isIntent() {}
 
-//jjui:bind scope=revisions.details action=diff
+//jjui:bind scope=revisions.details action=diff when="revisions.details.has_file"
 type DetailsDiff struct{}
 
 func (DetailsDiff) isIntent() {}
 
-//jjui:bind scope=revisions.details action=split
-//jjui:bind scope=revisions.details action=split_parallel set=IsParallel:true
+//jjui:bind scope=revisions.details action=split when="revisions.details.has_selection"
+//jjui:bind scope=revisions.details action=split_parallel set=IsParallel:true when="revisions.details.has_selection"
 type DetailsSplit struct {
 	IsParallel    bool
 	IsInteractive bool
@@ -45,22 +45,22 @@ type DetailsSplit struct {
 
 func (DetailsSplit) isIntent() {}
 
-//jjui:bind scope=revisions.details action=squash
+//jjui:bind scope=revisions.details action=squash when="revisions.details.has_selection"
 type DetailsSquash struct{}
 
 func (DetailsSquash) isIntent() {}
 
-//jjui:bind scope=revisions.details action=restore
+//jjui:bind scope=revisions.details action=restore when="revisions.details.has_selection"
 type DetailsRestore struct{}
 
 func (DetailsRestore) isIntent() {}
 
-//jjui:bind scope=revisions.details action=absorb
+//jjui:bind scope=revisions.details action=absorb when="revisions.details.has_selection"
 type DetailsAbsorb struct{}
 
 func (DetailsAbsorb) isIntent() {}
 
-//jjui:bind scope=revisions.details action=toggle_select
+//jjui:bind scope=revisions.details action=toggle_select when="revisions.details.has_file"
 type DetailsToggleSelect struct{}
 
 func (DetailsToggleSelect) isIntent() {}
@@ -70,7 +70,7 @@ type DetailsInvertSelection struct{}
 
 func (DetailsInvertSelection) isIntent() {}
 
-//jjui:bind scope=revisions.details action=revisions_changing_file
+//jjui:bind scope=revisions.details action=revisions_changing_file when="revisions.details.has_file"
 type DetailsRevisionsChangingFile struct{}
 
 func (DetailsRevisionsChangingFile) isIntent() {}

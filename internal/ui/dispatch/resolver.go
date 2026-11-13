@@ -43,6 +43,9 @@ func newResolverWithActions(d *Dispatcher, actions []config.ActionConfig) *Resol
 		}
 		configured[name] = action
 	}
+	for name, action := range configured {
+		d.SetActionWhen(name, action.When)
+	}
 	return &Resolver{
 		dispatcher:        d,
 		configuredActions: configured,
@@ -86,6 +89,13 @@ func (r *Resolver) ResolveBuiltInAction(action keybindings.Action, args map[stri
 	return r.resolveAction(action, args, true)
 }
 
+func (r *Resolver) Continuations(scopes []common.Scope) []Continuation {
+	if r.dispatcher == nil {
+		return nil
+	}
+	return r.dispatcher.Continuations(scopes)
+}
+
 // ResetSequence resets any in-progress key sequence.
 func (r *Resolver) ResetSequence() {
 	if r.dispatcher != nil {
@@ -94,6 +104,9 @@ func (r *Resolver) ResetSequence() {
 }
 
 func (r *Resolver) resolveAction(action keybindings.Action, args map[string]any, skipConfigured bool) Result {
+	if r.dispatcher != nil && ((!skipConfigured && !r.dispatcher.ActionEnabled(action)) || (skipConfigured && !r.dispatcher.BuiltInActionEnabled(action))) {
+		return Result{Consumed: true}
+	}
 	if !skipConfigured {
 		// Configured Lua actions override built-ins during normal dispatch.
 		cfg, hasCfg := r.configuredActions[action]

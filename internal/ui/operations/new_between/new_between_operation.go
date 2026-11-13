@@ -10,6 +10,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var _ operations.Operation = (*Operation)(nil)
@@ -86,8 +87,8 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		return ""
 	}
 
-	sourceMarkerStyle := common.DefaultPalette.Get("new", "", "source_marker", false)
-	targetMarkerStyle := common.DefaultPalette.Get("new", "", "target_marker", false)
+	sourceMarkerStyle := theme.DefaultPalette.Get("new", "", "source_marker", false)
+	targetMarkerStyle := theme.DefaultPalette.Get("new", "", "target_marker", false)
 	isInsertAfter := o.insertAfter.Contains(commit)
 	isInsertBefore := false
 	if len(o.insertBefore.Revisions) > 0 {

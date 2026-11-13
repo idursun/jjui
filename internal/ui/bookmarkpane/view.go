@@ -5,14 +5,14 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 func (m *Model) renderTitle(dl *render.DisplayContext, box layout.Box) {
-	dl.Text(box.R.Min.X, box.R.Min.Y, render.ZMenuContent).
-		Styled("Bookmarks", m.styles.title).
+	dl.Text(box.R.Min.X, box.R.Min.Y, render.ZPreview).
+		Styled(" Bookmarks ", m.styles.title).
 		Done()
 }
 
@@ -21,22 +21,29 @@ func (m *Model) renderRemotes(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
-	tb := dl.Text(box.R.Min.X, box.R.Min.Y, render.ZMenuContent).
-		Styled("Remotes: ", m.styles.title)
+	palette := theme.DefaultPalette
+	textStyle := palette.Get("bookmarks", "remote", "text", false)
+	dimmedStyle := palette.Get("bookmarks", "remote", "dimmed", false)
+	titleStyle := palette.Get("bookmarks", "remote", "title", false)
+	selectedStyle := palette.GetBlended("bookmarks", "remote", "", true)
+	dl.AddFill(box.R, ' ', textStyle, render.ZPreview)
+	tb := dl.Text(box.R.Min.X, box.R.Min.Y, render.ZPreview).
+		Styled(" ", textStyle).
+		Styled("Remotes: ", titleStyle)
 	for idx, remoteName := range m.remoteNames {
-		style := m.styles.dimmed
+		style := dimmedStyle
 		if idx == m.selectedRemoteIdx {
-			style = common.DefaultPalette.Get("bookmarks", "menu", "", true)
+			style = selectedStyle
 		}
-		tb.Clickable(remoteName, style, RemoteClickedMsg{Index: idx}).Styled(" ", m.styles.text)
+		tb.Clickable(remoteName, style, RemoteClickedMsg{Index: idx}).Styled(" ", textStyle)
 	}
 	tb.Done()
 }
 
 func (m *Model) renderFilter(dl *render.DisplayContext, box layout.Box) {
 	if m.filterState == filterEditing {
-		menuTextStyle := common.DefaultPalette.Get("bookmarks", "menu", "text", false)
-		menuMatchedStyle := common.DefaultPalette.Get("bookmarks", "menu", "matched", false)
+		menuTextStyle := theme.DefaultPalette.Get("bookmarks", "input", "text", false)
+		menuMatchedStyle := theme.DefaultPalette.Get("bookmarks", "input", "matched", false)
 		fis := m.filterInput.Styles()
 		fis.Focused.Prompt = menuMatchedStyle.PaddingLeft(1)
 		fis.Focused.Text = menuTextStyle
@@ -44,7 +51,7 @@ func (m *Model) renderFilter(dl *render.DisplayContext, box layout.Box) {
 		fis.Blurred.Text = menuTextStyle
 		m.filterInput.SetStyles(fis)
 		m.filterInput.SetWidth(max(box.R.Dx()-2, 0))
-		dl.AddDraw(box.R, m.filterInput.View(), render.ZMenuContent)
+		dl.AddDraw(box.R, m.filterInput.View(), render.ZPreview)
 		dl.SetCursorInRect(m.filterInput.Cursor(), box.R, 0, 0)
 		return
 	}
@@ -52,7 +59,8 @@ func (m *Model) renderFilter(dl *render.DisplayContext, box layout.Box) {
 	if filterText == "" {
 		return
 	}
-	dl.Text(box.R.Min.X, box.R.Min.Y, render.ZMenuContent).
+	dl.Text(box.R.Min.X, box.R.Min.Y, render.ZPreview).
+		Styled(" ", m.styles.text).
 		Styled("Filter: ", m.styles.filterPrompt).
 		Styled(filterText, m.styles.text).
 		Done()
@@ -89,7 +97,7 @@ func (m *Model) renderConfirmation(dl *render.DisplayContext, box layout.Box) {
 	if box.R.Dx() <= 0 || box.R.Dy() <= 0 || m.confirmation == nil {
 		return
 	}
-	m.confirmation.Styles.Border = common.DefaultPalette.GetBorder("confirmation", "", "border", false, lipgloss.NormalBorder()).Padding(1)
+	m.confirmation.Styles.Border = theme.DefaultPalette.GetBorder("confirmation", "", "border", false, lipgloss.NormalBorder()).Padding(1)
 	v := m.confirmation.View()
 	w, h := lipgloss.Size(v)
 	pw, ph := box.R.Dx(), box.R.Dy()
@@ -117,43 +125,45 @@ func (m *Model) renderListRow(dl *render.DisplayContext, index int, rect layout.
 	if !ok {
 		return
 	}
+	s := m.styles
 	if index == m.cursor && m.Focused() {
-		dl.AddHighlight(rect, m.styles.selected, render.ZMenuContent+1)
+		s = newStyles(true)
+		dl.AddFill(rect, ' ', s.text, render.ZPreview)
 	}
 
-	tb := dl.Text(rect.Min.X, rect.Min.Y, render.ZMenuContent)
+	tb := dl.Text(rect.Min.X, rect.Min.Y, render.ZPreview)
 	if m.selected[node.Target()] {
-		tb.Styled("✓ ", m.styles.selected)
+		tb.Styled("✓ ", s.selected)
 	} else {
-		tb.Styled("  ", m.styles.text)
+		tb.Styled("  ", s.text)
 	}
 	if row.Depth > 0 {
-		m.renderRemoteChildRow(tb, node)
+		m.renderRemoteChildRow(tb, node, s)
 		tb.Done()
 		return
 	}
 
-	m.renderTopLevelRow(tb, row, group, node)
+	m.renderTopLevelRow(tb, row, group, node, s)
 	tb.Done()
 }
 
-func (m *Model) renderRemoteChildRow(tb *render.TextBuilder, node bookmarkRowNode) {
-	tb.Styled("     ", m.styles.text).
-		Styled(fmt.Sprintf("@%s", node.Remote), m.styles.remoteBookmarkName).
-		Styled("  ", m.styles.text).
-		Styled(node.Target(), m.styles.text)
-	m.renderRowMetadata(tb, node)
+func (m *Model) renderRemoteChildRow(tb *render.TextBuilder, node bookmarkRowNode, s styles) {
+	tb.Styled("     ", s.text).
+		Styled(fmt.Sprintf("@%s", node.Remote), s.remoteBookmarkName).
+		Styled("  ", s.text).
+		Styled(node.Target(), s.text)
+	m.renderRowMetadata(tb, node, s)
 }
 
-func (m *Model) renderTopLevelRow(tb *render.TextBuilder, row visibleRow, group bookmarkTreeItem, node bookmarkRowNode) {
+func (m *Model) renderTopLevelRow(tb *render.TextBuilder, row visibleRow, group bookmarkTreeItem, node bookmarkRowNode, s styles) {
 	label := " local "
-	style := m.styles.localBookmark
+	style := s.localBookmark
 	if node.IsRemote() {
 		label = " remote "
-		style = m.styles.remoteBookmark
+		style = s.remoteBookmark
 	} else if node.Deleted {
 		label = " deleted "
-		style = m.styles.deleted
+		style = s.deleted
 	}
 
 	prefix := "  "
@@ -165,12 +175,12 @@ func (m *Model) renderTopLevelRow(tb *render.TextBuilder, row visibleRow, group 
 		}
 	}
 
-	tb.Styled(prefix, m.styles.childGuide).
+	tb.Styled(prefix, s.childGuide).
 		Styled(label, style).
-		Styled(" ", m.styles.text).
-		Styled(node.Name, m.styles.text)
+		Styled(" ", s.text).
+		Styled(node.Name, s.text)
 	if node.IsRemote() {
-		tb.Styled("  ", m.styles.text).Styled(node.Remote, m.styles.remoteBookmarkName)
+		tb.Styled("  ", s.text).Styled(node.Remote, s.remoteBookmarkName)
 	} else {
 		// Show every remote name tracking this bookmark.
 		for i, remote := range group.Bookmark.Remotes {
@@ -178,23 +188,23 @@ func (m *Model) renderTopLevelRow(tb *render.TextBuilder, row visibleRow, group 
 			if i == 0 {
 				separator = "  "
 			}
-			tb.Styled(separator, m.styles.text).Styled(remote.Remote, m.styles.remoteBookmarkName)
+			tb.Styled(separator, s.text).Styled(remote.Remote, s.remoteBookmarkName)
 		}
 	}
-	m.renderRowMetadata(tb, node)
+	m.renderRowMetadata(tb, node, s)
 }
 
-func (m *Model) renderRowMetadata(tb *render.TextBuilder, node bookmarkRowNode) {
+func (m *Model) renderRowMetadata(tb *render.TextBuilder, node bookmarkRowNode, s styles) {
 	if node.Tracked {
-		tb.Styled(" ", m.styles.text).Styled("tracked", m.styles.trackedBookmark)
+		tb.Styled(" ", s.text).Styled("tracked", s.trackedBookmark)
 	}
 	if node.Deleted {
-		tb.Styled(" ", m.styles.text).Styled("deleted", m.styles.deleted)
+		tb.Styled(" ", s.text).Styled("deleted", s.deleted)
 	}
 	if node.Conflict {
-		tb.Styled(" ", m.styles.text).Styled("conflict", m.styles.conflict)
+		tb.Styled(" ", s.text).Styled("conflict", s.conflict)
 	}
 	if node.CommitID != "" {
-		tb.Styled(" ", m.styles.text).Styled(node.CommitID, m.styles.dimmed)
+		tb.Styled(" ", s.text).Styled(node.CommitID, s.dimmed)
 	}
 }

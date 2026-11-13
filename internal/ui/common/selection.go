@@ -15,6 +15,24 @@ type SelectionProvider interface {
 	Selection() SelectionSnapshot
 }
 
+// StateProvider exposes explicitly supported, live model state to consumers
+// such as Lua. Implementations should return false for unknown or unavailable
+// properties; callers must not infer state by reflecting over model fields.
+// Implementations currently expose values that map to Lua strings, booleans,
+// and numbers (Go string, bool, int, int64, and float64); richer values need an
+// explicit Lua representation before they can be added.
+type StateProvider interface {
+	QueryState(name string) (any, bool)
+}
+
+// ApplicationStateProvider is the root-level bridge used by MainContext. A
+// model may implement StateProvider without also implementing selection; only
+// the application root needs to satisfy this composite interface.
+type ApplicationStateProvider interface {
+	StateProvider
+	SelectionProvider
+}
+
 type SelectedRevision struct {
 	ChangeId string
 	CommitId string

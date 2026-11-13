@@ -8,6 +8,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
@@ -49,47 +50,28 @@ func (ir *itemRenderer) getSegmentStyleForLine(segment screen.Segment, lineIsHig
 }
 
 // renderSegmentForLine renders a segment considering whether the line is highlightable.
-func (ir *itemRenderer) renderSegmentForLine(tb *render.TextBuilder, segment *screen.Segment, lineIsHighlightable bool) {
+// offset is the segment's byte position within the line that matches refer to.
+func (ir *itemRenderer) renderSegmentForLine(tb *render.TextBuilder, segment *screen.Segment, lineIsHighlightable bool, offset int, matches [][2]int) {
 	baseStyle := ir.getSegmentStyleForLine(*segment, lineIsHighlightable)
-	if ir.SearchText == "" {
-		tb.Styled(segment.Text, baseStyle)
-		return
-	}
-
-	lowerText := strings.ToLower(segment.Text)
-	searchText := ir.SearchText
-	if !strings.Contains(lowerText, searchText) {
+	if len(matches) == 0 {
 		tb.Styled(segment.Text, baseStyle)
 		return
 	}
 
 	matchStyle := baseStyle.Inherit(ir.renderer.matchedStyle)
-	start := 0
-	for {
-		offset := strings.Index(lowerText[start:], searchText)
-		if offset == -1 {
-			if start < len(segment.Text) {
-				tb.Styled(segment.Text[start:], baseStyle)
-			}
-			break
+	common.SplitByRanges(segment.Text, offset, matches, func(piece string, matched bool) {
+		if matched {
+			tb.Styled(piece, matchStyle)
+		} else {
+			tb.Styled(piece, baseStyle)
 		}
-		idx := start + offset
-		if idx > start {
-			tb.Styled(segment.Text[start:idx], baseStyle)
-		}
-		end := min(idx+len(searchText), len(segment.Text))
-		tb.Styled(segment.Text[idx:end], matchStyle)
-		start = end
-		if start >= len(segment.Text) {
-			break
-		}
-	}
+	})
 }
 
 // NewDisplayContextRenderer creates a new DisplayContext-based renderer
 func NewDisplayContextRenderer() *DisplayContextRenderer {
 	return &DisplayContextRenderer{
-		listRenderer:   render.NewListRenderer(ViewportScrollMsg{}),
+		listRenderer:   render.NewListRenderer(newViewportScrollMsg),
 		selectionFocus: true,
 	}
 }
@@ -150,6 +132,7 @@ func (r *DisplayContextRenderer) Render(
 			contentWidth := r.itemContentWidth(item, viewRect.R.Dx())
 			embeddedHeight := r.embeddedHeight(operation, item.Commit, operations.RenderPositionAfter, contentWidth)
 			embeddedOffset := 0
+			pinRow := false
 
 			beforeHeight := 0
 			if before := operation.Render(item.Commit, operations.RenderPositionBefore); before != "" {
@@ -167,6 +150,8 @@ func (r *DisplayContextRenderer) Render(
 				}
 			} else if embeddedHeight = r.embeddedHeight(operation, item.Commit, operations.RenderOverDescription, contentWidth); embeddedHeight > 0 {
 				// Bias the viewport upward for inline description editors too.
+				// Keep the row pinned after wheel scrolling so the embedded view gets the visible height.
+				pinRow = true
 				embeddedOffset = beforeHeight + len(item.Lines)
 				for i, line := range item.Lines {
 					descriptionLine := line.Flags&parser.Highlightable == parser.Highlightable &&
@@ -192,7 +177,7 @@ func (r *DisplayContextRenderer) Render(
 				desiredHeight := min(embeddedHeight, max(viewHeight-embeddedOffset, 0))
 				if desiredHeight > 0 {
 					currentStart := render.ClampStartLine(r.listRenderer.StartLine, viewHeight, totalLines)
-					if currentStart <= cursorStart {
+					if currentStart <= cursorStart || pinRow {
 						embeddedStart := cursorStart + embeddedOffset
 						start := max(currentStart, embeddedStart+desiredHeight-viewHeight)
 						// Keep the selected revision visible while embedded models scroll internally.
@@ -621,7 +606,18 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 	// and enables the fallback: when user's custom jj `template-aliases` has
 	// no CommitID, it inserts to the end of the line
 	beforeCommitIDRendered := false
+	var matches [][2]int
+	if ir.SearchText != "" {
+		var lineText strings.Builder
+		for _, segment := range line.Segments {
+			lineText.WriteString(segment.Text)
+		}
+		matches = common.MatchRanges(lineText.String(), ir.SearchText)
+	}
+	offset := 0
 	for _, segment := range line.Segments {
+		segmentOffset := offset
+		offset += len(segment.Text)
 		if beforeCommitID != "" && !beforeCommitIDRendered && strings.HasPrefix(segment.Text, ir.row.Commit.CommitId) {
 			if cursorProvider, ok := ir.op.(operations.InlineCursorProvider); ok {
 				if cursor := cursorProvider.InlineCursor(ir.row.Commit, operations.RenderBeforeCommitId); cursor != nil {
@@ -640,7 +636,7 @@ func (ir *itemRenderer) renderLine(tb *render.TextBuilder, line *parser.GraphRow
 				continue
 			}
 		}
-		ir.renderSegmentForLine(tb, segment, lineIsHighlightable)
+		ir.renderSegmentForLine(tb, segment, lineIsHighlightable, segmentOffset, matches)
 		currentX += render.StringWidth(segment.Text)
 	}
 	if beforeCommitID != "" && !beforeCommitIDRendered {

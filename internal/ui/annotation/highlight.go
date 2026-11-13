@@ -2,6 +2,7 @@ package annotation
 
 import (
 	"bytes"
+	"image/color"
 	"slices"
 	"strings"
 	"unicode"
@@ -11,7 +12,8 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/formatters"
 	"github.com/alecthomas/chroma/v2/lexers"
-	"github.com/alecthomas/chroma/v2/styles"
+	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 type sourceHighlighter struct {
@@ -24,21 +26,92 @@ type sourceHighlighter struct {
 	highlightMisses int
 }
 
-func newSourceHighlighter(dark bool) *sourceHighlighter {
-	styleName := "github"
-	if dark {
-		styleName = "github-dark"
-	}
-	style := styles.Get(styleName)
-	if style == nil {
-		style = styles.Fallback
+func newSourceHighlighter(dark bool, terminalPalettes ...map[int]string) *sourceHighlighter {
+	var terminalPalette map[int]string
+	if len(terminalPalettes) > 0 {
+		terminalPalette = terminalPalettes[0]
 	}
 	return &sourceHighlighter{
 		lexers:    make(map[string]chroma.Lexer),
 		cache:     make(map[string]string),
 		formatter: formatters.Get("terminal16m"),
-		style:     style,
+		style:     syntaxStyle(dark, terminalPalette),
 	}
+}
+
+func syntaxStyle(dark bool, terminalPalette map[int]string) *chroma.Style {
+	// Custom themes replace the embedded theme, so supply syntax defaults here
+	// too, while allowing explicitly configured attributes to take precedence.
+	defaults := theme.NewPalette()
+	resolvedTheme, err := config.LoadEmbeddedTheme("default", dark)
+	if err == nil {
+		defaults.Update(resolvedTheme.Colors)
+	}
+	roles := map[chroma.TokenType][]string{
+		chroma.Text:          {"text"},
+		chroma.Keyword:       {"keyword"},
+		chroma.LiteralString: {"string"},
+		chroma.LiteralNumber: {"number"},
+		chroma.Comment:       {"comment"},
+		chroma.NameFunction:  {"function"},
+		chroma.NameClass:     {"class", "type"},
+		chroma.KeywordType:   {"type"},
+	}
+	entries := chroma.StyleEntries{}
+	for token := range chroma.StandardTypes {
+		fallbacks, ok := roles[token]
+		if !ok {
+			fallbacks, ok = roles[token.SubCategory()]
+		}
+		if !ok {
+			fallbacks, ok = roles[token.Category()]
+		}
+		if !ok {
+			fallbacks = []string{"text"}
+		}
+		style := lipgloss.NewStyle()
+		// Resolve explicit syntax selectors before broad palette defaults, so an
+		// absent class style can inherit type even when syntax has a base style.
+		for _, role := range fallbacks {
+			style = style.Inherit(theme.DefaultPalette.Get("", "", "syntax "+role, false))
+		}
+		role := fallbacks[len(fallbacks)-1]
+		style = style.Inherit(theme.DefaultPalette.Get("", "syntax", role, false))
+		for _, role := range fallbacks {
+			style = style.Inherit(defaults.Get("", "syntax", role, false))
+		}
+		if role == "text" {
+			style = style.Inherit(theme.DefaultPalette.Get("annotation", "", "text", false))
+		}
+		entry := chroma.StyleEntry{
+			NoInherit: true,
+			Colour:    syntaxColour(style.GetForeground(), terminalPalette),
+			Bold:      chroma.No, Italic: chroma.No, Underline: chroma.No,
+		}
+		if style.GetBold() {
+			entry.Bold = chroma.Yes
+		}
+		if style.GetItalic() {
+			entry.Italic = chroma.Yes
+		}
+		if style.GetUnderline() {
+			entry.Underline = chroma.Yes
+		}
+		// Backgrounds belong to the diff and selection layers.
+		entries[token] = entry.String()
+	}
+	return chroma.MustNewStyle("jjui", entries)
+}
+
+// syntaxColour converts terminal colours to the RGB values required by Chroma.
+// Prefer the terminal's actual palette; RGBA supplies standard ANSI values when
+// the terminal has not reported a palette entry. NoColor must remain unset.
+func syntaxColour(value color.Color, terminalPalette map[int]string) chroma.Colour {
+	rgb, ok := theme.ResolveRGBFallback(value, terminalPalette)
+	if !ok {
+		return 0
+	}
+	return chroma.NewColour(rgb[0], rgb[1], rgb[2])
 }
 
 func (h *sourceHighlighter) render(path, source string) string {

@@ -44,16 +44,16 @@ type ClickMessageFunc func(index int, mouse tea.Mouse) ClickMessage
 
 type ListRenderer struct {
 	StartLine     int
-	ScrollMsg     tea.Msg
+	ScrollMsgFn   func(tea.MouseMsg) tea.Msg
 	Z             int // Interaction z-index; default is 0.
 	FirstRowIndex int
 	LastRowIndex  int
 }
 
-func NewListRenderer(scrollMsg tea.Msg) *ListRenderer {
+func NewListRenderer(scrollMsgFn func(tea.MouseMsg) tea.Msg) *ListRenderer {
 	return &ListRenderer{
 		StartLine:     0,
-		ScrollMsg:     scrollMsg,
+		ScrollMsgFn:   scrollMsgFn,
 		FirstRowIndex: -1,
 		LastRowIndex:  -1,
 	}
@@ -176,12 +176,12 @@ func (r *ListRenderer) GetLastRowIndex() int {
 // RegisterScroll registers a scroll interaction for the given view rect.
 // Call this after Render if you want to enable mouse wheel scrolling.
 func (r *ListRenderer) RegisterScroll(dl *DisplayContext, viewRect layout.Box) {
-	if r.ScrollMsg == nil {
+	if r.ScrollMsgFn == nil {
 		return
 	}
-	dl.AddInteraction(
+	dl.AddInteractionFn(
 		viewRect.R,
-		r.ScrollMsg,
+		r.ScrollMsgFn,
 		InteractionScroll,
 		r.Z,
 	)
@@ -273,6 +273,17 @@ func renderVisibleSpan(
 
 	child := NewDisplayContext()
 	render(child, layout.Rect(0, 0, span.Rect.Dx(), itemHeight))
+
+	// Carry the item's interactions over, shifted to screen space and clipped to the visible span.
+	offset := layout.Pos(span.Rect.Min.X, span.Rect.Min.Y-span.LineOffset)
+	for _, op := range child.interactions {
+		op.Rect = op.Rect.Add(offset).Intersect(span.Rect)
+		if op.Rect.Empty() {
+			continue
+		}
+		op.order = dl.nextOrder()
+		dl.interactions = append(dl.interactions, op)
+	}
 
 	clipped := clipRenderedLines(
 		child.RenderToString(span.Rect.Dx(), itemHeight),

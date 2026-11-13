@@ -1,4 +1,10 @@
 [colors]
+"syntax keyword" = { fg = "magenta", bold = true }
+"syntax string" = "green"
+"syntax number" = "yellow"
+"syntax comment" = { fg = "bright black", italic = true }
+"syntax function" = "blue"
+"syntax type" = "cyan"
 dimmed = "bright black"
 title = { fg = "magenta", bold = true }
 shortcut = "magenta"
@@ -36,9 +42,6 @@ error = "red"
 "picker dimmed" = { fg = "bright black" }
 "picker matched" = { underline = true }
 "picker:selected" = { fg = "cyan", bg = "bright black", bold = true, underline = false }
-"picker dimmed:selected" = {}
-"picker text:selected" = {}
-"picker matched:selected" = {}
 "annotation header" = { fg = "magenta", bold = true }
 "annotation dimmed" = "bright black"
 "annotation error" = "red"
@@ -48,6 +51,7 @@ background_blend = 0.4
 
 [light.colors]
 ":selected" = { bg = "white" }
+"annotation:selected" = { bg = "white" }
 "revset completion" = { bg = "default" }
 "git title" = { fg = "62", bg = "230", bold = true }
 "bookmarks title" = { fg = "62", bg = "230", bold = true }
@@ -57,5 +61,6 @@ background_blend = 0.4
 
 [dark.colors]
 ":selected" = { bg = "bright black" }
+"annotation:selected" = { bg = "bright black" }
 "git title" = { fg = "230", bg = "62", bold = true }
 "bookmarks title" = { fg = "230", bg = "62", bold = true }

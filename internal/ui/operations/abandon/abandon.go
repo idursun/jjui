@@ -15,6 +15,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var (
@@ -123,7 +124,7 @@ func (a *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		return ""
 	}
 
-	sourceMarkerStyle := common.DefaultPalette.Get("abandon", "", "source_marker", false)
+	sourceMarkerStyle := theme.DefaultPalette.Get("abandon", "", "source_marker", false)
 	if a.selections.has(commit.GetChangeId(), selectionTypeDescendants) {
 		return sourceMarkerStyle.Render("<< abandon descendants of >>")
 	}

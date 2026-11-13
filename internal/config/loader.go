@@ -125,6 +125,7 @@ func (c *Config) Load(data, baseDir string) error {
 			Name: action.Name,
 			Lua:  action.Lua,
 			Args: action.Args,
+			When: action.When,
 		})
 
 		hasKey := len(action.Key) > 0

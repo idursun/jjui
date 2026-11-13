@@ -13,9 +13,11 @@ import (
 
 // Entry is a status-help key entry rendered as "key description".
 type Entry struct {
+	Action     string
 	Label      string
 	Desc       string
 	Overridden bool
+	Disabled   bool
 }
 
 // ScopeGroup is a named group of help entries for a single scope.
@@ -37,6 +39,24 @@ func FlatEntries(groups []ScopeGroup) []Entry {
 func BuildFromBindings(
 	scope keybindings.ScopeName,
 	bindings []config.BindingConfig,
+) []Entry {
+	return buildFromBindings(scope, bindings, nil)
+}
+
+// BuildFromBindingsWithAvailability includes bindings whose action or key
+// condition is currently unavailable, marking those entries disabled.
+func BuildFromBindingsWithAvailability(
+	scope keybindings.ScopeName,
+	bindings []config.BindingConfig,
+	isAvailable func(config.BindingConfig) bool,
+) []Entry {
+	return buildFromBindings(scope, bindings, isAvailable)
+}
+
+func buildFromBindings(
+	scope keybindings.ScopeName,
+	bindings []config.BindingConfig,
+	isAvailable func(config.BindingConfig) bool,
 ) []Entry {
 	entries := make([]Entry, 0)
 	seenActions := map[string]struct{}{}
@@ -61,8 +81,10 @@ func BuildFromBindings(
 		}
 
 		entries = append(entries, Entry{
-			Label: label,
-			Desc:  bindingDesc(b),
+			Action:   string(action),
+			Label:    label,
+			Desc:     bindingDesc(b),
+			Disabled: isAvailable != nil && !isAvailable(b),
 		})
 		seenActions[identity] = struct{}{}
 	}
@@ -91,9 +113,27 @@ func BuildGroupedFromBindings(
 	scopes []keybindings.ScopeName,
 	bindings []config.BindingConfig,
 ) []ScopeGroup {
+	return buildGroupedFromBindings(scopes, bindings, nil)
+}
+
+// BuildGroupedFromBindingsWithAvailability preserves currently unavailable
+// bindings in the help output and marks them disabled.
+func BuildGroupedFromBindingsWithAvailability(
+	scopes []keybindings.ScopeName,
+	bindings []config.BindingConfig,
+	isAvailable func(config.BindingConfig) bool,
+) []ScopeGroup {
+	return buildGroupedFromBindings(scopes, bindings, isAvailable)
+}
+
+func buildGroupedFromBindings(
+	scopes []keybindings.ScopeName,
+	bindings []config.BindingConfig,
+	isAvailable func(config.BindingConfig) bool,
+) []ScopeGroup {
 	var groups []ScopeGroup
 	for _, scope := range scopes {
-		entries := BuildFromBindings(scope, bindings)
+		entries := buildFromBindings(scope, bindings, isAvailable)
 		if len(entries) > 0 {
 			groups = append(groups, ScopeGroup{
 				Name:    ScopeDisplayName(string(scope)),
@@ -117,7 +157,7 @@ func MarkOverriddenKeys(groups []ScopeGroup) {
 		}
 		// After processing the group, add all its keys to seenKeys
 		for _, e := range groups[i].Entries {
-			if !e.Overridden {
+			if !e.Overridden && !e.Disabled {
 				seenKeys[e.Label] = struct{}{}
 			}
 		}
@@ -185,10 +225,29 @@ func NormalizeDisplayKey(key string) string {
 }
 
 func bindingDesc(b config.BindingConfig) string {
-	if desc := strings.TrimSpace(b.Desc); desc != "" {
+	desc := strings.TrimSpace(b.Desc)
+	if desc != "" {
 		return desc
 	}
 	return descFromAction(string(keybindings.Action(strings.TrimSpace(b.Action))))
+}
+
+func appendBindingConditions(desc string, b config.BindingConfig) string {
+	conditions := make([]string, 0, 2)
+	if config.Current != nil {
+		if when := strings.TrimSpace(config.Current.ActionWhen(b.Action)); when != "" {
+			conditions = append(conditions, when)
+		}
+	}
+	if when := strings.TrimSpace(b.When); when != "" {
+		if len(conditions) == 0 || conditions[0] != when {
+			conditions = append(conditions, when)
+		}
+	}
+	if len(conditions) == 0 {
+		return desc
+	}
+	return desc + " (when " + strings.Join(conditions, " && ") + ")"
 }
 
 func continuationDesc(c dispatch.Continuation) string {

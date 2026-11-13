@@ -206,3 +206,40 @@ func TestDispatcher_DuplicateKeySameScope_LastBindingWins(t *testing.T) {
 func runeKey(r rune) tea.KeyPressMsg {
 	return tea.KeyPressMsg{Text: string(r), Code: r}
 }
+
+type conditionState map[string]any
+
+func (s conditionState) QueryState(name string) (any, bool) { value, ok := s[name]; return value, ok }
+
+func TestDispatcher_DisabledBindingFallsThroughByScopeAndBindingOrder(t *testing.T) {
+	d, err := NewDispatcher([]bindings.Binding{
+		{Action: "outer", Scope: "ui", Key: []string{"x"}},
+		{Action: "fallback", Scope: "revisions", Key: []string{"x"}},
+		{Action: "conditional", Scope: "revisions", Key: []string{"x"}, When: "revisions.has_bookmark"},
+	})
+	require.NoError(t, err)
+	d.SetStateProvider(conditionState{"revisions.has_bookmark": false})
+	got := d.Resolve(runeKey('x'), createScopes("revisions", "ui"))
+	require.Equal(t, bindings.Action("fallback"), got.Action)
+	d.SetStateProvider(conditionState{"revisions.has_bookmark": true})
+	got = d.Resolve(runeKey('x'), createScopes("revisions", "ui"))
+	require.Equal(t, bindings.Action("conditional"), got.Action)
+}
+
+func TestDispatcher_ConditionsFilterSequenceCandidatesAndContinuations(t *testing.T) {
+	d, err := NewDispatcher([]bindings.Binding{
+		{Action: "conditional", Scope: "revisions", Seq: []string{"g", "x"}, When: "revisions.enabled"},
+		{Action: "fallback", Scope: "revisions", Seq: []string{"g", "p"}},
+	})
+	require.NoError(t, err)
+	d.SetStateProvider(conditionState{"revisions.enabled": true})
+	first := d.Resolve(runeKey('g'), createScopes("revisions"))
+	require.Len(t, first.Continuations, 2)
+	d.SetStateProvider(conditionState{"revisions.enabled": false})
+	require.Len(t, d.Continuations(createScopes("revisions")), 1)
+	d.SetStateProvider(conditionState{"revisions.enabled": true})
+	require.Len(t, d.Continuations(createScopes("revisions")), 2)
+	result := d.Resolve(runeKey('x'), createScopes("revisions"))
+	require.Equal(t, bindings.Action("conditional"), result.Action)
+	require.True(t, result.Consumed)
+}

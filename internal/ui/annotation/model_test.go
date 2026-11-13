@@ -58,6 +58,72 @@ func TestModelLoadsStructuredDiffAndCompleteFile(t *testing.T) {
 	assert.Contains(t, fileView, "unchanged line")
 }
 
+func TestFullFileViewLoadsFileWithSpacesInPath(t *testing.T) {
+	runner := test.NewTestCommandRunner(t)
+	defer runner.Verify()
+	runner.Expect(jj.GetDescription("change")).SetOutput([]byte("Update file"))
+	runner.Expect(jj.AnnotationDiff("change")).SetOutput([]byte(`diff --git a/a file.go b/a file.go
+--- a/a file.go	
++++ b/a file.go	
+@@ -1 +1 @@
+-old
++new`))
+	runner.Expect(jj.FileShow("change", "a file.go")).SetOutput([]byte("new\nunchanged line"))
+
+	model := New(test.NewTestContext(runner), "change")
+	require.Nil(t, model.Update(model.Init()()))
+
+	cmd, handled := model.HandleIntent(intents.AnnotationTogglePresentation{})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	require.Nil(t, model.Update(cmd()))
+
+	assert.Equal(t, "a file.go", model.currentFile().Path)
+	assert.Contains(t, model.document.currentFile().Content, "unchanged line")
+}
+
+func TestFullFileViewLoadsEmptyFileWithSpacesInPath(t *testing.T) {
+	runner := test.NewTestCommandRunner(t)
+	defer runner.Verify()
+	runner.Expect(jj.GetDescription("change")).SetOutput([]byte("Add file"))
+	runner.Expect(jj.AnnotationDiff("change")).SetOutput([]byte(`diff --git a/hello world.txt b/hello world.txt
+new file mode 100644
+index 0000000000..e69de29bb2`))
+	runner.Expect(jj.FileShow("change", "hello world.txt")).SetOutput([]byte("loaded content"))
+
+	model := New(test.NewTestContext(runner), "change")
+	require.Nil(t, model.Update(model.Init()()))
+
+	cmd, handled := model.HandleIntent(intents.AnnotationTogglePresentation{})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	require.Nil(t, model.Update(cmd()))
+
+	assert.Equal(t, "hello world.txt", model.currentFile().Path)
+	assert.Equal(t, []string{"loaded content"}, model.document.currentFile().Content)
+}
+
+func TestFullFileViewLoadsDeletedFileWithSpacesFromParent(t *testing.T) {
+	runner := test.NewTestCommandRunner(t)
+	defer runner.Verify()
+	runner.Expect(jj.GetDescription("change")).SetOutput([]byte("Delete file"))
+	runner.Expect(jj.AnnotationDiff("change")).SetOutput([]byte(`diff --git a/hello world.txt b/hello world.txt
+deleted file mode 100644
+index e69de29bb2..0000000000`))
+	runner.Expect(jj.FileShow("change-", "hello world.txt")).SetOutput([]byte(""))
+
+	model := New(test.NewTestContext(runner), "change")
+	require.Nil(t, model.Update(model.Init()()))
+
+	cmd, handled := model.HandleIntent(intents.AnnotationTogglePresentation{})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	require.Nil(t, model.Update(cmd()))
+
+	assert.Equal(t, "hello world.txt", model.currentFile().Path)
+	assert.Equal(t, []string{""}, model.document.currentFile().Content)
+}
+
 func TestAnnotationsRenderOnUnchangedLines(t *testing.T) {
 	runner := test.NewTestCommandRunner(t)
 	defer runner.Verify()
@@ -613,6 +679,30 @@ func TestAnnotationAtCursorDistinguishesMatchCount(t *testing.T) {
 	assert.Len(t, model.annotationAtCursor(), 2)
 }
 
+func TestQueryStateTracksAnnotationActionAvailability(t *testing.T) {
+	model := annotationTestModel()
+	for name, want := range map[string]bool{
+		"can_annotate":             true,
+		"has_annotation_at_cursor": false,
+		"has_annotations":          false,
+	} {
+		value, ok := model.QueryState(name)
+		assert.True(t, ok, name)
+		assert.Equal(t, want, value, name)
+	}
+	model.cursor = 1
+	model.addAnnotation(Annotation{ChangeID: "commit", File: "a.go", NewLines: lineRange{Start: 1, End: 2}, Comment: "note"})
+	for name, want := range map[string]bool{
+		"can_annotate":             true,
+		"has_annotation_at_cursor": true,
+		"has_annotations":          true,
+	} {
+		value, ok := model.QueryState(name)
+		assert.True(t, ok, name)
+		assert.Equal(t, want, value, name)
+	}
+}
+
 func TestAmbiguousAnnotationActionsOpenCommentPicker(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -954,4 +1044,78 @@ func TestDiffSelectionSkipsHeadersAndCreatesSideAwareRange(t *testing.T) {
 	assert.Equal(t, lineRange{Start: 10, End: 11}, annotation.OldLines)
 	assert.Equal(t, lineRange{Start: 10, End: 10}, annotation.NewLines)
 	assert.Equal(t, " same\n-old", annotation.Snippet)
+}
+
+func TestRequestCloseTracksCopyAndChanges(t *testing.T) {
+	for _, scenario := range []string{"empty", "uncopied", "copied", "added", "edited", "deleted", "deleted all", "cleared"} {
+		t.Run(scenario, func(t *testing.T) {
+			model := New(nil, "")
+			if scenario != "empty" {
+				first := model.addAnnotation(Annotation{Comment: "first"})
+				second := model.addAnnotation(Annotation{Comment: "second"})
+				if scenario != "uncopied" {
+					// Invoking copy is the completion boundary; no command result is needed.
+					model.HandleIntent(intents.AnnotationCopy{})
+				}
+				switch scenario {
+				case "added":
+					model.addAnnotation(Annotation{Comment: "third"})
+				case "edited":
+					model.updateAnnotationComment(first.ID, "updated")
+				case "deleted":
+					model.removeAnnotation(first.ID)
+				case "deleted all":
+					model.removeAnnotation(first.ID)
+					model.removeAnnotation(second.ID)
+				case "cleared":
+					model.HandleIntent(intents.AnnotationClear{})
+				}
+			}
+			_, canClose := model.RequestClose()
+			wantClose := scenario == "empty" || scenario == "copied" || scenario == "deleted all" || scenario == "cleared"
+			assert.Equal(t, wantClose, canClose)
+			assert.Equal(t, !wantClose, model.confirmation != nil)
+		})
+	}
+}
+
+func TestCloseConfirmationKeepsReviewByDefaultAndOnEscape(t *testing.T) {
+	for _, intent := range []intents.Intent{intents.Apply{}, intents.Cancel{}} {
+		model := New(nil, "")
+		model.addAnnotation(Annotation{Comment: "keep me"})
+		_, canClose := model.RequestClose()
+		require.False(t, canClose)
+		assert.Equal(t, "annotation.confirmation", string(model.Scopes()[0].Name))
+		assert.Contains(t, test.Stripped(test.RenderImmediate(model, 80, 20)), "Discard uncopied comments?")
+
+		cmd, handled := model.HandleIntent(intent)
+		require.True(t, handled)
+		require.NotNil(t, cmd)
+		model.Update(cmd())
+		assert.Nil(t, model.confirmation)
+		require.Len(t, model.annotations.All(), 1)
+		assert.Equal(t, "keep me", model.annotations.All()[0].Comment)
+		_, canClose = model.RequestClose()
+		assert.False(t, canClose, "keeping the review must not mark comments as copied")
+	}
+}
+
+func TestCloseConfirmationDiscardsOnlyWhenSelected(t *testing.T) {
+	model := New(nil, "")
+	model.addAnnotation(Annotation{Comment: "note"})
+	model.RequestClose()
+	for _, intent := range []intents.Intent{intents.AnnotationClear{}, intents.AnnotationCopy{}, intents.AnnotationAdd{}} {
+		cmd, handled := model.HandleIntent(intent)
+		assert.True(t, handled)
+		assert.Nil(t, cmd)
+	}
+	assert.Len(t, model.annotations.All(), 1)
+	assert.Zero(t, model.copiedVersion)
+	assert.False(t, model.editing)
+
+	model.HandleIntent(intents.OptionSelect{Delta: 1})
+	cmd, handled := model.HandleIntent(intents.Apply{})
+	require.True(t, handled)
+	require.NotNil(t, cmd)
+	assert.Equal(t, common.CloseViewMsg{Applied: true}, cmd())
 }

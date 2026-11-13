@@ -12,6 +12,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 type SelectedMsg struct {
@@ -29,10 +30,9 @@ type itemScrollMsg struct {
 	Horizontal bool
 }
 
-func (m itemScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	m.Delta = delta
-	m.Horizontal = horizontal
-	return m
+func newItemScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return itemScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 var _ common.ImmediateModel = (*Model)(nil)
@@ -63,8 +63,8 @@ func NewWithOptions(options []string, title string, ordered bool) *Model {
 	ti := textinput.New()
 	ti.Prompt = "filter: "
 	is := ti.Styles()
-	is.Focused.Prompt = common.DefaultPalette.Get("help", "", "shortcut", false)
-	is.Blurred.Prompt = common.DefaultPalette.Get("help", "", "shortcut", false)
+	is.Focused.Prompt = theme.DefaultPalette.Get("help", "", "shortcut", false)
+	is.Blurred.Prompt = theme.DefaultPalette.Get("help", "", "shortcut", false)
 	ti.SetStyles(is)
 	ti.Placeholder = ""
 	ti.CharLimit = 100
@@ -75,7 +75,7 @@ func NewWithOptions(options []string, title string, ordered bool) *Model {
 		options:         options,
 		filteredOptions: options,
 		title:           title,
-		listRenderer:    render.NewListRenderer(itemScrollMsg{}),
+		listRenderer:    render.NewListRenderer(newItemScrollMsg),
 		ordered:         ordered,
 		input:           ti,
 	}
@@ -172,7 +172,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		if m.listRenderer == nil {
-			m.listRenderer = render.NewListRenderer(itemScrollMsg{})
+			m.listRenderer = render.NewListRenderer(newItemScrollMsg)
 		}
 		m.listRenderer.StartLine += msg.Delta
 		if m.listRenderer.StartLine < 0 {
@@ -235,15 +235,15 @@ func (m *Model) selectCurrent() tea.Cmd {
 
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if m.listRenderer == nil {
-		m.listRenderer = render.NewListRenderer(itemScrollMsg{})
+		m.listRenderer = render.NewListRenderer(newItemScrollMsg)
 	}
 
-	borderStyle := common.DefaultPalette.GetBorder("choose", "", "border", false, lipgloss.RoundedBorder())
-	surfaceStyle := common.DefaultPalette.Get("choose", "", "", false)
-	textStyle := common.DefaultPalette.Get("choose", "", "text", false)
-	titleStyle := common.DefaultPalette.Get("choose", "", "title", false)
-	selectedStyle := common.DefaultPalette.GetBlended("choose", "", "", true)
-	inputStyle := common.DefaultPalette.Get("choose", "", "input", false)
+	borderStyle := theme.DefaultPalette.GetBorder("choose", "", "border", false, lipgloss.RoundedBorder())
+	surfaceStyle := theme.DefaultPalette.Get("choose", "", "", false)
+	textStyle := theme.DefaultPalette.Get("choose", "", "text", false)
+	titleStyle := theme.DefaultPalette.Get("choose", "", "title", false)
+	selectedStyle := theme.DefaultPalette.GetBlended("choose", "", "", true)
+	inputStyle := theme.DefaultPalette.Get("choose", "", "input", false)
 
 	inputStyles := m.input.Styles()
 	inputStyles.Focused.Text = inputStyle
@@ -336,7 +336,6 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	itemCount := len(m.filteredOptions)
-	m.listRenderer.StartLine = render.ClampStartLine(m.listRenderer.StartLine, listBox.R.Dy(), itemCount)
 	m.listRenderer.Render(
 		dl,
 		listBox,

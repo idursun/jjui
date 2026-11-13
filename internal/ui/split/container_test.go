@@ -127,11 +127,21 @@ func TestSplitContainerResizeAndPosition(t *testing.T) {
 	state := NewSplitState(50)
 	state.SetPlacement(PlacementAuto)
 	sc := NewSplitContainer(state)
+	sc.RegisterContent("preview", &fakeContent{scope: "preview"})
+	_, _ = sc.ShowContent("preview")
+	assert.True(t, sc.CanResize(1))
+	assert.True(t, sc.CanResize(-1))
 
 	sc.Resize(10)
 	assert.Equal(t, 60.0, state.Percent)
 	sc.Resize(-20)
 	assert.Equal(t, 40.0, state.Percent)
+	state.Percent = state.MaxPercent
+	assert.False(t, sc.CanResize(1))
+	assert.True(t, sc.CanResize(-1))
+	state.Percent = state.MinPercent
+	assert.True(t, sc.CanResize(1))
+	assert.False(t, sc.CanResize(-1))
 
 	sc.SetAutoPosition(true)
 	assert.True(t, state.AtBottom)

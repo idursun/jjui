@@ -1,4 +1,4 @@
-package common
+package theme
 
 import (
 	"image/color"

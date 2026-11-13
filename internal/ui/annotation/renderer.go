@@ -9,9 +9,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 const (
@@ -46,10 +46,9 @@ type scrollMsg struct {
 	Horizontal bool
 }
 
-func (m scrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	m.Delta = delta
-	m.Horizontal = horizontal
-	return m
+func newScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return scrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 type annotationRenderer struct {
@@ -80,24 +79,26 @@ type displayLineCacheKey struct {
 	wrap              bool
 }
 
-func newAnnotationRenderer(dark bool) annotationRenderer {
+func newAnnotationRenderer(dark bool, terminalPalettes ...map[int]string) annotationRenderer {
 	return annotationRenderer{
-		highlighter:     newSourceHighlighter(dark),
+		highlighter:     newSourceHighlighter(dark, terminalPalettes...),
 		highlighterDark: dark,
 	}
 }
 
 type annotationViewState struct {
-	document        *reviewDocument
-	annotations     *annotationStore
-	cursor          int
-	selectionAnchor int
-	scrollY         int
-	scrollX         int
-	wrap            bool
-	editing         bool
-	editor          *textarea.Model
-	sourceVersion   uint64
+	document           *reviewDocument
+	annotations        *annotationStore
+	cursor             int
+	selectionAnchor    int
+	scrollY            int
+	scrollX            int
+	wrap               bool
+	editing            bool
+	editor             *textarea.Model
+	sourceVersion      uint64
+	terminalBackground string
+	terminalPalette    map[int]string
 }
 
 func (s annotationViewState) selectedRange() (int, int) {
@@ -129,10 +130,10 @@ func (r *annotationRenderer) Render(
 		r.displayCache.valid = false
 	}
 
-	surface := common.DefaultPalette.Get("annotation", "", "", false)
-	changeIDStyle := common.DefaultPalette.Get("annotation", "", "change_id", false)
-	textStyle := common.DefaultPalette.Get("annotation", "", "text", false)
-	dimmedStyle := common.DefaultPalette.Get("annotation", "", "dimmed", false)
+	surface := theme.DefaultPalette.Get("annotation", "", "", false)
+	changeIDStyle := theme.DefaultPalette.Get("annotation", "", "change_id", false)
+	textStyle := theme.DefaultPalette.Get("annotation", "", "text", false)
+	dimmedStyle := theme.DefaultPalette.Get("annotation", "", "dimmed", false)
 	dl.AddFill(box.R, ' ', surface, 0)
 
 	headerHeight := min(1, box.R.Dy())
@@ -149,7 +150,8 @@ func (r *annotationRenderer) Render(
 	lines, editorStart := r.buildDisplayLines(state, bodyBox.R.Dx())
 	result.scrollY = clampScroll(state.scrollY, len(lines), bodyBox.R.Dy())
 
-	selectedStyle := common.DefaultPalette.Get("annotation", "", "", true)
+	selectedStyle := theme.DefaultPalette.GetBlended("annotation", "", "", true)
+	contrast := render.NewHighlightContrast(surface.GetBackground(), state.terminalBackground, state.terminalPalette, dark)
 	selectedStart, selectedEnd := state.selectedRange()
 	cursorY := -1
 	cursorX := contentColumn
@@ -174,10 +176,13 @@ func (r *annotationRenderer) Render(
 				1,
 			)
 		}
-		if line.SourceIndex >= selectedStart &&
-			line.SourceIndex <= selectedEnd &&
-			source.Commentable(line.SourceIndex) {
+		selected := line.SourceIndex >= selectedStart &&
+			line.SourceIndex <= selectedEnd && source.Commentable(line.SourceIndex)
+		if selected {
 			dl.AddPaint(rowRect, selectedStyle, 2)
+		}
+		if line.BackgroundRole != "" || selected {
+			contrast.Add(dl, rowRect, 3)
 		}
 		if !state.editing && line.SourceIndex >= 0 && source.Commentable(line.SourceIndex) {
 			dl.AddInteraction(
@@ -192,7 +197,7 @@ func (r *annotationRenderer) Render(
 			cursorX = line.ContentX
 		}
 	}
-	dl.AddInteraction(bodyBox.R, scrollMsg{}, render.InteractionScroll, 0)
+	dl.AddInteractionFn(bodyBox.R, newScrollMsg, render.InteractionScroll, 0)
 
 	if state.editing &&
 		editorStart >= result.scrollY &&
@@ -294,7 +299,7 @@ func (r *annotationRenderer) buildDisplayLinesUncached(
 		return []displayLine{{Content: "Loading annotation view...", SourceIndex: -1}}, -1
 	}
 	if state.document.err != nil {
-		style := common.DefaultPalette.Get("annotation", "", "error", false)
+		style := theme.DefaultPalette.Get("annotation", "", "error", false)
 		return []displayLine{{Content: style.Render(state.document.err.Error()), SourceIndex: -1}}, -1
 	}
 	file := state.document.currentFile()
@@ -303,7 +308,7 @@ func (r *annotationRenderer) buildDisplayLinesUncached(
 	}
 	if state.document.presentation == filePresentation {
 		if file.ContentErr != nil {
-			style := common.DefaultPalette.Get("annotation", "", "error", false)
+			style := theme.DefaultPalette.Get("annotation", "", "error", false)
 			return []displayLine{{Content: style.Render(file.ContentErr.Error()), SourceIndex: -1}}, -1
 		}
 		if !file.ContentLoaded {
@@ -320,7 +325,7 @@ func (r *annotationRenderer) buildDiffLines(
 	width int,
 ) ([]displayLine, int) {
 	if file.Patch == nil || len(file.Patch.Lines) == 0 {
-		text := common.DefaultPalette.Get("annotation", "", "dimmed", false).
+		text := theme.DefaultPalette.Get("annotation", "", "dimmed", false).
 			Render("(unchanged file; press v to view the complete file)")
 		return []displayLine{{Content: text, SourceIndex: -1}}, -1
 	}
@@ -400,11 +405,11 @@ func (r *annotationRenderer) renderPatchLine(
 	line patchLine,
 	width int,
 ) []displayLine {
-	lineNumber := common.DefaultPalette.Get("annotation", "", "dimmed", false)
-	hunkStyle := common.DefaultPalette.Get("annotation", "", "title", false)
-	metadataStyle := common.DefaultPalette.Get("annotation", "", "dimmed", false)
-	addedStyle := common.DefaultPalette.Get("", "", "added", false)
-	deletedStyle := common.DefaultPalette.Get("", "", "deleted", false)
+	lineNumber := theme.DefaultPalette.Get("annotation", "", "dimmed", false)
+	hunkStyle := theme.DefaultPalette.Get("annotation", "", "title", false)
+	metadataStyle := theme.DefaultPalette.Get("annotation", "", "dimmed", false)
+	addedStyle := theme.DefaultPalette.Get("", "", "added", false)
+	deletedStyle := theme.DefaultPalette.Get("", "", "deleted", false)
 	addedWord := diffBackgroundStyle(
 		"added",
 		diffChangedWordBackgroundBlendRatio,
@@ -473,9 +478,9 @@ func (r *annotationRenderer) renderPatchLine(
 }
 
 func diffBackgroundStyle(role string, blendRatio float64) lipgloss.Style {
-	foreground := common.DefaultPalette.Get("", "", role, false).GetForeground()
+	foreground := theme.DefaultPalette.Get("", "", role, false).GetForeground()
 	background := lipgloss.NewStyle().Background(foreground)
-	return common.DefaultPalette.BlendBackgroundCustom(
+	return theme.DefaultPalette.BlendBackgroundCustom(
 		background,
 		"annotation",
 		"",
@@ -524,7 +529,7 @@ func (r *annotationRenderer) renderAnnotation(
 	annotation Annotation,
 	width int,
 ) []displayLine {
-	style := common.DefaultPalette.Get("annotation", "", "text", false)
+	style := theme.DefaultPalette.Get("annotation", "", "text", false)
 	commentLines := strings.Split(annotation.Comment, "\n")
 	result := make([]displayLine, 0, len(commentLines))
 	for index, line := range commentLines {

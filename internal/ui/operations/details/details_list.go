@@ -7,9 +7,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/jj"
-	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 type FileClickedMsg struct {
@@ -29,7 +29,8 @@ type fileMatch struct {
 	end   int
 }
 
-func (f FileListScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
+func newFileListScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
 	return FileListScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
@@ -52,7 +53,7 @@ func NewDetailsList() *DetailsList {
 		selectedHint:   "",
 		unselectedHint: "",
 	}
-	d.listRenderer = render.NewListRenderer(FileListScrollMsg{})
+	d.listRenderer = render.NewListRenderer(newFileListScrollMsg)
 	return d
 }
 
@@ -185,7 +186,7 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 		return 1
 	}
 
-	textStyle := common.DefaultPalette.Get("revisions", "details", "text", false)
+	textStyle := theme.DefaultPalette.Get("revisions", "details", "text", false)
 
 	// Render function - renders each visible item
 	renderItem := func(dl *render.DisplayContext, index int, rect layout.Rectangle) {
@@ -293,9 +294,9 @@ func (d *DetailsList) getStatusStyle(s status, selected bool) lipgloss.Style {
 
 func detailsPaletteStyle(role string, selected bool) lipgloss.Style {
 	if selected {
-		return common.DefaultPalette.GetBlended("revisions", "details", role, true)
+		return theme.DefaultPalette.GetBlended("revisions", "details", role, true)
 	}
-	return common.DefaultPalette.Get("revisions", "details", role, false)
+	return theme.DefaultPalette.Get("revisions", "details", role, false)
 }
 
 // Scroll handles mouse wheel scrolling

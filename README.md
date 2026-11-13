@@ -78,6 +78,9 @@ Additionally,
 
 See [configuration](https://idursun.github.io/jjui/customization/config-toml/) section in the documentation.
 
+On Unix, use `kill -USR1 <jjui-pid>` to reload the active theme file without
+restarting jjui. This reloads theme files only, not `config.toml` or Lua scripts.
+
 ## Installation
 
 ### Windows
@@ -174,7 +177,7 @@ You can download pre-built binaries from the [releases](https://github.com/idurs
 
 ## Compatibility
 
-Minimum supported `jj` version is **v0.37**+.
+Minimum supported `jj` version is **v0.39**+.
 
 ## Contributing
 

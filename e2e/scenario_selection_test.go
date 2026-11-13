@@ -8,6 +8,29 @@ import (
 	ghostty "go.mitchellh.com/libghostty"
 )
 
+// newer's parent is initial but the next row is older, so this tells moving down apart from jumping to the parent.
+func Test_Revisions_SelectionMovesCursorDown(t *testing.T) {
+	t.Parallel()
+	h := NewHarness(t)
+	h.repo.
+		Append("README.md", "older\n").
+		Commit("older").
+		New("@--").
+		Write("other.txt", "newer\n").
+		Commit("newer")
+
+	h.Start("older")
+	h.WaitTextInOrder("newer", "older", "initial")
+
+	h.Key("j")
+	h.Key(" ")
+	waitForCheckedRevisions(h, "newer")
+	h.Key(" ")
+	waitForCheckedRevisions(h, "newer", "older")
+
+	h.Quit()
+}
+
 func Test_Revisions_SelectionClearsWithEscape(t *testing.T) {
 	t.Parallel()
 	_, session, ctx := startJJUITest(t, "initial")

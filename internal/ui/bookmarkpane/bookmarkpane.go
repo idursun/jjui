@@ -17,6 +17,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 type RevealRevisionMsg struct {
@@ -55,10 +56,9 @@ type itemScrollMsg struct {
 	Horizontal bool
 }
 
-func (m itemScrollMsg) SetDelta(delta int, horizontal bool) tea.Msg {
-	m.Delta = delta
-	m.Horizontal = horizontal
-	return m
+func newItemScrollMsg(msg tea.MouseMsg) tea.Msg {
+	delta, horizontal := render.WheelDelta(msg)
+	return itemScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
 type pendingInputKind int
@@ -178,22 +178,30 @@ func (m *Model) Scopes() []common.Scope {
 	}}
 }
 
-func New(c *context.MainContext) *Model {
-	palette := common.DefaultPalette
-	s := styles{
-		title:              palette.Get("", "", "title", false),
-		text:               palette.Get("picker", "", "text", false),
-		dimmed:             palette.Get("picker", "", "dimmed", false),
-		selected:           palette.Get("revisions", "", "", true),
-		localBookmark:      palette.Get("picker", "", "bookmark", false),
-		remoteBookmark:     palette.Get("picker", "", "dimmed", false),
-		remoteBookmarkName: palette.Get("picker", "", "matched", false),
-		trackedBookmark:    palette.Get("status", "", "text", false),
-		deleted:            palette.Get("", "", "deleted", false),
-		conflict:           palette.Get("", "", "error", false),
-		filterPrompt:       palette.Get("picker", "", "matched", false),
-		childGuide:         palette.Get("picker", "", "dimmed", false),
+func newStyles(isSelected bool) styles {
+	palette := theme.DefaultPalette
+	getStyle := palette.Get
+	if isSelected {
+		getStyle = palette.GetBlended
 	}
+	return styles{
+		title:              palette.Get("bookmarks", "", "title", false),
+		text:               getStyle("bookmarks", "", "text", isSelected),
+		dimmed:             getStyle("bookmarks", "", "dimmed", isSelected),
+		selected:           palette.GetBlended("bookmarks", "", "", true),
+		localBookmark:      getStyle("bookmarks", "", "bookmark", isSelected),
+		remoteBookmark:     getStyle("bookmarks", "", "dimmed", isSelected),
+		remoteBookmarkName: getStyle("bookmarks", "", "matched", isSelected),
+		trackedBookmark:    getStyle("bookmarks", "", "text", isSelected),
+		deleted:            getStyle("bookmarks", "", "deleted", isSelected),
+		conflict:           getStyle("bookmarks", "", "error", isSelected),
+		filterPrompt:       palette.Get("bookmarks", "", "matched", false),
+		childGuide:         getStyle("bookmarks", "", "dimmed", isSelected),
+	}
+}
+
+func New(c *context.MainContext) *Model {
+	s := newStyles(false)
 
 	filterInput := textinput.New()
 	filterInput.Prompt = "Filter: "
@@ -210,11 +218,11 @@ func New(c *context.MainContext) *Model {
 		remoteNames:  []string{allRemoteFilter, localRemoteFilter},
 		expanded:     make(map[string]bool),
 		selected:     make(map[string]bool),
-		listRenderer: render.NewListRenderer(itemScrollMsg{}),
+		listRenderer: render.NewListRenderer(newItemScrollMsg),
 		filterInput:  filterInput,
 		styles:       s,
 	}
-	m.listRenderer.Z = render.ZMenuContent
+	m.listRenderer.Z = render.ZPreview
 	return m
 }
 
@@ -514,8 +522,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		return
 	}
 
-	dl.AddInteraction(box.R, PaneClickedMsg{}, render.InteractionClick, render.ZMenuBorder)
-	dl.AddFill(box.R, ' ', m.styles.text, render.ZMenuContent)
+	m.styles = newStyles(false)
+	dl.AddInteraction(box.R, PaneClickedMsg{}, render.InteractionClick, render.ZPreview-1)
+	dl.AddFill(box.R, ' ', m.styles.text, render.ZPreview)
 
 	content := box
 	if content.R.Dx() <= 0 || content.R.Dy() <= 0 {
@@ -524,6 +533,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 
 	titleBox, content := content.CutTop(1)
 	m.renderTitle(dl, titleBox)
+	_, content = content.CutTop(1)
 	remoteBox, content := content.CutTop(1)
 	m.renderRemotes(dl, remoteBox)
 	var listBox layout.Box

@@ -18,8 +18,8 @@ func TestBuildFromBindings_FiltersToScope(t *testing.T) {
 
 	entries := BuildFromBindings("revisions", bindings)
 	assert.Equal(t, []Entry{
-		{Label: "J", Desc: "move down"},
-		{Label: "enter", Desc: "apply"},
+		{Action: "revisions.move_down", Label: "J", Desc: "move down"},
+		{Action: "revisions.apply", Label: "enter", Desc: "apply"},
 	}, entries)
 }
 
@@ -31,9 +31,39 @@ func TestBuildFromBindings_UsesConfiguredDescription(t *testing.T) {
 
 	entries := BuildFromBindings("revisions", bindings)
 	assert.Equal(t, []Entry{
-		{Label: "enter", Desc: "run operation"},
-		{Label: "esc", Desc: "cancel"},
+		{Action: "revisions.apply", Label: "enter", Desc: "run operation"},
+		{Action: "ui.cancel", Label: "esc", Desc: "cancel"},
 	}, entries)
+}
+
+func TestBuildFromBindingsWithAvailability_MarksUnavailableBinding(t *testing.T) {
+	entries := BuildFromBindingsWithAvailability("revisions", []config.BindingConfig{{
+		Action: "revisions.diff",
+		Scope:  "revisions",
+		Key:    config.StringList{"d"},
+	}}, func(config.BindingConfig) bool { return false })
+
+	assert.Equal(t, []Entry{{Action: "revisions.diff", Label: "d", Desc: "diff", Disabled: true}}, entries)
+}
+
+func TestBuildFromBindings_ShowsActionAndBindingConditions(t *testing.T) {
+	previous := config.Current
+	t.Cleanup(func() { config.Current = previous })
+	config.Current = &config.Config{}
+
+	config.Current.Bindings = []config.BindingConfig{{
+		Action: "revisions.diff",
+		Scope:  "revisions",
+		Key:    config.StringList{"d"},
+		When:   "revisions.has_selection",
+	}}
+	groups := buildGroups(config.Current.Bindings)
+	entries := groups[0].Entries
+
+	assert.Equal(t, []Entry{{
+		Label: "d",
+		Desc:  "diff (when revisions.has_revision && !revisions.is_empty && revisions.has_selection)",
+	}}, entries)
 }
 
 func TestBuildFromBindings_SameScopeLastBindingWins(t *testing.T) {
@@ -45,8 +75,8 @@ func TestBuildFromBindings_SameScopeLastBindingWins(t *testing.T) {
 
 	entries := BuildFromBindings("revisions", bindings)
 	assert.Equal(t, []Entry{
-		{Label: "j", Desc: "move down"},
-		{Label: "o", Desc: "open details"},
+		{Action: "revisions.move_down", Label: "j", Desc: "move down"},
+		{Action: "revisions.open_details", Label: "o", Desc: "open details"},
 	}, entries)
 }
 
@@ -59,9 +89,9 @@ func TestBuildFromBindings_SameActionDifferentArgsRemainActive(t *testing.T) {
 
 	entries := BuildFromBindings("revisions.rebase", bindings)
 	assert.Equal(t, []Entry{
-		{Label: "r", Desc: "source: revision"},
-		{Label: "shift+b", Desc: "source: branch"},
-		{Label: "s", Desc: "source: descendants"},
+		{Action: "revisions.rebase.set_source", Label: "r", Desc: "source: revision"},
+		{Action: "revisions.rebase.set_source", Label: "shift+b", Desc: "source: branch"},
+		{Action: "revisions.rebase.set_source", Label: "s", Desc: "source: descendants"},
 	}, entries)
 }
 
@@ -73,8 +103,8 @@ func TestBuildFromBindings_SameScopeDifferentActionsWithSameLeaf(t *testing.T) {
 
 	entries := BuildFromBindings("revisions", bindings)
 	assert.Equal(t, []Entry{
-		{Label: "shift+l", Desc: "revset"},
-		{Label: "e", Desc: "edit"},
+		{Action: "revset.edit", Label: "shift+l", Desc: "revset"},
+		{Action: "revisions.edit", Label: "e", Desc: "edit"},
 	}, entries)
 }
 
@@ -100,6 +130,19 @@ func TestMarkOverriddenKeys_MarksOuterDuplicates(t *testing.T) {
 	assert.False(t, groups[0].Entries[0].Overridden)
 	assert.True(t, groups[1].Entries[0].Overridden)
 	assert.False(t, groups[1].Entries[1].Overridden)
+}
+
+func TestMarkOverriddenKeys_DisabledInnerBindingDoesNotShadowOuterBinding(t *testing.T) {
+	groups := []ScopeGroup{
+		{Name: "Inner", Entries: []Entry{{Label: "j", Desc: "move down", Disabled: true}}},
+		{Name: "Outer", Entries: []Entry{{Label: "j", Desc: "scroll down"}}},
+	}
+
+	MarkOverriddenKeys(groups)
+
+	assert.True(t, groups[0].Entries[0].Disabled)
+	assert.False(t, groups[0].Entries[0].Overridden)
+	assert.False(t, groups[1].Entries[0].Overridden)
 }
 
 func TestBuildFromContinuations_SortsAndAnnotatesNonLeaf(t *testing.T) {

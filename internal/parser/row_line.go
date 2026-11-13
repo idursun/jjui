@@ -24,7 +24,7 @@ func NewGraphRowLine(segments []*screen.Segment) GraphRowLine {
 	}
 }
 
-func (gr *GraphRowLine) ParseRowPrefixes() (int, string, string) {
+func (gr *GraphRowLine) ParseRowPrefixes() (int, *jj.Commit) {
 	prefixesIdx := -1
 	for i, segment := range gr.Segments {
 		if strings.Contains(segment.Text, jj.JJUIPrefix) {
@@ -34,21 +34,40 @@ func (gr *GraphRowLine) ParseRowPrefixes() (int, string, string) {
 	}
 
 	if prefixesIdx == -1 {
-		return -1, "", ""
+		return -1, nil
 	}
 	prefixParts := strings.Split(gr.Segments[prefixesIdx].Text, jj.JJUIPrefix)
-	if len(prefixParts) != 3 {
-		return -1, "", ""
+	if len(prefixParts) != 3 && len(prefixParts) != 4 && len(prefixParts) != 5 && len(prefixParts) != 6 && len(prefixParts) != 7 && len(prefixParts) != 8 {
+		return -1, nil
 	}
 	beforePrefix := prefixParts[0]
-	changeID := strings.TrimSpace(prefixParts[1])
-	commitID := strings.TrimSpace(prefixParts[2])
+	commit := &jj.Commit{
+		ChangeId: strings.TrimSpace(prefixParts[1]),
+		CommitId: strings.TrimSpace(prefixParts[2]),
+	}
+	if len(prefixParts) == 6 || len(prefixParts) == 7 || len(prefixParts) == 8 {
+		commit.HasBookmarks = strings.TrimSpace(prefixParts[3]) == "true"
+		commit.HasLocalBookmarks = strings.TrimSpace(prefixParts[4]) == "true"
+		commit.HasWorkspace = strings.TrimSpace(prefixParts[5]) == "true"
+	}
+	switch len(prefixParts) {
+	case 4:
+		commit.Root = strings.TrimSpace(prefixParts[3]) == "true"
+	case 5:
+		commit.Root = strings.TrimSpace(prefixParts[3]) == "true"
+		commit.IsEmpty = strings.TrimSpace(prefixParts[4]) == "true"
+	case 7, 8:
+		commit.Root = strings.TrimSpace(prefixParts[6]) == "true"
+		if len(prefixParts) == 8 {
+			commit.IsEmpty = strings.TrimSpace(prefixParts[7]) == "true"
+		}
+	}
 
-	// Remove changeID and commitID prefixes, while keeping everything before the
+	// Remove the structured metadata, while keeping everything before the
 	// prefixes.
 	gr.Segments[prefixesIdx] = &screen.Segment{Text: beforePrefix}
 
-	return prefixesIdx + 1, changeID, commitID
+	return prefixesIdx + 1, commit
 }
 
 func (gr *GraphRowLine) chop(indent int) {

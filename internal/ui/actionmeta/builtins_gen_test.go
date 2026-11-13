@@ -46,3 +46,8 @@ func TestBuiltInActions(t *testing.T) {
 	require.NotEmpty(t, actions)
 	require.Contains(t, actions, "revisions.squash.apply")
 }
+
+func TestActionWhen(t *testing.T) {
+	require.Equal(t, "revisions.has_revision && !revisions.is_empty", ActionWhen("revisions.diff"))
+	require.Empty(t, ActionWhen("revisions.new"))
+}

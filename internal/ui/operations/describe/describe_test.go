@@ -201,3 +201,17 @@ func TestCtrlKYanksNewlineAtLineEnd(t *testing.T) {
 	op.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
 	assert.Equal(t, "hello\nworld", op.input.Value())
 }
+
+func TestClearYanksTextWithCtrlY(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GetDescription("change")).SetOutput([]byte("hello\nworld"))
+	defer commandRunner.Verify()
+
+	op := NewOperation(test.NewTestContext(commandRunner), &jj.Commit{ChangeId: "change", CommitId: "commit"})
+
+	op.Update(intents.InlineDescribeClear{})
+	assert.Empty(t, op.input.Value())
+
+	op.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
+	assert.Equal(t, "hello\nworld", op.input.Value())
+}

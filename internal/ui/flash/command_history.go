@@ -10,6 +10,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/render"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var _ common.StackedModel = (*CommandHistoryModel)(nil)
@@ -106,11 +107,12 @@ func (m *CommandHistoryModel) ViewRect(dl *render.DisplayContext, box layout.Box
 	maxWidth := area.Dx() - 4
 
 	dl.AddDim(rest.R, render.ZOverlay)
+	dl.AddBackdrop(rest.R, render.ZOverlay-1)
 
 	for _, item := range m.renderedItems(maxWidth, area.Dy()) {
 		y -= item.h
 		rect := layout.Rect(area.Max.X-item.w, y, item.w, item.h)
-		surfaceStyle := common.DefaultPalette.Get("flash", "", "text", false)
+		surfaceStyle := theme.DefaultPalette.Get("flash", "", "text", false)
 		if item.index == m.selectedIndex {
 			surfaceStyle = flashBackgroundStyle(m.items[item.index].Err)
 		}

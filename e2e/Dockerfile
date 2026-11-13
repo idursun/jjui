@@ -54,6 +54,10 @@ RUN git init /opt/ghostty \
     && cd /opt/ghostty \
     && zig build -Demit-lib-vt --prefix /opt/libghostty-vt
 
+# Go does not track changes to external C libraries in its build cache.
+# Keep cached cgo objects separate when the Ghostty library/toolchain changes.
+ENV GOCACHE=/root/.cache/go-build/ghostty-${GHOSTTY_COMMIT}-zig-${ZIG_VERSION}
+
 WORKDIR /workspace
 COPY go.mod go.sum ./
 RUN go mod download

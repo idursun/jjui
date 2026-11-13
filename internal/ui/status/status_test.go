@@ -1,13 +1,13 @@
 package status
 
 import (
-	"errors"
 	"strings"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actions"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/help"
@@ -16,63 +16,45 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestStatus_Update_ExecProcessCompletedMsg(t *testing.T) {
-	cases := []struct {
-		name           string
-		msg            common.ExecProcessCompletedMsg
-		expectedMode   string
-		expectedPrompt string
-		expectedInput  string
-		shouldFocus    bool
-		expectCmd      bool
-	}{
-		{
-			name: "Execution failed, should restore input",
-			msg: common.ExecProcessCompletedMsg{
-				Err: errors.New("exit status 1"),
-				Msg: common.ExecMsg{
-					Line: "invalid command",
-					Mode: common.ExecShell,
-				},
-			},
-			expectedMode:   "exec sh",
-			expectedPrompt: "$ ",
-			expectedInput:  "invalid command",
-			shouldFocus:    true,
-			expectCmd:      true,
-		},
-		{
-			name: "Execution succeeded",
-			msg: common.ExecProcessCompletedMsg{
-				Err: nil,
-			},
-			expectCmd: false,
-		},
+type statusTestState map[string]any
+
+func (s statusTestState) QueryState(name string) (any, bool) {
+	value, ok := s[name]
+	return value, ok
+}
+
+func (statusTestState) Selection() common.SelectionSnapshot { return common.SelectionSnapshot{} }
+
+func TestSync_KeepsUnavailableBindingsCrossedOutInExpandedHelp(t *testing.T) {
+	previous := config.Current
+	t.Cleanup(func() { config.Current = previous })
+	config.Current = &config.Config{Bindings: []config.BindingConfig{
+		{Action: "revisions.diff", Scope: "revisions", Key: config.StringList{"d"}},
+		{Action: "revisions.refresh", Scope: "revisions", Key: config.StringList{"r"}},
+		{Action: "custom.selection", Scope: "revisions", Key: config.StringList{"x"}, When: "revisions.has_selection"},
+	}}
+
+	state := statusTestState{
+		"revisions.has_revision":  false,
+		"revisions.is_empty":      true,
+		"revisions.has_selection": false,
 	}
+	ctx := &context.MainContext{Histories: config.NewHistories()}
+	ctx.SetStateProvider(state)
+	m := New(ctx)
+	m.Sync([]common.Scope{{Name: actions.ScopeRevisions}}, nil)
 
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := &context.MainContext{
-				Histories: config.NewHistories(),
-			}
-			m := New(ctx)
-			cmd := m.Update(tt.msg)
+	entries := m.Help()[0].Entries
+	assert.True(t, entries[0].Disabled, "diff should remain visible but unavailable")
+	assert.False(t, entries[1].Disabled, "refresh is always available")
+	assert.True(t, entries[2].Disabled, "selection-only binding should remain visible but unavailable")
 
-			if tt.expectCmd {
-				assert.NotNil(t, cmd)
-			} else {
-				assert.Nil(t, cmd)
-			}
-
-			if tt.shouldFocus {
-				assert.True(t, m.IsFocused())
-				assert.Equal(t, tt.expectedMode, m.mode)
-				assert.Equal(t, tt.expectedPrompt, m.input.Prompt)
-				assert.Equal(t, tt.expectedInput, m.input.Value())
-			} else {
-				assert.False(t, m.IsFocused())
-			}
-		})
+	state["revisions.has_revision"] = true
+	state["revisions.is_empty"] = false
+	state["revisions.has_selection"] = true
+	m.Sync([]common.Scope{{Name: actions.ScopeRevisions}}, nil)
+	for _, entry := range m.Help()[0].Entries {
+		assert.False(t, entry.Disabled, "%s became available", entry.Label)
 	}
 }
 
@@ -88,45 +70,58 @@ func TestModel_BuildHelpGrid_ColumnMajorOrder(t *testing.T) {
 	}, lines)
 }
 
-func TestModel_ViewStatusRectShowsHelpWhileInputIsFocused(t *testing.T) {
-	ctx := &context.MainContext{Histories: config.NewHistories()}
-	m := New(ctx)
-	m.SetHelp([]help.Entry{{Label: "enter", Desc: "apply"}})
-	m.StartExec(common.ExecShell)
+func TestModel_CollectGroupEntriesStrikesDisabledAndOverriddenEntries(t *testing.T) {
+	m := &Model{}
+	shortcutStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
+	dimmedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	entries := []help.Entry{
+		{Label: "x", Desc: "unavailable", Disabled: true},
+		{Label: "y", Desc: "overridden", Overridden: true},
+	}
 
-	dl := render.NewDisplayContext()
-	m.ViewStatusRect(dl, layout.NewBox(layout.Rect(0, 0, 40, 1)))
-	rendered := dl.RenderToString(40, 1)
-
-	assert.NotContains(t, rendered, "exec sh")
-	assert.Contains(t, rendered, "enter")
-	assert.Contains(t, rendered, "apply")
+	rendered, _ := m.collectGroupEntries(entries, shortcutStyle, dimmedStyle)
+	assert.Equal(t, dimmedStyle.Strikethrough(true).Render("x unavailable"), rendered[0])
+	assert.Equal(t, dimmedStyle.Strikethrough(true).Render("y overridden"), rendered[1])
 }
 
-func TestModel_ViewStatusRectShowsMode(t *testing.T) {
+func TestModel_ViewRectShowsMode(t *testing.T) {
 	ctx := &context.MainContext{Histories: config.NewHistories()}
 	m := New(ctx)
-	m.SetMode("diff")
+	m.mode = "diff"
 
 	dl := render.NewDisplayContext()
-	m.ViewStatusRect(dl, layout.NewBox(layout.Rect(0, 0, 40, 1)))
+	m.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 40, 1)))
 	rendered := dl.RenderToString(40, 1)
 
 	assert.Contains(t, rendered, "diff")
 }
 
-func TestModel_ViewStatusRectExpandedHelpLeavesMainViewVisible(t *testing.T) {
+func TestModel_PromptScopesHideMode(t *testing.T) {
+	for _, scope := range []keybindings.ScopeName{actions.ScopeStatusInput, actions.ScopeQuickSearchInput} {
+		m := New(&context.MainContext{Histories: config.NewHistories()})
+		m.mode = "revisions"
+		m.Sync([]common.Scope{{Name: scope, Leak: common.LeakNone}}, nil)
+		assert.Empty(t, m.Mode(), scope)
+
+		m.setHelp([]help.Entry{{Label: "esc", Desc: "cancel"}})
+		dl := render.NewDisplayContext()
+		m.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 40, 1)))
+		assert.True(t, strings.HasPrefix(dl.RenderToString(40, 1), " esc cancel"), scope)
+	}
+}
+
+func TestModel_ViewRectExpandedHelpLeavesMainViewVisible(t *testing.T) {
 	ctx := &context.MainContext{Histories: config.NewHistories()}
 	m := New(ctx)
 	entries := make([]help.Entry, 20)
 	for i := range entries {
 		entries[i] = help.Entry{Label: "k", Desc: "entry"}
 	}
-	m.SetHelp(entries)
+	m.setHelp(entries)
 	m.SetStatusExpanded(true)
 
 	dl := render.NewDisplayContext()
-	m.ViewStatusRect(dl, layout.NewBox(layout.Rect(0, 4, 20, 1)))
+	m.ViewRect(dl, layout.NewBox(layout.Rect(0, 4, 20, 1)))
 	rendered := dl.RenderToString(20, 5)
 	lines := strings.Split(rendered, "\n")
 
@@ -134,34 +129,28 @@ func TestModel_ViewStatusRectExpandedHelpLeavesMainViewVisible(t *testing.T) {
 	assert.Contains(t, rendered, "full help")
 }
 
-func TestModel_ViewInputRectUsesFullWidth(t *testing.T) {
-	ctx := &context.MainContext{Histories: config.NewHistories()}
-	m := New(ctx)
-	m.StartExec(common.ExecShell)
+func TestModel_HintKeysResolveByAction(t *testing.T) {
+	groups := []help.ScopeGroup{{Name: "ui", Entries: []help.Entry{
+		{Action: "ui.expand_status", Label: "ctrl+h", Desc: "expand status help"},
+		{Action: "ui.open_help", Label: "f2", Desc: "help"},
+	}}}
+	assert.Equal(t, "ctrl+h", expandStatusKey(groups))
+	assert.Equal(t, "f2", fullHelpKey(groups))
 
-	dl := render.NewDisplayContext()
-	box := layout.NewBox(layout.Rect(0, 0, 40, 1))
-	m.ViewInputRect(dl, box)
-
-	assert.Equal(t, 27, m.input.Width())
-	assert.NotNil(t, dl.Cursor())
+	groups[0].Entries[0].Overridden = true
+	groups[0].Entries[1].Disabled = true
+	assert.Equal(t, "?", expandStatusKey(groups))
+	assert.Equal(t, "f1", fullHelpKey(groups))
 }
 
-func TestStatus_Update_FileSearchFocusesAndTypingUpdatesInput(t *testing.T) {
-	ctx := &context.MainContext{
-		Histories: config.NewHistories(),
-	}
-	m := New(ctx)
-
-	cmd := m.Update(common.FileSearchMsg{
-		Revset:     "@",
-		Commit:     &jj.Commit{ChangeId: "abc123", CommitId: "def456"},
-		RawFileOut: []byte("a.txt\nb.txt"),
-	})
-	assert.NotNil(t, cmd)
-	assert.Equal(t, FocusFileSearch, m.FocusKind())
-	assert.True(t, m.IsFocused())
-
-	m.Update(tea.KeyPressMsg{Text: "x", Code: 'x'})
-	assert.Equal(t, "x", m.InputValue())
+func TestModel_HintKeysFollowReboundBindings(t *testing.T) {
+	previous := config.Current
+	t.Cleanup(func() { config.Current = previous })
+	config.Current = &config.Config{Bindings: []config.BindingConfig{
+		{Action: "ui.expand_status", Scope: "ui", Key: config.StringList{"ctrl+h"}, Desc: "expand status help"},
+		{Action: "ui.open_help", Scope: "ui", Key: config.StringList{"f2"}, Desc: "help"},
+	}}
+	groups := help.BuildGroupedFromBindings([]keybindings.ScopeName{"ui"}, config.Current.Bindings)
+	assert.Equal(t, "ctrl+h", expandStatusKey(groups))
+	assert.Equal(t, "f2", fullHelpKey(groups))
 }

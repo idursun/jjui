@@ -6,14 +6,17 @@ import (
 	"strconv"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/jj/source"
 	"github.com/idursun/jjui/internal/ui/actions"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/confirmation"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -48,6 +51,8 @@ type Model struct {
 	annotations     annotationStore
 	loader          annotationLoader
 	clipboardWriter func(string) error
+	copiedVersion   uint64
+	confirmation    *confirmation.Model
 
 	nextRequestID            uint64
 	revisionLoadRequestID    uint64
@@ -82,6 +87,10 @@ var _ common.ImmediateModel = (*Model)(nil)
 
 func New(ctx *appContext.MainContext, revision string) *Model {
 	dark := ctx != nil && ctx.TerminalHasDarkBackground
+	var terminalPalette map[int]string
+	if ctx != nil {
+		terminalPalette = ctx.TerminalPalette
+	}
 	return &Model{
 		context: ctx,
 		document: reviewDocument{
@@ -91,7 +100,7 @@ func New(ctx *appContext.MainContext, revision string) *Model {
 		selectionAnchor: -1,
 		loader:          annotationLoader{context: ctx},
 		clipboardWriter: clipboard.WriteAll,
-		renderer:        newAnnotationRenderer(dark),
+		renderer:        newAnnotationRenderer(dark, terminalPalette),
 	}
 }
 
@@ -99,7 +108,32 @@ func (m *Model) Init() tea.Cmd {
 	return m.loadRevision(m.changeID())
 }
 
+// RequestClose returns whether the view can close, opening a confirmation otherwise.
+func (m *Model) RequestClose() (tea.Cmd, bool) {
+	if len(m.annotations.All()) == 0 || m.annotations.version == m.copiedVersion {
+		return nil, true
+	}
+	if m.confirmation == nil {
+		m.confirmation = confirmation.New(
+			[]string{"Discard uncopied comments?"},
+			confirmation.WithStyleScope("annotation"),
+			confirmation.WithZIndex(10),
+			confirmation.WithOption("Keep reviewing", confirmation.Close,
+				key.NewBinding(key.WithKeys("esc"))),
+			confirmation.WithOption("Discard", common.CloseApplied, key.NewBinding()),
+		)
+	}
+	return m.confirmation.Init(), false
+}
+
 func (m *Model) Scopes() []common.Scope {
+	if m.confirmation != nil {
+		return []common.Scope{{
+			Name:    actions.ScopeAnnotationConfirmation,
+			Leak:    common.LeakNone,
+			Handler: m,
+		}}
+	}
 	if m.editing {
 		return []common.Scope{{
 			Name:    actions.ScopeAnnotationEditor,
@@ -114,7 +148,22 @@ func (m *Model) Scopes() []common.Scope {
 	}}
 }
 
+func (m *Model) QueryState(name string) (any, bool) {
+	switch name {
+	case "can_annotate":
+		return len(m.annotationAtCursor()) > 0 || m.currentCommentable(), true
+	case "has_annotation_at_cursor":
+		return len(m.annotationAtCursor()) > 0, true
+	case "has_annotations":
+		return len(m.annotations.All()) > 0, true
+	}
+	return nil, false
+}
+
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
+	if m.confirmation != nil {
+		return m.confirmation.Update(intent), true
+	}
 	switch intent := intent.(type) {
 	case intents.Cancel:
 		if m.editing {
@@ -211,6 +260,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		if len(annotations) == 1 {
 			label = "annotation"
 		}
+		m.copiedVersion = m.annotations.version
 		text := formatAnnotationsMarkdown(annotations)
 		return func() tea.Msg {
 			if err := m.clipboardWriter(text); err != nil {
@@ -227,9 +277,24 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case common.ThemeChangedMsg:
+		dark := m.context != nil && m.context.TerminalHasDarkBackground
+		m.renderer = newAnnotationRenderer(dark)
+		if m.context != nil {
+			m.renderer.highlighter = newSourceHighlighter(dark, m.context.TerminalPalette)
+		}
+		return nil
 	case intents.Intent:
 		cmd, _ := m.HandleIntent(msg)
 		return cmd
+	case confirmation.CloseMsg:
+		m.confirmation = nil
+		return nil
+	case confirmation.SelectOptionMsg:
+		if m.confirmation != nil {
+			return m.confirmation.Update(msg)
+		}
+		return nil
 	case revisionLoadedMsg:
 		if msg.RequestID == 0 || msg.RequestID != m.revisionLoadRequestID {
 			return nil
@@ -331,6 +396,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case lineClickedMsg:
+		if m.confirmation != nil {
+			return nil
+		}
 		if !m.editing && m.commentable(msg.SourceIndex) {
 			m.cursor = msg.SourceIndex
 			m.selectionAnchor = -1
@@ -340,6 +408,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case scrollMsg:
+		if m.confirmation != nil {
+			return nil
+		}
 		if msg.Horizontal {
 			if !m.wrap {
 				m.scrollX = max(0, m.scrollX+msg.Delta)
@@ -373,6 +444,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	dark := m.context != nil && m.context.TerminalHasDarkBackground
 	if m.renderer.highlighter == nil || dark != m.renderer.highlighterDark {
 		m.renderer = newAnnotationRenderer(dark)
+		if m.context != nil {
+			m.renderer.highlighter = newSourceHighlighter(dark, m.context.TerminalPalette)
+		}
 	}
 	if m.editing {
 		m.resizeEditor(m.viewportWidth)
@@ -382,6 +456,10 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 	result := m.renderer.Render(dl, box, m.viewState(), dark)
 	m.scrollY = result.scrollY
+	if m.confirmation != nil {
+		width, height := lipgloss.Size(m.confirmation.View())
+		m.confirmation.ViewRect(dl, box.Center(width, height))
+	}
 }
 
 func (m *Model) buildDisplayLines(width int) ([]displayLine, int) {
@@ -389,7 +467,7 @@ func (m *Model) buildDisplayLines(width int) ([]displayLine, int) {
 }
 
 func (m *Model) viewState() annotationViewState {
-	return annotationViewState{
+	state := annotationViewState{
 		document:        &m.document,
 		annotations:     &m.annotations,
 		cursor:          m.cursor,
@@ -401,6 +479,11 @@ func (m *Model) viewState() annotationViewState {
 		editor:          &m.editor,
 		sourceVersion:   m.sourceVersion,
 	}
+	if m.context != nil {
+		state.terminalBackground = m.context.TerminalBackground
+		state.terminalPalette = m.context.TerminalPalette
+	}
+	return state
 }
 
 func (m *Model) addAnnotation(annotation Annotation) Annotation {

@@ -1,12 +1,10 @@
-package common
+package theme
 
 import (
-	"maps"
 	"strings"
 
-	"github.com/idursun/jjui/internal/config"
-
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 )
 
 var DefaultPalette = NewPalette()
@@ -28,12 +26,6 @@ type paletteStyle struct {
 	style         lipgloss.Style
 	backgroundRaw string
 	backgroundSet bool
-}
-
-type paletteBackgroundBlend struct {
-	ratio              float64
-	terminalBackground string
-	terminalPalette    map[int]string
 }
 
 func NewPalette() *Palette {
@@ -78,53 +70,8 @@ func (p *Palette) Update(styleMap map[string]config.Color) {
 	}
 }
 
-func (p *Palette) ConfigureBackgroundBlend(
-	ratio float64,
-	terminalBackground string,
-	terminalPalette map[int]string,
-) {
-	p.blend = paletteBackgroundBlend{
-		ratio:              ratio,
-		terminalBackground: terminalBackground,
-		terminalPalette:    cloneTerminalPalette(terminalPalette),
-	}
-}
-
 func (p *Palette) Get(scope, component, role string, isSelected bool) lipgloss.Style {
 	return p.get(scope, component, role, isSelected)
-}
-
-func (p *Palette) GetBlended(scope, component, role string, isSelected bool) lipgloss.Style {
-	return p.GetBlendedCustom(scope, component, role, isSelected, p.blend.ratio)
-}
-
-func (p *Palette) GetBlendedCustom(
-	scope, component, role string,
-	isSelected bool,
-	ratio float64,
-) lipgloss.Style {
-	style := p.get(scope, component, role, isSelected)
-	background, backgroundSet := p.resolveBackground(paletteKeys(scope, component, role, isSelected))
-	return p.applyBackgroundBlend(style, background, backgroundSet, scope, component, ratio)
-}
-
-func (p *Palette) BlendBackgroundCustom(
-	style lipgloss.Style,
-	scope, component string,
-	ratio float64,
-) lipgloss.Style {
-	background, ok := resolveTerminalColor(style.GetBackground(), p.blend.terminalPalette)
-	if !ok {
-		return style
-	}
-	return p.applyBackgroundBlend(
-		style,
-		background,
-		true,
-		scope,
-		component,
-		ratio,
-	)
 }
 
 func (p *Palette) get(scope, component, role string, isSelected bool) lipgloss.Style {
@@ -199,51 +146,6 @@ func (p *Palette) resolveBackground(keys []string) (string, bool) {
 	return "", false
 }
 
-func (p *Palette) applyBackgroundBlend(
-	style lipgloss.Style,
-	background string,
-	backgroundSet bool,
-	scope string,
-	component string,
-	ratio float64,
-) lipgloss.Style {
-	if ratio == 0 || !backgroundSet {
-		return style
-	}
-
-	target := p.backgroundBlendTarget(scope, component)
-	if target == "" {
-		return style
-	}
-	base := resolvePaletteColor(background, p.blend.terminalPalette)
-	blended, ok, err := blendHexColor(base, target, ratio)
-	if err != nil || !ok {
-		return style
-	}
-
-	return style.Background(parseColor(blended))
-}
-
-func (p *Palette) backgroundBlendTarget(scope, component string) string {
-	if background, ok := p.resolveBackground(paletteKeys(scope, component, "", false)); ok {
-		return resolveBlendTarget(background, p.blend.terminalBackground, p.blend.terminalPalette)
-	}
-
-	if background, ok := p.resolveBackground(paletteKeys(scope, component, "border", false)); ok {
-		return resolveBlendTarget(background, p.blend.terminalBackground, p.blend.terminalPalette)
-	}
-	return p.blend.terminalBackground
-}
-
-func cloneTerminalPalette(terminalPalette map[int]string) map[int]string {
-	if terminalPalette == nil {
-		return nil
-	}
-	cloned := make(map[int]string, len(terminalPalette))
-	maps.Copy(cloned, terminalPalette)
-	return cloned
-}
-
 func paletteCandidates(scope, component, role string) []string {
 	candidates := make([]string, 0, 7)
 	seen := make(map[string]struct{}, 7)
@@ -311,11 +213,4 @@ func createStyleFrom(color config.Color) lipgloss.Style {
 	}
 
 	return style
-}
-
-func resolveBlendTarget(value, terminalBackground string, terminalPalette map[int]string) string {
-	if value == "default" {
-		return terminalBackground
-	}
-	return resolvePaletteColor(value, terminalPalette)
 }

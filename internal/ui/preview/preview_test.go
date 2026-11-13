@@ -15,6 +15,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type selectionStateProvider struct{ snapshot common.SelectionSnapshot }
+
+func (p selectionStateProvider) Selection() common.SelectionSnapshot { return p.snapshot }
+func (p selectionStateProvider) QueryState(string) (any, bool)       { return nil, false }
+
 func TestModel_Init(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
@@ -162,7 +167,7 @@ func TestUpdate_PreviewShowDoesNotBreakSelectionRefresh(t *testing.T) {
 	model.ViewRect(render.NewDisplayContext(), layout.NewBox(layout.Rect(0, 0, 80, 3)))
 
 	selected := common.SelectedRevision{ChangeId: "change", CommitId: "commit"}
-	ctx.SelectedItem = selected
+	ctx.SetStateProvider(selectionStateProvider{snapshot: common.SelectionSnapshot{Highlighted: selected}})
 	args := jj.TemplatedArgs(config.Current.Preview.RevisionCommand, map[string]string{
 		jj.RevsetPlaceholder:       ctx.CurrentRevset,
 		jj.ChangeIdPlaceholder:     selected.ChangeId,

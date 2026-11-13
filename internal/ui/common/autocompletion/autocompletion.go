@@ -6,7 +6,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 type AutoCompletionInput struct {
@@ -41,10 +41,10 @@ type Option func(m *AutoCompletionInput)
 func WithStyleScope(scope string) Option {
 	return func(m *AutoCompletionInput) {
 		styles := AutoCompleteStyles{
-			Selected: common.DefaultPalette.GetBlended(scope, "", "", true),
-			Matched:  common.DefaultPalette.Get(scope, "", "matched", false),
-			Text:     common.DefaultPalette.Get(scope, "", "text", false),
-			Dimmed:   common.DefaultPalette.Get(scope, "", "dimmed", false),
+			Selected: theme.DefaultPalette.GetBlended(scope, "", "", true),
+			Matched:  theme.DefaultPalette.Get(scope, "", "matched", false),
+			Text:     theme.DefaultPalette.Get(scope, "", "text", false),
+			Dimmed:   theme.DefaultPalette.Get(scope, "", "dimmed", false),
 		}
 		m.Styles = &styles
 	}
