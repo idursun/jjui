@@ -24,17 +24,14 @@ import (
 	"github.com/idursun/jjui/internal/ui/annotation"
 	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/common"
+	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/exec_prompt"
 	"github.com/idursun/jjui/internal/ui/help"
 	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
-	"github.com/idursun/jjui/internal/ui/operations/bookmark"
-	"github.com/idursun/jjui/internal/ui/operations/describe"
 	"github.com/idursun/jjui/internal/ui/operations/details"
-	"github.com/idursun/jjui/internal/ui/operations/rebase"
-	"github.com/idursun/jjui/internal/ui/operations/set_parents"
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/revset"
@@ -194,6 +191,20 @@ func dispatchAction(model *Model, action keybindings.Action, args map[string]any
 	return nil, result.Consumed
 }
 
+func newModelWithRevision(t *testing.T, commandRunner *test.CommandRunner) (*appContext.MainContext, *Model) {
+	t.Helper()
+	origLogBatching := config.Current.Revisions.LogBatching
+	t.Cleanup(func() { config.Current.Revisions.LogBatching = origLogBatching })
+	config.Current.Revisions.LogBatching = false
+
+	ctx := test.NewTestContext(commandRunner)
+	commandRunner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log)).SetOutput([]byte(testLogOutput))
+	model := NewUI(ctx)
+	test.SimulateModel(model, model.revisions.Update(common.RefreshMsg{SelectedRevision: "abc123"}))
+	require.NotNil(t, model.revisions.SelectedRevision())
+	return ctx, model
+}
+
 const testLogOutput = "<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::abc123>><<log commit mutable:: >><<log commit mutable author email::author>><<log commit mutable:: >><<log commit mutable commit_id shortest prefix::def456>><<log commit mutable::>>\n"
 
 func TestWrapperView_SetsWindowTitleWhenEnabled(t *testing.T) {
@@ -298,8 +309,7 @@ func TestWrapperView_ClearsCursorWhenInlineDescribeCloses(t *testing.T) {
 	test.SimulateModel(model, model.revisions.Update(common.RefreshMsg{SelectedRevision: "abc123"}))
 	require.NotNil(t, model.revisions.SelectedRevision())
 
-	op := describe.NewOperation(ctx, model.revisions.SelectedRevision())
-	model.Update(common.RestoreOperationMsg{Operation: op})
+	model.Update(intents.OpenInlineDescribe{})
 
 	w := &wrapper{ui: model, render: true}
 	view := w.View()
@@ -904,17 +914,9 @@ func Test_Update_AceJumpBeforeFirstRenderDoesNotPanicOnRawKey(t *testing.T) {
 
 func Test_HandleDispatchedAction_RevisionsScopedActionInRebaseMode(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
+	_, model := newModelWithRevision(t, commandRunner)
 
-	op := rebase.NewOperation(
-		ctx,
-		jj.NewSelectedRevisions(&jj.Commit{ChangeId: "abc123", CommitId: "def456"}),
-		&jj.Commit{ChangeId: "abc123", CommitId: "def456"},
-		rebase.SourceRevision,
-		intents.ModeTargetDestination,
-	)
-	model.Update(common.RestoreOperationMsg{Operation: op})
+	model.Update(intents.OpenRebase{Source: intents.RebaseSourceRevision, Target: intents.ModeTargetDestination})
 	assert.False(t, model.revisions.InNormalMode(), "model should be in rebase mode")
 
 	_, handled := dispatchAction(model, "revisions.move_down", nil)
@@ -926,11 +928,9 @@ func Test_HandleDispatchedAction_RevisionsScopedActionInSetParentsMode(t *testin
 	commandRunner.Expect(jj.GetParents("abc123")).SetOutput([]byte("parent1"))
 	defer commandRunner.Verify()
 
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
+	_, model := newModelWithRevision(t, commandRunner)
 
-	op := set_parents.NewModel(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
-	model.Update(common.RestoreOperationMsg{Operation: op})
+	model.Update(intents.OpenSetParents{})
 	assert.False(t, model.revisions.InNormalMode(), "model should be in set parents mode")
 
 	_, handled := dispatchAction(model, "revisions.move_down", nil)
@@ -1213,13 +1213,13 @@ func Test_Update_OperationScopedConfiguredActionOverridesBuiltInIntent(t *testin
 	}
 
 	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status("abc123"))
 	defer commandRunner.Verify()
 
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
+	_, model := newModelWithRevision(t, commandRunner)
 
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
-	model.Update(common.RestoreOperationMsg{Operation: op})
+	model.Update(intents.OpenDetails{})
 	require.Equal(t, "details", model.revisions.CurrentOperation().Name(), "details operation should be active")
 
 	cmd := model.Update(common.DispatchActionMsg{Action: "revisions.details.refresh"})
@@ -1289,13 +1289,13 @@ func Test_Update_AnnotationShowOpensTopLevelAnnotationView(t *testing.T) {
 
 func Test_Update_DiffEscClosesDiffAndRestoresDetails(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status("abc123"))
 	defer commandRunner.Verify()
 
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
+	_, model := newModelWithRevision(t, commandRunner)
 
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
-	model.Update(common.RestoreOperationMsg{Operation: op})
+	model.Update(intents.OpenDetails{})
 	require.Equal(t, "details", model.revisions.CurrentOperation().Name(), "details operation should be active")
 
 	model.Update(intents.DiffShow{Content: "diff content"})
@@ -1556,6 +1556,7 @@ func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing
 	ctx := test.NewTestContext(commandRunner)
 	commandRunner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log)).SetOutput([]byte(logOutput))
 	commandRunner.Expect(jj.GetParent(jj.NewSelectedRevisions(&jj.Commit{ChangeId: "child", CommitId: "childcommit"}))).SetOutput([]byte("parentcommit"))
+	commandRunner.Expect(jj.Status("child")).SetOutput([]byte(statusOutput))
 	commandRunner.Expect(jj.Snapshot())
 	commandRunner.Expect(jj.Status("parent")).SetOutput([]byte(statusOutput))
 	defer commandRunner.Verify()
@@ -1567,7 +1568,7 @@ func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing
 	require.NotNil(t, model.revisions.SelectedRevision())
 	require.Equal(t, "child", model.revisions.SelectedRevision().GetChangeId())
 
-	model.Update(common.RestoreOperationMsg{Operation: details.NewOperation(ctx, model.revisions.SelectedRevision(), newTestFileChecks())})
+	model.Update(intents.OpenDetails{})
 	require.Equal(t, "details", model.revisions.CurrentOperation().Name(), "details operation should be active")
 
 	cmd := model.Update(common.RunLuaScriptMsg{Script: `
@@ -1706,11 +1707,9 @@ func Test_Update_InlineDescribeDispatcherKeysWorkWhileEditing(t *testing.T) {
 	commandRunner.Expect(jj.GetDescription("abc123")).SetOutput([]byte("old desc"))
 	defer commandRunner.Verify()
 
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
+	_, model := newModelWithRevision(t, commandRunner)
 
-	op := describe.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"})
-	model.Update(common.RestoreOperationMsg{Operation: op})
+	model.Update(intents.OpenInlineDescribe{})
 	scopes := model.dispatchScopes()
 	require.NotEmpty(t, scopes)
 	require.Equal(t, keybindings.ScopeName(actions.ScopeInlineDescribe), scopes[0].Name)
@@ -1754,12 +1753,9 @@ func Test_Update_DetailsCloseClearsSelectedFiles(t *testing.T) {
 	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte(statusOutput))
 	defer commandRunner.Verify()
 
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
+	ctx, model := newModelWithRevision(t, commandRunner)
 
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
-	model.Update(common.RestoreOperationMsg{Operation: op})
-	test.SimulateModel(model, op.Init())
+	test.SimulateModel(model, func() tea.Msg { return intents.OpenDetails{} })
 	require.Equal(t, "details", model.revisions.CurrentOperation().Name(), "details operation should be active")
 
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
@@ -1769,32 +1765,6 @@ func Test_Update_DetailsCloseClearsSelectedFiles(t *testing.T) {
 	test.SimulateModel(model, test.Press(tea.KeyEsc))
 	assert.Equal(t, "normal", model.revisions.CurrentOperation().Name(), "esc should close details")
 	assert.Empty(t, ctx.Selection().Checked, "closing details should clear selected files from context")
-}
-
-func Test_Update_RestoreDetailsOperationResyncsSelectedFiles(t *testing.T) {
-	const statusOutput = "<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n<<file status_char::A>><<file:: >><<file display_diff_path::newfile.txt>>\n"
-
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Snapshot())
-	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte(statusOutput))
-	defer commandRunner.Verify()
-
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
-
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
-	model.Update(common.RestoreOperationMsg{Operation: op})
-	test.SimulateModel(model, op.Init())
-
-	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
-	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
-	require.Len(t, ctx.Selection().Checked, 1, "details selection should be tracked before close")
-
-	model.Update(common.CloseViewMsg{})
-	assert.Empty(t, ctx.Selection().Checked, "closing details should clear selected files from context")
-
-	model.Update(common.RestoreOperationMsg{Operation: op})
-	assert.Len(t, ctx.Selection().Checked, 1, "restoring details should resync checked files from the operation state")
 }
 
 func Test_Update_DetailsEscClosesOperation(t *testing.T) {
@@ -1811,12 +1781,9 @@ func Test_Update_DetailsEscClosesOperation(t *testing.T) {
 
 	commandRunner.Expect(jj.Snapshot())
 	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte("<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n"))
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
+	_, model := newModelWithRevision(t, commandRunner)
 
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
-	model.Update(common.RestoreOperationMsg{Operation: op})
-	test.SimulateModel(model, op.Init())
+	test.SimulateModel(model, func() tea.Msg { return intents.OpenDetails{} })
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
 	require.False(t, model.revisions.InNormalMode(), "a focused file puts details in front")
 
@@ -1838,12 +1805,9 @@ func Test_Update_DetailsEscClosesOperation_WithDefaultBindings(t *testing.T) {
 
 	commandRunner.Expect(jj.Snapshot())
 	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte("<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n"))
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
+	_, model := newModelWithRevision(t, commandRunner)
 
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
-	model.Update(common.RestoreOperationMsg{Operation: op})
-	test.SimulateModel(model, op.Init())
+	test.SimulateModel(model, func() tea.Msg { return intents.OpenDetails{} })
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
 	require.False(t, model.revisions.InNormalMode(), "a focused file puts details in front")
 
@@ -1866,11 +1830,9 @@ func Test_Update_DetailsFilterUsesDefaultBindingsAndClearsBeforeClose(t *testing
 	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte(statusOutput))
 	defer commandRunner.Verify()
 
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
-	model.Update(common.RestoreOperationMsg{Operation: op})
-	test.SimulateModel(model, op.Init())
+	_, model := newModelWithRevision(t, commandRunner)
+	test.SimulateModel(model, func() tea.Msg { return intents.OpenDetails{} })
+	op := model.revisions.CurrentOperation().(*details.Operation)
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
 
 	model.Update(tea.KeyPressMsg{Text: "/", Code: '/'})
@@ -1901,12 +1863,9 @@ func Test_Update_CommandErrorAfterClosingDetailsWithSelectedFiles_AllowsEscToDis
 	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte(statusOutput))
 	defer commandRunner.Verify()
 
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
+	ctx, model := newModelWithRevision(t, commandRunner)
 
-	op := details.NewOperation(ctx, &jj.Commit{ChangeId: "abc123", CommitId: "def456"}, newTestFileChecks())
-	model.Update(common.RestoreOperationMsg{Operation: op})
-	test.SimulateModel(model, op.Init())
+	test.SimulateModel(model, func() tea.Msg { return intents.OpenDetails{} })
 	require.Equal(t, "details", model.revisions.CurrentOperation().Name(), "details operation should be active")
 
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
@@ -1938,13 +1897,10 @@ func Test_Update_SetBookmarkTypingDoesNotTogglePreview(t *testing.T) {
 	commandRunner.Expect(jj.BookmarkListMovable("abc123")).SetOutput([]byte(""))
 	defer commandRunner.Verify()
 
-	ctx := test.NewTestContext(commandRunner)
-	model := NewUI(ctx)
-	showPreview(t, model, "preview")
+	_, model := newModelWithRevision(t, commandRunner)
 
-	op := bookmark.NewSetBookmarkOperation(ctx, "abc123", "")
-	test.SimulateModel(op, op.Init())
-	model.Update(common.RestoreOperationMsg{Operation: op})
+	test.SimulateModel(model, func() tea.Msg { return intents.OpenSetBookmark{} })
+	showPreview(t, model, "preview")
 	require.False(t, model.revisions.InNormalMode(), "set bookmark operation should be active")
 	require.True(t, model.revisions.IsEditing(), "set bookmark should be editing")
 
@@ -2230,15 +2186,4 @@ func TestUpdate_FailedExecReopensPromptWithLine(t *testing.T) {
 	view := ansi.Strip(model.View())
 	assert.Contains(t, view, "exec sh")
 	assert.Contains(t, view, "$ bogus-subcommand")
-}
-
-func newTestFileChecks() details.FileChecks {
-	checked := map[string]bool{}
-	return details.FileChecks{
-		IsChecked: func(changeId string, file jj.FileName) bool { return checked[changeId+"\x00"+file.Path()] },
-		Toggle: func(changeId string, file jj.FileName) {
-			key := changeId + "\x00" + file.Path()
-			checked[key] = !checked[key]
-		},
-	}
 }

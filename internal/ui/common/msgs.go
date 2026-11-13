@@ -78,9 +78,6 @@ type (
 		Password     chan []byte
 		EchoPassword bool
 	}
-	RestoreOperationMsg struct {
-		Operation any
-	}
 	StartAceJumpMsg     struct{}
 	OpenTargetPickerMsg struct {
 		Payload any // additional information to carry with the target picker
@@ -113,12 +110,6 @@ func Suspend() tea.Cmd {
 
 func CloseApplied() tea.Msg {
 	return CloseViewMsg{Applied: true}
-}
-
-func RestoreOperation(op any) tea.Cmd {
-	return func() tea.Msg {
-		return RestoreOperationMsg{Operation: op}
-	}
 }
 
 func StartAceJump() tea.Cmd {
