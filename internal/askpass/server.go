@@ -4,6 +4,7 @@ package askpass
 import (
 	"bufio"
 	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -25,9 +26,14 @@ func NewUnstartedServer(envPrefix string) *Server {
 	if err != nil {
 		executablePath = os.Args[0]
 	}
+	// The random part keeps a socket left by a killed process with the same pid
+	// from blocking this one; it is short to stay within the socket path limit.
+	suffix := make([]byte, 4)
+	rand.Read(suffix)
+	name := strings.ToLower(envPrefix) + "-askpass-" + strconv.Itoa(os.Getpid()) + "-" + hex.EncodeToString(suffix) + ".sock"
 	return &Server{
 		envPrefix:      envPrefix,
-		socketPath:     filepath.Join(os.TempDir(), strings.ToLower(envPrefix)+"-askpass-"+strconv.Itoa(os.Getpid())+".sock"),
+		socketPath:     filepath.Join(os.TempDir(), name),
 		executablePath: executablePath,
 
 		subprocesses: make(map[string]subprocess),

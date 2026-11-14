@@ -225,3 +225,22 @@ func newHostKey() (ssh.Signer, error) {
 	}
 	return signer, nil
 }
+
+// A jjui that was killed leaves its socket behind; a later jjui given the same
+// pid must still be able to listen.
+func TestServerListeningBesideASocketOfTheSamePid(t *testing.T) {
+	first := askpass.NewUnstartedServer("JJUI_TEST")
+	if err := first.StartListening(); err != nil {
+		if errors.Is(err, peercred.ErrNotImplemented) {
+			t.Skip(err.Error())
+		}
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { first.Close() })
+
+	second := askpass.NewUnstartedServer("JJUI_TEST")
+	if err := second.StartListening(); err != nil {
+		t.Fatal(err)
+	}
+	second.Close()
+}
