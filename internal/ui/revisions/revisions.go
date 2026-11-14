@@ -871,13 +871,7 @@ func (m *Model) operationSelectionChanged(previous *jj.Commit) tea.Cmd {
 }
 
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
-	// Cancel has special handling: delegate to op first, then clear selections
 	if _, ok := intent.(intents.Cancel); ok {
-		if h, ok := m.activeModel().(common.ScopeHandler); ok {
-			if cmd, handled := h.HandleIntent(intent); handled {
-				return cmd, true
-			}
-		}
 		// Clear checked items and reset to default operation
 		if len(m.checked) > 0 || !m.InNormalMode() {
 			m.clearChecked()
@@ -904,14 +898,6 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.pushLayer(op), true
 	}
 
-	// Try the current operation first
-	if h, ok := m.activeModel().(common.ScopeHandler); ok {
-		if cmd, handled := h.HandleIntent(intent); handled {
-			return cmd, true
-		}
-	}
-
-	// Then try revisions-level intents
 	switch intent := intent.(type) {
 	case intents.OpenDetails:
 		return m.openDetails(intent), true
@@ -976,6 +962,12 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			return intents.Invoke(intents.AddMessage{Text: reason}), true
 		}
 		return common.UpdateRevSet(m.context.NarrowedRevset(condition)), true
+	case intents.DetailsNavigate, intents.DetailsOpenFilter:
+		// The change id's keys work the file list, which details owns.
+		if op, ok := m.baseOperation().(*details.Operation); ok {
+			return op.HandleIntent(intent)
+		}
+		return nil, true
 	case intents.RevisionsObjectNode:
 		m.focusedObjectKind, m.focusedObjectIndex = textObjectNode, 0
 		return m.syncDetails(), true
@@ -1045,7 +1037,10 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.OpenNewBetween:
 		return m.setBaseOperation(new_between.New(m.context, m.SelectedRevisions(), m.SelectedRevision())), true
 	case intents.Refresh:
-		return m.refresh(intent), true
+		return tea.Batch(m.refresh(intent), m.activeModel().Update(common.RefreshMsg{
+			KeepSelections:   intent.KeepSelections,
+			SelectedRevision: intent.SelectedRevision,
+		})), true
 	case intents.QuickSearchCycle:
 		offset := 1
 		if intent.Reverse {
