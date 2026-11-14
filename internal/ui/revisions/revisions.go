@@ -259,15 +259,6 @@ func (m *Model) QueryState(name string) (any, bool) {
 	return query(m.baseOperation())
 }
 
-func (m *Model) activeOperation() operations.Operation {
-	if len(m.layers) > 0 {
-		if op, ok := m.layers[len(m.layers)-1].(operations.Operation); ok {
-			return op
-		}
-	}
-	return m.baseOperation()
-}
-
 func (m *Model) pushLayer(layer common.ImmediateModel) tea.Cmd {
 	m.layers = append(m.layers, layer)
 	return layer.Init()
@@ -1652,8 +1643,9 @@ func (m *Model) search(startIndex int, backward bool) int {
 	return common.CircularSearch(items, m.quickSearch, startIndex, m.cursor, backward)
 }
 
+// CurrentOperation is the operation under the layers.
 func (m *Model) CurrentOperation() operations.Operation {
-	return m.activeOperation()
+	return m.baseOperation()
 }
 
 func (m *Model) GetCommitIds() []string {
