@@ -83,6 +83,12 @@ func newTestRepo(t *testing.T) *testRepo {
 	jjuiConfig := filepath.Join(root, "jjui-config")
 	clipboardBin := filepath.Join(root, "clipboard-bin")
 	clipboardPath := filepath.Join(root, "clipboard")
+	// Its own TMPDIR: a killed jjui leaves its askpass socket behind, named by
+	// pid, and a later jjui given the same pid could not bind it.
+	tmpDir := filepath.Join(root, "tmp")
+	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.MkdirAll(configHome, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -99,6 +105,7 @@ func newTestRepo(t *testing.T) *testRepo {
 
 	env := []string{
 		"HOME=" + filepath.Join(root, "home"),
+		"TMPDIR=" + tmpDir,
 		"XDG_CONFIG_HOME=" + configHome,
 		"JJUI_CONFIG_DIR=" + jjuiConfig,
 		"JJUI_TEST_CLIPBOARD=" + clipboardPath,
