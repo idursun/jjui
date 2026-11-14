@@ -532,7 +532,13 @@ func TestModel_OperationIntents(t *testing.T) {
 	}
 }
 
-func TestModel_ForwardsOperationIntentToFocusedOperation(t *testing.T) {
+// route sends intent through the model's scopes, as the root UI does for a key.
+func route(model *Model, intent intents.Intent) tea.Cmd {
+	cmd, _ := common.RouteIntent(model.Scopes(), intent)
+	return cmd
+}
+
+func TestModel_RoutesOperationIntentToTheOperationScope(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll())
 	commandRunner.Expect(jj.TagList())
@@ -546,8 +552,8 @@ func TestModel_ForwardsOperationIntentToFocusedOperation(t *testing.T) {
 	assert.False(t, model.InNormalMode())
 	assert.False(t, model.IsEditing())
 
-	test.SimulateModel(model, model.Update(intents.RebaseOpenTargetPicker{}))
-	assert.True(t, model.IsEditing(), "rebase target picker should open via dispatched operation intent")
+	test.SimulateModel(model, route(model, intents.RebaseOpenTargetPicker{}))
+	assert.True(t, model.IsEditing(), "rebase target picker should open via the rebase scope")
 }
 
 func TestModel_TargetPickerCancelClosesEditing(t *testing.T) {
@@ -561,9 +567,9 @@ func TestModel_TargetPickerCancelClosesEditing(t *testing.T) {
 	model.updateGraphRows(rows, "a", true)
 
 	test.SimulateModel(model, model.Update(intents.OpenRebase{}))
-	test.SimulateModel(model, model.Update(intents.RebaseOpenTargetPicker{}))
+	test.SimulateModel(model, route(model, intents.RebaseOpenTargetPicker{}))
 	assert.True(t, model.IsEditing(), "target picker should be editing before cancel")
 
-	test.SimulateModel(model, model.Update(intents.TargetPickerCancel{}))
+	test.SimulateModel(model, route(model, intents.TargetPickerCancel{}))
 	assert.False(t, model.IsEditing(), "target picker cancel should exit editing mode")
 }

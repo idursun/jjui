@@ -1787,7 +1787,7 @@ func Test_Update_DetailsCloseClearsSelectedFiles(t *testing.T) {
 	require.Equal(t, "details", model.revisions.CurrentOperation().Name(), "details operation should be active")
 
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
-	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	test.SimulateModel(model, test.Type("m"))
 	require.Len(t, ctx.Selection().Checked, 1, "details selection should be tracked before close")
 
 	test.SimulateModel(model, test.Press(tea.KeyEsc))
@@ -1897,7 +1897,7 @@ func Test_Update_CommandErrorAfterClosingDetailsWithSelectedFiles_AllowsEscToDis
 	require.Equal(t, "details", model.revisions.CurrentOperation().Name(), "details operation should be active")
 
 	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
-	test.SimulateModel(model, func() tea.Msg { return intents.DetailsToggleSelect{} })
+	test.SimulateModel(model, test.Type("m"))
 	require.Len(t, ctx.Selection().Checked, 1, "details selection should be tracked before close")
 
 	model.Update(common.CloseViewMsg{})
