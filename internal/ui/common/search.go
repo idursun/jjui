@@ -21,14 +21,14 @@ func CircularSearch(items []screen.Searchable, query string, startIndex, cursor 
 		} else {
 			c = (startIndex - i + n) % n
 		}
-		if matchesQuery(items[c], query) {
+		if MatchesQuery(items[c], query) {
 			return c
 		}
 	}
 	return cursor
 }
 
-func matchesQuery(item screen.Searchable, query string) bool {
+func MatchesQuery(item screen.Searchable, query string) bool {
 	for _, line := range item.GetSearchableLines() {
 		var text strings.Builder
 		for _, segment := range line.GetSegments() {
