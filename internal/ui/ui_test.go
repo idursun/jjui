@@ -2215,3 +2215,46 @@ func TestUpdate_FailedExecReopensPromptWithLine(t *testing.T) {
 	assert.Contains(t, view, "exec sh")
 	assert.Contains(t, view, "$ bogus-subcommand")
 }
+
+// quits reports whether cmd ends in tea.Quit, looking inside sequences.
+func quits(cmd tea.Cmd) bool {
+	if cmd == nil {
+		return false
+	}
+	msg := cmd()
+	if _, ok := msg.(tea.QuitMsg); ok {
+		return true
+	}
+	if v := reflect.ValueOf(msg); v.Kind() == reflect.Slice {
+		for i := range v.Len() {
+			if inner, ok := v.Index(i).Interface().(tea.Cmd); ok && quits(inner) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func Test_Update_QuitFromAFocusedFile(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.Snapshot())
+	commandRunner.Expect(jj.Status("abc123")).SetOutput([]byte("<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n"))
+	defer commandRunner.Verify()
+	_, model := newModelWithRevision(t, commandRunner)
+	test.SimulateModel(model, func() tea.Msg { return intents.OpenDetails{} })
+	test.SimulateModel(model, func() tea.Msg { return intents.DetailsNavigate{Delta: 1} })
+	require.False(t, model.revisions.InNormalMode(), "a file is focused")
+
+	assert.True(t, quits(model.Update(tea.KeyPressMsg{Text: "q", Code: 'q'})))
+}
+
+func Test_Update_QuitFromEvolog(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.Evolog("abc123"))
+	defer commandRunner.Verify()
+	_, model := newModelWithRevision(t, commandRunner)
+	test.SimulateModel(model, model.Update(tea.KeyPressMsg{Text: "v", Code: 'v'}))
+	require.Equal(t, "evolog", model.revisions.CurrentOperation().Name())
+
+	assert.True(t, quits(model.Update(tea.KeyPressMsg{Text: "q", Code: 'q'})))
+}

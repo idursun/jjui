@@ -216,8 +216,6 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 			s.clearFilter()
 		}
 		return nil, true
-	case intents.Quit:
-		return common.Quit(), true
 	case intents.Refresh:
 		return common.Refresh, true
 	case intents.DetailsDiff:
