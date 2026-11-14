@@ -123,6 +123,12 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
+// ReloadWorkspaceConfig preserves the editor value while replacing workspace-local aliases.
+func (m *Model) ReloadWorkspaceConfig() {
+	m.completionProvider = NewCompletionProvider(m.context.JJConfig.RevsetAliases)
+	m.autoComplete.CompletionProvider = m.completionProvider
+}
+
 func (m *Model) AddToHistory(input string) {
 	if input == "" {
 		return

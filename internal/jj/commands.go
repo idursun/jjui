@@ -43,6 +43,9 @@ func ConfigListAll() CommandArgs {
 
 func Log(revset string, limit int, jjTemplate string) CommandArgs {
 	args := []string{"log", "--color", "always", "--quiet"}
+	if workspace := config.Current.Workspace; workspace.InteractiveWorkspacePane && workspace.ActiveWorkspaceColor != "" {
+		args = append(args, "--config", fmt.Sprintf(`colors."working_copy working_copies".fg=%q`, workspace.ActiveWorkspaceColor))
+	}
 	if revset != "" {
 		args = append(args, "-r", revset)
 	}

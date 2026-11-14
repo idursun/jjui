@@ -28,12 +28,14 @@ type CommandRunner interface {
 }
 
 type MainCommandRunner struct {
-	Location  string
-	Askpass   *askpass.Server
-	idCounter atomic.Int64
+	Location string
+	Askpass  *askpass.Server
 }
 
-func (a *MainCommandRunner) nextID() int { return int(a.idCounter.Add(1)) }
+// Command IDs remain unique across workspace-specific runner instances.
+var commandIDCounter atomic.Int64
+
+func (a *MainCommandRunner) nextID() int { return int(commandIDCounter.Add(1)) }
 
 func (a *MainCommandRunner) RunCommandImmediateWithEnv(args []string, env []string) ([]byte, error) {
 	c := exec.Command("jj", args...)
@@ -79,6 +81,7 @@ func (a *MainCommandRunner) RunCommandStreaming(ctx context.Context, args []stri
 
 func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, continuations []tea.Cmd) tea.Cmd {
 	id := a.nextID()
+	location := a.Location
 	command := "jj " + strings.Join(args, " ")
 	commands := make([]tea.Cmd, 0)
 	commands = append(commands,
@@ -89,7 +92,7 @@ func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, co
 				args = append([]string{"--color", "always"}, args...)
 			}
 			c := exec.Command("jj", args...)
-			c.Dir = a.Location
+			c.Dir = location
 			c.Env = append(os.Environ(), env...)
 
 			if input != nil {
@@ -128,7 +131,9 @@ func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, co
 				Err:    err,
 			}
 		})
-	commands = append(commands, continuations...)
+	for _, continuation := range continuations {
+		commands = append(commands, workspaceRefresh(continuation, location))
+	}
 	return tea.Batch(
 		func() tea.Msg {
 			return common.CommandRunningMsg{ID: id, Command: command}
@@ -150,6 +155,7 @@ func (a *MainCommandRunner) RunInteractiveCommand(args []string, continuation te
 	errBuffer := &bytes.Buffer{}
 	c.Stderr = errBuffer
 	c.Dir = a.Location
+	continuation = workspaceRefresh(continuation, a.Location)
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		if err != nil {
 			return common.CommandCompletedMsg{Err: errors.New(errBuffer.String())}
@@ -159,6 +165,22 @@ func (a *MainCommandRunner) RunInteractiveCommand(args []string, continuation te
 		}
 		return nil
 	})
+}
+
+// A command issued before a switch must not select the new workspace's @ when
+// its refresh continuation arrives after the switch.
+func workspaceRefresh(cmd tea.Cmd, location string) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		msg := cmd()
+		if refresh, ok := msg.(common.RefreshMsg); ok {
+			refresh.Location = location
+			return refresh
+		}
+		return msg
+	}
 }
 
 type StreamingCommand struct {

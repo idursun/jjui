@@ -1,6 +1,7 @@
 package revisions
 
 import (
+	"fmt"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -191,6 +192,60 @@ func TestModel_UpdateGraphRows_DoesNotPrefixMatchImplicitCurrentSelection(t *tes
 
 	assert.Equal(t, 0, model.Cursor(), "removed current revision must not prefix-match a similarly-starting revision")
 	assert.Equal(t, "other", model.SelectedRevision().ChangeId)
+}
+
+func TestModel_RefreshPreservesSelectionWhenUniquePrefixesShrink(t *testing.T) {
+	for _, streaming := range []bool{false, true} {
+		t.Run(fmt.Sprintf("streaming=%t", streaming), func(t *testing.T) {
+			ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+			model := New(ctx)
+			model.updateGraphRows([]parser.Row{
+				{Commit: &jj.Commit{ChangeId: "ko", CommitId: "a1"}},
+				{Commit: &jj.Commit{ChangeId: "kq", CommitId: "a2"}},
+				{Commit: &jj.Commit{ChangeId: "n", CommitId: "b", IsWorkingCopy: true}},
+			}, "ko", true)
+			updated := []parser.Row{
+				{Commit: &jj.Commit{ChangeId: "n", CommitId: "b", IsWorkingCopy: true}},
+				{Commit: &jj.Commit{ChangeId: "k", CommitId: "a"}},
+			}
+			if streaming {
+				model.pendingReload = revisionReloadState{tag: model.tag.Load(), keepSelections: true, selectedRevision: "ko"}
+				model.Update(appendRowsBatchMsg{tag: model.tag.Load(), rows: updated})
+			} else {
+				model.updateGraphRows(updated, "", false)
+			}
+			assert.Equal(t, "k", model.SelectedRevision().ChangeId)
+			assert.Equal(t, "a", model.SelectedRevision().CommitId)
+		})
+	}
+}
+
+func TestModel_PreviousSelectionRequiresBothIDsAndUniqueCandidate(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		rows []parser.Row
+	}{
+		{
+			name: "different commit",
+			rows: []parser.Row{{Commit: &jj.Commit{ChangeId: "k", CommitId: "b"}}},
+		},
+		{
+			name: "different change",
+			rows: []parser.Row{{Commit: &jj.Commit{ChangeId: "n", CommitId: "a"}}},
+		},
+		{
+			name: "ambiguous prefixes",
+			rows: []parser.Row{
+				{Commit: &jj.Commit{ChangeId: "koq", CommitId: "a1b"}},
+				{Commit: &jj.Commit{ChangeId: "kow", CommitId: "a1c"}},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			model := Model{rows: tc.rows}
+			assert.Equal(t, -1, model.selectPreviousRevision(&jj.Commit{ChangeId: "ko", CommitId: "a1"}))
+		})
+	}
 }
 
 func TestModel_UpdateGraphRows_DoesNotPrefixMatchExplicitSelection(t *testing.T) {

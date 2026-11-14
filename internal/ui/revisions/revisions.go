@@ -670,7 +670,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 
 		if targetCursor == -1 && currentSelectedRevision != nil {
-			if idx := m.selectRevisionExact(currentSelectedRevision.GetChangeId()); idx != -1 {
+			if idx := m.selectPreviousRevision(currentSelectedRevision); idx != -1 {
 				targetCursor = idx
 			}
 		}
@@ -1277,14 +1277,14 @@ func (m *Model) updateGraphRows(rows []parser.Row, selectedRevision string, requ
 		rows = []parser.Row{}
 	}
 
-	currentSelectedRevision := selectedRevision
-	if cur := m.SelectedRevision(); currentSelectedRevision == "" && cur != nil {
-		currentSelectedRevision = cur.GetChangeId()
-	}
+	previous := m.SelectedRevision()
 	m.rows = rows
 
 	if len(m.rows) > 0 {
-		idx := m.selectRevisionExact(currentSelectedRevision)
+		idx := m.selectRevisionExact(selectedRevision)
+		if selectedRevision == "" {
+			idx = m.selectPreviousRevision(previous)
+		}
 		if idx == -1 {
 			idx = m.selectRevisionExact("@")
 		}
@@ -1369,8 +1369,9 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 }
 
 func (m *Model) load(revset string, tag uint64) tea.Cmd {
+	runner, template := m.context.CommandRunner, m.context.JJConfig.Templates.Log
 	return func() tea.Msg {
-		output, err := m.context.RunCommandImmediate(jj.Log(revset, config.Current.Limit, m.context.JJConfig.Templates.Log))
+		output, err := runner.RunCommandImmediate(jj.Log(revset, config.Current.Limit, template))
 		if err != nil {
 			return common.UpdateRevisionsFailedMsg{
 				Err:    err,
@@ -1386,12 +1387,13 @@ func (m *Model) load(revset string, tag uint64) tea.Cmd {
 }
 
 func (m *Model) loadStreaming(revset string, tag uint64) tea.Cmd {
+	runner, template := m.context.CommandRunner, m.context.JJConfig.Templates.Log
 	return func() tea.Msg {
 		if m.tag.Load() != tag {
 			return nil
 		}
 
-		streamer, err := graph.NewGraphStreamer(context.Background(), m.context, revset, m.context.JJConfig.Templates.Log)
+		streamer, err := graph.NewGraphStreamer(context.Background(), runner, revset, template)
 		var errMsg string
 		if err != nil {
 			if err == io.EOF {
@@ -1449,6 +1451,31 @@ func (m *Model) selectRevisionExact(revision string) int {
 		}
 		return eqFold(row.Commit.GetChangeId()) || eqFold(row.Commit.ChangeId) || eqFold(row.Commit.CommitId)
 	})
+}
+
+// Unique abbreviations can shrink or grow after revisions disappear or arrive.
+// Require both IDs to agree and a unique candidate; a change prefix alone could
+// select an unrelated revision after the previous selection was removed.
+func (m *Model) selectPreviousRevision(previous *jj.Commit) int {
+	if previous == nil {
+		return -1
+	}
+	if index := m.selectRevisionExact(previous.GetChangeId()); index != -1 {
+		return index
+	}
+	matchesPrefix := func(a, b string) bool {
+		return a != "" && b != "" && (strings.HasPrefix(a, b) || strings.HasPrefix(b, a))
+	}
+	index := -1
+	for i, row := range m.rows {
+		if matchesPrefix(previous.ChangeId, row.Commit.ChangeId) && matchesPrefix(previous.CommitId, row.Commit.CommitId) {
+			if index != -1 {
+				return -1
+			}
+			index = i
+		}
+	}
+	return index
 }
 
 func (m *Model) search(startIndex int, backward bool) int {

@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actionmeta"
 	"github.com/idursun/jjui/internal/ui/choose"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -411,15 +412,20 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	changeWsFn := L.NewFunction(func(L *lua.LState) int {
 		path := L.CheckString(1)
 		prev := ctx.Location
+		prevName := ctx.WorkspaceName
 		ctx.ChangeWorkspace(path)
 		out, err := ctx.RunCommandImmediate([]string{"root"})
 		if err != nil {
 			ctx.ChangeWorkspace(prev)
+			ctx.WorkspaceName = prevName
 			L.Push(lua.LNil)
 			L.Push(lua.LString("not a jj repo: " + path))
 			return 2
 		}
 		ctx.ChangeWorkspace(strings.TrimSpace(string(out)))
+		if workspaces, err := jj.DiscoverWorkspaces(ctx.RunCommandImmediate); err == nil {
+			ctx.IdentifyWorkspace(workspaces)
+		}
 		L.Push(lua.LBool(true))
 		L.Push(lua.LNil)
 		return 2
