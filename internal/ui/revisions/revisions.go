@@ -597,10 +597,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case intents.Intent:
-		if cmd, handled := m.HandleIntent(msg); handled {
-			return cmd
-		}
-		return m.activeModel().Update(msg)
+		cmd, _ := m.HandleIntent(msg)
+		return cmd
 	case common.SelectionChangedMsg:
 		return m.updateOperations(msg)
 	case ItemClickedMsg:
@@ -817,13 +815,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			cmds = append(cmds, m.jumpToObjectKind(m.pendingObjectJump, 1))
 		}
 		return tea.Batch(cmds...)
-	}
-
-	if intent, ok := msg.(intents.Intent); ok {
-		if cmd, handled := m.HandleIntent(intent); handled {
-			return cmd
-		}
-		return m.activeModel().Update(msg)
 	}
 
 	// Non-input messages are broadcast to the current operation
