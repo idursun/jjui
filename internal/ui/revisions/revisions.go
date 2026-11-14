@@ -72,11 +72,11 @@ type Model struct {
 	displayContextRenderer *DisplayContextRenderer
 	ensureCursorView       bool
 	requestInFlight        bool
-	// pendingObjectJump is the object kind a jump keeps looking for once
-	// more rows are loaded.
-	pendingObjectJump string
-	checked           []checkedObject // in the order they were checked
-	focused           bool
+	// pendingSeek is a cursor move that ran past the loaded rows; it runs
+	// again after each batch.
+	pendingSeek func(more bool) (tea.Cmd, bool)
+	checked     []checkedObject // in the order they were checked
+	focused     bool
 	// focusedObjectKind and focusedObjectIndex are the text object the user
 	// moved to; rows without such an object fall back to the node.
 	focusedObjectKind  string
@@ -648,9 +648,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return m.popLayer()
 	case common.QuickSearchMsg:
 		m.quickSearch = strings.ToLower(string(msg))
-		m.SetCursor(m.search(0, false))
+		cmd := m.quickSearchFrom(0, false)
 		m.resetOperations()
-		return nil
+		return cmd
 	case common.CommandCompletedMsg:
 		m.output = msg.Output
 		m.err = msg.Err
@@ -717,7 +717,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 		m.streamer = msg.streamer
 		m.offScreenRows = nil
-		m.pendingObjectJump = ""
+		m.pendingSeek = nil
 		m.hasMore = true
 		m.requestInFlight = false
 
@@ -802,8 +802,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if cmd := m.operationSelectionChanged(currentSelectedRevision); cmd != nil {
 			cmds = append(cmds, cmd)
 		}
-		if m.pendingObjectJump != "" {
-			cmds = append(cmds, m.jumpToObjectKind(m.pendingObjectJump, 1))
+		if m.pendingSeek != nil {
+			cmds = append(cmds, m.seekRow(m.pendingSeek))
 		}
 		return tea.Batch(cmds...)
 	}
@@ -1028,8 +1028,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		if intent.Reverse {
 			offset = -1
 		}
-		m.SetCursor(m.search(m.cursor+offset, intent.Reverse))
-		return nil, true
+		return m.quickSearchFrom(m.cursor+offset, intent.Reverse), true
 	case intents.RevisionsQuickSearchClear:
 		m.quickSearch = ""
 		return nil, true
@@ -1223,13 +1222,14 @@ func (m *Model) goToBottom() tea.Cmd {
 	if len(m.rows) == 0 {
 		return nil
 	}
-	m.SetCursor(len(m.rows) - 1)
-	m.ensureCursorView = true
-	return m.requestMoreRows(m.tag.Load())
+	return m.seekRow(func(more bool) (tea.Cmd, bool) {
+		m.SetCursor(len(m.rows) - 1)
+		return nil, !more
+	})
 }
 
 func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
-	m.pendingObjectJump = ""
+	m.pendingSeek = nil
 	if len(m.rows) == 0 {
 		return nil
 	}
@@ -1294,28 +1294,16 @@ func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
 		}
 	}
 
-	// Calculate new cursor position
-	totalItems := len(m.rows)
-	newCursor := m.cursor + step
-
-	if step > 0 {
-		// Moving down
-		if newCursor >= totalItems {
-			if allowStream && m.hasMore {
-				return m.requestMoreRows(m.tag.Load())
-			}
-			newCursor = totalItems - 1
+	target := max(m.cursor+step, 0)
+	moveTo := func(more bool) (tea.Cmd, bool) {
+		if target < len(m.rows) || !more || !allowStream {
+			m.SetCursor(min(target, len(m.rows)-1))
+			m.ensureCursorView = ensureView
+			return nil, true
 		}
-	} else {
-		// Moving up
-		if newCursor < 0 {
-			newCursor = 0
-		}
+		return nil, false
 	}
-
-	m.SetCursor(newCursor)
-	m.ensureCursorView = ensureView
-	return nil
+	return m.seekRow(moveTo)
 }
 
 func (m *Model) resolveNavigationRevision(revision string) int {
@@ -1635,12 +1623,46 @@ func (m *Model) selectRevisionExact(revision string) int {
 	})
 }
 
+// quickSearchFrom moves the cursor to the next row matching the quick search,
+// wrapping around only once every row is loaded.
+func (m *Model) quickSearchFrom(start int, backward bool) tea.Cmd {
+	return m.seekRow(func(more bool) (tea.Cmd, bool) {
+		if !more {
+			m.SetCursor(m.search(start, backward))
+			return nil, true
+		}
+		delta := 1
+		if backward {
+			delta = -1
+		}
+		for i := start; i >= 0 && i < len(m.rows); i += delta {
+			if common.MatchesQuery(&m.rows[i], m.quickSearch) {
+				m.SetCursor(i)
+				return nil, true
+			}
+		}
+		return nil, false
+	})
+}
+
 func (m *Model) search(startIndex int, backward bool) int {
 	items := make([]screen.Searchable, len(m.rows))
 	for i := range m.rows {
 		items[i] = &m.rows[i]
 	}
 	return common.CircularSearch(items, m.quickSearch, startIndex, m.cursor, backward)
+}
+
+// seekRow runs step on the loaded rows and again after each batch until it
+// reports done; step must be done once more is false.
+func (m *Model) seekRow(step func(more bool) (tea.Cmd, bool)) tea.Cmd {
+	m.pendingSeek = nil
+	cmd, done := step(m.hasMore)
+	if done {
+		return cmd
+	}
+	m.pendingSeek = step
+	return tea.Batch(cmd, m.requestMoreRows(m.tag.Load()))
 }
 
 // CurrentOperation is the operation under the layers.
@@ -1743,23 +1765,28 @@ func (m *Model) syncDetails() tea.Cmd {
 // direction that has an object of the kind, using the rows already parsed.
 // Going down past the loaded rows loads the next batch and tries again.
 func (m *Model) jumpToObjectKind(kind string, delta int) tea.Cmd {
-	m.pendingObjectJump = ""
-	for i := m.cursor + delta; i >= 0 && i < len(m.rows); i += delta {
-		if m.rows[i].Commit == nil {
-			continue
-		}
-		for _, o := range textObjectsForRow(m.rows[i]) {
-			if o.Kind == kind {
-				m.SetCursor(i)
-				m.focusedObjectKind, m.focusedObjectIndex = kind, o.Index
-				return m.syncDetails()
+	next := m.cursor + delta
+	return m.seekRow(func(more bool) (tea.Cmd, bool) {
+		for ; next >= 0 && next < len(m.rows); next += delta {
+			if m.rows[next].Commit == nil {
+				continue
+			}
+			for _, o := range textObjectsForRow(m.rows[next]) {
+				if o.Kind == kind {
+					m.SetCursor(next)
+					m.focusedObjectKind, m.focusedObjectIndex = kind, o.Index
+					return m.syncDetails(), true
+				}
 			}
 		}
-	}
-	if delta > 0 && m.hasMore {
-		m.pendingObjectJump = kind
-		return m.requestMoreRows(m.tag.Load())
-	}
+		if delta > 0 && more {
+			return nil, false
+		}
+		return m.noMoreObjects(kind, delta), true
+	})
+}
+
+func (m *Model) noMoreObjects(kind string, delta int) tea.Cmd {
 	direction := "below"
 	if delta < 0 {
 		direction = "above"
