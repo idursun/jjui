@@ -613,12 +613,63 @@ func TestModel_ObjectJumpContinuesInTheNextBatch(t *testing.T) {
 
 	model.Update(intents.RevisionsObjectJump{Delta: 1})
 	assert.Equal(t, 0, model.cursor, "the cursor waits for the next batch")
-	assert.Equal(t, textObjectBookmark, model.pendingObjectJump)
+	assert.NotNil(t, model.pendingSeek)
 
 	model.Update(appendRowsBatchMsg{rows: jumpRows(t, jumpLogRow("c", "two")), tag: model.tag.Load()})
 	assert.Equal(t, 2, model.cursor)
 	assert.Equal(t, "two", model.focusedTextObject().Value)
-	assert.Equal(t, "", model.pendingObjectJump)
+	assert.Nil(t, model.pendingSeek)
+}
+
+// streamedModel has the rows loaded so far with more still to come.
+func streamedModel(t *testing.T, log string) *Model {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	rows := jumpRows(t, log)
+	model.updateGraphRows(rows, "", true)
+	model.offScreenRows = rows
+	model.hasMore = true
+	return model
+}
+
+func TestModel_NavigatePastTheLoadedRowsLandsOnceTheyLoad(t *testing.T) {
+	model := streamedModel(t, jumpLogRow("a", "")+jumpLogRow("b", ""))
+	model.cursor = 1
+
+	model.Update(intents.Navigate{Delta: 1})
+	assert.Equal(t, 1, model.cursor, "the cursor waits for the next batch")
+
+	model.Update(appendRowsBatchMsg{rows: jumpRows(t, jumpLogRow("c", "")), hasMore: true, tag: model.tag.Load()})
+	assert.Equal(t, 2, model.cursor)
+	assert.Nil(t, model.pendingSeek)
+}
+
+func TestModel_GoToBottomFollowsEveryBatch(t *testing.T) {
+	model := streamedModel(t, jumpLogRow("a", "")+jumpLogRow("b", ""))
+
+	model.Update(intents.GoToBottom{})
+	assert.Equal(t, 1, model.cursor)
+
+	model.Update(appendRowsBatchMsg{rows: jumpRows(t, jumpLogRow("c", "")), hasMore: true, tag: model.tag.Load()})
+	assert.Equal(t, 2, model.cursor)
+	assert.NotNil(t, model.pendingSeek, "there are still rows to load")
+
+	model.Update(appendRowsBatchMsg{rows: jumpRows(t, jumpLogRow("d", "")), tag: model.tag.Load()})
+	assert.Equal(t, 3, model.cursor)
+	assert.Nil(t, model.pendingSeek)
+}
+
+func TestModel_QuickSearchLoadsMoreRowsBeforeWrapping(t *testing.T) {
+	model := streamedModel(t, jumpLogRow("a", "match")+jumpLogRow("b", ""))
+	model.quickSearch = "match"
+
+	model.Update(intents.QuickSearchCycle{})
+	assert.Equal(t, 0, model.cursor, "the search does not wrap while rows are still loading")
+
+	model.Update(appendRowsBatchMsg{rows: jumpRows(t, jumpLogRow("c", "match")), tag: model.tag.Load()})
+	assert.Equal(t, 2, model.cursor)
+
+	model.Update(intents.QuickSearchCycle{})
+	assert.Equal(t, 0, model.cursor, "with every row loaded the search wraps")
 }
 
 func TestModel_ClickingAnObjectFocusesIt(t *testing.T) {
