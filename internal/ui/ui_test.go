@@ -1541,6 +1541,34 @@ func Test_Update_ChangeIdKeysWorkTheFileList(t *testing.T) {
 	assert.Equal(t, "normal", model.revisions.CurrentOperation().Name(), "esc on the change id closes details")
 }
 
+func Test_Update_RefreshReloadsTheFilesUnderTheChangeId(t *testing.T) {
+	const logOutput = "<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::child>><<log commit mutable:: >><<log commit mutable commit_id shortest prefix::childcommit>><<log commit mutable::>>\n"
+
+	origLogBatching := config.Current.Revisions.LogBatching
+	defer func() {
+		config.Current.Revisions.LogBatching = origLogBatching
+	}()
+	config.Current.Revisions.LogBatching = false
+
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	commandRunner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log)).SetOutput([]byte(logOutput))
+	commandRunner.Expect(jj.Snapshot())
+	status := commandRunner.Expect(jj.Status("child")).SetOutput([]byte("<<file status_char::M>><<file:: >><<file display_diff_path::before.txt>>\n"))
+	defer commandRunner.Verify()
+
+	model := NewUI(ctx)
+	model.width, model.height = 80, 10
+	test.SimulateModel(model, model.revisions.Update(common.RefreshMsg{SelectedRevision: "child"}))
+	test.SimulateModel(model, test.Type("l"))
+	require.True(t, model.revisions.InNormalMode(), "the change id is focused, not a file")
+	require.Contains(t, model.View(), "before.txt")
+
+	status.SetOutput([]byte("<<file status_char::M>><<file:: >><<file display_diff_path::after.txt>>\n"))
+	test.SimulateModel(model, func() tea.Msg { return tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl} })
+	assert.Contains(t, model.View(), "after.txt", "ctrl+r reloads the files under the change id")
+}
+
 func Test_Update_LuaDetailsCloseJumpParentOpenDetailsSequencesActions(t *testing.T) {
 	const statusOutput = "<<file status_char::M>><<file:: >><<file display_diff_path::file.txt>>\n"
 	const logOutput = "<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::child>><<log commit mutable:: >><<log commit mutable commit_id shortest prefix::childcommit>><<log commit mutable::>>\n" +

@@ -7,6 +7,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
@@ -93,8 +94,11 @@ func (o *confirmationTrackingOp) HandleIntent(intent intents.Intent) (tea.Cmd, b
 func (o *confirmationTrackingOp) Update(msg tea.Msg) tea.Cmd                      { return nil }
 func (o *confirmationTrackingOp) Init() tea.Cmd                                   { return nil }
 func (o *confirmationTrackingOp) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
-func (o *confirmationTrackingOp) IsEditing() bool                                 { return true }
-func (o *confirmationTrackingOp) Name() string                                    { return "details" }
+func (o *confirmationTrackingOp) Scopes() []common.Scope {
+	return []common.Scope{{Name: "revisions.details.confirmation", Leak: common.LeakNone, Handler: o}}
+}
+func (o *confirmationTrackingOp) IsEditing() bool { return true }
+func (o *confirmationTrackingOp) Name() string    { return "details" }
 func (o *confirmationTrackingOp) Render(_ *jj.Commit, _ operations.RenderPosition) string {
 	return ""
 }
@@ -114,7 +118,7 @@ func TestHandleIntent_DetailsConfirmationMoveDoesNotMoveRevisionsCursor(t *testi
 	op := &confirmationTrackingOp{}
 	model.baseOp = op
 
-	_, handled := model.HandleIntent(intents.OptionSelect{Delta: 1})
+	_, handled := common.RouteIntent(model.Scopes(), intents.OptionSelect{Delta: 1})
 	assert.True(t, handled, "move_down should be handled in details confirmation scope")
 	assert.True(t, op.gotNavigate, "details confirmation should receive OptionSelect intent")
 	assert.Equal(t, 1, op.lastIntent.Delta, "move_down should navigate confirmation to the right/down option")
@@ -136,8 +140,11 @@ func (o *applyTrackingOp) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 func (o *applyTrackingOp) Update(msg tea.Msg) tea.Cmd                      { return nil }
 func (o *applyTrackingOp) Init() tea.Cmd                                   { return nil }
 func (o *applyTrackingOp) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
-func (o *applyTrackingOp) IsEditing() bool                                 { return true }
-func (o *applyTrackingOp) Name() string                                    { return "squash" }
+func (o *applyTrackingOp) Scopes() []common.Scope {
+	return []common.Scope{{Name: "revisions.squash", Leak: common.LeakAll, Handler: o}}
+}
+func (o *applyTrackingOp) IsEditing() bool { return true }
+func (o *applyTrackingOp) Name() string    { return "squash" }
 func (o *applyTrackingOp) Render(_ *jj.Commit, _ operations.RenderPosition) string {
 	return ""
 }
@@ -156,7 +163,7 @@ func TestHandleIntent_ApplyArgsFlowToOperation(t *testing.T) {
 	op := &applyTrackingOp{}
 	model.baseOp = op
 
-	_, handled := model.HandleIntent(intents.Apply{Force: true})
+	_, handled := common.RouteIntent(model.Scopes(), intents.Apply{Force: true})
 	assert.True(t, handled, "apply should be handled by operation")
 	assert.True(t, op.force, "force arg should map to intents.Apply{Force:true}")
 }
