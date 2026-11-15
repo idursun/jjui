@@ -329,21 +329,6 @@ func (m *Model) SetFocused(focused bool) {
 	m.focused = focused
 }
 
-func (m *Model) baseOperationRendersEmbedded() bool {
-	op := m.baseOperation()
-	embedded, ok := op.(operations.EmbeddedOperation)
-	if !ok {
-		return false
-	}
-	commit := m.SelectedRevision()
-	if commit == nil {
-		return false
-	}
-	return embedded.CanEmbed(commit, operations.RenderPositionBefore) ||
-		embedded.CanEmbed(commit, operations.RenderPositionAfter) ||
-		embedded.CanEmbed(commit, operations.RenderOverDescription)
-}
-
 // InNormalMode includes details while the change id rather than a file is focused.
 func (m *Model) InNormalMode() bool {
 	if len(m.layers) > 0 {
@@ -545,10 +530,6 @@ func (m *Model) fileChecks() details.FileChecks {
 	}
 }
 
-func (m *Model) clearChecked() {
-	m.checked = nil
-}
-
 // CheckedCount is the number of checked objects, including files checked in
 // the active operation. File entries in m.checked are counted through the
 // operation's selection, which only lists files that still exist.
@@ -591,7 +572,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 		switch {
 		case msg.Alt:
-			m.rangeSelect(msg.Index)
+			for i := min(m.cursor, msg.Index); i <= max(m.cursor, msg.Index); i++ {
+				if i >= 0 && i < len(m.rows) {
+					if commit := m.rows[i].Commit; commit != nil {
+						m.toggleChecked(checkedRevision(commit))
+					}
+				}
+			}
+			m.SetCursor(msg.Index)
 		case msg.Ctrl:
 			m.SetCursor(msg.Index)
 			if commit := m.rows[msg.Index].Commit; commit != nil {
@@ -723,8 +711,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		log.Println("Starting streaming revisions with tag:", msg.tag)
 
 		cmds := []tea.Cmd{m.requestMoreRows(msg.tag)}
-		if warning := streamingWarningCmd(msg.output, msg.err); warning != nil {
-			cmds = append(cmds, warning)
+		if msg.err != nil {
+			output := msg.output
+			if output == "" {
+				output = msg.err.Error()
+			}
+			cmds = append(cmds, intents.Invoke(intents.AddMessage{Text: output, Err: msg.err}))
 		}
 		return tea.Batch(cmds...)
 	case appendRowsBatchMsg:
@@ -844,7 +836,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	if _, ok := intent.(intents.Cancel); ok {
 		// Clear checked items and reset to default operation
 		if len(m.checked) > 0 || !m.InNormalMode() {
-			m.clearChecked()
+			m.checked = nil
 			m.resetOperations()
 			return nil, true
 		}
@@ -1090,7 +1082,13 @@ func (m *Model) startRebase(intent intents.OpenRebase) tea.Cmd {
 		return nil
 	}
 
-	source := rebaseSourceFromIntent(intent.Source)
+	source := rebase.SourceRevision
+	switch intent.Source {
+	case intents.RebaseSourceBranch:
+		source = rebase.SourceBranch
+	case intents.RebaseSourceDescendants:
+		source = rebase.SourceDescendants
+	}
 	return m.setBaseOperation(rebase.NewOperation(m.context, selected, m.SelectedRevision(), source, intent.Target))
 }
 
@@ -1104,17 +1102,6 @@ func (m *Model) startRevert(intent intents.OpenRevert) tea.Cmd {
 	}
 
 	return m.setBaseOperation(revert.NewOperation(m.context, selected, m.SelectedRevision(), intent.Target))
-}
-
-func rebaseSourceFromIntent(source intents.RebaseSource) rebase.Source {
-	switch source {
-	case intents.RebaseSourceBranch:
-		return rebase.SourceBranch
-	case intents.RebaseSourceDescendants:
-		return rebase.SourceDescendants
-	default:
-		return rebase.SourceRevision
-	}
 }
 
 func (m *Model) startDuplicate(intent intents.OpenDuplicate) tea.Cmd {
@@ -1234,7 +1221,13 @@ func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
 	if intent.ChangeID != "" {
 		idx := m.selectRevisionExact(intent.ChangeID)
 		if idx == -1 {
-			idx = m.resolveNavigationRevision(intent.ChangeID)
+			if output, err := m.context.RunCommandImmediate(jj.ResolveRevisionID(intent.ChangeID)); err == nil {
+				for _, candidate := range strings.SplitN(string(output), ";", 2) {
+					if idx = m.selectRevisionExact(strings.TrimSpace(candidate)); idx != -1 {
+						break
+					}
+				}
+			}
 		}
 		if idx == -1 {
 			return nil
@@ -1246,7 +1239,10 @@ func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
 
 	switch intent.Target {
 	case intents.TargetParent:
-		m.jumpToParent(m.SelectedRevisions())
+		immediate, _ := m.context.RunCommandImmediate(jj.GetParent(m.SelectedRevisions()))
+		if parentIndex := m.selectRevisionExact(string(immediate)); parentIndex != -1 {
+			m.SetCursor(parentIndex)
+		}
 		m.ensureCursorView = ensureView
 		return nil
 	case intents.TargetWorkingCopy:
@@ -1292,21 +1288,6 @@ func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
 		return nil, false
 	}
 	return m.seekRow(moveTo)
-}
-
-func (m *Model) resolveNavigationRevision(revision string) int {
-	output, err := m.context.RunCommandImmediate(jj.ResolveRevisionID(revision))
-	if err != nil {
-		return -1
-	}
-
-	parts := strings.SplitN(string(output), ";", 2)
-	for _, candidate := range parts {
-		if idx := m.selectRevisionExact(strings.TrimSpace(candidate)); idx != -1 {
-			return idx
-		}
-	}
-	return -1
 }
 
 func (m *Model) startDescribe(intent intents.Describe) tea.Cmd {
@@ -1498,7 +1479,15 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	// draw and mouse state when the list renderer calls ViewRect with the row
 	// rectangle; rendering them here would register a second, viewport-relative
 	// set of interactions.
-	if !m.baseOperationRendersEmbedded() {
+	rendersEmbedded := false
+	if embedded, ok := m.baseOperation().(operations.EmbeddedOperation); ok {
+		if commit := m.SelectedRevision(); commit != nil {
+			rendersEmbedded = embedded.CanEmbed(commit, operations.RenderPositionBefore) ||
+				embedded.CanEmbed(commit, operations.RenderPositionAfter) ||
+				embedded.CanEmbed(commit, operations.RenderOverDescription)
+		}
+	}
+	if !rendersEmbedded {
 		renderOp.ViewRect(dl, box)
 	}
 
@@ -1588,16 +1577,6 @@ func (m *Model) requestMoreRows(tag uint64) tea.Cmd {
 	}
 }
 
-func streamingWarningCmd(output string, err error) tea.Cmd {
-	if err == nil {
-		return nil
-	}
-	if output == "" {
-		output = err.Error()
-	}
-	return intents.Invoke(intents.AddMessage{Text: output, Err: err})
-}
-
 func (m *Model) selectRevisionExact(revision string) int {
 	eqFold := func(other string) bool {
 		return strings.EqualFold(other, revision)
@@ -1616,7 +1595,11 @@ func (m *Model) selectRevisionExact(revision string) int {
 func (m *Model) quickSearchFrom(start int, backward bool) tea.Cmd {
 	return m.seekRow(func(more bool) (tea.Cmd, bool) {
 		if !more {
-			m.SetCursor(m.search(start, backward))
+			items := make([]screen.Searchable, len(m.rows))
+			for i := range m.rows {
+				items[i] = &m.rows[i]
+			}
+			m.SetCursor(common.CircularSearch(items, m.quickSearch, start, m.cursor, backward))
 			return nil, true
 		}
 		delta := 1
@@ -1631,14 +1614,6 @@ func (m *Model) quickSearchFrom(start int, backward bool) tea.Cmd {
 		}
 		return nil, false
 	})
-}
-
-func (m *Model) search(startIndex int, backward bool) int {
-	items := make([]screen.Searchable, len(m.rows))
-	for i := range m.rows {
-		items[i] = &m.rows[i]
-	}
-	return common.CircularSearch(items, m.quickSearch, startIndex, m.cursor, backward)
 }
 
 // seekRow runs step on the loaded rows and again after each batch until it
@@ -1670,27 +1645,6 @@ func New(c *appContext.MainContext) *Model {
 	}
 	m.displayContextRenderer = NewDisplayContextRenderer()
 	return &m
-}
-
-func (m *Model) rangeSelect(to int) {
-	lo := min(m.cursor, to)
-	hi := max(m.cursor, to)
-	for i := lo; i <= hi; i++ {
-		if i >= 0 && i < len(m.rows) {
-			if commit := m.rows[i].Commit; commit != nil {
-				m.toggleChecked(checkedRevision(commit))
-			}
-		}
-	}
-	m.SetCursor(to)
-}
-
-func (m *Model) jumpToParent(revisions jj.SelectedRevisions) {
-	immediate, _ := m.context.RunCommandImmediate(jj.GetParent(revisions))
-	parentIndex := m.selectRevisionExact(string(immediate))
-	if parentIndex != -1 {
-		m.SetCursor(parentIndex)
-	}
 }
 
 func (m *Model) focusedTextObject() *textObject {

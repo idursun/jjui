@@ -14,23 +14,13 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/workspace"
 )
 
-// focusedLocalBookmark returns the focused bookmark when it is a local one,
-// otherwise a message explaining why the action does not apply.
-func (m *Model) focusedLocalBookmark(action string) (*textObject, tea.Cmd) {
+func (m *Model) renameFocusedBookmark() tea.Cmd {
 	obj := m.focusedTextObject()
 	if obj == nil || obj.Kind != textObjectBookmark {
-		return nil, nil
+		return nil
 	}
 	if obj.Remote != "" {
-		return nil, intents.Invoke(intents.AddMessage{Text: "Only local bookmarks can be " + action})
-	}
-	return obj, nil
-}
-
-func (m *Model) renameFocusedBookmark() tea.Cmd {
-	obj, cmd := m.focusedLocalBookmark("renamed")
-	if obj == nil {
-		return cmd
+		return intents.Invoke(intents.AddMessage{Text: "Only local bookmarks can be renamed"})
 	}
 	return m.setBaseOperation(bookmark.NewRenameBookmarkOperation(m.context, m.SelectedRevision().GetChangeId(), obj.Value))
 }
@@ -140,10 +130,6 @@ func (m *Model) listAllBookmarks() ([]jj.Bookmark, tea.Cmd) {
 	return jj.ParseBookmarkListOutput(string(output)), nil
 }
 
-func hasRemoteBookmark(targets []textObject) bool {
-	return slices.ContainsFunc(targets, func(o textObject) bool { return o.Remote != "" })
-}
-
 // deleteBookmarks deletes local bookmarks. Remote bookmarks are marked deleted
 // so that pushing them deletes them on the remote; an untracked one has no
 // local bookmark until it is tracked.
@@ -153,7 +139,7 @@ func (m *Model) deleteBookmarks() tea.Cmd {
 		return nil
 	}
 	var listing []jj.Bookmark
-	if hasRemoteBookmark(targets) {
+	if slices.ContainsFunc(targets, func(o textObject) bool { return o.Remote != "" }) {
 		var cmd tea.Cmd
 		if listing, cmd = m.listAllBookmarks(); cmd != nil {
 			return cmd
@@ -233,7 +219,13 @@ func (m *Model) trackBookmarks(track bool) tea.Cmd {
 	}
 	defaultRemote := ""
 	if slices.ContainsFunc(targets, func(o textObject) bool { return o.Remote == "" }) {
-		if defaultRemote = m.defaultTrackRemote(); defaultRemote == "" {
+		// The remote list puts git.default_remote first.
+		if output, err := m.context.RunCommandImmediate(jj.GitRemoteList()); err == nil {
+			if remotes := jj.ParseRemoteListOutput(string(output)); len(remotes) > 0 {
+				defaultRemote = remotes[0]
+			}
+		}
+		if defaultRemote == "" {
 			return intents.Invoke(intents.AddMessage{Text: "There is no git remote to track " + targets[0].Value + " on"})
 		}
 	}
@@ -279,21 +271,6 @@ func isRemoteBookmarkTracked(listing []jj.Bookmark, name string, remote string) 
 		}
 	}
 	return false
-}
-
-// defaultTrackRemote picks the remote local bookmarks are tracked on, the
-// same way the bookmark pane does: git.default_remote when it exists,
-// otherwise the first remote.
-func (m *Model) defaultTrackRemote() string {
-	output, err := m.context.RunCommandImmediate(jj.GitRemoteList())
-	if err != nil {
-		return ""
-	}
-	remotes := jj.ParseRemoteListOutput(string(output))
-	if len(remotes) == 0 {
-		return ""
-	}
-	return remotes[0]
 }
 
 func (m *Model) deleteFocusedTag() tea.Cmd {
@@ -361,7 +338,10 @@ func (m *Model) forgetBookmarks() tea.Cmd {
 	}
 	var plain, withRemotes []string
 	for _, target := range targets {
-		if target.Remote != "" || isBookmarkTracked(listing, target.Value) {
+		tracked := slices.ContainsFunc(listing, func(b jj.Bookmark) bool {
+			return b.Name == target.Value && slices.ContainsFunc(b.Remotes, func(r jj.BookmarkRemote) bool { return r.Tracked })
+		})
+		if target.Remote != "" || tracked {
 			if !slices.Contains(withRemotes, target.Value) {
 				withRemotes = append(withRemotes, target.Value)
 			}
@@ -378,21 +358,6 @@ func (m *Model) forgetBookmarks() tea.Cmd {
 		commands = append(commands, jj.BookmarkForgetIncludingRemotes(withRemotes...))
 	}
 	return m.runBookmarkCommands(commands)
-}
-
-// isBookmarkTracked reports whether the local bookmark tracks any remote.
-func isBookmarkTracked(listing []jj.Bookmark, name string) bool {
-	for _, b := range listing {
-		if b.Name != name {
-			continue
-		}
-		for _, r := range b.Remotes {
-			if r.Tracked {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // runOnFocusedCommit targets the commit id because the change id of a
