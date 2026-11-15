@@ -291,6 +291,25 @@ func Test_TextObjects_DeletesUntrackedRemoteBookmark(t *testing.T) {
 	})
 }
 
+func Test_TextObjects_ForceRewritesFocusedChange(t *testing.T) {
+	t.Parallel()
+	repo := newTestRepo(t)
+	commitId := func() string {
+		return strings.TrimSpace(runCommand(t, repo.Path(), repo.Env(), "jj", "log", "--ignore-working-copy", "-r", "@", "--no-graph", "--color", "never", "-T", "commit_id.short(8)"))
+	}
+	changeId := strings.TrimSpace(runCommand(t, repo.Path(), repo.Env(), "jj", "log", "--ignore-working-copy", "-r", "@", "--no-graph", "--color", "never", "-T", "change_id.short(8)"))
+	before := commitId()
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, changeId)
+	focusTextOnRow(t, session, ctx, changeId)
+	if err := session.SendKey(ghostty.KeyW, "w", 0); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		return commitId() != before, nil
+	})
+}
+
 func Test_TextObjects_DeletesFocusedTag(t *testing.T) {
 	t.Parallel()
 	repo := newTestRepo(t)
