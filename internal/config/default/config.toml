@@ -149,3 +149,10 @@ lua = """
    jjui.builtin.revisions.object.jump_next()
  end
  """
+
+[[actions]]
+name = "revisions.change_id.force_rewrite"
+lua = """
+ jj_async({ "metaedit", "--force-rewrite", "-r", context.commit_id() })
+ jjui.builtin.revisions.refresh()
+ """
