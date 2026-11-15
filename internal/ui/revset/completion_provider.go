@@ -1,6 +1,7 @@
 package revset
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 
@@ -166,16 +167,29 @@ func (p *CompletionProvider) argumentCompletions(ctx CompletionContext) []Comple
 	}
 
 	if ctx.NamedArgumentValue {
-		arg, ok := namedArgument(fn, ctx.ArgumentName)
-		if !ok {
+		i := slices.IndexFunc(fn.Arguments, func(a source.FunctionArgument) bool { return a.Named && a.Name == ctx.ArgumentName })
+		if i < 0 {
 			return nil
 		}
+		arg := fn.Arguments[i]
 		return p.valueCompletions(arg.CompletionSource, ctx.TokenStart, ctx.Token, true)
 	}
 
 	labelItems := p.namedArgumentCompletions(fn, ctx.TokenStart, ctx.Token, ctx.UsedNamedArguments)
-	arg, ok := argumentAt(fn, ctx.ArgumentIndex)
-	if !ok {
+	var arg source.FunctionArgument
+	found := false
+	index := ctx.ArgumentIndex
+	for _, a := range fn.Arguments {
+		if !a.Positional {
+			continue
+		}
+		if index == 0 || a.Variadic {
+			arg, found = a, true
+			break
+		}
+		index--
+	}
+	if !found {
 		return labelItems
 	}
 
@@ -190,23 +204,15 @@ func (p *CompletionProvider) valueCompletions(sourceID source.CompletionSourceID
 	if sourceID == source.CompletionNone {
 		return nil
 	}
-	return p.matchSourceItems(p.itemsForSource(sourceID), replaceStart, token, allowEmpty)
-}
-
-func (p *CompletionProvider) itemsForSource(sourceID source.CompletionSourceID) []source.Item {
-	if items, ok := p.itemsBySource[sourceID]; ok {
-		return items
+	items, ok := p.itemsBySource[sourceID]
+	if loader := p.sourceLoaders[sourceID]; !ok && loader != nil && p.runner != nil {
+		if p.itemsBySource == nil {
+			p.itemsBySource = make(map[source.CompletionSourceID][]source.Item)
+		}
+		items = source.FetchAll(p.runner, loader...)
+		p.itemsBySource[sourceID] = items
 	}
-	loader := p.sourceLoaders[sourceID]
-	if loader == nil || p.runner == nil {
-		return nil
-	}
-	if p.itemsBySource == nil {
-		p.itemsBySource = make(map[source.CompletionSourceID][]source.Item)
-	}
-	items := source.FetchAll(p.runner, loader...)
-	p.itemsBySource[sourceID] = items
-	return items
+	return p.matchSourceItems(items, replaceStart, token, allowEmpty)
 }
 
 func (p *CompletionProvider) namedArgumentCompletions(fn source.FunctionDefinition, replaceStart int, token string, used map[string]bool) []CompletionItem {
@@ -250,9 +256,17 @@ func (p *CompletionProvider) matchSourceItems(sourceItems []source.Item, replace
 }
 
 func (p *CompletionProvider) itemForSourceItem(si source.Item, replaceStart int, token string) CompletionItem {
+	insertText := si.Name
+	if si.Kind == KindFunction {
+		if si.HasParameters {
+			insertText += "("
+		} else {
+			insertText += "()"
+		}
+	}
 	return CompletionItem{
 		Name:          si.Name,
-		InsertText:    insertTextForSourceItem(si),
+		InsertText:    insertText,
 		ReplaceStart:  replaceStart,
 		SignatureHelp: si.SignatureHelp,
 		Kind:          si.Kind,
@@ -260,42 +274,6 @@ func (p *CompletionProvider) itemForSourceItem(si source.Item, replaceStart int,
 		RestPart:      strings.TrimPrefix(si.Name, token),
 		HasParameters: si.HasParameters,
 	}
-}
-
-func insertTextForSourceItem(item source.Item) string {
-	if item.Kind != KindFunction {
-		return item.Name
-	}
-	if item.HasParameters {
-		return item.Name + "("
-	}
-	return item.Name + "()"
-}
-
-func argumentAt(fn source.FunctionDefinition, index int) (source.FunctionArgument, bool) {
-	for _, arg := range fn.Arguments {
-		if !arg.Positional {
-			continue
-		}
-		if index == 0 || arg.Variadic {
-			return arg, true
-		}
-		index--
-	}
-	return source.FunctionArgument{}, false
-}
-
-func namedArgument(fn source.FunctionDefinition, name string) (source.FunctionArgument, bool) {
-	for _, arg := range fn.Arguments {
-		if arg.Named && arg.Name == name {
-			return arg, true
-		}
-	}
-	return source.FunctionArgument{}, false
-}
-
-func isValidFunctionNameChar(r rune) bool {
-	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
 }
 
 func lastTokenInfo(input string) (int, string) {
@@ -342,8 +320,16 @@ func analyzeCompletionContext(input string) (CompletionContext, bool) {
 
 		switch r {
 		case '(':
+			nameStart := i
+			for nameStart > 0 {
+				c := rune(input[nameStart-1])
+				if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' {
+					break
+				}
+				nameStart--
+			}
 			frames = append(frames, functionFrame{
-				name:      functionNameBefore(input, i),
+				name:      input[nameStart:i],
 				argIndex:  0,
 				argStart:  i + len(string(r)),
 				usedNamed: make(map[string]bool),
@@ -355,7 +341,11 @@ func analyzeCompletionContext(input string) (CompletionContext, bool) {
 		case ',':
 			if len(frames) > 0 {
 				top := &frames[len(frames)-1]
-				recordNamedArgument(input[top.argStart:i], top.usedNamed)
+				if before, _, ok := strings.Cut(input[top.argStart:i], "="); ok && top.usedNamed != nil {
+					if name := strings.TrimSpace(before); name != "" {
+						top.usedNamed[name] = true
+					}
+				}
 				top.argIndex++
 				top.argStart = i + len(string(r))
 			}
@@ -397,31 +387,6 @@ func analyzeCompletionContext(input string) (CompletionContext, bool) {
 		TokenStart:         tokenStart,
 		Token:              token,
 	}, true
-}
-
-func recordNamedArgument(segment string, used map[string]bool) {
-	if used == nil {
-		return
-	}
-	if before, _, ok := strings.Cut(segment, "="); ok {
-		name := strings.TrimSpace(before)
-		if name != "" {
-			used[name] = true
-		}
-	}
-}
-
-func functionNameBefore(input string, openParen int) string {
-	end := openParen
-	start := end
-	for start > 0 {
-		r := rune(input[start-1])
-		if !isValidFunctionNameChar(r) {
-			break
-		}
-		start--
-	}
-	return input[start:end]
 }
 
 func leadingSpaceLen(input string) int {
