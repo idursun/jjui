@@ -84,7 +84,13 @@ func (m *Model) Scopes() []common.Scope {
 }
 
 func (m *Model) Init() tea.Cmd {
-	return m.load()
+	return func() tea.Msg {
+		output, err := m.context.RunCommandImmediate(jj.OpLogLabelled(config.Current.OpLog.Limit))
+		if err != nil {
+			panic(err)
+		}
+		return updateOpLogMsg{Rows: parseRows(bytes.NewReader(output))}
+	}
 }
 
 func (m *Model) Scroll(delta int) tea.Cmd {
@@ -307,18 +313,6 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.listRenderer.RegisterScroll(dl, box)
 
 	m.ensureCursorView = false
-}
-
-func (m *Model) load() tea.Cmd {
-	return func() tea.Msg {
-		output, err := m.context.RunCommandImmediate(jj.OpLogLabelled(config.Current.OpLog.Limit))
-		if err != nil {
-			panic(err)
-		}
-
-		rows := parseRows(bytes.NewReader(output))
-		return updateOpLogMsg{Rows: rows}
-	}
 }
 
 func New(context *context.MainContext) *Model {

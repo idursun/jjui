@@ -266,7 +266,14 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if m.filtered != nil {
 		groups = m.filtered
 	}
-	lines := m.renderGroups(groups, contentBox.R.Dx(), headingStyle, shortcutStyle, descStyle)
+	var lines []string
+	for i, group := range groups {
+		if i > 0 {
+			lines = append(lines, "")
+		}
+		lines = append(lines, headingStyle.Width(contentBox.R.Dx()).Render("  "+group.Name+" "))
+		lines = append(lines, m.renderEntries(group.Entries, contentBox.R.Dx(), shortcutStyle, descStyle)...)
+	}
 
 	// clamp scroll
 	maxScroll := max(0, len(lines)-contentBox.R.Dy())
@@ -286,21 +293,6 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		dl.AddDraw(rect, line, render.ZMenuContent)
 	}
 	dl.AddPaint(surfaceRect, dimmedStyle, render.ZMenuContent)
-}
-
-func (m *Model) renderGroups(groups []ScopeGroup, width int, headingStyle, shortcutStyle, descStyle lipgloss.Style) []string {
-	var lines []string
-	for i, group := range groups {
-		if i > 0 {
-			lines = append(lines, "")
-		}
-		header := headingStyle.Width(width).Render("  " + group.Name + " ")
-		lines = append(lines, header)
-
-		entryLines := m.renderEntries(group.Entries, width, shortcutStyle, descStyle)
-		lines = append(lines, entryLines...)
-	}
-	return lines
 }
 
 func (m *Model) renderEntries(entries []Entry, width int, shortcutStyle, descStyle lipgloss.Style) []string {

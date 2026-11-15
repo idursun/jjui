@@ -100,7 +100,11 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.AddMessage:
 		id := m.add(intent.Text, intent.Err)
 		if intent.Sticky {
-			m.markSticky(id)
+			for i := range m.messages {
+				if m.messages[i].id == id {
+					m.messages[i].sticky = true
+				}
+			}
 		}
 		if intent.Err == nil && !intent.Sticky && id != 0 {
 			expiringMessageTimeout := config.GetExpiringFlashMessageTimeout(config.Current)
@@ -124,26 +128,15 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	area := box.R
 	y := area.Max.Y
-	y = m.renderMessages(dl, area, m.messages, y)
-	m.renderPendingCommands(dl, area, y)
-}
-
-func (m *Model) renderMessages(dl *render.DisplayContext, area layout.Rectangle, messages []flashMessage, y int) int {
 	maxWidth := area.Dx() - 4
-	for _, message := range messages {
+	for _, message := range m.messages {
 		content := m.renderer.RenderMessage(message.command, message.text, message.error, maxWidth)
 		w, h := lipgloss.Size(content)
 		y -= h
-
 		rect := layout.Rect(area.Max.X-w, y, w, h)
 		dl.AddDraw(rect, content, render.ZOverlay)
 		dl.AddPaint(rect, flashBackgroundStyle(message.error), render.ZOverlay)
 	}
-	return y
-}
-
-func (m *Model) renderPendingCommands(dl *render.DisplayContext, area layout.Rectangle, y int) int {
-	maxWidth := area.Dx() - 4
 	for _, cmd := range m.pendingCommands {
 		content := m.renderer.RenderRunningCommand(cmd, m.spinner.View(), maxWidth)
 		w, h := lipgloss.Size(content)
@@ -152,7 +145,6 @@ func (m *Model) renderPendingCommands(dl *render.DisplayContext, area layout.Rec
 		dl.AddDraw(rect, content, render.ZOverlay)
 		dl.AddPaint(rect, theme.DefaultPalette.Get("flash", "", "text", false), render.ZOverlay)
 	}
-	return y
 }
 
 func flashBackgroundStyle(err error) lipgloss.Style {
@@ -196,8 +188,9 @@ func (m *Model) AddWithCommand(text string, command string, error error) uint64 
 		return 0
 	}
 
+	m.currentId++
 	msg := flashMessage{
-		id:      m.nextId(),
+		id:      m.currentId,
 		text:    text,
 		command: command,
 		error:   error,
@@ -205,16 +198,12 @@ func (m *Model) AddWithCommand(text string, command string, error error) uint64 
 
 	m.messages = append(m.messages, msg)
 	if msg.command != "" {
-		m.addHistory(msg)
+		m.messageHistory = append(m.messageHistory, msg)
+		if len(m.messageHistory) > HistoryLimit {
+			m.messageHistory = append([]flashMessage(nil), m.messageHistory[len(m.messageHistory)-HistoryLimit:]...)
+		}
 	}
 	return msg.id
-}
-
-func (m *Model) addHistory(msg flashMessage) {
-	m.messageHistory = append(m.messageHistory, msg)
-	if len(m.messageHistory) > HistoryLimit {
-		m.messageHistory = append([]flashMessage(nil), m.messageHistory[len(m.messageHistory)-HistoryLimit:]...)
-	}
 }
 
 func (m *Model) Any() bool {
@@ -237,24 +226,11 @@ func (f flashMessage) persistent() bool {
 	return f.error != nil || f.sticky
 }
 
-func (m *Model) markSticky(id uint64) {
-	for i := range m.messages {
-		if m.messages[i].id == id {
-			m.messages[i].sticky = true
-		}
-	}
-}
-
 func (m *Model) DeleteOldest() {
 	if len(m.messages) == 0 {
 		return
 	}
 	m.messages = m.messages[1:]
-}
-
-func (m *Model) nextId() uint64 {
-	m.currentId = m.currentId + 1
-	return m.currentId
 }
 
 func New() *Model {

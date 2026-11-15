@@ -52,7 +52,12 @@ func buildFromBindings(
 		if action == "" {
 			continue
 		}
-		identity := bindingActionIdentity(action, b.Args)
+		identity := string(action)
+		if len(b.Args) > 0 {
+			if data, err := json.Marshal(b.Args); err == nil {
+				identity += "\x00" + string(data)
+			}
+		}
 		if _, seen := seenActions[identity]; seen {
 			continue
 		}
@@ -62,10 +67,14 @@ func buildFromBindings(
 			continue
 		}
 
+		desc := strings.TrimSpace(b.Desc)
+		if desc == "" {
+			desc = descFromAction(string(action))
+		}
 		entries = append(entries, Entry{
 			Action:   string(action),
 			Label:    label,
-			Desc:     bindingDesc(b),
+			Desc:     desc,
 			Disabled: isAvailable != nil && !isAvailable(b),
 		})
 		seenActions[identity] = struct{}{}
@@ -77,17 +86,6 @@ func buildFromBindings(
 	}
 
 	return entries
-}
-
-func bindingActionIdentity(action keybindings.Action, args map[string]any) string {
-	if len(args) == 0 {
-		return string(action)
-	}
-	data, err := json.Marshal(args)
-	if err != nil {
-		return string(action)
-	}
-	return string(action) + "\x00" + string(data)
 }
 
 // BuildGroupedFromBindingsWithAvailability preserves currently unavailable
@@ -145,7 +143,10 @@ func BuildFromContinuations(continuations []dispatch.Continuation) []Entry {
 	}
 	entries := make([]Entry, 0, len(continuations))
 	for _, continuation := range continuations {
-		desc := continuationDesc(continuation)
+		desc := strings.TrimSpace(continuation.Desc)
+		if desc == "" {
+			desc = descFromAction(string(continuation.Action))
+		}
 		if !continuation.IsLeaf {
 			desc += " ..."
 		}
@@ -198,35 +199,15 @@ func NormalizeDisplayKey(key string) string {
 	return key
 }
 
-func bindingDesc(b config.BindingConfig) string {
-	desc := strings.TrimSpace(b.Desc)
-	if desc != "" {
-		return desc
-	}
-	return descFromAction(string(keybindings.Action(strings.TrimSpace(b.Action))))
-}
-
-func continuationDesc(c dispatch.Continuation) string {
-	if desc := strings.TrimSpace(c.Desc); desc != "" {
-		return desc
-	}
-	return descFromAction(string(c.Action))
-}
-
 // descFromAction derives a human-readable description from the action token
 // (last segment after '.'), replacing underscores with spaces.
 func descFromAction(action string) string {
-	token := actionToken(action)
+	token := action
+	if idx := strings.LastIndexByte(action, '.'); idx >= 0 && idx < len(action)-1 {
+		token = action[idx+1:]
+	}
 	if token == "" {
 		return ""
 	}
 	return strings.ReplaceAll(token, "_", " ")
-}
-
-// actionToken extracts the last segment after '.' from a canonical action ID.
-func actionToken(action string) string {
-	if idx := strings.LastIndexByte(action, '.'); idx >= 0 && idx < len(action)-1 {
-		return action[idx+1:]
-	}
-	return action
 }

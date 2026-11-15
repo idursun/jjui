@@ -55,20 +55,16 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	if m.checkedCount > 0 {
 		prefix += shortcutStyle.Render(fmt.Sprintf("%d checked", m.checkedCount)) + textStyle.Render(" ")
 	}
-	statusLine := prefix + m.renderHelpBar(max(0, width-lipgloss.Width(prefix)), textStyle, shortcutStyle, dimmedStyle)
+	helpBar := textStyle.Render(" ")
+	if len(m.groups) > 0 && !m.statusExpanded {
+		helpWidth := max(0, width-lipgloss.Width(prefix))
+		helpContent, truncated := m.groupedHelpView(m.groups, helpWidth, shortcutStyle, dimmedStyle)
+		m.statusTruncated = truncated
+		helpBar = lipgloss.PlaceHorizontal(helpWidth, 0, helpContent, lipgloss.WithWhitespaceStyle(textStyle))
+	}
+	statusLine := prefix + helpBar
 	dl.AddDraw(box.R, statusLine, 0)
 	m.renderExpandedStatus(dl, box, width, textStyle, titleStyle, shortcutStyle, dimmedStyle)
-}
-
-// renderHelpBar renders the help keybindings bar.
-func (m *Model) renderHelpBar(width int, textStyle, shortcutStyle, dimmedStyle lipgloss.Style) string {
-	if len(m.groups) == 0 || m.statusExpanded {
-		return textStyle.Render(" ")
-	}
-
-	helpContent, truncated := m.groupedHelpView(m.groups, width, shortcutStyle, dimmedStyle)
-	m.statusTruncated = truncated
-	return lipgloss.PlaceHorizontal(width, 0, helpContent, lipgloss.WithWhitespaceStyle(textStyle))
 }
 
 // renderExpandedStatus orchestrates expanded help overlay
@@ -87,20 +83,12 @@ func (m *Model) renderExpandedStatus(dl *render.DisplayContext, box layout.Box, 
 	background := lipgloss.NewStyle().Background(textStyle.GetBackground())
 	backgroundRect := layout.Rect(box.R.Min.X, startY, width, contentLineCount+1)
 	dl.AddFill(backgroundRect, ' ', background, render.ZExpandedStatus)
-	m.renderExpandedStatusBorder(dl, box, width, startY, dimmedStyle)
+	if startY >= 0 {
+		borderRect := layout.Rect(box.R.Min.X, startY, width, 1)
+		dl.AddDraw(borderRect, dimmedStyle.Render(strings.Repeat("─", max(0, width))), render.ZExpandedStatus)
+	}
 	m.renderExpandedStatusContent(dl, box, width, startY, expandedLines, textStyle)
 	dl.AddPaint(backgroundRect, background, render.ZExpandedStatus)
-}
-
-// renderExpandedStatusBorder draws the top border of expanded status
-func (m *Model) renderExpandedStatusBorder(dl *render.DisplayContext, box layout.Box, width, startY int, dimmedStyle lipgloss.Style) {
-	if startY < 0 {
-		return
-	}
-	borderLine := strings.Repeat("─", max(0, width))
-	topBorder := dimmedStyle.Render(borderLine)
-	borderRect := layout.Rect(box.R.Min.X, startY, width, 1)
-	dl.AddDraw(borderRect, topBorder, render.ZExpandedStatus)
 }
 
 // renderExpandedStatusContent draws each line below the top border, with a
@@ -130,7 +118,18 @@ func (m *Model) SetCheckedCount(count int) {
 }
 
 func (m *Model) Sync(scopes []common.Scope, sequenceHelp []help.Entry) {
-	m.setModeFromScopes(scopes)
+	for _, scope := range common.VisibleScopes(scopes) {
+		if scope.Name == "" || scope.HideFromHelp {
+			continue
+		}
+		// prompts draw their own mode label next to their input
+		if scope.Name == actions.ScopeStatusInput || scope.Name == actions.ScopeQuickSearchInput {
+			m.mode = ""
+		} else {
+			m.mode = strings.ToLower(help.ScopeDisplayName(string(scope.Name)))
+		}
+		break
+	}
 	if sequenceHelp != nil {
 		m.setHelp(sequenceHelp)
 		return
@@ -183,19 +182,6 @@ func (m *Model) condition(source string) (actionmeta.Condition, bool) {
 	return condition, true
 }
 
-func (m *Model) setModeFromScopes(scopes []common.Scope) {
-	scope, ok := firstNamedScope(common.VisibleScopes(scopes))
-	if !ok {
-		return
-	}
-	// prompts draw their own mode label next to their input
-	if scope.Name == actions.ScopeStatusInput || scope.Name == actions.ScopeQuickSearchInput {
-		m.mode = ""
-		return
-	}
-	m.mode = modeNameForScope(scope.Name)
-}
-
 func (m *Model) setHelp(entries []help.Entry) {
 	if len(entries) == 0 {
 		m.setGroups(nil)
@@ -230,19 +216,6 @@ func (m *Model) SetStatusExpanded(expanded bool) {
 
 func (m *Model) Help() []help.ScopeGroup {
 	return m.groups
-}
-
-func firstNamedScope(scopes []common.Scope) (common.Scope, bool) {
-	for _, scope := range scopes {
-		if scope.Name != "" && !scope.HideFromHelp {
-			return scope, true
-		}
-	}
-	return common.Scope{}, false
-}
-
-func modeNameForScope(scope keybindings.ScopeName) string {
-	return strings.ToLower(help.ScopeDisplayName(string(scope)))
 }
 
 func (m *Model) Mode() string {
