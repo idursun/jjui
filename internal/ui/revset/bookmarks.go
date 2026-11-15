@@ -178,15 +178,6 @@ func (m *Model) QueryState(name string) (any, bool) {
 	return nil, false
 }
 
-func (m *Model) showBookmarks() tea.Cmd {
-	restore := m.context.CurrentRevset
-	if m.bookmarks != nil {
-		restore = m.bookmarks.restore
-	}
-	m.bookmarks = &bookmarksView{remotes: m.loadRemotes(), filter: newBookmarksInput(""), restore: restore, issued: map[string]bool{}}
-	return m.applyBookmarks()
-}
-
 func newBookmarksInput(value string) textinput.Model {
 	ti := textinput.New()
 	ti.Prompt = ""
@@ -202,17 +193,6 @@ func (m *Model) loadRemotes() []string {
 		remotes = append(remotes, jj.ParseRemoteListOutput(string(out))...)
 	}
 	return remotes
-}
-
-// reloadRemotes keeps the cursor on focus, or on the same place when focus
-// is gone.
-func (m *Model) reloadRemotes(focus string) {
-	v := m.bookmarks
-	v.remotes = m.loadRemotes()
-	v.remoteIdx = min(v.remoteIdx, len(v.remotes)-1)
-	if i := slices.Index(v.remotes, focus); i >= 0 {
-		v.remoteIdx = i
-	}
 }
 
 func (m *Model) handleRemoteInputIntent(intent intents.Intent) (tea.Cmd, bool) {
@@ -259,7 +239,12 @@ func (v *bookmarksView) closeFilter() {
 
 func (m *Model) handleBookmarksIntent(intent intents.Intent) (tea.Cmd, bool) {
 	if intent, ok := intent.(intents.RevsetBookmarks); ok {
-		cmd := m.showBookmarks()
+		restore := m.context.CurrentRevset
+		if m.bookmarks != nil {
+			restore = m.bookmarks.restore
+		}
+		m.bookmarks = &bookmarksView{remotes: m.loadRemotes(), filter: newBookmarksInput(""), restore: restore, issued: map[string]bool{}}
+		cmd := m.applyBookmarks()
 		m.bookmarks.focused = intent.FocusRemotes
 		return cmd, true
 	}
@@ -383,7 +368,12 @@ func (m *Model) updateBookmarks(msg tea.Msg) (tea.Cmd, bool) {
 		v.remoteIdx = msg.index
 		return m.applyBookmarks(), true
 	case remotesChangedMsg:
-		m.reloadRemotes(msg.focus)
+		// Keep the cursor on the focused remote, or in place when it is gone.
+		v.remotes = m.loadRemotes()
+		v.remoteIdx = min(v.remoteIdx, len(v.remotes)-1)
+		if i := slices.Index(v.remotes, msg.focus); i >= 0 {
+			v.remoteIdx = i
+		}
 		return m.applyBookmarks(), true
 	case removeRemoteMsg:
 		v.confirm = nil
@@ -441,7 +431,11 @@ func (m *Model) viewBookmarks(dl *render.DisplayContext, box layout.Box) {
 				x, _ := tb.Measure()
 				style = style.Inherit(theme.DefaultPalette.Get("revisions", "", "object", true))
 				// Set before the log draws, so its passive cursor gives way.
-				dl.SetCursorAt(remoteCursor(), box.R.Min.X+x+1, box.R.Min.Y)
+				// The block cursor matches a focused text object in the log.
+				cursor := tea.NewCursor(0, 0)
+				cursor.Shape = tea.CursorBlock
+				cursor.Blink = true
+				dl.SetCursorAt(cursor, box.R.Min.X+x+1, box.R.Min.Y)
 			}
 		}
 		tb.Clickable(" "+remote+" ", style, selectRemoteMsg{index: i})
@@ -460,12 +454,4 @@ func (m *Model) viewBookmarks(dl *render.DisplayContext, box layout.Box) {
 		w, h := lipgloss.Size(v.confirm.View())
 		v.confirm.ViewRect(dl, layout.NewBox(layout.Rect(box.R.Min.X, box.R.Max.Y, w, h)))
 	}
-}
-
-// remoteCursor matches the cursor of a focused text object in the log.
-func remoteCursor() *tea.Cursor {
-	cursor := tea.NewCursor(0, 0)
-	cursor.Shape = tea.CursorBlock
-	cursor.Blink = true
-	return cursor
 }

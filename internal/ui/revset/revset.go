@@ -388,7 +388,24 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	}
 	revsetWidth, _ := tb.Measure()
 	tb.Done()
-	m.viewLocation(dl, layout.Rect(box.R.Min.X+revsetWidth+1, box.R.Min.Y, box.R.Dx()-revsetWidth-1, 1))
+	// Right-align the repository path. A revset too long to leave room for
+	// all of it hides its start.
+	locationPath := m.context.Location
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		if rel, err := filepath.Rel(home, locationPath); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			locationPath = filepath.Join("~", rel)
+		}
+	}
+	locationRect := layout.Rect(box.R.Min.X+revsetWidth+1, box.R.Min.Y, box.R.Dx()-revsetWidth-1, 1)
+	location := []rune(locationPath)
+	for len(location) > 0 && render.StringWidth(string(location)) > locationRect.Dx() {
+		location = location[1:]
+	}
+	if len(location) > 0 {
+		width := render.StringWidth(string(location))
+		dimmed := theme.DefaultPalette.Get("revset", "", "dimmed", false)
+		dl.AddDraw(layout.Rect(locationRect.Max.X-width, locationRect.Min.Y, width, 1), dimmed.Render(string(location)), render.ZFuzzyInput)
+	}
 
 	if !m.editing {
 		if m.bookmarks != nil && box.R.Dy() > 1 {
@@ -462,7 +479,12 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 			tb.Styled(" ", ts)
 
 			if item.SignatureHelp != "" && item.Kind != KindHistory {
-				sigDisplay := m.formatSignature(item)
+				sigDisplay := item.SignatureHelp
+				if _, after, ok := strings.Cut(sigDisplay, "):"); ok {
+					sigDisplay = strings.TrimSpace(after)
+				} else if _, after, ok := strings.Cut(sigDisplay, ":"); ok {
+					sigDisplay = strings.TrimSpace(after)
+				}
 				tb.Styled(sigDisplay, ds)
 			}
 			tb.Done()
@@ -496,17 +518,6 @@ func pillLabel(kind CompletionKind) string {
 	}
 }
 
-func (m *Model) formatSignature(item CompletionItem) string {
-	sig := item.SignatureHelp
-	if _, after, ok := strings.Cut(sig, "):"); ok {
-		return strings.TrimSpace(after)
-	}
-	if _, after, ok := strings.Cut(sig, ":"); ok {
-		return strings.TrimSpace(after)
-	}
-	return sig
-}
-
 func (m *Model) applyCompletion(input string, item CompletionItem) string {
 	if item.Kind == KindHistory {
 		return item.Name
@@ -528,33 +539,4 @@ func (m *Model) applyCompletion(input string, item CompletionItem) string {
 		item.ReplaceStart = len(input)
 	}
 	return input[:item.ReplaceStart] + insertText
-}
-
-// viewLocation right-aligns the repository path in rect. A revset too long
-// to leave room for all of it hides its start.
-func (m *Model) viewLocation(dl *render.DisplayContext, rect layout.Rectangle) {
-	location := []rune(displayPath(m.context.Location))
-	for len(location) > 0 && render.StringWidth(string(location)) > rect.Dx() {
-		location = location[1:]
-	}
-	if len(location) == 0 {
-		return
-	}
-	width := render.StringWidth(string(location))
-	dimmed := theme.DefaultPalette.Get("revset", "", "dimmed", false)
-	dl.AddDraw(layout.Rect(rect.Max.X-width, rect.Min.Y, width, 1), dimmed.Render(string(location)), render.ZFuzzyInput)
-}
-
-func displayPath(path string) string {
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return path
-	}
-	if rel, err := filepath.Rel(home, path); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		if rel == "." {
-			return "~"
-		}
-		return filepath.Join("~", rel)
-	}
-	return path
 }
