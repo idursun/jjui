@@ -198,7 +198,13 @@ func (m *CommandHistoryModel) deleteSelected() {
 	removed := m.items[selected]
 	m.items = append(m.items[:selected], m.items[selected+1:]...)
 	if m.source != nil {
-		m.source.deleteCommandHistoryByID(removed.ID)
+		for i, item := range m.source.messageHistory {
+			if item.id == removed.ID {
+				m.source.messageHistory = append(m.source.messageHistory[:i], m.source.messageHistory[i+1:]...)
+				break
+			}
+		}
+		m.source.removeLiveMessageByID(removed.ID)
 	}
 
 	if len(m.items) == 0 {
@@ -221,15 +227,4 @@ func (m *Model) commandHistorySnapshot() []commandHistoryEntry {
 		})
 	}
 	return out
-}
-
-func (m *Model) deleteCommandHistoryByID(id uint64) {
-	for i, item := range m.messageHistory {
-		if item.id != id {
-			continue
-		}
-		m.messageHistory = append(m.messageHistory[:i], m.messageHistory[i+1:]...)
-		break
-	}
-	m.removeLiveMessageByID(id)
 }
