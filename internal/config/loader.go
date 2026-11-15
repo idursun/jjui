@@ -156,13 +156,21 @@ func (c *Config) Load(data, baseDir string) error {
 
 	// If a custom bindings profile is specified, use it as the base instead of built-in defaults
 	if metadata.IsDefined("bindings_profile") && c.BindingsProfile != "" && c.BindingsProfile != ":builtin" {
-		profileBindings, err := loadProfileBindings(c.BindingsProfile, baseDir)
-		if err != nil {
-			return err
+		profilePath := c.BindingsProfile
+		if !filepath.IsAbs(profilePath) {
+			profilePath = filepath.Join(baseDir, profilePath)
 		}
-		baseBindings = profileBindings
+		profileData, err := os.ReadFile(profilePath)
+		if err != nil {
+			return fmt.Errorf("loading bindings profile %q: %w", c.BindingsProfile, err)
+		}
+		var profile mergeOverlay
+		if _, err := toml.Decode(string(profileData), &profile); err != nil {
+			return fmt.Errorf("parsing bindings profile %q: %w", c.BindingsProfile, err)
+		}
+		baseBindings = profile.Bindings
 		if !metadata.IsDefined("bindings") {
-			c.Bindings = profileBindings
+			c.Bindings = profile.Bindings
 		}
 	}
 
@@ -178,22 +186,6 @@ func (c *Config) Load(data, baseDir string) error {
 	}
 
 	return c.ValidateBindingsAndActions()
-}
-
-func loadProfileBindings(profile, baseDir string) ([]BindingConfig, error) {
-	profilePath := profile
-	if !filepath.IsAbs(profilePath) {
-		profilePath = filepath.Join(baseDir, profilePath)
-	}
-	data, err := os.ReadFile(profilePath)
-	if err != nil {
-		return nil, fmt.Errorf("loading bindings profile %q: %w", profile, err)
-	}
-	var overlay mergeOverlay
-	if _, err := toml.Decode(string(data), &overlay); err != nil {
-		return nil, fmt.Errorf("parsing bindings profile %q: %w", profile, err)
-	}
-	return overlay.Bindings, nil
 }
 
 func LoadLuaConfigFile() (string, error) {
@@ -249,9 +241,15 @@ func LoadRepoLuaConfigFile(repoRoot string) (string, error) {
 func loadTheme(data []byte, isDark bool) (ResolvedTheme, error) {
 	resolved := ResolvedTheme{Colors: make(map[string]Color)}
 
-	structured, err := isStructuredTheme(data)
-	if err != nil {
+	var raw map[string]any
+	if _, err := toml.Decode(string(data), &raw); err != nil {
 		return ResolvedTheme{}, err
+	}
+	structured := false
+	for _, key := range []string{"colors", "light", "dark"} {
+		if table, ok := raw[key].(map[string]any); ok && !isColorValue(table) {
+			structured = true
+		}
 	}
 	if !structured {
 		legacyColors := make(map[string]Color)
@@ -280,19 +278,6 @@ func loadTheme(data []byte, isDark bool) (ResolvedTheme, error) {
 		resolved.BackgroundBlend = *variant.BackgroundBlend
 	}
 	return resolved, nil
-}
-
-func isStructuredTheme(data []byte) (bool, error) {
-	var raw map[string]any
-	if _, err := toml.Decode(string(data), &raw); err != nil {
-		return false, err
-	}
-	for _, key := range []string{"colors", "light", "dark"} {
-		if table, ok := raw[key].(map[string]any); ok && !isColorValue(table) {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 func isColorValue(table map[string]any) bool {
@@ -441,7 +426,13 @@ func ResolveTheme(isDark bool, jjColors map[string]Color) (ResolvedTheme, error)
 		maps.Copy(theme.Colors, NormalizeColorSelectors(Current.UI.Colors))
 	}
 
-	if err := validateBackgroundBlendConfig(Current.UI.BackgroundBlend); err != nil {
+	if err := validateBackgroundBlend("ui.background_blend", Current.UI.BackgroundBlend.Value); err != nil {
+		return ResolvedTheme{}, err
+	}
+	if err := validateBackgroundBlend("ui.background_blend.light", Current.UI.BackgroundBlend.Light); err != nil {
+		return ResolvedTheme{}, err
+	}
+	if err := validateBackgroundBlend("ui.background_blend.dark", Current.UI.BackgroundBlend.Dark); err != nil {
 		return ResolvedTheme{}, err
 	}
 	if backgroundBlend := Current.UI.BackgroundBlend.Resolve(isDark); backgroundBlend != nil {
@@ -449,14 +440,4 @@ func ResolveTheme(isDark bool, jjColors map[string]Color) (ResolvedTheme, error)
 	}
 
 	return theme, nil
-}
-
-func validateBackgroundBlendConfig(value BackgroundBlendConfig) error {
-	if err := validateBackgroundBlend("ui.background_blend", value.Value); err != nil {
-		return err
-	}
-	if err := validateBackgroundBlend("ui.background_blend.light", value.Light); err != nil {
-		return err
-	}
-	return validateBackgroundBlend("ui.background_blend.dark", value.Dark)
 }

@@ -296,7 +296,12 @@ func prependConfigModulePaths(L *lua.LState, configDir string) error {
 		return fmt.Errorf("lua vm: package.path is not a string")
 	}
 
-	existing := splitPackagePath(pathStr.String())
+	var existing []string
+	for _, part := range strings.Split(pathStr.String(), ";") {
+		if part = strings.TrimSpace(part); part != "" {
+			existing = append(existing, part)
+		}
+	}
 	seen := make(map[string]struct{}, len(existing))
 	for _, entry := range existing {
 		seen[entry] = struct{}{}
@@ -319,20 +324,4 @@ func prependConfigModulePaths(L *lua.LState, configDir string) error {
 
 	pkg.RawSetString("path", lua.LString(strings.Join(merged, ";")))
 	return nil
-}
-
-func splitPackagePath(path string) []string {
-	if path == "" {
-		return nil
-	}
-	parts := strings.Split(path, ";")
-	result := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		result = append(result, part)
-	}
-	return result
 }

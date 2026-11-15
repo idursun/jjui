@@ -169,7 +169,15 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	}))
 	revisionsTable.RawSetString("navigate", L.NewFunction(func(L *lua.LState) int {
 		payload := payloadFromTop(L)
-		target := parseNavigateTarget(stringVal(payload, "target"))
+		target := intents.TargetNone
+		switch strings.ToLower(stringVal(payload, "target")) {
+		case "parent":
+			target = intents.TargetParent
+		case "child", "children":
+			target = intents.TargetChild
+		case "working", "working_copy", "work":
+			target = intents.TargetWorkingCopy
+		}
 		intent := intents.Navigate{
 			Delta:      intVal(payload, "by"),
 			IsPage:     boolVal(payload, "page"),
@@ -465,8 +473,14 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	root.RawSetString("builtin", builtinRoot)
 	registerGeneratedActionAPI(L, root, false)
 	registerGeneratedActionAPI(L, builtinRoot, true)
-	registerStateGetter(L, root, ctx, "revisions.inline_describe.content")
-	registerStateGetter(L, root, ctx, "ui.preview.size")
+	ensureScopeTable(L, root, "revisions.inline_describe").RawSetString("content", L.NewFunction(func(L *lua.LState) int {
+		value, ok := ctx.QueryState("revisions.inline_describe.content")
+		return pushQueriedState(L, value, ok)
+	}))
+	ensureScopeTable(L, root, "ui.preview").RawSetString("size", L.NewFunction(func(L *lua.LState) int {
+		value, ok := ctx.QueryState("ui.preview.size")
+		return pushQueriedState(L, value, ok)
+	}))
 	L.SetGlobal("jjui", root)
 
 	// but also expose at the top level for convenience
@@ -517,27 +531,16 @@ func pushQueriedState(L *lua.LState, value any, ok bool) int {
 	return 1
 }
 
-func registerStateGetter(L *lua.LState, root *lua.LTable, ctx *uicontext.MainContext, path string) {
-	index := strings.LastIndexByte(path, '.')
-	if index <= 0 || index == len(path)-1 {
-		panic("invalid state path:" + path)
-	}
-	scope := path[:index]
-	property := path[index+1:]
-	table := ensureScopeTable(L, root, scope)
-	table.RawSetString(property, L.NewFunction(func(L *lua.LState) int {
-		value, ok := ctx.QueryState(path)
-		return pushQueriedState(L, value, ok)
-	}))
-}
-
 func registerGeneratedActionAPI(L *lua.LState, root *lua.LTable, builtIn bool) {
 	actions := actionmeta.BuiltInActions()
 	for _, actionID := range actions {
 		scopes := actionmeta.ActionScopes(actionID)
 		for _, scope := range scopes {
 			scopeTable := ensureScopeTable(L, root, scope)
-			token := actionTokenFromCanonical(actionID)
+			token := actionID
+			if idx := strings.LastIndexByte(actionID, '.'); idx >= 0 && idx < len(actionID)-1 {
+				token = actionID[idx+1:]
+			}
 			if token == "" {
 				continue
 			}
@@ -606,7 +609,10 @@ func generatedActionFn(L *lua.LState, canonical string, builtIn bool) *lua.LFunc
 				BuiltIn:      builtIn,
 				CompletionID: completionID,
 			}
-		}, matcher: matchActionCompleted(completionID)})
+		}, matcher: func(msg tea.Msg) (bool, []lua.LValue) {
+			completed, ok := msg.(common.ActionCompletedMsg)
+			return ok && completed.ID == completionID, nil
+		}})
 	})
 }
 
@@ -741,19 +747,6 @@ func yieldStep(L *lua.LState, st step) int {
 	return L.Yield(ud)
 }
 
-func parseNavigateTarget(val string) intents.NavigationTarget {
-	switch strings.ToLower(val) {
-	case "parent":
-		return intents.TargetParent
-	case "child", "children":
-		return intents.TargetChild
-	case "working", "working_copy", "work":
-		return intents.TargetWorkingCopy
-	default:
-		return intents.TargetNone
-	}
-}
-
 func matchUpdateRevisionsSuccess(msg tea.Msg) (bool, []lua.LValue) {
 	switch msg.(type) {
 	case common.UpdateRevisionsSuccessMsg, common.UpdateRevisionsFailedMsg:
@@ -768,13 +761,6 @@ func matchCloseViewMsg(msg tea.Msg) (bool, []lua.LValue) {
 		return true, []lua.LValue{lua.LBool(closeMsg.Applied)}
 	}
 	return false, nil
-}
-
-func matchActionCompleted(id string) func(tea.Msg) (bool, []lua.LValue) {
-	return func(msg tea.Msg) (bool, []lua.LValue) {
-		completed, ok := msg.(common.ActionCompletedMsg)
-		return ok && completed.ID == id, nil
-	}
 }
 
 func matchChoose(msg tea.Msg) (bool, []lua.LValue) {
@@ -797,11 +783,4 @@ func matchInput(msg tea.Msg) (bool, []lua.LValue) {
 	default:
 		return false, nil
 	}
-}
-
-func actionTokenFromCanonical(actionID string) string {
-	if idx := strings.LastIndexByte(actionID, '.'); idx >= 0 && idx < len(actionID)-1 {
-		return actionID[idx+1:]
-	}
-	return actionID
 }
