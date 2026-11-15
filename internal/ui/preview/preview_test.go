@@ -179,7 +179,7 @@ func TestUpdate_PreviewShowDoesNotBreakSelectionRefresh(t *testing.T) {
 	assert.Equal(t, "line 1\nline 2\nline 3\nline 4\nline 5", model.content)
 
 	model.Scroll(2)
-	assert.Equal(t, 2, model.YOffset())
+	assert.Equal(t, 2, model.view.YOffset())
 
 	cmd = model.Update(common.RefreshMsg{})
 	require.NotNil(t, cmd)
@@ -187,7 +187,7 @@ func TestUpdate_PreviewShowDoesNotBreakSelectionRefresh(t *testing.T) {
 	test.SimulateModel(model, cmd)
 
 	assert.Equal(t, "line 1\nline 2\nline 3\nline 4\nline 5", model.content)
-	assert.Equal(t, 2, model.YOffset())
+	assert.Equal(t, 2, model.view.YOffset())
 }
 
 func TestSetContent_ExpandsTabsUsingTabStops(t *testing.T) {

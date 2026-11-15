@@ -53,10 +53,6 @@ func (s ColorSelector) Fields() []string {
 	return append([]string(nil), s.fields...)
 }
 
-func (s ColorSelector) HasVariant(variant ColorVariant) bool {
-	return s.variant == variant
-}
-
 func (s ColorSelector) Key() string {
 	if s.variant == "" {
 		return strings.Join(s.fields, " ")

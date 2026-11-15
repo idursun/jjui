@@ -40,6 +40,6 @@ func TestNormalizeColorSelectors_SuffixSyntaxWinsWithinLayer(t *testing.T) {
 func TestParseColorSelector_LeavesUnknownStateSuffixUntouched(t *testing.T) {
 	selector := ParseColorSelector("revisions text:focused")
 
-	assert.False(t, selector.HasVariant(SelectedVariant))
+	assert.False(t, selector.variant == SelectedVariant)
 	assert.Equal(t, "revisions text:focused", selector.Key())
 }

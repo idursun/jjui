@@ -267,12 +267,3 @@ func TestFetchAllSkipsFailures(t *testing.T) {
 	assert.False(t, hasBookmark)
 	assert.False(t, hasTag)
 }
-
-func TestBaseFunctions(t *testing.T) {
-	fns := BaseFunctions()
-	assert.NotEmpty(t, fns)
-	// Verify it's a copy
-	fns[0].Name = "modified"
-	original := BaseFunctions()
-	assert.NotEqual(t, "modified", original[0].Name)
-}

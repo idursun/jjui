@@ -109,7 +109,7 @@ func TestHistory_CompletionBeforeRunning_ReconcilesByCommandID(t *testing.T) {
 	cmd := m.Update(common.CommandCompletedMsg{ID: 9, Output: "ok", Err: nil})
 	assert.Nil(t, cmd)
 	assert.Empty(t, m.commandHistorySnapshot())
-	assert.Equal(t, 0, m.LiveMessagesCount())
+	assert.Equal(t, 0, len(m.messages))
 
 	cmd = m.Update(common.CommandRunningMsg{ID: 9, Command: "jj git fetch"})
 	assert.NotNil(t, cmd)
@@ -128,7 +128,7 @@ func TestHistory_EmptySuccessfulNonInteractiveCommandCompletionCreatesLiveFlash(
 
 	cmd = m.Update(common.CommandCompletedMsg{ID: 9, Output: "", Err: nil})
 	assert.NotNil(t, cmd)
-	assert.Equal(t, 1, m.LiveMessagesCount())
+	assert.Equal(t, 1, len(m.messages))
 
 	snapshot := m.commandHistorySnapshot()
 	if assert.Len(t, snapshot, 1) {

@@ -100,10 +100,6 @@ func (m *Model) OnHide() {}
 
 func (m *Model) SetFocused(bool) {}
 
-func (m *Model) YOffset() int {
-	return m.view.YOffset()
-}
-
 func (m *Model) Scroll(delta int) tea.Cmd {
 	if delta > 0 {
 		m.view.ScrollDown(delta)

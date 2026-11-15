@@ -15,15 +15,15 @@ import (
 )
 
 func TestNew_TrimsCarriageReturnsAndHandlesEmpty(t *testing.T) {
-	model := New("line1\r\nline2\r\n")
+	model := NewWithContext(nil, "line1\r\nline2\r\n", nil)
 	assert.Equal(t, "line1\nline2", test.Stripped(test.RenderImmediate(model, 20, 5)))
 
-	emptyModel := New("")
+	emptyModel := NewWithContext(nil, "", nil)
 	assert.Equal(t, "(empty)", test.Stripped(test.RenderImmediate(emptyModel, 10, 3)))
 }
 
 func TestScroll_ChangesVisibleContent(t *testing.T) {
-	model := New("1\n2\n3\n4\n5")
+	model := NewWithContext(nil, "1\n2\n3\n4\n5", nil)
 
 	// Initially line 1 should be visible
 	before := test.Stripped(test.RenderImmediate(model, 10, 2))
@@ -38,7 +38,7 @@ func TestScroll_ChangesVisibleContent(t *testing.T) {
 }
 
 func TestUpdate_ScrollMsgScrollsContent(t *testing.T) {
-	model := New("a\nb\nc\nd\ne")
+	model := NewWithContext(nil, "a\nb\nc\nd\ne", nil)
 
 	// Line "a" should be visible before scroll
 	before := test.Stripped(test.RenderImmediate(model, 10, 2))
@@ -51,7 +51,7 @@ func TestUpdate_ScrollMsgScrollsContent(t *testing.T) {
 }
 
 func TestUpdate_DiffScrollIntentChangesContent(t *testing.T) {
-	model := New("1\n2\n3\n4\n5")
+	model := NewWithContext(nil, "1\n2\n3\n4\n5", nil)
 
 	first := test.Stripped(test.RenderImmediate(model, 10, 2))
 	assert.Contains(t, first, "1")
@@ -68,7 +68,7 @@ func TestUpdate_DiffScrollIntentChangesContent(t *testing.T) {
 
 func TestWrap_LongLinesWrapAtViewportWidth(t *testing.T) {
 	// 20-character line rendered in a 10-wide viewport should produce 2 visual rows
-	model := New("12345678901234567890")
+	model := NewWithContext(nil, "12345678901234567890", nil)
 	model.Update(intents.DiffToggleWrap{})
 
 	rendered := test.Stripped(test.RenderImmediate(model, 10, 3))
@@ -80,7 +80,7 @@ func TestWrap_LongLinesWrapAtViewportWidth(t *testing.T) {
 
 func TestWrap_ResizeRecomputes(t *testing.T) {
 	// Line of 20 chars
-	model := New("12345678901234567890")
+	model := NewWithContext(nil, "12345678901234567890", nil)
 	model.Update(intents.DiffToggleWrap{})
 
 	// At width 10, line occupies 2 visual rows.
@@ -94,7 +94,7 @@ func TestWrap_ResizeRecomputes(t *testing.T) {
 
 func TestNoWrap_HorizontalScroll(t *testing.T) {
 	// 20-character line rendered in a 10-wide viewport
-	model := New("abcdefghijklmnopqrst")
+	model := NewWithContext(nil, "abcdefghijklmnopqrst", nil)
 
 	// Without horizontal scroll, first 10 chars visible
 	rendered := test.Stripped(test.RenderImmediate(model, 10, 1))
@@ -109,7 +109,7 @@ func TestNoWrap_HorizontalScroll(t *testing.T) {
 }
 
 func TestWrap_HorizontalScrollIsNoop(t *testing.T) {
-	model := New("abcdefghijklmnopqrst")
+	model := NewWithContext(nil, "abcdefghijklmnopqrst", nil)
 	model.Update(intents.DiffToggleWrap{})
 	before := test.Stripped(test.RenderImmediate(model, 10, 2))
 
@@ -121,7 +121,7 @@ func TestWrap_HorizontalScrollIsNoop(t *testing.T) {
 }
 
 func TestSetContent_ResetsScrollOffsets(t *testing.T) {
-	model := New("abcdefghijklmnopqrstuvwxyz")
+	model := NewWithContext(nil, "abcdefghijklmnopqrstuvwxyz", nil)
 
 	model.Update(intents.DiffScrollHorizontal{Kind: intents.DiffScrollRight})
 	model.Update(intents.DiffScrollHorizontal{Kind: intents.DiffScrollRight})
@@ -135,7 +135,7 @@ func TestSetContent_ResetsScrollOffsets(t *testing.T) {
 }
 
 func TestSetContent_PreservesWrapMode(t *testing.T) {
-	model := New("12345678901234567890")
+	model := NewWithContext(nil, "12345678901234567890", nil)
 	model.Update(intents.DiffToggleWrap{})
 	model.Update(intents.DiffShow{Content: "abcdefghij1234567890"})
 
@@ -144,14 +144,14 @@ func TestSetContent_PreservesWrapMode(t *testing.T) {
 }
 
 func TestTabs_RenderIndentedInDefaultView(t *testing.T) {
-	model := New("+\tfoo")
+	model := NewWithContext(nil, "+\tfoo", nil)
 
 	rendered := test.Stripped(test.RenderImmediate(model, 12, 1))
 	assert.Equal(t, "+   foo", rendered)
 }
 
 func TestTabs_AffectHorizontalScrollWidth(t *testing.T) {
-	model := New("\tabcdefghij")
+	model := NewWithContext(nil, "\tabcdefghij", nil)
 
 	rendered := test.RenderImmediate(model, 8, 1)
 	assert.Equal(t, "    abcd", rendered)
@@ -164,7 +164,7 @@ func TestTabs_AffectHorizontalScrollWidth(t *testing.T) {
 }
 
 func TestTabs_WrapUsingExpandedWidth(t *testing.T) {
-	model := New("\t123456")
+	model := NewWithContext(nil, "\t123456", nil)
 	model.Update(intents.DiffToggleWrap{})
 
 	rendered := test.RenderImmediate(model, 5, 2)
@@ -172,7 +172,7 @@ func TestTabs_WrapUsingExpandedWidth(t *testing.T) {
 }
 
 func TestTargetPickerUnavailableWithoutArgs(t *testing.T) {
-	model := New("diff")
+	model := NewWithContext(nil, "diff", nil)
 
 	cmd := model.Update(intents.DiffOpenTargetPicker{})
 	require.NotNil(t, cmd)
@@ -316,7 +316,7 @@ func TestFileNavigateLoadsAdjacentFilesAndWraps(t *testing.T) {
 }
 
 func TestFileNavigateUnavailableWithoutArgs(t *testing.T) {
-	model := New("diff")
+	model := NewWithContext(nil, "diff", nil)
 
 	cmd := model.Update(intents.DiffFileNavigate{Delta: 1})
 	require.NotNil(t, cmd)

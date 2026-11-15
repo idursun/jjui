@@ -1258,7 +1258,7 @@ func Test_Update_DispatchedDiffShowUpdatesExistingDiff(t *testing.T) {
 
 	ctx := test.NewTestContext(commandRunner)
 	model := NewUI(ctx)
-	model.openScreen(diff.New("old"))
+	model.openScreen(diff.NewWithContext(nil, "old", nil))
 
 	cmd := model.Update(common.DispatchActionMsg{
 		Action:  "diff.show",

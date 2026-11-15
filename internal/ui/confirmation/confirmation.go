@@ -68,12 +68,6 @@ func WithOption(label string, cmd tea.Cmd, keyBinding key.Binding) Option {
 	}
 }
 
-func WithAltOption(label string, cmd tea.Cmd, altCmd tea.Cmd, keyBinding key.Binding) Option {
-	return func(m *Model) {
-		m.options = append(m.options, option{label, cmd, keyBinding, altCmd})
-	}
-}
-
 // WithZIndex sets the z-index for rendering
 func WithZIndex(z int) Option {
 	return func(m *Model) {

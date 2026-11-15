@@ -24,7 +24,7 @@ func TestNewWithTitle(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	model := New()
+	model := NewWithTitle("", "", "")
 
 	assert.Empty(t, model.title)
 	assert.Empty(t, model.prompt)
@@ -54,7 +54,7 @@ func TestModel_View_NoTitle(t *testing.T) {
 }
 
 func TestModel_View_OnlyInput(t *testing.T) {
-	model := New()
+	model := NewWithTitle("", "", "")
 	test.SimulateModel(model, model.Init())
 	output := test.RenderImmediate(model, 80, 20)
 	require.NotEmpty(t, output)
@@ -86,7 +86,7 @@ func TestModel_ViewRect_SetsAbsoluteCursorPosition(t *testing.T) {
 }
 
 func TestModel_SelectCurrent_WithText(t *testing.T) {
-	model := New()
+	model := NewWithTitle("", "", "")
 	test.SimulateModel(model, model.Init())
 	test.SimulateModel(model, test.Type("test message"))
 	cmd := model.selectCurrent()
@@ -99,7 +99,7 @@ func TestModel_SelectCurrent_WithText(t *testing.T) {
 }
 
 func TestModel_SelectCurrent_Empty(t *testing.T) {
-	model := New()
+	model := NewWithTitle("", "", "")
 	cmd := model.selectCurrent()
 	require.NotNil(t, cmd)
 

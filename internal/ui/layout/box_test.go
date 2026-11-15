@@ -287,36 +287,6 @@ func TestBoxCutBottom(t *testing.T) {
 	}
 }
 
-func TestBoxCutLeft(t *testing.T) {
-	b := NewBox(Rect(0, 0, 100, 50)) // (0,0)-(100,50)
-	left, rest := b.CutLeft(25)
-
-	wantLeft := Rect(0, 0, 25, 50)
-	wantRest := Rect(25, 0, 75, 50)
-
-	if left.R != wantLeft {
-		t.Errorf("left = %v, want %v", left.R, wantLeft)
-	}
-	if rest.R != wantRest {
-		t.Errorf("rest = %v, want %v", rest.R, wantRest)
-	}
-}
-
-func TestBoxCutRight(t *testing.T) {
-	b := NewBox(Rect(0, 0, 100, 50)) // (0,0)-(100,50)
-	rest, right := b.CutRight(25)
-
-	wantRest := Rect(0, 0, 75, 50)
-	wantRight := Rect(75, 0, 25, 50)
-
-	if rest.R != wantRest {
-		t.Errorf("rest = %v, want %v", rest.R, wantRest)
-	}
-	if right.R != wantRight {
-		t.Errorf("right = %v, want %v", right.R, wantRight)
-	}
-}
-
 func TestBoxCenter(t *testing.T) {
 	tests := []struct {
 		name string

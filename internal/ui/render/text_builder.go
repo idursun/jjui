@@ -9,14 +9,11 @@ import (
 )
 
 type TextBuilder struct {
-	dl        *DisplayContext
-	segments  []textSegment
-	x         int
-	y         int
-	z         int
-	bounded   bool
-	maxWidth  int
-	maxHeight int
+	dl       *DisplayContext
+	segments []textSegment
+	x        int
+	y        int
+	z        int
 }
 
 type textSegment struct {
@@ -24,8 +21,6 @@ type textSegment struct {
 	style   lipgloss.Style
 	onClick tea.Msg
 }
-
-const ellipsis = "…"
 
 type layoutSegment struct {
 	x        int
@@ -44,20 +39,6 @@ func (dl *DisplayContext) Text(x, y, z int) *TextBuilder {
 	}
 }
 
-// TextIn returns a TextBuilder bounded by rect. Lines wider than rect are
-// truncated with an ellipsis and lines below it are dropped.
-func (dl *DisplayContext) TextIn(rect layout.Rectangle, z int) *TextBuilder {
-	return &TextBuilder{
-		dl:        dl,
-		x:         rect.Min.X,
-		y:         rect.Min.Y,
-		z:         z,
-		bounded:   true,
-		maxWidth:  max(rect.Dx(), 0),
-		maxHeight: max(rect.Dy(), 0),
-	}
-}
-
 func (tb *TextBuilder) Write(text string) *TextBuilder {
 	tb.segments = append(tb.segments, textSegment{text: text})
 	return tb
@@ -65,14 +46,6 @@ func (tb *TextBuilder) Write(text string) *TextBuilder {
 
 func (tb *TextBuilder) NewLine() *TextBuilder {
 	tb.segments = append(tb.segments, textSegment{text: "\n"})
-	return tb
-}
-
-func (tb *TextBuilder) Space(count int) *TextBuilder {
-	if count <= 0 {
-		return tb
-	}
-	tb.segments = append(tb.segments, textSegment{text: strings.Repeat(" ", count)})
 	return tb
 }
 
@@ -113,9 +86,6 @@ func (tb *TextBuilder) layout() ([]layoutSegment, int, int) {
 	col := 0
 	hasContent := false
 
-	lineStart := 0
-	lineClipped := false
-
 	for _, seg := range tb.segments {
 		parts := strings.Split(seg.text, "\n")
 		for i, part := range parts {
@@ -125,14 +95,9 @@ func (tb *TextBuilder) layout() ([]layoutSegment, int, int) {
 				}
 				row++
 				col = 0
-				lineStart = len(segments)
-				lineClipped = false
 			}
 
 			if part == "" {
-				continue
-			}
-			if tb.bounded && row >= tb.maxHeight {
 				continue
 			}
 
@@ -140,27 +105,6 @@ func (tb *TextBuilder) layout() ([]layoutSegment, int, int) {
 			width := StringWidth(rendered)
 			if width == 0 {
 				continue
-			}
-
-			if tb.bounded {
-				available := tb.maxWidth - col
-				if lineClipped {
-					continue
-				}
-				if available <= 0 {
-					// The previous segment filled the line exactly; mark the cut on it.
-					if last := len(segments) - 1; last >= lineStart {
-						// The padding forces Truncate to cut, keeping the ellipsis inside the style.
-						segments[last].rendered = widthMethod.Truncate(segments[last].rendered+" ", segments[last].width, ellipsis)
-					}
-					lineClipped = true
-					continue
-				}
-				if width > available {
-					rendered = widthMethod.Truncate(rendered, available, ellipsis)
-					width = StringWidth(rendered)
-					lineClipped = true
-				}
 			}
 
 			segments = append(segments, layoutSegment{
@@ -182,9 +126,5 @@ func (tb *TextBuilder) layout() ([]layoutSegment, int, int) {
 		return nil, 0, 0
 	}
 
-	height := row + 1
-	if tb.bounded {
-		height = min(height, tb.maxHeight)
-	}
-	return segments, maxWidth, height
+	return segments, maxWidth, row + 1
 }

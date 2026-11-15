@@ -142,10 +142,6 @@ type appendRowsBatchMsg struct {
 	tag     uint64
 }
 
-func (m *Model) Cursor() int {
-	return m.cursor
-}
-
 func (m *Model) SetCursor(index int) {
 	if index >= 0 && index < len(m.rows) {
 		// Unlike other kinds, elided focus does not follow the cursor to other rows.

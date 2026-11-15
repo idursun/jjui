@@ -35,24 +35,6 @@ func FlatEntries(groups []ScopeGroup) []Entry {
 	return entries
 }
 
-// BuildFromBindings returns short-help entries for the given scope.
-func BuildFromBindings(
-	scope keybindings.ScopeName,
-	bindings []config.BindingConfig,
-) []Entry {
-	return buildFromBindings(scope, bindings, nil)
-}
-
-// BuildFromBindingsWithAvailability includes bindings whose action or key
-// condition is currently unavailable, marking those entries disabled.
-func BuildFromBindingsWithAvailability(
-	scope keybindings.ScopeName,
-	bindings []config.BindingConfig,
-	isAvailable func(config.BindingConfig) bool,
-) []Entry {
-	return buildFromBindings(scope, bindings, isAvailable)
-}
-
 func buildFromBindings(
 	scope keybindings.ScopeName,
 	bindings []config.BindingConfig,
@@ -106,14 +88,6 @@ func bindingActionIdentity(action keybindings.Action, args map[string]any) strin
 		return string(action)
 	}
 	return string(action) + "\x00" + string(data)
-}
-
-// BuildGroupedFromBindings returns help entries grouped by scope.
-func BuildGroupedFromBindings(
-	scopes []keybindings.ScopeName,
-	bindings []config.BindingConfig,
-) []ScopeGroup {
-	return buildGroupedFromBindings(scopes, bindings, nil)
 }
 
 // BuildGroupedFromBindingsWithAvailability preserves currently unavailable
