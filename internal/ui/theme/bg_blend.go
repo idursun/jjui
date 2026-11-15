@@ -7,36 +7,30 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-type paletteBackgroundBlend struct {
-	ratio              float64
-	terminalBackground string
-	terminalPalette    map[int]string
-}
+func (p *Palette) SetBackgroundBlend(ratio float64) { p.blendRatio = ratio }
 
-func (p *Palette) SetBackgroundBlend(ratio float64) { p.blend.ratio = ratio }
+func (p *Palette) BackgroundBlend() float64 { return p.blendRatio }
 
-func (p *Palette) BackgroundBlend() float64 { return p.blend.ratio }
+func (p *Palette) SetTerminalBackground(hex string) { p.terminal.background = hex }
 
-func (p *Palette) SetTerminalBackground(hex string) { p.blend.terminalBackground = hex }
-
-func (p *Palette) TerminalBackground() string { return p.blend.terminalBackground }
+func (p *Palette) TerminalBackground() string { return p.terminal.background }
 
 func (p *Palette) SetTerminalPaletteColor(slot int, hex string) {
-	if p.blend.terminalPalette == nil {
-		p.blend.terminalPalette = make(map[int]string)
+	if p.terminal.palette == nil {
+		p.terminal.palette = make(map[int]string)
 	}
-	p.blend.terminalPalette[slot] = hex
+	p.terminal.palette[slot] = hex
 }
 
 // TerminalPalette returns the live map; callers must not mutate it.
-func (p *Palette) TerminalPalette() map[int]string { return p.blend.terminalPalette }
+func (p *Palette) TerminalPalette() map[int]string { return p.terminal.palette }
 
-func (p *Palette) SetDark(dark bool) { p.dark = dark }
+func (p *Palette) SetDark(dark bool) { p.terminal.dark = dark }
 
-func (p *Palette) IsDark() bool { return p.dark }
+func (p *Palette) IsDark() bool { return p.terminal.dark }
 
 func (p *Palette) GetBlended(scope, component, role string, isSelected bool) lipgloss.Style {
-	return p.GetBlendedCustom(scope, component, role, isSelected, p.blend.ratio)
+	return p.GetBlendedCustom(scope, component, role, isSelected, p.blendRatio)
 }
 
 func (p *Palette) GetBlendedCustom(
@@ -54,7 +48,7 @@ func (p *Palette) BlendBackgroundCustom(
 	scope, component string,
 	ratio float64,
 ) lipgloss.Style {
-	background, ok := ResolveTerminalColor(style.GetBackground(), p.blend.terminalPalette)
+	background, ok := ResolveTerminalColor(style.GetBackground(), p.terminal.palette)
 	if !ok {
 		return style
 	}
@@ -84,7 +78,7 @@ func (p *Palette) applyBackgroundBlend(
 	if target == "" {
 		return style
 	}
-	base := resolvePaletteColor(background, p.blend.terminalPalette)
+	base := resolvePaletteColor(background, p.terminal.palette)
 	blended, ok, err := blendHexColor(base, target, ratio)
 	if err != nil || !ok {
 		return style
@@ -95,13 +89,13 @@ func (p *Palette) applyBackgroundBlend(
 
 func (p *Palette) backgroundBlendTarget(scope, component string) string {
 	if background, ok := p.resolveBackground(paletteKeys(scope, component, "", false)); ok {
-		return resolveBlendTarget(background, p.blend.terminalBackground, p.blend.terminalPalette)
+		return resolveBlendTarget(background, p.terminal.background, p.terminal.palette)
 	}
 
 	if background, ok := p.resolveBackground(paletteKeys(scope, component, "border", false)); ok {
-		return resolveBlendTarget(background, p.blend.terminalBackground, p.blend.terminalPalette)
+		return resolveBlendTarget(background, p.terminal.background, p.terminal.palette)
 	}
-	return p.blend.terminalBackground
+	return p.terminal.background
 }
 
 func resolveBlendTarget(value, terminalBackground string, terminalPalette map[int]string) string {

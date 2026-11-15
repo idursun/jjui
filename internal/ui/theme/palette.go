@@ -10,10 +10,16 @@ import (
 var DefaultPalette = NewPalette()
 
 type Palette struct {
-	styles map[string]paletteStyle
-	cache  map[paletteCacheKey]lipgloss.Style
-	blend  paletteBackgroundBlend
-	dark   bool
+	styles     map[string]paletteStyle
+	cache      map[paletteCacheKey]lipgloss.Style
+	terminal   terminalAppearance
+	blendRatio float64
+}
+
+type terminalAppearance struct {
+	dark       bool
+	background string
+	palette    map[int]string
 }
 
 type paletteCacheKey struct {
