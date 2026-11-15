@@ -143,5 +143,9 @@ lua = """
 name = "revisions.toggle_select"
 lua = """
  jjui.builtin.revisions.toggle_select()
- jjui.builtin.revisions.move_down()
+ if context.object() == nil then
+   jjui.builtin.revisions.move_down()
+ else
+   jjui.builtin.revisions.object.jump_next()
+ end
  """
