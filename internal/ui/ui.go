@@ -88,8 +88,17 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Selection() common.SelectionSnapshot {
+	var providers []common.SelectionProvider
+	for _, l := range slices.Backward(m.layers) {
+		if provider, ok := l.model.(common.SelectionProvider); ok {
+			providers = append(providers, provider)
+		}
+	}
+	if m.revisions != nil {
+		providers = append(providers, m.revisions)
+	}
 	var snapshot common.SelectionSnapshot
-	for _, provider := range m.selectionProviders() {
+	for _, provider := range providers {
 		part := provider.Selection()
 		if snapshot.Highlighted == nil && part.Highlighted != nil {
 			snapshot.Highlighted = part.Highlighted
@@ -137,63 +146,33 @@ func (m *Model) QueryState(name string) (any, bool) {
 	return nil, false
 }
 
-func (m *Model) selectionProviders() []common.SelectionProvider {
-	var providers []common.SelectionProvider
-	for _, l := range slices.Backward(m.layers) {
-		if provider, ok := l.model.(common.SelectionProvider); ok {
-			providers = append(providers, provider)
-		}
-	}
-	if m.revisions != nil {
-		providers = append(providers, m.revisions)
-	}
-	return providers
-}
-
-func (m *Model) notifyHighlightChange() tea.Cmd {
-	snapshot := m.Selection()
-	if selectedItemsEqual(snapshot.Highlighted, m.lastHighlighted) {
-		return nil
-	}
-	m.lastHighlighted = snapshot.Highlighted
-	return common.SelectionChanged(snapshot.Highlighted)
-}
-
-func selectedItemsEqual(a, b common.SelectedItem) bool {
-	if a == nil || b == nil {
-		return a == nil && b == nil
-	}
-	return a.Equal(b)
-}
-
-func (m *Model) closeTopScope(msg common.CloseViewMsg) (tea.Cmd, bool) {
-	// The expanded status help is an overlay over the active view. When there
-	// is no dialog, close the overlay before closing that view.
-	if !msg.Applied && m.dialog() == nil && m.status != nil && m.status.StatusExpanded() {
-		m.status.SetStatusExpanded(false)
-		return nil, true
-	}
-	if len(m.layers) > 0 {
-		return m.closeTopLayer(msg), true
-	}
-	if m.splitContainer.ContentFocused() && m.splitContainer.Close() {
-		return nil, true
-	}
-	return nil, false
-}
-
 func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 	var completionID string
 	defer func() {
-		cmd = tea.Batch(cmd, m.notifyHighlightChange())
+		highlighted := m.Selection().Highlighted
+		unchanged := highlighted == nil && m.lastHighlighted == nil ||
+			highlighted != nil && m.lastHighlighted != nil && highlighted.Equal(m.lastHighlighted)
+		if !unchanged {
+			m.lastHighlighted = highlighted
+			cmd = tea.Batch(cmd, common.SelectionChanged(highlighted))
+		}
 		// Dispatched actions must finish their commands and selection notification
 		// before Lua resumes. Batching around the completion sequence would race it.
 		cmd = tea.Sequence(cmd, actionCompleted(completionID))
 	}()
 
 	if closeMsg, ok := msg.(common.CloseViewMsg); ok {
-		if cmd, handled := m.closeTopScope(closeMsg); handled {
-			return cmd
+		// The expanded status help is an overlay over the active view. When there
+		// is no dialog, close the overlay before closing that view.
+		if !closeMsg.Applied && m.dialog() == nil && m.status != nil && m.status.StatusExpanded() {
+			m.status.SetStatusExpanded(false)
+			return nil
+		}
+		if len(m.layers) > 0 {
+			return m.closeTopLayer(closeMsg)
+		}
+		if m.splitContainer.ContentFocused() && m.splitContainer.Close() {
+			return nil
 		}
 	}
 
@@ -245,7 +224,13 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 				m.setSequenceStatusHelp(result.Continuations)
 				return nil
 			}
-			m.clearSequenceStatusHelp()
+			if m.sequenceHelp != nil {
+				m.sequenceHelp = nil
+				if m.sequenceAutoOpen {
+					m.status.SetStatusExpanded(false)
+				}
+				m.sequenceAutoOpen = false
+			}
 			if result.LuaScript != "" {
 				return luaCmd(result.LuaScript)
 			}
@@ -305,7 +290,7 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 		m.revsetModel.Update(msg)
 		return common.Refresh
 	case common.RunLuaScriptMsg:
-		if msg.CompletionID == "" && m.scriptRunning() {
+		if msg.CompletionID == "" && len(m.scriptRunners) > 0 {
 			err := fmt.Errorf("lua script is already running")
 			return intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err})
 		}
@@ -410,9 +395,14 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 	}
 
 	if len(m.scriptRunners) > 0 {
-		if cmd := m.handleScriptMsg(msg); cmd != nil {
-			cmds = append(cmds, cmd)
+		top := len(m.scriptRunners) - 1
+		frame := m.scriptRunners[top]
+		cmd := frame.runner.HandleMsg(msg)
+		if frame.runner.Done() {
+			m.scriptRunners = m.scriptRunners[:top]
+			cmd = tea.Sequence(cmd, actionCompleted(frame.completionID))
 		}
+		cmds = append(cmds, cmd)
 	}
 
 	cmds = append(cmds, primary.Update(msg))
@@ -448,7 +438,11 @@ func (m *Model) View() string {
 	switch screen := m.screen().(type) {
 	case nil:
 		m.updateSplitAutoPosition()
-		m.renderRevisionsLayout(box)
+		content, status := m.splitFooter(box)
+		rows := content.V(layout.Fixed(m.revsetModel.Height()), layout.Fill(1))
+		m.revsetModel.ViewRect(m.displayContext, rows[0])
+		m.renderSplit(m.revisions, rows[1])
+		m.renderFooter(status)
 	case *oplog.Model:
 		m.updateSplitAutoPosition()
 		m.renderWithStatus(box, func(content layout.Box) {
@@ -484,14 +478,6 @@ func (m *Model) View() string {
 	finalView := screenBuf.Render()
 	m.frameCursor = m.displayContext.Cursor()
 	return strings.ReplaceAll(finalView, "\r", "")
-}
-
-func (m *Model) renderRevisionsLayout(box layout.Box) {
-	content, status := m.splitFooter(box)
-	rows := content.V(layout.Fixed(m.revsetModel.Height()), layout.Fill(1))
-	m.revsetModel.ViewRect(m.displayContext, rows[0])
-	m.renderSplit(m.revisions, rows[1])
-	m.renderFooter(status)
 }
 
 func (m *Model) renderWithStatus(box layout.Box, renderContent func(layout.Box)) {
@@ -553,8 +539,17 @@ func (m *Model) dispatchScopes() []common.Scope {
 		scopes = append(scopes, top.model.Scopes()...)
 	} else {
 		content := m.splitScopes(primary.Scopes())
-		if m.revisions.InNormalMode() {
-			content = m.withBookmarksScopes(content)
+		// The bookmarks view's keys go just before the revisions scope, which
+		// also binds tab, / and esc. A focused remotes line goes first so the
+		// log's keys stay away from it.
+		if bookmarks := m.revsetModel.BookmarksScopes(); m.revisions.InNormalMode() && len(bookmarks) > 0 {
+			i := 0
+			if !m.revsetModel.RemotesFocused() {
+				if j := slices.IndexFunc(content, func(s common.Scope) bool { return s.Name == actions.ScopeRevisions }); j >= 0 {
+					i = j
+				}
+			}
+			content = slices.Concat(content[:i], bookmarks, content[i:])
 		}
 		scopes = append(scopes, content...)
 	}
@@ -690,24 +685,6 @@ func actionCompleted(id string) tea.Cmd {
 	}
 }
 
-func (m *Model) scriptRunning() bool {
-	return len(m.scriptRunners) > 0
-}
-
-func (m *Model) handleScriptMsg(msg tea.Msg) tea.Cmd {
-	if len(m.scriptRunners) == 0 {
-		return nil
-	}
-	top := len(m.scriptRunners) - 1
-	frame := m.scriptRunners[top]
-	cmd := frame.runner.HandleMsg(msg)
-	if !frame.runner.Done() {
-		return cmd
-	}
-	m.scriptRunners = m.scriptRunners[:top]
-	return tea.Sequence(cmd, actionCompleted(frame.completionID))
-}
-
 // inputFocused reports whether the model that receives keys is taking text,
 // following the same order as dispatchScopes.
 func (m *Model) inputFocused() bool {
@@ -722,24 +699,6 @@ func (m *Model) inputFocused() bool {
 	}
 	editable, ok := receiver.(common.Editable)
 	return ok && editable.IsEditing()
-}
-
-// withBookmarksScopes places the bookmarks view's keys just before the
-// revisions scope, which also binds tab, / and esc. The focused object's scope
-// stays ahead of them so the status bar lists its actions first; a focused
-// remotes line goes first so the log's keys stay away from it.
-func (m *Model) withBookmarksScopes(content []common.Scope) []common.Scope {
-	bookmarks := m.revsetModel.BookmarksScopes()
-	if len(bookmarks) == 0 {
-		return content
-	}
-	i := 0
-	if !m.revsetModel.RemotesFocused() {
-		if j := slices.IndexFunc(content, func(s common.Scope) bool { return s.Name == actions.ScopeRevisions }); j >= 0 {
-			i = j
-		}
-	}
-	return slices.Concat(content[:i], bookmarks, content[i:])
 }
 
 func (m *Model) flashVisible() bool {
@@ -853,7 +812,13 @@ func NewUI(c *context.MainContext) *Model {
 	}
 	c.SetStateProvider(ui)
 	ui.initSplitContainer()
-	ui.initResolver()
+	dispatcher, err := dispatch.NewDispatcher(config.BindingsToRuntime(config.Current.Bindings))
+	if err != nil {
+		log.Printf("failed to initialise key bindings: %v", err)
+		return ui
+	}
+	dispatcher.SetStateProvider(ui)
+	ui.resolver = dispatch.NewResolver(dispatcher)
 	return ui
 }
 
@@ -872,28 +837,6 @@ func (m *Model) setSequenceStatusHelp(continuations []dispatch.Continuation) {
 		}
 	}
 	m.sequenceHelp = entries
-}
-
-func (m *Model) clearSequenceStatusHelp() {
-	if m.sequenceHelp == nil {
-		return
-	}
-	m.sequenceHelp = nil
-	if m.sequenceAutoOpen {
-		m.status.SetStatusExpanded(false)
-	}
-	m.sequenceAutoOpen = false
-}
-
-func (m *Model) initResolver() {
-	bindings := config.BindingsToRuntime(config.Current.Bindings)
-	dispatcher, err := dispatch.NewDispatcher(bindings)
-	if err != nil {
-		log.Printf("failed to initialise key bindings: %v", err)
-		return
-	}
-	dispatcher.SetStateProvider(m)
-	m.resolver = dispatch.NewResolver(dispatcher)
 }
 
 func New(c *context.MainContext) tea.Model {
