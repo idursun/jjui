@@ -27,13 +27,10 @@ const (
 	ScopeAceJump                            = "revisions.ace_jump"
 	ScopeBookmark                           = "revisions.bookmark"
 	ScopeBookmarkTarget                     = "revisions.bookmark_target"
-	ScopeChangeId                           = "revisions.change_id"
 	ScopeDetails                            = "revisions.details"
 	ScopeDetailsConfirmation                = "revisions.details.confirmation"
 	ScopeDiffRange                          = "revisions.diff_range"
-	ScopeDivergent                          = "revisions.divergent"
 	ScopeDuplicate                          = "revisions.duplicate"
-	ScopeElided                             = "revisions.elided"
 	ScopeEvolog                             = "revisions.evolog"
 	ScopeInlineDescribe                     = "revisions.inline_describe"
 	ScopeInlineDescribeConfirmation         = "revisions.inline_describe.confirmation"
@@ -443,11 +440,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.bookmark_target.force_apply"):
 			return intents.Apply{Force: true}, true
 		}
-	case ScopeChangeId:
-		switch action {
-		case keybindings.Action("revisions.change_id.push"):
-			return intents.FocusedChangePush{}, true
-		}
 	case ScopeDetails:
 		switch action {
 		case keybindings.Action("revisions.details.absorb"):
@@ -517,11 +509,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.diff_range.target_picker"):
 			return intents.DiffRangeOpenTargetPicker{Target: enumArgDiffArgTarget(args, "target")}, true
 		}
-	case ScopeDivergent:
-		switch action {
-		case keybindings.Action("revisions.divergent.show_all"):
-			return intents.FocusedDivergentShowAll{}, true
-		}
 	case ScopeDuplicate:
 		switch action {
 		case keybindings.Action("revisions.duplicate.apply"):
@@ -534,11 +521,6 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.DuplicateSetTarget{Target: enumArgModeTarget(args, "target")}, true
 		case keybindings.Action("revisions.duplicate.target_picker"):
 			return intents.DuplicateOpenTargetPicker{}, true
-		}
-	case ScopeElided:
-		switch action {
-		case keybindings.Action("revisions.elided.show_all"):
-			return intents.FocusedElidedShowAll{}, true
 		}
 	case ScopeEvolog:
 		switch action {
@@ -712,12 +694,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		}
 	case ScopeWorkspace:
 		switch action {
-		case keybindings.Action("revisions.workspace.forget"):
-			return intents.FocusedWorkspaceForget{}, true
 		case keybindings.Action("revisions.workspace.rename"):
 			return intents.FocusedWorkspaceRename{}, true
-		case keybindings.Action("revisions.workspace.switch"):
-			return intents.FocusedWorkspaceSwitch{}, true
 		}
 	case ScopeRevset:
 		switch action {

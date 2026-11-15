@@ -249,73 +249,24 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		return 0
 	}))
 	contextTable.RawSetString("object", L.NewFunction(func(L *lua.LState) int {
-		item, ok := ctx.Selection().Highlighted.(uicontext.SelectedRevision)
-		// The node stands for the revision itself, not an object on it.
-		if !ok || item.ObjectKind == "" || item.ObjectKind == "node" {
+		var object common.SelectedRevision
+		switch item := ctx.Selection().Highlighted.(type) {
+		case uicontext.SelectedRevision:
+			object = item
+		case uicontext.SelectedFile:
+			object = common.SelectedRevision{ChangeId: item.ChangeId, CommitId: item.CommitId, ObjectKind: "file", ObjectText: item.File.Path()}
+		case uicontext.SelectedCommit:
+			object = common.SelectedRevision{CommitId: item.CommitId, ObjectKind: "commit", ObjectText: item.CommitId}
+		default:
 			return 0
 		}
-		tbl := L.NewTable()
-		tbl.RawSetString("kind", lua.LString(item.ObjectKind))
-		tbl.RawSetString("value", lua.LString(item.ObjectText))
-		if item.ObjectRemote != "" {
-			tbl.RawSetString("remote", lua.LString(item.ObjectRemote))
-		}
-		if item.ObjectConflicted {
-			tbl.RawSetString("conflicted", lua.LTrue)
-		}
-		L.Push(tbl)
-		return 1
-	}))
-	contextTable.RawSetString("checked_files", L.NewFunction(func(L *lua.LState) int {
-		tbl := L.NewTable()
-		for _, item := range ctx.Selection().Checked {
-			if f, ok := item.(uicontext.SelectedFile); ok {
-				tbl.Append(lua.LString(f.File.Path()))
-			}
-		}
-		L.Push(tbl)
-		return 1
-	}))
-	contextTable.RawSetString("checked_change_ids", L.NewFunction(func(L *lua.LState) int {
-		tbl := L.NewTable()
-		for _, item := range ctx.Selection().Checked {
-			switch i := item.(type) {
-			case uicontext.SelectedRevision:
-				tbl.Append(lua.LString(i.ChangeId))
-			case uicontext.SelectedFile:
-				tbl.Append(lua.LString(i.ChangeId))
-			}
-		}
-		L.Push(tbl)
-		return 1
-	}))
-	contextTable.RawSetString("checked_commit_ids", L.NewFunction(func(L *lua.LState) int {
-		tbl := L.NewTable()
-		for _, item := range ctx.Selection().Checked {
-			switch i := item.(type) {
-			case uicontext.SelectedRevision:
-				tbl.Append(lua.LString(i.CommitId))
-			case uicontext.SelectedFile:
-				tbl.Append(lua.LString(i.CommitId))
-			case uicontext.SelectedCommit:
-				tbl.Append(lua.LString(i.CommitId))
-			}
-		}
-		L.Push(tbl)
+		L.Push(objectTable(L, object))
 		return 1
 	}))
 	contextTable.RawSetString("checked_objects", L.NewFunction(func(L *lua.LState) int {
 		tbl := L.NewTable()
 		for _, item := range ctx.Selection().CheckedObjects {
-			object := L.NewTable()
-			object.RawSetString("kind", lua.LString(item.ObjectKind))
-			object.RawSetString("value", lua.LString(item.ObjectText))
-			for key, value := range map[string]string{"remote": item.ObjectRemote, "change_id": item.ChangeId, "commit_id": item.CommitId} {
-				if value != "" {
-					object.RawSetString(key, lua.LString(value))
-				}
-			}
-			tbl.Append(object)
+			tbl.Append(objectTable(L, item))
 		}
 		L.Push(tbl)
 		return 1
@@ -799,4 +750,28 @@ func matchInput(msg tea.Msg) (bool, []lua.LValue) {
 	default:
 		return false, nil
 	}
+}
+
+// objectTable describes an object to Lua. The revision itself is an object of
+// kind "revision" whose value is its change id.
+func objectTable(L *lua.LState, item common.SelectedRevision) *lua.LTable {
+	kind, value := item.ObjectKind, item.ObjectText
+	switch kind {
+	case "", "node":
+		kind, value = "revision", item.ChangeId
+	case "conflicted_bookmark":
+		kind = "bookmark"
+	}
+	tbl := L.NewTable()
+	tbl.RawSetString("kind", lua.LString(kind))
+	tbl.RawSetString("value", lua.LString(value))
+	for key, field := range map[string]string{"remote": item.ObjectRemote, "change_id": item.ChangeId, "commit_id": item.CommitId} {
+		if field != "" {
+			tbl.RawSetString(key, lua.LString(field))
+		}
+	}
+	if item.ObjectConflicted {
+		tbl.RawSetString("conflicted", lua.LTrue)
+	}
+	return tbl
 }

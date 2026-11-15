@@ -519,40 +519,48 @@ func (m *Model) checkedRevisionItems() []common.SelectedItem {
 	return items
 }
 
-// checkedObjectItems describes the checked objects other than revisions, in the
-// order they were checked. A bookmark that is not loaded has no revision.
+// checkedObjectItems describes the checked objects in the order they were
+// checked. A bookmark is listed once per loaded row it sits on.
 func (m *Model) checkedObjectItems() []common.SelectedRevision {
 	var items []common.SelectedRevision
 	for _, object := range m.checked {
-		if object.kind == textObjectNode {
-			continue
-		}
 		item := common.SelectedRevision{ChangeId: object.changeId, CommitId: object.commitId, ObjectKind: object.kind, ObjectText: object.name, ObjectRemote: object.remote}
-		if object.kind == textObjectFile {
-			items = append(items, item)
-			continue
-		}
+		found := false
 		for _, row := range m.rows {
-			if row.Commit == nil || object.commitId != "" && row.Commit.CommitId != object.commitId {
+			commit := row.Commit
+			switch {
+			case commit == nil:
 				continue
-			}
-			if object.kind == textObjectBookmark && !row.Commit.HasBookmarks {
+			case object.kind == textObjectFile:
+				if commit.GetChangeId() != object.changeId {
+					continue
+				}
+			case object.kind == textObjectBookmark:
+				if !commit.HasBookmarks || !slices.ContainsFunc(textObjectsForRow(row), func(o textObject) bool {
+					return o.Kind == textObjectBookmark && o.Value == object.name && o.Remote == object.remote
+				}) {
+					continue
+				}
+			case commit.CommitId != object.commitId:
 				continue
+			case object.kind == textObjectNode:
+				item.ObjectText = commit.GetChangeId()
+			default:
+				objects := textObjectsForRow(row)
+				if i := slices.IndexFunc(objects, func(o textObject) bool { return o.Kind == object.kind }); i >= 0 {
+					item.ObjectText = objects[i].Value
+				}
 			}
-			objects := textObjectsForRow(row)
-			i := slices.IndexFunc(objects, func(o textObject) bool {
-				return o.Kind == object.kind && (object.name == "" || o.Value == object.name && o.Remote == object.remote)
-			})
-			if i < 0 {
-				continue
+			item.ChangeId, item.CommitId = commit.GetChangeId(), commit.CommitId
+			items = append(items, item)
+			found = true
+			if object.kind != textObjectBookmark {
+				break
 			}
-			item.ChangeId, item.CommitId = row.Commit.GetChangeId(), row.Commit.CommitId
-			if item.ObjectText == "" {
-				item.ObjectText = objects[i].Value
-			}
-			break
 		}
-		items = append(items, item)
+		if !found {
+			items = append(items, item)
+		}
 	}
 	return items
 }
@@ -986,10 +994,6 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.syncDetails(), true
 	case intents.FocusedBookmarkDelete:
 		return m.deleteBookmarks(), true
-	case intents.FocusedWorkspaceSwitch:
-		return m.switchToFocusedWorkspace(), true
-	case intents.FocusedWorkspaceForget:
-		return m.forgetFocusedWorkspace(), true
 	case intents.FocusedWorkspaceRename:
 		return m.renameFocusedWorkspace(), true
 	case intents.FocusedBookmarkForget:
@@ -1007,16 +1011,10 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.advanceBookmarks(), true
 	case intents.FocusedBookmarkTrack:
 		return m.trackBookmarks(intent.Track), true
-	case intents.FocusedChangePush:
-		return m.pushChanges(), true
 	case intents.FocusedBookmarkPush:
 		return m.pushBookmarks(), true
 	case intents.FocusedBookmarkFetch:
 		return m.fetchBookmarks(), true
-	case intents.FocusedDivergentShowAll:
-		return m.showAllDivergentCopies(), true
-	case intents.FocusedElidedShowAll:
-		return m.showAllElided(), true
 	case intents.GoToTop:
 		return m.goToTop(), true
 	case intents.GoToBottom:

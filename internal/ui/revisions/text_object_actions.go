@@ -201,16 +201,6 @@ func bookmarkCommandsByRemote(targets []textObject, flag string, command func(..
 	return commands
 }
 
-// pushChanges pushes the checked revisions, or the highlighted one when none
-// are checked, each to a bookmark jj generates for it.
-func (m *Model) pushChanges() tea.Cmd {
-	if m.SelectedRevision() == nil {
-		return nil
-	}
-	flags := m.SelectedRevisions().AsPrefixedArgs("--change")
-	return m.context.RunCommand(jj.GitPush(flags...), common.Refresh)
-}
-
 // trackBookmarks tracks or untracks remote bookmarks, or local bookmarks
 // against the default remote. Bookmarks already in that state are skipped.
 func (m *Model) trackBookmarks(track bool) tea.Cmd {
@@ -364,17 +354,6 @@ func (m *Model) forgetBookmarks() tea.Cmd {
 	return m.runBookmarkCommands(commands)
 }
 
-// showAllDivergentCopies limits the log to every copy of the change.
-func (m *Model) showAllDivergentCopies() tea.Cmd {
-	obj := m.focusedTextObject()
-	revision := m.SelectedRevision()
-	if obj == nil || obj.Kind != textObjectDivergent || revision == nil {
-		return nil
-	}
-	changeId, _, _ := strings.Cut(revision.ChangeId, "/")
-	return common.UpdateRevSet("change_id(" + changeId + ")")
-}
-
 // widenedRevset unions the current revset with extra, or explains why it
 // cannot.
 func (m *Model) widenedRevset(extra func(current string) string) tea.Cmd {
@@ -394,14 +373,6 @@ func (m *Model) showElidedBelow(revision *jj.Commit) tea.Cmd {
 	})
 }
 
-func (m *Model) showAllElided() tea.Cmd {
-	obj := m.focusedTextObject()
-	if obj == nil || obj.Kind != textObjectElided {
-		return nil
-	}
-	return m.widenedRevset(func(current string) string { return "connected" + current })
-}
-
 // focusedWorkspaceRoot returns the focused workspace and its root directory.
 func (m *Model) focusedWorkspaceRoot() (*textObject, string, tea.Cmd) {
 	obj := m.focusedTextObject()
@@ -413,36 +384,6 @@ func (m *Model) focusedWorkspaceRoot() (*textObject, string, tea.Cmd) {
 		return nil, "", intents.Invoke(intents.AddMessage{Text: "Could not find workspace " + obj.Value, Err: err})
 	}
 	return obj, filepath.Clean(strings.TrimSpace(string(output))), nil
-}
-
-func (m *Model) isCurrentWorkspace(root string) bool {
-	return root == filepath.Clean(m.context.Location)
-}
-
-func (m *Model) switchToFocusedWorkspace() tea.Cmd {
-	obj, root, cmd := m.focusedWorkspaceRoot()
-	if obj == nil {
-		return cmd
-	}
-	if m.isCurrentWorkspace(root) {
-		return intents.Invoke(intents.AddMessage{Text: "Already in workspace " + obj.Value})
-	}
-	if _, err := os.Stat(root); err != nil {
-		return intents.Invoke(intents.AddMessage{Text: "Workspace " + obj.Value + " is missing on disk", Err: err})
-	}
-	m.context.ChangeWorkspace(root)
-	return common.Refresh
-}
-
-func (m *Model) forgetFocusedWorkspace() tea.Cmd {
-	obj, root, cmd := m.focusedWorkspaceRoot()
-	if obj == nil {
-		return cmd
-	}
-	if m.isCurrentWorkspace(root) {
-		return intents.Invoke(intents.AddMessage{Text: "Switch to another workspace before forgetting " + obj.Value})
-	}
-	return m.context.RunCommand(jj.WorkspaceForget(obj.Value), common.Refresh)
 }
 
 func (m *Model) renameFocusedWorkspace() tea.Cmd {

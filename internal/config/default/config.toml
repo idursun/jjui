@@ -143,7 +143,8 @@ lua = """
 name = "revisions.toggle_select"
 lua = """
  jjui.builtin.revisions.toggle_select()
- if context.object() == nil then
+ local object = context.object()
+ if object == nil or object.kind == "revision" then
    jjui.builtin.revisions.move_down()
  else
    jjui.builtin.revisions.object.jump_next()
@@ -235,5 +236,84 @@ lua = """
 name = "revisions.divergent.update_change_id"
 lua = """
  jj_async({ "metaedit", "--update-change-id", "-r", context.commit_id() })
+ jjui.builtin.revisions.refresh()
+ """
+
+[[actions]]
+name = "revisions.change_id.push"
+lua = """
+ local args, seen = { "git", "push" }, {}
+ for _, object in ipairs(context.checked_objects()) do
+   if object.kind ~= "file" and object.change_id and not seen[object.change_id] then
+     seen[object.change_id] = true
+     table.insert(args, "--change")
+     table.insert(args, object.change_id)
+   end
+ end
+ if #args == 2 then
+   table.insert(args, "--change")
+   table.insert(args, context.change_id())
+ end
+ jj_async(args)
+ jjui.builtin.revisions.refresh()
+ """
+
+[[actions]]
+name = "revisions.divergent.show_all"
+lua = """
+ local change_id = context.change_id():gsub("/.*$", "")
+ jjui.builtin.revset.set("change_id(" .. change_id .. ")")
+ """
+
+[[actions]]
+name = "revisions.elided.show_all"
+lua = """
+ local current = jjui.revset.current():match("^%s*(.-)%s*$")
+ if current == "" then
+   flash("The revset cannot be widened without an explicit revset")
+   return
+ end
+ current = "(" .. current .. ")"
+ jjui.builtin.revset.set(current .. " | connected" .. current)
+ """
+
+[[actions]]
+name = "revisions.workspace.switch"
+lua = """
+ local name = context.object().value
+ local root, err = jj({ "workspace", "root", "--name", name, "--ignore-working-copy" })
+ if err then
+   flash({ text = "Could not find workspace " .. name .. ": " .. err, error = true })
+   return
+ end
+ root = root:gsub("%s+$", "")
+ local current = (jj({ "root", "--ignore-working-copy" }) or ""):gsub("%s+$", "")
+ if root == current then
+   flash("Already in workspace " .. name)
+   return
+ end
+ if not change_workspace(root) then
+   flash({ text = "Workspace " .. name .. " is missing on disk", error = true })
+   return
+ end
+ jjui.builtin.revisions.refresh()
+ """
+
+[[actions]]
+name = "revisions.workspace.forget"
+lua = """
+ local name = context.object().value
+ local root, err = jj({ "workspace", "root", "--name", name, "--ignore-working-copy" })
+ if err then
+   flash({ text = "Could not find workspace " .. name .. ": " .. err, error = true })
+   return
+ end
+ root = root:gsub("%s+$", "")
+ local current = (jj({ "root", "--ignore-working-copy" }) or ""):gsub("%s+$", "")
+ if root == current then
+   flash("Switch to another workspace before forgetting " .. name)
+   return
+ end
+ jj_async({ "workspace", "forget", name })
  jjui.builtin.revisions.refresh()
  """

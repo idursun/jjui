@@ -539,9 +539,13 @@ func Test_TextObjects_ResetsCheckedAuthors(t *testing.T) {
 	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "other@example.com")
 	focusTextOnRow(t, session, ctx, "other@example.com")
 	// space checks the author and moves on to the next one
-	for range 2 {
+	for i := range 2 {
 		if err := session.SendKey(ghostty.KeySpace, " ", 0); err != nil {
 			t.Fatal(err)
+		}
+		// space is a Lua action, and a second one is refused while the first runs
+		if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, fmt.Sprintf("%d checked", i+1)) }); err != nil {
+			t.Fatalf("not checked: %v", err)
 		}
 	}
 	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "2 checked") }); err != nil {
@@ -624,4 +628,87 @@ func Test_TextObjects_GivesFocusedDivergentCopyANewChangeId(t *testing.T) {
 	waitFor(t, ctx, func() (bool, error) {
 		return divergentCount(t, repo) == 0, nil
 	})
+}
+
+func Test_TextObjects_PushesCheckedRevisions(t *testing.T) {
+	t.Parallel()
+	repo, remote := newRepoWithFileRemote(t)
+	repo.JJ("describe", "-m", "push one")
+	repo.JJ("new", "-m", "push two")
+	changeId := func(rev string) string {
+		return strings.TrimSpace(runCommand(t, repo.Path(), repo.Env(), "jj", "log", "--ignore-working-copy", "--no-graph", "--color", "never", "-r", rev, "-T", "change_id.short(12)"))
+	}
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "push two")
+	// space checks the revision and moves down
+	for i := range 2 {
+		if err := session.SendKey(ghostty.KeySpace, " ", 0); err != nil {
+			t.Fatal(err)
+		}
+		// space is a Lua action, and a second one is refused while the first runs
+		if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, fmt.Sprintf("%d checked", i+1)) }); err != nil {
+			t.Fatalf("not checked: %v", err)
+		}
+	}
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "2 checked") }); err != nil {
+		t.Fatalf("revisions not checked: %v", err)
+	}
+	// the focused change id does not matter once revisions are checked
+	for _, key := range []string{"i", "i"} {
+		if err := session.SendKey(ghostty.KeyI, key, 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "force rewrite") }); err != nil {
+		t.Fatalf("change id not focused: %v", err)
+	}
+	if err := session.SendKey(ghostty.KeyG, "G", ghostty.ModShift); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		return remoteHasBranch(t, repo, remote, "push-"+changeId("@")) && remoteHasBranch(t, repo, remote, "push-"+changeId("@-")), nil
+	})
+}
+
+func Test_TextObjects_ShowsAllDivergentCopies(t *testing.T) {
+	t.Parallel()
+	repo := newDivergentRepo(t)
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "(divergent)")
+	focusTextOnRow(t, session, ctx, "(divergent)")
+	if err := session.SendKey(ghostty.KeyS, "s", 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "revset: change_id(") }); err != nil {
+		t.Fatalf("revset was not limited to the divergent change: %v", err)
+	}
+}
+
+func Test_TextObjects_ShowsAllElidedRevisions(t *testing.T) {
+	t.Parallel()
+	repo := newTestRepo(t).
+		Append("README.md", "second commit\n").
+		Commit("second").
+		Bookmark("main", "@-")
+	writeJJUIConfig(t, repo.Env(), "[revisions]\nrevset = \"bookmarks() | @ | immutable_heads()\"\n")
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "elided revisions")
+	if err := session.SendKey(ghostty.KeyJ, "j", 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := session.SendKey(ghostty.KeyI, "i", 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := session.SendKey(ghostty.KeyE, "e", 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "show all elided") }); err != nil {
+		t.Fatalf("elided marker not focused: %v", err)
+	}
+	if err := session.SendKey(ghostty.KeyS, "s", 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "| connected(") }); err != nil {
+		t.Fatalf("revset was not widened to the elided revisions: %v", err)
+	}
 }

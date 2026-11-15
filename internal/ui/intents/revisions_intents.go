@@ -294,35 +294,10 @@ type FocusedBookmarkFetch struct{}
 
 func (FocusedBookmarkFetch) isIntent() {}
 
-//jjui:bind scope=revisions.change_id action=push
-type FocusedChangePush struct{}
-
-func (FocusedChangePush) isIntent() {}
-
 //jjui:bind scope=revisions.bookmark action=forget
 type FocusedBookmarkForget struct{}
 
 func (FocusedBookmarkForget) isIntent() {}
-
-//jjui:bind scope=revisions.divergent action=show_all
-type FocusedDivergentShowAll struct{}
-
-func (FocusedDivergentShowAll) isIntent() {}
-
-//jjui:bind scope=revisions.elided action=show_all
-type FocusedElidedShowAll struct{}
-
-func (FocusedElidedShowAll) isIntent() {}
-
-//jjui:bind scope=revisions.workspace action=switch
-type FocusedWorkspaceSwitch struct{}
-
-func (FocusedWorkspaceSwitch) isIntent() {}
-
-//jjui:bind scope=revisions.workspace action=forget
-type FocusedWorkspaceForget struct{}
-
-func (FocusedWorkspaceForget) isIntent() {}
 
 //jjui:bind scope=revisions.workspace action=rename
 type FocusedWorkspaceRename struct{}
