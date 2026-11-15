@@ -59,7 +59,10 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		return o.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
+		if commit := (&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId}); !o.current.Equal(commit) {
+			o.current = commit
+		}
+		return nil
 	case setTargetsMsg:
 		targets := make(map[string]bool, len(msg.targets))
 		for _, id := range msg.targets {
@@ -71,14 +74,6 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (o *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
-
-func (o *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
-	if o.current.Equal(commit) {
-		return nil
-	}
-	o.current = commit
-	return nil
-}
 
 func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent.(type) {
@@ -102,10 +97,25 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		if o.current == nil {
 			return nil, true
 		}
-		return o.selectDescendantsCmd(o.current.GetChangeId()), true
+		changeId, sourceId := o.current.GetChangeId(), o.source.GetChangeId()
+		if changeId == "" || sourceId == "" {
+			return nil, true
+		}
+		revset := fmt.Sprintf("mutable() & (%s:: & ::%s)", changeId, sourceId)
+		return func() tea.Msg {
+			output, err := o.context.RunCommandImmediate(jj.GetIdsFromRevset(revset))
+			if err != nil {
+				return common.CommandCompletedMsg{Err: err}
+			}
+			return setTargetsMsg{targets: targetIdsFromOutput(output, sourceId)}
+		}, true
 	case intents.Apply:
 		var into []string
-		if !equalSets(o.targets, o.defaults) {
+		unchanged := len(o.targets) == len(o.defaults)
+		for k := range o.targets {
+			unchanged = unchanged && o.defaults[k]
+		}
+		if !unchanged {
 			if len(o.targets) == 0 {
 				return common.Close, true
 			}
@@ -148,7 +158,13 @@ func (o *Operation) Name() string {
 }
 
 func NewOperation(ctx *context.MainContext, source *jj.Commit, current *jj.Commit) *Operation {
-	defaultIds := loadDefaultTargets(ctx, source)
+	output, err := ctx.RunCommandImmediate(jj.AbsorbDefaultTargets(source.GetChangeId()))
+	var defaultIds []string
+	if err != nil {
+		log.Println("Failed to load default absorb targets for", source.GetChangeId(), err)
+	} else {
+		defaultIds = targetIdsFromOutput(output, source.GetChangeId())
+	}
 	defaults := make(map[string]bool, len(defaultIds))
 	targets := make(map[string]bool, len(defaultIds))
 	for _, changeId := range defaultIds {
@@ -162,42 +178,6 @@ func NewOperation(ctx *context.MainContext, source *jj.Commit, current *jj.Commi
 		defaults: defaults,
 		targets:  targets,
 	}
-}
-
-func equalSets(a, b map[string]bool) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for k := range a {
-		if !b[k] {
-			return false
-		}
-	}
-	return true
-}
-
-func (o *Operation) selectDescendantsCmd(changeId string) tea.Cmd {
-	sourceId := o.source.GetChangeId()
-	if changeId == "" || sourceId == "" {
-		return nil
-	}
-	revset := fmt.Sprintf("mutable() & (%s:: & ::%s)", changeId, sourceId)
-	return func() tea.Msg {
-		output, err := o.context.RunCommandImmediate(jj.GetIdsFromRevset(revset))
-		if err != nil {
-			return common.CommandCompletedMsg{Err: err}
-		}
-		return setTargetsMsg{targets: targetIdsFromOutput(output, sourceId)}
-	}
-}
-
-func loadDefaultTargets(ctx *context.MainContext, source *jj.Commit) []string {
-	output, err := ctx.RunCommandImmediate(jj.AbsorbDefaultTargets(source.GetChangeId()))
-	if err != nil {
-		log.Println("Failed to load default absorb targets for", source.GetChangeId(), err)
-		return nil
-	}
-	return targetIdsFromOutput(output, source.GetChangeId())
 }
 
 func targetIdsFromOutput(output []byte, sourceId string) []string {

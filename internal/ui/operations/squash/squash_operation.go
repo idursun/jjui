@@ -59,7 +59,10 @@ func (s *Operation) Update(msg tea.Msg) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		return s.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
+		if commit := (&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId}); !s.current.Equal(commit) {
+			s.current = commit
+		}
+		return nil
 	case intents.Intent:
 		cmd, _ := s.HandleIntent(msg)
 		return cmd
@@ -72,7 +75,13 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.StartAceJump:
 		return common.StartAceJump(), true
 	case intents.Apply:
-		args := jj.Squash(s.from, s.targetArg(), s.files, s.keepEmptied, s.useDestinationMessage, s.interactive, intent.Force)
+		target := ""
+		if strings.TrimSpace(s.targetName) != "" {
+			target = s.targetName
+		} else if s.current != nil {
+			target = s.current.GetChangeId()
+		}
+		args := jj.Squash(s.from, target, s.files, s.keepEmptied, s.useDestinationMessage, s.interactive, intent.Force)
 		continuation := common.RefreshAndSelect(s.current.GetChangeId())
 		if s.interactive || !s.useDestinationMessage {
 			return tea.Batch(common.CloseApplied, s.context.RunInteractiveCommand(args, continuation)), true
@@ -97,14 +106,6 @@ func (s *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 }
 
 func (s *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
-
-func (s *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
-	if s.current.Equal(commit) {
-		return nil
-	}
-	s.current = commit
-	return nil
-}
 
 func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
 	if pos != operations.RenderBeforeChangeId {
@@ -137,16 +138,6 @@ func (s *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 
 func (s *Operation) Name() string {
 	return "squash"
-}
-
-func (s *Operation) targetArg() string {
-	if strings.TrimSpace(s.targetName) != "" {
-		return s.targetName
-	}
-	if s.current != nil {
-		return s.current.GetChangeId()
-	}
-	return ""
 }
 
 type Option func(*Operation)

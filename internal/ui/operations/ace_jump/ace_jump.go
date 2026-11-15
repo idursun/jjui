@@ -50,12 +50,6 @@ func (j *AceJump) First() *AceKey {
 	return j.ace[0]
 }
 
-func (j *AceJump) bindKeys() {
-	for _, a := range j.ace {
-		a.bind = aceBindingAt(a.id, a.bindIdx)
-	}
-}
-
 // returns the single match or nil after narrowing
 func (j *AceJump) Narrow(k tea.KeyMsg) *AceKey {
 	var narrow []*AceKey
@@ -79,7 +73,9 @@ func (j *AceJump) Narrow(k tea.KeyMsg) *AceKey {
 
 	if len(narrow) > 0 {
 		j.ace = narrow
-		j.bindKeys()
+		for _, a := range j.ace {
+			a.bind = aceBindingAt(a.id, a.bindIdx)
+		}
 	}
 	return nil
 }

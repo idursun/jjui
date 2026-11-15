@@ -96,7 +96,7 @@ func (r *RenameBookmarkOperation) Init() tea.Cmd {
 }
 
 func (r *RenameBookmarkOperation) ViewRect(dl *render.DisplayContext, box layout.Box) {
-	content := r.viewContent()
+	content := r.styledContent(theme.DefaultPalette.Get("revisions", "", "text", false))
 	w, h := lipgloss.Size(content)
 	rect := layout.Rect(box.R.Min.X, box.R.Min.Y, w, h)
 	dl.AddDraw(rect, content, 0)
@@ -148,10 +148,6 @@ func localBookmarkSegment(row parser.Row, name string) *screen.Segment {
 
 func (r *RenameBookmarkOperation) Name() string {
 	return "rename bookmark"
-}
-
-func (r *RenameBookmarkOperation) viewContent() string {
-	return r.styledContent(theme.DefaultPalette.Get("revisions", "", "text", false))
 }
 
 // styledContent renders the input with the style of the text it replaces.

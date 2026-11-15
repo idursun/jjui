@@ -177,21 +177,13 @@ func (d *DetailsList) current() *item {
 }
 
 func (d *DetailsList) itemAt(index int) *item {
-	sourceIndex, ok := d.sourceIndex(index)
-	if !ok {
+	if index < 0 || index >= d.VisibleLen() {
 		return nil
 	}
-	return d.files[sourceIndex]
-}
-
-func (d *DetailsList) sourceIndex(index int) (int, bool) {
-	if index < 0 || index >= d.VisibleLen() {
-		return 0, false
-	}
 	if d.filtering {
-		return d.matches[index].index, true
+		index = d.matches[index].index
 	}
-	return index, true
+	return d.files[index]
 }
 
 // RenderFileList renders the file list to a DisplayContext
@@ -222,7 +214,10 @@ func (d *DetailsList) RenderFileList(dl *render.DisplayContext, viewRect layout.
 		background := lipgloss.NewStyle().Background(baseStyle.GetBackground())
 		dl.AddFill(rect, ' ', background, 0)
 		if isSelected {
-			dl.SetPassiveCursorAt(fileCursor(), rect.Min.X, rect.Min.Y)
+			cursor := tea.NewCursor(0, 0)
+			cursor.Shape = tea.CursorBlock
+			cursor.Blink = true
+			dl.SetPassiveCursorAt(cursor, rect.Min.X, rect.Min.Y)
 		}
 
 		tb := dl.Text(rect.Min.X, rect.Min.Y, 0)
@@ -284,7 +279,7 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 
 	// Add hint
 	hint := ""
-	if d.showHint() {
+	if d.selectedHint != "" || d.unselectedHint != "" {
 		hint = d.unselectedHint
 		if d.isChecked(item.fileName) || (!d.hasSelectedItems() && index == d.cursor) {
 			hint = d.selectedHint
@@ -294,13 +289,6 @@ func (d *DetailsList) renderItemContent(tb *render.TextBuilder, item *item, inde
 		hintStyle := detailsPaletteStyle("dimmed", selected)
 		tb.Styled(hint, hintStyle)
 	}
-}
-
-func fileCursor() *tea.Cursor {
-	cursor := tea.NewCursor(0, 0)
-	cursor.Shape = tea.CursorBlock
-	cursor.Blink = true
-	return cursor
 }
 
 func (d *DetailsList) getStatusStyle(s status, selected bool) lipgloss.Style {
@@ -374,10 +362,6 @@ func (d *DetailsList) VisibleLen() int {
 		return len(d.matches)
 	}
 	return d.Len()
-}
-
-func (d *DetailsList) showHint() bool {
-	return d.selectedHint != "" || d.unselectedHint != ""
 }
 
 func findSubstringFold(candidate, query string) (int, int, bool) {
