@@ -302,6 +302,38 @@ func TestContext_ObjectDescribesFilesAndCommits(t *testing.T) {
 	assert.Equal(t, []lua.LValue{lua.LString("commit"), lua.LNil, lua.LString("def")}, got)
 }
 
+func TestContext_ObjectListsBookmarkRemotes(t *testing.T) {
+	ctx := contextWithSelection(uicontext.SelectedRevision{ChangeId: "abc", ObjectKind: "bookmark", ObjectText: "main",
+		ObjectRemotes: []jj.BookmarkRemote{{Remote: "origin", Tracked: true}, {Remote: "upstream"}}})
+	got := runScriptAndGetGlobals(t, ctx, `
+		local r = context.object().remotes
+		count, name1, tracked1, name2, tracked2 = #r, r[1].name, r[1].tracked, r[2].name, r[2].tracked
+	`, "count", "name1", "tracked1", "name2", "tracked2")
+	assert.Equal(t, []lua.LValue{lua.LNumber(2), lua.LString("origin"), lua.LTrue, lua.LString("upstream"), lua.LFalse}, got)
+
+	ctx = contextWithSelection(uicontext.SelectedRevision{ChangeId: "abc", ObjectKind: "bookmark", ObjectText: "main", ObjectRemotes: []jj.BookmarkRemote{}})
+	assert.Equal(t, lua.LNumber(0), runScriptAndGetGlobal(t, ctx, `count = #context.object().remotes`, "count"), "loaded without remotes")
+
+	ctx = contextWithSelection(uicontext.SelectedRevision{ChangeId: "abc", ObjectKind: "bookmark", ObjectText: "main"})
+	assert.Equal(t, lua.LNil, runScriptAndGetGlobal(t, ctx, `remotes = context.object().remotes`, "remotes"), "not loaded yet")
+}
+
+func TestContext_ObjectDescribesRemotes(t *testing.T) {
+	for kind, want := range map[string][]lua.LValue{
+		"remote":       {lua.LString("remote"), lua.LString("origin"), lua.LNil, lua.LNil, lua.LNil},
+		"remote_all":   {lua.LString("remote"), lua.LString("all"), lua.LTrue, lua.LNil, lua.LNil},
+		"remote_local": {lua.LString("remote"), lua.LString("local"), lua.LNil, lua.LTrue, lua.LNil},
+	} {
+		value := map[string]string{"remote": "origin", "remote_all": "all", "remote_local": "local"}[kind]
+		ctx := contextWithSelection(uicontext.SelectedRevision{ChangeId: "abc", CommitId: "def", ObjectKind: kind, ObjectText: value})
+		got := runScriptAndGetGlobals(t, ctx, `
+			local o = context.object()
+			kind, value, all, local_only, change = o.kind, o.value, o.all, o.local_only, o.change_id
+		`, "kind", "value", "all", "local_only", "change")
+		assert.Equal(t, want, got, kind)
+	}
+}
+
 func TestContext_ObjectIsNilWithoutASelection(t *testing.T) {
 	for name, ctx := range map[string]*uicontext.MainContext{
 		"operation":    contextWithSelection(uicontext.SelectedOperation{OperationId: "op1"}),

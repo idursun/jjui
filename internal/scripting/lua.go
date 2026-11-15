@@ -756,22 +756,43 @@ func matchInput(msg tea.Msg) (bool, []lua.LValue) {
 // kind "revision" whose value is its change id.
 func objectTable(L *lua.LState, item common.SelectedRevision) *lua.LTable {
 	kind, value := item.ObjectKind, item.ObjectText
+	tbl := L.NewTable()
 	switch kind {
 	case "", "node":
 		kind, value = "revision", item.ChangeId
 	case "conflicted_bookmark":
 		kind = "bookmark"
+	case "remote_all":
+		kind = "remote"
+		tbl.RawSetString("all", lua.LTrue)
+	case "remote_local":
+		kind = "remote"
+		tbl.RawSetString("local_only", lua.LTrue)
 	}
-	tbl := L.NewTable()
 	tbl.RawSetString("kind", lua.LString(kind))
 	tbl.RawSetString("value", lua.LString(value))
-	for key, field := range map[string]string{"remote": item.ObjectRemote, "change_id": item.ChangeId, "commit_id": item.CommitId} {
+	fields := map[string]string{"remote": item.ObjectRemote}
+	// A remote belongs to the repository, not to the revision under it.
+	if kind != "remote" {
+		fields["change_id"], fields["commit_id"] = item.ChangeId, item.CommitId
+	}
+	for key, field := range fields {
 		if field != "" {
 			tbl.RawSetString(key, lua.LString(field))
 		}
 	}
 	if item.ObjectConflicted {
 		tbl.RawSetString("conflicted", lua.LTrue)
+	}
+	if item.ObjectRemotes != nil {
+		remotes := L.NewTable()
+		for _, r := range item.ObjectRemotes {
+			remote := L.NewTable()
+			remote.RawSetString("name", lua.LString(r.Remote))
+			remote.RawSetString("tracked", lua.LBool(r.Tracked))
+			remotes.Append(remote)
+		}
+		tbl.RawSetString("remotes", remotes)
 	}
 	return tbl
 }

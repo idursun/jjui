@@ -45,6 +45,8 @@ type SelectedRevision struct {
 	ObjectText       string
 	ObjectRemote     string
 	ObjectConflicted bool
+	// ObjectRemotes lists a bookmark's remotes; nil until the tracking state is known.
+	ObjectRemotes []jj.BookmarkRemote
 }
 
 func (s SelectedRevision) Equal(other SelectedItem) bool {

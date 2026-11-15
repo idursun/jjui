@@ -110,7 +110,7 @@ func (m *Model) Selection() common.SelectionSnapshot {
 	if rev, ok := snapshot.Highlighted.(common.SelectedRevision); ok {
 		if kind, value, name, focused := m.revsetModel.FocusedRemote(); focused {
 			rev.ObjectKind, rev.ObjectValue = kind, value
-			rev.ObjectText, rev.ObjectRemote, rev.ObjectConflicted = name, "", false
+			rev.ObjectText, rev.ObjectRemote, rev.ObjectConflicted, rev.ObjectRemotes = name, "", false, nil
 			snapshot.Highlighted = rev
 		}
 	}

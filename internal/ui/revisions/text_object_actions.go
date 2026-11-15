@@ -298,6 +298,20 @@ func (m *Model) canChangeBookmarkTracking(track bool) bool {
 	})
 }
 
+// bookmarkRemotes returns the remotes of the named bookmark, or nil while the
+// tracking state is unknown.
+func (m *Model) bookmarkRemotes(name string) []jj.BookmarkRemote {
+	if m.trackingState == nil {
+		return nil
+	}
+	for _, b := range m.trackingState.listing {
+		if b.Name == name {
+			return append([]jj.BookmarkRemote{}, b.Remotes...)
+		}
+	}
+	return []jj.BookmarkRemote{}
+}
+
 // isRemoteBookmarkTracked reads a `jj bookmark list` listing because the log
 // output does not show the tracking state.
 func isRemoteBookmarkTracked(listing []jj.Bookmark, name string, remote string) bool {
