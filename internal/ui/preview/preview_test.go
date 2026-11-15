@@ -168,7 +168,7 @@ func TestUpdate_PreviewShowDoesNotBreakSelectionRefresh(t *testing.T) {
 	selected := common.SelectedRevision{ChangeId: "change", CommitId: "commit"}
 	ctx.SetStateProvider(selectionStateProvider{snapshot: common.SelectionSnapshot{Highlighted: selected}})
 	args := []string{"show", "--color", "always", "-r", "change"}
-	commandRunner.Expect(args).SetOutput([]byte("line 1\nline 2\nline 3\nline 4\nline 5"))
+	show := commandRunner.Expect(args).SetOutput([]byte("line 1\nline 2\nline 3\nline 4\nline 5"))
 
 	model.Update(intents.PreviewShow{Content: "manual"})
 	cmd := model.Update(common.RefreshMsg{})
@@ -181,13 +181,29 @@ func TestUpdate_PreviewShowDoesNotBreakSelectionRefresh(t *testing.T) {
 	model.Scroll(2)
 	assert.Equal(t, 2, model.view.YOffset())
 
+	show.SetOutput([]byte("line 1\nline 2\nline 3\nline 4\nline 5 changed"))
 	cmd = model.Update(common.RefreshMsg{})
 	require.NotNil(t, cmd)
 
 	test.SimulateModel(model, cmd)
 
-	assert.Equal(t, "line 1\nline 2\nline 3\nline 4\nline 5", model.content)
-	assert.Equal(t, 2, model.view.YOffset())
+	assert.Equal(t, "line 1\nline 2\nline 3\nline 4\nline 5 changed", model.content, "a refresh re-runs the command for the same item")
+	assert.Equal(t, 2, model.view.YOffset(), "a refresh of the same item keeps the scroll position")
+}
+
+func TestUpdate_SelectionChangedSkipsSameItem(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+	list := commandRunner.Expect([]string{"bookmark", "list", "--color", "always", "--remote", "origin"}).SetOutput([]byte("docs"))
+
+	item := common.SelectedRevision{ChangeId: "change", CommitId: "commit", ObjectKind: "remote", ObjectValue: "origin"}
+	model := refreshWith(t, commandRunner, item)
+	list.SetOutput([]byte("docs changed"))
+
+	cmd := model.Update(common.SelectionChangedMsg{})
+	test.SimulateModel(model, cmd)
+
+	assert.Equal(t, "docs", model.content)
 }
 
 func TestSetContent_ExpandsTabsUsingTabStops(t *testing.T) {

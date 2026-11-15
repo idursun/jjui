@@ -154,13 +154,19 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		m.SetContent(msg.Content)
 		return nil
 	case common.SelectionChangedMsg:
-		return m.refreshPreviewForItem(m.context.Selection().Highlighted)
+		return m.refreshPreviewForItem(m.context.Selection().Highlighted, false)
 	case common.RefreshMsg:
-		return m.refreshPreviewForItem(m.context.Selection().Highlighted)
+		return m.refreshPreviewForItem(m.context.Selection().Highlighted, true)
 	case updatePreviewContentMsg:
+		sameItem := m.contentItem != nil && m.contentItem.Equal(msg.contentItem)
+		yOffset, xOffset := m.view.YOffset(), m.view.XOffset()
 		m.contentItem = msg.contentItem
 		m.SetContent(msg.content)
 		m.commandLine = msg.command
+		if sameItem {
+			m.view.SetYOffset(yOffset)
+			m.view.SetXOffset(xOffset)
+		}
 		return nil
 	}
 	return nil
@@ -205,7 +211,8 @@ func (m *Model) reset() {
 	m.view.SetXOffset(0)
 }
 
-func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
+// A refresh re-runs the command for the same item because the repository may have changed under it.
+func (m *Model) refreshPreviewForItem(item common.SelectedItem, force bool) tea.Cmd {
 	return common.Debounce(debounceId, debounceDuration, func() tea.Msg {
 		kind, value, changeId, commitId := "node", "", "", ""
 		switch sel := item.(type) {
@@ -244,7 +251,7 @@ func (m *Model) refreshPreviewForItem(item common.SelectedItem) tea.Cmd {
 			"COLUMNS=" + strconv.Itoa(m.view.Width()),
 			"LINES=" + strconv.Itoa(m.view.Height()),
 		}
-		if m.contentItem != nil && m.contentItem.Equal(item) {
+		if !force && m.contentItem != nil && m.contentItem.Equal(item) {
 			return nil
 		}
 		output, err := m.context.RunCommandImmediateWithEnv(args, env)
