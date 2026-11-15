@@ -959,7 +959,8 @@ func Test_Update_ReloadThemeReadsFileAndKeepsPaletteOnError(t *testing.T) {
 	t.Cleanup(func() { theme.DefaultPalette = originalPalette })
 	config.Current.UI.Theme.Dark = "runtime_dark"
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
-	ctx.TerminalHasDarkBackground = true
+	isolateTerminalAppearance(t)
+	theme.DefaultPalette.SetDark(true)
 	model := NewUI(ctx)
 	themePath := filepath.Join(config.GetConfigDir(), "themes", "runtime_dark.toml")
 	for _, foreground := range []string{"#ff0000", "#00ff00"} {
@@ -985,8 +986,9 @@ func Test_Update_ReloadThemeEnablesBackgroundBlend(t *testing.T) {
 	t.Cleanup(func() { config.Current.UI.BackgroundBlend = originalBlend })
 	config.Current.UI.Theme.Dark = "runtime_dark"
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
-	ctx.TerminalHasDarkBackground = true
-	ctx.TerminalBackground = "#000000"
+	isolateTerminalAppearance(t)
+	theme.DefaultPalette.SetDark(true)
+	theme.DefaultPalette.SetTerminalBackground("#000000")
 	model := NewUI(ctx)
 	themePath := filepath.Join(config.GetConfigDir(), "themes", "runtime_dark.toml")
 	changed, requested, _ := inspectTerminalRefresh(model.Update(common.ReloadThemeMsg{}))
@@ -1013,7 +1015,8 @@ func Test_HandleIntent_ChangeThemeUpdatesCurrentMode(t *testing.T) {
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
-	ctx.TerminalHasDarkBackground = true
+	isolateTerminalAppearance(t)
+	theme.DefaultPalette.SetDark(true)
 	model := NewUI(ctx)
 
 	cmd, handled := model.HandleIntent(intents.ChangeTheme{Name: "runtime_dark"})
@@ -1033,7 +1036,8 @@ func Test_HandleIntent_ChangeThemeUpdatesLightModeWhenActive(t *testing.T) {
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
-	ctx.TerminalHasDarkBackground = false
+	isolateTerminalAppearance(t)
+	theme.DefaultPalette.SetDark(false)
 	model := NewUI(ctx)
 
 	cmd, handled := model.HandleIntent(intents.ChangeTheme{Name: "runtime_light"})
@@ -1055,7 +1059,8 @@ func Test_HandleIntent_ChangeThemeRollsBackOnLoadError(t *testing.T) {
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
-	ctx.TerminalHasDarkBackground = true
+	isolateTerminalAppearance(t)
+	theme.DefaultPalette.SetDark(true)
 	model := NewUI(ctx)
 
 	cmd, handled := model.HandleIntent(intents.ChangeTheme{Name: "missing_theme"})
@@ -1987,7 +1992,16 @@ func inspectTerminalRefresh(cmd tea.Cmd) (themeChanged, paletteRequested, backgr
 	return themeChanged, paletteRequested, backgroundRequested
 }
 
+// isolateTerminalAppearance gives the test a fresh DefaultPalette and restores the original afterwards.
+func isolateTerminalAppearance(t *testing.T) {
+	t.Helper()
+	original := theme.DefaultPalette
+	theme.DefaultPalette = theme.NewPalette()
+	t.Cleanup(func() { theme.DefaultPalette = original })
+}
+
 func enableBackgroundBlend(t *testing.T, value float64) {
+	isolateTerminalAppearance(t)
 	original := config.Current.UI.BackgroundBlend
 	t.Cleanup(func() { config.Current.UI.BackgroundBlend = original })
 	config.Current.UI.BackgroundBlend = config.BackgroundBlendConfig{Value: &value}
@@ -2035,8 +2049,9 @@ func Test_BackgroundColorMsg_ReloadsThemeWhenColorChangesWithinCurrentScheme(t *
 	enableBackgroundBlend(t, 0.4)
 	commandRunner := test.NewTestCommandRunner(t)
 	ctx := test.NewTestContext(commandRunner)
-	ctx.TerminalHasDarkBackground = true
-	ctx.ThemeBackgroundBlend = 0.4
+	isolateTerminalAppearance(t)
+	theme.DefaultPalette.SetDark(true)
+	theme.DefaultPalette.SetBackgroundBlend(0.4)
 	model := NewUI(ctx)
 	msg := tea.BackgroundColorMsg{Color: color.RGBA{R: 0x20, G: 0x20, B: 0x20, A: 0xff}}
 
@@ -2045,7 +2060,7 @@ func Test_BackgroundColorMsg_ReloadsThemeWhenColorChangesWithinCurrentScheme(t *
 	themeChanged, paletteRequested, _ := inspectTerminalRefresh(cmd)
 	assert.True(t, themeChanged)
 	assert.False(t, paletteRequested, "the initial palette query is already in flight")
-	assert.Equal(t, "#202020", ctx.TerminalBackground)
+	assert.Equal(t, "#202020", theme.DefaultPalette.TerminalBackground())
 
 	assert.Nil(t, model.Update(msg), "an unchanged terminal background should not reload the theme")
 

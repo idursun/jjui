@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/idursun/jjui/internal/ui/theme"
 	"log"
 	"path/filepath"
 	"slices"
@@ -783,7 +784,7 @@ type (
 func (w *wrapper) Init() tea.Cmd {
 	return tea.Batch(
 		w.ui.Init(),
-		initTerminalAppearance(w.ui.context.ThemeBackgroundBlend),
+		initTerminalAppearance(theme.DefaultPalette.BackgroundBlend()),
 	)
 }
 
