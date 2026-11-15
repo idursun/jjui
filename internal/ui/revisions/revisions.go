@@ -986,8 +986,6 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.syncDetails(), true
 	case intents.FocusedBookmarkDelete:
 		return m.deleteBookmarks(), true
-	case intents.FocusedTagDelete:
-		return m.deleteFocusedTag(), true
 	case intents.FocusedWorkspaceSwitch:
 		return m.switchToFocusedWorkspace(), true
 	case intents.FocusedWorkspaceForget:
@@ -1015,20 +1013,10 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.pushBookmarks(), true
 	case intents.FocusedBookmarkFetch:
 		return m.fetchBookmarks(), true
-	case intents.FocusedAuthorReset:
-		return m.runOnRevisionParts(textObjectAuthor, jj.MetaeditUpdateAuthor), true
-	case intents.FocusedTimestampReset:
-		return m.runOnRevisionParts(textObjectTimestamp, jj.MetaeditUpdateAuthorTimestamp), true
 	case intents.FocusedDivergentShowAll:
 		return m.showAllDivergentCopies(), true
 	case intents.FocusedElidedShowAll:
 		return m.showAllElided(), true
-	case intents.FocusedDivergentAbandon:
-		return m.runOnFocusedCommit(textObjectDivergent, jj.AbandonCommit), true
-	case intents.FocusedDivergentUpdateChangeId:
-		return m.runOnFocusedCommit(textObjectDivergent, jj.MetaeditUpdateChangeId), true
-	case intents.FocusedDescriptionEdit:
-		return m.describeRevisionParts(), true
 	case intents.GoToTop:
 		return m.goToTop(), true
 	case intents.GoToBottom:
@@ -1827,16 +1815,4 @@ func (m *Model) moveObjectFocus(delta int) {
 	}
 	next := ((current+delta)%len(objects) + len(objects)) % len(objects)
 	m.focusedObjectKind, m.focusedObjectIndex = objects[next].Kind, objects[next].Index
-}
-
-func (m *Model) runOnRevisionParts(kind string, command func(...string) jj.CommandArgs) tea.Cmd {
-	commits := m.revisionPartTargets(kind)
-	if len(commits) == 0 {
-		return nil
-	}
-	revisions := make([]string, len(commits))
-	for i, commit := range commits {
-		revisions[i] = commit.GetChangeId()
-	}
-	return m.context.RunCommand(command(revisions...), common.Refresh)
 }

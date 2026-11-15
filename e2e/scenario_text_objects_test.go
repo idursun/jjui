@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -524,5 +525,103 @@ func Test_TextObjects_MovesConflictedBookmark(t *testing.T) {
 		// A conflicted bookmark does not resolve to one revision until it moves.
 		output, err := commandOutput(repo.Path(), repo.Env(), "jj", "log", "--ignore-working-copy", "--no-graph", "--color", "never", "-r", "split", "-T", "change_id")
 		return err == nil && strings.TrimSpace(output) == merge, nil
+	})
+}
+
+func Test_TextObjects_ResetsCheckedAuthors(t *testing.T) {
+	t.Parallel()
+	repo := newTestRepo(t)
+	repo.JJ("describe", "-m", "first")
+	repo.JJ("metaedit", "--author", "Other <other@example.com>")
+	repo.JJ("new", "-m", "second")
+	repo.JJ("metaedit", "--author", "Other <other@example.com>")
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "other@example.com")
+	focusTextOnRow(t, session, ctx, "other@example.com")
+	// space checks the author and moves on to the next one
+	for range 2 {
+		if err := session.SendKey(ghostty.KeySpace, " ", 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "2 checked") }); err != nil {
+		t.Fatalf("authors not checked: %v", err)
+	}
+	if err := session.SendKey(ghostty.KeyR, "r", 0); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		authors := runCommand(t, repo.Path(), repo.Env(), "jj", "log", "--ignore-working-copy", "-r", "@ | @-", "--no-graph", "--color", "never", "-T", `author.email() ++ "\n"`)
+		return authors == "pty@example.com\npty@example.com\n", nil
+	})
+}
+
+func Test_TextObjects_EditsFocusedDescription(t *testing.T) {
+	t.Parallel()
+	repo := newTestRepo(t)
+	repo.JJ("describe", "-m", "before")
+	editor := filepath.Join(t.TempDir(), "editor")
+	if err := os.WriteFile(editor, []byte("#!/bin/sh\nprintf 'after\\n' > \"$1\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	repo.JJ("config", "set", "--repo", "ui.editor", editor)
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "before")
+	focusTextOnRow(t, session, ctx, "before")
+	if err := session.SendKey(ghostty.KeyE, "e", 0); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		description := runCommand(t, repo.Path(), repo.Env(), "jj", "log", "--ignore-working-copy", "-r", "@", "--no-graph", "--color", "never", "-T", "description")
+		return description == "after\n", nil
+	})
+}
+
+// newDivergentRepo describes the working copy differently from two operations.
+func newDivergentRepo(t *testing.T) *testRepo {
+	t.Helper()
+	repo := newTestRepo(t)
+	op := strings.TrimSpace(runCommand(t, repo.Path(), repo.Env(), "jj", "op", "log", "-n", "1", "--no-graph", "--color", "never", "-T", "id.short()"))
+	repo.JJ("describe", "-m", "experiment one")
+	repo.JJ("--at-op", op, "--ignore-working-copy", "describe", "-m", "experiment two")
+	return repo
+}
+
+func divergentCount(t *testing.T, repo *testRepo) int {
+	out := runCommand(t, repo.Path(), repo.Env(), "jj", "log", "--ignore-working-copy", "-r", "divergent()", "--no-graph", "--color", "never", "-T", `"divergent-copy\n"`)
+	return strings.Count(out, "divergent-copy")
+}
+
+func Test_TextObjects_AbandonsFocusedDivergentCopy(t *testing.T) {
+	t.Parallel()
+	repo := newDivergentRepo(t)
+	if n := divergentCount(t, repo); n != 2 {
+		t.Fatalf("want 2 divergent copies, got %d", n)
+	}
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "(divergent)")
+	focusTextOnRow(t, session, ctx, "(divergent)")
+	if err := session.SendKey(ghostty.KeyX, "x", 0); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		return divergentCount(t, repo) == 0, nil
+	})
+}
+
+func Test_TextObjects_GivesFocusedDivergentCopyANewChangeId(t *testing.T) {
+	t.Parallel()
+	repo := newDivergentRepo(t)
+	if n := divergentCount(t, repo); n != 2 {
+		t.Fatalf("want 2 divergent copies, got %d", n)
+	}
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "(divergent)")
+	focusTextOnRow(t, session, ctx, "(divergent)")
+	if err := session.SendKey(ghostty.KeyR, "r", 0); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		return divergentCount(t, repo) == 0, nil
 	})
 }

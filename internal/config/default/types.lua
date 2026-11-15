@@ -232,11 +232,9 @@ function wait_refresh() end
 ---@field abandon jjui.revisions.abandon
 ---@field absorb jjui.revisions.absorb
 ---@field ace_jump jjui.revisions.ace_jump
----@field author jjui.revisions.author
 ---@field bookmark jjui.revisions.bookmark
 ---@field bookmark_target jjui.revisions.bookmark_target
 ---@field change_id jjui.revisions.change_id
----@field description jjui.revisions.description
 ---@field details jjui.revisions.details
 ---@field diff_range jjui.revisions.diff_range
 ---@field divergent jjui.revisions.divergent
@@ -253,9 +251,7 @@ function wait_refresh() end
 ---@field set_bookmark jjui.revisions.set_bookmark
 ---@field set_parents jjui.revisions.set_parents
 ---@field squash jjui.revisions.squash
----@field tag jjui.revisions.tag
 ---@field target_picker jjui.revisions.target_picker
----@field timestamp jjui.revisions.timestamp
 ---@field workspace jjui.revisions.workspace
 ---@field ace_jump fun()
 ---@field add_to_revset fun()
@@ -323,9 +319,6 @@ function wait_refresh() end
 ---@field cancel fun()
 ---@field close fun()
 
----@class jjui.revisions.author
----@field reset fun()
-
 ---@class jjui.revisions.bookmark
 ---@field advance fun()
 ---@field delete fun()
@@ -345,9 +338,6 @@ function wait_refresh() end
 
 ---@class jjui.revisions.change_id
 ---@field push fun()
-
----@class jjui.revisions.description
----@field edit fun()
 
 ---@class jjui.revisions.details
 ---@field confirmation jjui.revisions.details.confirmation
@@ -390,9 +380,7 @@ function wait_refresh() end
 ---@field close fun()
 
 ---@class jjui.revisions.divergent
----@field abandon fun()
 ---@field show_all fun()
----@field update_change_id fun()
 
 ---@class jjui.revisions.duplicate
 ---@field apply fun(args: {force?: boolean})
@@ -502,9 +490,6 @@ function wait_refresh() end
 ---@field use_destination_msg fun()
 ---@field close fun()
 
----@class jjui.revisions.tag
----@field delete fun()
-
 ---@class jjui.revisions.target_picker
 ---@field apply fun(args: {force?: boolean})
 ---@field autocomplete fun()
@@ -514,9 +499,6 @@ function wait_refresh() end
 ---@field move_down fun()
 ---@field move_up fun()
 ---@field close fun()
-
----@class jjui.revisions.timestamp
----@field reset fun()
 
 ---@class jjui.revisions.workspace
 ---@field forget fun()

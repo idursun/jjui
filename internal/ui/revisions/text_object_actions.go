@@ -324,53 +324,6 @@ func isRemoteBookmarkTracked(listing []jj.Bookmark, name string, remote string) 
 	return false
 }
 
-func (m *Model) deleteFocusedTag() tea.Cmd {
-	obj := m.focusedTextObject()
-	if obj == nil || obj.Kind != textObjectTag {
-		return nil
-	}
-	if obj.Remote != "" {
-		return intents.Invoke(intents.AddMessage{Text: "Only local tags can be deleted"})
-	}
-	return m.context.RunCommand(jj.TagDelete(obj.Value), common.Refresh)
-}
-
-// revisionPartTargets returns the revisions owning the checked objects of the
-// focused kind, or the focused revision when none are checked.
-func (m *Model) revisionPartTargets(kind string) []*jj.Commit {
-	obj := m.focusedTextObject()
-	revision := m.SelectedRevision()
-	if obj == nil || obj.Kind != kind || revision == nil {
-		return nil
-	}
-	loaded := make(map[string]*jj.Commit, len(m.rows))
-	for _, row := range m.rows {
-		if row.Commit != nil {
-			loaded[row.Commit.CommitId] = row.Commit
-		}
-	}
-	var commits []*jj.Commit
-	for _, object := range m.checked {
-		if commit, ok := loaded[object.commitId]; ok && object.kind == kind {
-			commits = append(commits, commit)
-		}
-	}
-	if len(commits) == 0 {
-		return []*jj.Commit{revision}
-	}
-	return commits
-}
-
-// describeRevisionParts opens the editor for the revisions of the checked
-// descriptions; checked revisions alone do not count.
-func (m *Model) describeRevisionParts() tea.Cmd {
-	commits := m.revisionPartTargets(textObjectDescription)
-	if len(commits) == 0 {
-		return nil
-	}
-	return m.startDescribe(intents.Describe{Selected: jj.NewSelectedRevisions(commits...)})
-}
-
 // forgetBookmarks forgets the bookmarks without marking a deletion to push.
 // Remote and tracked bookmarks are forgotten with --include-remotes, otherwise
 // their remote bookmarks stay behind; they come back on the next fetch if they
@@ -409,17 +362,6 @@ func (m *Model) forgetBookmarks() tea.Cmd {
 		commands = append(commands, jj.BookmarkForgetIncludingRemotes(withRemotes...))
 	}
 	return m.runBookmarkCommands(commands)
-}
-
-// runOnFocusedCommit targets the commit id because the change id of a
-// divergent revision is ambiguous.
-func (m *Model) runOnFocusedCommit(kind string, command func(string) jj.CommandArgs) tea.Cmd {
-	obj := m.focusedTextObject()
-	revision := m.SelectedRevision()
-	if obj == nil || obj.Kind != kind || revision == nil {
-		return nil
-	}
-	return m.context.RunCommand(command(revision.CommitId), common.Refresh)
 }
 
 // showAllDivergentCopies limits the log to every copy of the change.

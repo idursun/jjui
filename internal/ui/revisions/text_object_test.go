@@ -159,19 +159,6 @@ func TestModel_FocusedBookmarkDelete(t *testing.T) {
 	}
 }
 
-func TestModel_FocusedAuthorResetUpdatesSelectedRevision(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.MetaeditUpdateAuthor("m"))
-	defer commandRunner.Verify()
-
-	model := New(test.NewTestContext(commandRunner))
-	model.updateGraphRows(textObjectRows(t), "", true)
-
-	runJJCommand(model.Update(intents.FocusedAuthorReset{}))
-	model.focusedObjectKind = textObjectAuthor
-	runJJCommand(model.Update(intents.FocusedAuthorReset{}))
-}
-
 // runJJCommand runs only the jj command of a RunCommand batch, skipping the
 // refresh that would reload the log.
 func runJJCommand(cmd tea.Cmd) {
@@ -330,36 +317,6 @@ func TestTextObjectsForRow_Tags(t *testing.T) {
 	assert.Equal(t, []string{"v1.0", "v2.0", "v2.0@origin"}, tags)
 }
 
-func TestModel_FocusedTagDeleteOnlyDeletesLocalTags(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.TagDelete("v1.0"))
-	defer commandRunner.Verify()
-
-	model := New(test.NewTestContext(commandRunner))
-	model.updateGraphRows(parser.ParseRows(strings.NewReader(tagLog)), "", true)
-	model.focusedObjectKind = textObjectTag
-	assert.Equal(t, actions.ScopeRevisions+".tag", string(model.Scopes()[0].Name))
-	runJJCommand(model.Update(intents.FocusedTagDelete{}))
-
-	model.focusedObjectIndex = 2
-	_, isMessage := model.Update(intents.FocusedTagDelete{})().(intents.AddMessage)
-	assert.True(t, isMessage, "remote tags cannot be deleted")
-}
-
-func TestModel_FocusedDescriptionEditDescribesOnlyTheFocusedRevision(t *testing.T) {
-	rows := textObjectRows(t)
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Describe(jj.NewSelectedRevisions(rows[0].Commit)))
-	defer commandRunner.Verify()
-
-	model := New(test.NewTestContext(commandRunner))
-	model.updateGraphRows(rows, "", true)
-	// A checked revision would otherwise be described too.
-	model.toggleChecked(checkedRevision(rows[1].Commit))
-	model.focusedObjectKind = textObjectDescription
-	runJJCommand(model.Update(intents.FocusedDescriptionEdit{}))
-}
-
 func TestModel_FocusedBookmarkForget(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("second;.;true;false;false;false;28\n"))
@@ -435,22 +392,6 @@ func TestTextObjectsForRow_Divergent(t *testing.T) {
 	}
 	assert.Equal(t, []string{"node", "change_id", "author", "commit_id", "divergent"}, kinds)
 	assert.Equal(t, []string{"◆", "nkmpuxny/2", "yc", "7fa9215d", "(divergent)"}, values)
-}
-
-func TestModel_FocusedDivergentActions(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.AbandonCommit("7fa9"))
-	commandRunner.Expect(jj.MetaeditUpdateChangeId("7fa9"))
-	defer commandRunner.Verify()
-
-	model := New(test.NewTestContext(commandRunner))
-	model.updateGraphRows(divergentRows(t), "", true)
-	model.focusedObjectKind = textObjectDivergent
-	runJJCommand(model.Update(intents.FocusedDivergentAbandon{}))
-	runJJCommand(model.Update(intents.FocusedDivergentUpdateChangeId{}))
-
-	cmd, _ := model.HandleIntent(intents.FocusedDivergentShowAll{})
-	assert.Equal(t, common.UpdateRevSetMsg("change_id(nkmpu)"), cmd())
 }
 
 // Two workspaces share the working-copy commit and render in one segment.
@@ -878,24 +819,6 @@ func checkDescriptionsAndAuthorsOnTwoRevisions(t *testing.T, commandRunner *test
 		}
 	}
 	return model
-}
-
-func TestModel_DescriptionEditAppliesToCheckedDescriptions(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	model := checkDescriptionsAndAuthorsOnTwoRevisions(t, commandRunner)
-	commandRunner.Expect(jj.Describe(jj.NewSelectedRevisions(model.rows[0].Commit, model.rows[1].Commit)))
-	defer commandRunner.Verify()
-
-	model.focusedObjectKind = textObjectDescription
-	runJJCommand(model.Update(intents.FocusedDescriptionEdit{}))
-}
-
-func TestModel_AuthorResetAppliesToCheckedAuthors(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.MetaeditUpdateAuthor("a", "b"))
-	defer commandRunner.Verify()
-
-	runJJCommand(checkDescriptionsAndAuthorsOnTwoRevisions(t, commandRunner).Update(intents.FocusedAuthorReset{}))
 }
 
 func TestModel_RevisionActionsResolveCheckedDescriptions(t *testing.T) {
@@ -1382,4 +1305,13 @@ func TestModel_SelectionListsCheckedObjects(t *testing.T) {
 		{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId, ObjectKind: textObjectBookmark, ObjectText: "second", ObjectRemote: "origin"},
 		{ObjectKind: textObjectBookmark, ObjectText: "gone"},
 	}, model.Selection().CheckedObjects)
+}
+
+func TestModel_SelectionListsCheckedDescriptionsAndAuthorsOfEachRevision(t *testing.T) {
+	model := checkDescriptionsAndAuthorsOnTwoRevisions(t, test.NewTestCommandRunner(t))
+	var got []string
+	for _, object := range model.Selection().CheckedObjects {
+		got = append(got, object.ObjectKind+" "+object.ChangeId)
+	}
+	assert.Equal(t, []string{"description a", "description b", "author a", "author b"}, got)
 }

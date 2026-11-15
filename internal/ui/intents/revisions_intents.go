@@ -261,16 +261,6 @@ type FocusedBookmarkDelete struct{}
 
 func (FocusedBookmarkDelete) isIntent() {}
 
-//jjui:bind scope=revisions.author action=reset
-type FocusedAuthorReset struct{}
-
-func (FocusedAuthorReset) isIntent() {}
-
-//jjui:bind scope=revisions.timestamp action=reset
-type FocusedTimestampReset struct{}
-
-func (FocusedTimestampReset) isIntent() {}
-
 //jjui:bind scope=revisions.bookmark action=rename
 type FocusedBookmarkRename struct{}
 
@@ -309,16 +299,6 @@ type FocusedChangePush struct{}
 
 func (FocusedChangePush) isIntent() {}
 
-//jjui:bind scope=revisions.tag action=delete
-type FocusedTagDelete struct{}
-
-func (FocusedTagDelete) isIntent() {}
-
-//jjui:bind scope=revisions.description action=edit
-type FocusedDescriptionEdit struct{}
-
-func (FocusedDescriptionEdit) isIntent() {}
-
 //jjui:bind scope=revisions.bookmark action=forget
 type FocusedBookmarkForget struct{}
 
@@ -328,16 +308,6 @@ func (FocusedBookmarkForget) isIntent() {}
 type FocusedDivergentShowAll struct{}
 
 func (FocusedDivergentShowAll) isIntent() {}
-
-//jjui:bind scope=revisions.divergent action=abandon
-type FocusedDivergentAbandon struct{}
-
-func (FocusedDivergentAbandon) isIntent() {}
-
-//jjui:bind scope=revisions.divergent action=update_change_id
-type FocusedDivergentUpdateChangeId struct{}
-
-func (FocusedDivergentUpdateChangeId) isIntent() {}
 
 //jjui:bind scope=revisions.elided action=show_all
 type FocusedElidedShowAll struct{}
