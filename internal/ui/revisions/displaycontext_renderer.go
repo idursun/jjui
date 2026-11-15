@@ -225,9 +225,18 @@ func (r *DisplayContextRenderer) calculateItemHeight(
 	if isSelected && operation != nil {
 		contentWidth := r.itemContentWidth(item, viewWidth)
 
-		overlayHeight := r.overlayHeight(operation, item, contentWidth)
+		overlayHeight := r.embeddedHeight(operation, item.Commit, operations.RenderOverDescription, contentWidth)
+		if overlayHeight <= 0 {
+			overlayHeight = renderedHeight(operation.Render(item.Commit, operations.RenderOverDescription))
+		}
 		if overlayHeight > 0 {
-			height = height - r.replacedLineCount(item, operations.RenderOverDescription) + overlayHeight
+			descriptionLines := 0
+			for _, line := range item.Lines {
+				if isDescriptionLine(line) {
+					descriptionLines++
+				}
+			}
+			height = height - descriptionLines + overlayHeight
 		}
 
 		afterHeight := r.afterHeight(operation, item, contentWidth)
@@ -405,7 +414,14 @@ func (r *DisplayContextRenderer) renderItemToDisplayContext(
 		for _, o := range objects {
 			if o.line == i && o.width > 0 {
 				objectRect := layout.Rect(lineRect.Min.X+screenColumn(columns, o.x), lineRect.Min.Y, o.width, 1)
-				r.addObjectClick(dl, objectRect, index, o)
+				// A click focuses the object; ctrl and alt clicks keep their meaning for the row.
+				dl.AddInteractionFn(objectRect, func(msg tea.MouseMsg) tea.Msg {
+					mouse := msg.Mouse()
+					if mouse.Mod&(tea.ModCtrl|tea.ModAlt) != 0 {
+						return ItemClickedMsg{Index: index, Ctrl: mouse.Mod&tea.ModCtrl != 0, Alt: mouse.Mod&tea.ModAlt != 0}
+					}
+					return ObjectClickedMsg{Index: index, Kind: o.Kind, ObjectIndex: o.Index}
+				}, render.InteractionClick, 1)
 				if key, ok := checkedObjectFor(o, item.Commit); ok && slices.Contains(r.checked, key) {
 					dl.AddPaint(objectRect, r.checkedStyle, 2)
 					dl.AddAttributes(objectRect, r.checkedStyle, 2)
@@ -464,20 +480,6 @@ func (r *DisplayContextRenderer) itemContentWidth(item parser.Row, width int) in
 	return contentRect.Dx()
 }
 
-func (r *DisplayContextRenderer) replacedLineCount(item parser.Row, pos operations.RenderPosition) int {
-	if pos != operations.RenderOverDescription {
-		return 0
-	}
-
-	count := 0
-	for _, line := range item.Lines {
-		if isDescriptionLine(line) {
-			count++
-		}
-	}
-	return count
-}
-
 // isDescriptionLine is a description line below the revision line; a
 // description on the revision line itself is overlaid after the row instead.
 func isDescriptionLine(line *parser.GraphRowLine) bool {
@@ -495,17 +497,6 @@ func (r *DisplayContextRenderer) embeddedHeight(
 		return 0
 	}
 	return embedded.EmbeddedHeight(commit, pos, width)
-}
-
-func (r *DisplayContextRenderer) overlayHeight(
-	operation operations.Operation,
-	item parser.Row,
-	width int,
-) int {
-	if embeddedHeight := r.embeddedHeight(operation, item.Commit, operations.RenderOverDescription, width); embeddedHeight > 0 {
-		return embeddedHeight
-	}
-	return renderedHeight(operation.Render(item.Commit, operations.RenderOverDescription))
 }
 
 func (r *DisplayContextRenderer) afterHeight(
@@ -749,16 +740,4 @@ func (r *DisplayContextRenderer) GetFirstRowIndex() int {
 // GetLastRowIndex returns the last visible row index (inclusive).
 func (r *DisplayContextRenderer) GetLastRowIndex() int {
 	return r.listRenderer.GetLastRowIndex()
-}
-
-// addObjectClick lets a click focus the object; ctrl and alt clicks keep
-// their meaning for the row.
-func (r *DisplayContextRenderer) addObjectClick(dl *render.DisplayContext, rect layout.Rectangle, index int, o textObject) {
-	dl.AddInteractionFn(rect, func(msg tea.MouseMsg) tea.Msg {
-		mouse := msg.Mouse()
-		if mouse.Mod&(tea.ModCtrl|tea.ModAlt) != 0 {
-			return ItemClickedMsg{Index: index, Ctrl: mouse.Mod&tea.ModCtrl != 0, Alt: mouse.Mod&tea.ModAlt != 0}
-		}
-		return ObjectClickedMsg{Index: index, Kind: o.Kind, ObjectIndex: o.Index}
-	}, render.InteractionClick, 1)
 }
