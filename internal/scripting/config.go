@@ -2,6 +2,7 @@ package scripting
 
 import (
 	"fmt"
+	"github.com/idursun/jjui/internal/ui/theme"
 	"path/filepath"
 	"strings"
 
@@ -59,7 +60,7 @@ func RunSetup(ctx *uicontext.MainContext, current *config.Config, source string)
 	configTable.RawSetString("repo", lua.LString(ctx.Location))
 
 	terminalTable := L.NewTable()
-	terminalTable.RawSetString("dark_mode", lua.LBool(ctx.TerminalHasDarkBackground))
+	terminalTable.RawSetString("dark_mode", lua.LBool(theme.DefaultPalette.IsDark()))
 	terminalTable.RawSetString("bg", lua.LString(""))
 	terminalTable.RawSetString("fg", lua.LString(""))
 	configTable.RawSetString("terminal", terminalTable)

@@ -2,6 +2,7 @@ package annotation
 
 import (
 	"fmt"
+	"github.com/idursun/jjui/internal/ui/theme"
 	"slices"
 	"strconv"
 	"strings"
@@ -86,11 +87,8 @@ type Model struct {
 var _ common.ImmediateModel = (*Model)(nil)
 
 func New(ctx *appContext.MainContext, revision string) *Model {
-	dark := ctx != nil && ctx.TerminalHasDarkBackground
-	var terminalPalette map[int]string
-	if ctx != nil {
-		terminalPalette = ctx.TerminalPalette
-	}
+	dark := theme.DefaultPalette.IsDark()
+	terminalPalette := theme.DefaultPalette.TerminalPalette()
 	return &Model{
 		context: ctx,
 		document: reviewDocument{
@@ -292,11 +290,9 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case common.ThemeChangedMsg:
-		dark := m.context != nil && m.context.TerminalHasDarkBackground
+		dark := theme.DefaultPalette.IsDark()
 		m.renderer = newAnnotationRenderer(dark)
-		if m.context != nil {
-			m.renderer.highlighter = newSourceHighlighter(dark, m.context.TerminalPalette)
-		}
+		m.renderer.highlighter = newSourceHighlighter(dark, theme.DefaultPalette.TerminalPalette())
 		return nil
 	case intents.Intent:
 		cmd, _ := m.HandleIntent(msg)
@@ -455,12 +451,10 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.viewportHeight != max(box.R.Dy()-headerHeight, 0)
 	m.viewportWidth = box.R.Dx()
 	m.viewportHeight = max(box.R.Dy()-headerHeight, 0)
-	dark := m.context != nil && m.context.TerminalHasDarkBackground
+	dark := theme.DefaultPalette.IsDark()
 	if m.renderer.highlighter == nil || dark != m.renderer.highlighterDark {
 		m.renderer = newAnnotationRenderer(dark)
-		if m.context != nil {
-			m.renderer.highlighter = newSourceHighlighter(dark, m.context.TerminalPalette)
-		}
+		m.renderer.highlighter = newSourceHighlighter(dark, theme.DefaultPalette.TerminalPalette())
 	}
 	if m.editing {
 		m.resizeEditor(m.viewportWidth)
@@ -493,10 +487,8 @@ func (m *Model) viewState() annotationViewState {
 		editor:          &m.editor,
 		sourceVersion:   m.sourceVersion,
 	}
-	if m.context != nil {
-		state.terminalBackground = m.context.TerminalBackground
-		state.terminalPalette = m.context.TerminalPalette
-	}
+	state.terminalBackground = theme.DefaultPalette.TerminalBackground()
+	state.terminalPalette = theme.DefaultPalette.TerminalPalette()
 	return state
 }
 

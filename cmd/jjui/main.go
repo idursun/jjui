@@ -190,12 +190,13 @@ func run() int {
 	}
 	defer scripting.CloseVM(appContext)
 
+	detected := false
 	if luaSource, err := config.LoadLuaConfigFile(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config.lua: %v\n", err)
 		return 1
 	} else if luaSource != "" {
-		appContext.TerminalHasDarkBackground = lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
-		appContext.TerminalThemeDetected = true
+		theme.DefaultPalette.SetDark(lipgloss.HasDarkBackground(os.Stdin, os.Stdout))
+		detected = true
 		if err := scripting.RunSetup(appContext, config.Current, luaSource); err != nil {
 			fmt.Fprintf(os.Stderr, "Error in config.lua: %v\n", err)
 			return 1
@@ -208,9 +209,9 @@ func run() int {
 			fmt.Fprintf(os.Stderr, "Error loading repository config.lua: %v\n", err)
 			return 1
 		} else if luaSource != "" {
-			if !appContext.TerminalThemeDetected {
-				appContext.TerminalHasDarkBackground = lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
-				appContext.TerminalThemeDetected = true
+			if !detected {
+				theme.DefaultPalette.SetDark(lipgloss.HasDarkBackground(os.Stdin, os.Stdout))
+				detected = true
 			}
 			if err := scripting.RunSetup(appContext, config.Current, luaSource); err != nil {
 				fmt.Fprintf(os.Stderr, "Error in repository config.lua: %v\n", err)
@@ -220,23 +221,18 @@ func run() int {
 	}
 
 	var resolvedTheme config.ResolvedTheme
-	if !appContext.TerminalThemeDetected {
-		appContext.TerminalHasDarkBackground = lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
-		appContext.TerminalThemeDetected = true
+	if !detected {
+		theme.DefaultPalette.SetDark(lipgloss.HasDarkBackground(os.Stdin, os.Stdout))
+		detected = true
 	}
 
-	resolvedTheme, err = config.ResolveTheme(appContext.TerminalHasDarkBackground, appContext.JJConfig.GetApplicableColors())
+	resolvedTheme, err = config.ResolveTheme(theme.DefaultPalette.IsDark(), appContext.JJConfig.GetApplicableColors())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading theme: %v\n", err)
 		return 1
 	}
-	appContext.ThemeBackgroundBlend = resolvedTheme.BackgroundBlend
+	theme.DefaultPalette.SetBackgroundBlend(resolvedTheme.BackgroundBlend)
 	theme.DefaultPalette.Update(resolvedTheme.Colors)
-	theme.DefaultPalette.ConfigureBackgroundBlend(
-		resolvedTheme.BackgroundBlend,
-		appContext.TerminalBackground,
-		appContext.TerminalPalette,
-	)
 
 	if period >= 0 {
 		config.Current.UI.AutoRefreshInterval = period

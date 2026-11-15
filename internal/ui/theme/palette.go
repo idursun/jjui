@@ -13,6 +13,7 @@ type Palette struct {
 	styles map[string]paletteStyle
 	cache  map[paletteCacheKey]lipgloss.Style
 	blend  paletteBackgroundBlend
+	dark   bool
 }
 
 type paletteCacheKey struct {

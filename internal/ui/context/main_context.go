@@ -23,21 +23,16 @@ type (
 
 type MainContext struct {
 	CommandRunner
-	stateProvider             common.ApplicationStateProvider
-	Location                  string
-	WorkingDirectory          string
-	JJConfig                  *config.JJConfig
-	DefaultRevset             string
-	CurrentRevset             string
-	TerminalHasDarkBackground bool
-	TerminalThemeDetected     bool
-	TerminalBackground        string
-	TerminalPalette           map[int]string
-	ThemeBackgroundBlend      float64
-	Histories                 *config.Histories
-	ScriptVM                  *lua.LState
-	TerminalWidth             int
-	TerminalHeight            int
+	stateProvider    common.ApplicationStateProvider
+	Location         string
+	WorkingDirectory string
+	JJConfig         *config.JJConfig
+	DefaultRevset    string
+	CurrentRevset    string
+	Histories        *config.Histories
+	ScriptVM         *lua.LState
+	TerminalWidth    int
+	TerminalHeight   int
 }
 
 // SetStateProvider connects the context to the root's live state resolver.

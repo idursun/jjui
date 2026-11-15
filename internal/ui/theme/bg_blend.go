@@ -2,7 +2,6 @@ package theme
 
 import (
 	"fmt"
-	"maps"
 	"math"
 
 	"charm.land/lipgloss/v2"
@@ -14,17 +13,27 @@ type paletteBackgroundBlend struct {
 	terminalPalette    map[int]string
 }
 
-func (p *Palette) ConfigureBackgroundBlend(
-	ratio float64,
-	terminalBackground string,
-	terminalPalette map[int]string,
-) {
-	p.blend = paletteBackgroundBlend{
-		ratio:              ratio,
-		terminalBackground: terminalBackground,
-		terminalPalette:    cloneTerminalPalette(terminalPalette),
+func (p *Palette) SetBackgroundBlend(ratio float64) { p.blend.ratio = ratio }
+
+func (p *Palette) BackgroundBlend() float64 { return p.blend.ratio }
+
+func (p *Palette) SetTerminalBackground(hex string) { p.blend.terminalBackground = hex }
+
+func (p *Palette) TerminalBackground() string { return p.blend.terminalBackground }
+
+func (p *Palette) SetTerminalPaletteColor(slot int, hex string) {
+	if p.blend.terminalPalette == nil {
+		p.blend.terminalPalette = make(map[int]string)
 	}
+	p.blend.terminalPalette[slot] = hex
 }
+
+// TerminalPalette returns the live map; callers must not mutate it.
+func (p *Palette) TerminalPalette() map[int]string { return p.blend.terminalPalette }
+
+func (p *Palette) SetDark(dark bool) { p.dark = dark }
+
+func (p *Palette) IsDark() bool { return p.dark }
 
 func (p *Palette) GetBlended(scope, component, role string, isSelected bool) lipgloss.Style {
 	return p.GetBlendedCustom(scope, component, role, isSelected, p.blend.ratio)
@@ -93,15 +102,6 @@ func (p *Palette) backgroundBlendTarget(scope, component string) string {
 		return resolveBlendTarget(background, p.blend.terminalBackground, p.blend.terminalPalette)
 	}
 	return p.blend.terminalBackground
-}
-
-func cloneTerminalPalette(terminalPalette map[int]string) map[int]string {
-	if terminalPalette == nil {
-		return nil
-	}
-	cloned := make(map[int]string, len(terminalPalette))
-	maps.Copy(cloned, terminalPalette)
-	return cloned
 }
 
 func resolveBlendTarget(value, terminalBackground string, terminalPalette map[int]string) string {

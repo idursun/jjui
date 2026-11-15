@@ -35,9 +35,11 @@ func TestAnnotationContrastAfterDiffAndSelectionComposition(t *testing.T) {
 				"added": {Fg: tt.added}, "deleted": {Fg: tt.deleted},
 				"annotation:selected": {Bg: tt.selected},
 			})
-			theme.DefaultPalette.ConfigureBackgroundBlend(0.4, tt.surface, nil)
+			theme.DefaultPalette.SetBackgroundBlend(0.4)
+			theme.DefaultPalette.SetTerminalBackground(tt.surface)
+			theme.DefaultPalette.SetDark(tt.dark)
 			model := mouseTestModel(4)
-			model.context = &appContext.MainContext{TerminalBackground: tt.surface, TerminalHasDarkBackground: tt.dark}
+			model.context = &appContext.MainContext{}
 			lines := model.document.files[0].Patch.Lines
 			lines[0] = patchLine{Kind: lineRemoved, OldLine: 1, Content: `return "old"`, PairContent: `return "new"`}
 			lines[1] = patchLine{Kind: lineAdded, NewLine: 1, Content: `return "new"`, PairContent: `return "old"`}
