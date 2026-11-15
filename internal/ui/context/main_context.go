@@ -150,13 +150,3 @@ func (ctx *MainContext) ChangeWorkspace(path string) {
 		runner.Location = path
 	}
 }
-
-func (ctx *MainContext) GetSelectedRevisions() map[string]bool {
-	selectedRevisions := make(map[string]bool)
-	for _, item := range ctx.Selection().Checked {
-		if rev, ok := item.(SelectedRevision); ok {
-			selectedRevisions[rev.ChangeId] = true
-		}
-	}
-	return selectedRevisions
-}

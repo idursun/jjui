@@ -480,10 +480,6 @@ func Evolog(revision string) CommandArgs {
 	return []string{"evolog", "-r", revision, "--color", "debug", "--quiet", "--ignore-working-copy", "--template", "builtin_evolog_compact"}
 }
 
-func Args(args ...string) CommandArgs {
-	return args
-}
-
 func TemplatedArgs(templatedArgs []string, replacements map[string]string) CommandArgs {
 	var args []string
 	if fileReplacement, exists := replacements[FilePlaceholder]; exists {

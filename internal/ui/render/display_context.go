@@ -121,16 +121,6 @@ func (dl *DisplayContext) AddInteractionFn(rect layout.Rectangle, fn func(tea.Mo
 	})
 }
 
-// SetCursor sets the real terminal cursor for the current frame.
-func (dl *DisplayContext) SetCursor(cursor *tea.Cursor) {
-	if cursor == nil {
-		dl.cursor = nil
-		return
-	}
-	cursorCopy := *cursor
-	dl.cursor = &cursorCopy
-}
-
 // SetCursorAt sets the frame cursor after offsetting it to an absolute position.
 func (dl *DisplayContext) SetCursorAt(cursor *tea.Cursor, x, y int) {
 	if cursor == nil {

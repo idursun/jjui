@@ -96,13 +96,6 @@ func (r *Resolver) Continuations(scopes []common.Scope) []Continuation {
 	return r.dispatcher.Continuations(scopes)
 }
 
-// ResetSequence resets any in-progress key sequence.
-func (r *Resolver) ResetSequence() {
-	if r.dispatcher != nil {
-		r.dispatcher.ResetSequence()
-	}
-}
-
 func (r *Resolver) resolveAction(action keybindings.Action, args map[string]any, skipConfigured bool) Result {
 	if r.dispatcher != nil && ((!skipConfigured && !r.dispatcher.ActionEnabled(action)) || (skipConfigured && !r.dispatcher.BuiltInActionEnabled(action))) {
 		return Result{Consumed: true}

@@ -104,10 +104,6 @@ func (m *Model) Height() int {
 	return 1
 }
 
-func (m *Model) GetValue() string {
-	return m.autoComplete.Value()
-}
-
 func New(context *appContext.MainContext) *Model {
 	revsetAliases := context.JJConfig.RevsetAliases
 	completionProvider := NewCompletionProvider(revsetAliases)
@@ -158,11 +154,6 @@ func (m *Model) AddToHistory(input string) {
 		m.History = m.History[:m.MaxHistoryItems]
 	}
 
-	m.selectedIndex = -1
-}
-
-func (m *Model) SetHistory(history []string) {
-	m.History = history
 	m.selectedIndex = -1
 }
 

@@ -14,11 +14,6 @@ func SetWidthMethod(m ansi.Method) {
 	widthMethod = m
 }
 
-// WidthMethod returns the current render width method.
-func WidthMethod() ansi.Method {
-	return widthMethod
-}
-
 // StringWidth returns the display width of a string.
 func StringWidth(s string) int {
 	return widthMethod.StringWidth(s)

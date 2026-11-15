@@ -164,14 +164,6 @@ func (sc *SplitContainer) Update(msg tea.Msg) tea.Cmd {
 	return content.Update(msg)
 }
 
-func (sc *SplitContainer) UpdateContent(id string, msg tea.Msg) (tea.Cmd, bool) {
-	content, ok := sc.contents[id]
-	if !ok {
-		return nil, false
-	}
-	return content.Update(msg), true
-}
-
 // QueryState looks up a property on any registered split content, regardless
 // of which content is currently active or focused.
 func (sc *SplitContainer) QueryState(id, name string) (any, bool) {

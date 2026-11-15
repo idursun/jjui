@@ -216,11 +216,6 @@ func (m *Model) StatusExpanded() bool {
 	return m.statusExpanded
 }
 
-// StatusTruncated returns whether the help text is currently truncated.
-func (m *Model) StatusTruncated() bool {
-	return m.statusTruncated
-}
-
 // ToggleStatusExpand toggles the expanded footer help view.
 func (m *Model) ToggleStatusExpand() {
 	if m.statusExpanded || m.statusTruncated {

@@ -51,10 +51,6 @@ type Model struct {
 
 const maxVisibleItems = 20
 
-func New(options []string) *Model {
-	return NewWithTitle(options, "")
-}
-
 func NewWithTitle(options []string, title string) *Model {
 	return NewWithOptions(options, title, false)
 }
@@ -379,8 +375,4 @@ func ShowOrdered(options []string, title string, ordered bool) tea.Cmd {
 	return func() tea.Msg {
 		return common.ShowChooseMsg{Options: options, Title: title, Ordered: ordered}
 	}
-}
-
-func Show(options []string) tea.Cmd {
-	return ShowWithTitle(options, "")
 }

@@ -157,10 +157,6 @@ func (m *Model) SetCursor(index int) {
 	}
 }
 
-func (m *Model) HasMore() bool {
-	return m.hasMore
-}
-
 func (m *Model) Scroll(delta int) tea.Cmd {
 	m.ensureCursorView = false
 	currentStart := m.displayContextRenderer.GetScrollOffset()
@@ -364,10 +360,6 @@ func (m *Model) InNormalMode() bool {
 		return !op.FileFocused() && !op.IsEditing()
 	}
 	return false
-}
-
-func (m *Model) HasQuickSearch() bool {
-	return m.quickSearch != ""
 }
 
 func (m *Model) Scopes() []common.Scope {
@@ -1668,25 +1660,6 @@ func (m *Model) seekRow(step func(more bool) (tea.Cmd, bool)) tea.Cmd {
 // CurrentOperation is the operation under the layers.
 func (m *Model) CurrentOperation() operations.Operation {
 	return m.baseOperation()
-}
-
-func (m *Model) GetCommitIds() []string {
-	var commitIds []string
-	for _, row := range m.rows {
-		commitIds = append(commitIds, row.Commit.CommitId)
-	}
-	return commitIds
-}
-
-// RevealRevision is used in the bookmark pane to reveal the revision
-// associated with a bookmark in the revision list
-func (m *Model) RevealRevision(revision string) tea.Cmd {
-	index := m.selectRevisionExact(revision)
-	if index < 0 {
-		return nil
-	}
-	m.SetCursor(index)
-	return nil
 }
 
 func New(c *appContext.MainContext) *Model {

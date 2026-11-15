@@ -11,7 +11,6 @@ import (
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
-	"github.com/idursun/jjui/internal/ui/theme"
 )
 
 var _ operations.Operation = (*CreateBookmarkOperation)(nil)
@@ -24,13 +23,6 @@ type CreateBookmarkOperation struct {
 		targetMarker lipgloss.Style
 		dimmed       lipgloss.Style
 	}
-}
-
-func NewCreateBookmarkOperation(context *context.MainContext, target *jj.Commit) *CreateBookmarkOperation {
-	op := &CreateBookmarkOperation{context: context, target: target}
-	op.styles.targetMarker = theme.DefaultPalette.Get("revisions", "", "", true)
-	op.styles.dimmed = theme.DefaultPalette.Get("revisions", "", "dimmed", false)
-	return op
 }
 
 func (c *CreateBookmarkOperation) Init() tea.Cmd { return nil }
