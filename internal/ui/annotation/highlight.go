@@ -2,7 +2,6 @@ package annotation
 
 import (
 	"bytes"
-	"image/color"
 	"slices"
 	"strings"
 	"unicode"
@@ -83,9 +82,14 @@ func syntaxStyle(dark bool, terminalPalette map[int]string) *chroma.Style {
 		if role == "text" {
 			style = style.Inherit(theme.DefaultPalette.Get("annotation", "", "text", false))
 		}
+		// Chroma needs RGB; NoColor and unreported palette entries stay unset.
+		var colour chroma.Colour
+		if rgb, ok := theme.ResolveRGBFallback(style.GetForeground(), terminalPalette); ok {
+			colour = chroma.NewColour(rgb[0], rgb[1], rgb[2])
+		}
 		entry := chroma.StyleEntry{
 			NoInherit: true,
-			Colour:    syntaxColour(style.GetForeground(), terminalPalette),
+			Colour:    colour,
 			Bold:      chroma.No, Italic: chroma.No, Underline: chroma.No,
 		}
 		if style.GetBold() {
@@ -101,17 +105,6 @@ func syntaxStyle(dark bool, terminalPalette map[int]string) *chroma.Style {
 		entries[token] = entry.String()
 	}
 	return chroma.MustNewStyle("jjui", entries)
-}
-
-// syntaxColour converts terminal colours to the RGB values required by Chroma.
-// Prefer the terminal's actual palette; RGBA supplies standard ANSI values when
-// the terminal has not reported a palette entry. NoColor must remain unset.
-func syntaxColour(value color.Color, terminalPalette map[int]string) chroma.Colour {
-	rgb, ok := theme.ResolveRGBFallback(value, terminalPalette)
-	if !ok {
-		return 0
-	}
-	return chroma.NewColour(rgb[0], rgb[1], rgb[2])
 }
 
 func (h *sourceHighlighter) render(path, source string) string {
@@ -145,7 +138,18 @@ func (h *sourceHighlighter) highlight(path, source string) string {
 		return result
 	}
 	h.highlightMisses++
-	lexer := h.lexer(path, source)
+	lexer, ok := h.lexers[path]
+	if !ok {
+		lexer = lexers.Match(path)
+		if lexer == nil {
+			lexer = lexers.Analyse(source)
+		}
+		if lexer == nil {
+			lexer = lexers.Fallback
+		}
+		lexer = chroma.Coalesce(lexer)
+		h.lexers[path] = lexer
+	}
 	if lexer == nil || h.formatter == nil {
 		return source
 	}
@@ -165,22 +169,6 @@ func (h *sourceHighlighter) highlight(path, source string) string {
 func (h *sourceHighlighter) resetSource() {
 	clear(h.lexers)
 	clear(h.cache)
-}
-
-func (h *sourceHighlighter) lexer(path, source string) chroma.Lexer {
-	if lexer, ok := h.lexers[path]; ok {
-		return lexer
-	}
-	lexer := lexers.Match(path)
-	if lexer == nil {
-		lexer = lexers.Analyse(source)
-	}
-	if lexer == nil {
-		lexer = lexers.Fallback
-	}
-	lexer = chroma.Coalesce(lexer)
-	h.lexers[path] = lexer
-	return lexer
 }
 
 type wordToken struct {
@@ -259,7 +247,12 @@ func allChanged(length int) []bool {
 
 func renderChangedRuns(value string, changed []bool, style lipgloss.Style) string {
 	var out strings.Builder
-	background := stylePrefix(style)
+	background := style.Render("\x00")
+	if index := strings.IndexByte(background, 0); index >= 0 {
+		background = background[:index]
+	} else {
+		background = ""
+	}
 	changedRun := false
 	visibleIndex := 0
 	for len(value) > 0 {
@@ -292,15 +285,6 @@ func renderChangedRuns(value string, changed []bool, style lipgloss.Style) strin
 		out.WriteString("\x1b[49m")
 	}
 	return out.String()
-}
-
-func stylePrefix(style lipgloss.Style) string {
-	marker := "\x00"
-	rendered := style.Render(marker)
-	if index := strings.IndexByte(rendered, marker[0]); index >= 0 {
-		return rendered[:index]
-	}
-	return ""
 }
 
 func ansiSequenceLength(value string) int {

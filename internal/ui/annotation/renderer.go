@@ -31,12 +31,6 @@ type displayLine struct {
 	BackgroundRole string
 }
 
-func (l displayLine) paint(dl *render.DisplayContext, rect layout.Rectangle) {
-	drawRowSegment(dl, rect, 0, l.Prefix)
-	drawRowSegment(dl, rect, l.GutterX, l.Gutter)
-	drawRowSegment(dl, rect, l.ContentX, l.Content)
-}
-
 type lineClickedMsg struct {
 	SourceIndex int
 }
@@ -148,7 +142,7 @@ func (r *annotationRenderer) Render(
 	r.renderHeader(dl, headerBox, state, changeIDStyle, textStyle, dimmedStyle)
 
 	lines, editorStart := r.buildDisplayLines(state, bodyBox.R.Dx())
-	result.scrollY = clampScroll(state.scrollY, len(lines), bodyBox.R.Dy())
+	result.scrollY = max(0, min(state.scrollY, max(0, len(lines)-bodyBox.R.Dy())))
 
 	selectedStyle := theme.DefaultPalette.GetBlended("annotation", "", "", true)
 	contrast := render.NewHighlightContrast(surface.GetBackground(), state.terminalBackground, state.terminalPalette, dark)
@@ -163,7 +157,9 @@ func (r *annotationRenderer) Render(
 		}
 		line := lines[index]
 		rowRect := layout.Rect(bodyBox.R.Min.X, bodyBox.R.Min.Y+y, bodyBox.R.Dx(), 1)
-		line.paint(dl, rowRect)
+		drawRowSegment(dl, rowRect, 0, line.Prefix)
+		drawRowSegment(dl, rowRect, line.GutterX, line.Gutter)
+		drawRowSegment(dl, rowRect, line.ContentX, line.Content)
 		if line.BackgroundRole != "" {
 			background := diffBackgroundStyle(
 				line.BackgroundRole,
@@ -250,7 +246,12 @@ func (r *annotationRenderer) buildDisplayLines(
 	state annotationViewState,
 	width int,
 ) ([]displayLine, int) {
-	r.ensureSource(state.sourceVersion)
+	if !r.highlighterSourceSet || r.highlighterSourceVersion != state.sourceVersion {
+		r.highlighter.resetSource()
+		r.highlighterSourceVersion = state.sourceVersion
+		r.highlighterSourceSet = true
+		r.displayCache.valid = false
+	}
 	if state.editing {
 		// Textarea contents and wrapping can change on every key press. Keeping the
 		// short-lived editor path uncached avoids mirroring its internal state here.
@@ -279,16 +280,6 @@ func (r *annotationRenderer) buildDisplayLines(
 		editorStart: editorStart,
 	}
 	return lines, editorStart
-}
-
-func (r *annotationRenderer) ensureSource(version uint64) {
-	if r.highlighterSourceSet && r.highlighterSourceVersion == version {
-		return
-	}
-	r.highlighter.resetSource()
-	r.highlighterSourceVersion = version
-	r.highlighterSourceSet = true
-	r.displayCache.valid = false
 }
 
 func (r *annotationRenderer) buildDisplayLinesUncached(
@@ -347,8 +338,11 @@ func (r *annotationRenderer) buildDiffLines(
 			rendered.BackgroundRole = backgroundRole
 			lines = append(lines, rendered)
 		}
-		for _, annotation := range annotationsAfterPatchLine(annotations, line) {
-			lines = append(lines, r.renderAnnotation(annotation, width)...)
+		for _, annotation := range annotations {
+			if annotation.NewLines.End > 0 && annotation.NewLines.End == line.NewLine ||
+				annotation.NewLines.End == 0 && annotation.OldLines.End == line.OldLine {
+				lines = append(lines, r.renderAnnotation(annotation, width)...)
+			}
 		}
 		if state.editing && index == selectedEnd {
 			editorStart = len(lines)
@@ -570,21 +564,4 @@ func (r *annotationRenderer) renderEditor(
 		})
 	}
 	return result
-}
-
-func annotationsAfterPatchLine(annotations []Annotation, line patchLine) []Annotation {
-	var result []Annotation
-	for _, annotation := range annotations {
-		switch {
-		case annotation.NewLines.End > 0 && annotation.NewLines.End == line.NewLine:
-			result = append(result, annotation)
-		case annotation.NewLines.End == 0 && annotation.OldLines.End == line.OldLine:
-			result = append(result, annotation)
-		}
-	}
-	return result
-}
-
-func clampScroll(scrollY, total, viewportHeight int) int {
-	return max(0, min(scrollY, max(0, total-viewportHeight)))
 }

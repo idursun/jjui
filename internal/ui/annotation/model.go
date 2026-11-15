@@ -368,7 +368,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			m.clearFocusedAnnotation()
 			return m.selectRevision(targets[0].ChangeID)
 		default:
-			return m.openRevisionPicker(targets)
+			items := make([]source.Item, 0, len(targets))
+			for _, revision := range targets {
+				items = append(items, source.Item{
+					Name:  fmt.Sprintf("%s · %s", revision.ChangeID, revision.Description),
+					Value: revision.ChangeID,
+					Kind:  source.KindRevision,
+				})
+			}
+			return common.OpenTargetPickerWithPayload(revisionPickerPayload{}, pickerSource{items: items})
 		}
 	case fileLoadedMsg:
 		if msg.ChangeID != m.changeID() {
@@ -398,7 +406,19 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			if !msg.File.IsEmpty() {
 				path = msg.File.Path()
 			}
-			return m.selectFile(path)
+			index := slices.IndexFunc(m.document.files, func(file fileItem) bool {
+				return file.Path == path
+			})
+			if index < 0 {
+				return nil
+			}
+			m.document.file = index
+			m.clearFocusedAnnotation()
+			m.resetPosition()
+			if m.document.presentation == filePresentation {
+				return m.loadCurrentFile()
+			}
+			return nil
 		case commentPickerPayload:
 			return m.selectCommentPickerTarget(payload, msg.Target)
 		case revisionPickerPayload:
@@ -564,7 +584,10 @@ func (m *Model) saveEditor() tea.Cmd {
 }
 
 func (m *Model) newAnnotation(comment string) Annotation {
-	start, end := m.selectedRange()
+	start, end := m.cursor, m.cursor
+	if m.selectionAnchor >= 0 {
+		start, end = min(m.selectionAnchor, m.cursor), max(m.selectionAnchor, m.cursor)
+	}
 	oldLines, newLines, snippet := m.document.source().AnnotationLocation(start, end)
 	annotation := Annotation{
 		ChangeID: m.changeID(),
@@ -638,13 +661,6 @@ func (m *Model) nextCommentable(from, direction int) int {
 	return max(0, min(from, length-1))
 }
 
-func (m *Model) selectedRange() (int, int) {
-	if m.selectionAnchor < 0 {
-		return m.cursor, m.cursor
-	}
-	return min(m.selectionAnchor, m.cursor), max(m.selectionAnchor, m.cursor)
-}
-
 func (m *Model) sourceLength() int {
 	return m.document.source().Len()
 }
@@ -681,22 +697,18 @@ func (m *Model) annotationAtCursor() []Annotation {
 		return []Annotation{annotation}
 	}
 
+	path := ""
+	if file := m.currentFile(); file != nil {
+		path = file.Path
+	}
 	var matches []Annotation
-	for _, annotation := range m.annotations.ForFile(m.changeID(), m.currentFilePath()) {
+	for _, annotation := range m.annotations.ForFile(m.changeID(), path) {
 		if !m.annotationContainsCursor(annotation) {
 			continue
 		}
 		matches = append(matches, annotation)
 	}
 	return matches
-}
-
-func (m *Model) currentFilePath() string {
-	file := m.currentFile()
-	if file == nil {
-		return ""
-	}
-	return file.Path
 }
 
 func (m *Model) annotationContainsCursor(annotation Annotation) bool {
@@ -707,19 +719,14 @@ func (m *Model) annotationContainsCursor(annotation Annotation) bool {
 	return m.document.source().Contains(m.cursor, annotation)
 }
 
-func (m *Model) annotationAnchor(annotation Annotation) (int, bool) {
-	file := m.currentFile()
-	if file == nil || annotation.ChangeID != m.changeID() || annotation.File != file.Path {
-		return 0, false
-	}
-	return m.document.source().Anchor(annotation)
-}
-
 func (m *Model) navigateFile(delta int) tea.Cmd {
 	if len(m.document.files) == 0 || delta == 0 {
 		return nil
 	}
-	m.document.file = wrapIndex(m.document.file+delta, len(m.document.files))
+	m.document.file = (m.document.file + delta) % len(m.document.files)
+	if m.document.file < 0 {
+		m.document.file += len(m.document.files)
+	}
 	m.clearFocusedAnnotation()
 	m.resetPosition()
 	if m.document.presentation == filePresentation {
@@ -751,7 +758,12 @@ func (m *Model) openCommentPickerFor(annotations []Annotation) tea.Cmd {
 	items := make([]source.Item, 0, len(annotations))
 	labels := make(map[string]struct{}, len(annotations))
 	for _, annotation := range annotations {
-		label := m.commentPickerLabel(annotation)
+		preview := ansi.Truncate(strings.Join(strings.Fields(annotation.Comment), " "), 48, "…")
+		lineRange := annotation.OldLines
+		if annotation.NewLines.Start != 0 {
+			lineRange = annotation.NewLines
+		}
+		label := fmt.Sprintf("%s · %s:%s · %s", shortRevision(annotation.ChangeID), annotation.File, formatLineRange(lineRange), preview)
 		if _, exists := labels[label]; exists {
 			label = fmt.Sprintf("%s [%d]", label, annotation.ID)
 		}
@@ -766,16 +778,6 @@ func (m *Model) openCommentPickerFor(annotations []Annotation) tea.Cmd {
 		return intents.Invoke(intents.AddMessage{Text: "No annotations"})
 	}
 	return common.OpenTargetPickerWithPayload(payload, pickerSource{items: items})
-}
-
-func (m *Model) commentPickerLabel(annotation Annotation) string {
-	preview := strings.Join(strings.Fields(annotation.Comment), " ")
-	preview = ansi.Truncate(preview, 48, "…")
-	lineRange := annotation.OldLines
-	if annotation.NewLines.Start != 0 {
-		lineRange = annotation.NewLines
-	}
-	return fmt.Sprintf("%s · %s:%s · %s", shortRevision(annotation.ChangeID), annotation.File, formatLineRange(lineRange), preview)
 }
 
 func (m *Model) selectCommentPickerTarget(_ commentPickerPayload, target string) tea.Cmd {
@@ -814,7 +816,10 @@ func (m *Model) jumpToFocusedAnnotation() tea.Cmd {
 	}
 	m.document.file = file
 	m.sourceVersion++
-	index, ok := m.annotationAnchor(annotation)
+	index, ok := 0, false
+	if current := m.currentFile(); current != nil && annotation.ChangeID == m.changeID() && annotation.File == current.Path {
+		index, ok = m.document.source().Anchor(annotation)
+	}
 	if !ok {
 		if m.document.presentation == diffPresentation {
 			m.document.presentation = filePresentation
@@ -841,22 +846,6 @@ func (m *Model) jumpToFocusedAnnotation() tea.Cmd {
 	return nil
 }
 
-func (m *Model) selectFile(path string) tea.Cmd {
-	index := slices.IndexFunc(m.document.files, func(file fileItem) bool {
-		return file.Path == path
-	})
-	if index < 0 {
-		return nil
-	}
-	m.document.file = index
-	m.clearFocusedAnnotation()
-	m.resetPosition()
-	if m.document.presentation == filePresentation {
-		return m.loadCurrentFile()
-	}
-	return nil
-}
-
 func (m *Model) navigateRevision(direction revisionDirection) tea.Cmd {
 	if m.document.from != "" {
 		return nil
@@ -873,21 +862,6 @@ func (m *Model) navigateRevision(direction revisionDirection) tea.Cmd {
 		m.revisionTargetsRequestID = requestID
 	}
 	return cmd
-}
-
-func (m *Model) openRevisionPicker(revisions []revisionTarget) tea.Cmd {
-	items := make([]source.Item, 0, len(revisions))
-	for _, revision := range revisions {
-		items = append(items, source.Item{
-			Name:  fmt.Sprintf("%s · %s", revision.ChangeID, revision.Description),
-			Value: revision.ChangeID,
-			Kind:  source.KindRevision,
-		})
-	}
-	return common.OpenTargetPickerWithPayload(
-		revisionPickerPayload{},
-		pickerSource{items: items},
-	)
 }
 
 func (m *Model) selectRevisionPickerTarget(_ revisionPickerPayload, target string) tea.Cmd {
@@ -915,14 +889,6 @@ func (m *Model) selectRevision(revision string) tea.Cmd {
 	}
 	m.document.loadingRevision = revision
 	return cmd
-}
-
-func wrapIndex(index, length int) int {
-	index %= length
-	if index < 0 {
-		index += length
-	}
-	return index
 }
 
 func (m *Model) resetPosition() {
