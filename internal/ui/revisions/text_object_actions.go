@@ -79,7 +79,8 @@ func (m *Model) checkedBookmarkRows() map[checkedObject][]loadedBookmark {
 		return found
 	}
 	for _, row := range m.rows {
-		if row.Commit == nil {
+		// Bindings query this on every render, so skip parsing rows without bookmarks.
+		if row.Commit == nil || !row.Commit.HasBookmarks {
 			continue
 		}
 		for _, o := range textObjectsForRow(row) {
