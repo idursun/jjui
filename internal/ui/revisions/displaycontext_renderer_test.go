@@ -294,3 +294,38 @@ func TestDisplayContextRenderer_RenameBookmarkEditsTheNameInPlace(t *testing.T) 
 	nameColumn := ansi.StringWidth(firstLine[:strings.Index(firstLine, "second-x")])
 	assert.Equal(t, nameColumn+len("second-x"), cursor.Position.X)
 }
+
+func TestDisplayContextRenderer_ScrollsToFocusedObjectPastTheRightEdge(t *testing.T) {
+	text := "change author@example.com 2026-01-01 release (conflict)"
+	row := parser.Row{
+		Commit: &jj.Commit{ChangeId: "change", CommitId: "commit"},
+		Lines: []*parser.GraphRowLine{
+			{
+				Gutter:   parser.GraphGutter{Segments: []*screen.Segment{{Text: "| "}}},
+				Segments: []*screen.Segment{{Text: text}},
+				Flags:    parser.Revision | parser.Highlightable,
+			},
+		},
+	}
+	conflictX := 2 + strings.Index(text, "(conflict)")
+
+	render30 := func(focused *textObject) (string, *tea.Cursor) {
+		r := NewDisplayContextRenderer()
+		r.focusedObject = focused
+		dl := render.NewDisplayContext()
+		r.Render(dl, []parser.Row{row}, 0, layout.NewBox(layout.Rect(4, 1, 30, 2)), nil, nil, false, "", true)
+		screen := uv.NewScreenBuffer(40, 3)
+		dl.Render(screen)
+		return strings.Split(screen.Render(), "\n")[1], dl.Cursor()
+	}
+
+	line, _ := render30(nil)
+	assert.True(t, strings.HasPrefix(line, "    | change"), "nothing scrolls while the revision is focused: %q", line)
+
+	line, cursor := render30(&textObject{Kind: textObjectConflict, line: 0, x: conflictX, width: len("(conflict)")})
+	assert.True(t, strings.HasSuffix(line[:4+30], "release (conflict)"), "the focused object ends at the right edge: %q", line)
+	assert.Equal(t, "", strings.TrimSpace(line[4+30:]), "nothing is drawn past the view")
+	require.NotNil(t, cursor)
+	assert.Equal(t, 4+30-len("(conflict)"), cursor.Position.X, "the cursor moves with the content")
+	assert.Equal(t, 1, cursor.Position.Y)
+}

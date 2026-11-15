@@ -186,10 +186,23 @@ func (r *DisplayContextRenderer) Render(
 		}
 	}
 
+	// Scroll the log sideways when the focused object ends past the right edge.
+	xOffset := 0
+	if cursor >= 0 && cursor < len(items) && r.selectionFocus {
+		if start, end, ok := r.focusedObjectColumns(items[cursor], operation, segmentRenderer, quickSearch); ok && end > viewRect.R.Dx() {
+			xOffset = min(start, end-viewRect.R.Dx())
+		}
+	}
+	target, targetRect := dl, viewRect
+	if xOffset > 0 {
+		target = render.NewDisplayContext()
+		targetRect = layout.NewBox(layout.Rect(0, 0, viewRect.R.Dx()+xOffset, viewRect.R.Dy()))
+	}
+
 	// Use the generic list renderer
 	r.listRenderer.Render(
-		dl,
-		viewRect,
+		target,
+		targetRect,
 		len(items),
 		cursor,
 		ensureCursorVisible,
@@ -200,8 +213,37 @@ func (r *DisplayContextRenderer) Render(
 
 	// Register scroll only when no overlay operation is active
 	if !isOverlay {
-		r.listRenderer.RegisterScroll(dl, viewRect)
+		r.listRenderer.RegisterScroll(target, targetRect)
 	}
+	if xOffset > 0 {
+		dl.AddScrolled(target, viewRect.R, xOffset, 0)
+	}
+}
+
+// focusedObjectColumns reports where the focused object is drawn on the selected row, relative to the row.
+func (r *DisplayContextRenderer) focusedObjectColumns(
+	item parser.Row,
+	operation operations.Operation,
+	segmentRenderer operations.SegmentRenderer,
+	quickSearch string,
+) (int, int, bool) {
+	o := r.focusedObject
+	if o == nil || o.Kind == textObjectNode || o.line < 0 || o.line >= len(item.Lines) {
+		return 0, 0, false
+	}
+	scratch := render.NewDisplayContext()
+	ir := itemRenderer{
+		renderer:        r,
+		dl:              scratch,
+		row:             item,
+		isHighlighted:   true,
+		op:              operation,
+		segmentRenderer: segmentRenderer,
+		SearchText:      quickSearch,
+	}
+	columns := ir.renderLine(scratch.Text(0, 0, 0), item.Lines[o.line], 0, 0)
+	start := screenColumn(columns, o.x)
+	return start, start + o.width, true
 }
 
 // calculateItemHeight calculates the height of an item in lines
