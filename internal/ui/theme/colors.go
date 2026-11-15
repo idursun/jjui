@@ -112,7 +112,7 @@ func ResolveRGBFallback(value color.Color, terminalPalette map[int]string) (RGB,
 
 // ResolveRGB uses this palette's reported terminal colours without guessing defaults.
 func (p *Palette) ResolveRGB(value color.Color) (RGB, bool) {
-	return ResolveRGB(value, p.blend.terminalPalette)
+	return ResolveRGB(value, p.terminal.palette)
 }
 
 // ResolveSurface prefers the theme surface, then the terminal background, then mode.
