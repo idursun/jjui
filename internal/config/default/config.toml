@@ -156,3 +156,84 @@ lua = """
  jj_async({ "metaedit", "--force-rewrite", "-r", context.commit_id() })
  jjui.builtin.revisions.refresh()
  """
+
+[[actions]]
+name = "revisions.author.reset"
+lua = """
+ local args = { "metaedit", "--update-author" }
+ for _, object in ipairs(context.checked_objects()) do
+   if object.kind == "author" and object.change_id then
+     table.insert(args, "-r")
+     table.insert(args, object.change_id)
+   end
+ end
+ if #args == 2 then
+   table.insert(args, "-r")
+   table.insert(args, context.change_id())
+ end
+ jj_async(args)
+ jjui.builtin.revisions.refresh()
+ """
+
+[[actions]]
+name = "revisions.timestamp.reset"
+lua = """
+ local args = { "metaedit", "--update-author-timestamp" }
+ for _, object in ipairs(context.checked_objects()) do
+   if object.kind == "timestamp" and object.change_id then
+     table.insert(args, "-r")
+     table.insert(args, object.change_id)
+   end
+ end
+ if #args == 2 then
+   table.insert(args, "-r")
+   table.insert(args, context.change_id())
+ end
+ jj_async(args)
+ jjui.builtin.revisions.refresh()
+ """
+
+[[actions]]
+name = "revisions.description.edit"
+lua = """
+ local args = { "describe", "--editor" }
+ for _, object in ipairs(context.checked_objects()) do
+   if object.kind == "description" and object.change_id then
+     table.insert(args, "-r")
+     table.insert(args, object.change_id)
+   end
+ end
+ if #args == 2 then
+   table.insert(args, "-r")
+   table.insert(args, context.change_id())
+ end
+ jj_interactive(args)
+ jjui.builtin.revisions.refresh()
+ """
+
+[[actions]]
+name = "revisions.tag.delete"
+lua = """
+ local tag = context.object()
+ if tag.remote then
+   flash("Only local tags can be deleted")
+   return
+ end
+ local quoted = tag.value:gsub('\\\\', '\\\\\\\\'):gsub('"', '\\\\"')
+ jj_async({ "tag", "delete", 'exact:"' .. quoted .. '"' })
+ jjui.builtin.revisions.refresh()
+ """
+
+[[actions]]
+name = "revisions.divergent.abandon"
+lua = """
+ jj_async({ "abandon", "--retain-bookmarks", context.commit_id() })
+ jjui.builtin.revisions.refresh()
+ """
+
+[[actions]]
+name = "revisions.divergent.update_change_id"
+lua = """
+ jj_async({ "metaedit", "--update-change-id", "-r", context.commit_id() })
+ jjui.builtin.revisions.refresh()
+ """
