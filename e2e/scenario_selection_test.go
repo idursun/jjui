@@ -58,3 +58,33 @@ func Test_Revisions_SelectionClearsWithEscape(t *testing.T) {
 		t.Fatalf("jjui exited with error: %v\nraw output:\n%s", err, session.RawOutput())
 	}
 }
+
+// Checking a bookmark jumps to the next bookmark, so a second space checks that one instead of a revision.
+func Test_Revisions_SelectionOnObjectJumpsToNextOfKind(t *testing.T) {
+	t.Parallel()
+	h := NewHarness(t)
+	h.repo.
+		Append("README.md", "first\n").
+		Commit("first").
+		Bookmark("first-bm", "@-").
+		Append("README.md", "middle\n").
+		Commit("middle").
+		Append("README.md", "second\n").
+		Commit("second").
+		Bookmark("second-bm", "@-")
+
+	h.Start("second")
+	h.Key("j")
+	h.Key("i")
+	h.Key("b")
+	h.Key(" ")
+	waitForCheckedCount(h, 1)
+	h.Key(" ")
+	waitForCheckedCount(h, 2)
+	h.Key("x")
+	waitFor(h.t, h.ctx, func() (bool, error) {
+		return !bookmarkExists(h.t, h.Repo(), h.Env(), "first-bm") && !bookmarkExists(h.t, h.Repo(), h.Env(), "second-bm"), nil
+	})
+
+	h.Quit()
+}
