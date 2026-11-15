@@ -24,7 +24,6 @@ func Test_Revisions_SelectionMovesCursorDown(t *testing.T) {
 
 	h.Key("j")
 	h.Key(" ")
-	waitForCheckedCount(h, 1)
 	h.Key(" ")
 	waitForCheckedCount(h, 2)
 

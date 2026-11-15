@@ -1462,6 +1462,60 @@ func Test_Update_LuaInputEscCancelsAndFinishesScript(t *testing.T) {
 	assert.Empty(t, model.scriptRunners, "script should finish after input cancel")
 }
 
+func Test_Update_LuaScriptsPressedWhileOneRunsRunInOrder(t *testing.T) {
+	origBindings := config.Current.Bindings
+	defer func() {
+		config.Current.Bindings = origBindings
+	}()
+	config.Current.Bindings = []config.BindingConfig{
+		{Action: "input.cancel", Scope: "input", Key: config.StringList{"esc"}},
+	}
+
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	require.NoError(t, scripting.InitVM(ctx))
+	defer scripting.CloseVM(ctx)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(common.RunLuaScriptMsg{Script: `order = "first"; input("name")`}))
+	require.NotEmpty(t, model.scriptRunners, "script should wait for input")
+
+	test.SimulateModel(model, model.Update(common.RunLuaScriptMsg{Script: `order = order .. ",second"`}))
+	test.SimulateModel(model, model.Update(common.RunLuaScriptMsg{Script: `order = order .. ",third"`}))
+	assert.Equal(t, lua.LString("first"), ctx.ScriptVM.GetGlobal("order"), "queued scripts should wait")
+	assert.False(t, model.flash.Any(), "queued scripts should not be refused")
+
+	test.SimulateModel(model, model.Update(tea.KeyPressMsg{Code: tea.KeyEsc}))
+
+	assert.Equal(t, lua.LString("first,second,third"), ctx.ScriptVM.GetGlobal("order"))
+	assert.Empty(t, model.scriptRunners)
+	assert.Empty(t, model.queuedScripts)
+}
+
+func Test_Update_LuaScriptQueueIsBounded(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	require.NoError(t, scripting.InitVM(ctx))
+	defer scripting.CloseVM(ctx)
+	model := NewUI(ctx)
+
+	test.SimulateModel(model, model.Update(common.RunLuaScriptMsg{Script: `input("name")`}))
+	require.NotEmpty(t, model.scriptRunners, "script should wait for input")
+
+	for range maxQueuedScripts {
+		test.SimulateModel(model, model.Update(common.RunLuaScriptMsg{Script: `x = 1`}))
+	}
+	assert.False(t, model.flash.Any())
+
+	test.SimulateModel(model, model.Update(common.RunLuaScriptMsg{Script: `x = 1`}))
+	assert.True(t, model.flash.Any(), "a full queue should refuse the script")
+	assert.Len(t, model.queuedScripts, maxQueuedScripts)
+}
+
 func Test_Update_LuaChooseEscViaUiCancelFinishesScript(t *testing.T) {
 	origBindings := config.Current.Bindings
 	defer func() {

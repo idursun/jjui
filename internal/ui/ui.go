@@ -54,6 +54,7 @@ type Model struct {
 	password         *password.Model
 	context          *context.MainContext
 	scriptRunners    []scriptFrame
+	queuedScripts    []string
 	sequenceHelp     []help.Entry
 	sequenceAutoOpen bool
 	resolver         *dispatch.Resolver
@@ -292,23 +293,14 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 		return common.Refresh
 	case common.RunLuaScriptMsg:
 		if msg.CompletionID == "" && len(m.scriptRunners) > 0 {
-			err := fmt.Errorf("lua script is already running")
-			return intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err})
+			if len(m.queuedScripts) >= maxQueuedScripts {
+				err := fmt.Errorf("lua script is already running")
+				return intents.Invoke(intents.AddMessage{Text: err.Error(), Err: err})
+			}
+			m.queuedScripts = append(m.queuedScripts, msg.Script)
+			return nil
 		}
-		runner, cmd, err := scripting.RunScript(m.context, msg.Script)
-		if err != nil {
-			return tea.Sequence(func() tea.Msg {
-				return common.CommandCompletedMsg{Err: err}
-			}, actionCompleted(msg.CompletionID))
-		}
-		if runner != nil && !runner.Done() {
-			m.scriptRunners = append(m.scriptRunners, scriptFrame{
-				runner:       runner,
-				completionID: msg.CompletionID,
-			})
-			return cmd
-		}
-		return tea.Sequence(cmd, actionCompleted(msg.CompletionID))
+		return m.runScript(msg.Script, msg.CompletionID)
 	case common.DispatchActionMsg:
 		if m.resolver == nil {
 			return actionCompleted(msg.CompletionID)
@@ -401,7 +393,7 @@ func (m *Model) Update(msg tea.Msg) (cmd tea.Cmd) {
 		cmd := frame.runner.HandleMsg(msg)
 		if frame.runner.Done() {
 			m.scriptRunners = m.scriptRunners[:top]
-			cmd = tea.Sequence(cmd, actionCompleted(frame.completionID))
+			cmd = tea.Sequence(cmd, actionCompleted(frame.completionID), m.runQueuedScripts())
 		}
 		cmds = append(cmds, cmd)
 	}
@@ -665,6 +657,40 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	}
 
 	return nil, false
+}
+
+// maxQueuedScripts bounds key presses waiting behind a script that may never
+// finish, such as one waiting for a view to close.
+const maxQueuedScripts = 8
+
+func (m *Model) runScript(script string, completionID string) tea.Cmd {
+	runner, cmd, err := scripting.RunScript(m.context, script)
+	if err != nil {
+		return tea.Sequence(func() tea.Msg {
+			return common.CommandCompletedMsg{Err: err}
+		}, actionCompleted(completionID))
+	}
+	if runner != nil && !runner.Done() {
+		m.scriptRunners = append(m.scriptRunners, scriptFrame{
+			runner:       runner,
+			completionID: completionID,
+		})
+		return cmd
+	}
+	return tea.Sequence(cmd, actionCompleted(completionID))
+}
+
+// runQueuedScripts starts queued scripts in order until one has to wait. It
+// runs in the same update that finished the previous script, so a new key
+// press cannot start ahead of the queue.
+func (m *Model) runQueuedScripts() tea.Cmd {
+	var cmds []tea.Cmd
+	for len(m.scriptRunners) == 0 && len(m.queuedScripts) > 0 {
+		script := m.queuedScripts[0]
+		m.queuedScripts = m.queuedScripts[1:]
+		cmds = append(cmds, m.runScript(script, ""))
+	}
+	return tea.Sequence(cmds...)
 }
 
 func luaCmd(script string) tea.Cmd {
