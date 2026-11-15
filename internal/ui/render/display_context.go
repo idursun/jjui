@@ -2,10 +2,12 @@ package render
 
 import (
 	"sort"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/ui/layout"
 )
 
@@ -295,4 +297,30 @@ func (dl *DisplayContext) ProcessMouseEvent(msg tea.MouseMsg) (tea.Msg, bool) {
 	})
 
 	return processMouseEvent(sorted, msg)
+}
+
+// AddScrolled draws child, which was rendered at the origin, into rect with its first
+// xOffset columns scrolled out of view. Interactions and the cursor move with the content.
+func (dl *DisplayContext) AddScrolled(child *DisplayContext, rect layout.Rectangle, xOffset int, z int) {
+	width, height := rect.Dx(), rect.Dy()
+	if width <= 0 || height <= 0 {
+		return
+	}
+	shift := layout.Pos(rect.Min.X-xOffset, rect.Min.Y)
+	for _, op := range child.interactions {
+		op.Rect = op.Rect.Add(shift).Intersect(rect)
+		if op.Rect.Empty() {
+			continue
+		}
+		op.order = dl.nextOrder()
+		dl.interactions = append(dl.interactions, op)
+	}
+	if child.cursor != nil {
+		dl.SetPassiveCursorAt(child.cursor, shift.X, shift.Y)
+	}
+	lines := strings.Split(child.RenderToString(xOffset+width, height), "\n")
+	for i, line := range lines {
+		lines[i] = ansi.Cut(line, xOffset, xOffset+width)
+	}
+	dl.AddDraw(rect, strings.Join(lines, "\n"), z)
 }
