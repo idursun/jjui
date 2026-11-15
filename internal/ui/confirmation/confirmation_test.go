@@ -94,11 +94,8 @@ func TestDispatcherIntentFlow(t *testing.T) {
 			selected = "yes"
 			return nil
 		}, key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-		WithAltOption("No", func() tea.Msg {
+		WithOption("No", func() tea.Msg {
 			selected = "no"
-			return nil
-		}, func() tea.Msg {
-			selected = "no-alt"
 			return nil
 		}, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 	)
@@ -108,7 +105,7 @@ func TestDispatcherIntentFlow(t *testing.T) {
 	if cmd != nil {
 		cmd()
 	}
-	assert.Equal(t, "no-alt", selected)
+	assert.Equal(t, "no", selected)
 
 	cmd = model.Update(intents.Cancel{})
 	if cmd != nil {
@@ -125,11 +122,8 @@ func TestRawEnterAppliesSelectedOption(t *testing.T) {
 			selected = "yes"
 			return nil
 		}, key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes"))),
-		WithAltOption("No", func() tea.Msg {
+		WithOption("No", func() tea.Msg {
 			selected = "no"
-			return nil
-		}, func() tea.Msg {
-			selected = "no-alt"
 			return nil
 		}, key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "no"))),
 	)
@@ -145,7 +139,7 @@ func TestRawEnterAppliesSelectedOption(t *testing.T) {
 	if cmd != nil {
 		cmd()
 	}
-	assert.Equal(t, "no-alt", selected)
+	assert.Equal(t, "no", selected)
 }
 
 func TestViewRect_DefaultRendersAtZBase(t *testing.T) {

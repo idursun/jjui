@@ -126,7 +126,7 @@ func TestCommandHistory_DeleteSelectedRemovesFromSourceAndLiveMessages(t *testin
 	if assert.Len(t, snapshot, 1) {
 		assert.Equal(t, "jj newer", snapshot[0].Command)
 	}
-	assert.Equal(t, 1, source.LiveMessagesCount())
+	assert.Equal(t, 1, len(source.messages))
 }
 
 func TestCommandHistory_ViewFillsHistoryCardsBackground(t *testing.T) {

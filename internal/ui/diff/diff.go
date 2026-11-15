@@ -412,10 +412,6 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	dl.AddInteractionFn(box.R, newScrollMsg, render.InteractionScroll, 0)
 }
 
-func New(output string) *Model {
-	return NewWithContext(nil, output, nil)
-}
-
 func NewWithContext(ctx *appContext.MainContext, output string, args []string) *Model {
 	model := &Model{}
 	model.context = ctx

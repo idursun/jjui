@@ -122,7 +122,7 @@ func TestHandleIntent_DetailsConfirmationMoveDoesNotMoveRevisionsCursor(t *testi
 	assert.True(t, handled, "move_down should be handled in details confirmation scope")
 	assert.True(t, op.gotNavigate, "details confirmation should receive OptionSelect intent")
 	assert.Equal(t, 1, op.lastIntent.Delta, "move_down should navigate confirmation to the right/down option")
-	assert.Equal(t, 0, model.Cursor(), "revisions cursor must not move while details confirmation is active")
+	assert.Equal(t, 0, model.cursor, "revisions cursor must not move while details confirmation is active")
 }
 
 type applyTrackingOp struct {

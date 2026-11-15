@@ -170,10 +170,10 @@ func TestModel_GoToTopAndBottom(t *testing.T) {
 	model.updateGraphRows(rows, "a", true)
 
 	test.SimulateModel(model, model.Update(intents.GoToBottom{}))
-	assert.Equal(t, len(model.rows)-1, model.Cursor())
+	assert.Equal(t, len(model.rows)-1, model.cursor)
 
 	test.SimulateModel(model, model.Update(intents.GoToTop{}))
-	assert.Equal(t, 0, model.Cursor())
+	assert.Equal(t, 0, model.cursor)
 }
 
 func TestModel_UpdateGraphRows_DoesNotPrefixMatchImplicitCurrentSelection(t *testing.T) {
@@ -189,7 +189,7 @@ func TestModel_UpdateGraphRows_DoesNotPrefixMatchImplicitCurrentSelection(t *tes
 		{Commit: &jj.Commit{ChangeId: "66d"}},
 	}, "", true)
 
-	assert.Equal(t, 0, model.Cursor(), "removed current revision must not prefix-match a similarly-starting revision")
+	assert.Equal(t, 0, model.cursor, "removed current revision must not prefix-match a similarly-starting revision")
 	assert.Equal(t, "other", model.SelectedRevision().ChangeId)
 }
 
@@ -202,7 +202,7 @@ func TestModel_UpdateGraphRows_DoesNotPrefixMatchExplicitSelection(t *testing.T)
 		{Commit: &jj.Commit{ChangeId: "other"}},
 	}, "66d7", true)
 
-	assert.Equal(t, 0, model.Cursor(), "explicit selection should fall back to the first row when the exact revision is gone")
+	assert.Equal(t, 0, model.cursor, "explicit selection should fall back to the first row when the exact revision is gone")
 	assert.Equal(t, "66d", model.SelectedRevision().ChangeId)
 }
 
@@ -312,7 +312,7 @@ func TestModel_OpenSquashSelectsTargetRevision(t *testing.T) {
 	cmd := model.Update(intents.OpenSquash{})
 	test.SimulateModel(model, cmd)
 
-	assert.Equal(t, 1, model.Cursor(), "opening squash should move the cursor to the target revision")
+	assert.Equal(t, 1, model.cursor, "opening squash should move the cursor to the target revision")
 	assert.True(t, model.Selection().Highlighted.Equal(common.SelectedRevision{
 		ChangeId: rows[1].Commit.GetChangeId(),
 		CommitId: rows[1].Commit.CommitId,
@@ -378,7 +378,7 @@ func TestModel_UpdateRevisionsPreservesViewportOnKeepSelectionRefresh(t *testing
 	cmd := model.Update(updateRevisionsMsg{rows: rows, tag: tag})
 	test.SimulateModel(model, cmd)
 
-	assert.Equal(t, 0, model.Cursor())
+	assert.Equal(t, 0, model.cursor)
 	assert.False(t, model.ensureCursorView, "keep-selection refresh should not request cursor recentering")
 }
 

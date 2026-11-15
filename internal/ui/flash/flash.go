@@ -245,10 +245,6 @@ func (m *Model) markSticky(id uint64) {
 	}
 }
 
-func (m *Model) LiveMessagesCount() int {
-	return len(m.messages)
-}
-
 func (m *Model) DeleteOldest() {
 	if len(m.messages) == 0 {
 		return

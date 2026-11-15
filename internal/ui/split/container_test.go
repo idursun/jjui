@@ -76,7 +76,7 @@ func TestSplitContainerShowToggleAndClose(t *testing.T) {
 	_, changed := sc.ToggleContent("b")
 	require.True(t, changed)
 	assert.Equal(t, 1, b.hides)
-	assert.Empty(t, sc.ActiveID())
+	assert.Empty(t, sc.activeContentID)
 
 	assert.False(t, sc.Close())
 }
@@ -91,7 +91,7 @@ func TestSplitContainerShowContentUnknownIDReturnsFalseWithoutChangingActiveCont
 
 	_, shown = sc.ShowContent("missing")
 	assert.False(t, shown)
-	assert.Equal(t, "a", sc.ActiveID())
+	assert.Equal(t, "a", sc.activeContentID)
 	assert.Equal(t, 0, a.hides)
 	assert.Equal(t, 1, a.shows)
 }
@@ -106,16 +106,16 @@ func TestSplitContainerTracksOnlyWhetherContentIsFocused(t *testing.T) {
 	assert.False(t, sc.ContentFocused())
 	assert.Equal(t, []keybindings.ScopeName{"primary", "content"}, scopeNames(sc.Scopes(primary)))
 
-	sc.FocusSplitContent()
+	sc.setContentFocused(true)
 	assert.True(t, sc.ContentFocused())
 	assert.True(t, content.focused)
 	assert.Equal(t, []keybindings.ScopeName{"content"}, scopeNames(sc.Scopes(primary)))
 
-	sc.ToggleFocus()
+	sc.setContentFocused(!sc.contentFocused)
 	assert.False(t, sc.ContentFocused())
 	assert.False(t, content.focused)
 
-	sc.ToggleFocus()
+	sc.setContentFocused(!sc.contentFocused)
 	assert.True(t, sc.ContentFocused())
 	assert.True(t, content.focused)
 	sc.Close()

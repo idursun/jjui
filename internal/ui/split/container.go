@@ -64,10 +64,6 @@ func (sc *SplitContainer) RegisterContent(id string, content SplitContent) {
 	sc.contents[id] = content
 }
 
-func (sc *SplitContainer) ActiveID() string {
-	return sc.activeContentID
-}
-
 func (sc *SplitContainer) ContentFocused() bool {
 	return sc.contentFocused
 }
@@ -116,16 +112,8 @@ func (sc *SplitContainer) Close() bool {
 	return true
 }
 
-func (sc *SplitContainer) FocusSplitContent() {
-	sc.setContentFocused(true)
-}
-
 func (sc *SplitContainer) FocusPrimary() {
 	sc.setContentFocused(false)
-}
-
-func (sc *SplitContainer) ToggleFocus() {
-	sc.setContentFocused(!sc.contentFocused)
 }
 
 func (sc *SplitContainer) Resize(delta float64) {

@@ -51,10 +51,6 @@ type Model struct {
 
 const maxVisibleItems = 20
 
-func NewWithTitle(options []string, title string) *Model {
-	return NewWithOptions(options, title, false)
-}
-
 func NewWithOptions(options []string, title string, ordered bool) *Model {
 	ti := textinput.New()
 	ti.Prompt = "filter: "

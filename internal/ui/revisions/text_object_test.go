@@ -189,7 +189,7 @@ func TestModel_RenameFocusedBookmarkStartsInlineRename(t *testing.T) {
 	model.focusedObjectKind = textObjectBookmark
 
 	model.Update(intents.FocusedBookmarkRename{})
-	_, isRename := model.baseOperation().(*bookmark.RenameBookmarkOperation)
+	_, isRename := model.CurrentOperation().(*bookmark.RenameBookmarkOperation)
 	assert.True(t, isRename)
 	assert.True(t, model.IsEditing())
 
@@ -548,7 +548,7 @@ func TestModel_FocusedWorkspaceRenameRenamesAnotherWorkspace(t *testing.T) {
 
 	model := workspaceModel(t, commandRunner, "/repo")
 	model.Update(intents.FocusedWorkspaceRename{})
-	op, isRename := model.baseOperation().(*workspace.RenameWorkspaceOperation)
+	op, isRename := model.CurrentOperation().(*workspace.RenameWorkspaceOperation)
 	require.True(t, isRename)
 	assert.True(t, model.IsEditing())
 
@@ -831,7 +831,7 @@ func TestModel_BookmarkMoveAppliesToCheckedBookmarks(t *testing.T) {
 
 	model := checkBookmarksOnTwoRevisions(t, commandRunner)
 	model.Update(intents.FocusedBookmarkMove{})
-	operation, ok := model.baseOperation().(*bookmark.MoveBookmarkOperation)
+	operation, ok := model.CurrentOperation().(*bookmark.MoveBookmarkOperation)
 	require.True(t, ok)
 	operation.SetSelectedRevision(model.rows[0].Commit)
 	runAllJJCommands(operation.Update(intents.Apply{}))

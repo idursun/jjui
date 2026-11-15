@@ -259,48 +259,6 @@ func (b Box) CutBottom(h int) (rest, bottom Box) {
 	return
 }
 
-// CutLeft cuts w cells from the left, returning the left box and the rest.
-func (b Box) CutLeft(w int) (left, rest Box) {
-	if w <= 0 {
-		return Box{R: Rectangle{Min: b.R.Min, Max: Pos(b.R.Min.X, b.R.Max.Y)}}, b
-	}
-	if w >= b.R.Dx() {
-		return b, Box{R: Rectangle{Min: Pos(b.R.Max.X, b.R.Min.Y), Max: b.R.Max}}
-	}
-
-	splitX := b.R.Min.X + w
-	left = Box{R: Rectangle{
-		Min: b.R.Min,
-		Max: Pos(splitX, b.R.Max.Y),
-	}}
-	rest = Box{R: Rectangle{
-		Min: Pos(splitX, b.R.Min.Y),
-		Max: b.R.Max,
-	}}
-	return
-}
-
-// CutRight cuts w cells from the right, returning the rest and the right box.
-func (b Box) CutRight(w int) (rest, right Box) {
-	if w <= 0 {
-		return b, Box{R: Rectangle{Min: Pos(b.R.Max.X, b.R.Min.Y), Max: b.R.Max}}
-	}
-	if w >= b.R.Dx() {
-		return Box{R: Rectangle{Min: b.R.Min, Max: Pos(b.R.Min.X, b.R.Max.Y)}}, b
-	}
-
-	splitX := b.R.Max.X - w
-	rest = Box{R: Rectangle{
-		Min: b.R.Min,
-		Max: Pos(splitX, b.R.Max.Y),
-	}}
-	right = Box{R: Rectangle{
-		Min: Pos(splitX, b.R.Min.Y),
-		Max: b.R.Max,
-	}}
-	return
-}
-
 // Center returns a box of size w×h centered within this box.
 // If the requested size is larger than available space, it's clamped.
 func (b Box) Center(w, h int) Box {

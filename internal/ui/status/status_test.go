@@ -150,7 +150,7 @@ func TestModel_HintKeysFollowReboundBindings(t *testing.T) {
 		{Action: "ui.expand_status", Scope: "ui", Key: config.StringList{"ctrl+h"}, Desc: "expand status help"},
 		{Action: "ui.open_help", Scope: "ui", Key: config.StringList{"f2"}, Desc: "help"},
 	}}
-	groups := help.BuildGroupedFromBindings([]keybindings.ScopeName{"ui"}, config.Current.Bindings)
+	groups := help.BuildGroupedFromBindingsWithAvailability([]keybindings.ScopeName{"ui"}, config.Current.Bindings, nil)
 	assert.Equal(t, "ctrl+h", expandStatusKey(groups))
 	assert.Equal(t, "f2", fullHelpKey(groups))
 }

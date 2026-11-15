@@ -33,10 +33,6 @@ func (m *Model) IsEditing() bool {
 	return true
 }
 
-func New() *Model {
-	return NewWithTitle("", "", "")
-}
-
 func NewWithTitle(title string, prompt string, value string) *Model {
 	ti := textinput.New()
 	ti.SetWidth(40)

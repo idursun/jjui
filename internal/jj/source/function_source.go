@@ -94,13 +94,6 @@ var baseFunctions = []FunctionDefinition{
 	revsetFunc("working_copies", "The working copy commits across all workspaces"),
 }
 
-// BaseFunctions returns a copy of the built-in function definitions.
-func BaseFunctions() []FunctionDefinition {
-	result := make([]FunctionDefinition, len(baseFunctions))
-	copy(result, baseFunctions)
-	return result
-}
-
 func FunctionMap() map[string]FunctionDefinition {
 	functions := make(map[string]FunctionDefinition, len(baseFunctions))
 	for _, fn := range baseFunctions {
