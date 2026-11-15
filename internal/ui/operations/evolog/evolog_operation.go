@@ -67,10 +67,6 @@ func (o *Operation) Len() int {
 	return len(o.rows)
 }
 
-func (o *Operation) Cursor() int {
-	return o.cursor
-}
-
 func (o *Operation) SetCursor(index int) {
 	if index >= 0 && index < len(o.rows) {
 		o.cursor = index

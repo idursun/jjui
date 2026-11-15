@@ -2,12 +2,13 @@ package ui
 
 import (
 	"fmt"
-	"github.com/idursun/jjui/internal/ui/theme"
 	"log"
 	"path/filepath"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/idursun/jjui/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -109,8 +110,8 @@ func (m *Model) Selection() common.SelectionSnapshot {
 // Focus and visibility do not participate in lookup; owners decide whether a
 // model is still live and can answer the local property.
 func (m *Model) QueryState(name string) (any, bool) {
-	if strings.HasPrefix(name, "ui.preview.") {
-		switch strings.TrimPrefix(name, "ui.preview.") {
+	if after, ok := strings.CutPrefix(name, "ui.preview."); ok {
+		switch after {
 		case "can_expand":
 			if m.splitContainer == nil {
 				return false, true
@@ -132,8 +133,8 @@ func (m *Model) QueryState(name string) (any, bool) {
 		return annotationModel.QueryState(strings.TrimPrefix(name, "annotation."))
 	}
 
-	if strings.HasPrefix(name, "revset.") {
-		return m.revsetModel.QueryState(strings.TrimPrefix(name, "revset."))
+	if after, ok := strings.CutPrefix(name, "revset."); ok {
+		return m.revsetModel.QueryState(after)
 	}
 	if strings.HasPrefix(name, "revisions.") && m.revisions != nil {
 		return m.revisions.QueryState(strings.TrimPrefix(name, "revisions."))

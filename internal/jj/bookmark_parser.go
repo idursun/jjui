@@ -24,19 +24,6 @@ type Bookmark struct {
 	Backwards bool
 }
 
-func (b Bookmark) IsDeletable() bool {
-	return b.Local != nil && b.Local.Present
-}
-
-func (b Bookmark) HasTrackedRemote(remote string) bool {
-	for _, r := range b.Remotes {
-		if r.Remote == remote && r.Tracked {
-			return true
-		}
-	}
-	return false
-}
-
 func ParseBookmarkListOutput(output string) []Bookmark {
 	lines := strings.Split(output, "\n")
 	bookmarkMap := make(map[string]*Bookmark)

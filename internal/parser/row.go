@@ -54,27 +54,6 @@ func (row *Row) Get(line int, col int) (rune, bool) {
 	return ' ', false
 }
 
-func (row *Row) GetLane(line int, col int) uint64 {
-	if line < 0 || line >= len(row.Lines) {
-		return 0
-	}
-	if col < 0 || col >= len(row.Lines[line].Gutter.Segments) {
-		return 0
-	}
-	return row.Lines[line].Gutter.Segments[col].Lane
-}
-
-func (row *Row) SetLane(line int, col int, lane uint64) {
-	if line < 0 || line >= len(row.Lines) {
-		return
-	}
-	if col < 0 || col >= len(row.Lines[line].Gutter.Segments) {
-		return
-	}
-	previousLane := row.Lines[line].Gutter.Segments[col].Lane
-	row.Lines[line].Gutter.Segments[col].Lane = previousLane | lane
-}
-
 func (row *Row) Extend() GraphGutter {
 	type extendResult int
 	const (
@@ -159,19 +138,6 @@ func (row *Row) Last(flag RowLineFlags) *GraphRowLine {
 		}
 	}
 	return &GraphRowLine{}
-}
-
-func (row *Row) RowLinesIter(predicate RowLinesIteratorPredicate) func(yield func(index int, line *GraphRowLine) bool) {
-	return func(yield func(index int, line *GraphRowLine) bool) {
-		for i := range row.Lines {
-			line := row.Lines[i]
-			if predicate(line.Flags) {
-				if !yield(i, line) {
-					return
-				}
-			}
-		}
-	}
 }
 
 type RowLinesIteratorPredicate func(f RowLineFlags) bool

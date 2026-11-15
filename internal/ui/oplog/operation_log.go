@@ -55,10 +55,6 @@ func (m *Model) Len() int {
 	return len(m.rows)
 }
 
-func (m *Model) Cursor() int {
-	return m.cursor
-}
-
 func (m *Model) SetCursor(index int) {
 	if index >= 0 && index < len(m.rows) {
 		m.cursor = index

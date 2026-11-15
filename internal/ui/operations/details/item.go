@@ -45,4 +45,3 @@ func (f item) Title() string {
 	return fmt.Sprintf("%s %s", status, f.name)
 }
 func (f item) Description() string { return "" }
-func (f item) FilterValue() string { return f.name }
