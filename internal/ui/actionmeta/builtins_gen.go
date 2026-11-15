@@ -363,6 +363,8 @@ var builtInActionConditions = map[string]string{
 	"annotation.delete":                         "annotation.has_annotation_at_cursor",
 	"annotation.parent_revision":                "annotation.can_navigate_revisions",
 	"revisions.add_to_revset":                   "revisions.has_revision",
+	"revisions.bookmark.track":                  "revisions.can_track_bookmark",
+	"revisions.bookmark.untrack":                "revisions.can_untrack_bookmark",
 	"revisions.commit":                          "revisions.working_copy_has_changes",
 	"revisions.describe":                        "revisions.has_selection",
 	"revisions.details.absorb":                  "revisions.details.has_selection",

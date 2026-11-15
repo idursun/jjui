@@ -81,6 +81,9 @@ type Model struct {
 	// moved to; rows without such an object fall back to the node.
 	focusedObjectKind  string
 	focusedObjectIndex int
+	// trackingState lets bindings offer only the applicable track action; nil
+	// until the first listing arrives.
+	trackingState *bookmarkTrackingState
 }
 
 type revisionReloadState struct {
@@ -226,6 +229,10 @@ func (m *Model) QueryState(name string) (any, bool) {
 		return selected != nil && selected.HasLocalBookmarks, true
 	case "has_workspace":
 		return selected != nil && (selected.HasWorkspace || selected.IsWorkingCopy), true
+	case "can_track_bookmark":
+		return m.canChangeBookmarkTracking(true), true
+	case "can_untrack_bookmark":
+		return m.canChangeBookmarkTracking(false), true
 	}
 
 	module, property, ok := strings.Cut(name, ".")
@@ -642,6 +649,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case common.UpdateRevisionsFailedMsg:
 		m.isLoading = false
 		return nil
+	case bookmarkTrackingStateMsg:
+		if msg.tag == m.tag.Load() {
+			m.trackingState = msg.state
+		}
+		return nil
 	case common.RefreshMsg:
 		return tea.Batch(m.refresh(intents.Refresh{
 			KeepSelections:   msg.KeepSelections,
@@ -1041,9 +1053,9 @@ func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
 		keepSelections:   intent.KeepSelections,
 	}
 	if config.Current.Revisions.LogBatching {
-		return m.loadStreaming(m.context.CurrentRevset, currentTag)
+		return tea.Batch(m.loadStreaming(m.context.CurrentRevset, currentTag), m.loadTrackingState(currentTag))
 	}
-	return m.load(m.context.CurrentRevset, currentTag)
+	return tea.Batch(m.load(m.context.CurrentRevset, currentTag), m.loadTrackingState(currentTag))
 }
 
 func (m *Model) openDetails(_ intents.OpenDetails) tea.Cmd {

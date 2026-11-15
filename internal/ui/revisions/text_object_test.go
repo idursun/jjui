@@ -1312,3 +1312,58 @@ func TestModel_ElidedFocusDoesNotStickAcrossRows(t *testing.T) {
 }
 
 const elidedLine = "<<log commit node elided::~>>  <<elided::(elided revisions)>>\n"
+
+func TestModel_BookmarkTrackingStateGatesTrackActions(t *testing.T) {
+	queryTracking := func(model *Model) (bool, bool) {
+		canTrack, _ := model.QueryState("can_track_bookmark")
+		canUntrack, _ := model.QueryState("can_untrack_bookmark")
+		return canTrack.(bool), canUntrack.(bool)
+	}
+	tests := []struct {
+		name               string
+		listing            string
+		remotes            string
+		objectIndex        int
+		track, untrack     bool
+		skipTrackingLoaded bool
+	}{
+		{name: "unknown state offers both", skipTrackingLoaded: true, track: true, untrack: true},
+		{name: "tracked local bookmark", listing: "second;.;true;false;false;false;28\nsecond;origin;true;true;false;false;28\n", remotes: "origin x\n", untrack: true},
+		{name: "local-only bookmark", listing: "second;.;true;false;false;false;28\n", remotes: "origin x\n", track: true},
+		{name: "local bookmark without remotes", listing: "second;.;true;false;false;false;28\n"},
+		{name: "untracked remote bookmark", listing: "second;origin;true;false;false;false;28\n", objectIndex: 1, track: true},
+		{name: "tracked remote bookmark", listing: "second;origin;true;true;false;false;28\n", objectIndex: 1, untrack: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			commandRunner := test.NewTestCommandRunner(t)
+			model := New(test.NewTestContext(commandRunner))
+			model.updateGraphRows(textObjectRows(t), "", true)
+			model.focusedObjectKind, model.focusedObjectIndex = textObjectBookmark, tc.objectIndex
+			if !tc.skipTrackingLoaded {
+				commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(tc.listing))
+				commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(tc.remotes))
+				model.Update(model.loadTrackingState(model.tag.Load())())
+				commandRunner.Verify()
+			}
+			track, untrack := queryTracking(model)
+			assert.Equal(t, tc.track, track, "can_track_bookmark")
+			assert.Equal(t, tc.untrack, untrack, "can_untrack_bookmark")
+		})
+	}
+}
+
+func TestModel_BookmarkTrackingStateIgnoresStaleListing(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("second;.;true;false;false;false;28\n"))
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin x\n"))
+	defer commandRunner.Verify()
+
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.focusedObjectKind = textObjectBookmark
+	msg := model.loadTrackingState(model.tag.Load())()
+	model.tag.Add(1)
+	model.Update(msg)
+	assert.Nil(t, model.trackingState)
+}
