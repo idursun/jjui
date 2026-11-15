@@ -240,89 +240,13 @@ func TestContext_OperationId(t *testing.T) {
 	}
 }
 
-func TestContext_CheckedFiles(t *testing.T) {
-	ctx := contextWithSelection(nil,
-		uicontext.SelectedFile{ChangeId: "c1", CommitId: "co1", File: jj.NewFileName("file1.go")},
-		uicontext.SelectedFile{ChangeId: "c2", CommitId: "co2", File: jj.NewFileName("file2.go")},
-		uicontext.SelectedRevision{ChangeId: "rev1", CommitId: "com1"}, // should be ignored
-		uicontext.SelectedFile{ChangeId: "c3", CommitId: "co3", File: jj.NewFileName("file3.go")},
-	)
-
-	vals := runScriptAndGetGlobals(t, ctx, `
-		files = context.checked_files()
-		count = #files
-		first = files[1]
-		second = files[2]
-		third = files[3]
-	`, "count", "first", "second", "third")
-
-	assert.Equal(t, lua.LNumber(3), vals[0])
-	assert.Equal(t, "file1.go", vals[1].String())
-	assert.Equal(t, "file2.go", vals[2].String())
-	assert.Equal(t, "file3.go", vals[3].String())
-}
-
-func TestContext_CheckedFiles_Empty(t *testing.T) {
-	ctx := contextWithSelection(nil)
-
-	val := runScriptAndGetGlobal(t, ctx, `
-		files = context.checked_files()
-		result = #files
-	`, "result")
-
-	assert.Equal(t, lua.LNumber(0), val)
-}
-
-func TestContext_CheckedChangeIds(t *testing.T) {
-	ctx := contextWithSelection(nil,
-		uicontext.SelectedRevision{ChangeId: "change1", CommitId: "com1"},
-		uicontext.SelectedFile{ChangeId: "change2", CommitId: "com2", File: jj.NewFileName("f.go")},
-		uicontext.SelectedOperation{OperationId: "op1"}, // should be ignored
-		uicontext.SelectedRevision{ChangeId: "change3", CommitId: "com3"},
-	)
-
-	vals := runScriptAndGetGlobals(t, ctx, `
-		ids = context.checked_change_ids()
-		count = #ids
-		first = ids[1]
-		second = ids[2]
-		third = ids[3]
-	`, "count", "first", "second", "third")
-
-	assert.Equal(t, lua.LNumber(3), vals[0])
-	assert.Equal(t, "change1", vals[1].String())
-	assert.Equal(t, "change2", vals[2].String())
-	assert.Equal(t, "change3", vals[3].String())
-}
-
-func TestContext_CheckedCommitIds(t *testing.T) {
-	ctx := contextWithSelection(nil,
-		uicontext.SelectedRevision{ChangeId: "c1", CommitId: "commit1"},
-		uicontext.SelectedFile{ChangeId: "c2", CommitId: "commit2", File: jj.NewFileName("f.go")},
-		uicontext.SelectedCommit{CommitId: "commit3"},
-		uicontext.SelectedOperation{OperationId: "op1"}, // should be ignored
-	)
-
-	vals := runScriptAndGetGlobals(t, ctx, `
-		ids = context.checked_commit_ids()
-		count = #ids
-		first = ids[1]
-		second = ids[2]
-		third = ids[3]
-	`, "count", "first", "second", "third")
-
-	assert.Equal(t, lua.LNumber(3), vals[0])
-	assert.Equal(t, "commit1", vals[1].String())
-	assert.Equal(t, "commit2", vals[2].String())
-	assert.Equal(t, "commit3", vals[3].String())
-}
-
 func TestContext_CheckedObjects(t *testing.T) {
 	ctx := &uicontext.MainContext{}
 	ctx.SetStateProvider(&testStateProvider{snapshot: common.SelectionSnapshot{
 		CheckedObjects: []common.SelectedRevision{
 			{ChangeId: "change1", CommitId: "commit1", ObjectKind: "author", ObjectText: "ada@example.com"},
 			{ChangeId: "change2", CommitId: "commit2", ObjectKind: "bookmark", ObjectText: "main", ObjectRemote: "origin"},
+			{ChangeId: "change3", CommitId: "commit3", ObjectKind: "node", ObjectText: "change3"},
 		},
 	}})
 
@@ -335,15 +259,56 @@ func TestContext_CheckedObjects(t *testing.T) {
 		remote1 = objects[1].remote
 		remote2 = objects[2].remote
 		commit2 = objects[2].commit_id
-	`, "count", "kind", "value", "change", "remote1", "remote2", "commit2")
+		kind3 = objects[3].kind
+	`, "count", "kind", "value", "change", "remote1", "remote2", "commit2", "kind3")
 
-	assert.Equal(t, lua.LNumber(2), vals[0])
+	assert.Equal(t, lua.LNumber(3), vals[0])
 	assert.Equal(t, "author", vals[1].String())
 	assert.Equal(t, "ada@example.com", vals[2].String())
 	assert.Equal(t, "change1", vals[3].String())
 	assert.Equal(t, lua.LNil, vals[4])
 	assert.Equal(t, "origin", vals[5].String())
 	assert.Equal(t, "commit2", vals[6].String())
+	assert.Equal(t, "revision", vals[7].String())
+}
+
+func TestContext_ObjectIsTheRevisionWithoutAFocusedObject(t *testing.T) {
+	for name, ctx := range map[string]*uicontext.MainContext{
+		"node":      contextWithSelection(uicontext.SelectedRevision{ChangeId: "abc", CommitId: "def", ObjectKind: "node", ObjectValue: "○", ObjectText: "○"}),
+		"no object": contextWithSelection(uicontext.SelectedRevision{ChangeId: "abc", CommitId: "def"}),
+	} {
+		got := runScriptAndGetGlobals(t, ctx, `
+			local o = context.object()
+			kind, value, change, commit = o.kind, o.value, o.change_id, o.commit_id
+		`, "kind", "value", "change", "commit")
+		assert.Equal(t, []lua.LValue{lua.LString("revision"), lua.LString("abc"), lua.LString("abc"), lua.LString("def")}, got, name)
+	}
+}
+
+func TestContext_ObjectDescribesFilesAndCommits(t *testing.T) {
+	ctx := contextWithSelection(uicontext.SelectedFile{ChangeId: "abc", CommitId: "def", File: jj.NewFileName("a.go")})
+	got := runScriptAndGetGlobals(t, ctx, `
+		local o = context.object()
+		kind, value, change, commit = o.kind, o.value, o.change_id, o.commit_id
+	`, "kind", "value", "change", "commit")
+	assert.Equal(t, []lua.LValue{lua.LString("file"), lua.LString("a.go"), lua.LString("abc"), lua.LString("def")}, got)
+
+	ctx = contextWithSelection(uicontext.SelectedCommit{CommitId: "def"})
+	got = runScriptAndGetGlobals(t, ctx, `
+		local o = context.object()
+		kind, change, commit = o.kind, o.change_id, o.commit_id
+	`, "kind", "change", "commit")
+	assert.Equal(t, []lua.LValue{lua.LString("commit"), lua.LNil, lua.LString("def")}, got)
+}
+
+func TestContext_ObjectIsNilWithoutASelection(t *testing.T) {
+	for name, ctx := range map[string]*uicontext.MainContext{
+		"operation":    contextWithSelection(uicontext.SelectedOperation{OperationId: "op1"}),
+		"no selection": {},
+	} {
+		got := runScriptAndGetGlobal(t, ctx, `o = context.object()`, "o")
+		assert.Equal(t, lua.LNil, got, name)
+	}
 }
 
 func TestContext_AccessViaJjuiNamespace(t *testing.T) {
@@ -526,16 +491,4 @@ func TestContext_Object(t *testing.T) {
 		kind, value, remote, conflicted = o.kind, o.value, o.remote, o.conflicted
 	`, "kind", "value", "remote", "conflicted")
 	assert.Equal(t, []lua.LValue{lua.LString("remote"), lua.LString("origin"), lua.LNil, lua.LNil}, got)
-}
-
-func TestContext_ObjectIsNilWithoutAFocusedObject(t *testing.T) {
-	for name, ctx := range map[string]*uicontext.MainContext{
-		"node":         contextWithSelection(uicontext.SelectedRevision{ChangeId: "abc", ObjectKind: "node", ObjectValue: "○", ObjectText: "○"}),
-		"no object":    contextWithSelection(uicontext.SelectedRevision{ChangeId: "abc"}),
-		"file":         contextWithSelection(uicontext.SelectedFile{ChangeId: "abc", File: jj.NewFileName("a.go")}),
-		"no selection": {},
-	} {
-		got := runScriptAndGetGlobal(t, ctx, `o = context.object()`, "o")
-		assert.Equal(t, lua.LNil, got, name)
-	}
 }

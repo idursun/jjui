@@ -451,35 +451,6 @@ func TestTextObjectsForRow_Workspaces(t *testing.T) {
 	assert.Equal(t, []summary{{"default", 0, 12, 8}, {"second", 1, 21, 7}}, got)
 }
 
-func TestModel_FocusedWorkspaceSwitchChangesLocation(t *testing.T) {
-	other := t.TempDir()
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.WorkspaceRoot("second")).SetOutput([]byte(other + "\n"))
-	defer commandRunner.Verify()
-
-	model := workspaceModel(t, commandRunner, "/repo")
-	assert.Equal(t, actions.ScopeRevisions+".workspace", string(model.Scopes()[0].Name))
-	model.Update(intents.FocusedWorkspaceSwitch{})
-	assert.Equal(t, other, model.context.Location)
-
-	_, isMessage := model.Update(intents.FocusedWorkspaceSwitch{})().(intents.AddMessage)
-	assert.True(t, isMessage, "switching to the current workspace does nothing")
-}
-
-func TestModel_FocusedWorkspaceForget(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.WorkspaceRoot("second")).SetOutput([]byte("/second"))
-	commandRunner.Expect(jj.WorkspaceForget("second"))
-	defer commandRunner.Verify()
-
-	model := workspaceModel(t, commandRunner, "/repo")
-	runJJCommand(model.Update(intents.FocusedWorkspaceForget{}))
-
-	model.context.Location = "/second"
-	_, isMessage := model.Update(intents.FocusedWorkspaceForget{})().(intents.AddMessage)
-	assert.True(t, isMessage, "the current workspace cannot be forgotten")
-}
-
 func TestModel_FocusedWorkspaceRenameRenamesAnotherWorkspace(t *testing.T) {
 	other := t.TempDir()
 	commandRunner := test.NewTestCommandRunner(t)
@@ -894,29 +865,6 @@ func TestModel_OpenDetailsFocusesTheChangeId(t *testing.T) {
 	assert.Equal(t, "details", model.CurrentOperation().Name())
 }
 
-func TestModel_PushFocusedChange(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	model := changeIdFocusedUnderDetails(t, commandRunner)
-	commandRunner.Expect(jj.GitPush("--change", model.SelectedRevision().GetChangeId()))
-	defer commandRunner.Verify()
-
-	runJJCommand(model.Update(intents.FocusedChangePush{}))
-}
-
-func TestModel_PushChangesPushesCheckedRevisionsInOneCommand(t *testing.T) {
-	commandRunner := test.NewTestCommandRunner(t)
-	model := New(test.NewTestContext(commandRunner))
-	model.updateGraphRows(textObjectRows(t), "", true)
-	first, second := model.rows[0].Commit, model.rows[1].Commit
-	commandRunner.Expect(jj.GitPush("--change", first.GetChangeId(), "--change", second.GetChangeId()))
-	defer commandRunner.Verify()
-
-	model.toggleChecked(checkedRevision(first))
-	model.toggleChecked(checkedRevision(second))
-	model.focusedObjectKind = textObjectChangeId
-	runJJCommand(model.Update(intents.FocusedChangePush{}))
-}
-
 func TestModel_ObjectScopeSitsBeforeRevisionsOffTheNode(t *testing.T) {
 	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
 	model.updateGraphRows(textObjectRows(t), "", true)
@@ -1196,9 +1144,6 @@ func TestModel_FocusedElidedWidensTheRevset(t *testing.T) {
 
 	cmd, _ := model.HandleIntent(intents.RevisionsObjectAddToRevset{})
 	assert.Equal(t, common.UpdateRevSetMsg("(@ | main | x) | heads((@ | main | x) & ::cf-)::cf"), cmd())
-
-	cmd, _ = model.HandleIntent(intents.FocusedElidedShowAll{})
-	assert.Equal(t, common.UpdateRevSetMsg("(@ | main | x) | connected(@ | main | x)"), cmd())
 }
 
 func TestModel_ElidedObjectIsNotTheDefaultFocus(t *testing.T) {
@@ -1291,6 +1236,20 @@ func TestModel_BookmarkTrackingStateIgnoresStaleListing(t *testing.T) {
 	assert.Nil(t, model.trackingState)
 }
 
+func TestModel_SelectionListsABookmarkOncePerRow(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	rows := textObjectRows(t)
+	rows[1].Lines, rows[1].Commit.HasBookmarks = rows[0].Lines, true
+	model.updateGraphRows(rows, "", true)
+	model.toggleChecked(checkedBookmark("second", "origin"))
+
+	var commits []string
+	for _, object := range model.Selection().CheckedObjects {
+		commits = append(commits, object.CommitId)
+	}
+	assert.Equal(t, []string{rows[0].Commit.CommitId, rows[1].Commit.CommitId}, commits)
+}
+
 func TestModel_SelectionListsCheckedObjects(t *testing.T) {
 	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
 	model.updateGraphRows(textObjectRows(t), "", true)
@@ -1299,11 +1258,14 @@ func TestModel_SelectionListsCheckedObjects(t *testing.T) {
 	model.toggleChecked(checkedObject{kind: textObjectAuthor, commitId: commit.CommitId})
 	model.toggleChecked(checkedBookmark("second", "origin"))
 	model.toggleChecked(checkedBookmark("gone", ""))
+	model.toggleChecked(checkedFile(commit.GetChangeId(), "a.go"))
 
 	assert.Equal(t, []common.SelectedRevision{
+		{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId, ObjectKind: textObjectNode, ObjectText: commit.GetChangeId()},
 		{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId, ObjectKind: textObjectAuthor, ObjectText: "someone@example.com"},
 		{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId, ObjectKind: textObjectBookmark, ObjectText: "second", ObjectRemote: "origin"},
 		{ObjectKind: textObjectBookmark, ObjectText: "gone"},
+		{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId, ObjectKind: textObjectFile, ObjectText: "a.go"},
 	}, model.Selection().CheckedObjects)
 }
 

@@ -17,24 +17,16 @@
 ---@field commit_id fun(): string? Get selected item's commit ID
 ---@field file fun(): string? Get selected file path
 ---@field operation_id fun(): string? Get selected operation ID
----@field object fun(): jjui.context.object? Get the focused text object, nil when the revision itself is focused
----@field checked_files fun(): string[] Get array of checked files
----@field checked_change_ids fun(): string[] Get array of checked change IDs
----@field checked_commit_ids fun(): string[] Get array of checked commit IDs
----@field checked_objects fun(): jjui.context.checked_object[] Get the checked text objects, in the order they were checked; checked revisions are not included
+---@field object fun(): jjui.context.object? Get the focused object; the revision itself when nothing on it is focused
+---@field checked_objects fun(): jjui.context.object[] Get the checked objects in the order they were checked; a bookmark is listed once per revision it is on
 
 ---@class jjui.context.object
----@field kind string Object kind, e.g. "bookmark", "tag", "change_id", "description", "remote"
----@field value string Object text as shown, e.g. the bookmark or remote name
+---@field kind string Object kind: "revision", "bookmark", "tag", "author", "timestamp", "description", "file", "commit", "remote", ...
+---@field value string Object text as shown, e.g. the bookmark name or the file path; the change ID for a revision
 ---@field remote? string Remote of a remote bookmark or tag
 ---@field conflicted? boolean True for a conflicted bookmark
-
----@class jjui.context.checked_object
----@field kind string Object kind, e.g. "bookmark", "author", "timestamp", "description", "file"
----@field value string Object text as shown, e.g. the bookmark name or the file path
----@field remote? string Remote of a remote bookmark
----@field change_id? string Change ID of the revision the object is on; nil for a bookmark that is not loaded
----@field commit_id? string Commit ID of that revision; nil for a file
+---@field change_id? string Change ID of the revision the object is on
+---@field commit_id? string Commit ID of the revision the object is on
 
 
 ---Run a jj command asynchronously (yields, resumes after completion)
@@ -234,12 +226,9 @@ function wait_refresh() end
 ---@field ace_jump jjui.revisions.ace_jump
 ---@field bookmark jjui.revisions.bookmark
 ---@field bookmark_target jjui.revisions.bookmark_target
----@field change_id jjui.revisions.change_id
 ---@field details jjui.revisions.details
 ---@field diff_range jjui.revisions.diff_range
----@field divergent jjui.revisions.divergent
 ---@field duplicate jjui.revisions.duplicate
----@field elided jjui.revisions.elided
 ---@field evolog jjui.revisions.evolog
 ---@field inline_describe jjui.revisions.inline_describe
 ---@field new_between jjui.revisions.new_between
@@ -336,9 +325,6 @@ function wait_refresh() end
 ---@field force_apply fun()
 ---@field close fun()
 
----@class jjui.revisions.change_id
----@field push fun()
-
 ---@class jjui.revisions.details
 ---@field confirmation jjui.revisions.details.confirmation
 ---@field absorb fun()
@@ -379,9 +365,6 @@ function wait_refresh() end
 ---@field target_picker fun(args: {target: "to"|"from"})
 ---@field close fun()
 
----@class jjui.revisions.divergent
----@field show_all fun()
-
 ---@class jjui.revisions.duplicate
 ---@field apply fun(args: {force?: boolean})
 ---@field cancel fun()
@@ -389,9 +372,6 @@ function wait_refresh() end
 ---@field set_target fun(args: {target: "onto"|"after"|"before"|"insert"})
 ---@field target_picker fun()
 ---@field close fun()
-
----@class jjui.revisions.elided
----@field show_all fun()
 
 ---@class jjui.revisions.evolog
 ---@field apply fun(args: {force?: boolean})
@@ -501,9 +481,7 @@ function wait_refresh() end
 ---@field close fun()
 
 ---@class jjui.revisions.workspace
----@field forget fun()
 ---@field rename fun()
----@field switch fun()
 
 ---@class jjui.revset
 ---@field bookmarks jjui.revset.bookmarks
