@@ -33,8 +33,6 @@ type MainCommandRunner struct {
 	idCounter atomic.Int64
 }
 
-func (a *MainCommandRunner) nextID() int { return int(a.idCounter.Add(1)) }
-
 func (a *MainCommandRunner) RunCommandImmediateWithEnv(args []string, env []string) ([]byte, error) {
 	c := exec.Command("jj", args...)
 	c.Dir = a.Location
@@ -78,7 +76,7 @@ func (a *MainCommandRunner) RunCommandStreaming(ctx context.Context, args []stri
 }
 
 func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, continuations []tea.Cmd) tea.Cmd {
-	id := a.nextID()
+	id := int(a.idCounter.Add(1))
 	command := "jj " + strings.Join(args, " ")
 	run := func() tea.Msg {
 		started, cancel, env := a.Askpass.NewSubprocess(strings.Join(args, " "))

@@ -21,24 +21,20 @@ func (m *Model) initSplitContainer() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	state.SetPlacement(splitPlacementFromPreviewConfig(position))
+	switch position {
+	case config.PreviewPositionBottom:
+		state.SetPlacement(split.PlacementBottom)
+	case config.PreviewPositionRight:
+		state.SetPlacement(split.PlacementRight)
+	default:
+		state.SetPlacement(split.PlacementAuto)
+	}
 
 	m.splitContainer = split.NewSplitContainer(state)
 	m.splitContainer.OnPrimaryFocus = m.revisions.SetFocused
 	m.splitContainer.RegisterContent(previewContentID, preview.New(m.context))
 	if config.Current.Preview.ShowAtStart {
 		_, _ = m.splitContainer.ShowContent(previewContentID)
-	}
-}
-
-func splitPlacementFromPreviewConfig(position config.PreviewPosition) split.Placement {
-	switch position {
-	case config.PreviewPositionBottom:
-		return split.PlacementBottom
-	case config.PreviewPositionRight:
-		return split.PlacementRight
-	default:
-		return split.PlacementAuto
 	}
 }
 

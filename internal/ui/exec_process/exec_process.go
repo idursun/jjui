@@ -93,13 +93,6 @@ type process struct {
 	location string
 }
 
-type runResult struct {
-	err               error
-	stdinIsTTY        bool
-	rawModeChanged    bool
-	exitedBeforeTimer bool
-}
-
 // Run This is a blocking call.
 func (p *process) Run() error {
 	cmd := exec.Command(p.program, p.args...)
@@ -116,7 +109,8 @@ func (p *process) Run() error {
 	// this is useful for sub-programs to access context vars.
 	cmd.Env = append(os.Environ(), env...)
 
-	stdinFile, stdinIsTTY := ttyFile(p.stdin)
+	stdinFile, stdinIsTTY := p.stdin.(*os.File)
+	stdinIsTTY = stdinIsTTY && term.IsTerminal(stdinFile.Fd())
 	stopObserve := func() bool { return false }
 	if stdinIsTTY {
 		if stop, ok := observeTTYChanges(stdinFile); ok {
@@ -126,45 +120,14 @@ func (p *process) Run() error {
 
 	startedAt := time.Now()
 	err := cmd.Run()
-	result := runResult{
-		err:               err,
-		stdinIsTTY:        stdinIsTTY,
-		rawModeChanged:    stopObserve(),
-		exitedBeforeTimer: time.Since(startedAt) < 5*time.Second,
-	}
+	rawModeChanged := stopObserve()
+	exitedBeforeTimer := time.Since(startedAt) < 5*time.Second
 
-	if shouldPrompt(result) {
+	if stdinIsTTY && (err != nil || !rawModeChanged && exitedBeforeTimer) {
 		_, _ = io.WriteString(p.stderr, "\njjui: press enter to continue... ")
-		_ = waitForEnter(stdinFile)
+		_, _ = bufio.NewReader(stdinFile).ReadByte()
 	}
 	return err
-}
-
-func shouldPrompt(result runResult) bool {
-	if !result.stdinIsTTY {
-		return false
-	}
-	if result.err != nil {
-		return true
-	}
-	if result.rawModeChanged {
-		return false
-	}
-	return result.exitedBeforeTimer
-}
-
-func waitForEnter(r io.Reader) error {
-	reader := bufio.NewReader(r)
-	_, err := reader.ReadByte()
-	return err
-}
-
-func ttyFile(r io.Reader) (*os.File, bool) {
-	f, ok := r.(*os.File)
-	if !ok || !term.IsTerminal(f.Fd()) {
-		return nil, false
-	}
-	return f, true
 }
 
 func (p *process) SetStdin(stdin io.Reader) {

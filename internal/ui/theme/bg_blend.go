@@ -74,7 +74,12 @@ func (p *Palette) applyBackgroundBlend(
 		return style
 	}
 
-	target := p.backgroundBlendTarget(scope, component)
+	target := p.terminal.background
+	if bg, ok := p.resolveBackground(paletteKeys(scope, component, "", false)); ok {
+		target = resolveBlendTarget(bg, p.terminal.background, p.terminal.palette)
+	} else if bg, ok := p.resolveBackground(paletteKeys(scope, component, "border", false)); ok {
+		target = resolveBlendTarget(bg, p.terminal.background, p.terminal.palette)
+	}
 	if target == "" {
 		return style
 	}
@@ -85,17 +90,6 @@ func (p *Palette) applyBackgroundBlend(
 	}
 
 	return style.Background(parseColor(blended))
-}
-
-func (p *Palette) backgroundBlendTarget(scope, component string) string {
-	if background, ok := p.resolveBackground(paletteKeys(scope, component, "", false)); ok {
-		return resolveBlendTarget(background, p.terminal.background, p.terminal.palette)
-	}
-
-	if background, ok := p.resolveBackground(paletteKeys(scope, component, "border", false)); ok {
-		return resolveBlendTarget(background, p.terminal.background, p.terminal.palette)
-	}
-	return p.terminal.background
 }
 
 func resolveBlendTarget(value, terminalBackground string, terminalPalette map[int]string) string {

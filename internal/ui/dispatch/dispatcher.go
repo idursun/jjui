@@ -145,7 +145,14 @@ func (d *Dispatcher) Resolve(msg tea.KeyMsg, scopes []common.Scope) ResolveResul
 		return d.resolveSequenceKey(key, d.eligibleCandidates(scopes))
 	}
 
-	seqCandidates := d.initialSequenceCandidates(key, scopes)
+	var seqCandidates []candidate
+	for _, scope := range common.VisibleScopes(scopes) {
+		for _, binding := range d.bindings[scope.Name] {
+			if d.enabled(binding) && len(binding.Seq) > 0 && keyMatches(binding.Seq[0], key) {
+				seqCandidates = append(seqCandidates, candidate{scope: scope.Name, binding: binding})
+			}
+		}
+	}
 	if len(seqCandidates) > 0 {
 		d.buffered = []tea.Key{key}
 		d.candidates = seqCandidates
@@ -183,7 +190,11 @@ func (d *Dispatcher) resolveSequenceKey(key tea.Key, candidates []candidate) Res
 	nextBuffer := append(append([]tea.Key(nil), d.buffered...), key)
 	filtered := make([]candidate, 0, len(d.candidates))
 	for _, c := range candidates {
-		if isPrefix(c.binding.Seq, nextBuffer) {
+		matches := len(nextBuffer) <= len(c.binding.Seq)
+		for i := 0; matches && i < len(nextBuffer); i++ {
+			matches = keyMatches(c.binding.Seq[i], nextBuffer[i])
+		}
+		if matches {
 			filtered = append(filtered, c)
 		}
 	}
@@ -226,18 +237,6 @@ func (d *Dispatcher) resolveSequenceKey(key tea.Key, candidates []candidate) Res
 		Consumed:      true,
 		Continuations: d.pendingContinuations(d.candidates),
 	}
-}
-
-func (d *Dispatcher) initialSequenceCandidates(key tea.Key, scopes []common.Scope) []candidate {
-	var candidates []candidate
-	for _, scope := range common.VisibleScopes(scopes) {
-		for _, binding := range d.bindings[scope.Name] {
-			if d.enabled(binding) && len(binding.Seq) > 0 && keyMatches(binding.Seq[0], key) {
-				candidates = append(candidates, candidate{scope: scope.Name, binding: binding})
-			}
-		}
-	}
-	return candidates
 }
 
 func (d *Dispatcher) pendingContinuations(candidates []candidate) []Continuation {
@@ -283,18 +282,6 @@ func (d *Dispatcher) pendingContinuations(candidates []candidate) []Continuation
 		continuations = append(continuations, e.cont)
 	}
 	return continuations
-}
-
-func isPrefix(full []string, prefix []tea.Key) bool {
-	if len(prefix) > len(full) {
-		return false
-	}
-	for i := range prefix {
-		if !keyMatches(full[i], prefix[i]) {
-			return false
-		}
-	}
-	return true
 }
 
 func keyMatches(candidate string, key tea.Key) bool {

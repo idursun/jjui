@@ -190,22 +190,17 @@ func (dl *DisplayContext) Render(buf uv.Screen) {
 
 	for _, op := range ops {
 		if op.isDraw {
-			drawStyledString(buf, op.draw)
+			if !op.draw.Options.PreserveBackground {
+				uv.NewStyledString(op.draw.Content).Draw(buf, op.draw.Rect)
+			} else {
+				tmp := NewScreenBuffer(op.draw.Rect.Dx(), op.draw.Rect.Dy())
+				uv.NewStyledString(op.draw.Content).Draw(tmp, layout.Rect(0, 0, op.draw.Rect.Dx(), op.draw.Rect.Dy()))
+				mergeScreenRegion(buf, tmp, op.draw.Rect)
+			}
 			continue
 		}
 		op.effect.Apply(buf)
 	}
-}
-
-func drawStyledString(buf uv.Screen, draw Draw) {
-	if !draw.Options.PreserveBackground {
-		uv.NewStyledString(draw.Content).Draw(buf, draw.Rect)
-		return
-	}
-
-	tmp := NewScreenBuffer(draw.Rect.Dx(), draw.Rect.Dy())
-	uv.NewStyledString(draw.Content).Draw(tmp, layout.Rect(0, 0, draw.Rect.Dx(), draw.Rect.Dy()))
-	mergeScreenRegion(buf, tmp, draw.Rect)
 }
 
 func mergeScreenRegion(dst uv.Screen, src uv.Screen, dstRect layout.Rectangle) {

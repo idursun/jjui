@@ -3,7 +3,6 @@ package ui
 import (
 	"bytes"
 	"fmt"
-	"image/color"
 	"log"
 	"strconv"
 
@@ -67,10 +66,15 @@ func parseTerminalPaletteReply(event uv.UnknownOscEvent) (terminalPaletteReply, 
 		if err != nil || slot < 0 || slot >= terminalPaletteSlots {
 			return
 		}
-		hex := colorToHex(ansi.XParseColor(string(parts[1])))
-		if hex == "" {
+		c := ansi.XParseColor(string(parts[1]))
+		if c == nil {
 			return
 		}
+		r, g, b, a := c.RGBA()
+		if a == 0 {
+			return
+		}
+		hex := fmt.Sprintf("#%02x%02x%02x", uint8(r>>8), uint8(g>>8), uint8(b>>8))
 		reply = terminalPaletteReply{Slot: slot, Hex: hex, Raw: raw}
 		parsed = true
 	}})
@@ -78,15 +82,4 @@ func parseTerminalPaletteReply(event uv.UnknownOscEvent) (terminalPaletteReply, 
 		parser.Advance(raw[i])
 	}
 	return reply, parsed
-}
-
-func colorToHex(c color.Color) string {
-	if c == nil {
-		return ""
-	}
-	r, g, b, a := c.RGBA()
-	if a == 0 {
-		return ""
-	}
-	return fmt.Sprintf("#%02x%02x%02x", uint8(r>>8), uint8(g>>8), uint8(b>>8))
 }
