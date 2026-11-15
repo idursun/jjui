@@ -286,8 +286,8 @@ type FocusedBookmarkAdvance struct{}
 
 func (FocusedBookmarkAdvance) isIntent() {}
 
-//jjui:bind scope=revisions.bookmark action=track set=Track:true
-//jjui:bind scope=revisions.bookmark action=untrack set=Track:false
+//jjui:bind scope=revisions.bookmark action=track set=Track:true when="revisions.can_track_bookmark"
+//jjui:bind scope=revisions.bookmark action=untrack set=Track:false when="revisions.can_untrack_bookmark"
 type FocusedBookmarkTrack struct {
 	Track bool
 }

@@ -258,6 +258,56 @@ func (m *Model) trackBookmarks(track bool) tea.Cmd {
 	return m.runBookmarkCommands(commands)
 }
 
+type bookmarkTrackingState struct {
+	listing       []jj.Bookmark
+	defaultRemote string
+}
+
+type bookmarkTrackingStateMsg struct {
+	state *bookmarkTrackingState
+	tag   uint64
+}
+
+// loadTrackingState lists bookmarks alongside the log because the log output
+// does not show the tracking state. A failed listing keeps the previous state.
+func (m *Model) loadTrackingState(tag uint64) tea.Cmd {
+	return func() tea.Msg {
+		output, err := m.context.RunCommandImmediate(jj.BookmarkListAll())
+		if err != nil {
+			return nil
+		}
+		state := &bookmarkTrackingState{listing: jj.ParseBookmarkListOutput(string(output))}
+		// The remote list puts git.default_remote first.
+		if output, err := m.context.RunCommandImmediate(jj.GitRemoteList()); err == nil {
+			if remotes := jj.ParseRemoteListOutput(string(output)); len(remotes) > 0 {
+				state.defaultRemote = remotes[0]
+			}
+		}
+		return bookmarkTrackingStateMsg{state: state, tag: tag}
+	}
+}
+
+// canChangeBookmarkTracking reports whether tracking (or untracking) applies
+// to any bookmark target. Both apply until the state is known; neither applies
+// to a local bookmark when there is no remote.
+func (m *Model) canChangeBookmarkTracking(track bool) bool {
+	targets := m.bookmarkTargets()
+	if len(targets) == 0 {
+		return false
+	}
+	state := m.trackingState
+	if state == nil {
+		return true
+	}
+	return slices.ContainsFunc(targets, func(target textObject) bool {
+		remote := target.Remote
+		if remote == "" {
+			remote = state.defaultRemote
+		}
+		return remote != "" && isRemoteBookmarkTracked(state.listing, target.Value, remote) != track
+	})
+}
+
 // isRemoteBookmarkTracked reads a `jj bookmark list` listing because the log
 // output does not show the tracking state.
 func isRemoteBookmarkTracked(listing []jj.Bookmark, name string, remote string) bool {
