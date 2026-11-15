@@ -1367,3 +1367,19 @@ func TestModel_BookmarkTrackingStateIgnoresStaleListing(t *testing.T) {
 	model.Update(msg)
 	assert.Nil(t, model.trackingState)
 }
+
+func TestModel_SelectionListsCheckedObjects(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	commit := model.rows[0].Commit
+	model.toggleChecked(checkedRevision(commit))
+	model.toggleChecked(checkedObject{kind: textObjectAuthor, commitId: commit.CommitId})
+	model.toggleChecked(checkedBookmark("second", "origin"))
+	model.toggleChecked(checkedBookmark("gone", ""))
+
+	assert.Equal(t, []common.SelectedRevision{
+		{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId, ObjectKind: textObjectAuthor, ObjectText: "someone@example.com"},
+		{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId, ObjectKind: textObjectBookmark, ObjectText: "second", ObjectRemote: "origin"},
+		{ObjectKind: textObjectBookmark, ObjectText: "gone"},
+	}, model.Selection().CheckedObjects)
+}

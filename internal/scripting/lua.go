@@ -304,6 +304,22 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		L.Push(tbl)
 		return 1
 	}))
+	contextTable.RawSetString("checked_objects", L.NewFunction(func(L *lua.LState) int {
+		tbl := L.NewTable()
+		for _, item := range ctx.Selection().CheckedObjects {
+			object := L.NewTable()
+			object.RawSetString("kind", lua.LString(item.ObjectKind))
+			object.RawSetString("value", lua.LString(item.ObjectText))
+			for key, value := range map[string]string{"remote": item.ObjectRemote, "change_id": item.ChangeId, "commit_id": item.CommitId} {
+				if value != "" {
+					object.RawSetString(key, lua.LString(value))
+				}
+			}
+			tbl.Append(object)
+		}
+		L.Push(tbl)
+		return 1
+	}))
 
 	jjAsyncFn := L.NewFunction(func(L *lua.LState) int {
 		args := argsFromLua(L)

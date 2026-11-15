@@ -317,6 +317,35 @@ func TestContext_CheckedCommitIds(t *testing.T) {
 	assert.Equal(t, "commit3", vals[3].String())
 }
 
+func TestContext_CheckedObjects(t *testing.T) {
+	ctx := &uicontext.MainContext{}
+	ctx.SetStateProvider(&testStateProvider{snapshot: common.SelectionSnapshot{
+		CheckedObjects: []common.SelectedRevision{
+			{ChangeId: "change1", CommitId: "commit1", ObjectKind: "author", ObjectText: "ada@example.com"},
+			{ChangeId: "change2", CommitId: "commit2", ObjectKind: "bookmark", ObjectText: "main", ObjectRemote: "origin"},
+		},
+	}})
+
+	vals := runScriptAndGetGlobals(t, ctx, `
+		objects = context.checked_objects()
+		count = #objects
+		kind = objects[1].kind
+		value = objects[1].value
+		change = objects[1].change_id
+		remote1 = objects[1].remote
+		remote2 = objects[2].remote
+		commit2 = objects[2].commit_id
+	`, "count", "kind", "value", "change", "remote1", "remote2", "commit2")
+
+	assert.Equal(t, lua.LNumber(2), vals[0])
+	assert.Equal(t, "author", vals[1].String())
+	assert.Equal(t, "ada@example.com", vals[2].String())
+	assert.Equal(t, "change1", vals[3].String())
+	assert.Equal(t, lua.LNil, vals[4])
+	assert.Equal(t, "origin", vals[5].String())
+	assert.Equal(t, "commit2", vals[6].String())
+}
+
 func TestContext_AccessViaJjuiNamespace(t *testing.T) {
 	ctx := contextWithSelection(uicontext.SelectedRevision{
 		ChangeId: "ns_change",

@@ -9,6 +9,8 @@ type SelectedItem interface {
 type SelectionSnapshot struct {
 	Highlighted SelectedItem
 	Checked     []SelectedItem
+	// CheckedObjects lists the checked text objects; checked revisions are only in Checked.
+	CheckedObjects []SelectedRevision
 }
 
 type SelectionProvider interface {

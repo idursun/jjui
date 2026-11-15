@@ -104,6 +104,7 @@ func (m *Model) Selection() common.SelectionSnapshot {
 			snapshot.Highlighted = part.Highlighted
 		}
 		snapshot.Checked = append(snapshot.Checked, part.Checked...)
+		snapshot.CheckedObjects = append(snapshot.CheckedObjects, part.CheckedObjects...)
 	}
 	if rev, ok := snapshot.Highlighted.(common.SelectedRevision); ok {
 		if kind, value, name, focused := m.revsetModel.FocusedRemote(); focused {

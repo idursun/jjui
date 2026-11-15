@@ -444,6 +444,7 @@ func (m *Model) Selection() common.SelectionSnapshot {
 	}
 
 	snapshot.Checked = append(snapshot.Checked, m.checkedRevisionItems()...)
+	snapshot.CheckedObjects = m.checkedObjectItems()
 	return snapshot
 }
 
@@ -514,6 +515,44 @@ func (m *Model) checkedRevisionItems() []common.SelectedItem {
 	items := make([]common.SelectedItem, 0, len(commits))
 	for _, commit := range commits {
 		items = append(items, appContext.SelectedRevision{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId})
+	}
+	return items
+}
+
+// checkedObjectItems describes the checked objects other than revisions, in the
+// order they were checked. A bookmark that is not loaded has no revision.
+func (m *Model) checkedObjectItems() []common.SelectedRevision {
+	var items []common.SelectedRevision
+	for _, object := range m.checked {
+		if object.kind == textObjectNode {
+			continue
+		}
+		item := common.SelectedRevision{ChangeId: object.changeId, CommitId: object.commitId, ObjectKind: object.kind, ObjectText: object.name, ObjectRemote: object.remote}
+		if object.kind == textObjectFile {
+			items = append(items, item)
+			continue
+		}
+		for _, row := range m.rows {
+			if row.Commit == nil || object.commitId != "" && row.Commit.CommitId != object.commitId {
+				continue
+			}
+			if object.kind == textObjectBookmark && !row.Commit.HasBookmarks {
+				continue
+			}
+			objects := textObjectsForRow(row)
+			i := slices.IndexFunc(objects, func(o textObject) bool {
+				return o.Kind == object.kind && (object.name == "" || o.Value == object.name && o.Remote == object.remote)
+			})
+			if i < 0 {
+				continue
+			}
+			item.ChangeId, item.CommitId = row.Commit.GetChangeId(), row.Commit.CommitId
+			if item.ObjectText == "" {
+				item.ObjectText = objects[i].Value
+			}
+			break
+		}
+		items = append(items, item)
 	}
 	return items
 }
