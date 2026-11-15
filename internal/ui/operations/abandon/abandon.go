@@ -71,7 +71,10 @@ func (a *Operation) Update(msg tea.Msg) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		return a.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
+		if commit := (&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId}); !a.current.Equal(commit) {
+			a.current = commit
+		}
+		return nil
 	case addSelectionMsg:
 		a.selectedRevisions = msg.SelectedRevisions
 	}
@@ -107,14 +110,6 @@ func (a *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (a *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
-	if a.current.Equal(commit) {
-		return nil
-	}
-	a.current = commit
-	return nil
-}
-
 func (a *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) string {
 	if pos != operations.RenderBeforeChangeId {
 		return ""
@@ -138,7 +133,17 @@ func (a *Operation) RenderSegment(currentStyle lipgloss.Style, segment *screen.S
 }
 
 func (a *Operation) refreshSelectedRevisionsCmd() tea.Cmd {
-	revset := a.selections.revset()
+	parts := make([]string, 0, len(a.selections.items))
+	for changeId, t := range a.selections.items {
+		switch {
+		case changeId == "":
+		case t == selectionTypeDescendants:
+			parts = append(parts, changeId+"::")
+		default:
+			parts = append(parts, changeId)
+		}
+	}
+	revset := strings.Join(parts, " | ")
 	if revset == "" {
 		a.selectedRevisions = jj.NewSelectedRevisions()
 		return nil
@@ -148,7 +153,15 @@ func (a *Operation) refreshSelectedRevisionsCmd() tea.Cmd {
 		if err != nil {
 			return common.CommandCompletedMsg{Err: err}
 		}
-		return addSelectionMsg{selectedRevisionsFromOutput(bytes)}
+		trimmed := strings.TrimSpace(string(bytes))
+		if trimmed == "" {
+			return addSelectionMsg{jj.NewSelectedRevisions()}
+		}
+		var revisions []*jj.Commit
+		for id := range strings.SplitSeq(trimmed, "\n") {
+			revisions = append(revisions, &jj.Commit{ChangeId: id})
+		}
+		return addSelectionMsg{jj.NewSelectedRevisions(revisions...)}
 	}
 }
 
@@ -190,38 +203,10 @@ func (s *selections) toggle(changeId string, t selectionType) {
 	s.items[changeId] = t
 }
 
-func (s *selections) revset() string {
-	parts := make([]string, 0, len(s.items))
-	for changeId, t := range s.items {
-		if changeId == "" {
-			continue
-		}
-		if t == selectionTypeDescendants {
-			parts = append(parts, changeId+"::")
-			continue
-		}
-		parts = append(parts, changeId)
-	}
-	return strings.Join(parts, " | ")
-}
-
 func (s *selections) has(changeId string, t selectionType) bool {
 	if s.items == nil {
 		return false
 	}
 	selectedType, ok := s.items[changeId]
 	return ok && selectedType == t
-}
-
-func selectedRevisionsFromOutput(output []byte) jj.SelectedRevisions {
-	trimmed := strings.TrimSpace(string(output))
-	if trimmed == "" {
-		return jj.NewSelectedRevisions()
-	}
-	ids := strings.Split(trimmed, "\n")
-	revisions := make([]*jj.Commit, 0, len(ids))
-	for _, id := range ids {
-		revisions = append(revisions, &jj.Commit{ChangeId: id})
-	}
-	return jj.NewSelectedRevisions(revisions...)
 }

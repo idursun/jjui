@@ -60,13 +60,21 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.Cancel:
 		return common.Close, true
 	case intents.Apply:
-		insertBefore := o.effectiveInsertBefore()
+		insertBefore := o.insertBefore
+		if len(insertBefore.Revisions) == 0 {
+			insertBefore = jj.NewSelectedRevisions(o.current)
+		}
 		if len(o.insertAfter.Revisions) == 0 && len(insertBefore.Revisions) == 0 {
 			return nil, true
 		}
+		args := jj.NewInsert(o.insertAfter, insertBefore)
+		// jj rejects inserting both after and before the same commit; fall back to a normal child commit.
+		if len(o.insertAfter.Revisions) == 1 && len(insertBefore.Revisions) == 1 && o.insertAfter.Revisions[0].Equal(insertBefore.Revisions[0]) {
+			args = jj.New(o.insertAfter)
+		}
 		return tea.Sequence(
 			common.Close,
-			o.context.RunCommand(o.newCommand(insertBefore), common.RefreshAndSelect("@")),
+			o.context.RunCommand(args, common.RefreshAndSelect("@")),
 		), true
 	case intents.NewBetweenToggleInsertBefore:
 		o.insertBefore = o.insertBefore.Toggle(o.current)
@@ -107,19 +115,4 @@ func (o *Operation) Name() string {
 
 func New(context *appContext.MainContext, insertAfter jj.SelectedRevisions, current *jj.Commit) *Operation {
 	return &Operation{context: context, insertAfter: insertAfter, current: current}
-}
-
-func (o *Operation) effectiveInsertBefore() jj.SelectedRevisions {
-	if len(o.insertBefore.Revisions) > 0 {
-		return o.insertBefore
-	}
-	return jj.NewSelectedRevisions(o.current)
-}
-
-func (o *Operation) newCommand(insertBefore jj.SelectedRevisions) jj.CommandArgs {
-	// jj rejects inserting both after and before the same commit; fall back to a normal child commit.
-	if len(o.insertAfter.Revisions) == 1 && len(insertBefore.Revisions) == 1 && o.insertAfter.Revisions[0].Equal(insertBefore.Revisions[0]) {
-		return jj.New(o.insertAfter)
-	}
-	return jj.NewInsert(o.insertAfter, insertBefore)
 }

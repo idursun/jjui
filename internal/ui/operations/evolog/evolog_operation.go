@@ -96,14 +96,6 @@ func (o *Operation) Init() tea.Cmd {
 	return o.load
 }
 
-func (o *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
-	if o.target.Equal(commit) {
-		return nil
-	}
-	o.target = commit
-	return nil
-}
-
 func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case updateEvologMsg:
@@ -122,14 +114,17 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		o.ensureCursorView = false
-		o.scroll(msg.Delta)
+		o.dlRenderer.SetScrollOffset(o.dlRenderer.GetScrollOffset() + msg.Delta)
 		return nil
 	case common.SelectionChangedMsg:
 		selected, ok := msg.Item.(common.SelectedRevision)
 		if !ok {
 			return nil
 		}
-		return o.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
+		if commit := (&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId}); !o.target.Equal(commit) {
+			o.target = commit
+		}
+		return nil
 	case intents.Intent:
 		cmd, _ := o.HandleIntent(msg)
 		return cmd
@@ -362,10 +357,4 @@ func (o *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	)
 	o.dlRenderer.RegisterScroll(dl, viewRect)
 
-}
-
-func (o *Operation) scroll(delta int) {
-	currentStart := o.dlRenderer.GetScrollOffset()
-	desiredStart := currentStart + delta
-	o.dlRenderer.SetScrollOffset(desiredStart)
 }

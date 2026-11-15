@@ -93,7 +93,12 @@ func (r *Operation) Update(msg tea.Msg) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		return r.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
+		commit := &jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId}
+		if r.To.Equal(commit) {
+			return nil
+		}
+		r.To = commit
+		return r.refreshHighlightedIds()
 	case intents.Intent:
 		cmd, _ := r.HandleIntent(msg)
 		return cmd
@@ -106,7 +111,14 @@ func (r *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.StartAceJump:
 		return common.StartAceJump(), true
 	case intents.RebaseSetSource:
-		r.Source = rebaseSourceFromIntent(msg.Source)
+		switch msg.Source {
+		case intents.RebaseSourceBranch:
+			r.Source = SourceBranch
+		case intents.RebaseSourceDescendants:
+			r.Source = SourceDescendants
+		default:
+			r.Source = SourceRevision
+		}
 		return nil, true
 	case intents.RebaseSetTarget:
 		r.Target = msg.Target
@@ -133,30 +145,6 @@ func (r *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return common.Close, true
 	}
 	return nil, false
-}
-
-func rebaseSourceFromIntent(source intents.RebaseSource) Source {
-	switch source {
-	case intents.RebaseSourceRevision:
-		return SourceRevision
-	case intents.RebaseSourceBranch:
-		return SourceBranch
-	case intents.RebaseSourceDescendants:
-		return SourceDescendants
-	default:
-		return SourceRevision
-	}
-}
-
-func (r *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
-	if commit == nil {
-		return nil
-	}
-	if r.To.Equal(commit) {
-		return nil
-	}
-	r.To = commit
-	return r.refreshHighlightedIds()
 }
 
 func (r *Operation) refreshHighlightedIds() tea.Cmd {

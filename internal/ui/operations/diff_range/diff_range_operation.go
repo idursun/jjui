@@ -42,22 +42,6 @@ func (o *Operation) Scopes() []common.Scope {
 	}
 }
 
-func (o *Operation) setSelectedRevision(commit *jj.Commit) tea.Cmd {
-	if o.swapped {
-		if o.from.Equal(commit) {
-			return nil
-		}
-		o.from = commit
-	} else {
-		if o.to.Equal(commit) {
-			return nil
-		}
-		o.to = commit
-	}
-	o.hasTo = true
-	return nil
-}
-
 func (o *Operation) Init() tea.Cmd {
 	return nil
 }
@@ -82,7 +66,20 @@ func (o *Operation) Update(msg tea.Msg) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		return o.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
+		commit := &jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId}
+		if o.swapped {
+			if o.from.Equal(commit) {
+				return nil
+			}
+			o.from = commit
+		} else {
+			if o.to.Equal(commit) {
+				return nil
+			}
+			o.to = commit
+		}
+		o.hasTo = true
+		return nil
 	case intents.Intent:
 		cmd, _ := o.HandleIntent(msg)
 		return cmd
@@ -97,7 +94,18 @@ func (o *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return common.Close, true
 	case intents.Apply:
 		command := func() tea.Msg {
-			args := jj.DiffRange(o.fromTargetArg(), o.toTargetArg())
+			from := o.fromName
+			if strings.TrimSpace(from) == "" {
+				from = o.from.GetChangeId()
+			}
+			to := ""
+			if o.hasTo {
+				to = o.toName
+				if strings.TrimSpace(to) == "" {
+					to = o.to.GetChangeId()
+				}
+			}
+			args := jj.DiffRange(from, to)
 			if output, err := o.context.RunCommandImmediateWithEnv(args, o.context.DiffEnv()); err != nil {
 				return intents.AddMessage{Text: err.Error()}
 			} else {
@@ -140,23 +148,6 @@ renderTo:
 		return lipgloss.JoinHorizontal(0, targetMarkerStyle.Render("<< to >>"), commandHint)
 	}
 	return ""
-}
-
-func (o *Operation) toTargetArg() string {
-	if !o.hasTo {
-		return ""
-	}
-	if strings.TrimSpace(o.toName) != "" {
-		return o.toName
-	}
-	return o.to.GetChangeId()
-}
-
-func (o *Operation) fromTargetArg() string {
-	if strings.TrimSpace(o.fromName) != "" {
-		return o.fromName
-	}
-	return o.from.GetChangeId()
 }
 
 func (o *Operation) Name() string {

@@ -415,7 +415,20 @@ func (s *Operation) renderIntoRect(dl *render.DisplayContext, rect layout.Rectan
 	contentY := rect.Min.Y
 	filterHeight := 0
 	if s.filterState != filterOff && availableContentHeight > 0 {
-		s.renderFilterInput(dl, layout.Rect(rect.Min.X, contentY, rect.Dx(), 1))
+		filterRect := layout.Rect(rect.Min.X, contentY, rect.Dx(), 1)
+		textStyle := theme.DefaultPalette.Get("revisions", "details", "text", false)
+		dimmedStyle := theme.DefaultPalette.Get("revisions", "details", "dimmed", false)
+		styles := s.filterInput.Styles()
+		styles.Focused.Prompt = dimmedStyle
+		styles.Focused.Text = textStyle
+		styles.Blurred.Prompt = dimmedStyle
+		styles.Blurred.Text = textStyle
+		s.filterInput.SetStyles(styles)
+		s.filterInput.SetWidth(max(filterRect.Dx(), 0))
+		dl.AddDraw(filterRect, s.filterInput.View(), 0)
+		if s.filterState == filterEditing {
+			dl.SetCursorInRect(s.filterInput.Cursor(), filterRect, 0, 0)
+		}
 		filterHeight = 1
 		contentY++
 		availableContentHeight--
@@ -446,22 +459,6 @@ func (s *Operation) renderIntoRect(dl *render.DisplayContext, rect layout.Rectan
 	}
 
 	return contentHeight + confirmationHeight
-}
-
-func (s *Operation) renderFilterInput(dl *render.DisplayContext, rect layout.Rectangle) {
-	textStyle := theme.DefaultPalette.Get("revisions", "details", "text", false)
-	dimmedStyle := theme.DefaultPalette.Get("revisions", "details", "dimmed", false)
-	styles := s.filterInput.Styles()
-	styles.Focused.Prompt = dimmedStyle
-	styles.Focused.Text = textStyle
-	styles.Blurred.Prompt = dimmedStyle
-	styles.Blurred.Text = textStyle
-	s.filterInput.SetStyles(styles)
-	s.filterInput.SetWidth(max(rect.Dx(), 0))
-	dl.AddDraw(rect, s.filterInput.View(), 0)
-	if s.filterState == filterEditing {
-		dl.SetCursorInRect(s.filterInput.Cursor(), rect, 0, 0)
-	}
 }
 
 func (s *Operation) openFilter() tea.Cmd {
@@ -534,8 +531,19 @@ func (s *Operation) createListItems(content string) []*item {
 			if !ok {
 				continue
 			}
+			fileStatus := Added
+			switch summary.Status {
+			case 'D':
+				fileStatus = Deleted
+			case 'M':
+				fileStatus = Modified
+			case 'R':
+				fileStatus = Renamed
+			case 'C':
+				fileStatus = Copied
+			}
 			it := &item{
-				status:        summaryStatus(summary.Status),
+				status:        fileStatus,
 				name:          summary.Display(s.context.Location, s.context.WorkingDirectory),
 				fileName:      summary.FileName,
 				conflict:      fields.conflicted,
@@ -594,22 +602,6 @@ func labelledFields(line []*screen.Segment) statusFields {
 		}
 	}
 	return f
-}
-
-func summaryStatus(r rune) status {
-	switch r {
-	case 'A':
-		return Added
-	case 'D':
-		return Deleted
-	case 'M':
-		return Modified
-	case 'R':
-		return Renamed
-	case 'C':
-		return Copied
-	}
-	return Added
 }
 
 func (s *Operation) load(revision string) tea.Cmd {

@@ -112,7 +112,15 @@ func NewModel(ctx *context.MainContext, payload any, sources ...source.Source) *
 }
 
 func (m *Model) Init() tea.Cmd {
-	return m.fetchItems()
+	return func() tea.Msg {
+		items := source.FetchAll(m.context.RunCommandImmediate, m.sources...)
+		for i := range items {
+			if !items[i].File.IsEmpty() {
+				items[i].Name = items[i].File.Display(m.context.Location, m.context.WorkingDirectory)
+			}
+		}
+		return itemsLoadedMsg{items: items}
+	}
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
@@ -276,18 +284,6 @@ func (m *Model) renderPill(kind source.Kind, style lipgloss.Style) string {
 		return style.Width(pillWidth).Align(lipgloss.Right).Render("revision")
 	default:
 		return strings.Repeat(" ", pillWidth)
-	}
-}
-
-func (m *Model) fetchItems() tea.Cmd {
-	return func() tea.Msg {
-		items := source.FetchAll(m.context.RunCommandImmediate, m.sources...)
-		for i := range items {
-			if !items[i].File.IsEmpty() {
-				items[i].Name = items[i].File.Display(m.context.Location, m.context.WorkingDirectory)
-			}
-		}
-		return itemsLoadedMsg{items: items}
 	}
 }
 

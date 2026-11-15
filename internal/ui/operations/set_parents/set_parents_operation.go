@@ -53,20 +53,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		return m.setSelectedRevision(&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId})
+		if commit := (&jj.Commit{ChangeId: selected.ChangeId, CommitId: selected.CommitId}); !m.current.Equal(commit) {
+			m.current = commit
+		}
+		return nil
 	}
 	return nil
 }
 
 func (m *Model) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
-
-func (m *Model) setSelectedRevision(commit *jj.Commit) tea.Cmd {
-	if m.current.Equal(commit) {
-		return nil
-	}
-	m.current = commit
-	return nil
-}
 
 func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	switch intent.(type) {
