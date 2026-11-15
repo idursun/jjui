@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/idursun/jjui/internal/jj"
@@ -106,21 +107,12 @@ func (gr *GraphRowLine) labelledFlags() RowLineFlags {
 		}
 	}
 	if !labelled {
-		if gr.containsRune('~') {
+		if slices.ContainsFunc(gr.Gutter.Segments, func(s *screen.Segment) bool { return strings.ContainsRune(s.Text, '~') }) {
 			return Elided
 		}
 		return 0
 	}
 	return flags | Highlightable
-}
-
-func (gr *GraphRowLine) containsRune(r rune) bool {
-	for _, segment := range gr.Gutter.Segments {
-		if strings.ContainsRune(segment.Text, r) {
-			return true
-		}
-	}
-	return false
 }
 
 // ParseRevisionNode detects a revision line in `--color=debug` output by its

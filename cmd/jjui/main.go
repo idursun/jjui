@@ -29,18 +29,6 @@ import (
 
 var Version string
 
-func getVersion() string {
-	if Version != "" {
-		// set explicitly from build flags
-		return Version
-	}
-	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" {
-		// obtained by go build, usually from VCS
-		return info.Main.Version
-	}
-	return "unknown"
-}
-
 var (
 	revset          string
 	period          int
@@ -70,20 +58,6 @@ func init() {
 	}
 }
 
-func getJJRootDir(location string) (string, error) {
-	cmd := exec.Command("jj", "root", "--color=always")
-	cmd.Dir = location
-
-	output, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return "", fmt.Errorf("%s", strings.TrimSpace(string(exitErr.Stderr)))
-		}
-		return "", err
-	}
-	return strings.TrimSpace(string(output)), nil
-}
-
 func main() {
 	os.Exit(run())
 }
@@ -102,7 +76,14 @@ func run() int {
 		flag.Usage()
 		return 0
 	case version:
-		fmt.Println(getVersion())
+		version := Version // set explicitly from build flags
+		if version == "" {
+			version = "unknown"
+			if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" {
+				version = info.Main.Version // obtained by go build, usually from VCS
+			}
+		}
+		fmt.Println(version)
 		return 0
 	case installLuaTypes:
 		result, err := config.SetupLuaTypes()
@@ -135,11 +116,17 @@ func run() int {
 		}
 	}
 
-	rootLocation, err := getJJRootDir(location)
+	rootCmd := exec.Command("jj", "root", "--color=always")
+	rootCmd.Dir = location
+	output, err := rootCmd.Output()
 	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			err = fmt.Errorf("%s", strings.TrimSpace(string(exitErr.Stderr)))
+		}
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return 1
 	}
+	rootLocation := strings.TrimSpace(string(output))
 
 	if len(os.Getenv("JJUI_DEBUG")) > 0 {
 		f, err := tea.LogToFile("debug.log", "debug")

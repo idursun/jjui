@@ -90,16 +90,13 @@ func New(ctx *context.MainContext, revset string, commit *jj.Commit) *Model {
 }
 
 func (m *Model) Init() tea.Cmd {
-	return tea.Batch(m.loadFiles(), textinput.Blink)
-}
-
-func (m *Model) loadFiles() tea.Cmd {
 	runner := m.context.RunCommandImmediate
 	args := jj.FilesInRevision(m.commit)
-	return func() tea.Msg {
+	loadFiles := func() tea.Msg {
 		out, _ := runner(args)
 		return filesLoadedMsg{paths: buildPathEntries(out)}
 	}
+	return tea.Batch(loadFiles, textinput.Blink)
 }
 
 func (m *Model) IsEditing() bool {
@@ -146,7 +143,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return cmd
 		}
 		m.search()
-		return tea.Batch(cmd, m.schedulePreview())
+		if !m.revsetPreview {
+			return cmd
+		}
+		m.debounceTag++
+		tag := debouncePreview(m.debounceTag)
+		return tea.Batch(cmd, tea.Tick(debounceDuration, func(time.Time) tea.Msg { return tag }))
 	}
 	return nil
 }
@@ -198,15 +200,6 @@ func showPreview() tea.Msg {
 
 func (m *Model) accept() tea.Cmd {
 	return tea.Batch(m.updateRevSet(), common.CloseApplied)
-}
-
-func (m *Model) schedulePreview() tea.Cmd {
-	if !m.revsetPreview {
-		return nil
-	}
-	m.debounceTag++
-	tag := debouncePreview(m.debounceTag)
-	return tea.Tick(debounceDuration, func(time.Time) tea.Msg { return tag })
 }
 
 func (m *Model) updateRevSet() tea.Cmd {

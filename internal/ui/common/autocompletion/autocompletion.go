@@ -194,7 +194,12 @@ func (ac *AutoCompletionInput) updateCompletions() {
 	var inputSuggestions []string
 
 	for _, suggestion := range suggestions {
-		matchedPart := findMatchedPrefix(value, suggestion)
+		matchedPart := ""
+		if strings.HasPrefix(suggestion, value) {
+			matchedPart = value
+		} else if i := strings.LastIndexAny(value, " ,|&~(.:"); i != -1 && strings.HasPrefix(suggestion, value[i+1:]) {
+			matchedPart = value[i+1:]
+		}
 		restPart := strings.TrimPrefix(suggestion, matchedPart)
 
 		ac.currentCompletions = append(ac.currentCompletions, Completion{
@@ -212,22 +217,6 @@ func (ac *AutoCompletionInput) updateCompletions() {
 func (ac *AutoCompletionInput) updateSignatureHelp() {
 	value := ac.TextInput.Value()
 	ac.SignatureHelp = ac.CompletionProvider.GetSignatureHelp(value)
-}
-
-func findMatchedPrefix(input, suggestion string) string {
-	if strings.HasPrefix(suggestion, input) {
-		return input
-	}
-
-	lastIndex := strings.LastIndexAny(input, " ,|&~(.:")
-	if lastIndex != -1 {
-		partialInput := input[lastIndex+1:]
-		if strings.HasPrefix(suggestion, partialInput) {
-			return partialInput
-		}
-	}
-
-	return ""
 }
 
 func (ac *AutoCompletionInput) View() string {

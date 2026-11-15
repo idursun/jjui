@@ -24,7 +24,7 @@ func ParseSummaryFile(line string) (SummaryFile, bool) {
 	}
 
 	var status rune
-	if fields := strings.Fields(line); len(fields) > 1 && isSummaryStatus(fields[0]) {
+	if fields := strings.Fields(line); len(fields) > 1 && strings.Trim(fields[0], "ACDMR?!") == "" {
 		status = []rune(fields[0])[0]
 		line = strings.TrimSpace(strings.TrimPrefix(line, fields[0]))
 	}
@@ -52,10 +52,6 @@ func (s SummaryFile) Display(repoRoot, workingDirectory string) string {
 	if !s.braceRename {
 		return from + " => " + to
 	}
-	return compactRename(from, to)
-}
-
-func compactRename(from, to string) string {
 	a, b := []rune(from), []rune(to)
 	prefix := 0
 	for prefix < len(a) && prefix < len(b) && a[prefix] == b[prefix] {
@@ -67,16 +63,4 @@ func compactRename(from, to string) string {
 	}
 	aEnd, bEnd := len(a)-suffix, len(b)-suffix
 	return string(a[:prefix]) + "{" + string(a[prefix:aEnd]) + " => " + string(b[prefix:bEnd]) + "}" + string(a[aEnd:])
-}
-
-func isSummaryStatus(token string) bool {
-	if token == "" {
-		return false
-	}
-	for _, r := range token {
-		if !strings.ContainsRune("ACDMR?!", r) {
-			return false
-		}
-	}
-	return true
 }

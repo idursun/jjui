@@ -285,27 +285,14 @@ func renderVisibleSpan(
 		dl.interactions = append(dl.interactions, op)
 	}
 
-	clipped := clipRenderedLines(
-		child.RenderToString(span.Rect.Dx(), itemHeight),
-		span.LineOffset,
-		span.LineCount,
-	)
+	clipped := ""
+	if content := child.RenderToString(span.Rect.Dx(), itemHeight); content != "" && span.LineCount > 0 && span.LineOffset >= 0 {
+		if lines := strings.Split(content, "\n"); span.LineOffset < len(lines) {
+			clipped = strings.Join(lines[span.LineOffset:min(span.LineOffset+span.LineCount, len(lines))], "\n")
+		}
+	}
 	if clipped == "" {
 		return
 	}
 	dl.AddDraw(span.Rect, clipped, z)
-}
-
-func clipRenderedLines(content string, start, count int) string {
-	if content == "" || count <= 0 || start < 0 {
-		return ""
-	}
-
-	lines := strings.Split(content, "\n")
-	if start >= len(lines) {
-		return ""
-	}
-
-	end := min(start+count, len(lines))
-	return strings.Join(lines[start:end], "\n")
 }

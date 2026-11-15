@@ -113,19 +113,6 @@ func (v *wrappedView) totalLines(width int) int {
 	return v.totalVisualRows
 }
 
-func (v *wrappedView) firstLine(scrollY int, width int) (line int, skip int) {
-	v.ensureIndex(width)
-	n := len(v.visualRowStart)
-	if n == 0 {
-		return 0, 0
-	}
-	idx := 0
-	for idx+1 < n && v.visualRowStart[idx+1] <= scrollY {
-		idx++
-	}
-	return idx, scrollY - v.visualRowStart[idx]
-}
-
 func (v *wrappedView) scrollHorizontal(_ int, _ int) {}
 
 func (v *wrappedView) ViewRect(dl *render.DisplayContext, box layout.Box, scrollY int) {
@@ -134,7 +121,13 @@ func (v *wrappedView) ViewRect(dl *render.DisplayContext, box layout.Box, scroll
 	surfaceStyle := theme.DefaultPalette.Get("diff", "", "", false)
 	v.ensureIndex(width)
 	buf := render.NewScreenBuffer(width, height)
-	firstLine, skip := v.firstLine(scrollY, width)
+	firstLine, skip := 0, 0
+	if n := len(v.visualRowStart); n > 0 {
+		for firstLine+1 < n && v.visualRowStart[firstLine+1] <= scrollY {
+			firstLine++
+		}
+		skip = scrollY - v.visualRowStart[firstLine]
+	}
 	destY := 0
 	for i := firstLine; i < len(v.lines) && destY < height; i++ {
 		lh := 1
@@ -321,11 +314,6 @@ func newScrollMsg(msg tea.MouseMsg) tea.Msg {
 	return ScrollMsg{Delta: delta, Horizontal: horizontal}
 }
 
-func (m *Model) clampScroll(width, height int) {
-	total := m.mode.totalLines(width)
-	m.scrollY = max(0, min(m.scrollY, max(0, total-height)))
-}
-
 func (m *Model) SetContent(content string) {
 	wrapped := false
 	if m.mode != nil {
@@ -406,7 +394,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	height := box.R.Dy()
 	m.viewportWidth = width
 	m.viewportHeight = height
-	m.clampScroll(width, height)
+	m.scrollY = max(0, min(m.scrollY, max(0, m.mode.totalLines(width)-height)))
 
 	m.mode.ViewRect(dl, box, m.scrollY)
 	dl.AddInteractionFn(box.R, newScrollMsg, render.InteractionScroll, 0)
@@ -448,29 +436,24 @@ func (m *Model) loadFile(file jj.FileName) tea.Cmd {
 		args = append(args, file.Escaped())
 	}
 	return func() tea.Msg {
-		output, err := m.context.RunCommandImmediateWithEnv(args, m.diffEnv())
+		// Per-file reloads wrap difftastic at the live viewport width rather
+		// than the terminal size recorded on the context.
+		env := m.context.DiffEnv()
+		if m.viewportWidth > 0 {
+			height := m.viewportHeight
+			if height <= 0 {
+				height = 24
+			}
+			env = []string{
+				"DFT_WIDTH=" + strconv.Itoa(m.viewportWidth),
+				"COLUMNS=" + strconv.Itoa(m.viewportWidth),
+				"LINES=" + strconv.Itoa(height),
+			}
+		}
+		output, err := m.context.RunCommandImmediateWithEnv(args, env)
 		if err != nil {
 			return fileLoadedMsg{file: file, err: err}
 		}
 		return fileLoadedMsg{content: string(output), file: file}
-	}
-}
-
-// diffEnv prefers the live viewport width for per-file reloads so difftastic
-// wraps at the size the content is actually rendered at. Falls back to the
-// terminal size recorded on the context.
-func (m *Model) diffEnv() []string {
-	width := m.viewportWidth
-	height := m.viewportHeight
-	if width <= 0 && m.context != nil {
-		return m.context.DiffEnv()
-	}
-	if height <= 0 {
-		height = 24
-	}
-	return []string{
-		"DFT_WIDTH=" + strconv.Itoa(width),
-		"COLUMNS=" + strconv.Itoa(width),
-		"LINES=" + strconv.Itoa(height),
 	}
 }

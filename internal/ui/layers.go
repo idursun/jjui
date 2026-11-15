@@ -92,24 +92,20 @@ func (m *Model) closeDialog() {
 // removed first, so there is at most one screen of each kind.
 func (m *Model) openScreen(model common.StackedModel) {
 	m.layers = slices.DeleteFunc(m.layers, func(l layer) bool {
-		return sameScreenKind(l.model, model)
+		switch l.model.(type) {
+		case *oplog.Model:
+			_, ok := model.(*oplog.Model)
+			return ok
+		case *diff.Model:
+			_, ok := model.(*diff.Model)
+			return ok
+		case *annotation.Model:
+			_, ok := model.(*annotation.Model)
+			return ok
+		}
+		return false
 	})
 	m.layers = append(m.layers, layer{model: model, screen: true})
-}
-
-func sameScreenKind(a, b common.StackedModel) bool {
-	switch a.(type) {
-	case *oplog.Model:
-		_, ok := b.(*oplog.Model)
-		return ok
-	case *diff.Model:
-		_, ok := b.(*diff.Model)
-		return ok
-	case *annotation.Model:
-		_, ok := b.(*annotation.Model)
-		return ok
-	}
-	return false
 }
 
 // closeTopLayer closes the top layer. An annotation with unsaved comments can
