@@ -262,22 +262,6 @@ func luaTypeError(path, expected string, got lua.LValue) error {
 	return fmt.Errorf("%s: expected %s, got %s", path, expected, got.Type().String())
 }
 
-func tomlFieldName(field reflect.StructField) (string, bool) {
-	tag := field.Tag.Get("toml")
-	if tag == "" || tag == "-" {
-		return "", false
-	}
-
-	if idx := strings.IndexByte(tag, ','); idx >= 0 {
-		tag = tag[:idx]
-	}
-	if tag == "" || tag == "-" {
-		return "", false
-	}
-
-	return tag, true
-}
-
 func tomlStructFields(typ reflect.Type) []tomlStructField {
 	fields := make([]tomlStructField, 0, typ.NumField())
 	for i := 0; i < typ.NumField(); i++ {
@@ -285,8 +269,8 @@ func tomlStructFields(typ reflect.Type) []tomlStructField {
 		if field.PkgPath != "" {
 			continue
 		}
-		name, ok := tomlFieldName(field)
-		if !ok {
+		name, _, _ := strings.Cut(field.Tag.Get("toml"), ",")
+		if name == "" || name == "-" {
 			continue
 		}
 		fields = append(fields, tomlStructField{name: name, index: i})

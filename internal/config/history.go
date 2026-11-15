@@ -60,9 +60,20 @@ type History struct {
 func (h *History) Entries() HistoryEntries {
 	if !h.appendOnly {
 		h.appendOnly = true
-		h.loaded = h.load()
+		h.loaded = HistoryEntries{}
+		if data, err := os.ReadFile(h.historyFile()); err == nil {
+			h.loaded = HistoryEntries(strings.Split(string(data), "\n"))
+		}
 		if h.unique {
-			h.loaded, h.loadedUnique = h.dedup(h.loaded)
+			seen := uniqueMap{}
+			h.loaded = slices.DeleteFunc(h.loaded, func(line string) bool {
+				if _, ok := seen[line]; ok {
+					return true
+				}
+				seen[line] = nil
+				return false
+			})
+			h.loadedUnique = seen
 		}
 	}
 	return append(h.loaded, h.append...)
@@ -90,15 +101,6 @@ func (h Histories) Flush() {
 	}
 }
 
-func (h *History) load() HistoryEntries {
-	file := h.historyFile()
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return HistoryEntries{}
-	}
-	return HistoryEntries(strings.Split(string(data), "\n"))
-}
-
 func (h *History) flush() {
 	content := slices.DeleteFunc(h.append, func(entry string) bool {
 		return len(strings.TrimSpace(entry)) == 0
@@ -121,29 +123,11 @@ func (h *History) flush() {
 }
 
 func (h *History) historyFile() string {
-	return filepath.Join(h.historyDir(), strings.ReplaceAll(string(h.key), " ", "_"))
-}
-
-func (h *History) historyDir() string {
-	var cacheDir string
-	if dir, err := os.UserCacheDir(); err == nil {
-		cacheDir = dir
-	} else {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
 		cacheDir = os.TempDir()
 	}
-	return filepath.Join(cacheDir, "jjui", "history")
+	return filepath.Join(cacheDir, "jjui", "history", strings.ReplaceAll(string(h.key), " ", "_"))
 }
 
 type uniqueMap map[string]any
-
-func (h *History) dedup(entries HistoryEntries) (HistoryEntries, uniqueMap) {
-	seen := uniqueMap{}
-	entries = slices.DeleteFunc(entries, func(line string) bool {
-		if _, ok := seen[line]; ok {
-			return true
-		}
-		seen[line] = nil
-		return false
-	})
-	return entries, seen
-}
