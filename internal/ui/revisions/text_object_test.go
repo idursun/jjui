@@ -1250,6 +1250,21 @@ func TestModel_SelectionListsABookmarkOncePerRow(t *testing.T) {
 	assert.Equal(t, []string{rows[0].Commit.CommitId, rows[1].Commit.CommitId}, commits)
 }
 
+func TestModel_SelectionListsBookmarkRemotesOnceTrackingIsKnown(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.toggleChecked(checkedBookmark("second", "origin"))
+	model.toggleChecked(checkedBookmark("gone", ""))
+	assert.Nil(t, model.Selection().CheckedObjects[0].ObjectRemotes, "unknown before the listing arrives")
+
+	model.trackingState = &bookmarkTrackingState{listing: []jj.Bookmark{
+		{Name: "second", Remotes: []jj.BookmarkRemote{{Remote: "origin", Tracked: true}}},
+	}}
+	objects := model.Selection().CheckedObjects
+	assert.Equal(t, []jj.BookmarkRemote{{Remote: "origin", Tracked: true}}, objects[0].ObjectRemotes)
+	assert.Equal(t, []jj.BookmarkRemote{}, objects[1].ObjectRemotes, "known to have no remotes")
+}
+
 func TestModel_SelectionListsCheckedObjects(t *testing.T) {
 	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
 	model.updateGraphRows(textObjectRows(t), "", true)

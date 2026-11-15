@@ -712,3 +712,67 @@ func Test_TextObjects_ShowsAllElidedRevisions(t *testing.T) {
 		t.Fatalf("revset was not widened to the elided revisions: %v", err)
 	}
 }
+
+const describeObjectAction = `
+[[actions]]
+name = "describe-object"
+lua = '''
+local o = context.object()
+local text = o.kind .. "|" .. o.value .. "|" .. tostring(o.all) .. "|" .. tostring(o.local_only) .. "|" .. tostring(o.change_id ~= nil)
+for _, r in ipairs(o.remotes or {}) do
+  text = text .. "|" .. r.name .. "=" .. tostring(r.tracked)
+end
+flash(text)
+'''
+
+[[bindings]]
+action = "describe-object"
+key = "Y"
+scope = "revisions"
+
+[[bindings]]
+action = "describe-object"
+key = "Y"
+scope = "revset.bookmarks.remotes"
+`
+
+func Test_TextObjects_LuaSeesBookmarkRemotes(t *testing.T) {
+	t.Parallel()
+	repo, _ := newRepoWithFileRemote(t)
+	repo.JJ("bookmark", "create", "shipped", "-r", "@-")
+	repo.JJ("bookmark", "track", "shipped", "--remote", "origin")
+	repo.JJ("git", "push", "--bookmark", "shipped")
+	writeJJUIConfig(t, repo.Env(), describeObjectAction)
+
+	h := &Harness{t: t, repo: repo, bin: jjuiBinary(t)}
+	h.Start("shipped")
+	h.Key("j")
+	h.Key("i")
+	h.Key("b")
+	h.Key("Y")
+	h.WaitText("bookmark|shipped|nil|nil|true|origin=true")
+	h.Quit()
+}
+
+func Test_TextObjects_LuaSeesFocusedRemote(t *testing.T) {
+	t.Parallel()
+	repo, _ := newRepoWithFileRemote(t)
+	repo.JJ("bookmark", "create", "shipped", "-r", "@-")
+	repo.JJ("bookmark", "track", "shipped", "--remote", "origin")
+	repo.JJ("git", "push", "--bookmark", "shipped")
+	writeJJUIConfig(t, repo.Env(), describeObjectAction)
+
+	h := &Harness{t: t, repo: repo, bin: jjuiBinary(t)}
+	h.Start("shipped")
+	h.Key("g")
+	h.WaitText("next remote")
+	h.Key("Y")
+	h.WaitText("remote|all|true|nil|false")
+	h.Key("l")
+	h.Key("Y")
+	h.WaitText("remote|local|nil|true|false")
+	h.Key("l")
+	h.Key("Y")
+	h.WaitText("remote|origin|nil|nil|false")
+	h.Quit()
+}

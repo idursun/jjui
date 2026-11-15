@@ -437,6 +437,9 @@ func (m *Model) Selection() common.SelectionSnapshot {
 				if obj := m.focusedTextObject(); obj != nil {
 					selected.ObjectKind, selected.ObjectValue = previewObject(obj)
 					selected.ObjectText, selected.ObjectRemote, selected.ObjectConflicted = obj.Value, obj.Remote, obj.Conflicted
+					if obj.Kind == textObjectBookmark {
+						selected.ObjectRemotes = m.bookmarkRemotes(obj.Value)
+					}
 				}
 			}
 			snapshot.Highlighted = selected
@@ -525,6 +528,9 @@ func (m *Model) checkedObjectItems() []common.SelectedRevision {
 	var items []common.SelectedRevision
 	for _, object := range m.checked {
 		item := common.SelectedRevision{ChangeId: object.changeId, CommitId: object.commitId, ObjectKind: object.kind, ObjectText: object.name, ObjectRemote: object.remote}
+		if object.kind == textObjectBookmark {
+			item.ObjectRemotes = m.bookmarkRemotes(object.name)
+		}
 		found := false
 		for _, row := range m.rows {
 			commit := row.Commit
