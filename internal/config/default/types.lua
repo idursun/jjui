@@ -21,12 +21,20 @@
 ---@field checked_files fun(): string[] Get array of checked files
 ---@field checked_change_ids fun(): string[] Get array of checked change IDs
 ---@field checked_commit_ids fun(): string[] Get array of checked commit IDs
+---@field checked_objects fun(): jjui.context.checked_object[] Get the checked text objects, in the order they were checked; checked revisions are not included
 
 ---@class jjui.context.object
 ---@field kind string Object kind, e.g. "bookmark", "tag", "change_id", "description", "remote"
 ---@field value string Object text as shown, e.g. the bookmark or remote name
 ---@field remote? string Remote of a remote bookmark or tag
 ---@field conflicted? boolean True for a conflicted bookmark
+
+---@class jjui.context.checked_object
+---@field kind string Object kind, e.g. "bookmark", "author", "timestamp", "description", "file"
+---@field value string Object text as shown, e.g. the bookmark name or the file path
+---@field remote? string Remote of a remote bookmark
+---@field change_id? string Change ID of the revision the object is on; nil for a bookmark that is not loaded
+---@field commit_id? string Commit ID of that revision; nil for a file
 
 
 ---Run a jj command asynchronously (yields, resumes after completion)
