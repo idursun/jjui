@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -83,4 +84,32 @@ func Test_WorkspaceObjects_RenamesCurrentWorkspace(t *testing.T) {
 	waitFor(t, ctx, func() (bool, error) {
 		return strings.Contains(workspaceNames(t, repo), "default2"), nil
 	})
+}
+
+func Test_WorkspaceObjects_UpdatesStaleWorkspace(t *testing.T) {
+	t.Parallel()
+	repo := newRepoWithSideWorkspace(t)
+	side := strings.TrimSpace(runCommand(t, repo.Path(), repo.Env(), "jj", "workspace", "root", "--name", "side", "--ignore-working-copy"))
+	// Rewriting side's working copy from here leaves the side workspace stale.
+	repo.Write("b.txt", "b\n")
+	repo.JJ("squash", "--use-destination-message", "--into", "side@", "b.txt")
+	isStale := func() bool {
+		cmd := exec.Command("jj", "status")
+		cmd.Dir, cmd.Env = side, repo.Env()
+		out, _ := cmd.CombinedOutput()
+		return strings.Contains(string(out), "stale")
+	}
+	if !isStale() {
+		t.Fatal("the side workspace did not become stale")
+	}
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "side@")
+	if err := session.SendKey(ghostty.KeyJ, "j", 0); err != nil {
+		t.Fatal(err)
+	}
+	focusTextOnRow(t, session, ctx, "side@")
+	if err := session.SendKey(ghostty.KeyW, "w", 0); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) { return !isStale(), nil })
 }

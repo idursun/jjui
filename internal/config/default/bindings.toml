@@ -149,6 +149,7 @@ bindings = [
     { key = "s", action = "revisions.workspace.switch", scope = "revisions.workspace", desc = "switch" },
     { key = "r", action = "revisions.workspace.rename", scope = "revisions.workspace", desc = "rename" },
     { key = "x", action = "revisions.workspace.forget", scope = "revisions.workspace", desc = "forget" },
+    { key = "w", action = "revisions.workspace.update_stale", scope = "revisions.workspace", desc = "update stale" },
     { key = "s", action = "revisions.divergent.show_all", scope = "revisions.divergent", desc = "show all" },
     { key = "x", action = "revisions.divergent.abandon", scope = "revisions.divergent", desc = "abandon" },
     { key = "r", action = "revisions.divergent.update_change_id", scope = "revisions.divergent", desc = "new change id" },
