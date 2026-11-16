@@ -1271,6 +1271,14 @@ var luaHandWrittenFunctions = []luaFunctionSpec{
 		FieldType:   "fun(text: string, keepEmpty?: boolean): string[]",
 	},
 	{
+		Comment:     "Quote a bookmark, tag or remote name as a jj exact string pattern",
+		ParamDocs:   []string{"---@param name string Name to quote"},
+		ReturnDocs:  []string{"---@return string pattern e.g. exact:\"main\""},
+		Declaration: "function exact(name) end",
+		FieldName:   "exact",
+		FieldType:   "fun(name: string): string",
+	},
+	{
 		Comment:     "Show a choice dialog and wait for user selection (yields)",
 		ParamDocs:   []string{"---@param ... string|string[]|{options?: string[]|string, title?: string, ordered?: boolean} Options as variadic strings, a single array, or an options table"},
 		ReturnDocs:  []string{"---@return string|nil selected The selected option, or nil if cancelled"},

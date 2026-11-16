@@ -74,6 +74,11 @@ function exec_shell(command) end
 ---@return string[] lines Array of lines
 function split_lines(text, keepEmpty) end
 
+---Quote a bookmark, tag or remote name as a jj exact string pattern
+---@param name string Name to quote
+---@return string pattern e.g. exact:"main"
+function exact(name) end
+
 ---Show a choice dialog and wait for user selection (yields)
 ---@param ... string|string[]|{options?: string[]|string, title?: string, ordered?: boolean} Options as variadic strings, a single array, or an options table
 ---@return string|nil selected The selected option, or nil if cancelled
@@ -316,12 +321,7 @@ function wait_refresh() end
 ---@field close fun()
 
 ---@class jjui.revisions.bookmark
----@field advance fun()
----@field delete fun()
----@field fetch fun()
----@field forget fun()
 ---@field move fun()
----@field push fun()
 ---@field rename fun()
 ---@field track fun()
 ---@field untrack fun()
@@ -626,6 +626,7 @@ function wait_refresh() end
 ---@field copy_to_clipboard fun(text: string): boolean?, string?
 ---@field exec_shell fun(command: string)
 ---@field split_lines fun(text: string, keepEmpty?: boolean): string[]
+---@field exact fun(name: string): string
 ---@field choose fun(...: string|string[]|{options?: string[]|string, title?: string, ordered?: boolean}): string|nil
 ---@field input fun(options?: {title?: string, prompt?: string, value?: string}): string|nil
 ---@field change_workspace fun(path: string): boolean?, string?

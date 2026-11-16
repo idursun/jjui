@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/actionmeta"
 	"github.com/idursun/jjui/internal/ui/choose"
 	"github.com/idursun/jjui/internal/ui/common"
@@ -330,6 +331,10 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 		}
 		return yieldStep(L, step{cmd: exec_process.ExecLine(ctx, msg)})
 	})
+	exactFn := L.NewFunction(func(L *lua.LState) int {
+		L.Push(lua.LString(jj.ExactStringPattern(L.CheckString(1))))
+		return 1
+	})
 	splitLinesFn := L.NewFunction(func(L *lua.LState) int {
 		text := L.CheckString(1)
 		keepEmpty := false
@@ -431,6 +436,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	root.RawSetString("copy_to_clipboard", copyToClipboardFn)
 	root.RawSetString("exec_shell", execShellFn)
 	root.RawSetString("split_lines", splitLinesFn)
+	root.RawSetString("exact", exactFn)
 	root.RawSetString("choose", chooseFn)
 	root.RawSetString("input", inputFn)
 	root.RawSetString("wait_close", waitCloseFn)
@@ -464,6 +470,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	L.SetGlobal("copy_to_clipboard", copyToClipboardFn)
 	L.SetGlobal("exec_shell", execShellFn)
 	L.SetGlobal("split_lines", splitLinesFn)
+	L.SetGlobal("exact", exactFn)
 	L.SetGlobal("choose", chooseFn)
 	L.SetGlobal("input", inputFn)
 	L.SetGlobal("wait_close", waitCloseFn)

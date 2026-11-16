@@ -998,12 +998,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.RevisionsObjectNode:
 		m.focusedObjectKind, m.focusedObjectIndex = textObjectNode, 0
 		return m.syncDetails(), true
-	case intents.FocusedBookmarkDelete:
-		return m.deleteBookmarks(), true
 	case intents.FocusedWorkspaceRename:
 		return m.renameFocusedWorkspace(), true
-	case intents.FocusedBookmarkForget:
-		return m.forgetBookmarks(), true
 	case intents.RevisionsObjectFocusKind:
 		m.focusedObjectKind, m.focusedObjectIndex = intent.Kind, 0
 		return m.syncDetails(), true
@@ -1013,14 +1009,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.renameFocusedBookmark(), true
 	case intents.FocusedBookmarkMove:
 		return m.moveBookmarks(), true
-	case intents.FocusedBookmarkAdvance:
-		return m.advanceBookmarks(), true
 	case intents.FocusedBookmarkTrack:
 		return m.trackBookmarks(intent.Track), true
-	case intents.FocusedBookmarkPush:
-		return m.pushBookmarks(), true
-	case intents.FocusedBookmarkFetch:
-		return m.fetchBookmarks(), true
 	case intents.GoToTop:
 		return m.goToTop(), true
 	case intents.GoToBottom:
