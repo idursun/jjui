@@ -220,8 +220,7 @@ lua = """
    flash("Only local tags can be deleted")
    return
  end
- local quoted = tag.value:gsub('\\\\', '\\\\\\\\'):gsub('"', '\\\\"')
- jj_async({ "tag", "delete", 'exact:"' .. quoted .. '"' })
+ jj_async({ "tag", "delete", exact(tag.value) })
  jjui.builtin.revisions.refresh()
  """
 
@@ -317,3 +316,212 @@ lua = """
  jj_async({ "workspace", "forget", name })
  jjui.builtin.revisions.refresh()
  """
+
+[[actions]]
+name = "revisions.bookmark.advance"
+lua = '''
+ local targets, seen = {}, {}
+ for _, object in ipairs(context.checked_objects()) do
+   local key = object.kind == "bookmark" and object.change_id and object.value .. "\n" .. (object.remote or "")
+   if key and not seen[key] then
+     seen[key] = true
+     table.insert(targets, object)
+   end
+ end
+ if #targets == 0 then
+   targets = { context.object() }
+ end
+
+ local args, names = { "bookmark", "advance" }, {}
+ for _, target in ipairs(targets) do
+   if not target.remote and not names[target.value] then
+     names[target.value] = true
+     table.insert(args, exact(target.value))
+   end
+ end
+ if #args == 2 then
+   flash("Only local bookmarks can be advanced")
+   return
+ end
+ local _, err = jj(args)
+ if err then
+   flash({ text = err, error = true })
+ end
+ jjui.builtin.revisions.refresh()
+ '''
+
+[[actions]]
+name = "revisions.bookmark.delete"
+lua = '''
+ local targets, seen = {}, {}
+ for _, object in ipairs(context.checked_objects()) do
+   local key = object.kind == "bookmark" and object.change_id and object.value .. "\n" .. (object.remote or "")
+   if key and not seen[key] then
+     seen[key] = true
+     table.insert(targets, object)
+   end
+ end
+ if #targets == 0 then
+   targets = { context.object() }
+ end
+
+ -- A remote bookmark is deleted through its local bookmark, which an
+ -- untracked one does not have until it is tracked.
+ local args, names = { "bookmark", "delete" }, {}
+ for _, target in ipairs(targets) do
+   if target.remote then
+     if not target.remotes then
+       flash("Bookmark tracking state is still loading")
+       return
+     end
+     local tracked = false
+     for _, remote in ipairs(target.remotes) do
+       if remote.name == target.remote then
+         tracked = remote.tracked
+       end
+     end
+     if not tracked then
+       local _, err = jj({ "bookmark", "track", exact(target.value), "--remote", exact(target.remote) })
+       if err then
+         flash({ text = err, error = true })
+         jjui.builtin.revisions.refresh()
+         return
+       end
+     end
+   end
+   if not names[target.value] then
+     names[target.value] = true
+     table.insert(args, exact(target.value))
+   end
+ end
+ local _, err = jj(args)
+ if err then
+   flash({ text = err, error = true })
+ end
+ jjui.builtin.revisions.refresh()
+ '''
+
+[[actions]]
+name = "revisions.bookmark.forget"
+lua = '''
+ local targets, seen = {}, {}
+ for _, object in ipairs(context.checked_objects()) do
+   local key = object.kind == "bookmark" and object.change_id and object.value .. "\n" .. (object.remote or "")
+   if key and not seen[key] then
+     seen[key] = true
+     table.insert(targets, object)
+   end
+ end
+ if #targets == 0 then
+   targets = { context.object() }
+ end
+
+ -- Remote and tracked bookmarks need --include-remotes, otherwise their
+ -- remote bookmarks stay behind.
+ local include = {}
+ for _, target in ipairs(targets) do
+   local tracked = target.remote ~= nil
+   if not tracked then
+     if not target.remotes then
+       flash("Bookmark tracking state is still loading")
+       return
+     end
+     for _, remote in ipairs(target.remotes) do
+       tracked = tracked or remote.tracked
+     end
+   end
+   include[target.value] = include[target.value] or tracked
+ end
+ local plain, with_remotes, added = { "bookmark", "forget" }, { "bookmark", "forget", "--include-remotes" }, {}
+ for _, target in ipairs(targets) do
+   if not added[target.value] then
+     added[target.value] = true
+     table.insert(include[target.value] and with_remotes or plain, exact(target.value))
+   end
+ end
+ local _, err
+ if #plain > 2 then
+   _, err = jj(plain)
+ end
+ if not err and #with_remotes > 3 then
+   _, err = jj(with_remotes)
+ end
+ if err then
+   flash({ text = err, error = true })
+ end
+ jjui.builtin.revisions.refresh()
+ '''
+
+[[actions]]
+name = "revisions.bookmark.push"
+lua = '''
+ local targets, seen = {}, {}
+ for _, object in ipairs(context.checked_objects()) do
+   local key = object.kind == "bookmark" and object.change_id and object.value .. "\n" .. (object.remote or "")
+   if key and not seen[key] then
+     seen[key] = true
+     table.insert(targets, object)
+   end
+ end
+ if #targets == 0 then
+   targets = { context.object() }
+ end
+
+ -- One push per remote, since a push takes a single remote. A local bookmark
+ -- goes to jj's default push remote.
+ local remotes, commands = {}, {}
+ for _, target in ipairs(targets) do
+   local remote = target.remote or ""
+   if not commands[remote] then
+     commands[remote] = { "git", "push" }
+     table.insert(remotes, remote)
+   end
+   table.insert(commands[remote], "--bookmark")
+   table.insert(commands[remote], exact(target.value))
+ end
+ for _, remote in ipairs(remotes) do
+   if remote ~= "" then
+     table.insert(commands[remote], "--remote")
+     table.insert(commands[remote], remote)
+   end
+   jj_async(commands[remote])
+ end
+ jjui.builtin.revisions.refresh()
+ '''
+
+[[actions]]
+name = "revisions.bookmark.fetch"
+lua = '''
+ local targets, seen = {}, {}
+ for _, object in ipairs(context.checked_objects()) do
+   local key = object.kind == "bookmark" and object.change_id and object.value .. "\n" .. (object.remote or "")
+   if key and not seen[key] then
+     seen[key] = true
+     table.insert(targets, object)
+   end
+ end
+ if #targets == 0 then
+   targets = { context.object() }
+ end
+
+ -- One fetch per remote, since a fetch takes a single remote. A local
+ -- bookmark comes from jj's default fetch remotes.
+ local remotes, commands = {}, {}
+ for _, target in ipairs(targets) do
+   local remote = target.remote or ""
+   if not commands[remote] then
+     commands[remote] = { "git", "fetch" }
+     table.insert(remotes, remote)
+   end
+   table.insert(commands[remote], "--branch")
+   table.insert(commands[remote], exact(target.value))
+ end
+ for _, remote in ipairs(remotes) do
+   if remote ~= "" then
+     table.insert(commands[remote], "--remote")
+     table.insert(commands[remote], remote)
+   end
+   jj_async(commands[remote])
+ end
+ jjui.builtin.revisions.refresh()
+ '''

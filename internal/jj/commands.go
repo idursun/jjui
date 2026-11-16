@@ -243,14 +243,6 @@ func BookmarkMove(revision string, bookmarks []string, extraFlags ...string) Com
 
 // BookmarkAdvance moves the bookmark forward to revsets.bookmark-advance-to,
 // which defaults to @.
-func BookmarkAdvance(names ...string) CommandArgs {
-	return append([]string{"bookmark", "advance"}, exactStringPatterns(names)...)
-}
-
-func BookmarkDelete(names ...string) CommandArgs {
-	return append([]string{"bookmark", "delete"}, exactStringPatterns(names)...)
-}
-
 func BookmarkRename(oldName string, newName string) CommandArgs {
 	return []string{"bookmark", "rename", oldName, newName}
 }
@@ -261,14 +253,6 @@ func revisionFlags(revisions []string) []string {
 		flags = append(flags, "-r", revision)
 	}
 	return flags
-}
-
-func BookmarkForget(names ...string) CommandArgs {
-	return append([]string{"bookmark", "forget"}, exactStringPatterns(names)...)
-}
-
-func BookmarkForgetIncludingRemotes(names ...string) CommandArgs {
-	return append([]string{"bookmark", "forget", "--include-remotes"}, exactStringPatterns(names)...)
 }
 
 func exactStringPatterns(values []string) []string {

@@ -256,11 +256,6 @@ type RevisionsObjectNode struct{}
 
 func (RevisionsObjectNode) isIntent() {}
 
-//jjui:bind scope=revisions.bookmark action=delete
-type FocusedBookmarkDelete struct{}
-
-func (FocusedBookmarkDelete) isIntent() {}
-
 //jjui:bind scope=revisions.bookmark action=rename
 type FocusedBookmarkRename struct{}
 
@@ -271,11 +266,6 @@ type FocusedBookmarkMove struct{}
 
 func (FocusedBookmarkMove) isIntent() {}
 
-//jjui:bind scope=revisions.bookmark action=advance
-type FocusedBookmarkAdvance struct{}
-
-func (FocusedBookmarkAdvance) isIntent() {}
-
 //jjui:bind scope=revisions.bookmark action=track set=Track:true when="revisions.can_track_bookmark"
 //jjui:bind scope=revisions.bookmark action=untrack set=Track:false when="revisions.can_untrack_bookmark"
 type FocusedBookmarkTrack struct {
@@ -283,21 +273,6 @@ type FocusedBookmarkTrack struct {
 }
 
 func (FocusedBookmarkTrack) isIntent() {}
-
-//jjui:bind scope=revisions.bookmark action=push
-type FocusedBookmarkPush struct{}
-
-func (FocusedBookmarkPush) isIntent() {}
-
-//jjui:bind scope=revisions.bookmark action=fetch
-type FocusedBookmarkFetch struct{}
-
-func (FocusedBookmarkFetch) isIntent() {}
-
-//jjui:bind scope=revisions.bookmark action=forget
-type FocusedBookmarkForget struct{}
-
-func (FocusedBookmarkForget) isIntent() {}
 
 //jjui:bind scope=revisions.workspace action=rename
 type FocusedWorkspaceRename struct{}

@@ -553,3 +553,11 @@ func TestContext_Object(t *testing.T) {
 	`, "kind", "value", "remote", "conflicted")
 	assert.Equal(t, []lua.LValue{lua.LString("remote"), lua.LString("origin"), lua.LNil, lua.LNil}, got)
 }
+
+func TestExact_QuotesNamesAsExactPatterns(t *testing.T) {
+	got := runScriptAndGetGlobals(t, &uicontext.MainContext{}, `
+		plain = exact("main")
+		special = jjui.exact('fix "quoted"\\branch')
+	`, "plain", "special")
+	assert.Equal(t, []lua.LValue{lua.LString(`exact:"main"`), lua.LString(`exact:"fix \"quoted\"\\branch"`)}, got)
+}

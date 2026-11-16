@@ -543,7 +543,6 @@ func Test_TextObjects_ResetsCheckedAuthors(t *testing.T) {
 		if err := session.SendKey(ghostty.KeySpace, " ", 0); err != nil {
 			t.Fatal(err)
 		}
-		// space is a Lua action, and a second one is refused while the first runs
 		if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, fmt.Sprintf("%d checked", i+1)) }); err != nil {
 			t.Fatalf("not checked: %v", err)
 		}
@@ -645,7 +644,6 @@ func Test_TextObjects_PushesCheckedRevisions(t *testing.T) {
 		if err := session.SendKey(ghostty.KeySpace, " ", 0); err != nil {
 			t.Fatal(err)
 		}
-		// space is a Lua action, and a second one is refused while the first runs
 		if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, fmt.Sprintf("%d checked", i+1)) }); err != nil {
 			t.Fatalf("not checked: %v", err)
 		}
@@ -775,4 +773,55 @@ func Test_TextObjects_LuaSeesFocusedRemote(t *testing.T) {
 	h.Key("Y")
 	h.WaitText("remote|origin|nil|nil|false")
 	h.Quit()
+}
+
+func checkTwoBookmarks(t *testing.T, repo *testRepo) (*ptySession, context.Context) {
+	t.Helper()
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "first-mark")
+	focusTextOnRow(t, session, ctx, "second-mark")
+	// space checks the bookmark and moves to the next one
+	for i := range 2 {
+		if err := session.SendKey(ghostty.KeySpace, " ", 0); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, fmt.Sprintf("%d checked", i+1)) }); err != nil {
+			t.Fatalf("bookmark not checked: %v", err)
+		}
+	}
+	return session, ctx
+}
+
+func Test_TextObjects_PushesCheckedBookmarks(t *testing.T) {
+	t.Parallel()
+	repo, remote := newRepoWithFileRemote(t)
+	repo.JJ("describe", "-m", "first")
+	repo.JJ("bookmark", "create", "first-mark", "-r", "@")
+	repo.JJ("new", "-m", "second")
+	repo.JJ("bookmark", "create", "second-mark", "-r", "@")
+	repo.JJ("bookmark", "track", "first-mark", "second-mark", "--remote", "origin")
+
+	session, ctx := checkTwoBookmarks(t, repo)
+	if err := session.SendKey(ghostty.KeyG, "G", ghostty.ModShift); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		return remoteHasBranch(t, repo, remote, "first-mark") && remoteHasBranch(t, repo, remote, "second-mark"), nil
+	})
+}
+
+func Test_TextObjects_DeletesCheckedBookmarks(t *testing.T) {
+	t.Parallel()
+	repo := newTestRepo(t)
+	repo.JJ("describe", "-m", "first")
+	repo.JJ("bookmark", "create", "first-mark", "-r", "@")
+	repo.JJ("new", "-m", "second")
+	repo.JJ("bookmark", "create", "second-mark", "-r", "@")
+
+	session, ctx := checkTwoBookmarks(t, repo)
+	if err := session.SendKey(ghostty.KeyX, "x", 0); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		return !bookmarkExists(t, repo.Path(), repo.Env(), "first-mark") && !bookmarkExists(t, repo.Path(), repo.Env(), "second-mark"), nil
+	})
 }

@@ -52,20 +52,6 @@ func (m *Model) moveBookmarks() tea.Cmd {
 	return m.setBaseOperation(bookmark.NewMoveBookmarkOperation(m.context, names, m.SelectedRevision()))
 }
 
-// advanceBookmarks moves the local bookmarks among the targets forward to jj's
-// advance target, @ by default.
-func (m *Model) advanceBookmarks() tea.Cmd {
-	targets := m.bookmarkTargets()
-	if len(targets) == 0 {
-		return nil
-	}
-	names, cmd := localBookmarkNames(targets, "advanced")
-	if cmd != nil {
-		return cmd
-	}
-	return m.runBookmarkCommands([]jj.CommandArgs{jj.BookmarkAdvance(names...)})
-}
-
 type loadedBookmark struct {
 	textObject
 	commit *jj.Commit
@@ -129,76 +115,6 @@ func (m *Model) listAllBookmarks() ([]jj.Bookmark, tea.Cmd) {
 		return nil, intents.Invoke(intents.AddMessage{Text: "Could not list bookmarks", Err: err})
 	}
 	return jj.ParseBookmarkListOutput(string(output)), nil
-}
-
-// deleteBookmarks deletes local bookmarks. Remote bookmarks are marked deleted
-// so that pushing them deletes them on the remote; an untracked one has no
-// local bookmark until it is tracked.
-func (m *Model) deleteBookmarks() tea.Cmd {
-	targets := m.bookmarkTargets()
-	if len(targets) == 0 {
-		return nil
-	}
-	var listing []jj.Bookmark
-	if slices.ContainsFunc(targets, func(o textObject) bool { return o.Remote != "" }) {
-		var cmd tea.Cmd
-		if listing, cmd = m.listAllBookmarks(); cmd != nil {
-			return cmd
-		}
-	}
-	var commands []jj.CommandArgs
-	var names []string
-	for _, target := range targets {
-		if target.Remote != "" && !isRemoteBookmarkTracked(listing, target.Value, target.Remote) {
-			commands = append(commands, jj.BookmarkTrack(target.Value, target.Remote))
-		}
-		if !slices.Contains(names, target.Value) {
-			names = append(names, target.Value)
-		}
-	}
-	return m.runBookmarkCommands(append(commands, jj.BookmarkDelete(names...)))
-}
-
-// pushBookmarks pushes the bookmarks; remote bookmarks go to their remote,
-// which also pushes a deletion marked with x.
-func (m *Model) pushBookmarks() tea.Cmd {
-	targets := m.bookmarkTargets()
-	if len(targets) == 0 {
-		return nil
-	}
-	return m.runBookmarkCommands(bookmarkCommandsByRemote(targets, "--bookmark", jj.GitPush))
-}
-
-// fetchBookmarks fetches the bookmarks; remote bookmarks come from their
-// remote, local ones from jj's default fetch remotes.
-func (m *Model) fetchBookmarks() tea.Cmd {
-	targets := m.bookmarkTargets()
-	if len(targets) == 0 {
-		return nil
-	}
-	return m.runBookmarkCommands(bookmarkCommandsByRemote(targets, "--branch", jj.GitFetch))
-}
-
-// bookmarkCommandsByRemote builds one command per remote because push and
-// fetch take a single remote.
-func bookmarkCommandsByRemote(targets []textObject, flag string, command func(...string) jj.CommandArgs) []jj.CommandArgs {
-	var remotes []string
-	byRemote := make(map[string][]string)
-	for _, target := range targets {
-		if _, ok := byRemote[target.Remote]; !ok {
-			remotes = append(remotes, target.Remote)
-		}
-		byRemote[target.Remote] = append(byRemote[target.Remote], flag, jj.ExactStringPattern(target.Value))
-	}
-	commands := make([]jj.CommandArgs, 0, len(remotes))
-	for _, remote := range remotes {
-		args := byRemote[remote]
-		if remote != "" {
-			args = append(args, "--remote", remote)
-		}
-		commands = append(commands, command(args...))
-	}
-	return commands
 }
 
 // trackBookmarks tracks or untracks remote bookmarks, or local bookmarks
@@ -326,46 +242,6 @@ func isRemoteBookmarkTracked(listing []jj.Bookmark, name string, remote string) 
 		}
 	}
 	return false
-}
-
-// forgetBookmarks forgets the bookmarks without marking a deletion to push.
-// Remote and tracked bookmarks are forgotten with --include-remotes, otherwise
-// their remote bookmarks stay behind; they come back on the next fetch if they
-// still exist on the remote.
-func (m *Model) forgetBookmarks() tea.Cmd {
-	targets := m.bookmarkTargets()
-	if len(targets) == 0 {
-		return nil
-	}
-	var listing []jj.Bookmark
-	if slices.ContainsFunc(targets, func(o textObject) bool { return o.Remote == "" }) {
-		var cmd tea.Cmd
-		if listing, cmd = m.listAllBookmarks(); cmd != nil {
-			return cmd
-		}
-	}
-	var plain, withRemotes []string
-	for _, target := range targets {
-		tracked := slices.ContainsFunc(listing, func(b jj.Bookmark) bool {
-			return b.Name == target.Value && slices.ContainsFunc(b.Remotes, func(r jj.BookmarkRemote) bool { return r.Tracked })
-		})
-		if target.Remote != "" || tracked {
-			if !slices.Contains(withRemotes, target.Value) {
-				withRemotes = append(withRemotes, target.Value)
-			}
-		} else {
-			plain = append(plain, target.Value)
-		}
-	}
-	plain = slices.DeleteFunc(plain, func(name string) bool { return slices.Contains(withRemotes, name) })
-	var commands []jj.CommandArgs
-	if len(plain) > 0 {
-		commands = append(commands, jj.BookmarkForget(plain...))
-	}
-	if len(withRemotes) > 0 {
-		commands = append(commands, jj.BookmarkForgetIncludingRemotes(withRemotes...))
-	}
-	return m.runBookmarkCommands(commands)
 }
 
 // widenedRevset unions the current revset with extra, or explains why it
