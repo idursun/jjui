@@ -49,7 +49,11 @@ func (m *Model) moveBookmarks() tea.Cmd {
 	if cmd != nil {
 		return cmd
 	}
-	return m.setBaseOperation(bookmark.NewMoveBookmarkOperation(m.context, names, m.SelectedRevision()))
+	// Leaving the bookmarks view brings back the revset to pick a target from.
+	return tea.Batch(
+		m.setBaseOperation(bookmark.NewMoveBookmarkOperation(m.context, names, m.SelectedRevision())),
+		intents.Invoke(intents.RevsetBookmarksExit{}),
+	)
 }
 
 type loadedBookmark struct {
