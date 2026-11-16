@@ -134,6 +134,25 @@ func Test_BookmarksView_StatusLeadsWithFocusedObject(t *testing.T) {
 	h.Quit()
 }
 
+// Move started from the bookmarks view picks its target from the revset the
+// view replaced.
+func Test_BookmarksView_MoveTargetsThePreviousRevset(t *testing.T) {
+	t.Parallel()
+	h := startBookmarksView(t)
+	h.WaitNoText("(empty)")
+
+	h.Key("m")
+	h.WaitNoText("filter:")
+	h.WaitText("(empty)")
+	h.WaitText("<< onto >>")
+	h.Key("k")
+	// The target follows the cursor onto the working copy.
+	h.WaitTextInOrder("<< onto >>", "(empty)")
+	h.Key("Enter")
+	h.WaitText("Moved 1 bookmarks")
+	h.Quit()
+}
+
 func Test_BookmarksView_PushesDeletionsToTheFocusedRemote(t *testing.T) {
 	t.Parallel()
 	repo, remote := newRepoWithFileRemote(t)
