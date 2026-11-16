@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,28 @@ func workspaceNames(t *testing.T, repo *testRepo) string {
 func Test_WorkspaceObjects_ForgetsFocusedWorkspace(t *testing.T) {
 	t.Parallel()
 	repo := newRepoWithSideWorkspace(t)
+	side := strings.TrimSpace(runCommand(t, repo.Path(), repo.Env(), "jj", "workspace", "root", "--name", "side", "--ignore-working-copy"))
+
+	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "side@")
+	if err := session.SendKey(ghostty.KeyJ, "j", 0); err != nil {
+		t.Fatal(err)
+	}
+	focusTextOnRow(t, session, ctx, "side@")
+	if err := session.SendKey(ghostty.KeyX, "X", ghostty.ModShift); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, ctx, func() (bool, error) {
+		return !strings.Contains(workspaceNames(t, repo), "side"), nil
+	})
+	if _, err := os.Stat(side); err != nil {
+		t.Fatalf("forget removed the workspace directory: %v", err)
+	}
+}
+
+func Test_WorkspaceObjects_RemovesFocusedWorkspace(t *testing.T) {
+	t.Parallel()
+	repo := newRepoWithSideWorkspace(t)
+	side := strings.TrimSpace(runCommand(t, repo.Path(), repo.Env(), "jj", "workspace", "root", "--name", "side", "--ignore-working-copy"))
 
 	session, ctx := startJJUITestWithRepo(t, jjuiBinary(t), repo, "side@")
 	if err := session.SendKey(ghostty.KeyJ, "j", 0); err != nil {
@@ -34,7 +57,8 @@ func Test_WorkspaceObjects_ForgetsFocusedWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitFor(t, ctx, func() (bool, error) {
-		return !strings.Contains(workspaceNames(t, repo), "side"), nil
+		_, err := os.Stat(side)
+		return !strings.Contains(workspaceNames(t, repo), "side") && os.IsNotExist(err), nil
 	})
 }
 
