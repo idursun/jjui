@@ -206,7 +206,8 @@ func Test_Annotation_DeletedFileUsesOldLines(t *testing.T) {
 	addReviewComment(t, h, "old side note")
 	h.Key("v")
 	screen := h.WaitText("comment: old side note")
-	assertCommentAfter(t, screen, "deleted first", "comment: old side note")
+	// The hunk header repeats the first line as context, so match the line itself.
+	assertCommentAfter(t, screen, "│ deleted first", "comment: old side note")
 	h.Key("y")
 	payload := waitAnnotationClipboard(t, h)
 	if !strings.Contains(payload, "(old 1)") || !strings.Contains(payload, "\n deleted first\n") {
