@@ -16,6 +16,11 @@ Press `p` to toggle the preview pane. It updates automatically as you navigate â
 | Evolog entry highlighted | Patch diff of that entry (`jj evolog -p -n 1`) |
 | Oplog entry highlighted | Operation details (`jj op show`) |
 
+When a revision is highlighted, file names in the preview also show their
+`+added`/`-removed` line counts, so you can see per-file sizes without
+expanding the details view. These counts follow the
+[`show_diffstat`](/jjui/customization/config-toml#revisions) setting.
+
 ## Keys
 
 - `p`: toggle preview on/off
