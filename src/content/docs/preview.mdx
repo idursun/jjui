@@ -43,6 +43,17 @@ width_increment_percentage = 5.0
 - `right`: always on the right
 - `bottom`: always at the bottom
 
+## Line wrapping
+
+Long lines are word-wrapped to the width of the preview pane, so commit descriptions and wide diff lines stay readable without horizontal scrolling. Wrapped lines keep the leading indentation of the original line, so indented descriptions in `jj show` stay aligned, and colours and hyperlinks carry over to every wrapped line. Content is re-wrapped whenever the pane is resized.
+
+```toml
+[preview]
+wrap = true
+```
+
+Set `wrap = false` to clip long lines at the pane edge instead; you can then scroll sideways with the mouse to read them.
+
 ## Customizing preview commands
 
 All preview commands are configurable. The placeholders `$change_id`, `$commit_id`, `$operation_id`, and `$file` are substituted at runtime.
