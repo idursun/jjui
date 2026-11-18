@@ -27,6 +27,9 @@ bindings_profile = ":builtin"
   # template = 'builtin_log_compact' # overrides jj's templates.log
   # revset = "zzzzzzz"               # overrides jj's revsets.log
 
+[revisions.abandon]
+  retain_bookmarks = false # true moves bookmarks to the parent instead of deleting them
+
 [preview]
   revision_command = ["show", "--color", "always", "-r", "$change_id"]
   evolog_command = ["evolog", "--color", "always", "-r", "$commit_id", "-p", "-n", "1"]

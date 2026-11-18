@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -25,7 +26,22 @@ func selectRevision(model *Operation, commit *jj.Commit) {
 
 func Test_Accept(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.Abandon(revisions, false))
+	commandRunner.Expect(jj.CommandArgs{"abandon", "-r", "a"})
+	defer commandRunner.Verify()
+
+	model := NewOperation(test.NewTestContext(commandRunner), revisions, commit)
+	test.SimulateModel(model, model.Init())
+
+	test.SimulateModel(model, func() tea.Msg { return intents.Apply{} })
+}
+
+func Test_AcceptRetainsBookmarksWhenConfigured(t *testing.T) {
+	orig := config.Current.Revisions.Abandon.RetainBookmarks
+	t.Cleanup(func() { config.Current.Revisions.Abandon.RetainBookmarks = orig })
+	config.Current.Revisions.Abandon.RetainBookmarks = true
+
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.CommandArgs{"abandon", "--retain-bookmarks", "-r", "a"})
 	defer commandRunner.Verify()
 
 	model := NewOperation(test.NewTestContext(commandRunner), revisions, commit)

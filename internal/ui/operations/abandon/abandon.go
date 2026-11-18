@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
@@ -92,7 +93,7 @@ func (a *Operation) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		if len(a.selectedRevisions.Revisions) == 0 {
 			return nil, true
 		}
-		return a.context.RunCommand(jj.Abandon(a.selectedRevisions, intent.Force), common.Refresh, common.CloseApplied), true
+		return a.context.RunCommand(jj.Abandon(a.selectedRevisions, intent.Force, config.Current.Revisions.Abandon.RetainBookmarks), common.Refresh, common.CloseApplied), true
 	case intents.AbandonToggleSelect:
 		if a.current == nil {
 			return nil, true
