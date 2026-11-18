@@ -227,7 +227,7 @@ lua = """
 [[actions]]
 name = "revisions.divergent.abandon"
 lua = """
- jj_async({ "abandon", "--retain-bookmarks", context.commit_id() })
+ jj_async({ "abandon", context.commit_id() })
  jjui.builtin.revisions.refresh()
  """
 
