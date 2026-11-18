@@ -181,3 +181,19 @@ func TestDefaultAskpassEnabled(t *testing.T) {
 		t.Fatal("askpass should be enabled by default")
 	}
 }
+
+func TestLoad_ShowDiffstat(t *testing.T) {
+	config := &Config{}
+	err := config.Load(`
+[revisions]
+show_diffstat = false
+`, "")
+	require.NoError(t, err)
+	assert.False(t, config.Revisions.ShowDiffstat)
+}
+
+func TestDefaultShowDiffstat(t *testing.T) {
+	if !loadDefaultConfig().Revisions.ShowDiffstat {
+		t.Fatal("show_diffstat should be enabled by default")
+	}
+}

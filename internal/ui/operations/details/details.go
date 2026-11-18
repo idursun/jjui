@@ -524,13 +524,36 @@ func (s *Operation) createListItems(content string, selectedFiles []jj.FileName)
 	}
 
 	_, after, _ := strings.Cut(content, "$")
+	// After the conflicts delimiter, the template emits one JSON diffstat line
+	// per file, terminated by a "$$" line, followed by the `--summary` lines.
+	// Older outputs (and tests) may omit the diffstat section entirely.
+	stats := make(map[string]jj.FileStat)
+	var summaryLines []string
 	scanner = bufio.NewScanner(strings.NewReader(after))
-	index := 0
+	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
+	statsDone := false
 	for scanner.Scan() {
-		file := strings.TrimSpace(scanner.Text())
-		if file == "" {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
 			continue
 		}
+		if !statsDone {
+			if line == "$$" {
+				statsDone = true
+				continue
+			}
+			if st, ok := jj.ParseFileStatLine(line); ok {
+				stats[st.Path] = st
+				continue
+			}
+			// Not a stats line and no "$$" terminator: legacy format without
+			// diffstat. Treat this and the rest as summary lines.
+			statsDone = true
+		}
+		summaryLines = append(summaryLines, line)
+	}
+	index := 0
+	for _, file := range summaryLines {
 		summary, ok := jj.ParseSummaryFile(file)
 		if !ok {
 			continue
@@ -548,13 +571,21 @@ func (s *Operation) createListItems(content string, selectedFiles []jj.FileName)
 		case 'C':
 			status = Copied
 		}
-		items = append(items, &item{
+		it := &item{
 			status:   status,
 			name:     summary.Display(s.context.Location, s.context.WorkingDirectory),
 			fileName: summary.FileName,
 			selected: slices.Contains(selectedFiles, summary.FileName),
-			conflict: conflicts[index],
-		})
+		}
+		if index < len(conflicts) {
+			it.conflict = conflicts[index]
+		}
+		if st, ok := stats[summary.FileName.Path()]; ok {
+			it.added = st.Added
+			it.removed = st.Removed
+			it.hasStats = true
+		}
+		items = append(items, it)
 		index++
 	}
 	return items

@@ -175,6 +175,7 @@ func TestUpdate_PreviewShowDoesNotBreakSelectionRefresh(t *testing.T) {
 		jj.PreviewWidthPlaceholder: "80",
 	})
 	commandRunner.Expect(args).SetOutput([]byte("line 1\nline 2\nline 3\nline 4\nline 5"))
+	commandRunner.Expect(jj.FileStats("change")).SetOutput([]byte(""))
 
 	model.Update(intents.PreviewShow{Content: "manual"})
 	cmd := model.Update(common.RefreshMsg{})
@@ -194,6 +195,71 @@ func TestUpdate_PreviewShowDoesNotBreakSelectionRefresh(t *testing.T) {
 
 	assert.Equal(t, "line 1\nline 2\nline 3\nline 4\nline 5", model.content)
 	assert.Equal(t, 2, model.YOffset())
+}
+
+func TestUpdate_RevisionPreviewAnnotatesChangedFiles(t *testing.T) {
+	orig := config.Current.Revisions.ShowDiffstat
+	t.Cleanup(func() { config.Current.Revisions.ShowDiffstat = orig })
+	config.Current.Revisions.ShowDiffstat = true
+
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	ctx.CurrentRevset = "all()"
+	model := New(ctx)
+	model.ViewRect(render.NewDisplayContext(), layout.NewBox(layout.Rect(0, 0, 80, 3)))
+
+	selected := common.SelectedRevision{ChangeId: "change", CommitId: "commit"}
+	ctx.SetStateProvider(selectionStateProvider{snapshot: common.SelectionSnapshot{Highlighted: selected}})
+	args := jj.TemplatedArgs(config.Current.Preview.RevisionCommand, map[string]string{
+		jj.RevsetPlaceholder:       ctx.CurrentRevset,
+		jj.ChangeIdPlaceholder:     selected.ChangeId,
+		jj.CommitIdPlaceholder:     selected.CommitId,
+		jj.PreviewWidthPlaceholder: "80",
+	})
+	commandRunner.Expect(args).SetOutput([]byte("internal/config/config.go\nunrelated line\n"))
+	commandRunner.Expect(jj.FileStats("change")).SetOutput([]byte(
+		"{\"path\":\"internal/config/config.go\",\"added\":12,\"removed\":3}\n"))
+
+	cmd := model.Update(common.RefreshMsg{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	assert.Contains(t, test.Stripped(model.content), "internal/config/config.go +12 -3")
+	assert.Contains(t, test.Stripped(model.content), "unrelated line")
+	assert.NotContains(t, test.Stripped(model.content), "unrelated line +")
+}
+
+func TestUpdate_RevisionPreviewSkipsStatsWhenDisabled(t *testing.T) {
+	orig := config.Current.Revisions.ShowDiffstat
+	t.Cleanup(func() { config.Current.Revisions.ShowDiffstat = orig })
+	config.Current.Revisions.ShowDiffstat = false
+
+	commandRunner := test.NewTestCommandRunner(t)
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	ctx.CurrentRevset = "all()"
+	model := New(ctx)
+	model.ViewRect(render.NewDisplayContext(), layout.NewBox(layout.Rect(0, 0, 80, 3)))
+
+	selected := common.SelectedRevision{ChangeId: "change", CommitId: "commit"}
+	ctx.SetStateProvider(selectionStateProvider{snapshot: common.SelectionSnapshot{Highlighted: selected}})
+	args := jj.TemplatedArgs(config.Current.Preview.RevisionCommand, map[string]string{
+		jj.RevsetPlaceholder:       ctx.CurrentRevset,
+		jj.ChangeIdPlaceholder:     selected.ChangeId,
+		jj.CommitIdPlaceholder:     selected.CommitId,
+		jj.PreviewWidthPlaceholder: "80",
+	})
+	// No FileStats expectation: disabled means no stats command may run.
+	commandRunner.Expect(args).SetOutput([]byte("internal/config/config.go\n"))
+
+	cmd := model.Update(common.RefreshMsg{})
+	require.NotNil(t, cmd)
+	test.SimulateModel(model, cmd)
+
+	assert.Equal(t, "internal/config/config.go\n", model.content)
 }
 
 func TestSetContent_ExpandsTabsUsingTabStops(t *testing.T) {

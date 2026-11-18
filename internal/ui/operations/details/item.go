@@ -22,6 +22,9 @@ type item struct {
 	fileName jj.FileName
 	selected bool
 	conflict bool
+	added    int
+	removed  int
+	hasStats bool
 }
 
 func (f item) Title() string {

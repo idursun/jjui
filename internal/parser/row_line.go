@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/idursun/jjui/internal/jj"
@@ -37,7 +38,7 @@ func (gr *GraphRowLine) ParseRowPrefixes() (int, *jj.Commit) {
 		return -1, nil
 	}
 	prefixParts := strings.Split(gr.Segments[prefixesIdx].Text, jj.JJUIPrefix)
-	if len(prefixParts) != 3 && len(prefixParts) != 4 && len(prefixParts) != 5 && len(prefixParts) != 6 && len(prefixParts) != 7 && len(prefixParts) != 8 {
+	if len(prefixParts) != 3 && len(prefixParts) != 4 && len(prefixParts) != 5 && len(prefixParts) != 6 && len(prefixParts) != 7 && len(prefixParts) != 8 && len(prefixParts) != 10 {
 		return -1, nil
 	}
 	beforePrefix := prefixParts[0]
@@ -45,7 +46,7 @@ func (gr *GraphRowLine) ParseRowPrefixes() (int, *jj.Commit) {
 		ChangeId: strings.TrimSpace(prefixParts[1]),
 		CommitId: strings.TrimSpace(prefixParts[2]),
 	}
-	if len(prefixParts) == 6 || len(prefixParts) == 7 || len(prefixParts) == 8 {
+	if len(prefixParts) == 6 || len(prefixParts) == 7 || len(prefixParts) == 8 || len(prefixParts) == 10 {
 		commit.HasBookmarks = strings.TrimSpace(prefixParts[3]) == "true"
 		commit.HasLocalBookmarks = strings.TrimSpace(prefixParts[4]) == "true"
 		commit.HasWorkspace = strings.TrimSpace(prefixParts[5]) == "true"
@@ -60,6 +61,16 @@ func (gr *GraphRowLine) ParseRowPrefixes() (int, *jj.Commit) {
 		commit.Root = strings.TrimSpace(prefixParts[6]) == "true"
 		if len(prefixParts) == 8 {
 			commit.IsEmpty = strings.TrimSpace(prefixParts[7]) == "true"
+		}
+	case 10:
+		commit.Root = strings.TrimSpace(prefixParts[6]) == "true"
+		commit.IsEmpty = strings.TrimSpace(prefixParts[7]) == "true"
+		added, addedErr := strconv.Atoi(strings.TrimSpace(prefixParts[8]))
+		removed, removedErr := strconv.Atoi(strings.TrimSpace(prefixParts[9]))
+		if addedErr == nil && removedErr == nil {
+			commit.DiffAdded = added
+			commit.DiffRemoved = removed
+			commit.HasDiffStats = true
 		}
 	}
 

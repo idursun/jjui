@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
@@ -216,4 +217,59 @@ func TestDisplayContextRenderer_SetBookmarkRegistersInlineCursor(t *testing.T) {
 	require.NotNil(t, inlineCursor)
 	assert.Equal(t, viewRect.R.Min.X+1+inlineCursor.Position.X, cursor.Position.X)
 	assert.Equal(t, viewRect.R.Min.Y+inlineCursor.Position.Y, cursor.Position.Y)
+}
+
+func TestDisplayContextRenderer_RendersDiffStatTotals(t *testing.T) {
+	row := parser.Row{
+		Commit: &jj.Commit{ChangeId: "abc123", CommitId: "def456", DiffAdded: 12, DiffRemoved: 3, HasDiffStats: true},
+		Lines: []*parser.GraphRowLine{
+			{
+				Gutter:   parser.GraphGutter{Segments: []*screen.Segment{{Text: "○"}}},
+				Segments: []*screen.Segment{{Text: "def456 test commit"}},
+				Flags:    parser.Revision | parser.Highlightable,
+			},
+		},
+	}
+
+	r := NewDisplayContextRenderer()
+	dl := render.NewDisplayContext()
+	viewRect := layout.NewBox(layout.Rect(0, 0, 60, 5))
+	r.Render(dl, []parser.Row{row}, 0, viewRect, nil, nil, false, "", true)
+
+	buf := uv.NewScreenBuffer(60, 5)
+	dl.Render(buf)
+	out := buf.Render()
+
+	assert.Contains(t, out, "+12")
+	assert.Contains(t, out, "-3")
+}
+
+func TestDisplayContextRenderer_HidesDiffStatTotalsWhenDisabled(t *testing.T) {
+	orig := config.Current.Revisions.ShowDiffstat
+	t.Cleanup(func() { config.Current.Revisions.ShowDiffstat = orig })
+	config.Current.Revisions.ShowDiffstat = false
+
+	row := parser.Row{
+		Commit: &jj.Commit{ChangeId: "abc123", CommitId: "def456", DiffAdded: 12, DiffRemoved: 3, HasDiffStats: true},
+		Lines: []*parser.GraphRowLine{
+			{
+				Gutter:   parser.GraphGutter{Segments: []*screen.Segment{{Text: "○"}}},
+				Segments: []*screen.Segment{{Text: "def456 test commit"}},
+				Flags:    parser.Revision | parser.Highlightable,
+			},
+		},
+	}
+
+	r := NewDisplayContextRenderer()
+	dl := render.NewDisplayContext()
+	viewRect := layout.NewBox(layout.Rect(0, 0, 60, 5))
+	r.Render(dl, []parser.Row{row}, 0, viewRect, nil, nil, false, "", true)
+
+	buf := uv.NewScreenBuffer(60, 5)
+	dl.Render(buf)
+	out := buf.Render()
+
+	assert.Contains(t, out, "test commit")
+	assert.NotContains(t, out, "+12")
+	assert.NotContains(t, out, "-3")
 }
