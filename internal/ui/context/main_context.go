@@ -38,6 +38,9 @@ type MainContext struct {
 	ScriptVM                  *lua.LState
 	TerminalWidth             int
 	TerminalHeight            int
+	// PreviewState reports the currently displayed preview buffer. visible is
+	// false when the preview is hidden or another split pane is active.
+	PreviewState func() (yOffset int, content string, visible bool)
 }
 
 // SetStateProvider connects the context to the root's live state resolver.

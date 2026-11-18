@@ -101,6 +101,10 @@ func (m *Model) YOffset() int {
 	return m.view.YOffset()
 }
 
+func (m *Model) Content() string {
+	return m.content
+}
+
 func (m *Model) Scroll(delta int) tea.Cmd {
 	if delta > 0 {
 		m.view.ScrollDown(delta)

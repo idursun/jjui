@@ -215,3 +215,30 @@ func TestSetContent_ResetsTabStopsAfterNewlines(t *testing.T) {
 	rendered := test.Stripped(test.RenderImmediate(model, 12, 2))
 	assert.Equal(t, "a   b\nab  c", rendered)
 }
+
+func TestContent_ReturnsNormalizedStoredBuffer(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+
+	model.SetContent("line1\r\n+\tfoo\n\n\x1b[32mgreen\x1b[0m\n")
+
+	assert.Equal(t, "line1\n+   foo\n\n\x1b[32mgreen\x1b[0m\n", model.Content())
+}
+
+func TestContent_IsNotCroppedByScrolling(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+
+	content := "alpha\nbeta\ngamma\ndelta\nepsilon\n"
+	model.SetContent(content)
+	model.ViewRect(render.NewDisplayContext(), layout.NewBox(layout.Rect(0, 0, 3, 2)))
+	model.Scroll(2)
+	model.ScrollHorizontal(2)
+
+	assert.Equal(t, content, model.Content())
+	assert.Equal(t, 2, model.YOffset())
+
+	rendered := test.Stripped(test.RenderImmediate(model, 3, 2))
+	assert.NotEqual(t, content, rendered)
+	assert.Equal(t, content, model.Content())
+}
