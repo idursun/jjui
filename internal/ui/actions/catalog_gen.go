@@ -52,6 +52,8 @@ const (
 	ScopeUi                         = "ui"
 	ScopeUiPreview                  = "ui.preview"
 	ScopeUndo                       = "undo"
+	ScopeWorkspacePane              = "workspace_pane"
+	ScopeWorkspacePaneConfirmation  = "workspace_pane.confirmation"
 )
 
 func ResolveIntent(scope string, action keybindings.Action, args map[string]any) (intents.Intent, bool) {
@@ -863,6 +865,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Edit{Clear: true}, true
 		case keybindings.Action("ui.open_undo"):
 			return intents.Undo{}, true
+		case keybindings.Action("ui.open_workspaces"):
+			return intents.OpenWorkspaces{}, true
 		case keybindings.Action("ui.preview_expand"):
 			return intents.PreviewExpand{}, true
 		case keybindings.Action("ui.preview_half_page_down"):
@@ -902,6 +906,42 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("undo.next"):
 			return intents.OptionSelect{Delta: 1}, true
 		case keybindings.Action("undo.prev"):
+			return intents.OptionSelect{Delta: -1}, true
+		}
+	case ScopeWorkspacePane:
+		switch action {
+		case keybindings.Action("workspace_pane.add"):
+			return intents.WorkspaceAdd{}, true
+		case keybindings.Action("workspace_pane.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("workspace_pane.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("workspace_pane.forget"):
+			return intents.WorkspaceForget{}, true
+		case keybindings.Action("workspace_pane.move_down"):
+			return intents.WorkspaceNavigate{Delta: 1}, true
+		case keybindings.Action("workspace_pane.move_up"):
+			return intents.WorkspaceNavigate{Delta: -1}, true
+		case keybindings.Action("workspace_pane.refresh"):
+			return intents.WorkspaceRefresh{}, true
+		case keybindings.Action("workspace_pane.remove"):
+			return intents.WorkspaceRemove{}, true
+		case keybindings.Action("workspace_pane.rename"):
+			return intents.WorkspaceRename{}, true
+		case keybindings.Action("workspace_pane.show_in_revision"):
+			return intents.WorkspaceReveal{}, true
+		case keybindings.Action("workspace_pane.update_stale"):
+			return intents.WorkspaceUpdateStale{}, true
+		}
+	case ScopeWorkspacePaneConfirmation:
+		switch action {
+		case keybindings.Action("workspace_pane.confirmation.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("workspace_pane.confirmation.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("workspace_pane.confirmation.next"):
+			return intents.OptionSelect{Delta: 1}, true
+		case keybindings.Action("workspace_pane.confirmation.prev"):
 			return intents.OptionSelect{Delta: -1}, true
 		}
 	}

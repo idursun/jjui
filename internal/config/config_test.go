@@ -166,6 +166,15 @@ interactive_bookmark_pane = true
 	assert.True(t, config.Bookmark.InteractiveBookmarkPane)
 }
 
+func TestLoad_WorkspaceConfigIsOptIn(t *testing.T) {
+	cfg := loadDefaultConfig()
+	assert.False(t, cfg.Workspace.InteractiveWorkspacePane)
+	assert.Empty(t, cfg.Workspace.ActiveWorkspaceColor)
+	require.NoError(t, cfg.Load("[workspace]\ninteractive_workspace_pane = true\nactive_workspace_color = \"#ff0000\"\n", ""))
+	assert.True(t, cfg.Workspace.InteractiveWorkspacePane)
+	assert.Equal(t, "#ff0000", cfg.Workspace.ActiveWorkspaceColor)
+}
+
 func TestLoad_AskpassConfig(t *testing.T) {
 	config := &Config{}
 	err := config.Load(`

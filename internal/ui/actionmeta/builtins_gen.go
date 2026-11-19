@@ -350,6 +350,7 @@ var builtInActionScopes = map[string][]string{
 	"ui.open_redo":                                  {"ui"},
 	"ui.open_revset":                                {"ui"},
 	"ui.open_undo":                                  {"ui"},
+	"ui.open_workspaces":                            {"ui"},
 	"ui.preview.show":                               {"ui.preview"},
 	"ui.preview_expand":                             {"ui"},
 	"ui.preview_half_page_down":                     {"ui"},
@@ -367,6 +368,21 @@ var builtInActionScopes = map[string][]string{
 	"undo.cancel":                                   {"undo"},
 	"undo.next":                                     {"undo"},
 	"undo.prev":                                     {"undo"},
+	"workspace_pane.add":                            {"workspace_pane"},
+	"workspace_pane.apply":                          {"workspace_pane"},
+	"workspace_pane.cancel":                         {"workspace_pane"},
+	"workspace_pane.confirmation.apply":             {"workspace_pane.confirmation"},
+	"workspace_pane.confirmation.cancel":            {"workspace_pane.confirmation"},
+	"workspace_pane.confirmation.next":              {"workspace_pane.confirmation"},
+	"workspace_pane.confirmation.prev":              {"workspace_pane.confirmation"},
+	"workspace_pane.forget":                         {"workspace_pane"},
+	"workspace_pane.move_down":                      {"workspace_pane"},
+	"workspace_pane.move_up":                        {"workspace_pane"},
+	"workspace_pane.refresh":                        {"workspace_pane"},
+	"workspace_pane.remove":                         {"workspace_pane"},
+	"workspace_pane.rename":                         {"workspace_pane"},
+	"workspace_pane.show_in_revision":               {"workspace_pane"},
+	"workspace_pane.update_stale":                   {"workspace_pane"},
 }
 
 var builtInActionConditions = map[string]string{
@@ -418,6 +434,7 @@ var builtInActionConditions = map[string]string{
 	"revisions.split":                           "revisions.has_revision && !revisions.is_empty",
 	"revisions.split_parallel":                  "revisions.has_revision && !revisions.is_empty",
 	"revisions.toggle_select":                   "revisions.has_revision",
+	"ui.open_workspaces":                        "ui.workspace.enabled",
 	"ui.preview_expand":                         "ui.preview.can_expand",
 	"ui.preview_shrink":                         "ui.preview.can_shrink",
 }
