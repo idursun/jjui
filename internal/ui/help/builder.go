@@ -63,7 +63,7 @@ func buildFromBindings(
 
 	for _, b := range slices.Backward(bindings) {
 
-		if keybindings.ScopeName(strings.TrimSpace(b.Scope)) != scope {
+		if keybindings.ScopeName(b.EffectiveScope()) != scope {
 			continue
 		}
 		action := keybindings.Action(strings.TrimSpace(b.Action))

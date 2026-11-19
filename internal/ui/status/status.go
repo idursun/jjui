@@ -147,7 +147,7 @@ func (m *Model) setHelpFromScopes(scopes []common.Scope) {
 	}
 	visibleBindings := make([]config.BindingConfig, 0, len(config.Current.Bindings))
 	for _, binding := range config.Current.Bindings {
-		if visible[strings.TrimSpace(binding.Scope)] {
+		if visible[binding.EffectiveScope()] {
 			visibleBindings = append(visibleBindings, binding)
 		}
 	}
