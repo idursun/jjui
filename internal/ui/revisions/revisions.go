@@ -40,7 +40,9 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/revert"
 	"github.com/idursun/jjui/internal/ui/operations/set_parents"
 	"github.com/idursun/jjui/internal/ui/operations/squash"
+	"github.com/idursun/jjui/internal/ui/operations/tag"
 	"github.com/idursun/jjui/internal/ui/operations/target_picker"
+	"github.com/idursun/jjui/internal/ui/operations/workspace"
 	"github.com/idursun/jjui/internal/ui/render"
 	"github.com/idursun/jjui/internal/ui/theme"
 )
@@ -952,6 +954,10 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.startSetParents(intent), true
 	case intents.OpenSetBookmark:
 		return m.startBookmarkSet(intent), true
+	case intents.OpenSetTag:
+		return m.startTagSet(intent), true
+	case intents.OpenAddWorkspace:
+		return m.startWorkspaceAdd(intent), true
 	case intents.RevisionsToggleSelect:
 		commit := m.SelectedRevision()
 		if commit == nil {
@@ -1059,6 +1065,34 @@ func (m *Model) startBookmarkSet(intent intents.OpenSetBookmark) tea.Cmd {
 		revision = rev.GetChangeId()
 	}
 	return m.setBaseOperation(bookmark.NewSetBookmarkOperation(m.context, revision, intent.Value))
+}
+
+func (m *Model) startTagSet(intent intents.OpenSetTag) tea.Cmd {
+	revision := intent.Revision
+	if revision == "" {
+		rev := m.SelectedRevision()
+		if rev == nil {
+			return nil
+		}
+		revision = rev.GetChangeId()
+	}
+	return m.setBaseOperation(tag.NewSetTagOperation(m.context, revision, intent.Value))
+}
+
+func (m *Model) startWorkspaceAdd(intent intents.OpenAddWorkspace) tea.Cmd {
+	revision := intent.Revision
+	if revision == "" {
+		rev := m.SelectedRevision()
+		if rev == nil {
+			return nil
+		}
+		revision = rev.GetChangeId()
+	}
+	value := intent.Value
+	if value == "" {
+		value = config.Current.Revisions.Workspace.PathPrefix
+	}
+	return m.setBaseOperation(workspace.NewAddWorkspaceOperation(m.context, revision, value))
 }
 
 func (m *Model) refresh(intent intents.Refresh) tea.Cmd {

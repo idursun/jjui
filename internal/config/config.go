@@ -232,11 +232,16 @@ func (m *WindowTitleMode) UnmarshalTOML(data any) error {
 }
 
 type RevisionsConfig struct {
-	LogBatching  bool          `toml:"log_batching"`
-	LogBatchSize int           `toml:"log_batch_size"`
-	Template     string        `toml:"template"`
-	Revset       string        `toml:"revset"`
-	Abandon      AbandonConfig `toml:"abandon"`
+	LogBatching  bool            `toml:"log_batching"`
+	LogBatchSize int             `toml:"log_batch_size"`
+	Template     string          `toml:"template"`
+	Revset       string          `toml:"revset"`
+	Abandon      AbandonConfig   `toml:"abandon"`
+	Workspace    WorkspaceConfig `toml:"workspace"`
+}
+
+type WorkspaceConfig struct {
+	PathPrefix string `toml:"path_prefix"`
 }
 
 type AbandonConfig struct {

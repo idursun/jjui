@@ -30,6 +30,9 @@ bindings_profile = ":builtin"
 [revisions.abandon]
   retain_bookmarks = false # true moves bookmarks to the parent instead of deleting them
 
+[revisions.workspace]
+  path_prefix = "../" # prefills the new workspace path; relative to the repo root
+
 [preview]
   position = "auto"
   show_at_start = false

@@ -116,6 +116,8 @@ var builtInActionScopes = map[string][]string{
 	"revisions.ace_jump.apply":                      {"revisions.ace_jump"},
 	"revisions.ace_jump.cancel":                     {"revisions.ace_jump"},
 	"revisions.add_to_revset":                       {"revisions"},
+	"revisions.add_workspace.apply":                 {"revisions.add_workspace"},
+	"revisions.add_workspace.cancel":                {"revisions.add_workspace"},
 	"revisions.apply":                               {"revisions"},
 	"revisions.bookmark.move":                       {"revisions.bookmark"},
 	"revisions.bookmark.rename":                     {"revisions.bookmark"},
@@ -206,6 +208,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.object_prev":                         {"revisions"},
 	"revisions.open_abandon":                        {"revisions"},
 	"revisions.open_absorb":                         {"revisions"},
+	"revisions.open_add_workspace":                  {"revisions"},
 	"revisions.open_annotation":                     {"revisions"},
 	"revisions.open_details":                        {"revisions"},
 	"revisions.open_diff_range":                     {"revisions"},
@@ -217,6 +220,7 @@ var builtInActionScopes = map[string][]string{
 	"revisions.open_revert":                         {"revisions"},
 	"revisions.open_set_bookmark":                   {"revisions"},
 	"revisions.open_set_parents":                    {"revisions"},
+	"revisions.open_set_tag":                        {"revisions"},
 	"revisions.open_squash":                         {"revisions"},
 	"revisions.page_down":                           {"revisions"},
 	"revisions.page_up":                             {"revisions"},
@@ -247,6 +251,8 @@ var builtInActionScopes = map[string][]string{
 	"revisions.set_parents.apply":                   {"revisions.set_parents"},
 	"revisions.set_parents.cancel":                  {"revisions.set_parents"},
 	"revisions.set_parents.toggle_select":           {"revisions.set_parents"},
+	"revisions.set_tag.apply":                       {"revisions.set_tag"},
+	"revisions.set_tag.cancel":                      {"revisions.set_tag"},
 	"revisions.split":                               {"revisions"},
 	"revisions.split_parallel":                      {"revisions"},
 	"revisions.squash.apply":                        {"revisions.squash"},
@@ -441,7 +447,13 @@ var builtInActionArgSchemas = map[string]map[string]string{
 	"revisions.object_focus": {
 		"kind": "string",
 	},
+	"revisions.open_add_workspace": {
+		"value": "string",
+	},
 	"revisions.open_set_bookmark": {
+		"value": "string",
+	},
+	"revisions.open_set_tag": {
 		"value": "string",
 	},
 	"revisions.rebase.apply": {
