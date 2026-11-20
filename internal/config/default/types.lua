@@ -248,6 +248,7 @@ function wait_refresh() end
 ---@field object jjui.revisions.object
 ---@field quick_search jjui.revisions.quick_search
 ---@field rebase jjui.revisions.rebase
+---@field remove_workspace jjui.revisions.remove_workspace
 ---@field rename_workspace jjui.revisions.rename_workspace
 ---@field revert jjui.revisions.revert
 ---@field set_bookmark jjui.revisions.set_bookmark
@@ -450,6 +451,13 @@ function wait_refresh() end
 ---@field target_picker fun()
 ---@field close fun()
 
+---@class jjui.revisions.remove_workspace
+---@field apply fun()
+---@field cancel fun()
+---@field next fun()
+---@field prev fun()
+---@field close fun()
+
 ---@class jjui.revisions.rename_workspace
 ---@field apply fun()
 ---@field cancel fun()
@@ -502,6 +510,7 @@ function wait_refresh() end
 ---@field close fun()
 
 ---@class jjui.revisions.workspace
+---@field remove fun()
 ---@field rename fun()
 
 ---@class jjui.revset

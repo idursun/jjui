@@ -137,6 +137,7 @@ func (ChooseCancel) isIntent() {}
 //jjui:bind scope=revisions.rename_workspace action=cancel
 //jjui:bind scope=revisions.set_tag action=cancel
 //jjui:bind scope=revisions.add_workspace action=cancel
+//jjui:bind scope=revisions.remove_workspace action=cancel
 //jjui:bind scope=revisions.diff_range action=cancel
 //jjui:bind scope=revisions.new_between action=cancel
 //jjui:bind scope=revisions.bookmark_target action=cancel
@@ -184,6 +185,7 @@ func (DismissOverlay) isIntent() {}
 //jjui:bind scope=revisions.rename_workspace action=apply
 //jjui:bind scope=revisions.set_tag action=apply
 //jjui:bind scope=revisions.add_workspace action=apply
+//jjui:bind scope=revisions.remove_workspace action=apply
 //jjui:bind scope=revisions.diff_range action=apply
 //jjui:bind scope=revisions.new_between action=apply
 //jjui:bind scope=revisions.bookmark_target action=apply set=Force:$bool(force)
@@ -213,6 +215,8 @@ func (Apply) isIntent() {}
 //jjui:bind scope=redo action=next set=Delta:1
 //jjui:bind scope=revisions.details.confirmation action=prev set=Delta:-1
 //jjui:bind scope=revisions.details.confirmation action=next set=Delta:1
+//jjui:bind scope=revisions.remove_workspace action=prev set=Delta:-1
+//jjui:bind scope=revisions.remove_workspace action=next set=Delta:1
 //jjui:bind scope=revisions.inline_describe.confirmation action=prev set=Delta:-1
 //jjui:bind scope=annotation.confirmation action=prev set=Delta:-1
 //jjui:bind scope=revisions.inline_describe.confirmation action=next set=Delta:1

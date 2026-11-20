@@ -294,6 +294,11 @@ bindings = [
     # revisions.add_workspace
     { key = "esc", action = "revisions.add_workspace.cancel", scope = "revisions.add_workspace", desc = "cancel" },
     { key = "enter", action = "revisions.add_workspace.apply", scope = "revisions.add_workspace", desc = "apply" },
+    # revisions.remove_workspace
+    { key = ["left", "h"], action = "revisions.remove_workspace.prev", scope = "revisions.remove_workspace", desc = "prev" },
+    { key = ["right", "l"], action = "revisions.remove_workspace.next", scope = "revisions.remove_workspace", desc = "next" },
+    { key = "enter", action = "revisions.remove_workspace.apply", scope = "revisions.remove_workspace", desc = "apply" },
+    { key = "esc", action = "revisions.remove_workspace.cancel", scope = "revisions.remove_workspace", desc = "cancel" },
     # revisions.rename_workspace
     { key = "esc", action = "revisions.rename_workspace.cancel", scope = "revisions.rename_workspace", desc = "cancel" },
     { key = "enter", action = "revisions.rename_workspace.apply", scope = "revisions.rename_workspace", desc = "apply" },

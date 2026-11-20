@@ -1140,3 +1140,48 @@ func TestModel_OpenAddWorkspaceUsesConfiguredPathPrefix(t *testing.T) {
 	}
 	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
 }
+
+func TestModel_FocusedWorkspaceRemoveAsksBeforeRemoving(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.WorkspaceRoot("second")).SetOutput([]byte("/second\n"))
+	commandRunner.Expect(jj.CurrentWorkspaceRoot()).SetOutput([]byte("/repo\n"))
+	commandRunner.Expect(jj.WorkspaceRemove("second"))
+	defer commandRunner.Verify()
+
+	model := workspaceModel(t, commandRunner, "/repo")
+	model.Update(intents.FocusedWorkspaceRemove{})
+	op, ok := model.CurrentOperation().(*workspace.RemoveWorkspaceOperation)
+	require.True(t, ok)
+	assert.True(t, model.IsEditing())
+
+	test.SimulateModel(op, func() tea.Msg { return tea.KeyPressMsg{Code: 'y', Text: "y"} })
+}
+
+func TestModel_FocusedWorkspaceRemoveDefaultsToNo(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.WorkspaceRoot("second")).SetOutput([]byte("/second\n"))
+	commandRunner.Expect(jj.CurrentWorkspaceRoot()).SetOutput([]byte("/repo\n"))
+	defer commandRunner.Verify()
+
+	model := workspaceModel(t, commandRunner, "/repo")
+	model.Update(intents.FocusedWorkspaceRemove{})
+	op, ok := model.CurrentOperation().(*workspace.RemoveWorkspaceOperation)
+	require.True(t, ok)
+
+	cmd, handled := op.HandleIntent(intents.Apply{})
+	assert.True(t, handled)
+	test.SimulateModel(model, cmd)
+	assert.True(t, model.InNormalMode(), "enter on the default option should only close the confirmation")
+}
+
+func TestModel_FocusedWorkspaceRemoveRefusesCurrentWorkspace(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.WorkspaceRoot("second")).SetOutput([]byte("/repo/\n"))
+	commandRunner.Expect(jj.CurrentWorkspaceRoot()).SetOutput([]byte("/repo\n"))
+	defer commandRunner.Verify()
+
+	// The location jjui was started with must not matter.
+	model := workspaceModel(t, commandRunner, "/elsewhere")
+	model.Update(intents.FocusedWorkspaceRemove{})
+	assert.True(t, model.InNormalMode())
+}

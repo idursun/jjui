@@ -167,3 +167,17 @@ func TestWithZIndex_RendersAtSpecifiedZIndex(t *testing.T) {
 	assert.Contains(t, rendered, "Test message",
 		"confirmation with WithZIndex(ZDialogs) should render above preview")
 }
+
+func TestWithSelected_SetsInitialSelection(t *testing.T) {
+	yes := func() tea.Msg { return "yes" }
+	no := func() tea.Msg { return "no" }
+	model := New([]string{"Sure?"},
+		WithOption("Yes", yes, key.NewBinding(key.WithKeys("y"))),
+		WithOption("No", no, key.NewBinding(key.WithKeys("n"))),
+		WithSelected(1),
+	)
+	assert.Equal(t, "no", model.Update(ApplySelectionMsg{})())
+
+	clamped := New([]string{"Sure?"}, WithOption("Yes", yes, key.NewBinding(key.WithKeys("y"))), WithSelected(5))
+	assert.Equal(t, "yes", clamped.Update(ApplySelectionMsg{})())
+}

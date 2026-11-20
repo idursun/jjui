@@ -1006,6 +1006,8 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.syncDetails(), true
 	case intents.FocusedWorkspaceRename:
 		return m.renameFocusedWorkspace(), true
+	case intents.FocusedWorkspaceRemove:
+		return m.removeFocusedWorkspace(), true
 	case intents.RevisionsObjectFocusKind:
 		m.focusedObjectKind, m.focusedObjectIndex = intent.Kind, 0
 		return m.syncDetails(), true
