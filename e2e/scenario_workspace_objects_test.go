@@ -56,6 +56,12 @@ func Test_WorkspaceObjects_RemovesFocusedWorkspace(t *testing.T) {
 	if err := session.SendKey(ghostty.KeyX, "x", 0); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := session.WaitForScreen(ctx, func(screen []string) bool { return screenContains(screen, "Remove workspace side?") }); err != nil {
+		t.Fatalf("the remove confirmation did not open: %v", err)
+	}
+	if err := session.SendKey(ghostty.KeyY, "y", 0); err != nil {
+		t.Fatal(err)
+	}
 	waitFor(t, ctx, func() (bool, error) {
 		_, err := os.Stat(side)
 		return !strings.Contains(workspaceNames(t, repo), "side") && os.IsNotExist(err), nil

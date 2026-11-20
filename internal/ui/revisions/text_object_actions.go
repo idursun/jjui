@@ -290,3 +290,18 @@ func (m *Model) renameFocusedWorkspace() tea.Cmd {
 	}
 	return m.setBaseOperation(workspace.NewRenameWorkspaceOperation(m.context, m.SelectedRevision().GetChangeId(), root, obj.Value))
 }
+
+func (m *Model) removeFocusedWorkspace() tea.Cmd {
+	obj, root, cmd := m.focusedWorkspaceRoot()
+	if obj == nil {
+		return cmd
+	}
+	current, err := m.context.RunCommandImmediate(jj.CurrentWorkspaceRoot())
+	if err != nil {
+		return intents.Invoke(intents.AddMessage{Text: "Could not find the current workspace", Err: err})
+	}
+	if root == filepath.Clean(strings.TrimSpace(string(current))) {
+		return intents.Invoke(intents.AddMessage{Text: "Switch to another workspace before removing " + obj.Value})
+	}
+	return m.setBaseOperation(workspace.NewRemoveWorkspaceOperation(m.context, m.SelectedRevision().GetChangeId(), root, obj.Value))
+}

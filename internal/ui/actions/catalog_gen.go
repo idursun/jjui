@@ -40,6 +40,7 @@ const (
 	ScopeQuickSearch                        = "revisions.quick_search"
 	ScopeQuickSearchInput                   = "revisions.quick_search.input"
 	ScopeRebase                             = "revisions.rebase"
+	ScopeRemoveWorkspace                    = "revisions.remove_workspace"
 	ScopeRenameWorkspace                    = "revisions.rename_workspace"
 	ScopeRevert                             = "revisions.revert"
 	ScopeSetBookmark                        = "revisions.set_bookmark"
@@ -621,6 +622,17 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.rebase.target_picker"):
 			return intents.RebaseOpenTargetPicker{}, true
 		}
+	case ScopeRemoveWorkspace:
+		switch action {
+		case keybindings.Action("revisions.remove_workspace.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("revisions.remove_workspace.cancel"):
+			return intents.Cancel{}, true
+		case keybindings.Action("revisions.remove_workspace.next"):
+			return intents.OptionSelect{Delta: 1}, true
+		case keybindings.Action("revisions.remove_workspace.prev"):
+			return intents.OptionSelect{Delta: -1}, true
+		}
 	case ScopeRenameWorkspace:
 		switch action {
 		case keybindings.Action("revisions.rename_workspace.apply"):
@@ -704,6 +716,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		}
 	case ScopeWorkspace:
 		switch action {
+		case keybindings.Action("revisions.workspace.remove"):
+			return intents.FocusedWorkspaceRemove{}, true
 		case keybindings.Action("revisions.workspace.rename"):
 			return intents.FocusedWorkspaceRename{}, true
 		}

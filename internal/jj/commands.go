@@ -341,6 +341,15 @@ func WorkspaceRoot(name string) CommandArgs {
 	return []string{"workspace", "root", "--name", name, "--ignore-working-copy"}
 }
 
+// CurrentWorkspaceRoot prints the root of the workspace jj runs in.
+func CurrentWorkspaceRoot() CommandArgs {
+	return []string{"workspace", "root", "--ignore-working-copy"}
+}
+
+func WorkspaceRemove(name string) CommandArgs {
+	return []string{"workspace", "remove", name}
+}
+
 func WorkspaceForget(name string) CommandArgs {
 	return []string{"workspace", "forget", name}
 }

@@ -279,6 +279,11 @@ type FocusedWorkspaceRename struct{}
 
 func (FocusedWorkspaceRename) isIntent() {}
 
+//jjui:bind scope=revisions.workspace action=remove
+type FocusedWorkspaceRemove struct{}
+
+func (FocusedWorkspaceRemove) isIntent() {}
+
 // RevisionsObjectJump moves to the nearest revision below (Delta 1) or above
 // (Delta -1) that has an object of the focused kind.
 //

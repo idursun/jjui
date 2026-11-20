@@ -68,6 +68,13 @@ func WithOption(label string, cmd tea.Cmd, keyBinding key.Binding) Option {
 	}
 }
 
+// WithSelected sets the option selected when the dialog opens.
+func WithSelected(index int) Option {
+	return func(m *Model) {
+		m.selected = index
+	}
+}
+
 // WithZIndex sets the z-index for rendering
 func WithZIndex(z int) Option {
 	return func(m *Model) {
@@ -239,6 +246,7 @@ func New(messages []string, opts ...Option) *Model {
 	for _, opt := range opts {
 		opt(&m)
 	}
+	m.selected = max(min(m.selected, len(m.options)-1), 0)
 
 	scope, component := m.styleScope, "confirmation"
 	if scope == "" {

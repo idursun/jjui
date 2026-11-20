@@ -321,25 +321,6 @@ lua = """
  """
 
 [[actions]]
-name = "revisions.workspace.remove"
-lua = """
- local name = context.object().value
- local root, err = jj({ "workspace", "root", "--name", name, "--ignore-working-copy" })
- if err then
-   flash({ text = "Could not find workspace " .. name .. ": " .. err, error = true })
-   return
- end
- root = root:gsub("%s+$", "")
- local current = (jj({ "root", "--ignore-working-copy" }) or ""):gsub("%s+$", "")
- if root == current then
-   flash("Switch to another workspace before removing " .. name)
-   return
- end
- jj_async({ "workspace", "remove", name })
- jjui.builtin.revisions.refresh()
- """
-
-[[actions]]
 name = "revisions.workspace.update_stale"
 lua = """
  local name = context.object().value
