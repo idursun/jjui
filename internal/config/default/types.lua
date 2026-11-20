@@ -236,6 +236,7 @@ function wait_refresh() end
 ---@field abandon jjui.revisions.abandon
 ---@field absorb jjui.revisions.absorb
 ---@field ace_jump jjui.revisions.ace_jump
+---@field add_workspace jjui.revisions.add_workspace
 ---@field bookmark jjui.revisions.bookmark
 ---@field bookmark_target jjui.revisions.bookmark_target
 ---@field details jjui.revisions.details
@@ -251,6 +252,7 @@ function wait_refresh() end
 ---@field revert jjui.revisions.revert
 ---@field set_bookmark jjui.revisions.set_bookmark
 ---@field set_parents jjui.revisions.set_parents
+---@field set_tag jjui.revisions.set_tag
 ---@field squash jjui.revisions.squash
 ---@field target_picker jjui.revisions.target_picker
 ---@field workspace jjui.revisions.workspace
@@ -280,6 +282,7 @@ function wait_refresh() end
 ---@field object_prev fun()
 ---@field open_abandon fun()
 ---@field open_absorb fun()
+---@field open_add_workspace fun(args: {value?: string})
 ---@field open_annotation fun()
 ---@field open_details fun()
 ---@field open_diff_range fun()
@@ -291,6 +294,7 @@ function wait_refresh() end
 ---@field open_revert fun()
 ---@field open_set_bookmark fun(args: {value?: string})
 ---@field open_set_parents fun()
+---@field open_set_tag fun(args: {value?: string})
 ---@field open_squash fun()
 ---@field page_down fun()
 ---@field page_up fun()
@@ -316,6 +320,11 @@ function wait_refresh() end
 ---@field close fun()
 
 ---@class jjui.revisions.ace_jump
+---@field apply fun()
+---@field cancel fun()
+---@field close fun()
+
+---@class jjui.revisions.add_workspace
 ---@field apply fun()
 ---@field cancel fun()
 ---@field close fun()
@@ -465,6 +474,11 @@ function wait_refresh() end
 ---@field apply fun()
 ---@field cancel fun()
 ---@field toggle_select fun()
+---@field close fun()
+
+---@class jjui.revisions.set_tag
+---@field apply fun()
+---@field cancel fun()
 ---@field close fun()
 
 ---@class jjui.revisions.squash

@@ -218,6 +218,10 @@ func BookmarkSet(revision string, name string) CommandArgs {
 	return []string{"bookmark", "set", "-r", revision, name}
 }
 
+func TagSet(revision string, name string) CommandArgs {
+	return []string{"tag", "set", "-r", revision, name}
+}
+
 // ExactStringPattern quotes a name so jj matches it exactly.
 func ExactStringPattern(value string) string {
 	return "exact:" + strconv.Quote(value)
@@ -326,6 +330,10 @@ func BookmarkListMovable(revision string) CommandArgs {
 
 func BookmarkListAll() CommandArgs {
 	return []string{"bookmark", "list", "-a", "--template", allBookmarkTemplate, "--color", "never", "--ignore-working-copy"}
+}
+
+func WorkspaceAdd(revision string, destination string) CommandArgs {
+	return []string{"workspace", "add", "-r", revision, destination}
 }
 
 // WorkspaceRoot prints the root of the named workspace.

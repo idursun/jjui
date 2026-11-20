@@ -82,6 +82,8 @@ bindings = [
     { key = "s", action = "revisions.split", scope = "revisions", desc = "split" },
     { key = "alt+s", action = "revisions.split_parallel", scope = "revisions", desc = "split parallel" },
     { key = "shift+b", action = "revisions.open_set_bookmark", scope = "revisions", desc = "set bookmark" },
+    { key = "shift+t", action = "revisions.open_set_tag", scope = "revisions", desc = "set tag" },
+    { key = "shift+n", action = "revisions.open_add_workspace", scope = "revisions", desc = "add workspace" },
     { key = "shift+d", action = "revisions.describe", scope = "revisions", desc = "describe in editor" },
     { key = "e", action = "revisions.edit", scope = "revisions", desc = "edit" },
     { key = "alt+e", action = "revisions.force_edit", scope = "revisions", desc = "force edit" },
@@ -286,6 +288,12 @@ bindings = [
     { key = "tab", action = "revisions.set_bookmark.autocomplete", scope = "revisions.set_bookmark", desc = "autocomplete" },
     { key = "shift+tab", action = "revisions.set_bookmark.autocomplete_back", scope = "revisions.set_bookmark", desc = "autocomplete back" },
 
+    # revisions.set_tag
+    { key = "esc", action = "revisions.set_tag.cancel", scope = "revisions.set_tag", desc = "cancel" },
+    { key = "enter", action = "revisions.set_tag.apply", scope = "revisions.set_tag", desc = "apply" },
+    # revisions.add_workspace
+    { key = "esc", action = "revisions.add_workspace.cancel", scope = "revisions.add_workspace", desc = "cancel" },
+    { key = "enter", action = "revisions.add_workspace.apply", scope = "revisions.add_workspace", desc = "apply" },
     # revisions.rename_workspace
     { key = "esc", action = "revisions.rename_workspace.cancel", scope = "revisions.rename_workspace", desc = "cancel" },
     { key = "enter", action = "revisions.rename_workspace.apply", scope = "revisions.rename_workspace", desc = "apply" },

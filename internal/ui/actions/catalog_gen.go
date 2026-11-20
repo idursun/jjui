@@ -25,6 +25,7 @@ const (
 	ScopeAbandon                            = "revisions.abandon"
 	ScopeAbsorb                             = "revisions.absorb"
 	ScopeAceJump                            = "revisions.ace_jump"
+	ScopeAddWorkspace                       = "revisions.add_workspace"
 	ScopeBookmark                           = "revisions.bookmark"
 	ScopeBookmarkTarget                     = "revisions.bookmark_target"
 	ScopeDetails                            = "revisions.details"
@@ -43,6 +44,7 @@ const (
 	ScopeRevert                             = "revisions.revert"
 	ScopeSetBookmark                        = "revisions.set_bookmark"
 	ScopeSetParents                         = "revisions.set_parents"
+	ScopeSetTag                             = "revisions.set_tag"
 	ScopeSquash                             = "revisions.squash"
 	ScopeTargetPicker                       = "revisions.target_picker"
 	ScopeWorkspace                          = "revisions.workspace"
@@ -342,6 +344,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.OpenAbandon{}, true
 		case keybindings.Action("revisions.open_absorb"):
 			return intents.OpenAbsorb{}, true
+		case keybindings.Action("revisions.open_add_workspace"):
+			return intents.OpenAddWorkspace{Value: actionargs.StringArg(args, "value", "")}, true
 		case keybindings.Action("revisions.open_annotation"):
 			return intents.OpenAnnotation{}, true
 		case keybindings.Action("revisions.open_details"):
@@ -364,6 +368,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.OpenSetBookmark{Value: actionargs.StringArg(args, "value", "")}, true
 		case keybindings.Action("revisions.open_set_parents"):
 			return intents.OpenSetParents{}, true
+		case keybindings.Action("revisions.open_set_tag"):
+			return intents.OpenSetTag{Value: actionargs.StringArg(args, "value", "")}, true
 		case keybindings.Action("revisions.open_squash"):
 			return intents.OpenSquash{}, true
 		case keybindings.Action("revisions.page_down"):
@@ -408,6 +414,13 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("revisions.ace_jump.apply"):
 			return intents.Apply{}, true
 		case keybindings.Action("revisions.ace_jump.cancel"):
+			return intents.Cancel{}, true
+		}
+	case ScopeAddWorkspace:
+		switch action {
+		case keybindings.Action("revisions.add_workspace.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("revisions.add_workspace.cancel"):
 			return intents.Cancel{}, true
 		}
 	case ScopeBookmark:
@@ -647,6 +660,13 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.Cancel{}, true
 		case keybindings.Action("revisions.set_parents.toggle_select"):
 			return intents.SetParentsToggleSelect{}, true
+		}
+	case ScopeSetTag:
+		switch action {
+		case keybindings.Action("revisions.set_tag.apply"):
+			return intents.Apply{}, true
+		case keybindings.Action("revisions.set_tag.cancel"):
+			return intents.Cancel{}, true
 		}
 	case ScopeSquash:
 		switch action {

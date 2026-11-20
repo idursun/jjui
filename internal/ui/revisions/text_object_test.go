@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/ui/actions"
@@ -1103,4 +1104,39 @@ func TestModel_SelectionListsCheckedDescriptionsAndAuthorsOfEachRevision(t *test
 		got = append(got, object.ObjectKind+" "+object.ChangeId)
 	}
 	assert.Equal(t, []string{"description a", "description b", "author a", "author b"}, got)
+}
+
+func TestModel_OpenAddWorkspacePrefillsParentDirectory(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	model := workspaceModel(t, commandRunner, "/repo")
+	commandRunner.Expect(jj.WorkspaceAdd(model.SelectedRevision().GetChangeId(), "../ws"))
+	defer commandRunner.Verify()
+
+	model.Update(intents.OpenAddWorkspace{})
+	op, ok := model.CurrentOperation().(*workspace.AddWorkspaceOperation)
+	require.True(t, ok)
+
+	for _, r := range "ws" {
+		op.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
+}
+
+func TestModel_OpenAddWorkspaceUsesConfiguredPathPrefix(t *testing.T) {
+	orig := config.Current.Revisions.Workspace.PathPrefix
+	t.Cleanup(func() { config.Current.Revisions.Workspace.PathPrefix = orig })
+	config.Current.Revisions.Workspace.PathPrefix = "../worktrees/"
+
+	commandRunner := test.NewTestCommandRunner(t)
+	model := workspaceModel(t, commandRunner, "/repo")
+	commandRunner.Expect(jj.WorkspaceAdd(model.SelectedRevision().GetChangeId(), "../worktrees/ws"))
+	defer commandRunner.Verify()
+
+	model.Update(intents.OpenAddWorkspace{})
+	op, ok := model.CurrentOperation().(*workspace.AddWorkspaceOperation)
+	require.True(t, ok)
+	for _, r := range "ws" {
+		op.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	test.SimulateModel(op, func() tea.Msg { return intents.Apply{} })
 }
