@@ -807,7 +807,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 
 		reloadState := revisionReloadState{}
-		if m.pendingReload.tag == msg.tag {
+		isReload := m.pendingReload.tag == msg.tag
+		if isReload {
 			reloadState = m.pendingReload
 			m.pendingReload = revisionReloadState{}
 		}
@@ -833,9 +834,12 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 
 		if targetCursor != -1 {
-			if reloadState.keepSelections {
+			switch {
+			case reloadState.keepSelections:
 				m.cursor = targetCursor
-			} else {
+			case !isReload && targetCursor == m.cursor:
+				// A later batch only appends rows; recentering would undo the user's scrolling.
+			default:
 				m.SetCursor(targetCursor)
 			}
 		}
