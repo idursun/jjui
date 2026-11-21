@@ -1,27 +1,20 @@
 package annotation
 
 import (
-	"bytes"
 	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
 	"charm.land/lipgloss/v2"
-	"github.com/alecthomas/chroma/v2"
-	"github.com/alecthomas/chroma/v2/formatters"
-	"github.com/alecthomas/chroma/v2/lexers"
-	"github.com/idursun/jjui/internal/config"
-	"github.com/idursun/jjui/internal/ui/theme"
+	"github.com/idursun/jjui/internal/ui/syntax"
 )
 
 type sourceHighlighter struct {
-	lexers map[string]chroma.Lexer
+	syntax *syntax.Highlighter
 	// cache is kept for the active source and reset by annotationRenderer when
 	// that source changes, so a large source does not evict itself while rendering.
 	cache           map[string]string
-	formatter       chroma.Formatter
-	style           *chroma.Style
 	highlightMisses int
 }
 
@@ -31,80 +24,9 @@ func newSourceHighlighter(dark bool, terminalPalettes ...map[int]string) *source
 		terminalPalette = terminalPalettes[0]
 	}
 	return &sourceHighlighter{
-		lexers:    make(map[string]chroma.Lexer),
-		cache:     make(map[string]string),
-		formatter: formatters.Get("terminal16m"),
-		style:     syntaxStyle(dark, terminalPalette),
+		syntax: syntax.New(dark, "annotation", terminalPalette),
+		cache:  make(map[string]string),
 	}
-}
-
-func syntaxStyle(dark bool, terminalPalette map[int]string) *chroma.Style {
-	// Custom themes replace the embedded theme, so supply syntax defaults here
-	// too, while allowing explicitly configured attributes to take precedence.
-	defaults := theme.NewPalette()
-	resolvedTheme, err := config.LoadEmbeddedTheme("default", dark)
-	if err == nil {
-		defaults.Update(resolvedTheme.Colors)
-	}
-	roles := map[chroma.TokenType][]string{
-		chroma.Text:          {"text"},
-		chroma.Keyword:       {"keyword"},
-		chroma.LiteralString: {"string"},
-		chroma.LiteralNumber: {"number"},
-		chroma.Comment:       {"comment"},
-		chroma.NameFunction:  {"function"},
-		chroma.NameClass:     {"class", "type"},
-		chroma.KeywordType:   {"type"},
-	}
-	entries := chroma.StyleEntries{}
-	for token := range chroma.StandardTypes {
-		fallbacks, ok := roles[token]
-		if !ok {
-			fallbacks, ok = roles[token.SubCategory()]
-		}
-		if !ok {
-			fallbacks, ok = roles[token.Category()]
-		}
-		if !ok {
-			fallbacks = []string{"text"}
-		}
-		style := lipgloss.NewStyle()
-		// Resolve explicit syntax selectors before broad palette defaults, so an
-		// absent class style can inherit type even when syntax has a base style.
-		for _, role := range fallbacks {
-			style = style.Inherit(theme.DefaultPalette.Get("", "", "syntax "+role, false))
-		}
-		role := fallbacks[len(fallbacks)-1]
-		style = style.Inherit(theme.DefaultPalette.Get("", "syntax", role, false))
-		for _, role := range fallbacks {
-			style = style.Inherit(defaults.Get("", "syntax", role, false))
-		}
-		if role == "text" {
-			style = style.Inherit(theme.DefaultPalette.Get("annotation", "", "text", false))
-		}
-		// Chroma needs RGB; NoColor and unreported palette entries stay unset.
-		var colour chroma.Colour
-		if rgb, ok := theme.ResolveRGBFallback(style.GetForeground(), terminalPalette); ok {
-			colour = chroma.NewColour(rgb[0], rgb[1], rgb[2])
-		}
-		entry := chroma.StyleEntry{
-			NoInherit: true,
-			Colour:    colour,
-			Bold:      chroma.No, Italic: chroma.No, Underline: chroma.No,
-		}
-		if style.GetBold() {
-			entry.Bold = chroma.Yes
-		}
-		if style.GetItalic() {
-			entry.Italic = chroma.Yes
-		}
-		if style.GetUnderline() {
-			entry.Underline = chroma.Yes
-		}
-		// Backgrounds belong to the diff and selection layers.
-		entries[token] = entry.String()
-	}
-	return chroma.MustNewStyle("jjui", entries)
 }
 
 func (h *sourceHighlighter) render(path, source string) string {
@@ -138,36 +60,13 @@ func (h *sourceHighlighter) highlight(path, source string) string {
 		return result
 	}
 	h.highlightMisses++
-	lexer, ok := h.lexers[path]
-	if !ok {
-		lexer = lexers.Match(path)
-		if lexer == nil {
-			lexer = lexers.Analyse(source)
-		}
-		if lexer == nil {
-			lexer = lexers.Fallback
-		}
-		lexer = chroma.Coalesce(lexer)
-		h.lexers[path] = lexer
-	}
-	if lexer == nil || h.formatter == nil {
-		return source
-	}
-	iterator, err := lexer.Tokenise(nil, source)
-	if err != nil {
-		return source
-	}
-	var out bytes.Buffer
-	if err := h.formatter.Format(&out, h.style, iterator); err != nil {
-		return source
-	}
-	result := strings.TrimSuffix(out.String(), "\n")
+	result := h.syntax.Highlight(path, source)
 	h.cache[key] = result
 	return result
 }
 
 func (h *sourceHighlighter) resetSource() {
-	clear(h.lexers)
+	h.syntax.Reset()
 	clear(h.cache)
 }
 
