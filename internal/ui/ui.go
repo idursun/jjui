@@ -530,8 +530,8 @@ func (m *Model) dispatchScopes() []common.Scope {
 		scopes = append(scopes, m.revsetModel.Scopes()...)
 	}
 
-	// Only the top layer receives keys. The split panes beside the primary
-	// view (preview, bookmark pane) join only while the primary view is on top.
+	// Only the top layer receives keys. The preview beside the primary view
+	// joins only while the primary view is on top.
 	primary := m.primary()
 	if top, ok := m.topLayer(); ok && top.model != primary {
 		scopes = append(scopes, top.model.Scopes()...)

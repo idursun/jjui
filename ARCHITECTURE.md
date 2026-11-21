@@ -146,7 +146,7 @@ The top layer is the active one:
 
 Opening a dialog replaces the dialog on top. Opening a screen moves it to the top, keeping at most one screen of each kind.
 
-The **primary** view is the one shown in the split beside the preview or bookmark pane: the oplog when it is open, otherwise revisions. Unhandled keys go to the primary view, and the split panes only join key routing while the primary view is the top layer.
+The **primary** view is the one shown in the split beside the preview: the oplog when it is open, otherwise revisions. Unhandled keys go to the primary view, and the split panes only join key routing while the primary view is the top layer.
 
 The password prompt, flash messages and the status line sit outside the list and are handled around it.
 
