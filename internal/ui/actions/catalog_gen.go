@@ -14,7 +14,9 @@ const (
 	ScopeChoose                             = "choose"
 	ScopeCommandHistory                     = "command_history"
 	ScopeDiff                               = "diff"
-	ScopeFileSearch                         = "file_search"
+	ScopeFileView                           = "file_view"
+	ScopeFileViewPath                       = "file_view.path"
+	ScopeFileViewSearchInput                = "file_view.search_input"
 	ScopeHelp                               = "help"
 	ScopeInput                              = "input"
 	ScopeOplog                              = "oplog"
@@ -190,28 +192,70 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		case keybindings.Action("diff.toggle_wrap"):
 			return intents.DiffToggleWrap{}, true
 		}
-	case ScopeFileSearch:
+	case ScopeFileView:
 		switch action {
-		case keybindings.Action("file_search.apply"):
-			return intents.Apply{}, true
-		case keybindings.Action("file_search.cancel"):
-			return intents.Cancel{}, true
-		case keybindings.Action("file_search.edit"):
-			return intents.FileSearchEdit{}, true
-		case keybindings.Action("file_search.move_down"):
-			return intents.FileSearchNavigate{Delta: -1}, true
-		case keybindings.Action("file_search.move_up"):
-			return intents.FileSearchNavigate{Delta: 1}, true
-		case keybindings.Action("file_search.page_down"):
-			return intents.FileSearchPreviewScroll{Kind: intents.PreviewPageDown}, true
-		case keybindings.Action("file_search.page_up"):
-			return intents.FileSearchPreviewScroll{Kind: intents.PreviewPageUp}, true
-		case keybindings.Action("file_search.preview_half_page_down"):
-			return intents.FileSearchPreviewScroll{Kind: intents.PreviewHalfPageDown}, true
-		case keybindings.Action("file_search.preview_half_page_up"):
-			return intents.FileSearchPreviewScroll{Kind: intents.PreviewHalfPageUp}, true
-		case keybindings.Action("file_search.toggle"):
-			return intents.FileSearchTogglePreview{}, true
+		case keybindings.Action("file_view.close"):
+			return intents.FileViewClose{}, true
+		case keybindings.Action("file_view.edit_path"):
+			return intents.FileViewEditPath{}, true
+		case keybindings.Action("file_view.filter_revset"):
+			return intents.FileViewFilterRevset{}, true
+		case keybindings.Action("file_view.half_page_down"):
+			return intents.FileViewNavigate{Delta: 1, IsHalfPage: true}, true
+		case keybindings.Action("file_view.half_page_up"):
+			return intents.FileViewNavigate{Delta: -1, IsHalfPage: true}, true
+		case keybindings.Action("file_view.jump_to_change"):
+			return intents.FileViewJumpToChange{}, true
+		case keybindings.Action("file_view.left"):
+			return intents.FileViewScrollHorizontal{Delta: -1}, true
+		case keybindings.Action("file_view.move_bottom"):
+			return intents.FileViewNavigate{Delta: 1, ToEnd: true}, true
+		case keybindings.Action("file_view.move_down"):
+			return intents.FileViewNavigate{Delta: 1}, true
+		case keybindings.Action("file_view.move_top"):
+			return intents.FileViewNavigate{Delta: -1, ToEnd: true}, true
+		case keybindings.Action("file_view.move_up"):
+			return intents.FileViewNavigate{Delta: -1}, true
+		case keybindings.Action("file_view.newer"):
+			return intents.FileViewNewer{}, true
+		case keybindings.Action("file_view.next_change"):
+			return intents.FileViewMoveChange{Delta: 1}, true
+		case keybindings.Action("file_view.next_match"):
+			return intents.QuickSearchCycle{}, true
+		case keybindings.Action("file_view.older"):
+			return intents.FileViewOlder{}, true
+		case keybindings.Action("file_view.page_down"):
+			return intents.FileViewNavigate{Delta: 1, IsPage: true}, true
+		case keybindings.Action("file_view.page_up"):
+			return intents.FileViewNavigate{Delta: -1, IsPage: true}, true
+		case keybindings.Action("file_view.prev_change"):
+			return intents.FileViewMoveChange{Delta: -1}, true
+		case keybindings.Action("file_view.prev_match"):
+			return intents.QuickSearchCycle{Reverse: true}, true
+		case keybindings.Action("file_view.right"):
+			return intents.FileViewScrollHorizontal{Delta: 1}, true
+		case keybindings.Action("file_view.search"):
+			return intents.FileViewSearch{}, true
+		case keybindings.Action("file_view.toggle_wrap"):
+			return intents.FileViewToggleWrap{}, true
+		}
+	case ScopeFileViewPath:
+		switch action {
+		case keybindings.Action("file_view.path.accept"):
+			return intents.FileViewPathAccept{}, true
+		case keybindings.Action("file_view.path.cancel"):
+			return intents.FileViewPathCancel{}, true
+		case keybindings.Action("file_view.path.move_down"):
+			return intents.FileViewNavigate{Delta: 1}, true
+		case keybindings.Action("file_view.path.move_up"):
+			return intents.FileViewNavigate{Delta: -1}, true
+		}
+	case ScopeFileViewSearchInput:
+		switch action {
+		case keybindings.Action("file_view.search_input.apply"):
+			return intents.FileViewSearchApply{}, true
+		case keybindings.Action("file_view.search_input.cancel"):
+			return intents.FileViewSearchCancel{}, true
 		}
 	case ScopeHelp:
 		switch action {
@@ -838,10 +882,10 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 			return intents.ExecShell{}, true
 		case keybindings.Action("ui.expand_status"):
 			return intents.ExpandStatusToggle{}, true
-		case keybindings.Action("ui.file_search_toggle"):
-			return intents.FileSearchToggle{}, true
 		case keybindings.Action("ui.open_command_history"):
 			return intents.CommandHistoryToggle{}, true
+		case keybindings.Action("ui.open_file_view"):
+			return intents.FileViewOpen{}, true
 		case keybindings.Action("ui.open_help"):
 			return intents.OpenHelp{}, true
 		case keybindings.Action("ui.open_oplog"):

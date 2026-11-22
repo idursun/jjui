@@ -27,6 +27,7 @@ import (
 	appContext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/diff"
 	"github.com/idursun/jjui/internal/ui/exec_prompt"
+	"github.com/idursun/jjui/internal/ui/file_view"
 	"github.com/idursun/jjui/internal/ui/help"
 	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -2358,4 +2359,36 @@ func Test_Update_QuitFromEvolog(t *testing.T) {
 	require.Equal(t, "evolog", model.revisions.CurrentOperation().Name())
 
 	assert.True(t, quits(model.Update(tea.KeyPressMsg{Text: "q", Code: 'q'})))
+}
+
+func TestFileView_JumpToChangeSelectsItInTheLog(t *testing.T) {
+	origLogBatching := config.Current.Revisions.LogBatching
+	t.Cleanup(func() { config.Current.Revisions.LogBatching = origLogBatching })
+	config.Current.Revisions.LogBatching = false
+
+	runner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(runner)
+	const log = "<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::abc>><<log commit mutable:: >><<log commit mutable commit_id shortest prefix::def>><<log commit mutable::>>\n" +
+		"<<log commit node mutable::○>>  <<log commit mutable change_id shortest prefix::xyz>><<log commit mutable:: >><<log commit mutable commit_id shortest prefix::fed>><<log commit mutable::>>\n"
+	runner.Expect(jj.Log(ctx.CurrentRevset, config.Current.Limit, ctx.JJConfig.Templates.Log)).SetOutput([]byte(log))
+	runner.Expect(jj.BookmarkListAll())
+	runner.Expect(jj.GitRemoteList())
+	model := NewUI(ctx)
+	test.SimulateModel(model, model.revisions.Update(common.RefreshMsg{SelectedRevision: "abc"}))
+	require.Equal(t, "def", model.revisions.SelectedRevision().CommitId)
+
+	// a.go's only line comes from xyz, which annotate prints padded to 8 characters
+	runner.Expect(jj.FilesInRevision(model.revisions.SelectedRevision())).SetOutput([]byte("a.go\n"))
+	runner.Expect(jj.FileAnnotate("def", jj.NewFileName("a.go"))).SetOutput([]byte(
+		"<<commit change_id shortest prefix::xyz>><<commit change_id shortest rest::wvuts>> <<line_number::1>>: <<content::package a>>\n"))
+	test.SimulateModel(model, func() tea.Msg { return intents.FileViewOpen{} })
+	test.SimulateModel(model, test.Type("a.go"))
+	test.SimulateModel(model, func() tea.Msg { return intents.FileViewPathAccept{} })
+	require.IsType(t, &file_view.Model{}, model.screen())
+
+	runner.Expect(jj.GetIdsFromRevset("(" + ctx.CurrentRevset + ") & xyzwvuts")).SetOutput([]byte("xyz\n"))
+	test.SimulateModel(model, func() tea.Msg { return intents.FileViewJumpToChange{} })
+
+	assert.Nil(t, model.screen())
+	assert.Equal(t, "fed", model.revisions.SelectedRevision().CommitId)
 }

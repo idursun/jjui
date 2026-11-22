@@ -573,3 +573,16 @@ func TestModel_TargetPickerCancelClosesEditing(t *testing.T) {
 	test.SimulateModel(model, route(model, intents.TargetPickerCancel{}))
 	assert.False(t, model.IsEditing(), "target picker cancel should exit editing mode")
 }
+
+func TestModel_PlainRefreshKeepsTheSelectionOfTheRefreshItSupersedes(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := New(ctx)
+	model.updateGraphRows(rows, "a", true)
+
+	model.refresh(intents.Refresh{SelectedRevision: "b"})
+	model.refresh(intents.Refresh{})
+	cmd := model.Update(updateRevisionsMsg{rows: rows, tag: model.tag.Load()})
+	test.SimulateModel(model, cmd)
+
+	assert.Equal(t, 1, model.cursor)
+}

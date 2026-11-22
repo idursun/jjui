@@ -146,7 +146,6 @@ func (ChooseCancel) isIntent() {}
 //jjui:bind scope=ui action=cancel
 //jjui:bind scope=help action=cancel
 //jjui:bind scope=status.input action=cancel
-//jjui:bind scope=file_search action=cancel
 //jjui:bind scope=revisions.quick_search.input action=cancel
 //jjui:bind scope=revset action=cancel
 //jjui:bind scope=password action=cancel
@@ -194,7 +193,6 @@ func (DismissOverlay) isIntent() {}
 //jjui:bind scope=revisions action=apply set=Force:$bool(force)
 //jjui:bind scope=revisions action=force_apply set=Force:true
 //jjui:bind scope=status.input action=apply
-//jjui:bind scope=file_search action=apply
 //jjui:bind scope=revisions.quick_search.input action=apply
 //jjui:bind scope=revset action=apply
 //jjui:bind scope=password action=apply

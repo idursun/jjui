@@ -122,23 +122,23 @@ func TestResolveKey_DefaultEmacsListNavigationAliases(t *testing.T) {
 			},
 		},
 		{
-			name:  "ctrl+p moves file search up",
-			scope: "file_search",
+			name:  "ctrl+p moves file view path up",
+			scope: "file_view.path",
 			key:   tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl},
 			assertions: func(t *testing.T, intent intents.Intent) {
-				nav, ok := intent.(intents.FileSearchNavigate)
+				nav, ok := intent.(intents.FileViewNavigate)
 				assert.True(t, ok)
-				assert.Equal(t, 1, nav.Delta)
+				assert.Equal(t, -1, nav.Delta)
 			},
 		},
 		{
-			name:  "ctrl+n moves file search down",
-			scope: "file_search",
+			name:  "ctrl+n moves file view path down",
+			scope: "file_view.path",
 			key:   tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl},
 			assertions: func(t *testing.T, intent intents.Intent) {
-				nav, ok := intent.(intents.FileSearchNavigate)
+				nav, ok := intent.(intents.FileViewNavigate)
 				assert.True(t, ok)
-				assert.Equal(t, -1, nav.Delta)
+				assert.Equal(t, 1, nav.Delta)
 			},
 		},
 		{

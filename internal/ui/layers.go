@@ -7,13 +7,14 @@ import (
 	"github.com/idursun/jjui/internal/ui/annotation"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/diff"
+	"github.com/idursun/jjui/internal/ui/file_view"
 	"github.com/idursun/jjui/internal/ui/oplog"
 )
 
 // layer is a view opened over the revisions view. Layers are ordered bottom
 // to top, and the same order drives rendering, key routing and closing.
 //
-// A screen (oplog, diff, annotation) takes the whole view and hides the layers
+// A screen (oplog, file view, diff, annotation) takes the whole view and hides the layers
 // below it. A dialog is drawn over the layers below it and is the only layer
 // that receives keys while it is on top.
 type layer struct {
@@ -55,11 +56,14 @@ func (m *Model) screen() common.StackedModel {
 	return nil
 }
 
-// primary returns the view shown as the primary pane of the split: the oplog
-// when it is open, otherwise revisions.
+// primary returns the view shown as the primary pane of the split: the topmost
+// oplog or file view when one is open, otherwise revisions.
 func (m *Model) primary() common.StackedModel {
-	if oplogModel, ok := findLayer[*oplog.Model](m); ok {
-		return oplogModel
+	for _, l := range slices.Backward(m.layers) {
+		switch l.model.(type) {
+		case *oplog.Model, *file_view.Model:
+			return l.model
+		}
 	}
 	return m.revisions
 }
@@ -101,6 +105,9 @@ func (m *Model) openScreen(model common.StackedModel) {
 			return ok
 		case *annotation.Model:
 			_, ok := model.(*annotation.Model)
+			return ok
+		case *file_view.Model:
+			_, ok := model.(*file_view.Model)
 			return ok
 		}
 		return false

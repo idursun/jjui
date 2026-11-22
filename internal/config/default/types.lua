@@ -173,17 +173,42 @@ function wait_refresh() end
 ---@field target_picker fun()
 ---@field toggle_wrap fun()
 
----@class jjui.file_search
----@field apply fun()
----@field cancel fun()
----@field edit fun()
+---@class jjui.file_view
+---@field path jjui.file_view.path
+---@field search_input jjui.file_view.search_input
+---@field close fun()
+---@field edit_path fun()
+---@field filter_revset fun()
+---@field half_page_down fun()
+---@field half_page_up fun()
+---@field jump_to_change fun()
+---@field left fun()
+---@field move_bottom fun()
 ---@field move_down fun()
+---@field move_top fun()
 ---@field move_up fun()
+---@field newer fun()
+---@field next_change fun()
+---@field next_match fun()
+---@field older fun()
 ---@field page_down fun()
 ---@field page_up fun()
----@field preview_half_page_down fun()
----@field preview_half_page_up fun()
----@field toggle fun()
+---@field prev_change fun()
+---@field prev_match fun()
+---@field right fun()
+---@field search fun()
+---@field toggle_wrap fun()
+
+---@class jjui.file_view.path
+---@field accept fun()
+---@field cancel fun()
+---@field move_down fun()
+---@field move_up fun()
+---@field close fun()
+
+---@class jjui.file_view.search_input
+---@field apply fun()
+---@field cancel fun()
 ---@field close fun()
 
 ---@class jjui.help
@@ -590,8 +615,8 @@ function wait_refresh() end
 ---@field exec_jj fun()
 ---@field exec_shell fun()
 ---@field expand_status fun()
----@field file_search_toggle fun()
 ---@field open_command_history fun()
+---@field open_file_view fun()
 ---@field open_help fun()
 ---@field open_oplog fun()
 ---@field open_redo fun()
@@ -633,7 +658,7 @@ function wait_refresh() end
 ---@field choose jjui.choose
 ---@field command_history jjui.command_history
 ---@field diff jjui.diff
----@field file_search jjui.file_search
+---@field file_view jjui.file_view
 ---@field help jjui.help
 ---@field input jjui.input
 ---@field oplog jjui.oplog
@@ -663,7 +688,7 @@ function wait_refresh() end
 ---@field choose jjui.choose
 ---@field command_history jjui.command_history
 ---@field diff jjui.diff
----@field file_search jjui.file_search
+---@field file_view jjui.file_view
 ---@field help jjui.help
 ---@field input jjui.input
 ---@field oplog jjui.oplog

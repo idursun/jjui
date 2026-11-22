@@ -9,49 +9,18 @@ func (QuickSearch) isIntent() {}
 //jjui:bind scope=revisions.quick_search action=prev set=Reverse:true
 //jjui:bind scope=oplog.quick_search action=next
 //jjui:bind scope=oplog.quick_search action=prev set=Reverse:true
+//jjui:bind scope=file_view action=next_match
+//jjui:bind scope=file_view action=prev_match set=Reverse:true
 type QuickSearchCycle struct {
 	Reverse bool
 }
 
 func (QuickSearchCycle) isIntent() {}
 
-//jjui:bind scope=ui action=file_search_toggle
-type FileSearchToggle struct{}
-
-func (FileSearchToggle) isIntent() {}
-
 //jjui:bind scope=revisions action=ace_jump
 type StartAceJump struct{}
 
 func (StartAceJump) isIntent() {}
-
-//jjui:bind scope=file_search action=move_up set=Delta:1
-//jjui:bind scope=file_search action=move_down set=Delta:-1
-type FileSearchNavigate struct {
-	Delta int
-}
-
-func (FileSearchNavigate) isIntent() {}
-
-//jjui:bind scope=file_search action=edit
-type FileSearchEdit struct{}
-
-func (FileSearchEdit) isIntent() {}
-
-//jjui:bind scope=file_search action=toggle
-type FileSearchTogglePreview struct{}
-
-func (FileSearchTogglePreview) isIntent() {}
-
-//jjui:bind scope=file_search action=page_up set=Kind:PreviewPageUp
-//jjui:bind scope=file_search action=page_down set=Kind:PreviewPageDown
-//jjui:bind scope=file_search action=preview_half_page_up set=Kind:PreviewHalfPageUp
-//jjui:bind scope=file_search action=preview_half_page_down set=Kind:PreviewHalfPageDown
-type FileSearchPreviewScroll struct {
-	Kind PreviewScrollKind
-}
-
-func (FileSearchPreviewScroll) isIntent() {}
 
 //jjui:bind scope=status.input action=autocomplete
 type SuggestCycle struct{}

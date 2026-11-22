@@ -34,6 +34,9 @@ error = "red"
 "revset completion dimmed:selected" = { fg = "bright cyan" }
 "revset completion text:selected" = { fg = "bright green" }
 "revset completion matched:selected" = { underline = true, bold = true }
+"file_view title" = "magenta"
+"file_view text" = { fg = "green", bold = true }
+"file_view search matched" = { reverse = true }
 "status title" = { fg = "black", bg = "magenta", bold = true }
 "git matched" = { fg = "magenta", bold = true }
 "bookmarks matched" = { fg = "magenta", bold = true }

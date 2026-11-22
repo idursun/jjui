@@ -841,6 +841,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		if targetCursor == -1 && reloadState.selectedRevision != "" {
 			if idx := m.selectRevisionExact(reloadState.selectedRevision); idx != -1 {
 				targetCursor = idx
+			} else if m.hasMore {
+				m.pendingSeek = m.seekRevision(reloadState.selectedRevision)
 			}
 		}
 		if bookmark != nil && m.hasMore {
@@ -1138,9 +1140,14 @@ func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
 	}
 	m.isLoading = true
 	currentTag := m.tag.Add(1)
+	selected := intent.SelectedRevision
+	if selected == "" {
+		// A plain refresh must not drop the selection of one it supersedes.
+		selected = m.pendingReload.selectedRevision
+	}
 	m.pendingReload = revisionReloadState{
 		tag:              currentTag,
-		selectedRevision: intent.SelectedRevision,
+		selectedRevision: selected,
 		keepSelections:   intent.KeepSelections,
 	}
 	if obj := m.focusedTextObject(); intent.SelectedRevision == "" && obj != nil && obj.Kind == textObjectBookmark {
@@ -1757,6 +1764,16 @@ func (m *Model) seekBookmark(bookmark *textObject, fallback func(more bool) (tea
 			return fallback(more)
 		}
 		return nil, true
+	}
+}
+
+func (m *Model) seekRevision(revision string) func(more bool) (tea.Cmd, bool) {
+	return func(more bool) (tea.Cmd, bool) {
+		if idx := m.selectRevisionExact(revision); idx != -1 {
+			m.SetCursor(idx)
+			return nil, true
+		}
+		return nil, !more
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/idursun/jjui/internal/config"
+	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/scripting"
 	"github.com/idursun/jjui/internal/ui/actionmeta"
 	"github.com/idursun/jjui/internal/ui/actions"
@@ -25,8 +26,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/dispatch"
 	"github.com/idursun/jjui/internal/ui/exec_process"
 	"github.com/idursun/jjui/internal/ui/exec_prompt"
+	"github.com/idursun/jjui/internal/ui/file_view"
 	"github.com/idursun/jjui/internal/ui/flash"
-	"github.com/idursun/jjui/internal/ui/fuzzy_files"
 	"github.com/idursun/jjui/internal/ui/help"
 	"github.com/idursun/jjui/internal/ui/input"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -441,7 +442,7 @@ func (m *Model) View() string {
 		m.revsetModel.ViewRect(m.displayContext, rows[0])
 		m.renderSplit(m.revisions, rows[1])
 		m.renderFooter(status)
-	case *oplog.Model:
+	case *oplog.Model, *file_view.Model:
 		m.updateSplitAutoPosition()
 		m.renderWithStatus(box, func(content layout.Box) {
 			m.renderSplit(screen, content)
@@ -605,7 +606,7 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.Redo:
 		return m.openDialog(redo.NewModel(m.context)), true
 	case intents.OpenHelp:
-		// Help opens only over the revisions view or the oplog.
+		// Help opens only over the primary view.
 		if top, ok := m.topLayer(); ok && top.model != m.primary() {
 			return nil, true
 		}
@@ -626,12 +627,19 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 		return m.openDialog(exec_prompt.New(m.context, common.ExecShell, "")), true
 	case intents.QuickSearch:
 		return m.openDialog(quick_search.New(m.context)), true
-	case intents.FileSearchToggle:
+	case intents.FileViewOpen:
 		rev := m.revisions.SelectedRevision()
 		if rev == nil {
 			return nil, true
 		}
-		return m.openDialog(fuzzy_files.New(m.context, m.context.CurrentRevset, rev)), true
+		// A file focused in the details list opens directly.
+		var path jj.FileName
+		if file, ok := m.context.Selection().Highlighted.(common.SelectedFile); ok && file.CommitId == rev.CommitId {
+			path = file.File
+		}
+		model := file_view.New(m.context, rev, path)
+		m.openScreen(model)
+		return model.Init(), true
 
 	// --- Delegated intents ---
 	case intents.DiffShow:

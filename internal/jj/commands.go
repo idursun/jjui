@@ -567,3 +567,13 @@ func ResolveRevisionID(revision string) CommandArgs {
 func RevsetValidate(revset string) CommandArgs {
 	return []string{"log", "-r", revset, "-n", "1", "--ignore-working-copy"}
 }
+
+// FileAnnotate takes a literal path, not a fileset. It keeps the user's
+// templates.file_annotate; `--color=debug` labels its fields for parsing.
+func FileAnnotate(revision string, file FileName) CommandArgs {
+	return []string{
+		"file", "annotate", "-r", revision,
+		"--color", "debug", "--no-pager", "--quiet", "--ignore-working-copy",
+		file.Path(),
+	}
+}
