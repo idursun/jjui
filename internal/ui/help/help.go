@@ -24,6 +24,7 @@ var (
 var scopeDisplayNames = map[string]string{
 	"ui":                             "Global",
 	"ui.preview":                     "Preview",
+	"ui.split":                       "Panel Size",
 	"revisions":                      "Revisions",
 	"revisions.rebase":               "Rebase",
 	"revisions.squash":               "Squash",
@@ -98,6 +99,7 @@ var scopeOrder = []string{
 	"status.input",
 	"ui",
 	"ui.preview",
+	"ui.split",
 }
 
 type Model struct {
@@ -380,7 +382,7 @@ var skipScopes = map[string]bool{
 func buildGroups(bindings []config.BindingConfig) []ScopeGroup {
 	byScope := make(map[string][]config.BindingConfig)
 	for _, b := range bindings {
-		scope := strings.TrimSpace(b.Scope)
+		scope := b.EffectiveScope()
 		if skipScopes[scope] {
 			continue
 		}

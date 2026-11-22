@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/config"
+	keybindings "github.com/idursun/jjui/internal/ui/bindings"
 	"github.com/idursun/jjui/internal/ui/bookmarkpane"
 	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -16,8 +17,9 @@ import (
 )
 
 const (
-	previewContentID  = "preview"
-	bookmarkContentID = "bookmark-pane"
+	previewContentID                        = "preview"
+	bookmarkContentID                       = "bookmark-pane"
+	scopeSplit        keybindings.ScopeName = "ui.split"
 )
 
 func (m *Model) initSplitContainer() {
@@ -144,7 +146,16 @@ func (m *Model) updateSplit(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) splitScopes(primary []common.Scope) []common.Scope {
-	return m.splitContainer.Scopes(primary)
+	scopes := m.splitContainer.Scopes(primary)
+	if m.splitContainer.ActiveID() != "" {
+		scopes = append(scopes, common.Scope{
+			Name:    scopeSplit,
+			Leak:    common.LeakAll,
+			Global:  true,
+			Handler: m,
+		})
+	}
+	return scopes
 }
 
 func (m *Model) renderSplit(primary common.ImmediateModel, box layout.Box) {

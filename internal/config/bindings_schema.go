@@ -53,6 +53,19 @@ type BindingConfig struct {
 	Args   map[string]any `toml:"args"`
 }
 
+// EffectiveScope keeps existing preview resize mappings working for every
+// split panel. Other preview bindings, such as scrolling, remain preview-only.
+func (b BindingConfig) EffectiveScope() string {
+	scope := strings.TrimSpace(b.Scope)
+	if scope == "ui.preview" {
+		switch strings.TrimSpace(b.Action) {
+		case "ui.preview_expand", "ui.preview_shrink":
+			return "ui.split"
+		}
+	}
+	return scope
+}
+
 func (c *Config) ValidateBindingsAndActions() error {
 	if err := validateActions(c.Actions); err != nil {
 		return err
@@ -105,7 +118,7 @@ func validateActions(actions []ActionConfig) error {
 func BindingsToRuntime(bindings []BindingConfig) []keybindings.Binding {
 	out := make([]keybindings.Binding, 0, len(bindings))
 	for _, binding := range bindings {
-		scope := keybindings.ScopeName(strings.TrimSpace(binding.Scope))
+		scope := keybindings.ScopeName(binding.EffectiveScope())
 		action := keybindings.Action(strings.TrimSpace(binding.Action))
 		if scope == "" || action == "" {
 			continue
