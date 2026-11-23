@@ -430,7 +430,15 @@ func Test_TextObjects_ClickFocusesObject(t *testing.T) {
 		t.Fatalf("click-me not on screen:\n%s", strings.Join(screen, "\n"))
 	}
 	// SGR mouse press and release, 1-based coordinates.
-	if err := session.SendText(fmt.Sprintf("\x1b[<0;%d;%dM\x1b[<0;%d;%dm", x+2, y+1, x+2, y+1)); err != nil {
+	click := fmt.Sprintf("\x1b[<0;%d;%dM\x1b[<0;%d;%dm", x+2, y+1, x+2, y+1)
+	if err := session.SendText(click); err != nil {
+		t.Fatal(err)
+	}
+	// The first click on another revision only selects it.
+	if _, err := session.WaitForCursor(ctx, func(c cursorPosition) bool { return int(c.Y) == y }); err != nil {
+		t.Fatalf("the click did not select the revision: %v", err)
+	}
+	if err := session.SendText(click); err != nil {
 		t.Fatal(err)
 	}
 	waitForCursorOn(t, session, ctx, "click-me")

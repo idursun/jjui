@@ -158,6 +158,14 @@ func (m *Model) SetCursor(index int) {
 	}
 }
 
+// selectClickedRevision moves to another revision and focuses the revision itself, not the sticky kind.
+func (m *Model) selectClickedRevision(index int) {
+	if index != m.cursor {
+		m.focusedObjectKind, m.focusedObjectIndex = textObjectNode, 0
+	}
+	m.SetCursor(index)
+}
+
 func (m *Model) Scroll(delta int) tea.Cmd {
 	m.ensureCursorView = false
 	currentStart := m.displayContextRenderer.GetScrollOffset()
@@ -648,18 +656,22 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				m.toggleChecked(checkedRevision(commit))
 			}
 		default:
-			m.SetCursor(msg.Index)
+			m.selectClickedRevision(msg.Index)
 		}
 		return nil
 	case ObjectClickedMsg:
 		if m.IsEditing() || (m.IsOverlay() && !m.detailsOpen()) || msg.Index < 0 || msg.Index >= len(m.rows) {
 			return nil
 		}
-		// Details show the revision they were opened for.
-		if msg.Index != m.cursor && m.detailsOpen() {
-			m.setBase(operations.NewDefault())
+		// Only a click on the selected revision reaches its objects.
+		if msg.Index != m.cursor {
+			// Details show the revision they were opened for.
+			if m.detailsOpen() {
+				m.setBase(operations.NewDefault())
+			}
+			m.selectClickedRevision(msg.Index)
+			return nil
 		}
-		m.SetCursor(msg.Index)
 		m.focusedObjectKind, m.focusedObjectIndex = msg.Kind, msg.ObjectIndex
 		return m.syncDetails()
 	case ViewportScrollMsg:

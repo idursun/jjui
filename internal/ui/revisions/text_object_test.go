@@ -512,12 +512,43 @@ func TestModel_ClickingAnObjectFocusesIt(t *testing.T) {
 
 	model.Update(msg)
 	assert.Equal(t, 0, model.cursor)
+	assert.Equal(t, textObjectNode, model.focusedTextObject().Kind, "the first click only selects the revision")
+
+	model.Update(msg)
 	obj := model.focusedTextObject()
 	assert.Equal(t, textObjectBookmark, obj.Kind)
 	assert.Equal(t, "origin", obj.Remote)
 
 	msg, _ = dl.ProcessMouseEvent(tea.MouseClickMsg{X: 63, Y: 0, Button: tea.MouseLeft, Mod: tea.ModCtrl})
 	assert.Equal(t, ItemClickedMsg{Index: 0, Ctrl: true}, msg, "ctrl-click still checks the revision")
+}
+
+func TestModel_ClickingAnotherRevisionDropsTheStickyKind(t *testing.T) {
+	for name, msg := range map[string]tea.Msg{
+		"on an object": ObjectClickedMsg{Index: 0, Kind: textObjectBookmark},
+		"on the row":   ItemClickedMsg{Index: 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+			model.updateGraphRows(textObjectRows(t), "", true)
+			model.cursor = 1
+			model.focusedObjectKind = textObjectBookmark
+
+			model.Update(msg)
+			assert.Equal(t, 0, model.cursor)
+			assert.Equal(t, textObjectNode, model.focusedObjectKind)
+		})
+	}
+}
+
+func TestModel_ClickingTheSelectedRowKeepsTheFocusedKind(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(textObjectRows(t), "", true)
+	model.cursor = 0
+	model.focusedObjectKind = textObjectBookmark
+
+	model.Update(ItemClickedMsg{Index: 0})
+	assert.Equal(t, textObjectBookmark, model.focusedObjectKind)
 }
 
 func TestModel_CheckingARevisionDoesNotMoveItsObjects(t *testing.T) {
