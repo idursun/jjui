@@ -204,7 +204,7 @@ func TestDisplayContextRenderer_SetBookmarkRegistersInlineCursor(t *testing.T) {
 	}
 
 	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
-	op := bookmark.NewSetBookmarkOperation(ctx, "abc123", "main")
+	op := bookmark.NewSetBookmarkOperation(ctx, "abc123", "main", nil)
 
 	r := NewDisplayContextRenderer()
 	dl := render.NewDisplayContext()
@@ -228,7 +228,7 @@ func TestDisplayContextRenderer_SetBookmarkInputGoesBeforeLabelledCommitId(t *te
 	rows := parser.ParseRows(strings.NewReader(log))
 	require.Len(t, rows, 1)
 
-	op := bookmark.NewSetBookmarkOperation(test.NewTestContext(test.NewTestCommandRunner(t)), rows[0].Commit.GetChangeId(), "NAME")
+	op := bookmark.NewSetBookmarkOperation(test.NewTestContext(test.NewTestCommandRunner(t)), rows[0].Commit.GetChangeId(), "NAME", nil)
 	r := NewDisplayContextRenderer()
 	dl := render.NewDisplayContext()
 	r.Render(dl, rows, 0, layout.NewBox(layout.Rect(0, 0, 80, 3)), op, nil, false, "", true)

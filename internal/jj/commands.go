@@ -214,8 +214,8 @@ func Status(revision string) CommandArgs {
 	return []string{"log", "-r", revision, "--no-graph", "--color", "debug", "--quiet", "--template", template, "--ignore-working-copy"}
 }
 
-func BookmarkSet(revision string, name string) CommandArgs {
-	return []string{"bookmark", "set", "-r", revision, name}
+func BookmarkSet(revision string, name string, extraFlags ...string) CommandArgs {
+	return append([]string{"bookmark", "set", "-r", revision, name}, extraFlags...)
 }
 
 func TagSet(revision string, name string) CommandArgs {

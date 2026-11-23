@@ -1070,7 +1070,11 @@ func (m *Model) startBookmarkSet(intent intents.OpenSetBookmark) tea.Cmd {
 		}
 		revision = rev.GetChangeId()
 	}
-	return m.setBaseOperation(bookmark.NewSetBookmarkOperation(m.context, revision, intent.Value))
+	logOrder := make([]*jj.Commit, 0, len(m.rows))
+	for _, row := range m.rows {
+		logOrder = append(logOrder, row.Commit)
+	}
+	return m.setBaseOperation(bookmark.NewSetBookmarkOperation(m.context, revision, intent.Value, logOrder))
 }
 
 func (m *Model) startTagSet(intent intents.OpenSetTag) tea.Cmd {
