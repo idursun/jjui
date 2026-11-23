@@ -62,6 +62,8 @@ bindings_profile = ":builtin"
     command = ["git", "remote", "list"]
   [preview.object.remote_local]
     command = ["bookmark", "list", "--color", "always"]
+  [preview.object.workspace]
+    command = ["workspace", "root", "--color", "always", "--name", "$object.value"]
 
 [oplog]
   limit = 200
