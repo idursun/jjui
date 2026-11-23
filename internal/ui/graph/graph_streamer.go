@@ -10,6 +10,7 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
+	"github.com/idursun/jjui/internal/screen"
 	appContext "github.com/idursun/jjui/internal/ui/context"
 )
 
@@ -78,7 +79,7 @@ func NewGraphStreamer(parentCtx context.Context, runner appContext.CommandRunner
 		if fullStderr == "" {
 			return nil, peekErr // Fallback if no stderr msg but pipe closed
 		}
-		return nil, errors.New(fullStderr)
+		return nil, errors.New(screen.StripLabels(fullStderr))
 	}
 
 	// If we are here, Stdout has data. We grab any warnings accumulated in the buffer.
@@ -94,7 +95,7 @@ func NewGraphStreamer(parentCtx context.Context, runner appContext.CommandRunner
 
 	rowsChan := parser.ParseRowsStreaming(stdoutReader, controlChan, batchSize, ctx.Done())
 	if warningMsg != "" {
-		err = errors.New(warningMsg)
+		err = errors.New(screen.StripLabels(warningMsg))
 	}
 
 	return &GraphStreamer{

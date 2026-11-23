@@ -27,3 +27,10 @@ func TestParseLabelledFromReader(t *testing.T) {
 		"\n|",
 	}, got)
 }
+
+func TestStripLabels(t *testing.T) {
+	in := "<<error heading::Error: >><<error::The working copy is stale.>>\n" +
+		"<<hint heading::Hint: >><<hint::Run `jj workspace update-stale` to update it.>>\n"
+	assert.Equal(t, "Error: The working copy is stale.\nHint: Run `jj workspace update-stale` to update it.\n", StripLabels(in))
+	assert.Equal(t, "plain a << b", StripLabels("plain a << b"))
+}

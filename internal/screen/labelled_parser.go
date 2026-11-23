@@ -145,3 +145,16 @@ func isSpanEnd(rest string) bool {
 	}
 	return true
 }
+
+// StripLabels removes the `<<labels::text>>` markers from `--color=debug`
+// output, keeping the text and its colours.
+func StripLabels(s string) string {
+	if !strings.Contains(s, "<<") {
+		return s
+	}
+	var b strings.Builder
+	for seg := range ParseLabelledFromReader(strings.NewReader(s)) {
+		b.WriteString(seg.String())
+	}
+	return b.String()
+}

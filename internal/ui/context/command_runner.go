@@ -15,6 +15,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/idursun/jjui/internal/askpass"
+	"github.com/idursun/jjui/internal/screen"
 	"github.com/idursun/jjui/internal/ui/common"
 )
 
@@ -41,7 +42,7 @@ func (a *MainCommandRunner) RunCommandImmediateWithEnv(args []string, env []stri
 	}
 	if output, err := c.Output(); err != nil {
 		if exitError, ok := errors.AsType[*exec.ExitError](err); ok {
-			return nil, errors.New(string(exitError.Stderr))
+			return nil, stderrError(string(exitError.Stderr))
 		}
 		return nil, err
 	} else {
@@ -115,10 +116,10 @@ func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, co
 		err := c.Wait()
 		if err != nil {
 			if _, ok := errors.AsType[*exec.ExitError](err); ok {
-				err = errors.New(output.String())
+				err = stderrError(output.String())
 			}
 		}
-		completed := common.CommandCompletedMsg{ID: id, Output: output.String(), Err: err}
+		completed := common.CommandCompletedMsg{ID: id, Output: screen.StripLabels(output.String()), Err: err}
 		if err != nil {
 			return completed
 		}
@@ -148,13 +149,19 @@ func (a *MainCommandRunner) RunInteractiveCommand(args []string, continuation te
 	c.Dir = a.Location
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		if err != nil {
-			return common.CommandCompletedMsg{Err: errors.New(errBuffer.String())}
+			return common.CommandCompletedMsg{Err: stderrError(errBuffer.String())}
 		}
 		if continuation != nil {
 			return continuation()
 		}
 		return nil
 	})
+}
+
+// stderrError turns jj's stderr into an error, removing the labels that
+// `--color=debug` adds.
+func stderrError(stderr string) error {
+	return errors.New(screen.StripLabels(stderr))
 }
 
 type StreamingCommand struct {
