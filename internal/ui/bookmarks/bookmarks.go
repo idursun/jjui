@@ -97,6 +97,7 @@ type item struct {
 	dist     int
 	args     []string
 	key      string
+	remote   string // set on track/untrack items for a remote bookmark
 }
 
 func (i item) FilterValue() string {
@@ -187,8 +188,8 @@ func (m *Model) filterItemsByRemote(allItems []item) []item {
 				continue
 			}
 
-			// Include track items on local bookmarks (no @remote suffix)
-			if bookmarkItem.priority == trackCommand && !strings.Contains(bookmarkItem.name, "@") {
+			// Include track items on local bookmarks
+			if bookmarkItem.priority == trackCommand && bookmarkItem.remote == "" {
 				filtered = append(filtered, bookmarkItem)
 				continue
 			}
@@ -206,7 +207,7 @@ func (m *Model) filterItemsByRemote(allItems []item) []item {
 	for _, bookmarkItem := range allItems {
 		// Only include track/untrack items for the selected remote
 		if bookmarkItem.priority == trackCommand || bookmarkItem.priority == untrackCommand {
-			if strings.Contains(bookmarkItem.name, "@"+selectedRemote) {
+			if bookmarkItem.remote == selectedRemote {
 				filtered = append(filtered, bookmarkItem)
 			}
 		}
@@ -305,6 +306,7 @@ func (m *Model) loadAll() tea.Msg {
 					priority: untrackCommand,
 					dist:     distance,
 					args:     command,
+					remote:   remote.Remote,
 				})
 				continue
 			}
@@ -314,6 +316,7 @@ func (m *Model) loadAll() tea.Msg {
 					priority: trackCommand,
 					dist:     distance,
 					args:     command,
+					remote:   remote.Remote,
 				})
 			}
 		}
@@ -740,12 +743,9 @@ func (m *Model) remoteFilterMatch(item item, filter string) bool {
 		if strings.HasPrefix(filter, "untrack") {
 			return true
 		}
-		return !strings.Contains(item.FilterValue(), "@")
+		return item.remote == ""
 	}
-	if strings.Contains(item.FilterValue(), "@") {
-		return strings.Contains(item.FilterValue(), "@"+selectedRemote)
-	}
-	return false
+	return item.remote == selectedRemote
 }
 
 func (m *Model) renderFilterView(dl *render.DisplayContext, box layout.Box) {
