@@ -38,6 +38,11 @@ type bookmarkCandidate struct {
 	backwards bool
 }
 
+type candidatesLoadedMsg struct {
+	revision   string
+	candidates []bookmarkCandidate
+}
+
 type SetBookmarkOperation struct {
 	context         *context.MainContext
 	revision        string
@@ -97,6 +102,11 @@ func (s *SetBookmarkOperation) Update(msg tea.Msg) tea.Cmd {
 	case intents.Intent:
 		cmd, _ := s.HandleIntent(msg)
 		return cmd
+	case candidatesLoadedMsg:
+		if msg.revision == s.revision {
+			s.setCandidates(msg.candidates)
+		}
+		return nil
 	}
 	before := s.name.Value()
 	var cmd tea.Cmd
@@ -109,16 +119,30 @@ func (s *SetBookmarkOperation) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (s *SetBookmarkOperation) Init() tea.Cmd {
-	if output, err := s.context.RunCommandImmediate(jj.BookmarkListMovable(s.revision)); err == nil {
-		s.candidates = rankCandidates(s.revision, s.logOrder, jj.ParseBookmarkListOutput(string(output)))
-		suggestions := make([]string, len(s.candidates))
-		for i, c := range s.candidates {
-			suggestions[i] = c.name
-		}
-		s.name.SetSuggestions(suggestions)
-	}
+	return tea.Batch(textinput.Blink, s.loadCandidates())
+}
 
-	return textinput.Blink
+func (s *SetBookmarkOperation) loadCandidates() tea.Cmd {
+	revision, logOrder := s.revision, s.logOrder
+	return func() tea.Msg {
+		output, err := s.context.RunCommandImmediate(jj.BookmarkListMovable(revision))
+		if err != nil {
+			return nil
+		}
+		return candidatesLoadedMsg{
+			revision:   revision,
+			candidates: rankCandidates(revision, logOrder, jj.ParseBookmarkListOutput(string(output))),
+		}
+	}
+}
+
+func (s *SetBookmarkOperation) setCandidates(candidates []bookmarkCandidate) {
+	s.candidates = candidates
+	suggestions := make([]string, len(candidates))
+	for i, c := range candidates {
+		suggestions[i] = c.name
+	}
+	s.name.SetSuggestions(suggestions)
 }
 
 // rankCandidates orders bookmarks nearest first: those below the target, then
