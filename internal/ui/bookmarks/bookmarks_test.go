@@ -155,6 +155,41 @@ func Test_FilterEditing_AcceptsPasteMsg(t *testing.T) {
 	assert.Equal(t, "track feature", op.filterInput.Value())
 }
 
+func Test_RemoteFilter_IgnoresRemotesWithSamePrefix(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("up https://example.com/a.git\nupstream https://example.com/b.git\n"))
+	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(`
+feature;.;true;false;false;false;aaa
+feature;up;true;true;false;false;aaa
+feature;upstream;true;false;false;false;bbb
+`))
+	commandRunner.Expect(jj.BookmarkListMovable("abc123")).SetOutput([]byte(""))
+
+	commit := &jj.Commit{ChangeId: "abc123", CommitId: "commit123"}
+	op := NewModel(test.NewTestContext(commandRunner), commit, []string{"commit123"})
+	test.SimulateModel(op, op.Init())
+
+	visibleNames := func() []string {
+		var names []string
+		for _, item := range op.visibleItems() {
+			names = append(names, item.name)
+		}
+		return names
+	}
+
+	op.cycleRemotes(1)
+	assert.Equal(t, "up", op.remoteNames[op.selectedRemoteIdx])
+	assert.Equal(t, []string{"untrack 'feature@up'"}, visibleNames())
+
+	op.filtered("track")
+	assert.Empty(t, visibleNames())
+
+	op.filtered("")
+	op.cycleRemotes(1)
+	assert.Equal(t, "upstream", op.remoteNames[op.selectedRemoteIdx])
+	assert.Equal(t, []string{"track 'feature@upstream'"}, visibleNames())
+}
+
 func assertSelectedItem(t *testing.T, op *Model, want string) {
 	t.Helper()
 
