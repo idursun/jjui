@@ -96,6 +96,30 @@ func TestModel_ViewRectShowsMode(t *testing.T) {
 	assert.Contains(t, rendered, "diff")
 }
 
+func TestWorkspaceIndicatorDoesNotGetClippedByModeLabel(t *testing.T) {
+	previous := config.Current.Workspace
+	config.Current.Workspace.InteractiveWorkspacePane = true
+	t.Cleanup(func() { config.Current.Workspace = previous })
+	ctx := &context.MainContext{WorkspaceName: "feature", Histories: config.NewHistories()}
+	m := New(ctx)
+	m.mode = "revisions"
+	for _, width := range []int{25, 80} {
+		dl := render.NewDisplayContext()
+		m.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, width, 1)))
+		assert.Contains(t, dl.RenderToString(width, 1), "workspace: feature")
+	}
+}
+
+func TestDisabledWorkspacesDoNotShowStatusIndicator(t *testing.T) {
+	previous := config.Current.Workspace
+	config.Current.Workspace.InteractiveWorkspacePane = false
+	t.Cleanup(func() { config.Current.Workspace = previous })
+	m := New(&context.MainContext{WorkspaceName: "feature", Histories: config.NewHistories()})
+	dl := render.NewDisplayContext()
+	m.ViewRect(dl, layout.NewBox(layout.Rect(0, 0, 80, 1)))
+	assert.NotContains(t, dl.RenderToString(80, 1), "workspace: feature")
+}
+
 func TestModel_PromptScopesHideMode(t *testing.T) {
 	for _, scope := range []keybindings.ScopeName{actions.ScopeStatusInput, actions.ScopeQuickSearchInput} {
 		m := New(&context.MainContext{Histories: config.NewHistories()})

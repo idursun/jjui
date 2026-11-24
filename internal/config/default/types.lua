@@ -571,6 +571,7 @@ function wait_refresh() end
 ---@field open_redo fun()
 ---@field open_revset fun()
 ---@field open_undo fun()
+---@field open_workspaces fun()
 ---@field preview_expand fun()
 ---@field preview_half_page_down fun()
 ---@field preview_half_page_up fun()
@@ -590,6 +591,28 @@ function wait_refresh() end
 ---@field y_offset fun(): integer|nil
 
 ---@class jjui.undo
+---@field apply fun()
+---@field cancel fun()
+---@field next fun()
+---@field prev fun()
+---@field close fun()
+
+---@class jjui.workspace_pane
+---@field confirmation jjui.workspace_pane.confirmation
+---@field add fun()
+---@field apply fun()
+---@field cancel fun()
+---@field forget fun()
+---@field move_down fun()
+---@field move_up fun()
+---@field refresh fun()
+---@field remove fun()
+---@field rename fun()
+---@field show_in_revision fun()
+---@field update_stale fun()
+---@field close fun()
+
+---@class jjui.workspace_pane.confirmation
 ---@field apply fun()
 ---@field cancel fun()
 ---@field next fun()
@@ -616,6 +639,7 @@ function wait_refresh() end
 ---@field status jjui.status
 ---@field ui jjui.ui
 ---@field undo jjui.undo
+---@field workspace_pane jjui.workspace_pane
 ---@field builtin jjui.builtin
 ---@field jj_async fun(...: string|string[])
 ---@field jj_interactive fun(...: string|string[])
@@ -650,6 +674,7 @@ function wait_refresh() end
 ---@field status jjui.status
 ---@field ui jjui.ui
 ---@field undo jjui.undo
+---@field workspace_pane jjui.workspace_pane
 
 ---@type jjui
 jjui = {}

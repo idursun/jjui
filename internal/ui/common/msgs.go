@@ -14,6 +14,7 @@ type (
 	ThemeChangedMsg struct{}
 	ReloadThemeMsg  struct{}
 	RefreshMsg      struct {
+		Location         string
 		SelectedRevision string
 		KeepSelections   bool
 	}

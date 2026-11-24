@@ -29,10 +29,11 @@ func TestChangeWorkspace(t *testing.T) {
 	ctx.ChangeWorkspace("/new/path")
 
 	assert.Equal(t, "/new/path", ctx.Location)
-	assert.Equal(t, "/new/path", runner.Location)
+	assert.Equal(t, "/new/path", ctx.CommandRunner.(*MainCommandRunner).Location)
+	assert.Equal(t, "/old/path", runner.Location, "in-flight commands retain the original workspace")
 }
 
-func TestChangeWorkspace_UpdatesBothLocations(t *testing.T) {
+func TestChangeWorkspaceReplacesRunnerAndPreservesOldLocation(t *testing.T) {
 	runner := &MainCommandRunner{Location: "/a"}
 	ctx := &MainContext{
 		Location:      "/a",
@@ -41,11 +42,12 @@ func TestChangeWorkspace_UpdatesBothLocations(t *testing.T) {
 
 	ctx.ChangeWorkspace("/b")
 	assert.Equal(t, "/b", ctx.Location)
-	assert.Equal(t, "/b", runner.Location)
+	assert.Equal(t, "/b", ctx.CommandRunner.(*MainCommandRunner).Location)
 
 	ctx.ChangeWorkspace("/c")
 	assert.Equal(t, "/c", ctx.Location)
-	assert.Equal(t, "/c", runner.Location)
+	assert.Equal(t, "/c", ctx.CommandRunner.(*MainCommandRunner).Location)
+	assert.Equal(t, "/a", runner.Location)
 }
 
 func TestChangeWorkspace_NonMainCommandRunner(t *testing.T) {
