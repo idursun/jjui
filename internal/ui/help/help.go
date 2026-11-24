@@ -246,7 +246,7 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 	m.input.SetStyles(inputStyles)
 
 	pw, ph := box.R.Dx(), box.R.Dy()
-	contentWidth := max(min(pw, 90)-4, 0)
+	contentWidth := max(min(pw, 120)-4, 0)
 	contentHeight := max(min(ph, 50)-4, 0)
 	menuWidth := max(contentWidth+2, 0)
 	menuHeight := max(contentHeight+2, 0)
@@ -437,7 +437,6 @@ func bindingsToEntries(bindings []config.BindingConfig) []Entry {
 			desc = descFromAction(action)
 		}
 
-		desc = appendBindingConditions(desc, b)
 		key := action + "|" + desc
 		if seenActions[key] {
 			continue

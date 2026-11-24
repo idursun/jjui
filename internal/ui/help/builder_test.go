@@ -46,7 +46,7 @@ func TestBuildFromBindingsWithAvailability_MarksUnavailableBinding(t *testing.T)
 	assert.Equal(t, []Entry{{Action: "revisions.diff", Label: "d", Desc: "diff", Disabled: true}}, entries)
 }
 
-func TestBuildFromBindings_ShowsActionAndBindingConditions(t *testing.T) {
+func TestBuildFromBindings_OmitsActionAndBindingConditions(t *testing.T) {
 	previous := config.Current
 	t.Cleanup(func() { config.Current = previous })
 	config.Current = &config.Config{}
@@ -62,7 +62,7 @@ func TestBuildFromBindings_ShowsActionAndBindingConditions(t *testing.T) {
 
 	assert.Equal(t, []Entry{{
 		Label: "d",
-		Desc:  "diff (when revisions.has_revision && !revisions.is_empty && revisions.has_selection)",
+		Desc:  "diff",
 	}}, entries)
 }
 

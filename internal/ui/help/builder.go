@@ -232,24 +232,6 @@ func bindingDesc(b config.BindingConfig) string {
 	return descFromAction(string(keybindings.Action(strings.TrimSpace(b.Action))))
 }
 
-func appendBindingConditions(desc string, b config.BindingConfig) string {
-	conditions := make([]string, 0, 2)
-	if config.Current != nil {
-		if when := strings.TrimSpace(config.Current.ActionWhen(b.Action)); when != "" {
-			conditions = append(conditions, when)
-		}
-	}
-	if when := strings.TrimSpace(b.When); when != "" {
-		if len(conditions) == 0 || conditions[0] != when {
-			conditions = append(conditions, when)
-		}
-	}
-	if len(conditions) == 0 {
-		return desc
-	}
-	return desc + " (when " + strings.Join(conditions, " && ") + ")"
-}
-
 func continuationDesc(c dispatch.Continuation) string {
 	if desc := strings.TrimSpace(c.Desc); desc != "" {
 		return desc
