@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/idursun/jjui/internal/jj"
+	"github.com/idursun/jjui/internal/ui/actionmeta"
 	"github.com/idursun/jjui/internal/ui/common"
 	uicontext "github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
@@ -477,4 +478,32 @@ func TestRunner_WaitRefreshResumesOnUpdateRevisions(t *testing.T) {
 			assert.Equal(t, "true", ctx.ScriptVM.GetGlobal("done").String())
 		})
 	}
+}
+
+func TestNumberArgActionDispatchesLuaNumber(t *testing.T) {
+	for _, script := range []string{
+		`jjui.ui.preview.set_size({ percent = 100 })`,
+		`jjui.ui.preview.set_size(100)`,
+	} {
+		ctx := setupVM(t)
+
+		_, cmd, err := RunScript(ctx, script)
+		require.NoError(t, err, script)
+		require.NotNil(t, cmd, script)
+
+		msg, ok := cmd().(common.DispatchActionMsg)
+		require.True(t, ok, script)
+		assert.Equal(t, "ui.preview.set_size", msg.Action, script)
+		assert.Equal(t, map[string]any{"percent": float64(100)}, msg.Args, script)
+		assert.NoError(t, actionmeta.ValidateBuiltInActionArgs(msg.Action, msg.Args), script)
+	}
+}
+
+func TestPreviewSizeStateGetter(t *testing.T) {
+	ctx := &uicontext.MainContext{}
+	ctx.SetStateProvider(&testStateProvider{states: map[string]any{"ui.preview.size": float64(70)}})
+
+	vals := runScriptAndGetGlobals(t, ctx, `result = jjui.ui.preview.size()`, "result")
+
+	assert.Equal(t, lua.LNumber(70), vals[0])
 }

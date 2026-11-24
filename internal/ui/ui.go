@@ -118,6 +118,11 @@ func (m *Model) QueryState(name string) (any, bool) {
 				return false, true
 			}
 			return m.splitContainer.CanResize(-config.Current.Preview.WidthIncrementPercentage), true
+		case "size":
+			if m.splitContainer == nil {
+				return nil, true
+			}
+			return m.splitContainer.Size(), true
 		}
 	}
 	if annotationModel, ok := findLayer[*annotation.Model](m); ok && strings.HasPrefix(name, "annotation.") {

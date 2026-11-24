@@ -890,6 +890,8 @@ func ResolveIntent(scope string, action keybindings.Action, args map[string]any)
 		}
 	case ScopeUiPreview:
 		switch action {
+		case keybindings.Action("ui.preview.set_size"):
+			return intents.PreviewSetSize{Percent: actionargs.NumberArg(args, "percent", 0)}, true
 		case keybindings.Action("ui.preview.show"):
 			return intents.PreviewShow{Content: actionargs.StringArg(args, "content", "")}, true
 		}

@@ -77,3 +77,9 @@ func (s *SplitState) Shrink(delta float64) {
 	s.Percent -= delta
 	s.clamp()
 }
+
+// SetPercent allows up to 100 so the secondary pane can take the full size,
+// unlike expand/drag which stop at MaxPercent.
+func (s *SplitState) SetPercent(percent float64) {
+	s.Percent = min(max(percent, s.MinPercent), 100)
+}

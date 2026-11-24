@@ -47,3 +47,10 @@ type PreviewShow struct {
 }
 
 func (PreviewShow) isIntent() {}
+
+//jjui:bind scope=ui.preview action=set_size set=Percent:$number(percent)
+type PreviewSetSize struct {
+	Percent float64
+}
+
+func (PreviewSetSize) isIntent() {}

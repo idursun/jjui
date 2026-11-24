@@ -342,6 +342,12 @@ func generateActionMetaSource(actionArgSchemas map[string]map[string]string, act
 	b.WriteString("\t\t\tif _, ok := value.(bool); !ok {\n")
 	b.WriteString("\t\t\t\treturn fmt.Errorf(\"action %q arg %q expects bool\", action, key)\n")
 	b.WriteString("\t\t\t}\n")
+	b.WriteString("\t\tcase \"number\":\n")
+	b.WriteString("\t\t\tswitch value.(type) {\n")
+	b.WriteString("\t\t\tcase int, int64, float64:\n")
+	b.WriteString("\t\t\tdefault:\n")
+	b.WriteString("\t\t\t\treturn fmt.Errorf(\"action %q arg %q expects number\", action, key)\n")
+	b.WriteString("\t\t\t}\n")
 	b.WriteString("\t\tcase \"string\":\n")
 	b.WriteString("\t\t\tif _, ok := value.(string); !ok {\n")
 	b.WriteString("\t\t\t\treturn fmt.Errorf(\"action %q arg %q expects string\", action, key)\n")
@@ -888,6 +894,11 @@ func validateSetValueType(fieldType, value string, enums map[string][]enumValueM
 			return nil
 		}
 		return fmt.Errorf("expected int, got %q", value)
+	case "float64":
+		if isNumberArg(value) {
+			return nil
+		}
+		return fmt.Errorf("expected $number(...), got %q", value)
 	case "string":
 		if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
 			return nil
@@ -931,6 +942,10 @@ func isBoolArg(value string) bool {
 	return strings.HasPrefix(value, "$bool(") && strings.HasSuffix(value, ")")
 }
 
+func isNumberArg(value string) bool {
+	return strings.HasPrefix(value, "$number(") && strings.HasSuffix(value, ")")
+}
+
 func isStringArg(value string) bool {
 	return strings.HasPrefix(value, "$string(") && strings.HasSuffix(value, ")")
 }
@@ -946,6 +961,13 @@ func parseArgRef(fieldType, value string, enums map[string][]enumValueMeta) (nam
 			return "", "", false, false
 		}
 		return name, "bool", false, true
+	}
+	if isNumberArg(value) {
+		name := strings.TrimSuffix(strings.TrimPrefix(value, "$number("), ")")
+		if name == "" {
+			return "", "", false, false
+		}
+		return name, "number", true, true
 	}
 	if argName, ok := parseEnumArg(value); ok {
 		if len(enums[fieldType]) == 0 || argName == "" {
@@ -1070,6 +1092,10 @@ func renderValue(fieldType, value string, enums map[string][]enumValueMeta) stri
 		name := strings.TrimSuffix(strings.TrimPrefix(value, "$bool("), ")")
 		return fmt.Sprintf("actionargs.BoolArg(args, %q, false)", name)
 	}
+	if isNumberArg(value) {
+		name := strings.TrimSuffix(strings.TrimPrefix(value, "$number("), ")")
+		return fmt.Sprintf("actionargs.NumberArg(args, %q, 0)", name)
+	}
 	if isStringArg(value) {
 		name := strings.TrimSuffix(strings.TrimPrefix(value, "$string("), ")")
 		return fmt.Sprintf("actionargs.StringArg(args, %q, \"\")", name)
@@ -1102,7 +1128,7 @@ func rulesUseActionArgs(rules []bindRule) bool {
 			if strings.HasPrefix(value, "$bool(") && strings.HasSuffix(value, ")") {
 				return true
 			}
-			if isStringArg(value) || isOptionalStringArg(value) {
+			if isStringArg(value) || isOptionalStringArg(value) || isNumberArg(value) {
 				return true
 			}
 		}
@@ -1324,12 +1350,14 @@ type scopeNode struct {
 }
 
 type luaActionSpec struct {
-	Canonical               string
-	Token                   string
-	Schema                  map[string]string
-	Required                []string
-	RequiredSet             map[string]struct{}
-	HasSingleRequiredString bool
+	Canonical   string
+	Token       string
+	Schema      map[string]string
+	Required    []string
+	RequiredSet map[string]struct{}
+	// PositionalType is the schema type of the single required string or
+	// number arg, which Lua may pass without wrapping it in a table.
+	PositionalType string
 }
 
 func generateLuaTypesSource(actionIDs []string, argSchemas map[string]map[string]string, requiredArgs map[string][]string) ([]byte, error) {
@@ -1375,7 +1403,7 @@ func generateLuaTypesSource(actionIDs []string, argSchemas map[string]map[string
 			b.WriteString("---@field content fun(): string|nil\n")
 		}
 		if scope.fullName == "ui.preview" {
-			b.WriteString("---@field y_offset fun(): integer|nil\n")
+			b.WriteString("---@field size fun(): number|nil\n")
 		}
 		// Mirror the runtime "close" alias for "cancel"
 		if hasCancel && !hasClose {
@@ -1468,12 +1496,12 @@ func newLuaActionSpec(canonical, token string, schema map[string]string, require
 		requiredSet[name] = struct{}{}
 	}
 	return luaActionSpec{
-		Canonical:               canonical,
-		Token:                   token,
-		Schema:                  schema,
-		Required:                required,
-		RequiredSet:             requiredSet,
-		HasSingleRequiredString: len(required) == 1 && schema[required[0]] == "string",
+		Canonical:      canonical,
+		Token:          token,
+		Schema:         schema,
+		Required:       required,
+		RequiredSet:    requiredSet,
+		PositionalType: positionalType(schema, required),
 	}
 }
 
@@ -1543,12 +1571,23 @@ func writeActionFunction(b *bytes.Buffer, action luaActionSpec) {
 		params = append(params, fmt.Sprintf("%s%s: %s", name, optional, luaType))
 	}
 
-	if action.HasSingleRequiredString {
-		// Can be called with just the string value or a table
-		b.WriteString(fmt.Sprintf("---@field %s fun(value?: string|{%s})\n", action.Token, strings.Join(params, ", ")))
+	if action.PositionalType != "" {
+		// Can be called with just the value or a table
+		b.WriteString(fmt.Sprintf("---@field %s fun(value?: %s|{%s})\n", action.Token, schemaTypeToLua(action.PositionalType), strings.Join(params, ", ")))
 	} else {
 		b.WriteString(fmt.Sprintf("---@field %s fun(args: {%s})\n", action.Token, strings.Join(params, ", ")))
 	}
+}
+
+func positionalType(schema map[string]string, required []string) string {
+	if len(required) != 1 {
+		return ""
+	}
+	switch typ := schema[required[0]]; typ {
+	case "string", "number":
+		return typ
+	}
+	return ""
 }
 
 func schemaTypeToLua(schemaType string) string {
@@ -1557,6 +1596,8 @@ func schemaTypeToLua(schemaType string) string {
 		return "boolean"
 	case "string":
 		return "string"
+	case "number":
+		return "number"
 	default:
 		if after, ok := strings.CutPrefix(schemaType, "enum:"); ok {
 			values := strings.Split(after, "|")

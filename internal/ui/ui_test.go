@@ -1529,6 +1529,26 @@ func Test_Update_DispatchedPreviewShowOpensHiddenPreview(t *testing.T) {
 	assert.Contains(t, renderSplitView(model, 20, 3), "new")
 }
 
+func Test_Update_DispatchedPreviewSetSizeOpensPreviewAtGivenPercent(t *testing.T) {
+	origPosition := config.Current.Preview.Position
+	config.Current.Preview.Position = "right"
+	t.Cleanup(func() { config.Current.Preview.Position = origPosition })
+
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	model := NewUI(ctx)
+
+	model.Update(common.DispatchActionMsg{
+		Action:  "ui.preview.set_size",
+		Args:    map[string]any{"percent": float64(70)},
+		BuiltIn: true,
+	})
+	assert.True(t, hasScope(model, actions.ScopeUiPreview))
+	assert.Equal(t, 29, splitSeparatorX(t, model)) // 30% of the 99 columns left after the separator
+	size, ok := model.QueryState("ui.preview.size")
+	assert.True(t, ok)
+	assert.Equal(t, float64(70), size)
+}
+
 func Test_Update_LuaInputEscCancelsAndFinishesScript(t *testing.T) {
 	origBindings := config.Current.Bindings
 	defer func() {

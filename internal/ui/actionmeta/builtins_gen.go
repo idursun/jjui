@@ -350,6 +350,7 @@ var builtInActionScopes = map[string][]string{
 	"ui.open_redo":                                  {"ui"},
 	"ui.open_revset":                                {"ui"},
 	"ui.open_undo":                                  {"ui"},
+	"ui.preview.set_size":                           {"ui.preview"},
 	"ui.preview.show":                               {"ui.preview"},
 	"ui.preview_expand":                             {"ui"},
 	"ui.preview_half_page_down":                     {"ui"},
@@ -498,6 +499,9 @@ var builtInActionArgSchemas = map[string]map[string]string{
 	"ui.change_theme": {
 		"name": "string",
 	},
+	"ui.preview.set_size": {
+		"percent": "number",
+	},
 	"ui.preview.show": {
 		"content": "string",
 	},
@@ -513,6 +517,7 @@ var builtInActionRequiredArgs = map[string][]string{
 	"revisions.revert.set_target":        {"target"},
 	"revset.set":                         {"value"},
 	"ui.change_theme":                    {"name"},
+	"ui.preview.set_size":                {"percent"},
 	"ui.preview.show":                    {"content"},
 }
 
@@ -572,6 +577,12 @@ func ValidateBuiltInActionArgs(action string, args map[string]any) error {
 		case "bool":
 			if _, ok := value.(bool); !ok {
 				return fmt.Errorf("action %q arg %q expects bool", action, key)
+			}
+		case "number":
+			switch value.(type) {
+			case int, int64, float64:
+			default:
+				return fmt.Errorf("action %q arg %q expects number", action, key)
 			}
 		case "string":
 			if _, ok := value.(string); !ok {

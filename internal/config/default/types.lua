@@ -586,8 +586,9 @@ function wait_refresh() end
 ---@field close fun()
 
 ---@class jjui.ui.preview
+---@field set_size fun(value?: number|{percent: number})
 ---@field show fun(value?: string|{content: string})
----@field y_offset fun(): integer|nil
+---@field size fun(): number|nil
 
 ---@class jjui.undo
 ---@field apply fun()

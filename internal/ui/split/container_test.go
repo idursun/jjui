@@ -159,3 +159,17 @@ func scopeNames(scopes []common.Scope) []keybindings.ScopeName {
 	}
 	return names
 }
+
+func TestSplitContainerSetSizeClampsBetweenMinAndFull(t *testing.T) {
+	state := NewSplitState(50)
+	sc := NewSplitContainer(state)
+
+	sc.SetSize(100)
+	assert.Equal(t, 100.0, state.Percent)
+	sc.SetSize(250)
+	assert.Equal(t, 100.0, state.Percent)
+	sc.SetSize(0)
+	assert.Equal(t, state.MinPercent, state.Percent)
+	sc.SetSize(30)
+	assert.Equal(t, 30.0, state.Percent)
+}

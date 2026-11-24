@@ -448,6 +448,7 @@ func registerAPI(L *lua.LState, ctx *uicontext.MainContext) {
 	registerGeneratedActionAPI(L, root, false)
 	registerGeneratedActionAPI(L, builtinRoot, true)
 	registerStateGetter(L, root, ctx, "revisions.inline_describe.content")
+	registerStateGetter(L, root, ctx, "ui.preview.size")
 	L.SetGlobal("jjui", root)
 
 	// but also expose at the top level for convenience
@@ -550,16 +551,30 @@ func ensureScopeTable(L *lua.LState, root *lua.LTable, scope string) *lua.LTable
 }
 
 func generatedActionFn(L *lua.LState, canonical string, builtIn bool) *lua.LFunction {
-	var positionalKey string
-	if required := actionmeta.ActionRequiredArgs(canonical); len(required) == 1 && actionmeta.ActionArgSchema(canonical)[required[0]] == "string" {
-		positionalKey = required[0]
+	var positionalKey, positionalType string
+	if required := actionmeta.ActionRequiredArgs(canonical); len(required) == 1 {
+		switch typ := actionmeta.ActionArgSchema(canonical)[required[0]]; typ {
+		case "string", "number":
+			positionalKey, positionalType = required[0], typ
+		}
 	}
 	return L.NewFunction(func(L *lua.LState) int {
 		var args map[string]any
 		if positionalKey != "" && L.GetTop() >= 1 {
-			if s, ok := L.Get(1).(lua.LString); ok {
-				args = map[string]any{positionalKey: s.String()}
-			} else {
+			switch v := L.Get(1).(type) {
+			case lua.LString:
+				if positionalType == "string" {
+					args = map[string]any{positionalKey: v.String()}
+				} else {
+					args = optionalLuaMapArg(L, 1)
+				}
+			case lua.LNumber:
+				if positionalType == "number" {
+					args = map[string]any{positionalKey: float64(v)}
+				} else {
+					args = optionalLuaMapArg(L, 1)
+				}
+			default:
 				args = optionalLuaMapArg(L, 1)
 			}
 		} else {

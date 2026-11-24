@@ -127,6 +127,14 @@ func (sc *SplitContainer) Resize(delta float64) {
 	}
 }
 
+func (sc *SplitContainer) Size() float64 {
+	return sc.state.Percent
+}
+
+func (sc *SplitContainer) SetSize(percent float64) {
+	sc.state.SetPercent(percent)
+}
+
 func (sc *SplitContainer) CanResize(delta float64) bool {
 	if sc.activeContent() == nil || delta == 0 {
 		return false

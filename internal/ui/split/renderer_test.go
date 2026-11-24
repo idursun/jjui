@@ -28,3 +28,28 @@ func TestSplitRendererSeparatorClickStartsDragAtMousePosition(t *testing.T) {
 		assert.Positive(t, drags[0].X)
 	}
 }
+
+type boxRecorder struct {
+	fakeContent
+	box layout.Box
+}
+
+func (b *boxRecorder) ViewRect(_ *render.DisplayContext, box layout.Box) { b.box = box }
+
+func TestSplitRendererFullSizeGivesSecondaryTheWholeBox(t *testing.T) {
+	for _, vertical := range []bool{false, true} {
+		state := NewSplitState(50)
+		state.SetPercent(100)
+		renderer := NewRenderer(state)
+		primary, secondary := &boxRecorder{}, &boxRecorder{}
+		renderer.Render(render.NewDisplayContext(), layout.NewBox(layout.Rect(0, 0, 20, 10)), primary, secondary, vertical)
+
+		if vertical {
+			assert.Equal(t, 0, primary.box.R.Dy())
+			assert.Equal(t, 9, secondary.box.R.Dy())
+		} else {
+			assert.Equal(t, 0, primary.box.R.Dx())
+			assert.Equal(t, 19, secondary.box.R.Dx())
+		}
+	}
+}
