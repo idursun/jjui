@@ -82,6 +82,15 @@ retain_bookmarks = false
 
 - `retain_bookmarks`: move bookmarks on abandoned revisions to their parent instead of deleting them (default: `false`)
 
+### Workspace
+
+```toml
+[revisions.workspace]
+path_prefix = "../"
+```
+
+- `path_prefix`: prefills the path of a new workspace (`shift+n`), relative to the repo root (default: `"../"`)
+
 ## Preview
 
 ```toml
@@ -92,23 +101,19 @@ width_percentage = 50.0
 width_increment_percentage = 5.0
 ```
 
+The command that runs for each kind of object is set in `[preview.object.<kind>]` tables. See [Preview](/jjui/preview#customizing-preview-commands).
+
+```toml
+[preview.object.bookmark]
+command = ["diff", "--color", "always", "--from", "fork_point(trunk() | $object.value)", "--to", "$object.value"]
+```
+
 ## Op Log
 
 ```toml
 [oplog]
 limit = 200
 ```
-
-## Interactive bookmark pane
-
-Enable the experimental split-pane bookmark browser. The default is `false`, which keeps the classic bookmark menu:
-
-```toml
-[bookmark]
-interactive_bookmark_pane = true
-```
-
-When enabled, `b` toggles the pane and `tab` switches focus between it and the revisions view. See [Bookmarks](/jjui/bookmarks#interactive-bookmark-pane) for its actions.
 
 ## Credential prompts
 

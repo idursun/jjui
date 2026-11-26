@@ -39,7 +39,7 @@ desc = "hello"
 
 Helper functions and the `revisions`, `revset`, and `context` tables are available both as top-level globals and under the `jjui` namespace — `flash(...)` and `jjui.flash(...)` are the same, and `revisions.edit()` and `jjui.revisions.edit()` are the same.
 
-Other built-in action scopes (`ui`, `git`, `diff`, `oplog`, `bookmarks`, `bookmark_pane`, `annotation`, `undo`, `redo`, `choose`, `input`, `command_history`, `file_search`) are **only** available under the `jjui` namespace — e.g. `jjui.git.push()`, not `git.push()`.
+Other built-in action scopes (`ui`, `diff`, `oplog`, `annotation`, `undo`, `redo`, `choose`, `input`, `command_history`, `file_search`) are **only** available under the `jjui` namespace — e.g. `jjui.oplog.restore()`, not `oplog.restore()`.
 
 Built-in action wrappers are additionally available under `jjui.builtin.*`, which forces built-in resolution and ignores any user-defined overrides for those action names.
 
@@ -55,9 +55,11 @@ Read-only access to the currently highlighted or selected item.
 | `context.commit_id()` | string | Available for revisions, files, and commits |
 | `context.file()` | string | Only when a file is selected in the details view |
 | `context.operation_id()` | string | Only in the oplog |
+| `context.object()` | object | The focused [object](#objects); the revision itself when nothing on it is focused |
 | `context.checked_files()` | string[] | Files checked in the details view |
 | `context.checked_change_ids()` | string[] | Checked revisions or files |
 | `context.checked_commit_ids()` | string[] | Checked revisions, files, or commits |
+| `context.checked_objects()` | object[] | Checked [objects](#objects), in the order they were checked |
 
 The selection getters read live UI state when called. After a yielding action or
 refresh, they reflect the current selection rather than a cached snapshot. This
@@ -96,6 +98,33 @@ These functions are also available through the `jjui` namespace, such as
 `jjui.context.checked_commit_ids()` and
 `jjui.revisions.inline_describe.content()`.
 
+### Objects
+
+The cursor can move onto anything jjui draws on a revision: its change ID, bookmarks, tags, description and so on. `context.object()` describes the focused one and `context.checked_objects()` lists the checked ones (a bookmark is listed once per revision it is on). Both return tables with these fields:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `kind` | string | `"revision"`, `"bookmark"`, `"tag"`, `"author"`, `"timestamp"`, `"description"`, `"file"`, `"commit"`, `"remote"`, ... |
+| `value` | string | The text as shown, e.g. the bookmark name or the file path; the change ID for a revision |
+| `remote` | string? | Remote of a remote bookmark or tag |
+| `conflicted` | boolean? | `true` for a conflicted bookmark |
+| `change_id` | string? | Change ID of the revision the object is on |
+| `commit_id` | string? | Commit ID of the revision the object is on |
+| `remotes` | `{ name, tracked }[]`? | Remotes of a bookmark; `nil` until the tracking state has loaded |
+| `all` | boolean? | `true` for the "all" entry on the remotes line |
+| `local_only` | boolean? | `true` for the "local" entry on the remotes line |
+
+`exact(name)` quotes a bookmark, tag or remote name as a jj exact pattern, so `exact("main")` returns `exact:"main"`.
+
+```lua
+local object = context.object()
+if object.kind == "bookmark" and not object.remote then
+  jj_async({ "bookmark", "advance", exact(object.value) })
+end
+```
+
+Many of the default object actions (`revisions.bookmark.push`, `revisions.tag.delete`, `revisions.workspace.switch`, ...) are written in Lua in the default `config.toml`, which makes them good examples to copy from.
+
 ---
 
 ## revisions.*
@@ -127,6 +156,8 @@ These functions are also available through the `jjui` namespace, such as
 | `jj_interactive(...args)` | — | Opens an interactive terminal for the command |
 
 Args can be passed as individual strings or as a single table of strings.
+
+Scripts are queued: a script started while another one is running waits for it to finish.
 
 `jj_async` does not return command output to Lua or wait for the command before Lua continues. Use `jj` when later Lua code needs the command's output or must run only after it has completed.
 
@@ -168,7 +199,7 @@ These pause the script until a matching UI event arrives.
 
 Every built-in action is exposed as a Lua function via `jjui.<scope>.<action>()`. These dispatch the action into the UI and yield until it is handled, so they compose naturally with other async steps.
 
-In every scope that has a `cancel()` action, `close()` is available as an alias — e.g. `jjui.git.close()` is the same as `jjui.git.cancel()`.
+In every scope that has a `cancel()` action, `close()` is available as an alias — e.g. `jjui.undo.close()` is the same as `jjui.undo.cancel()`.
 
 Actions that take a single required string arg accept it positionally:
 
@@ -201,7 +232,13 @@ revset.set({ value = "trunk()" })
 | `revisions.jump_to_parent()` | |
 | `revisions.jump_to_children()` | |
 | `revisions.jump_to_working_copy()` | |
+| `revisions.go_to_top()` / `go_to_bottom()` | |
 | `revisions.ace_jump()` | |
+| `revisions.object_next()` / `object_prev()` | Move to the next or previous object on the revision |
+| `revisions.object_node()` | Go back to the revision itself |
+| `revisions.object_focus({ kind })` | Focus the first object of that kind |
+| `revisions.object_cycle({ kind })` | Focus the next object of that kind on the revision |
+| `revisions.add_to_revset()` | Narrow the revset to the focused object |
 | `revisions.quick_search_next()` / `_prev()` / `_clear()` | |
 | `revisions.open_abandon()` | Enter abandon mode |
 | `revisions.open_details()` | Open the details view |
@@ -212,6 +249,8 @@ revset.set({ value = "trunk()" })
 | `revisions.open_revert()` | Enter revert mode |
 | `revisions.open_set_bookmark({ value? })` | Open bookmark input, optionally prefilled |
 | `revisions.open_set_parents()` | Enter set-parents mode |
+| `revisions.open_set_tag({ value? })` | Open tag input, optionally prefilled |
+| `revisions.open_add_workspace({ value? })` | Open the add workspace input, optionally prefilled |
 | `revisions.open_squash()` | Enter squash mode |
 | `revisions.open_diff_range()` | Enter diff range mode |
 | `revisions.open_annotation()` | Open the experimental Annotation View |
@@ -227,8 +266,6 @@ revset.set({ value = "trunk()" })
 | `revisions.rebase.force_apply()` | |
 | `revisions.rebase.cancel()` | |
 | `revisions.rebase.target_picker()` | |
-| `revisions.rebase.ace_jump()` | |
-| `revisions.rebase.jump_to_working_copy()` | |
 
 ### revisions.squash.*
 
@@ -241,8 +278,6 @@ revset.set({ value = "trunk()" })
 | `revisions.squash.force_apply()` | |
 | `revisions.squash.cancel()` | |
 | `revisions.squash.target_picker()` | |
-| `revisions.squash.ace_jump()` | |
-| `revisions.squash.jump_to_working_copy()` | |
 
 ### revisions.duplicate.*
 
@@ -253,8 +288,6 @@ revset.set({ value = "trunk()" })
 | `revisions.duplicate.force_apply()` | |
 | `revisions.duplicate.cancel()` | |
 | `revisions.duplicate.target_picker()` | |
-| `revisions.duplicate.ace_jump()` | |
-| `revisions.duplicate.jump_to_working_copy()` | |
 
 ### revisions.revert.*
 
@@ -275,8 +308,6 @@ revset.set({ value = "trunk()" })
 | `revisions.abandon.apply({ force? })` |
 | `revisions.abandon.force_apply()` |
 | `revisions.abandon.cancel()` |
-| `revisions.abandon.ace_jump()` |
-| `revisions.abandon.jump_to_working_copy()` |
 
 ### revisions.absorb.*
 
@@ -286,8 +317,6 @@ revset.set({ value = "trunk()" })
 | `revisions.absorb.select_descendants()` |
 | `revisions.absorb.apply()` |
 | `revisions.absorb.cancel()` |
-| `revisions.absorb.ace_jump()` |
-| `revisions.absorb.jump_to_working_copy()` |
 
 ### revisions.diff_range.*
 
@@ -305,8 +334,6 @@ revset.set({ value = "trunk()" })
 | `revisions.set_parents.toggle_select()` |
 | `revisions.set_parents.apply()` |
 | `revisions.set_parents.cancel()` |
-| `revisions.set_parents.ace_jump()` |
-| `revisions.set_parents.jump_to_working_copy()` |
 
 ### revisions.inline_describe.*
 
@@ -334,7 +361,8 @@ revset.set({ value = "trunk()" })
 | `revisions.details.restore()` | |
 | `revisions.details.diff()` | |
 | `revisions.details.refresh()` | |
-| `revisions.details.revisions_changing_file()` | |
+| `revisions.details.add_to_revset()` | Add `files(...)` for the focused file to the revset |
+| `revisions.details.leave()` | Go back to the change ID |
 | `revisions.details.move_up()` / `move_down()` | |
 | `revisions.details.page_up()` / `page_down()` | |
 | `revisions.details.cancel()` / `close()` | `close()` is an alias for `cancel()` |
@@ -390,6 +418,25 @@ Shared target picker used by rebase, squash, duplicate, revert, and diff range.
 | `revisions.set_bookmark.cancel()` |
 | `revisions.set_bookmark.autocomplete()` / `autocomplete_back()` |
 
+### revisions.object.*
+
+| Function | Notes |
+|----------|-------|
+| `revisions.object.jump_next()` / `jump_prev()` | Jump to the next or previous revision that has an object of the focused kind |
+
+### revisions.bookmark.* / revisions.workspace.*
+
+Actions on the focused bookmark or workspace that open an input or a confirmation. The remaining per-object actions (`push`, `fetch`, `delete`, `forget`, `advance`, ...) are defined in Lua in the default config.
+
+| Function |
+|----------|
+| `revisions.bookmark.rename()` / `move()` / `track()` / `untrack()` |
+| `revisions.workspace.rename()` / `remove()` |
+| `revisions.set_tag.apply()` / `cancel()` |
+| `revisions.add_workspace.apply()` / `cancel()` |
+| `revisions.rename_workspace.apply()` / `cancel()` |
+| `revisions.remove_workspace.apply()` / `cancel()` / `next()` / `prev()` |
+
 ### revset.*
 
 | Function | Args |
@@ -401,6 +448,35 @@ Shared target picker used by rebase, squash, duplicate, revert, and diff range.
 | `revset.cancel()` | |
 | `revset.autocomplete()` / `autocomplete_back()` | Cycle completion suggestions |
 | `revset.move_up()` / `revset.move_down()` | Navigate completion list |
+| `revset.show_bookmarks()` | Show the bookmarks view |
+| `revset.show_remotes()` | Show the bookmarks view with the cursor on the remotes line |
+
+### revset.bookmarks.*
+
+Available while the bookmarks view is shown.
+
+| Function | Notes |
+|----------|-------|
+| `revset.bookmarks.edit_filter()` | Filter bookmarks by name |
+| `revset.bookmarks.filter.accept()` / `cancel()` | |
+| `revset.bookmarks.exit()` | Leave the bookmarks view and restore the previous revset |
+| `revset.bookmarks.focus_remotes()` | Move to the remotes line |
+| `revset.bookmarks.next_remote()` / `prev_remote()` | |
+
+### revset.bookmarks.remotes.*
+
+Available while the remotes line is focused.
+
+| Function | Notes |
+|----------|-------|
+| `revset.bookmarks.remotes.next()` / `prev()` | Move between remotes |
+| `revset.bookmarks.remotes.leave()` | Back to the log |
+| `revset.bookmarks.remotes.fetch()` / `fetch_tracked()` | |
+| `revset.bookmarks.remotes.push()` / `push_tracked()` | |
+| `revset.bookmarks.remotes.push_deleted()` / `push_all_deleted()` | |
+| `revset.bookmarks.remotes.rename()` / `remove()` | |
+| `revset.bookmarks.remotes.editor.apply()` / `cancel()` | Rename input |
+| `revset.bookmarks.remotes.confirmation.apply()` / `cancel()` / `next()` / `prev()` | Remove confirmation |
 
 ### jjui.ui.*
 
@@ -411,14 +487,12 @@ Also available as a top-level global — `ui.cancel()` and `jjui.ui.cancel()` ar
 | `jjui.ui.cancel()` | |
 | `jjui.ui.quit()` | |
 | `jjui.ui.suspend()` | |
-| `jjui.ui.open_bookmarks()` | |
-| `jjui.ui.open_git()` | |
 | `jjui.ui.open_oplog()` | |
 | `jjui.ui.open_undo()` | |
 | `jjui.ui.open_redo()` | |
 | `jjui.ui.open_revset()` | |
 | `jjui.ui.open_command_history()` | |
-| `jjui.ui.toggle_bookmark_pane()` / `jjui.ui.focus_next_pane()` | |
+| `jjui.ui.overlay.dismiss()` | Dismiss flash messages and help |
 | `jjui.ui.file_search_toggle()` | |
 | `jjui.ui.quick_search()` | |
 | `jjui.ui.expand_status()` | |
@@ -444,39 +518,6 @@ Also available as a top-level global — `ui.cancel()` and `jjui.ui.cancel()` ar
 | `jjui.oplog.page_up()` / `jjui.oplog.page_down()` |
 | `jjui.oplog.close()` / `jjui.oplog.quit()` |
 
-### jjui.bookmarks.*
-
-| Function |
-|----------|
-| `jjui.bookmarks.cycle_remotes()` / `jjui.bookmarks.cycle_remotes_back()` |
-| `jjui.bookmarks.filter()` |
-| `jjui.bookmarks.bookmark_delete()` |
-| `jjui.bookmarks.bookmark_forget()` |
-| `jjui.bookmarks.bookmark_move()` |
-| `jjui.bookmarks.bookmark_track()` |
-| `jjui.bookmarks.bookmark_untrack()` |
-| `jjui.bookmarks.move_up()` / `jjui.bookmarks.move_down()` |
-| `jjui.bookmarks.page_up()` / `jjui.bookmarks.page_down()` |
-| `jjui.bookmarks.apply()` / `jjui.bookmarks.cancel()` / `jjui.bookmarks.quit()` |
-
-### jjui.bookmark_pane.*
-
-These actions are available when the experimental interactive bookmark pane is enabled.
-
-| Function |
-|----------|
-| `jjui.bookmark_pane.move_up()` / `jjui.bookmark_pane.move_down()` |
-| `jjui.bookmark_pane.page_up()` / `jjui.bookmark_pane.page_down()` |
-| `jjui.bookmark_pane.cycle_remotes()` / `jjui.bookmark_pane.cycle_remotes_back()` |
-| `jjui.bookmark_pane.open_filter()` / `jjui.bookmark_pane.toggle_expand()` |
-| `jjui.bookmark_pane.toggle_select()` |
-| `jjui.bookmark_pane.show_in_revision()` / `jjui.bookmark_pane.set_revset()` |
-| `jjui.bookmark_pane.edit()` / `jjui.bookmark_pane.new()` / `jjui.bookmark_pane.rename()` |
-| `jjui.bookmark_pane.create()` / `jjui.bookmark_pane.move()` |
-| `jjui.bookmark_pane.delete()` / `jjui.bookmark_pane.forget()` / `jjui.bookmark_pane.track()` / `jjui.bookmark_pane.untrack()` |
-| `jjui.bookmark_pane.push()` / `jjui.bookmark_pane.fetch()` |
-| `jjui.bookmark_pane.apply()` / `jjui.bookmark_pane.cancel()` |
-
 ### jjui.annotation.*
 
 These actions are available in the experimental Annotation View.
@@ -495,18 +536,6 @@ These actions are available in the experimental Annotation View.
 | `jjui.annotation.toggle_presentation()` / `toggle_wrap()` |
 | `jjui.annotation.add()` / `delete()` / `clear()` / `copy()` |
 | `jjui.annotation.editor.save()` / `jjui.annotation.editor.cancel()` |
-
-### jjui.git.*
-
-| Function |
-|----------|
-| `jjui.git.push()` |
-| `jjui.git.fetch()` |
-| `jjui.git.filter()` |
-| `jjui.git.cycle_remotes()` / `jjui.git.cycle_remotes_back()` |
-| `jjui.git.move_up()` / `jjui.git.move_down()` |
-| `jjui.git.page_up()` / `jjui.git.page_down()` |
-| `jjui.git.apply()` / `jjui.git.cancel()` / `jjui.git.quit()` |
 
 ### jjui.diff.*
 

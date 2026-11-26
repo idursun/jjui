@@ -3,7 +3,7 @@ title: Revisions
 description: Main view for browsing history and running operations
 ---
 
-Revisions is the default view in `jjui`. All other views (Git, Oplog, Bookmarks, Diff) are stacked on top of it — pressing `esc` from any of them returns here.
+Revisions is the default view in `jjui`. Other views (Oplog, Diff) are stacked on top of it — pressing `esc` from any of them returns here. The bookmarks and remotes views are this same view with a different revset.
 
 ## Core navigation
 
@@ -12,19 +12,31 @@ Revisions is the default view in `jjui`. All other views (Git, Oplog, Bookmarks,
 - `home`: jump to the first revision
 - `end`: jump to the last revision
 - `@`: jump to working copy
+- `f`: [Ace Jump](/jjui/ace-jump)
 - `shift+j`: jump to parent
 - `shift+k`: jump to children
-- `space`: toggle revision selection and move down one row
+- `space`: check the focused object and move to the next one
+
+The navigation keys (`j`/`k`, `pgup`/`pgdown`, `home`/`end`, `@`, `f`) live in a shared `revisions.nav` scope, so they work the same in the revisions view and in every operation (rebase, squash, abandon and so on).
+
+## Text objects
+
+The cursor can move inside the selected revision onto its change id, bookmarks, tags, author and more. See [Text Objects](/jjui/revisions/text-objects) for the full guide.
+
+- `h`/`l` or `left`/`right`: previous/next object on the revision
+- `0`: back to the revision itself
+- `i` followed by a letter: jump to a kind (`ib` bookmark, `it` tag, `id` description, `ia` author, `is` timestamp, `ii` change id, `ic` commit id, `ix` conflict, `iv` divergent, `iw` workspace, `ie` elided)
+- `*`: narrow the revset to the focused object
 
 ## Selection
 
-The highlighted revision is the default source for all operations. `space` selects additional revisions and moves down one row — operations that support multi-select will use all of them.
+The highlighted revision is the default source for all operations. `space` checks the focused object (a revision, a bookmark, a change id and so on) and moves to the next object of the same kind. Operations that support multi-select will use all checked objects. Checked objects are highlighted in place.
 
 When you press `n` with multiple revisions selected, they become the new revision's parents in the order you selected them. Select the revision you want as the first parent first; parent order matters when the merge is pushed to Git.
 
 - Select multiple revisions then press `r` → all selected become the rebase source.
 - Select multiple revisions then press `a` → abandon applies to all of them.
-- Select revisions with bookmarks then press `g`, `p`, `b` → push only their eligible bookmarks.
+- Check bookmarks then press `shift+g` → push all of them. Check change ids then press `shift+g` → push those changes.
 - `esc` clears the current selection.
 
 ### Mouse selection
@@ -35,7 +47,7 @@ When you press `n` with multiple revisions selected, they become the new revisio
 
 ## Main actions
 
-- `l` or `right`: open [Details](/jjui/details)
+- `j` on a focused change id: open [Details](/jjui/details)
 - `d`: open full diff
 - `alt+d`: compare two revisions with [Diff Range](/jjui/diff-viewer#diff-range)
 - `enter`: [Inline Describe](/jjui/revisions/inline-describe)
@@ -49,6 +61,8 @@ When you press `n` with multiple revisions selected, they become the new revisio
 - `shift+e`: diff edit
 - `c`: commit
 - `shift+b`: set bookmark
+- `shift+t`: set tag
+- `shift+n`: add workspace
 
 ## Creating a revision at a specific position
 
@@ -73,8 +87,8 @@ When you press `n` with multiple revisions selected, they become the new revisio
 ## Other views and tools
 
 - `shift+l`: edit [Revset](/jjui/revset) with autocomplete
-- `b`: [Bookmarks](/jjui/bookmarks) (or toggle the interactive bookmark pane when enabled)
-- `g`: [Git](/jjui/git)
+- `b`: [Bookmarks](/jjui/bookmarks) view
+- `g`: [Remotes](/jjui/git) line (fetch and push)
 - `o`: [Oplog](/jjui/oplog)
 - `u`: [Undo](/jjui/undo-redo)
 - `shift+u`: [Redo](/jjui/undo-redo)
@@ -90,7 +104,6 @@ When you press `n` with multiple revisions selected, they become the new revisio
 - `esc`: clear quick search
 - `p`: toggle [Preview](/jjui/preview)
 - `shift+p`: move preview to bottom
-- `tab`: move focus to the next pane
 - `:`: execute `jj` command
 - `$`: execute shell command
 - `ctrl+r`: refresh revisions

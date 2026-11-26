@@ -9,7 +9,7 @@ Flash messages provide instant feedback for commands executed within jjui. When 
 
 Behavior:
 - Success messages: If the command completes successfully, the message is shown for 4 seconds and then automatically dismissed.
-- Error messages: If the command fails, the error message remains visible until you dismiss it manually by pressing `esc`.
+- Error messages: If the command fails, the error message remains visible until you dismiss it manually by pressing `esc`. Each `esc` dismisses the oldest persistent message, and it is handled before the focused view sees the key.
 
 Flash messages help you quickly see the result of your actions without interrupting your workflow.
 

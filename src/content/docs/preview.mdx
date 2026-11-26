@@ -9,12 +9,26 @@ Press `p` to toggle the preview pane. It updates automatically as you navigate â
 
 ## Context-aware content
 
-| Context | What preview shows |
-|---------|-------------------|
-| Revision highlighted | Diff of that revision (`jj show`) |
-| File highlighted in details | Diff of that file (`jj diff`) |
-| Evolog entry highlighted | Patch diff of that entry (`jj evolog -p -n 1`) |
-| Oplog entry highlighted | Operation details (`jj op show`) |
+The preview follows the focused object. Press `h`/`l` on a revision to move between its objects, and the preview changes with them. Kinds without their own command fall back to `node`.
+
+| Focused object | What preview shows |
+|----------------|--------------------|
+| Revision (`node`) | Diff of that revision (`jj show`) |
+| Description | The full description (`jj log -T description`) |
+| Bookmark | Diff of the branch since its fork point (`jj diff`) |
+| Conflicted bookmark | The bookmark's targets (`jj bookmark list`) |
+| Conflict | Conflicted paths (`jj resolve --list`) |
+| Workspace | The workspace root (`jj workspace root`) |
+| File in details | Diff of that file (`jj diff`) |
+| Evolog entry | Patch diff of that entry (`jj evolog -p -n 1`) |
+| Oplog entry | Operation details (`jj op show`) |
+| Remote on the remotes line | That remote's bookmarks (`jj bookmark list --remote`) |
+| `all` on the remotes line | Configured remotes (`jj git remote list`) |
+| `local` on the remotes line | Local bookmarks (`jj bookmark list`) |
+
+Change ID, commit ID, author, timestamp, tag, divergent and elided objects use the `node` command.
+
+{/* TODO: screenshot */}
 
 ## Keys
 
@@ -66,14 +80,61 @@ width_increment_percentage = 5.0
 
 ## Customizing preview commands
 
-All preview commands are configurable. The placeholders `$change_id`, `$commit_id`, `$operation_id`, and `$file` are substituted at runtime.
+Each kind of object has its own `[preview.object.<kind>]` table with a `command`: the arguments passed to `jj`. These are the defaults:
 
 ```toml
-[preview]
-revision_command = ["show", "--color", "always", "-r", "$change_id"]
-evolog_command   = ["evolog", "--color", "always", "-r", "$commit_id", "-p", "-n", "1"]
-oplog_command    = ["op", "show", "$operation_id", "--color", "always"]
-file_command     = ["diff", "--color", "always", "-r", "$change_id", "$file"]
+[preview.object.node]
+command = ["show", "--color", "always", "-r", "$object.change_id"]
+
+[preview.object.description]
+command = ["log", "--color", "always", "-r", "$object.change_id", "--no-graph", "-T", "description"]
+
+[preview.object.bookmark]
+command = ["diff", "--color", "always", "--from", "fork_point(trunk() | $object.value)", "--to", "$object.value"]
+
+[preview.object.conflicted_bookmark]
+command = ["bookmark", "list", "--color", "always", "$object.value"]
+
+[preview.object.conflict]
+command = ["resolve", "--color", "always", "--list", "-r", "$object.change_id"]
+
+[preview.object.file]
+command = ["diff", "--color", "always", "-r", "$object.change_id", "$object.value"]
+
+[preview.object.operation]
+command = ["op", "show", "$object.value", "--color", "always"]
+
+[preview.object.evolog]
+command = ["evolog", "--color", "always", "-r", "$object.value", "-p", "-n", "1"]
+
+[preview.object.remote]
+command = ["bookmark", "list", "--color", "always", "--remote", "$object.value"]
+
+[preview.object.remote_all]
+command = ["git", "remote", "list"]
+
+[preview.object.remote_local]
+command = ["bookmark", "list", "--color", "always"]
+
+[preview.object.workspace]
+command = ["workspace", "root", "--color", "always", "--name", "$object.value"]
 ```
+
+An object kind without a table falls back to `node`. You only need to write the tables you want to change. For example, to show a bookmark's own revision instead of the whole branch:
+
+```toml
+[preview.object.bookmark]
+command = ["show", "--color", "always", "-r", "$object.value"]
+```
+
+Placeholders substituted at runtime:
+
+- `$object.value`: the focused object's value (a bookmark name, file path, operation ID, and so on)
+- `$object.change_id`: change ID of the revision the object is on
+- `$object.commit_id`: commit ID of the revision the object is on
+- `$revset`: the current revset expression
+- `$preview_width`: the width of the preview pane
+
+Refreshing (for example after a command changes the repo) re-runs the preview command.
 
 Preview commands are run with `COLUMNS` and `LINES` set to the current preview pane size. `jjui` also sets `DFT_WIDTH` for difftastic-based previews so they wrap to the preview pane width automatically.

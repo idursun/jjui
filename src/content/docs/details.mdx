@@ -3,11 +3,11 @@ title: Details
 description: Inspect and operate on files within a revision
 ---
 
-Press `l` or `right` to open the details view for the highlighted revision. It shows all files changed in that revision with their status (Added, Modified, Deleted, Renamed, Copied). Conflict markers are shown next to files with conflicts.
+Details is the file list under the change id. Focus the change id (`ii`, or `h`/`l`) and press `j` to move into it. It shows all files changed in that revision with their status (Added, Modified, Deleted, Renamed, Copied). Conflict markers are shown next to files with conflicts, including conflicted files outside the revision's diff.
 
 File paths are displayed relative to the directory where jjui was started, which keeps paths short when working in a subdirectory. jjui still uses repository-relative paths when running commands.
 
-Press `esc`, `left`, or `h` to close and return to the revision list.
+Press `h` or `l` (or `left`/`right`) to go back to the change id, or `esc` to close the details and return to the revision list.
 
 ![GIF](/jjui/gifs/jjui_details_split.gif)
 
@@ -61,6 +61,6 @@ Press `shift+s` to open [Squash](/jjui/revisions/squash) mode pre-filled with th
 Press `shift+a` to run `jj absorb` on the selected files.
 
 ### Show revisions touching a file
-Press `*` to change the active revset to `files(<filename>)`, showing all revisions that touched the highlighted file.
+Press `*` to add `files(<filename>)` to the active revset, showing all revisions that touched the highlighted file.
 
 <img alt="Details changing file" src="/jjui/images/details-changing-file.png" />

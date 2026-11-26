@@ -1,0 +1,201 @@
+---
+title: Migrating to v0.11
+description: Migrating to jjui v0.11
+---
+
+v0.11 turns the revisions log into a cursor you can move *inside* a revision: change ids, bookmarks, tags, authors and the rest are now **text objects** with their own actions. The bookmarks menu, the bookmark pane and the git menu are gone, replaced by the bookmarks view and the remotes line.
+
+This guide lists what a v0.10 user has to change.
+
+---
+
+## TL;DR
+
+- Install **jj v0.47 or later** (was v0.39).
+- If you open details with `l`, use `ii` then `j`.
+- If you use `b`, `g`, `tab` or `d` on bookmarks, see the [key changes](#key-changes).
+- If you set `[preview] revision_command` (or `evolog_command`, `oplog_command`, `file_command`), move to [`[preview.object.<kind>]`](#removed-config-keys).
+- If you bind keys in operation scopes (`revisions.rebase`, `revisions.squash`, ...) for navigation, bind them in [`revisions.nav`](#navigation-scope).
+- If you use `context.checked_change_ids()`, `checked_commit_ids()` or `checked_files()` in Lua, switch to [`context.checked_objects()`](#lua).
+
+---
+
+## What's new
+
+The cursor can move onto anything `jj log` shows: `h`/`l` step between objects, `i` followed by a letter jumps to a kind, and `*` narrows the revset to the focused object. jjui no longer injects its own log template, so what `jj log` shows is what jjui shows.
+
+See [Text objects](/jjui/revisions/text-objects) for the full list of objects and keys.
+
+---
+
+## Key changes
+
+| Old | New |
+|-----|-----|
+| `l` / `right` opens details | `ii` focuses the change id, then `j` moves into the file list. `h`/`l` from a file go back to the change id, `esc` closes details |
+| `b` bookmarks menu, `interactive_bookmark_pane` | `b` opens the bookmarks view (`revisions.show_bookmarks`): the log with the revset set to `bookmarks() \| remote_bookmarks()`. `tab`/`shift+tab` switch remote, `/` filters, `esc` leaves |
+| `g` git menu | `g` focuses the remotes line (`revisions.show_remotes`). Per remote: `f` fetch, `t` fetch tracked, `p` push, `P` push tracked, `d` push deleted, `D` push all and deleted, `r` rename, `x` remove |
+| Git menu push of a bookmark | `G` on a focused bookmark |
+| Git menu fetch of a bookmark | `F` on a focused bookmark |
+| Git menu push of a change | `G` on a focused change id |
+| `tab` next pane | Removed (it only served the bookmark pane) |
+| Bookmark menu/pane `d` delete, `f` forget | `x` delete, `X` forget on a focused bookmark. `d` stays read-only: on a bookmark it shows the diff since its fork point |
+| `*` in details (`revisions_changing_file`) | `*` still works, but the action is `revisions.details.add_to_revset`. It now narrows the revset instead of replacing it |
+| Checkmark in front of a checked revision | Checked objects are highlighted in place (theme key `revisions checked`) |
+| Details keys act on the first file | File actions need a highlighted or checked file. Revision keys (diff, split, squash, rebase, absorb, select) act on the revision while the change id is focused |
+
+Bookmarks can be checked individually with `space`: delete, forget, advance, move, track, untrack and push apply to every checked bookmark.
+
+---
+
+## Removed config keys
+
+| Old | New |
+|-----|-----|
+| `[bookmark] interactive_bookmark_pane` | Removed |
+| `[preview] revision_command` | `[preview.object.node] command` |
+| `[preview] evolog_command` | `[preview.object.evolog] command` |
+| `[preview] oplog_command` | `[preview.object.operation] command` |
+| `[preview] file_command` | `[preview.object.file] command` |
+
+The preview now follows the focused object. Kinds without an entry fall back to `node`.
+
+In these commands `$change_id` becomes `$object.change_id`, and `$file` becomes `$object.value`:
+
+```toml
+# Old
+[preview]
+  file_command = ["diff", "--color", "always", "-r", "$change_id", "$file"]
+
+# New
+[preview.object.file]
+  command = ["diff", "--color", "always", "-r", "$object.change_id", "$object.value"]
+```
+
+Available placeholders are `$object.value`, `$object.change_id`, `$object.commit_id`, `$revset` and `$preview_width`. The placeholders used by custom commands (`$change_id`, `$file`, `$checked_files`, ...) are unchanged.
+
+New in this release: `[revisions.workspace] path_prefix = "../"` prefills the path of a new workspace (`N`).
+
+---
+
+## Removed and renamed actions
+
+Rebind any `[[bindings]]` that reference an action below.
+
+### Renamed
+
+| Old | New |
+|-----|-----|
+| `revisions.details.revisions_changing_file` | `revisions.details.add_to_revset` |
+| `ui.open_bookmarks` | `revisions.show_bookmarks` |
+| `ui.open_git` | `revisions.show_remotes` |
+| `revisions.<op>.ace_jump` | `revisions.ace_jump` (scope `revisions.nav`) |
+| `revisions.<op>.jump_to_working_copy` | `revisions.jump_to_working_copy` (scope `revisions.nav`) |
+
+`<op>` is one of `rebase`, `squash`, `duplicate`, `abandon`, `absorb`, `set_parents` (and `ace_jump` also on `bookmark_target`).
+
+### Moved onto objects
+
+| Old | New |
+|-----|-----|
+| `bookmarks.bookmark_delete`, `bookmark_pane.delete` | `revisions.bookmark.delete` |
+| `bookmarks.bookmark_forget`, `bookmark_pane.forget` | `revisions.bookmark.forget` |
+| `bookmarks.bookmark_move`, `bookmark_pane.move` | `revisions.bookmark.move` |
+| `bookmarks.bookmark_track`, `bookmark_pane.track` | `revisions.bookmark.track` |
+| `bookmarks.bookmark_untrack`, `bookmark_pane.untrack` | `revisions.bookmark.untrack` |
+| `bookmark_pane.rename` | `revisions.bookmark.rename` |
+| `bookmark_pane.push`, `git.push` | `revisions.bookmark.push`, or `revset.bookmarks.remotes.push` on the remotes line |
+| `bookmark_pane.fetch`, `git.fetch` | `revisions.bookmark.fetch`, or `revset.bookmarks.remotes.fetch` on the remotes line |
+| `bookmark_pane.filter`, `bookmarks.filter` | `revset.bookmarks.edit_filter` |
+| `bookmark_pane.cycle_remotes`, `bookmarks.cycle_remotes`, `git.cycle_remotes` | `revset.bookmarks.next_remote` |
+| `bookmark_pane.cycle_remotes_back`, `bookmarks.cycle_remotes_back`, `git.cycle_remotes_back` | `revset.bookmarks.prev_remote` |
+
+New scopes and actions you may want to bind: `revisions.object_next`, `revisions.object_prev`, `revisions.object_node`, `revisions.object_cycle` (with `args.kind`), `revisions.object_focus`, `revisions.add_to_revset`, `revisions.details.leave`, `revisions.open_set_tag`, `revisions.open_add_workspace`, `revset.bookmarks.*`, `ui.overlay.dismiss`. See `internal/config/default/bindings.toml` for the defaults.
+
+### Removed
+
+| Removed | Notes |
+|---------|-------|
+| `ui.toggle_bookmark_pane` | The bookmark pane is gone |
+| `ui.focus_next_pane` | Only the bookmark pane used it |
+| `bookmark_pane.*` (the rest: cursor movement, confirmation, filter dialogs, `toggle_expand`, `toggle_select`, `apply`, `cancel`, `edit`) | Use the bookmarks view |
+| `bookmarks.*` (the rest: `apply`, `cancel`, `quit`, `move_up`, `move_down`, `page_up`, `page_down`) | Use the bookmarks view |
+| `git.*` (the rest: `apply`, `cancel`, `quit`, `filter`, `move_up`, `move_down`, `page_up`, `page_down`) | Use the remotes line |
+
+### Navigation scope
+
+Navigation keys (`j`/`k`, `pgup`/`pgdown`, `home`/`end`, `@`, `f` ace jump) now live in a shared `revisions.nav` scope that applies in the revisions view and in every operation (rebase, squash, revert, duplicate, abandon, absorb, set parents, diff range, new between, bookmark target). If you added or changed navigation keys in an operation scope, move the binding to `revisions.nav`:
+
+```toml
+[[bindings]]
+action = "revisions.move_down"
+key = "ctrl+n"
+scope = "revisions.nav"
+```
+
+
+---
+
+## Lua
+
+`context.object()` and `context.checked_objects()` are the only way to describe focused and checked things. This is a breaking change:
+
+| Old | New |
+|-----|-----|
+| `context.checked_change_ids()` | `context.checked_objects()` and read `change_id` |
+| `context.checked_commit_ids()` | `context.checked_objects()` and read `commit_id` |
+| `context.checked_files()` | `context.checked_objects()` and read `value` of the objects with `kind == "file"` |
+
+`context.object()` returns the focused object, or the revision itself (kind `"revision"`) when nothing on it is focused. Objects have `kind`, `value`, `change_id` and `commit_id`, plus `remote`, `conflicted` and `remotes` where they apply. `context.checked_objects()` lists checked objects in the order they were checked; a bookmark appears once per revision it is on.
+
+```lua
+for _, obj in ipairs(context.checked_objects()) do
+  if obj.kind == "bookmark" then
+    flash(obj.value)
+  end
+end
+```
+
+Also new: `exact(name)` quotes a name as a jj exact pattern (`exact:"main"`), and scripts started while another one runs are queued.
+
+### Default object actions are Lua actions
+
+Most object actions (`revisions.bookmark.push`, `revisions.bookmark.fetch`, `revisions.bookmark.delete`, `revisions.bookmark.forget`, `revisions.bookmark.advance`, `revisions.change_id.push`, `revisions.tag.delete`, `revisions.workspace.switch`, `revisions.divergent.*`, `revisions.show_bookmarks`, `revisions.show_remotes`, ...) are defined as `[[actions]]` in the default `config.toml`. Define an action with the same name in your own config to override one, and read the defaults as examples.
+
+For the full API see [Lua Scripting](/jjui/customization/lua-scripting).
+
+---
+
+## Theme
+
+Two keys were added:
+
+```toml
+"revisions object:selected" = { underline = true }
+"revisions checked" = { reverse = true }
+```
+
+`revisions object:selected` styles the focused object, and `revisions checked` highlights checked objects in place of the old checkmark.
+
+---
+
+## Breaking changes in this release
+
+Every breaking commit since v0.10.14 and where it is covered above:
+
+| Commit | Covered in |
+|--------|------------|
+| `refactor!: remove the old bookmarks menu and the bookmark pane` | [Key changes](#key-changes), [Removed config keys](#removed-config-keys), [Removed and renamed actions](#removed-and-renamed-actions) |
+| `feat(preview)!: show the focused object in the preview` | [Removed config keys](#removed-config-keys) |
+| `feat(details)!: make the change id and files one cursor` | [Key changes](#key-changes) |
+| `feat(revisions)!: check individual bookmarks` | [Key changes](#key-changes) |
+| `feat(revisions)!: check any object with a shared highlight` | [Key changes](#key-changes), [Theme](#theme) |
+| `feat(ui)!: replace the git menu with the remotes line` | [Key changes](#key-changes), [Removed and renamed actions](#removed-and-renamed-actions) |
+| `feat(revisions)!: remove the fetch action` | [Key changes](#key-changes), [Removed and renamed actions](#moved-onto-objects) |
+| `feat(revisions)!: use one action to jump between objects of a kind` | [Moved onto objects](#moved-onto-objects) |
+| `feat(revisions)!: add the focused object to the revset with *` | [Key changes](#key-changes), [Renamed](#renamed) |
+| `feat(revisions)!: keep d read-only on text objects and remove them with x` | [Key changes](#key-changes) |
+| `refactor(revisions)!: share cursor navigation through a revisions.nav scope` | [Navigation scope](#navigation-scope) |
+| `refactor(revisions)!: treat details as normal mode until a file is focused` | [Key changes](#key-changes) |
+| `refactor(revisions)!: fold the revisions.objects scope into revisions` | [Navigation scope](#navigation-scope) |
+| `feat(lua)!: describe every object through context.object() and checked_objects()` | [Lua](#lua) |

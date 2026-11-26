@@ -9,6 +9,77 @@ For the full Lua API reference, see [Lua Scripting](/jjui/customization/lua-scri
 
 If you have a workflow to share, open a [Q&A discussion](https://github.com/idursun/jjui/discussions/categories/q-a).
 
+### Copy the focused object's value
+
+`context.object()` returns whatever the cursor is on (the revision itself when no object is focused), so one action can copy a bookmark name, tag, author, description, file path or change ID depending on where the cursor is. Bind it in the `revisions.object` scope, which is active for every focused object.
+
+```lua
+-- ~/.config/jjui/config.lua
+function setup(config)
+  config.action("copy object value", function()
+    local object = context.object()
+    if not object or object.value == "" then
+      flash({ text = "Nothing to copy", error = true })
+      return
+    end
+
+    local ok, err = copy_to_clipboard(object.value)
+    if not ok then
+      flash({ text = err, error = true })
+      return
+    end
+    flash("Copied " .. object.kind .. ": " .. object.value)
+  end, { desc = "copy value", key = "y", scope = "revisions.object" })
+end
+```
+
+---
+
+### Push checked bookmarks to another remote
+
+`space` checks the focused object and jumps to the next one of the same kind, so you can check several bookmarks across revisions and act on all of them. `context.checked_objects()` returns them in the order they were checked. This action pushes every checked local bookmark (or just the focused one when nothing is checked) to a remote of your choice.
+
+```toml
+[[actions]]
+name = "push-bookmarks-to"
+desc = "push checked bookmarks to a remote"
+lua = '''
+local names, seen = {}, {}
+for _, object in ipairs(context.checked_objects()) do
+  if object.kind == "bookmark" and not object.remote and not seen[object.value] then
+    seen[object.value] = true
+    table.insert(names, object.value)
+  end
+end
+if #names == 0 then
+  local object = context.object()
+  if object.kind ~= "bookmark" or object.remote then
+    flash({ text = "Focus or check a local bookmark", error = true })
+    return
+  end
+  names = { object.value }
+end
+
+local remote = input({ title = "Push to remote", value = "origin" })
+if not remote or remote == "" then return end
+
+local args = { "git", "push", "--remote", remote }
+for _, name in ipairs(names) do
+  table.insert(args, "--bookmark")
+  table.insert(args, exact(name))
+end
+jj_async(args)
+jjui.builtin.revisions.refresh()
+'''
+key = "ctrl+g"
+scope = "revisions.bookmark"
+desc = "push to remote"
+```
+
+The default `revisions.bookmark.push` action in jjui's default config follows the same pattern; it additionally groups remote bookmarks by their remote.
+
+---
+
 ### Open diff in an external viewer
 
 `exec_shell` lets you pipe `jj` output to any external tool. This example opens the current revision's diff in [`diffnav`](https://github.com/dlvhdr/diffnav) on `ctrl+d`:

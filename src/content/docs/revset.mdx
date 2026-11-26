@@ -7,6 +7,10 @@ Revset controls which revisions are shown in the Revisions view. The current rev
 
 <img alt="Revset" src="/jjui/images/revset.png" />
 
+The repository path is shown at the right of the revset line, shortened with `~` for your home directory and truncated when the revset is long.
+
+When the [bookmarks view](/jjui/bookmarks) is open, a bookmarks bar appears under the revset line.
+
 Press `shift+l` from Revisions to open the revset editor.
 
 ## Autocomplete
@@ -30,6 +34,7 @@ Every revset you apply during a session is saved to history. When you re-open th
 
 ## Behavior
 
+- `*` on a focused object in the log narrows the revset to it by ANDing a matching expression with the current revset and applying it. See [Text objects](/jjui/revisions/text-objects).
 - If jjui is started with `--revset/-r`, that value becomes the session default.
 - Submitting an empty revset resets to the session default.
 - Revset aliases may use either jj's string form or its extended object form with a `definition` field. jjui uses the definition when loading aliases for autocomplete.

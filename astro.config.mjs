@@ -19,6 +19,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Overview', slug: 'overview' },
 						{ label: 'Install', slug: 'install' },
+						{ label: 'Migrating to v0.11', slug: 'migrating/v0_11' },
 						{ label: 'Migrating to v0.10', slug: 'migrating/v0_10' },
 					],
 				},
@@ -37,6 +38,7 @@ export default defineConfig({
 					label: 'Revisions',
 					items: [
 						{ label: 'Overview', slug: 'revisions' },
+						{ label: 'Text Objects', slug: 'revisions/text-objects' },
 						{ label: 'Details', slug: 'details' },
 						{ label: 'Rebase', slug: 'revisions/rebase' },
 						{ label: 'Absorb', slug: 'revisions/absorb' },
@@ -57,7 +59,7 @@ export default defineConfig({
 						{ label: 'Revset', slug: 'revset' },
 						{ label: 'Oplog', slug: 'oplog' },
 						{ label: 'Undo and Redo', slug: 'undo-redo' },
-						{ label: 'Git', slug: 'git' },
+						{ label: 'Remotes', slug: 'git' },
 						{ label: 'Bookmarks', slug: 'bookmarks' },
 					],
 				},

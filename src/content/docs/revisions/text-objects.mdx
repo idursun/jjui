@@ -1,0 +1,126 @@
+---
+title: Text Objects
+description: Point at anything on a revision and act on it
+---
+
+The cursor in the [Revisions](/jjui/revisions) view does not stop at the revision. It can move onto anything `jjui` draws on it: the change id, the commit id, a bookmark, a tag, a workspace, the author, the timestamp, the description, a conflict or divergent marker, or the `~ (elided revisions)` marker. These are called text objects. The revision itself is the "node".
+
+`jjui` does not inject its own log template. It reads the labels from `jj log --color=debug`, so whatever `jj log` shows is what you can point at.
+
+{/* TODO: screenshot */}
+
+## Pointing at objects
+
+- `l` or `right`: next object on the selected revision
+- `h` or `left`: previous object
+- `0`: back to the revision itself
+- Click an object to focus it. The first click on another revision only selects that revision.
+
+The `i` prefix jumps straight to a kind. If the revision has several objects of that kind, pressing it again cycles through them.
+
+| Keys | Kind |
+| --- | --- |
+| `i` `i` | change id |
+| `i` `c` | commit id |
+| `i` `b` | bookmark |
+| `i` `t` | tag |
+| `i` `w` | workspace |
+| `i` `a` | author |
+| `i` `s` | timestamp |
+| `i` `d` | description |
+| `i` `x` | conflict |
+| `i` `v` | divergent |
+| `i` `e` | elided |
+
+The focused object is underlined (theme key `revisions object:selected`).
+
+## Sticky focus
+
+The focused kind sticks when you move with `j`/`k`. Focus a bookmark, then move down, and the cursor lands on the bookmark of the next revision that has one.
+
+`shift+j` and `shift+k` jump to the next or previous revision that has an object of the focused kind. When the revision itself is focused, they keep their usual meaning of jumping to the parent and to the children.
+
+## Actions per kind
+
+Each kind has its own keys, active only while an object of that kind is focused. Across kinds, `x` removes, `r` renames or resets, and `s` shows or switches.
+
+| Kind | Key | Action |
+| --- | --- | --- |
+| Bookmark | `r` | rename in place |
+| | `m` | move here (the target tells you when the move goes backwards or sideways) |
+| | `a` | advance (`jj bookmark advance`) |
+| | `x` | delete |
+| | `t` / `shift+t` | track / untrack (only the applicable one is offered) |
+| | `shift+g` | push |
+| | `shift+f` | fetch just this bookmark |
+| | `shift+x` | forget |
+| | `d` | diff of the whole branch since its fork point |
+| | `shift+c` | review that branch in the [Annotation View](/jjui/revisions/annotation) |
+| Change id | `shift+g` | push the change (`jj git push --change`) |
+| | `w` | force rewrite (`jj metaedit --force-rewrite`) |
+| | `j` / `down` | move into the file list, see [Details](/jjui/details) |
+| | `/` | filter files |
+| | `esc` | close details |
+| Tag | `x` | delete local tag |
+| Workspace | `s` | switch jjui to that workspace |
+| | `r` | rename (also non-current workspaces) |
+| | `x` | remove (asks for confirmation) |
+| | `shift+x` | forget |
+| | `w` | update stale |
+| Divergent | `s` | show all copies |
+| | `x` | abandon this copy |
+| | `r` | give this copy a new change id |
+| Elided | `s` | show all elided revisions |
+| Description | `e` | edit in the editor |
+| Author | `r` | reset author |
+| Timestamp | `r` | reset author timestamp |
+
+Deleting objects uses `x`, not `d`. `d` is always a read-only diff. Only removing a workspace asks for confirmation.
+
+The default keys are listed in `internal/config/default/bindings.toml`. Many of these actions are written in Lua in the default config, so you can override any of them by defining an action with the same name.
+
+## Narrowing the revset with `*`
+
+`*` rewrites the revset to match the focused object. The revset is written for you, so you can see it and keep editing it. Each `*` is combined with `&` with the revset already in place.
+
+| Focused object | Added to the revset |
+| --- | --- |
+| Revision, change id | `::<change id>` |
+| Commit id | `::<commit id>` |
+| Bookmark | `fork_point(trunk() \| <bookmark>)..<bookmark>` |
+| Tag | `::<tag>` |
+| Workspace | `::<workspace>@` |
+| Author | `author(exact:"<author>")` |
+| Description | `description(substring:"<first line>")` |
+| Conflict | `conflicts()` |
+| Divergent | `divergent()` |
+| Elided | shows the elided revisions |
+
+Conflicted bookmarks and timestamps cannot be added; `jjui` tells you so.
+
+Because each `*` builds on the last, `*` on an author and then `*` on a bookmark gives:
+
+```
+author(exact:"grace@example.com") & fork_point(trunk() | docs)..docs
+```
+
+That is the author's commits on that branch.
+
+In the [Details](/jjui/details) file list, `*` adds `files(<file>)` instead.
+
+## Checking several objects
+
+`space` checks the focused object, not just revisions, and jumps to the next object of the same kind. Actions then run on all checked objects. Checked objects are highlighted in place (theme key `revisions checked`) instead of showing a checkmark. `esc` clears the checks.
+
+For example, check several bookmarks with `space` and press `shift+g` to push them all, or check several change ids and press `shift+g` to push those changes.
+
+## Preview follows the focus
+
+The [Preview](/jjui/preview) shows what the focused object is about: a revision shows its diff, a bookmark shows everything its branch changed, a description shows the full message, a conflict lists the conflicted files, and a remote shows its bookmarks. What each kind runs is configurable under `[preview.object.<kind>]`.
+
+## See also
+
+- [Bookmarks](/jjui/bookmarks): the bookmarks view
+- [Remotes](/jjui/git): fetching and pushing
+- [Details](/jjui/details): the file list under the change id
+- [Preview](/jjui/preview)

@@ -216,6 +216,8 @@ The central list of commits or operations.
 *   `revisions`: The base style for the entire list area.
 *   `revisions:selected`: The currently highlighted line.
 *   `revisions dimmed`: Hint text shown during interactive operations.
+*   `revisions object:selected`: The focused text object on the selected revision (change ID, bookmark, description, and so on). Default: underline.
+*   `revisions checked`: Checked revisions and objects, highlighted in place instead of a checkmark. Default: reverse.
 
 #### Status (Bottom Bar)
 
@@ -231,15 +233,6 @@ The pop-up list showing the evolution history for a revision.
 
 *   `evolog`: Base style for the view.
 *   `evolog:selected`: The highlighted item. Can be styled differently from `revisions:selected` to show which pane is active.
-
-#### Git and Bookmarks menus
-
-The Git and Bookmarks menus use their own scopes:
-
-*   `git` / `bookmarks`: Base styles.
-*   `git:selected` / `bookmarks:selected`: Selected items.
-*   `git matched` / `bookmarks matched`: Filter matches.
-*   Items also use scoped `title`, `shortcut`, `dimmed`, and `border` roles.
 
 #### Help Window
 
@@ -294,8 +287,6 @@ The small inline dialog for confirmations (e.g., "Abandon all?").
 "help" = { bg = "#2B2B2B" }
 "help title" = { fg = "#FF8C00", bold = true, underline = true }
 "help border" = { fg = "#3A3A3A" }
-"git" = { bg = "#2B2B2B" }
-"bookmarks" = { bg = "#2B2B2B" }
 "confirmation" = { bg = "#2B2B2B" }
 "confirmation text" = { fg = "#F0E6D2" }
 "confirmation:selected" = { bg = "#4B2401", fg = "#FFD700" }

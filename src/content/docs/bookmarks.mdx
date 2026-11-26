@@ -1,68 +1,47 @@
 ---
 title: Bookmarks
-description: Managing bookmarks from the Revisions view
+description: Browsing and managing bookmarks from the Revisions view
 ---
 
-jjui provides a classic bookmark menu, an experimental interactive bookmark pane, and a quick inline input for setting bookmarks directly on a revision.
+Bookmarks are [text objects](/jjui/revisions/text-objects) on the revisions they point to, so every bookmark action works on the focused bookmark. The bookmarks view is the Revisions view with a revset that lists bookmarks, and a quick inline input sets bookmarks on a revision.
 
-## Interactive bookmark pane
+## Bookmarks view
 
-The experimental interactive bookmark pane can be enabled in `config.toml`:
+{/* TODO: screenshot */}
 
-```toml
-[bookmark]
-interactive_bookmark_pane = true
-```
-
-With this option enabled, press `b` to open or close the bookmark pane beside the revisions view. Press `tab` to move focus between the revisions list and the pane. The classic bookmark menu remains the default when the option is disabled.
-
-The pane displays local and remote bookmarks in a tree. Local bookmarks with remote counterparts can be expanded with `enter`; rows show tracking, deleted, and conflict states when applicable. `h`/`l` cycle the `all`, `local`, and individual remote filters. `/` filters by bookmark name, remote, target, or commit ID. `space` selects bookmarks for a multi-bookmark operation; `ctrl+click` toggles a row, and `alt+click` selects a range. When nothing is selected, operations use the highlighted row.
+Press `b` to open the bookmarks view. The revset becomes `bookmarks() | remote_bookmarks()` and the cursor lands on a bookmark. A bookmarks bar under the revset line shows the available remotes and the current name filter.
 
 | Key | Action |
 |-----|--------|
-| `j` / `k`, arrows, or `ctrl+n` / `ctrl+p` | Move through bookmarks |
-| `pgup` / `pgdown` or `shift+k` / `shift+j` | Page up / down |
-| `enter` | Expand or collapse remote refs |
-| `h` / `l` | Cycle remote filters |
-| `s` | Show the bookmark target in the Revisions view |
-| `alt+enter` | Set the active revset to the bookmark's ancestors |
-| `e` | Edit the bookmark's revision |
-| `n` | Create a new change from the bookmark's revision |
-| `r` | Rename the local bookmark |
-| `m` | Move the local bookmark |
-| `c` | Create a bookmark |
-| `d` / `f` | Delete / forget |
-| `t` / `u` | Track / untrack |
-| `shift+p` / `shift+f` | Push / fetch |
-| `esc` | Clear the filter or selection, then close the pane |
+| `tab` / `shift+tab` | Next / previous remote. Selecting `origin` sets the revset to `remote_bookmarks(remote=exact:"origin")` |
+| `/` | Filter bookmarks by name (`enter` applies, `esc` cancels) |
+| `k` / `up` at the top of the log | Focus the remotes line (see [Remotes](/jjui/git)) |
+| `esc` | Leave the bookmarks view and restore the previous revset |
 
-## Bookmark menu
+The bar starts with `all` and `local` entries, followed by each configured remote.
 
-<img alt="Bookmarks menu" src="/jjui/images/bookmarks.png" />
+## Bookmark actions
 
-Press `b` to open the bookmark menu. It lists all available bookmark commands and can be filtered by type using shortcut keys:
+With a bookmark focused (`h`/`l` to move between objects, or `ib` to jump to one), these keys are available:
 
-- `m`: filter to **move** commands — move a bookmark to the highlighted revision
-- `t`: filter to **track** commands — start tracking a remote bookmark
-- `u`: filter to **untrack** commands
-- `f`: filter to **forget** commands
-- `d`: filter to **delete** commands
-- `/`: free text filter — type a bookmark name to narrow the list
+| Key | Action |
+|-----|--------|
+| `r` | Rename the bookmark in place |
+| `m` | Move the bookmark to a target revision. The target prompt tells you when the move goes backwards or sideways |
+| `a` | Advance the bookmark (`jj bookmark advance`) |
+| `t` / `T` | Track / untrack. Only the applicable action is offered |
+| `G` | Push the bookmark |
+| `F` | Fetch just this bookmark |
+| `x` | Delete the bookmark |
+| `X` | Forget the bookmark |
+| `d` | Show the diff of the whole branch since its fork point |
+| `C` | Annotate: review the branch |
 
-Press `esc` to close the menu.
+Deleting does not ask for confirmation.
 
-## Remote cycling
+Press `space` to check the focused bookmark and jump to the next one. Actions then apply to all checked bookmarks. Checked objects are highlighted in place.
 
-The bookmark menu shows **"local"** as the first remote, followed by all configured remotes. Press `tab` / `shift+tab` to cycle between them. The selected remote filters which commands appear:
-
-- **local**: move, delete, forget, and untrack commands for all bookmarks, plus track commands for local-only bookmarks (those without a remote)
-- **a specific remote**: only track and untrack commands for bookmarks on that remote
-
-Items within each category are sorted by distance from the current revision — bookmarks closer to where your cursor is appear first in the move list.
-
-Move commands also work when the highlighted target is a hidden revision, such
-as a remote bookmark whose local change was rewritten. jjui uses that hidden
-revision's commit ID as the move target.
+Press `*` on a bookmark to narrow the revset to its branch. See [Text objects](/jjui/revisions/text-objects).
 
 ## Setting a bookmark
 
@@ -71,3 +50,7 @@ Press `shift+b` on a revision to open an inline input box next to the revision's
 - Type a new name to create a bookmark on that revision.
 - Type the name of an existing bookmark to move it to that revision.
 - You can repeat this to create multiple bookmarks on the same revision.
+
+Autocomplete candidates are ranked by log distance, so bookmarks closest to the revision come first.
+
+See [Remotes](/jjui/git) for fetching and pushing.

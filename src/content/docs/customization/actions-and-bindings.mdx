@@ -124,6 +124,53 @@ desc = "open revset"
 
 ---
 
+## Scopes
+
+A binding is only active while its scope is in the chain of scopes that the focused view builds for each key press. The chain is ordered from innermost to outermost, and a key is looked up in each scope in turn until one handles it.
+
+The revisions view builds the chain from what the cursor is on:
+
+1. `revisions.<kind>` for the focused object (see the table below), followed by `revisions.object`, which holds keys shared by all objects such as `shift+j` / `shift+k` (jump to the next/previous revision with an object of the same kind). Neither is present when the revision itself is focused.
+2. `revisions`: verbs that act on the revision such as `squash` and `rebase`.
+3. `revisions.nav`: cursor navigation (`j`/`k`, `pgup`/`pgdown`, `home`/`end`, `@`, ace jump). It is shared by the revisions view and by every operation (`revisions.rebase`, `revisions.squash`, `revisions.revert`, `revisions.duplicate`, `revisions.abandon`, `revisions.absorb`, `revisions.set_parents`, `revisions.diff_range`, `revisions.new_between`, `revisions.bookmark_target`), so operations do not bind these keys themselves.
+4. `revset` and then `ui`, which is always available.
+
+While an operation or a text input is open, its own scope comes first and usually stops the chain. For example, `revisions.rebase` is followed by `revisions.nav` but not by `revisions`. Focusing a file in the details view switches to the `revisions.details` scope, which hides the scopes above it.
+
+Per-object scopes:
+
+| Scope | Active when the cursor is on |
+|-------|------------------------------|
+| `revisions.bookmark` | a bookmark (local or remote) |
+| `revisions.change_id` | the change ID (also moves into the file list) |
+| `revisions.tag` | a tag |
+| `revisions.workspace` | a workspace name |
+| `revisions.divergent` | the divergent marker |
+| `revisions.elided` | the `~ (elided revisions)` marker |
+| `revisions.description` | the description |
+| `revisions.author` | the author |
+| `revisions.timestamp` | the timestamp |
+| `revisions.object` | any object other than the revision itself |
+
+The bookmarks view adds two scopes: `revset.bookmarks` while it is shown (next/previous remote, filter, leave), and `revset.bookmarks.remotes` while the cursor is on the remotes line (fetch, push, rename and remove remotes). `ui.overlay` holds the `esc` binding that dismisses flash messages and the help overlay before any other scope sees the key.
+
+For example, to bind `y` to copy the value of whichever bookmark is focused, only in bookmark scope:
+
+```toml
+[[actions]]
+name = "copy-bookmark-name"
+lua = '''
+copy_to_clipboard(context.object().value)
+'''
+key = "y"
+scope = "revisions.bookmark"
+desc = "copy name"
+```
+
+The default keys for every scope are in `internal/config/default/bindings.toml`.
+
+---
+
 ## Rebinding built-in actions
 
 You can bind any built-in action by its action ID:
@@ -179,13 +226,28 @@ end
 
 Both examples override `move_down` to show a flash message with the change ID after each move, while still performing the original navigation via `jjui.builtin.revisions.move_down()`.
 
-By default, `space` toggles selection and moves down one row. To restore the previous behavior of jumping to the parent after selecting, override `revisions.toggle_select`:
+By default, `space` checks the focused object (not just revisions) and moves on: down one row for a revision, or to the next object of the same kind otherwise. To restore the previous behavior of jumping to the parent after selecting, override `revisions.toggle_select`:
 
 ```lua
 config.action("revisions.toggle_select", function()
   jjui.builtin.revisions.toggle_select()
   jjui.builtin.revisions.jump_to_parent()
 end)
+```
+
+### Default Lua actions
+
+Many of the default object actions are not compiled in; they are `[[actions]]` with Lua in the default config (`internal/config/default/config.toml`). Examples are `revisions.bookmark.push`, `revisions.bookmark.fetch`, `revisions.bookmark.delete`, `revisions.bookmark.forget`, `revisions.bookmark.advance`, `revisions.change_id.push`, `revisions.change_id.force_rewrite`, `revisions.tag.delete`, `revisions.workspace.switch`, `revisions.workspace.forget`, `revisions.workspace.update_stale`, `revisions.divergent.show_all`, `revisions.divergent.abandon`, `revisions.divergent.update_change_id`, `revisions.elided.show_all`, `revisions.description.edit`, `revisions.author.reset`, `revisions.timestamp.reset`, `revisions.show_bookmarks`, `revisions.show_remotes`, `revset.bookmarks.leave` and `revisions.toggle_select`.
+
+They can be overridden by name like any other built-in. Unlike compiled built-ins, they have no `jjui.builtin.*` version to fall back on, so an override replaces the whole behavior. For example, to make `shift+g` push only the focused bookmark and ignore checked ones:
+
+```toml
+[[actions]]
+name = "revisions.bookmark.push"
+lua = '''
+jj_async({ "git", "push", "--bookmark", exact(context.object().value) })
+jjui.builtin.revisions.refresh()
+'''
 ```
 
 ---

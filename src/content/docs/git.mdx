@@ -1,59 +1,46 @@
 ---
-title: Git
-description: Run git push and fetch operations
+title: Remotes
+description: Fetch, push and manage remotes from the remotes line
 ---
 
-Press `g` to open the Git menu. It lists push and fetch commands for the current context.
+Press `g` to open the remotes line. It opens the [bookmarks view](/jjui/bookmarks) with the cursor on the line of remotes under the revset.
 
-<img alt="Git menu" src="/jjui/images/git.png" />
+{/* TODO: screenshot */}
 
-## Remotes
+## Remote objects
 
-All configured remotes are shown at the top of the menu. Press `tab` / `shift+tab` to cycle between them — changing the selected remote changes which remote all commands in the list target. You can also click a remote name directly.
+Each configured remote is an object on the line, preceded by `all` and `local` entries. Moving between them changes the revset (`all` shows local and remote bookmarks, `local` only local ones, a remote only that remote's bookmarks) and the preview, which shows that remote's bookmarks or, for `all`, the output of `jj git remote list`. You can also click an entry.
 
-## Filtering commands
+## Keys
 
-- `p`: filter to push commands. Pressing `p` again immediately executes the default push for the selected remote.
-- `f`: filter to fetch commands. Pressing `f` again immediately executes the default fetch for the selected remote.
+| Key | Action |
+|-----|--------|
+| `h` / `l` or arrows | Previous / next remote |
+| `j` / `down` | Back to the log |
+| `f` | Fetch |
+| `t` | Fetch tracked |
+| `p` | Push |
+| `P` | Push tracked |
+| `d` | Push deleted |
+| `D` | Push all and deleted |
+| `r` | Rename the remote (`enter` applies, `esc` cancels) |
+| `x` | Remove the remote (asks for confirmation) |
 
-When a category filter is active, item shortcut keys become available.
+## Per-bookmark and per-change pushes
 
-## Push commands
+The old Git menu commands for single bookmarks and changes now live on the things themselves:
 
-Commands shown vary based on the selected remote and any highlighted/selected revisions:
+- `G` on a focused bookmark pushes it, and `F` fetches just that bookmark.
+- `G` on a focused change id pushes the change (`jj git push --change`).
 
-| Key | Command |
-|-----|---------|
-| `p` | `git push --remote <remote>` — push tracking bookmarks in the current revset |
-| `a` | `git push --all --deleted --remote <remote>` |
-| `c` | `git push --change <change_id> --remote <remote>` |
-| `b` | `git push --bookmark <bookmark>... --remote <remote>` — push eligible bookmarks on the selected revisions |
-| `d` | `git push --deleted --remote <remote>` |
-| `t` | `git push --tracked --remote <remote>` |
-
-Per-bookmark push commands are also generated automatically for each bookmark on the selected revisions.
-
-To push all eligible bookmarks from the highlighted revision or a multi-selection in one command, open the Git menu with `g`, press `p` to filter push commands, then press `b`. Eligible bookmarks are non-conflicted local bookmarks that are either new or tracked on the selected remote. Duplicate names are collapsed; remote-only bookmarks, bookmarks tracked on another remote, and bookmarks present on the selected remote but not tracked there are skipped.
-
-## Fetch commands
-
-| Key | Command |
-|-----|---------|
-| `f` | `git fetch --remote <remote>` |
-| `t` | `git fetch --tracked --remote <remote>` |
-| `a` | `git fetch --all-remotes` |
-
-## Other keys
-
-- `/`: free text filter to search commands by name
-- `esc`: close the menu
+See [Bookmarks](/jjui/bookmarks) and [Text objects](/jjui/revisions/text-objects).
 
 ## Credential prompts
 
 When a command started by jjui needs Git or SSH credentials, jjui can show the
 askpass prompt inside the application instead of letting the subprocess take
 over the terminal. Usernames are shown normally; passwords and passphrases are
-masked. The Git menu and command status are hidden while the prompt is open.
+masked. The command status is hidden while the prompt is open.
 
 This is enabled by default. To use your own credential or SSH prompt instead,
 disable it in `config.toml`:
