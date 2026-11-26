@@ -4,7 +4,13 @@
 
 `jjui` is a terminal user interface for working with [Jujutsu version control system](https://github.com/jj-vcs/jj). I have built it according to my own needs and will keep adding new features as I need them. I am open to feature requests and contributions.
 
-If you are new `jjui`, have a look at [previously on jjui](https://github.com/idursun/jjui/discussions/443).
+> [!NOTE]
+> `main` contains unreleased, breaking changes since **v0.10.14** (text objects,
+> the remotes line replacing the git menu, the removal of the bookmark pane, and
+> changes to the Lua API and key bindings). The [documentation](https://idursun.github.io/jjui/)
+> describes the latest release. If you install from `main` (`@HEAD` or from source),
+> expect your custom bindings and Lua scripts to need updating, and see the
+> commit history for details.
 
 ## Features
 
