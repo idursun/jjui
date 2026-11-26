@@ -1216,3 +1216,40 @@ func TestModel_FocusedWorkspaceRemoveRefusesCurrentWorkspace(t *testing.T) {
 	model.Update(intents.FocusedWorkspaceRemove{})
 	assert.True(t, model.InNormalMode())
 }
+
+func TestModel_RefreshFollowsTheFocusedBookmark(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(jumpRows(t, jumpLogRow("a", "main")+jumpLogRow("b", "")), "", true)
+	model.focusedObjectKind = textObjectBookmark
+
+	model.refresh(intents.Refresh{})
+	model.Update(updateRevisionsMsg{rows: jumpRows(t, jumpLogRow("c", "main")+jumpLogRow("a", "")+jumpLogRow("b", "")), tag: model.tag.Load()})
+
+	assert.Equal(t, 0, model.cursor)
+	assert.Equal(t, "c", model.SelectedRevision().GetChangeId())
+	assert.Equal(t, "main", model.focusedTextObject().Value)
+}
+
+func TestModel_StreamedRefreshFollowsTheFocusedBookmark(t *testing.T) {
+	model := streamedModel(t, jumpLogRow("a", "main")+jumpLogRow("b", "")+jumpLogRow("c", ""))
+	model.focusedObjectKind = textObjectBookmark
+
+	model.refresh(intents.Refresh{})
+	model.offScreenRows = nil
+	model.Update(appendRowsBatchMsg{rows: jumpRows(t, jumpLogRow("b", "")+jumpLogRow("c", "")+jumpLogRow("d", "main")), tag: model.tag.Load()})
+
+	assert.Equal(t, "d", model.SelectedRevision().GetChangeId())
+	assert.Equal(t, "main", model.focusedTextObject().Value)
+}
+
+func TestModel_RefreshKeepsTheRevisionWhenTheFocusedBookmarkIsGone(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(jumpRows(t, jumpLogRow("a", "")+jumpLogRow("b", "main")), "", true)
+	model.cursor = 1
+	model.focusedObjectKind = textObjectBookmark
+
+	model.refresh(intents.Refresh{})
+	model.Update(updateRevisionsMsg{rows: jumpRows(t, jumpLogRow("c", "")+jumpLogRow("a", "")+jumpLogRow("b", "")), tag: model.tag.Load()})
+
+	assert.Equal(t, "b", model.SelectedRevision().GetChangeId())
+}

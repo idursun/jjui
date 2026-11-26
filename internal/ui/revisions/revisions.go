@@ -92,6 +92,8 @@ type revisionReloadState struct {
 	tag              uint64
 	selectedRevision string
 	keepSelections   bool
+	// focusedBookmark is followed to wherever it points after the reload.
+	focusedBookmark *textObject
 }
 
 type revisionsMsg struct {
@@ -737,7 +739,11 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			reloadState = m.pendingReload
 			m.pendingReload = revisionReloadState{}
 		}
-		m.updateGraphRows(msg.rows, reloadState.selectedRevision, !reloadState.keepSelections)
+		selectedRevision := reloadState.selectedRevision
+		if commitId, ok := m.followBookmark(msg.rows, reloadState.focusedBookmark); ok {
+			selectedRevision = commitId
+		}
+		m.updateGraphRows(msg.rows, selectedRevision, !reloadState.keepSelections)
 		cmds := []tea.Cmd{m.highlightChanges, func() tea.Msg {
 			return common.UpdateRevisionsSuccessMsg{}
 		}}
@@ -827,7 +833,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		currentSelectedRevision := m.SelectedRevision()
 		m.rows = m.offScreenRows
 		targetCursor := -1
-		if reloadState.selectedRevision != "" {
+		if commitId, ok := m.followBookmark(m.rows, reloadState.focusedBookmark); ok {
+			targetCursor = m.selectRevisionExact(commitId)
+		} else if reloadState.selectedRevision != "" {
 			if idx := m.selectRevisionExact(reloadState.selectedRevision); idx != -1 {
 				targetCursor = idx
 			}
@@ -1128,6 +1136,9 @@ func (m *Model) refresh(intent intents.Refresh) tea.Cmd {
 		tag:              currentTag,
 		selectedRevision: intent.SelectedRevision,
 		keepSelections:   intent.KeepSelections,
+	}
+	if obj := m.focusedTextObject(); intent.SelectedRevision == "" && obj != nil && obj.Kind == textObjectBookmark {
+		m.pendingReload.focusedBookmark = obj
 	}
 	if config.Current.Revisions.LogBatching {
 		return tea.Batch(m.loadStreaming(m.context.CurrentRevset, currentTag), m.loadTrackingState(currentTag))
@@ -1664,6 +1675,26 @@ func (m *Model) requestMoreRows(tag uint64) tea.Cmd {
 			tag:     tag,
 		}
 	}
+}
+
+// followBookmark finds the row the bookmark now sits on, focuses it there and
+// returns that row's commit id.
+func (m *Model) followBookmark(rows []parser.Row, bookmark *textObject) (string, bool) {
+	if bookmark == nil {
+		return "", false
+	}
+	for _, row := range rows {
+		if row.Commit == nil {
+			continue
+		}
+		for _, o := range textObjectsForRow(row) {
+			if o.Kind == textObjectBookmark && o.Value == bookmark.Value && o.Remote == bookmark.Remote {
+				m.focusedObjectKind, m.focusedObjectIndex = textObjectBookmark, o.Index
+				return row.Commit.CommitId, true
+			}
+		}
+	}
+	return "", false
 }
 
 func (m *Model) selectRevisionExact(revision string) int {
