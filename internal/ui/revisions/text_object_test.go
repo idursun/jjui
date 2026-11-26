@@ -1253,3 +1253,32 @@ func TestModel_RefreshKeepsTheRevisionWhenTheFocusedBookmarkIsGone(t *testing.T)
 
 	assert.Equal(t, "b", model.SelectedRevision().GetChangeId())
 }
+
+func TestModel_StreamedRefreshSeeksTheFocusedBookmarkInLaterBatches(t *testing.T) {
+	model := streamedModel(t, jumpLogRow("a", "main")+jumpLogRow("b", ""))
+	model.focusedObjectKind = textObjectBookmark
+
+	model.refresh(intents.Refresh{})
+	model.offScreenRows = nil
+	model.Update(appendRowsBatchMsg{rows: jumpRows(t, jumpLogRow("a", "")+jumpLogRow("b", "")), hasMore: true, tag: model.tag.Load()})
+	assert.Equal(t, "a", model.SelectedRevision().GetChangeId(), "the cursor waits on the old revision")
+	assert.NotNil(t, model.pendingSeek)
+
+	model.Update(appendRowsBatchMsg{rows: jumpRows(t, jumpLogRow("c", "main")), tag: model.tag.Load()})
+	assert.Equal(t, "c", model.SelectedRevision().GetChangeId())
+	assert.Equal(t, "main", model.focusedTextObject().Value)
+	assert.Nil(t, model.pendingSeek)
+}
+
+func TestModel_StreamedRefreshStaysWhenTheFocusedBookmarkIsGone(t *testing.T) {
+	model := streamedModel(t, jumpLogRow("a", "main")+jumpLogRow("b", ""))
+	model.focusedObjectKind = textObjectBookmark
+
+	model.refresh(intents.Refresh{})
+	model.offScreenRows = nil
+	model.Update(appendRowsBatchMsg{rows: jumpRows(t, jumpLogRow("b", "")+jumpLogRow("a", "")), hasMore: true, tag: model.tag.Load()})
+	model.Update(appendRowsBatchMsg{rows: jumpRows(t, jumpLogRow("c", "")), tag: model.tag.Load()})
+
+	assert.Equal(t, "a", model.SelectedRevision().GetChangeId())
+	assert.Nil(t, model.pendingSeek)
+}

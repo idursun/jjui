@@ -833,12 +833,18 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		currentSelectedRevision := m.SelectedRevision()
 		m.rows = m.offScreenRows
 		targetCursor := -1
-		if commitId, ok := m.followBookmark(m.rows, reloadState.focusedBookmark); ok {
+		bookmark := reloadState.focusedBookmark
+		if commitId, ok := m.followBookmark(m.rows, bookmark); ok {
 			targetCursor = m.selectRevisionExact(commitId)
-		} else if reloadState.selectedRevision != "" {
+			bookmark = nil
+		}
+		if targetCursor == -1 && reloadState.selectedRevision != "" {
 			if idx := m.selectRevisionExact(reloadState.selectedRevision); idx != -1 {
 				targetCursor = idx
 			}
+		}
+		if bookmark != nil && m.hasMore {
+			m.pendingSeek = m.seekBookmark(bookmark, m.pendingSeek)
 		}
 
 		if targetCursor == -1 && currentSelectedRevision != nil {
@@ -1734,6 +1740,24 @@ func (m *Model) quickSearchFrom(start int, backward bool) tea.Cmd {
 		}
 		return nil, false
 	})
+}
+
+// seekBookmark loads rows until the bookmark shows up, which is the whole log
+// when it is gone; only then does fallback get its turn.
+func (m *Model) seekBookmark(bookmark *textObject, fallback func(more bool) (tea.Cmd, bool)) func(more bool) (tea.Cmd, bool) {
+	return func(more bool) (tea.Cmd, bool) {
+		if commitId, ok := m.followBookmark(m.rows, bookmark); ok {
+			m.SetCursor(m.selectRevisionExact(commitId))
+			return nil, true
+		}
+		if more {
+			return nil, false
+		}
+		if fallback != nil {
+			return fallback(more)
+		}
+		return nil, true
+	}
 }
 
 // seekRow runs step on the loaded rows and again after each batch until it
