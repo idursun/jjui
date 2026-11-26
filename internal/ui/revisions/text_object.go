@@ -149,7 +149,7 @@ func textObjectsForRow(row parser.Row) []textObject {
 			// segment; the value is the name without the @.
 			if kind == textObjectWorkspace {
 				pos := start
-				for _, name := range strings.Split(text, " ") {
+				for name := range strings.SplitSeq(text, " ") {
 					if name != "" {
 						add(kind, strings.TrimSuffix(name, "@"), lineIndex, pos)
 						objects[len(objects)-1].width = render.StringWidth(name)

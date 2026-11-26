@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/idursun/jjui/internal/ui/actionmeta"
@@ -69,9 +70,9 @@ func (c *Config) ValidateBindingsAndActions() error {
 // ActionWhen returns the action-level availability condition. A configured
 // action can add or override the generated built-in condition.
 func (c *Config) ActionWhen(action string) string {
-	for i := len(c.Actions) - 1; i >= 0; i-- {
-		if strings.TrimSpace(c.Actions[i].Name) == strings.TrimSpace(action) {
-			if when := strings.TrimSpace(c.Actions[i].When); when != "" {
+	for _, v := range slices.Backward(c.Actions) {
+		if strings.TrimSpace(v.Name) == strings.TrimSpace(action) {
+			if when := strings.TrimSpace(v.When); when != "" {
 				return when
 			}
 			return actionmeta.ActionWhen(action)

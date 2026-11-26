@@ -235,7 +235,7 @@ func TestDisplayContextRenderer_SetBookmarkInputGoesBeforeLabelledCommitId(t *te
 	screen := uv.NewScreenBuffer(80, 3)
 	dl.Render(screen)
 
-	firstLine := strings.Split(screen.Render(), "\n")[0]
+	firstLine, _, _ := strings.Cut(screen.Render(), "\n")
 	assert.Contains(t, firstLine, "2025-05-22 21:59:38 NAME  28c8ae4a")
 }
 

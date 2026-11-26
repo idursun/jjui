@@ -312,7 +312,7 @@ func TestModel_ViewShowsLocationOnTheRight(t *testing.T) {
 	ctx.CurrentRevset = "::@"
 	model := New(ctx)
 
-	line := strings.Split(test.RenderImmediate(model, 40, 1), "\n")[0]
+	line, _, _ := strings.Cut(test.RenderImmediate(model, 40, 1), "\n")
 	assert.Equal(t, "revset: ::@              /srv/repos/jjui", line)
 
 	ctx.CurrentRevset = "trunk()..@ | bookmarks()"

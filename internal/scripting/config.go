@@ -298,7 +298,7 @@ func prependConfigModulePaths(L *lua.LState, configDir string) error {
 	}
 
 	var existing []string
-	for _, part := range strings.Split(pathStr.String(), ";") {
+	for part := range strings.SplitSeq(pathStr.String(), ";") {
 		if part = strings.TrimSpace(part); part != "" {
 			existing = append(existing, part)
 		}

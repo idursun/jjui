@@ -67,8 +67,8 @@ func TestUpdateDetectsHighlightChangesAcrossReturnPaths(t *testing.T) {
 			ctx := test.NewTestContext(test.NewTestCommandRunner(t))
 			model := NewUI(ctx)
 			pushDialog(model, &changingSelectionScope{
-				scopeOnlyStackedModel: scopeOnlyStackedModel{scope: actions.ScopeChoose},
-				next:                  first,
+				scope: actions.ScopeChoose,
+				next:  first,
 			})
 			cmd := model.Update(tc.msg)
 			assert.Equal(t, first, ctx.Selection().Highlighted)
@@ -127,8 +127,8 @@ func TestDispatchActionCompletesAfterHighlightNotification(t *testing.T) {
 			model := NewUI(ctx)
 			first := common.SelectedRevision{ChangeId: "first"}
 			scope := &changingSelectionScope{
-				scopeOnlyStackedModel: scopeOnlyStackedModel{scope: actions.ScopeChoose},
-				next:                  first,
+				scope: actions.ScopeChoose,
+				next:  first,
 			}
 			if withCommand {
 				scope.cmd = func() tea.Msg { return selectionActionResultMsg{} }
