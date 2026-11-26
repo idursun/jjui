@@ -245,8 +245,6 @@ func BookmarkMove(revision string, bookmarks []string, extraFlags ...string) Com
 	return args
 }
 
-// BookmarkAdvance moves the bookmark forward to revsets.bookmark-advance-to,
-// which defaults to @.
 func BookmarkRename(oldName string, newName string) CommandArgs {
 	return []string{"bookmark", "rename", oldName, newName}
 }
