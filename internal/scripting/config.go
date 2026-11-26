@@ -2,9 +2,10 @@ package scripting
 
 import (
 	"fmt"
-	"github.com/idursun/jjui/internal/ui/theme"
 	"path/filepath"
 	"strings"
+
+	"github.com/idursun/jjui/internal/ui/theme"
 
 	"github.com/idursun/jjui/internal/config"
 	uicontext "github.com/idursun/jjui/internal/ui/context"

@@ -2,10 +2,11 @@ package annotation
 
 import (
 	"fmt"
-	"github.com/idursun/jjui/internal/ui/theme"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/idursun/jjui/internal/ui/theme"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textarea"
