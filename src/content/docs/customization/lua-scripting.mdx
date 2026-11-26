@@ -83,6 +83,15 @@ if description then
 end
 ```
 
+The preview size is available through `ui.preview.size()`, which returns the
+current size as a percentage:
+
+```lua
+if ui.preview.size() == 100 then
+  ui.preview.set_size(50)
+end
+```
+
 These functions are also available through the `jjui` namespace, such as
 `jjui.context.checked_commit_ids()` and
 `jjui.revisions.inline_describe.content()`.
@@ -419,6 +428,8 @@ Also available as a top-level global — `ui.cancel()` and `jjui.ui.cancel()` ar
 | `jjui.ui.preview_scroll_down()` / `jjui.ui.preview_scroll_up()` | |
 | `jjui.ui.preview_half_page_down()` / `jjui.ui.preview_half_page_up()` | |
 | `jjui.ui.preview.show(content)` | Required string (positional) — display content in the preview panel |
+| `jjui.ui.preview.set_size(percent)` | Required number (positional) — set the preview size as a percentage and open the preview; `100` gives it the full screen |
+| `jjui.ui.preview.size()` | Return the current preview size as a percentage |
 | `jjui.ui.exec_jj()` | Open the jj command prompt |
 | `jjui.ui.exec_shell()` | Open the shell command prompt |
 

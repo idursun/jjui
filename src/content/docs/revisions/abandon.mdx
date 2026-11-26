@@ -19,3 +19,12 @@ Press `a` in Revisions to enter abandon mode. If revisions were already selected
 - `enter`: apply
 - `alt+enter`: force apply
 - `esc`: cancel
+
+## Bookmarks on abandoned revisions
+
+Like `jj abandon`, abandoning a revision deletes the bookmarks on it. To move them to the parent instead, which is the same as passing `--retain-bookmarks`, set:
+
+```toml
+[revisions.abandon]
+retain_bookmarks = true
+```

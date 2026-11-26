@@ -73,6 +73,15 @@ log_batch_size = 50
 - `log_batching`: load revisions incrementally in batches (default: `true`)
 - `log_batch_size`: number of revisions per batch when batching is enabled (default: `50`)
 
+### Abandon
+
+```toml
+[revisions.abandon]
+retain_bookmarks = false
+```
+
+- `retain_bookmarks`: move bookmarks on abandoned revisions to their parent instead of deleting them (default: `false`)
+
 ## Preview
 
 ```toml

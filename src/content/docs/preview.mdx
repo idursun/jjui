@@ -29,6 +29,27 @@ Press `p` to toggle the preview pane. It updates automatically as you navigate â
 
 When mouse support is available, you can scroll the preview and drag the separator to resize it.
 
+## Full size preview
+
+`jjui.ui.preview.set_size(percent)` sets the preview size and opens it if it is hidden. Unlike expanding or dragging the separator, it accepts `100`, so the preview can take the full screen. `jjui.ui.preview.size()` returns the current size.
+
+This action toggles a full size preview with `alt+p`:
+
+```toml
+[[actions]]
+name = "toggle preview full size"
+lua = '''
+if jjui.ui.preview.size() == 100 then
+  jjui.ui.preview.set_size(50)
+else
+  jjui.ui.preview.set_size(100)
+end
+'''
+key = "alt+p"
+scope = "ui"
+desc = "Toggle preview full size"
+```
+
 ## Position
 
 ```toml
