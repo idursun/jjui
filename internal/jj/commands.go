@@ -251,14 +251,6 @@ func BookmarkRename(oldName string, newName string) CommandArgs {
 	return []string{"bookmark", "rename", oldName, newName}
 }
 
-func revisionFlags(revisions []string) []string {
-	flags := make([]string, 0, 2*len(revisions))
-	for _, revision := range revisions {
-		flags = append(flags, "-r", revision)
-	}
-	return flags
-}
-
 func exactStringPatterns(values []string) []string {
 	patterns := make([]string, len(values))
 	for i, value := range values {
@@ -348,10 +340,6 @@ func CurrentWorkspaceRoot() CommandArgs {
 
 func WorkspaceRemove(name string) CommandArgs {
 	return []string{"workspace", "remove", name}
-}
-
-func WorkspaceForget(name string) CommandArgs {
-	return []string{"workspace", "forget", name}
 }
 
 // WorkspaceRename renames the workspace at root; jj only renames the workspace it runs in.

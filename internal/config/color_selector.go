@@ -49,10 +49,6 @@ func ParseColorSelector(value string) ColorSelector {
 	return selector
 }
 
-func (s ColorSelector) Fields() []string {
-	return append([]string(nil), s.fields...)
-}
-
 func (s ColorSelector) Key() string {
 	if s.variant == "" {
 		return strings.Join(s.fields, " ")
