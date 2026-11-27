@@ -230,6 +230,19 @@ lua = """
  """
 
 [[actions]]
+name = "revisions.tag.push"
+lua = """
+ local tag = context.object()
+ local args = { "git", "push", "--tag", exact(tag.value) }
+ if tag.remote then
+   table.insert(args, "--remote")
+   table.insert(args, tag.remote)
+ end
+ jj_async(args)
+ jjui.builtin.revisions.refresh()
+ """
+
+[[actions]]
 name = "revisions.divergent.abandon"
 lua = """
  jj_async({ "abandon", context.commit_id() })
