@@ -1217,13 +1217,13 @@ const luaHandWrittenClasses = `---@class jjui.revisions
 ---@field conflicted? boolean True for a conflicted bookmark
 ---@field change_id? string Change ID of the revision the object is on
 ---@field commit_id? string Commit ID of the revision the object is on
----@field remotes? jjui.context.bookmark_remote[] Remotes of a bookmark; nil until the tracking state is loaded
+---@field remotes? jjui.context.bookmark_remote[] Remotes of a bookmark or tag; nil until the tracking state is loaded
 ---@field all? boolean True for the remotes line entry that shows all remotes
 ---@field local_only? boolean True for the remotes line entry that shows only local bookmarks
 
 ---@class jjui.context.bookmark_remote
 ---@field name string Remote name
----@field tracked boolean Whether the local bookmark tracks this remote
+---@field tracked boolean Whether the local bookmark or tag tracks this remote
 
 `
 

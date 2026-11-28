@@ -284,6 +284,22 @@ func BookmarkUntrack(name string, remote string) CommandArgs {
 	return args
 }
 
+func TagTrack(name string, remote string) CommandArgs {
+	args := []string{"tag", "track", ExactStringPattern(name)}
+	if remote != "" {
+		args = append(args, "--remote", ExactStringPattern(remote))
+	}
+	return args
+}
+
+func TagUntrack(name string, remote string) CommandArgs {
+	args := []string{"tag", "untrack", ExactStringPattern(name)}
+	if remote != "" {
+		args = append(args, "--remote", ExactStringPattern(remote))
+	}
+	return args
+}
+
 func Squash(from SelectedRevisions, destination string, files []FileName, keepEmptied bool, useDestinationMessage bool, interactive bool, ignoreImmutable bool) CommandArgs {
 	args := []string{"squash"}
 	args = append(args, from.AsPrefixedArgs("--from")...)
@@ -320,6 +336,10 @@ func BookmarkListMovable(revision string) CommandArgs {
 
 func BookmarkListAll() CommandArgs {
 	return []string{"bookmark", "list", "-a", "--template", allBookmarkTemplate, "--color", "never", "--ignore-working-copy"}
+}
+
+func TagListAll() CommandArgs {
+	return []string{"tag", "list", "-a", "--template", allBookmarkTemplate, "--color", "never", "--ignore-working-copy"}
 }
 
 func WorkspaceAdd(revision string, destination string) CommandArgs {

@@ -584,10 +584,10 @@ func checkBookmarksOnTwoRevisions(t *testing.T, commandRunner *test.CommandRunne
 func TestModel_ToggleSelectChecksTheFocusedBookmarkNotItsRevision(t *testing.T) {
 	model := checkBookmarksOnTwoRevisions(t, test.NewTestCommandRunner(t))
 
-	assert.Equal(t, []checkedObject{checkedBookmark("one", ""), checkedBookmark("two", "")}, model.checked)
+	assert.Equal(t, []checkedObject{checkedRef(textObjectBookmark, "one", ""), checkedRef(textObjectBookmark, "two", "")}, model.checked)
 
 	model.Update(intents.RevisionsToggleSelect{})
-	assert.Equal(t, []checkedObject{checkedBookmark("one", "")}, model.checked)
+	assert.Equal(t, []checkedObject{checkedRef(textObjectBookmark, "one", "")}, model.checked)
 }
 
 func TestModel_RevisionActionsResolveCheckedBookmarksToTheirRevisions(t *testing.T) {
@@ -635,7 +635,7 @@ func TestModel_BookmarkMoveOnlyRemoteBookmarksShowsMessage(t *testing.T) {
 func TestModel_CheckedTargetsKeepCheckOrderAcrossKinds(t *testing.T) {
 	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
 	model.updateGraphRows(jumpRows(t, jumpLogRow("a", "one")+jumpLogRow("b", "two")), "", true)
-	model.toggleChecked(checkedBookmark("two", ""))
+	model.toggleChecked(checkedRef(textObjectBookmark, "two", ""))
 	model.toggleChecked(checkedRevision(model.rows[0].Commit))
 
 	commits := model.checkedTargetCommits()
@@ -820,7 +820,7 @@ func TestModel_FileChecksSurviveRefreshWhileDetailsStayOpen(t *testing.T) {
 	defer commandRunner.Verify()
 	model := changeIdFocusedUnderDetails(t, commandRunner)
 	checkFileUnderDetails(t, model)
-	model.toggleChecked(checkedBookmark("second", ""))
+	model.toggleChecked(checkedRef(textObjectBookmark, "second", ""))
 
 	model.refresh(intents.Refresh{})
 
@@ -838,12 +838,12 @@ func TestModel_FileChecksAreDroppedWhenDetailsClose(t *testing.T) {
 			commandRunner := test.NewTestCommandRunner(t)
 			model := changeIdFocusedUnderDetails(t, commandRunner)
 			checkFileUnderDetails(t, model)
-			model.toggleChecked(checkedBookmark("second", ""))
+			model.toggleChecked(checkedRef(textObjectBookmark, "second", ""))
 			require.Len(t, model.checked, 2)
 
 			closeDetails(model)
 
-			assert.Equal(t, []checkedObject{checkedBookmark("second", "")}, model.checked)
+			assert.Equal(t, []checkedObject{checkedRef(textObjectBookmark, "second", "")}, model.checked)
 		})
 	}
 }
@@ -1054,6 +1054,7 @@ func TestModel_BookmarkTrackingStateGatesTrackActions(t *testing.T) {
 			model.focusedObjectKind, model.focusedObjectIndex = textObjectBookmark, tc.objectIndex
 			if !tc.skipTrackingLoaded {
 				commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte(tc.listing))
+				commandRunner.Expect(jj.TagListAll())
 				commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(tc.remotes))
 				model.Update(model.loadTrackingState(model.tag.Load())())
 				commandRunner.Verify()
@@ -1068,6 +1069,7 @@ func TestModel_BookmarkTrackingStateGatesTrackActions(t *testing.T) {
 func TestModel_BookmarkTrackingStateIgnoresStaleListing(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	commandRunner.Expect(jj.BookmarkListAll()).SetOutput([]byte("second;.;true;false;false;false;28\n"))
+	commandRunner.Expect(jj.TagListAll())
 	commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte("origin x\n"))
 	defer commandRunner.Verify()
 
@@ -1085,7 +1087,7 @@ func TestModel_SelectionListsABookmarkOncePerRow(t *testing.T) {
 	rows := textObjectRows(t)
 	rows[1].Lines, rows[1].Commit.HasBookmarks = rows[0].Lines, true
 	model.updateGraphRows(rows, "", true)
-	model.toggleChecked(checkedBookmark("second", "origin"))
+	model.toggleChecked(checkedRef(textObjectBookmark, "second", "origin"))
 
 	var commits []string
 	for _, object := range model.Selection().CheckedObjects {
@@ -1097,11 +1099,11 @@ func TestModel_SelectionListsABookmarkOncePerRow(t *testing.T) {
 func TestModel_SelectionListsBookmarkRemotesOnceTrackingIsKnown(t *testing.T) {
 	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
 	model.updateGraphRows(textObjectRows(t), "", true)
-	model.toggleChecked(checkedBookmark("second", "origin"))
-	model.toggleChecked(checkedBookmark("gone", ""))
+	model.toggleChecked(checkedRef(textObjectBookmark, "second", "origin"))
+	model.toggleChecked(checkedRef(textObjectBookmark, "gone", ""))
 	assert.Nil(t, model.Selection().CheckedObjects[0].ObjectRemotes, "unknown before the listing arrives")
 
-	model.trackingState = &bookmarkTrackingState{listing: []jj.Bookmark{
+	model.trackingState = &refTrackingState{bookmarks: []jj.Bookmark{
 		{Name: "second", Remotes: []jj.BookmarkRemote{{Remote: "origin", Tracked: true}}},
 	}}
 	objects := model.Selection().CheckedObjects
@@ -1115,8 +1117,8 @@ func TestModel_SelectionListsCheckedObjects(t *testing.T) {
 	commit := model.rows[0].Commit
 	model.toggleChecked(checkedRevision(commit))
 	model.toggleChecked(checkedObject{kind: textObjectAuthor, commitId: commit.CommitId})
-	model.toggleChecked(checkedBookmark("second", "origin"))
-	model.toggleChecked(checkedBookmark("gone", ""))
+	model.toggleChecked(checkedRef(textObjectBookmark, "second", "origin"))
+	model.toggleChecked(checkedRef(textObjectBookmark, "gone", ""))
 	model.toggleChecked(checkedFile(commit.GetChangeId(), "a.go"))
 
 	assert.Equal(t, []common.SelectedRevision{
@@ -1281,4 +1283,67 @@ func TestModel_StreamedRefreshStaysWhenTheFocusedBookmarkIsGone(t *testing.T) {
 
 	assert.Equal(t, "a", model.SelectedRevision().GetChangeId())
 	assert.Nil(t, model.pendingSeek)
+}
+
+func TestModel_TagCanBeChecked(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	model := New(test.NewTestContext(commandRunner))
+	model.updateGraphRows(parser.ParseRows(strings.NewReader(tagLog)), "", true)
+	model.focusedObjectKind, model.focusedObjectIndex = textObjectTag, 1
+	_, handled := model.HandleIntent(intents.RevisionsToggleSelect{})
+	require.True(t, handled)
+	assert.Equal(t, []checkedObject{checkedRef(textObjectTag, "v2.0", "")}, model.checked)
+
+	objects := model.Selection().CheckedObjects
+	require.Len(t, objects, 1)
+	assert.Equal(t, textObjectTag, objects[0].ObjectKind)
+	assert.Equal(t, "v2.0", objects[0].ObjectText)
+	assert.Equal(t, model.rows[0].Commit.CommitId, objects[0].CommitId)
+	assert.Len(t, model.checkedTargetCommits(), 1)
+}
+
+func TestModel_TagTrackingStateGatesTrackActions(t *testing.T) {
+	tests := []struct {
+		name           string
+		listing        string
+		remotes        string
+		objectIndex    int
+		track, untrack bool
+	}{
+		{name: "tracked local tag", listing: "v1.0;.;true;false;false;false;7\nv1.0;origin;true;true;false;false;7\n", remotes: "origin x\n", untrack: true},
+		{name: "local-only tag", listing: "v1.0;.;true;false;false;false;7\n", remotes: "origin x\n", track: true},
+		{name: "local tag without remotes", listing: "v1.0;.;true;false;false;false;7\n"},
+		{name: "untracked remote tag", listing: "v2.0;origin;true;false;false;false;7\n", objectIndex: 2, track: true},
+		{name: "tracked remote tag", listing: "v2.0;origin;true;true;false;false;7\n", objectIndex: 2, untrack: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			commandRunner := test.NewTestCommandRunner(t)
+			model := New(test.NewTestContext(commandRunner))
+			model.updateGraphRows(parser.ParseRows(strings.NewReader(tagLog)), "", true)
+			model.focusedObjectKind, model.focusedObjectIndex = textObjectTag, tc.objectIndex
+			commandRunner.Expect(jj.BookmarkListAll())
+			commandRunner.Expect(jj.TagListAll()).SetOutput([]byte(tc.listing))
+			commandRunner.Expect(jj.GitRemoteList()).SetOutput([]byte(tc.remotes))
+			model.Update(model.loadTrackingState(model.tag.Load())())
+			commandRunner.Verify()
+			track, _ := model.QueryState("can_track_tag")
+			untrack, _ := model.QueryState("can_untrack_tag")
+			assert.Equal(t, tc.track, track, "can_track_tag")
+			assert.Equal(t, tc.untrack, untrack, "can_untrack_tag")
+			bookmarkTrack, _ := model.QueryState("can_track_bookmark")
+			assert.Equal(t, false, bookmarkTrack, "a focused tag is not a bookmark target")
+		})
+	}
+}
+
+func TestModel_TagRemotesComeFromTheTagListing(t *testing.T) {
+	model := New(test.NewTestContext(test.NewTestCommandRunner(t)))
+	model.updateGraphRows(parser.ParseRows(strings.NewReader(tagLog)), "", true)
+	model.toggleChecked(checkedRef(textObjectTag, "v1.0", ""))
+	model.trackingState = &refTrackingState{
+		bookmarks: []jj.Bookmark{{Name: "v1.0"}},
+		tags:      []jj.Bookmark{{Name: "v1.0", Remotes: []jj.BookmarkRemote{{Remote: "origin", Tracked: true}}}},
+	}
+	assert.Equal(t, []jj.BookmarkRemote{{Remote: "origin", Tracked: true}}, model.Selection().CheckedObjects[0].ObjectRemotes)
 }

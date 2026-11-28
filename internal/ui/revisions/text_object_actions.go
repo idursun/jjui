@@ -41,7 +41,7 @@ func localBookmarkNames(targets []textObject, action string) ([]string, tea.Cmd)
 }
 
 func (m *Model) moveBookmarks() tea.Cmd {
-	targets := m.bookmarkTargets()
+	targets := m.refTargets(textObjectBookmark)
 	if len(targets) == 0 {
 		return nil
 	}
@@ -56,44 +56,47 @@ func (m *Model) moveBookmarks() tea.Cmd {
 	)
 }
 
-type loadedBookmark struct {
+type loadedRef struct {
 	textObject
 	commit *jj.Commit
 }
 
-// checkedBookmarkRows finds the checked bookmarks on loaded rows. A conflicted
-// bookmark has one entry per revision.
-func (m *Model) checkedBookmarkRows() map[checkedObject][]loadedBookmark {
-	found := make(map[checkedObject][]loadedBookmark)
-	if !slices.ContainsFunc(m.checked, func(c checkedObject) bool { return c.kind == textObjectBookmark }) {
+// checkedRefRows finds the checked bookmarks and tags on loaded rows. A
+// conflicted ref has one entry per revision.
+func (m *Model) checkedRefRows() map[checkedObject][]loadedRef {
+	found := make(map[checkedObject][]loadedRef)
+	isRef := func(kind string) bool { return kind == textObjectBookmark || kind == textObjectTag }
+	if !slices.ContainsFunc(m.checked, func(c checkedObject) bool { return isRef(c.kind) }) {
 		return found
 	}
+	// Commits record only whether they have bookmarks, so rows are always parsed for tags.
+	tagsChecked := slices.ContainsFunc(m.checked, func(c checkedObject) bool { return c.kind == textObjectTag })
 	for _, row := range m.rows {
 		// Bindings query this on every render, so skip parsing rows without bookmarks.
-		if row.Commit == nil || !row.Commit.HasBookmarks {
+		if row.Commit == nil || !row.Commit.HasBookmarks && !tagsChecked {
 			continue
 		}
 		for _, o := range textObjectsForRow(row) {
-			if o.Kind != textObjectBookmark {
+			if !isRef(o.Kind) {
 				continue
 			}
-			if key := checkedBookmark(o.Value, o.Remote); slices.Contains(m.checked, key) {
-				found[key] = append(found[key], loadedBookmark{o, row.Commit})
+			if key := checkedRef(o.Kind, o.Value, o.Remote); slices.Contains(m.checked, key) {
+				found[key] = append(found[key], loadedRef{o, row.Commit})
 			}
 		}
 	}
 	return found
 }
 
-// bookmarkTargets returns what a bookmark action applies to: the checked
-// bookmarks, or the focused one when none are checked.
-func (m *Model) bookmarkTargets() []textObject {
+// refTargets returns what an action on bookmarks or tags of the given kind
+// applies to: the checked ones, or the focused one when none are checked.
+func (m *Model) refTargets(kind string) []textObject {
 	obj := m.focusedTextObject()
-	if obj == nil || obj.Kind != textObjectBookmark {
+	if obj == nil || obj.Kind != kind {
 		return nil
 	}
 	var targets []textObject
-	found := m.checkedBookmarkRows()
+	found := m.checkedRefRows()
 	for _, object := range m.checked {
 		if rows := found[object]; len(rows) > 0 {
 			targets = append(targets, rows[0].textObject)
@@ -105,7 +108,7 @@ func (m *Model) bookmarkTargets() []textObject {
 	return targets
 }
 
-func (m *Model) runBookmarkCommands(commands []jj.CommandArgs) tea.Cmd {
+func (m *Model) runRefCommands(commands []jj.CommandArgs) tea.Cmd {
 	next := tea.Cmd(common.Refresh)
 	for _, command := range slices.Backward(commands) {
 		next = m.context.RunCommand(command, next)
@@ -113,18 +116,22 @@ func (m *Model) runBookmarkCommands(commands []jj.CommandArgs) tea.Cmd {
 	return next
 }
 
-func (m *Model) listAllBookmarks() ([]jj.Bookmark, tea.Cmd) {
-	output, err := m.context.RunCommandImmediate(jj.BookmarkListAll())
+func (m *Model) listAllRefs(kind string) ([]jj.Bookmark, tea.Cmd) {
+	list := jj.BookmarkListAll()
+	if kind == textObjectTag {
+		list = jj.TagListAll()
+	}
+	output, err := m.context.RunCommandImmediate(list)
 	if err != nil {
-		return nil, intents.Invoke(intents.AddMessage{Text: "Could not list bookmarks", Err: err})
+		return nil, intents.Invoke(intents.AddMessage{Text: "Could not list " + kind + "s", Err: err})
 	}
 	return jj.ParseBookmarkListOutput(string(output)), nil
 }
 
-// trackBookmarks tracks or untracks remote bookmarks, or local bookmarks
-// against the default remote. Bookmarks already in that state are skipped.
-func (m *Model) trackBookmarks(track bool) tea.Cmd {
-	targets := m.bookmarkTargets()
+// trackRefs tracks or untracks remote bookmarks or tags, or local ones against
+// the default remote. Refs already in that state are skipped.
+func (m *Model) trackRefs(kind string, track bool) tea.Cmd {
+	targets := m.refTargets(kind)
 	if len(targets) == 0 {
 		return nil
 	}
@@ -140,9 +147,13 @@ func (m *Model) trackBookmarks(track bool) tea.Cmd {
 			return intents.Invoke(intents.AddMessage{Text: "There is no git remote to track " + targets[0].Value + " on"})
 		}
 	}
-	listing, cmd := m.listAllBookmarks()
+	listing, cmd := m.listAllRefs(kind)
 	if cmd != nil {
 		return cmd
+	}
+	trackCommand, untrackCommand := jj.BookmarkTrack, jj.BookmarkUntrack
+	if kind == textObjectTag {
+		trackCommand, untrackCommand = jj.TagTrack, jj.TagUntrack
 	}
 	var commands []jj.CommandArgs
 	skipped := ""
@@ -151,11 +162,11 @@ func (m *Model) trackBookmarks(track bool) tea.Cmd {
 		if remote == "" {
 			remote = defaultRemote
 		}
-		switch tracked := isRemoteBookmarkTracked(listing, target.Value, remote); {
+		switch tracked := isRemoteTracked(listing, target.Value, remote); {
 		case track && !tracked:
-			commands = append(commands, jj.BookmarkTrack(target.Value, remote))
+			commands = append(commands, trackCommand(target.Value, remote))
 		case !track && tracked:
-			commands = append(commands, jj.BookmarkUntrack(target.Value, remote))
+			commands = append(commands, untrackCommand(target.Value, remote))
 		case track:
 			skipped = target.Value + "@" + remote + " is already tracked"
 		default:
@@ -165,20 +176,29 @@ func (m *Model) trackBookmarks(track bool) tea.Cmd {
 	if len(commands) == 0 {
 		return intents.Invoke(intents.AddMessage{Text: skipped})
 	}
-	return m.runBookmarkCommands(commands)
+	return m.runRefCommands(commands)
 }
 
-type bookmarkTrackingState struct {
-	listing       []jj.Bookmark
+type refTrackingState struct {
+	bookmarks     []jj.Bookmark
+	tags          []jj.Bookmark
 	defaultRemote string
 }
 
-type bookmarkTrackingStateMsg struct {
-	state *bookmarkTrackingState
+// listing returns the tracking listing of the given kind.
+func (s *refTrackingState) listing(kind string) []jj.Bookmark {
+	if kind == textObjectTag {
+		return s.tags
+	}
+	return s.bookmarks
+}
+
+type refTrackingStateMsg struct {
+	state *refTrackingState
 	tag   uint64
 }
 
-// loadTrackingState lists bookmarks alongside the log because the log output
+// loadTrackingState lists bookmarks and tags alongside the log because the log output
 // does not show the tracking state. A failed listing keeps the previous state.
 func (m *Model) loadTrackingState(tag uint64) tea.Cmd {
 	return func() tea.Msg {
@@ -186,22 +206,29 @@ func (m *Model) loadTrackingState(tag uint64) tea.Cmd {
 		if err != nil {
 			return nil
 		}
-		state := &bookmarkTrackingState{listing: jj.ParseBookmarkListOutput(string(output))}
+		tagOutput, err := m.context.RunCommandImmediate(jj.TagListAll())
+		if err != nil {
+			return nil
+		}
+		state := &refTrackingState{
+			bookmarks: jj.ParseBookmarkListOutput(string(output)),
+			tags:      jj.ParseBookmarkListOutput(string(tagOutput)),
+		}
 		// The remote list puts git.default_remote first.
 		if output, err := m.context.RunCommandImmediate(jj.GitRemoteList()); err == nil {
 			if remotes := jj.ParseRemoteListOutput(string(output)); len(remotes) > 0 {
 				state.defaultRemote = remotes[0]
 			}
 		}
-		return bookmarkTrackingStateMsg{state: state, tag: tag}
+		return refTrackingStateMsg{state: state, tag: tag}
 	}
 }
 
-// canChangeBookmarkTracking reports whether tracking (or untracking) applies
-// to any bookmark target. Both apply until the state is known; neither applies
-// to a local bookmark when there is no remote.
-func (m *Model) canChangeBookmarkTracking(track bool) bool {
-	targets := m.bookmarkTargets()
+// canChangeTracking reports whether tracking (or untracking) applies to any
+// target of the given kind. Both apply until the state is known; neither
+// applies to a local ref when there is no remote.
+func (m *Model) canChangeTracking(kind string, track bool) bool {
+	targets := m.refTargets(kind)
 	if len(targets) == 0 {
 		return false
 	}
@@ -214,17 +241,17 @@ func (m *Model) canChangeBookmarkTracking(track bool) bool {
 		if remote == "" {
 			remote = state.defaultRemote
 		}
-		return remote != "" && isRemoteBookmarkTracked(state.listing, target.Value, remote) != track
+		return remote != "" && isRemoteTracked(state.listing(kind), target.Value, remote) != track
 	})
 }
 
-// bookmarkRemotes returns the remotes of the named bookmark, or nil while the
-// tracking state is unknown.
-func (m *Model) bookmarkRemotes(name string) []jj.BookmarkRemote {
+// refRemotes returns the remotes of the named bookmark or tag, or nil while
+// the tracking state is unknown.
+func (m *Model) refRemotes(kind, name string) []jj.BookmarkRemote {
 	if m.trackingState == nil {
 		return nil
 	}
-	for _, b := range m.trackingState.listing {
+	for _, b := range m.trackingState.listing(kind) {
 		if b.Name == name {
 			return append([]jj.BookmarkRemote{}, b.Remotes...)
 		}
@@ -232,9 +259,9 @@ func (m *Model) bookmarkRemotes(name string) []jj.BookmarkRemote {
 	return []jj.BookmarkRemote{}
 }
 
-// isRemoteBookmarkTracked reads a `jj bookmark list` listing because the log
-// output does not show the tracking state.
-func isRemoteBookmarkTracked(listing []jj.Bookmark, name string, remote string) bool {
+// isRemoteTracked reads a `jj bookmark list` or `jj tag list` listing because
+// the log output does not show the tracking state.
+func isRemoteTracked(listing []jj.Bookmark, name string, remote string) bool {
 	for _, b := range listing {
 		if b.Name != name {
 			continue

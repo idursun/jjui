@@ -148,6 +148,8 @@ bindings = [
     { key = "/", action = "revisions.details.filter", scope = "revisions.change_id", desc = "filter files" },
     { key = "esc", action = "revisions.object_node", scope = "revisions.change_id", desc = "close details" },
     { key = "x", action = "revisions.tag.delete", scope = "revisions.tag", desc = "delete" },
+    { key = "t", action = "revisions.tag.track", scope = "revisions.tag", desc = "track" },
+    { key = "shift+t", action = "revisions.tag.untrack", scope = "revisions.tag", desc = "untrack" },
     { key = "shift+g", action = "revisions.tag.push", scope = "revisions.tag", desc = "push" },
     { key = "s", action = "revisions.workspace.switch", scope = "revisions.workspace", desc = "switch" },
     { key = "r", action = "revisions.workspace.rename", scope = "revisions.workspace", desc = "rename" },

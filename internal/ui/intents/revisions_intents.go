@@ -268,6 +268,8 @@ func (FocusedBookmarkMove) isIntent() {}
 
 //jjui:bind scope=revisions.bookmark action=track set=Track:true when="revisions.can_track_bookmark"
 //jjui:bind scope=revisions.bookmark action=untrack set=Track:false when="revisions.can_untrack_bookmark"
+//jjui:bind scope=revisions.tag action=track set=Track:true when="revisions.can_track_tag"
+//jjui:bind scope=revisions.tag action=untrack set=Track:false when="revisions.can_untrack_tag"
 type FocusedBookmarkTrack struct {
 	Track bool
 }

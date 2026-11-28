@@ -27,13 +27,13 @@
 ---@field conflicted? boolean True for a conflicted bookmark
 ---@field change_id? string Change ID of the revision the object is on
 ---@field commit_id? string Commit ID of the revision the object is on
----@field remotes? jjui.context.bookmark_remote[] Remotes of a bookmark; nil until the tracking state is loaded
+---@field remotes? jjui.context.bookmark_remote[] Remotes of a bookmark or tag; nil until the tracking state is loaded
 ---@field all? boolean True for the remotes line entry that shows all remotes
 ---@field local_only? boolean True for the remotes line entry that shows only local bookmarks
 
 ---@class jjui.context.bookmark_remote
 ---@field name string Remote name
----@field tracked boolean Whether the local bookmark tracks this remote
+---@field tracked boolean Whether the local bookmark or tag tracks this remote
 
 
 ---Run a jj command asynchronously (yields, resumes after completion)
@@ -280,6 +280,7 @@ function wait_refresh() end
 ---@field set_parents jjui.revisions.set_parents
 ---@field set_tag jjui.revisions.set_tag
 ---@field squash jjui.revisions.squash
+---@field tag jjui.revisions.tag
 ---@field target_picker jjui.revisions.target_picker
 ---@field workspace jjui.revisions.workspace
 ---@field ace_jump fun()
@@ -523,6 +524,10 @@ function wait_refresh() end
 ---@field target_picker fun()
 ---@field use_destination_msg fun()
 ---@field close fun()
+
+---@class jjui.revisions.tag
+---@field track fun()
+---@field untrack fun()
 
 ---@class jjui.revisions.target_picker
 ---@field apply fun(args: {force?: boolean})

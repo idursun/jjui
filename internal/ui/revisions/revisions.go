@@ -85,7 +85,7 @@ type Model struct {
 	focusedObjectIndex int
 	// trackingState lets bindings offer only the applicable track action; nil
 	// until the first listing arrives.
-	trackingState *bookmarkTrackingState
+	trackingState *refTrackingState
 }
 
 type revisionReloadState struct {
@@ -242,9 +242,13 @@ func (m *Model) QueryState(name string) (any, bool) {
 	case "has_workspace":
 		return selected != nil && (selected.HasWorkspace || selected.IsWorkingCopy), true
 	case "can_track_bookmark":
-		return m.canChangeBookmarkTracking(true), true
+		return m.canChangeTracking(textObjectBookmark, true), true
 	case "can_untrack_bookmark":
-		return m.canChangeBookmarkTracking(false), true
+		return m.canChangeTracking(textObjectBookmark, false), true
+	case "can_track_tag":
+		return m.canChangeTracking(textObjectTag, true), true
+	case "can_untrack_tag":
+		return m.canChangeTracking(textObjectTag, false), true
 	}
 
 	module, property, ok := strings.Cut(name, ".")
@@ -449,8 +453,8 @@ func (m *Model) Selection() common.SelectionSnapshot {
 				if obj := m.focusedTextObject(); obj != nil {
 					selected.ObjectKind, selected.ObjectValue = previewObject(obj)
 					selected.ObjectText, selected.ObjectRemote, selected.ObjectConflicted = obj.Value, obj.Remote, obj.Conflicted
-					if obj.Kind == textObjectBookmark {
-						selected.ObjectRemotes = m.bookmarkRemotes(obj.Value)
+					if obj.Kind == textObjectBookmark || obj.Kind == textObjectTag {
+						selected.ObjectRemotes = m.refRemotes(obj.Kind, obj.Value)
 					}
 				}
 			}
@@ -503,7 +507,7 @@ func (m *Model) checkedTargetCommits() []*jj.Commit {
 			loaded[row.Commit.CommitId] = row.Commit
 		}
 	}
-	bookmarks := m.checkedBookmarkRows()
+	refs := m.checkedRefRows()
 	var commits []*jj.Commit
 	add := func(commit *jj.Commit) {
 		if commit != nil && !slices.ContainsFunc(commits, func(c *jj.Commit) bool { return c.CommitId == commit.CommitId }) {
@@ -514,12 +518,12 @@ func (m *Model) checkedTargetCommits() []*jj.Commit {
 		if object.kind == textObjectFile {
 			continue
 		}
-		if object.kind != textObjectBookmark {
+		if object.kind != textObjectBookmark && object.kind != textObjectTag {
 			add(loaded[object.commitId])
 			continue
 		}
-		for _, bookmark := range bookmarks[object] {
-			add(bookmark.commit)
+		for _, ref := range refs[object] {
+			add(ref.commit)
 		}
 	}
 	return commits
@@ -535,13 +539,14 @@ func (m *Model) checkedRevisionItems() []common.SelectedItem {
 }
 
 // checkedObjectItems describes the checked objects in the order they were
-// checked. A bookmark is listed once per loaded row it sits on.
+// checked. A bookmark or tag is listed once per loaded row it sits on.
 func (m *Model) checkedObjectItems() []common.SelectedRevision {
 	var items []common.SelectedRevision
 	for _, object := range m.checked {
 		item := common.SelectedRevision{ChangeId: object.changeId, CommitId: object.commitId, ObjectKind: object.kind, ObjectText: object.name, ObjectRemote: object.remote}
-		if object.kind == textObjectBookmark {
-			item.ObjectRemotes = m.bookmarkRemotes(object.name)
+		isRef := object.kind == textObjectBookmark || object.kind == textObjectTag
+		if isRef {
+			item.ObjectRemotes = m.refRemotes(object.kind, object.name)
 		}
 		found := false
 		for _, row := range m.rows {
@@ -553,9 +558,9 @@ func (m *Model) checkedObjectItems() []common.SelectedRevision {
 				if commit.GetChangeId() != object.changeId {
 					continue
 				}
-			case object.kind == textObjectBookmark:
-				if !commit.HasBookmarks || !slices.ContainsFunc(textObjectsForRow(row), func(o textObject) bool {
-					return o.Kind == textObjectBookmark && o.Value == object.name && o.Remote == object.remote
+			case isRef:
+				if object.kind == textObjectBookmark && !commit.HasBookmarks || !slices.ContainsFunc(textObjectsForRow(row), func(o textObject) bool {
+					return o.Kind == object.kind && o.Value == object.name && o.Remote == object.remote
 				}) {
 					continue
 				}
@@ -572,7 +577,7 @@ func (m *Model) checkedObjectItems() []common.SelectedRevision {
 			item.ChangeId, item.CommitId = commit.GetChangeId(), commit.CommitId
 			items = append(items, item)
 			found = true
-			if object.kind != textObjectBookmark {
+			if !isRef {
 				break
 			}
 		}
@@ -718,7 +723,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case common.UpdateRevisionsFailedMsg:
 		m.isLoading = false
 		return nil
-	case bookmarkTrackingStateMsg:
+	case refTrackingStateMsg:
 		if msg.tag == m.tag.Load() {
 			m.trackingState = msg.state
 		}
@@ -1050,7 +1055,11 @@ func (m *Model) HandleIntent(intent intents.Intent) (tea.Cmd, bool) {
 	case intents.FocusedBookmarkMove:
 		return m.moveBookmarks(), true
 	case intents.FocusedBookmarkTrack:
-		return m.trackBookmarks(intent.Track), true
+		obj := m.focusedTextObject()
+		if obj == nil || obj.Kind != textObjectBookmark && obj.Kind != textObjectTag {
+			return nil, true
+		}
+		return m.trackRefs(obj.Kind, intent.Track), true
 	case intents.GoToTop:
 		return m.goToTop(), true
 	case intents.GoToBottom:

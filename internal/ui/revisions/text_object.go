@@ -59,8 +59,9 @@ func checkedFile(changeId, path string) checkedObject {
 	return checkedObject{kind: textObjectFile, changeId: changeId, name: path}
 }
 
-func checkedBookmark(name, remote string) checkedObject {
-	return checkedObject{kind: textObjectBookmark, name: name, remote: remote}
+// checkedRef identifies a bookmark or a tag.
+func checkedRef(kind, name, remote string) checkedObject {
+	return checkedObject{kind: kind, name: name, remote: remote}
 }
 
 // checkedObjectFor returns the identity under which o is painted as checked.
@@ -68,8 +69,8 @@ func checkedObjectFor(o textObject, commit *jj.Commit) (checkedObject, bool) {
 	switch o.Kind {
 	case textObjectNode, textObjectChangeId:
 		return checkedRevision(commit), true
-	case textObjectBookmark:
-		return checkedBookmark(o.Value, o.Remote), true
+	case textObjectBookmark, textObjectTag:
+		return checkedRef(o.Kind, o.Value, o.Remote), true
 	case textObjectDescription, textObjectAuthor, textObjectTimestamp:
 		return checkedObject{kind: o.Kind, commitId: commit.CommitId}, true
 	}

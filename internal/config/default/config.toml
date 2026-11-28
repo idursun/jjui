@@ -231,16 +231,40 @@ lua = """
 
 [[actions]]
 name = "revisions.tag.push"
-lua = """
- local tag = context.object()
- local args = { "git", "push", "--tag", exact(tag.value) }
- if tag.remote then
-   table.insert(args, "--remote")
-   table.insert(args, tag.remote)
+lua = '''
+ local targets, seen = {}, {}
+ for _, object in ipairs(context.checked_objects()) do
+   local key = object.kind == "tag" and object.change_id and object.value .. "\n" .. (object.remote or "")
+   if key and not seen[key] then
+     seen[key] = true
+     table.insert(targets, object)
+   end
  end
- jj_async(args)
+ if #targets == 0 then
+   targets = { context.object() }
+ end
+
+ -- One push per remote, since a push takes a single remote. A local tag goes
+ -- to jj's default push remote.
+ local remotes, commands = {}, {}
+ for _, target in ipairs(targets) do
+   local remote = target.remote or ""
+   if not commands[remote] then
+     commands[remote] = { "git", "push" }
+     table.insert(remotes, remote)
+   end
+   table.insert(commands[remote], "--tag")
+   table.insert(commands[remote], exact(target.value))
+ end
+ for _, remote in ipairs(remotes) do
+   if remote ~= "" then
+     table.insert(commands[remote], "--remote")
+     table.insert(commands[remote], remote)
+   end
+   jj_async(commands[remote])
+ end
  jjui.builtin.revisions.refresh()
- """
+ '''
 
 [[actions]]
 name = "revisions.divergent.abandon"
